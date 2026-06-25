@@ -1,0 +1,419 @@
+{
+  "nivel": "Secundaria",
+  "ciclo": "Primer Ciclo",
+  "version": "2016",
+  "fuente": "MINERD - Diseño Curricular de Secundaria (Área de Lenguas Extranjeras)",
+  "grado": "3ro",
+  "area": "Lenguas Extranjeras",
+  "asignatura": "Inglés",
+  "nivelDominio": "A2+",
+  "competenciasFundamentales": [
+    "Comunicativa",
+    "Pensamiento Lógico, Creativo y Crítico",
+    "Resolución de Problemas",
+    "Ética y Ciudadana",
+    "Científica y Tecnológica",
+    "Ambiental y de la Salud",
+    "Desarrollo Personal y Espiritual"
+  ],
+  "temasCurriculares": [
+    "Relaciones humanas y sociales",
+    "Actividades de la vida diaria",
+    "Vivienda, entorno y ciudad",
+    "Escuela y educación",
+    "Deporte, tiempo libre y recreación",
+    "Alimentación",
+    "Salud y cuidados físicos",
+    "Ciencia y tecnología",
+    "Lengua y comunicación",
+    "Clima, condiciones atmosféricas y medio ambiente",
+    "Bienes y servicios",
+    "Actividades sociales y culturales",
+    "Viajes y turismo",
+    "Medio ambiente y problemáticas sociales"
+  ],
+  "criteriosCombinacionTematica": [
+    {
+      "nombre": "Narración y vida cotidiana",
+      "temas": [
+        "Relaciones humanas y sociales",
+        "Actividades de la vida diaria",
+        "Escuela y educación"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Los tres temas permiten integrar el pasado continuo y simple para narrar historias, el presente perfecto para dar noticias y comparar el pasado con el presente. Vocabulario de relaciones humanas, vida escolar y rutinas facilita una progresión natural."
+    },
+    {
+      "nombre": "Entorno, ambiente y salud",
+      "temas": [
+        "Vivienda, entorno y ciudad",
+        "Clima, condiciones atmosféricas y medio ambiente",
+        "Salud y cuidados físicos",
+        "Medio ambiente y problemáticas sociales"
+      ],
+      "duracionSugerida": "6-7 semanas",
+      "razon": "Los temas del entorno físico, el clima, la salud y las problemáticas ambientales se conectan para trabajar la voz pasiva, expresiones de prohibición y advertencia, y el vocabulario de problemas sociales como contaminación y reciclaje."
+    },
+    {
+      "nombre": "Predicción, tecnología y comunicación",
+      "temas": [
+        "Ciencia y tecnología",
+        "Lengua y comunicación",
+        "Deporte, tiempo libre y recreación"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "La tecnología, la comunicación y el tiempo libre permiten integrar will/be going to para predicciones e inferencias, el condicional tipo 1 y vocabulario de medios de comunicación, tecnología y deportes."
+    },
+    {
+      "nombre": "Cultura, servicios y mundo global",
+      "temas": [
+        "Alimentación",
+        "Bienes y servicios",
+        "Actividades sociales y culturales",
+        "Viajes y turismo"
+      ],
+      "duracionSugerida": "6-7 semanas",
+      "razon": "Unidad integradora de cierre del año que sintetiza las estructuras del ciclo. Los temas de gastronomía, servicios, cultura y viajes permiten usar la voz pasiva para narrar hechos históricos y culturales, y las cláusulas relativas para enriquecer las descripciones."
+    }
+  ],
+  "contenidosGenerales": {
+    "conceptuales": [
+      "Presente perfecto para dar noticias y anuncios: Have you ever been to...? She has just graduated.",
+      "Pasado continuo + pasado simple para narrar historias: Rosa arrived when they were leaving.",
+      "Pasado simple + presente simple para comparar el pasado con el presente",
+      "Will y be going to para hacer inferencias y predicciones",
+      "There + be para indicar ubicación, hacer anuncios y dar noticias",
+      "Imperativo para dar indicaciones y hacer prohibiciones",
+      "Let's para ofrecer sugerencias",
+      "Why don't / why not para hacer sugerencias",
+      "Can, should, must, may, might, have to, need to para expresar habilidad, obligación, permiso e inferencia",
+      "Cláusulas adjetivas y sustantivas: That's the school where I studied. I believe that soccer is interesting.",
+      "Condicional tipo 1 para predicciones: If you miss more classes, you will fail.",
+      "Question tags",
+      "Voz pasiva del pasado para narrar historias: The island was discovered in 1492.",
+      "Voz pasiva del presente y del pasado para solicitar y ofrecer explicaciones",
+      "Me too; Me neither; So did I; Neither do I para coincidir y discrepar",
+      "Oraciones exclamativas: What great news! How wonderful!",
+      "Sustantivos abstractos: love, happiness, freedom",
+      "Gerundio como sujeto: Smoking can cause cancer.",
+      "Ausencia del artículo definido: Water pollution is a big issue.",
+      "Adjetivos comparativos y superlativos",
+      "Participio presente y pasado como adjetivos",
+      "Pronombres interrogativos, objeto, reflexivos y relativos (that, who, which, whose)",
+      "Adverbios y frases adverbiales de tiempo, duración, modo, intensidad, grado y certeza",
+      "Preposiciones de tiempo (in, on, at) y lugar",
+      "Conectores de coordinación, tiempo, secuencia, causa/consecuencia, finalidad, contraste y concesión",
+      "Vocabulario temático: deportes, vida escolar, estados de ánimo, lugares",
+      "Vocabulario temático: medioambiente (pollution, global warming, recycling), medios de comunicación",
+      "Vocabulario temático: problemáticas sociales (unemployment, violence), tecnología (phablet, projector)",
+      "Vocabulario temático: recetas de cocina, relaciones humanas, señales de tránsito",
+      "Expresiones de opinión: I believe, I think, I guess, Maybe",
+      "Expresiones de acuerdo/desacuerdo: I agree, I disagree",
+      "Expresiones de reacción: Are you serious? That's awful! Good for you!",
+      "Expresiones para solicitar explicaciones: What happened? How come? What's wrong?",
+      "Advertencias: Watch out! Warning! Be careful!"
+    ],
+    "procedimentales": [
+      "Dar explicaciones y motivos",
+      "Opinar de forma oral y escrita",
+      "Sugerir, hacer prohibiciones y advertencias",
+      "Dar instrucciones paso a paso",
+      "Dar noticias e informaciones relevantes",
+      "Narrar hechos e historias pasadas",
+      "Hacer inferencias y predicciones",
+      "Comparar el pasado con el presente",
+      "Comprensión de textos orales y escritos con información compleja",
+      "Producción de textos orales: conversaciones, monólogos, narraciones, noticias y descripciones",
+      "Producción de textos escritos: mensajes, correos, narraciones, descripciones y cuestionarios",
+      "Comprensión de textos escritos usando estrategias: establecer propósito, formular hipótesis, identificar correspondencia grafía-sonido",
+      "Planificación, organización y revisión del texto producido",
+      "Uso de estrategias de desempeño (estratégicos): asociaciones mentales, automotivación, uso de la acción",
+      "Búsqueda de oportunidades de uso de la lengua fuera del aula"
+    ],
+    "actitudinales": [
+      "Motivación para aprender inglés",
+      "Escucha atenta de las intervenciones de las demás personas",
+      "Valoración de la diversidad cultural entre la RD y otros países",
+      "Respeto por las costumbres, leyendas y tradiciones locales e internacionales",
+      "Conciencia crítica ante las problemáticas sociales y ambientales",
+      "Colaboración y trabajo en equipo",
+      "Automotivación y control del nivel de ansiedad lingüística",
+      "Uso responsable de las tecnologías de comunicación",
+      "Cuidado del medioambiente y de los recursos naturales",
+      "Cortesía y respeto al interactuar en inglés"
+    ]
+  },
+  "orientacionesMetodologicas": [
+    "Usar proyectos de aula para integrar todas las habilidades: un proyecto de investigación sobre un problema social que termine en una presentación oral y un informe escrito.",
+    "Trabajar la narrativa oral y escrita usando el storytelling: cuentos, leyendas dominicanas traducidas o adaptadas al inglés.",
+    "Incorporar debates y discusiones guiadas sobre temas de interés: medioambiente, tecnología, tradiciones, para desarrollar el pensamiento crítico en inglés.",
+    "Usar la voz pasiva en contextos reales: noticias, reseñas históricas, recetas de cocina, instrucciones de productos.",
+    "Integrar el uso de medios de comunicación auténticos en inglés: noticias, podcasts y videos cortos adaptados al nivel A2+.",
+    "Fomentar la automonitorización: el estudiante identifica sus propios errores y busca estrategias para mejorar.",
+    "Establecer conexiones entre el inglés y otras materias del currículo (Ciencias, Historia, Educación Física) para motivar el aprendizaje interdisciplinario.",
+    "Desarrollar la conciencia sociocultural comparando aspectos de la RD con los de países anglófonos: señales de advertencia, tradiciones, problemas sociales."
+  ],
+  "posiblesProductosFinales": [
+    "Noticia oral o escrita sobre un evento reciente real o ficticio",
+    "Narración de una leyenda o cuento dominicano adaptado al inglés",
+    "Debate o panel de discusión sobre un problema social o ambiental",
+    "Receta de cocina con instrucciones paso a paso (imperativo)",
+    "Informe comparativo: un aspecto de la RD vs. un país anglófono (Past vs. Present)",
+    "Podcast o grabación de audio con noticias del entorno escolar",
+    "Presentación oral sobre una problemática social o ambiental con soluciones propuestas",
+    "Video de advertencias y consejos sobre seguridad vial o medioambiental",
+    "Cuadro comparativo (pasado vs. presente) sobre un tema de la comunidad o del mundo",
+    "Guía turística de una región de la República Dominicana con información histórica y cultural"
+  ],
+  "competencias": [
+    {
+      "id": "CE-ING-3-COM",
+      "competenciaFundamental": "Comunicativa",
+      "descripcion": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicación concretas sobre temas cotidianos, utilizando el idioma inglés para explicar, sugerir, hacer prohibiciones y advertencias, dar instrucciones, dar noticias, secuenciar eventos, inferir, predecir y comparar.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-3-COM-1",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha y lectura de textos breves y sencillos cuya finalidad es dar explicaciones, opinar, sugerir, hacer prohibiciones y advertencias, dar instrucciones, dar noticias, narrar, inferir, predecir y comparar el pasado con el presente, siempre que se le hable de forma pausada y clara."
+        },
+        {
+          "id": "IL-ING-3-COM-2",
+          "descripcion": "Produce una serie de frases y oraciones enlazadas por conectores sencillos, aunque con pausas y reformulaciones en lo oral y algunos errores básicos en lo escrito, con la intención de dar explicaciones, opinar, sugerir, hacer prohibiciones y advertencias, dar instrucciones, dar noticias, narrar, inferir, predecir y comparar el pasado con el presente."
+        },
+        {
+          "id": "IL-ING-3-COM-3",
+          "descripcion": "Interactúa oralmente y por escrito de forma breve y sencilla, con una creciente cantidad de vocabulario variado, contenido en una serie de frases y oraciones sencillas enlazadas con conectores, en situaciones de comunicación donde debe dar explicaciones, opinar, sugerir, hacer prohibiciones y advertencias, dar instrucciones, dar noticias, narrar, inferir, predecir y comparar el pasado con el presente."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Presente perfecto para dar noticias",
+          "Pasado continuo + simple para narrar",
+          "Will/be going to para predicciones",
+          "Conectores de secuencia, contraste y concesión"
+        ],
+        "procedimentales": [
+          "Dar noticias y explicaciones",
+          "Narrar eventos pasados con secuencia lógica",
+          "Hacer predicciones e inferencias"
+        ],
+        "actitudinales": [
+          "Motivación para comunicarse con precisión en inglés",
+          "Valoración de la comunicación como herramienta de expresión"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-3-PL",
+      "competenciaFundamental": "Pensamiento Lógico, Creativo y Crítico",
+      "descripcion": "Se comunica en el idioma inglés breve y sencillo en forma oral y escrita, mediante el razonamiento y la reflexión lógico-verbal con el propósito de estructurar mensajes coherentes que presenta de una forma creativa, ejerciendo su pensamiento analítico.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-3-PL-1",
+          "descripcion": "Responde de forma adecuada a preguntas, indicaciones y sus propios análisis, a partir de la escucha o lectura de textos breves y sencillos referentes a temas que le son familiares."
+        },
+        {
+          "id": "IL-ING-3-PL-2",
+          "descripcion": "Presenta información, ideas, análisis y puntos de vista sobre su contexto inmediato y situaciones cotidianas de forma creativa y crítica, en textos breves y sencillos que produce con la estructura lógico-verbal adecuada al contenido, el tipo de texto y la situación."
+        },
+        {
+          "id": "IL-ING-3-PL-3",
+          "descripcion": "Interactúa en forma oral o escrita a través de una serie de oraciones breves y sencillas secuenciadas de una forma lógica y presentadas de forma creativa en diferentes tipos de interacciones donde comparte información y puntos de vista sobre sí mismo y otros, su entorno cotidiano y temas que le son familiares."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Cláusulas adjetivas (relative clauses): who, which, that, whose",
+          "Expresiones de opinión: I believe, I think, I guess",
+          "Expresiones de acuerdo y desacuerdo",
+          "Conectores de contraste y concesión: although, however, nevertheless"
+        ],
+        "procedimentales": [
+          "Presentar puntos de vista con argumentos lógicos",
+          "Analizar y evaluar información de textos",
+          "Producir textos con estructura lógica coherente y creativa"
+        ],
+        "actitudinales": [
+          "Pensamiento analítico y crítico",
+          "Creatividad en la presentación de ideas"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-3-RP",
+      "competenciaFundamental": "Resolución de Problemas",
+      "descripcion": "Interactúa en inglés con el propósito de expresar opiniones, explicaciones y predicciones, así como dar sugerencias, indicaciones e instrucciones ante diversas circunstancias de su entorno inmediato, empleando estrategias de desempeño oral y escrito que permiten comprenderse con escucha y lectura atenta de su interlocutor.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-3-RP-1",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones sobre situaciones y problemas de su entorno inmediato, a partir de textos orales y escritos breves donde se comparte información y puntos de vista detallados sobre los mismos."
+        },
+        {
+          "id": "IL-ING-3-RP-2",
+          "descripcion": "Se expresa mediante textos orales y escritos para describir con suficiente nivel de detalle, problemas inmediatos propios, de otras personas y del entorno cotidiano, así como para presentar información y puntos de vista pertinentes frente a la situación planteada."
+        },
+        {
+          "id": "IL-ING-3-RP-3",
+          "descripcion": "Interactúa de forma oral y escrita para solicitar o proveer información y puntos de vista con suficiente detalle sobre situaciones y problemas relativos a actividades cotidianas y de su entorno inmediato, utilizando frases y oraciones breves."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Modales para sugerencias y obligación: should, must, have to, need to",
+          "Imperativo para instrucciones y advertencias",
+          "Condicional tipo 1 para condiciones y consecuencias"
+        ],
+        "procedimentales": [
+          "Dar instrucciones detalladas en inglés",
+          "Expresar advertencias y prohibiciones",
+          "Proponer soluciones con argumentos pertinentes"
+        ],
+        "actitudinales": [
+          "Disposición para resolver problemas comunicativos",
+          "Perseverancia y creatividad ante dificultades"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-3-EC",
+      "competenciaFundamental": "Ética y Ciudadana",
+      "descripcion": "Se comunica de forma oral y escrita en el idioma inglés, participando con cortesía y respeto en intercambios sencillos, valorando las diferencias individuales y la identidad social y cultural básicas, propias de la cultura local y global.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-3-EC-1",
+          "descripcion": "Interactúa de forma directa y sencilla en el idioma inglés, con cortesía y respeto."
+        },
+        {
+          "id": "IL-ING-3-EC-2",
+          "descripcion": "Compara las diferencias individuales y la identidad social y cultural propia y de otros países, relativas a señales de advertencia, cuidado del medioambiente, leyendas y tradiciones."
+        },
+        {
+          "id": "IL-ING-3-EC-3",
+          "descripcion": "Expresa explicaciones y motivos ante situaciones que no le permiten participar de su labor, empleando frases y oraciones sencillas."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Vocabulario de señales de advertencia y prohibición en inglés",
+          "Vocabulario de leyendas, tradiciones y valores culturales",
+          "Expresiones para excusarse y explicar situaciones"
+        ],
+        "procedimentales": [
+          "Comparar aspectos de la cultura dominicana con culturas anglófonas",
+          "Expresar excusas y motivos con cortesía",
+          "Participar con respeto en debates e intercambios de opiniones"
+        ],
+        "actitudinales": [
+          "Valoración de la diversidad cultural",
+          "Cortesía y respeto en la comunicación intercultural"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-3-CT",
+      "competenciaFundamental": "Científica y Tecnológica",
+      "descripcion": "Interactúa en el idioma inglés con el propósito de solicitar y ofrecer explicaciones, opinar, dar instrucciones y dar noticias sobre asuntos científicos, tecnológicos y de otra índole, en distintas situaciones de comunicación.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-3-CT-1",
+          "descripcion": "Localiza y sistematiza información a partir de la lectura o escucha de información contenida en temas científicos y tecnológicos relativos a su entorno inmediato, siempre que traten temas que le son familiares."
+        },
+        {
+          "id": "IL-ING-3-CT-2",
+          "descripcion": "Expresa ideas e información y puntos de vista sobre temas científicos, tecnológicos y de otra índole, de forma presencial o virtual, utilizando vocabulario de uso común y oraciones orales o escritas."
+        },
+        {
+          "id": "IL-ING-3-CT-3",
+          "descripcion": "Interactúa en forma oral o escrita con el propósito de compartir información sobre temas científicos, tecnológicos y de otra índole, de forma presencial o virtual, utilizando vocabulario de uso común."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Vocabulario de tecnología: phablet, projector, social media, app, download",
+          "Voz pasiva para explicar descubrimientos científicos y tecnológicos",
+          "Vocabulario de problemáticas sociales: unemployment, violence, pollution, global warming"
+        ],
+        "procedimentales": [
+          "Localizar y sistematizar información científica y tecnológica en inglés",
+          "Dar noticias e informaciones sobre avances tecnológicos",
+          "Compartir información de forma presencial y virtual"
+        ],
+        "actitudinales": [
+          "Uso responsable de la tecnología",
+          "Interés crítico por los temas científicos y tecnológicos"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-3-AS",
+      "competenciaFundamental": "Ambiental y de la Salud",
+      "descripcion": "Muestra inclinación por estilos de vida saludables y cuidado del medio ambiente al interactuar en distintas situaciones de comunicación en el idioma inglés, donde se intercambia información sobre indicaciones, prohibiciones, advertencias, opiniones y sugerencias.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-3-AS-1",
+          "descripcion": "Reconoce las orientaciones relativas a mantener estilos de vida saludables y cuidado del medioambiente, a partir de la información contenida en textos orales y escritos compuestos."
+        },
+        {
+          "id": "IL-ING-3-AS-2",
+          "descripcion": "Ofrece información y puntos de vista sobre estilos de vida saludables y cuidado del medio ambiente tanto en forma oral como escrita, utilizando frases y oraciones breves y sencillas."
+        },
+        {
+          "id": "IL-ING-3-AS-3",
+          "descripcion": "Interactúa en forma oral o escrita en situaciones donde se brinda información y puntos de vista relativos a estilos de vida saludables y cuidado del medioambiente, usando el vocabulario indicado."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Vocabulario del medioambiente: pollution, global warming, recycling, renewable energy, biodiversity",
+          "Gerundio como sujeto: Smoking can cause cancer. Recycling helps the planet.",
+          "Must/can't para prohibiciones relacionadas con la salud y el ambiente"
+        ],
+        "procedimentales": [
+          "Dar opiniones sobre estilos de vida saludables y problemas ambientales",
+          "Dar advertencias y prohibiciones relacionadas con la salud",
+          "Proponer y defender acciones para cuidar el medioambiente"
+        ],
+        "actitudinales": [
+          "Compromiso con el cuidado del medioambiente",
+          "Conciencia sobre problemas ambientales globales",
+          "Valoración de estilos de vida saludables"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-3-DP",
+      "competenciaFundamental": "Desarrollo Personal y Espiritual",
+      "descripcion": "Se comunica en el idioma inglés, con cortesía, honestidad, actitud de respeto y aceptación al compartir información y expresar puntos de vista sobre hechos e informaciones que le son conocidas y de su interés.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-3-DP-1",
+          "descripcion": "Se comunica con asertividad, respetando los puntos de vista que ofrecen las demás personas."
+        },
+        {
+          "id": "IL-ING-3-DP-2",
+          "descripcion": "Trabaja en equipo de forma colaborativa, mostrando empatía, actitud de escucha y colaboración en las tareas que se emprenden."
+        },
+        {
+          "id": "IL-ING-3-DP-3",
+          "descripcion": "Interactúa con cortesía y respeto ante informaciones y puntos de vista que expresan los demás."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Expresiones de acuerdo y desacuerdo respetuoso",
+          "Vocabulario de valores: collaboration, empathy, respect, responsibility",
+          "Expresiones para ceder la palabra y mostrar escucha activa"
+        ],
+        "procedimentales": [
+          "Trabajar en equipo de forma colaborativa en inglés",
+          "Expresar puntos de vista con asertividad y respeto",
+          "Escuchar activamente y responder con empatía"
+        ],
+        "actitudinales": [
+          "Colaboración y trabajo en equipo",
+          "Empatía y escucha activa",
+          "Asertividad y respeto ante diversidad de opiniones"
+        ]
+      }
+    }
+  ]
+}

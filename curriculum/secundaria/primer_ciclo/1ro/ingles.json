@@ -1,0 +1,435 @@
+{
+  "nivel": "Secundaria",
+  "ciclo": "Primer Ciclo",
+  "version": "2016",
+  "fuente": "MINERD - Diseño Curricular de Secundaria (Área de Lenguas Extranjeras)",
+  "grado": "1ro",
+  "area": "Lenguas Extranjeras",
+  "asignatura": "Inglés",
+  "nivelDominio": "A1",
+  "competenciasFundamentales": [
+    "Comunicativa",
+    "Pensamiento Lógico, Creativo y Crítico",
+    "Resolución de Problemas",
+    "Ética y Ciudadana",
+    "Científica y Tecnológica",
+    "Ambiental y de la Salud",
+    "Desarrollo Personal y Espiritual"
+  ],
+  "temasCurriculares": [
+    "Identificación personal",
+    "Relaciones humanas y sociales",
+    "Actividades de la vida diaria",
+    "Vivienda, entorno y ciudad",
+    "Escuela y educación",
+    "Deporte, tiempo libre y recreación",
+    "Alimentación",
+    "Salud y cuidados físicos",
+    "Lengua y comunicación",
+    "Ciencia y tecnología",
+    "Clima, condiciones atmosféricas y medio ambiente",
+    "Bienes y servicios",
+    "Actividades sociales y culturales",
+    "Viajes y turismo"
+  ],
+  "criteriosCombinacionTematica": [
+    {
+      "nombre": "Identidad y vida personal",
+      "temas": [
+        "Identificación personal",
+        "Relaciones humanas y sociales",
+        "Actividades de la vida diaria"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Los temas de identidad, relaciones y vida cotidiana comparten vocabulario básico de personas, rutinas y presentaciones. Permiten progresar de 'Hola, me llamo...' hasta narrar actividades diarias usando el presente simple y continuo de forma natural y coherente."
+    },
+    {
+      "nombre": "Mi entorno físico y el clima",
+      "temas": [
+        "Vivienda, entorno y ciudad",
+        "Clima, condiciones atmosféricas y medio ambiente"
+      ],
+      "duracionSugerida": "4-5 semanas",
+      "razon": "El hogar, la ciudad y el clima son temáticas complementarias que permiten trabajar preposiciones de lugar, vocabulario de espacios y expresiones del tiempo atmosférico usando there + be y el presente simple."
+    },
+    {
+      "nombre": "Salud y bienestar",
+      "temas": [
+        "Alimentación",
+        "Salud y cuidados físicos"
+      ],
+      "duracionSugerida": "4-5 semanas",
+      "razon": "La alimentación y la salud son temas íntimamente relacionados que se refuerzan mutuamente. Conectan con la competencia Ambiental y de la Salud y permiten trabajar vocabulario del cuerpo, alimentos y expresiones de hábitos con modales (can, should, have to)."
+    },
+    {
+      "nombre": "Aprendizaje y recreación",
+      "temas": [
+        "Escuela y educación",
+        "Deporte, tiempo libre y recreación"
+      ],
+      "duracionSugerida": "4-5 semanas",
+      "razon": "El contexto escolar y las actividades de tiempo libre representan la realidad cotidiana del estudiante. Facilitan el uso del presente simple para rutinas, el presente continuo para acciones en curso y el futuro para planes, integrando vocabulario de deportes, asignaturas y actividades recreativas."
+    },
+    {
+      "nombre": "Mundo global y servicios",
+      "temas": [
+        "Lengua y comunicación",
+        "Ciencia y tecnología",
+        "Bienes y servicios",
+        "Actividades sociales y culturales",
+        "Viajes y turismo"
+      ],
+      "duracionSugerida": "6-8 semanas",
+      "razon": "Bloque integrador de cierre del año escolar donde se sintetizan todas las estructuras aprendidas. Los temas de tecnología, servicios, cultura y viajes amplían el repertorio comunicativo del estudiante hacia el mundo global, incluyendo el presente perfecto básico, will/be going to y vocabulario de medios de comunicación, transportes y tradiciones culturales."
+    }
+  ],
+  "contenidosGenerales": {
+    "conceptuales": [
+      "Presente simple (afirmativo, negativo, interrogativo) para hablar de rutinas y hechos habituales",
+      "Presente continuo para describir acciones en progreso y planes futuros inmediatos",
+      "Pasado simple con verbos regulares e irregulares básicos para narrar experiencias",
+      "Presente perfecto básico (have/has + participio pasado) para conectar pasado y presente",
+      "Will y be going to para expresar predicciones y planes futuros",
+      "Would para expresar deseos y condicional básico",
+      "Can, can't para expresar habilidad y prohibición",
+      "Have to, must para expresar obligación",
+      "There + be para indicar existencia y ubicación",
+      "Imperativo afirmativo y negativo para dar instrucciones y hacer prohibiciones",
+      "Let's para hacer sugerencias",
+      "Question tags básicos (isn't it? don't you?)",
+      "Possessive 's para expresar posesión",
+      "Artículos definidos (the) e indefinidos (a, an)",
+      "Adjetivos calificativos, comparativos (more/er + than) y superlativos (most/est)",
+      "Adjetivos posesivos (my, your, his, her, its, our, their)",
+      "Pronombres interrogativos (what, where, when, who, why, how)",
+      "Pronombres objeto (me, you, him, her, us, them)",
+      "Pronombres posesivos (mine, yours, his, hers, ours, theirs)",
+      "Preposiciones de tiempo: in (months/years/seasons), on (days/dates), at (times)",
+      "Preposiciones de lugar: in, on, at, next to, between, behind, in front of, opposite",
+      "Adverbios de frecuencia: always, usually, often, sometimes, rarely, never",
+      "Adverbios de tiempo: now, then, yesterday, today, tomorrow, soon, already",
+      "Adverbios de modo: slowly, quickly, well, badly",
+      "Adverbios de intensidad: very, quite, really, too",
+      "Conectores básicos: and, but, or, so, because, however",
+      "Vocabulario temático: colores, tiempo atmosférico, continentes, países, nacionalidades",
+      "Vocabulario temático: deportes, días de la semana, meses, estaciones del año",
+      "Vocabulario temático: fenómenos atmosféricos, formas geométricas, rasgos de la personalidad",
+      "Vocabulario temático: géneros musicales, idiomas, lugares en edificios, lugares en la comunidad",
+      "Vocabulario temático: medios de transporte, miembros de la familia, muebles del hogar y la oficina",
+      "Vocabulario temático: números cardinales y ordinales, ocupaciones, partes del cuerpo",
+      "Vocabulario temático: pertenencias personales, preparación de alimentos, puntos cardinales",
+      "Vocabulario temático: rasgos físicos, ropa y tallas, quehaceres del hogar, títulos personales (Mr., Mrs., Ms., Dr.)",
+      "Vocabulario temático: tecnología, viajes y turismo"
+    ],
+    "procedimentales": [
+      "Solicitar y ofrecer información personal",
+      "Expresar gustos y preferencias",
+      "Dar y pedir indicaciones e instrucciones",
+      "Dar y pedir información sobre actividades cotidianas",
+      "Describir a personas por su apariencia física y su forma de ser",
+      "Describir y comparar lugares y objetos",
+      "Dar y pedir información sobre las condiciones atmosféricas",
+      "Expresar opiniones de forma básica",
+      "Narrar experiencias personales, propias y de otras personas",
+      "Invitar, aceptar o rechazar invitaciones",
+      "Comprensión de textos orales: conversaciones, anuncios, canciones, noticias, descripciones, narraciones y pronósticos del tiempo",
+      "Comprensión de textos escritos: tarjetas de presentación, listas, mensajes, correos electrónicos, formularios, folletos, afiches, historietas, guías turísticas y narraciones",
+      "Producción de textos orales: conversaciones, descripciones, instrucciones y narraciones breves",
+      "Producción de textos escritos: mensajes, correos electrónicos, cartas, formularios, cuestionarios, narraciones, descripciones, afiches y letreros",
+      "Producción de audiovisuales sencillos",
+      "Anticipación del contenido de un mensaje a partir del contexto y elementos paratextuales",
+      "Inferencia del significado de palabras y expresiones desconocidas a partir del contexto",
+      "Uso de estrategias compensatorias (comodines, paráfrasis, lenguaje no verbal)",
+      "Uso de diccionario y otras herramientas de consulta"
+    ],
+    "actitudinales": [
+      "Motivación para aprender inglés como lengua de comunicación internacional",
+      "Cuidado del medioambiente en las actividades cotidianas",
+      "Práctica de hábitos saludables",
+      "Cumplimiento de las normas de seguridad",
+      "Respeto por las pertenencias de las demás personas",
+      "Cortesía, asertividad y respeto al interactuar con los y las demás",
+      "Conciencia de que el valor de las personas trasciende las posesiones materiales",
+      "Respeto por las diferencias relativas a género, edad, ocupación y nacionalidad de las personas",
+      "Reconocimiento de la equidad de género en el desempeño exitoso de las diferentes ocupaciones",
+      "Reconocimiento de que las personas discapacitadas pueden desempeñar su trabajo de forma exitosa",
+      "Respeto por el tiempo propio y el de las demás personas",
+      "Planificación de las actividades que lleva a cabo"
+    ]
+  },
+  "orientacionesMetodologicas": [
+    "Aplicar el Enfoque Comunicativo (CLT): centrar la enseñanza en el uso real del idioma en situaciones comunicativas auténticas, donde la fluidez tenga prioridad sobre la precisión gramatical.",
+    "Usar el Aprendizaje Basado en Tareas (TBL): los estudiantes realizan tareas comunicativas concretas que integran las cuatro habilidades (escuchar, hablar, leer, escribir) en un contexto real.",
+    "Emplear andamiaje pedagógico (scaffolding): proporcionar apoyo graduado—vocabulario, estructuras, modelos— hasta que el estudiante pueda producir de forma autónoma.",
+    "Fomentar el trabajo colaborativo en pares y grupos para simular situaciones de comunicación real y reducir la ansiedad ante el idioma.",
+    "Usar materiales auténticos adaptados al nivel A1: canciones populares, videos cortos, tarjetas postales, menús sencillos de restaurantes y etiquetas de productos.",
+    "Integrar las TIC de manera responsable: plataformas digitales para la exposición al idioma y la producción comunicativa, fomentando el uso juicioso.",
+    "Respetar la zona de desarrollo próximo del estudiante, transitando gradualmente del input comprensible (i+1) al output comunicativo.",
+    "Valorar el error como parte natural del proceso de adquisición de una lengua extranjera y brindar retroalimentación correctiva implícita y respetuosa.",
+    "Comparar aspectos culturales de la República Dominicana con los de otros países anglófonos para desarrollar conciencia intercultural."
+  ],
+  "posiblesProductosFinales": [
+    "Tarjeta de presentación personal en inglés (nombre, edad, familia, rutina diaria)",
+    "Mini-diálogo de presentaciones entre compañeros para ser actuado o grabado",
+    "Correo electrónico informal a un amigo imaginario de habla inglesa",
+    "Descripción oral o escrita de un familiar o amigo con rasgos físicos y de personalidad",
+    "Cartel sobre hábitos saludables con imágenes y texto en inglés",
+    "Pequeña guía turística del barrio o ciudad (folleto sencillo con lugares y descripción)",
+    "Historieta con diálogos en inglés sobre una situación cotidiana",
+    "Video corto de presentación personal (30-60 segundos) usando el vocabulario del grado",
+    "Blog o mural digital con entradas sobre los temas funcionales del grado",
+    "Presentación oral sobre una actividad cotidiana o deporte favorito"
+  ],
+  "competencias": [
+    {
+      "id": "CE-ING-1-COM",
+      "competenciaFundamental": "Comunicativa",
+      "descripcion": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicación orales y escritas relativas a necesidades concretas y temas cotidianos, utilizando el idioma inglés de forma breve y sencilla con la finalidad de presentarse, identificar personas, referirse a actividades cotidianas y ubicar objetos y lugares en el espacio.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-1-COM-1",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos claros, breves y sencillos, donde se describen el entorno inmediato, información personal propia y de otras personas, actividades cotidianas y preferencias personales."
+        },
+        {
+          "id": "IL-ING-1-COM-2",
+          "descripcion": "Se expresa en inglés mediante una serie de frases y oraciones breves y sencillas enlazadas por conectores comunes para compartir información, puntos de vista e ideas referentes al entorno próximo y actividades cotidianas, aunque con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito."
+        },
+        {
+          "id": "IL-ING-1-COM-3",
+          "descripcion": "Interactúa de forma oral y escrita utilizando una serie de frases y oraciones breves y sencillas y con diversidad de vocabulario básico referente a información personal, actividades cotidianas y el entorno inmediato, pero con suficiente claridad para ser comprendido con un poco de esfuerzo."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Presente simple para rutinas y hechos habituales",
+          "Presente continuo para acciones en progreso",
+          "Vocabulario de identificación personal, familia y actividades cotidianas",
+          "Conectores básicos: and, but, or, so"
+        ],
+        "procedimentales": [
+          "Solicitar y ofrecer información personal",
+          "Describir rutinas y actividades cotidianas",
+          "Producción de textos orales y escritos breves sobre el entorno próximo"
+        ],
+        "actitudinales": [
+          "Motivación para aprender inglés",
+          "Cortesía y respeto al interactuar"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-1-PL",
+      "competenciaFundamental": "Pensamiento Lógico, Creativo y Crítico",
+      "descripcion": "Interactúa en el idioma inglés, empleando estrategias de desempeño, el razonamiento lógico-verbal y la creatividad en distintas situaciones comunicativas sencillas donde se describe personas, objetos y lugares, se da información personal, se habla sobre las acciones cotidianas y se localiza objetos y personas en el espacio.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-1-PL-1",
+          "descripcion": "Responde a preguntas e indicaciones utilizando el pensamiento lógico verbal, creativo y crítico para comprender la información contenida en mensajes orales y escritos referentes a necesidades concretas y temas cotidianos."
+        },
+        {
+          "id": "IL-ING-1-PL-2",
+          "descripcion": "Se expresa en inglés a través de frases y oraciones con creatividad y mediante una estructura lógica básica, enlazadas por conectores comunes, con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito."
+        },
+        {
+          "id": "IL-ING-1-PL-3",
+          "descripcion": "Interactúa de forma oral y escrita siguiendo la lógica de la interacción y el contexto inmediato, expresándose mediante frases y oraciones breves y sencillas con creatividad y pensamiento reflexivo."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Adjetivos calificativos, comparativos y superlativos",
+          "Preposiciones de lugar para localizar personas y objetos",
+          "Pronombres interrogativos (what, where, when, who, why, how)"
+        ],
+        "procedimentales": [
+          "Describir y comparar personas, lugares y objetos",
+          "Aplicar estrategias de anticipación e inferencia de significado",
+          "Ordenar y secuenciar información de forma lógica"
+        ],
+        "actitudinales": [
+          "Reflexión crítica sobre los mensajes recibidos",
+          "Creatividad en la expresión comunicativa"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-1-RP",
+      "competenciaFundamental": "Resolución de Problemas",
+      "descripcion": "Se comunica en inglés oral y escrito de forma básica, pero comprensible, compartiendo información que responde a necesidades básicas de comunicación sobre temas cotidianos, usando estrategias de desempeño para lograr la claridad del mensaje.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-1-RP-1",
+          "descripcion": "Responde acorde a preguntas e indicaciones a partir de información sencilla contenida en textos orales o escritos sobre situaciones y problemas cotidianos o del entorno próximo."
+        },
+        {
+          "id": "IL-ING-1-RP-2",
+          "descripcion": "Se expresa de forma oral y escrita, utilizando expresiones breves y sencillas para describir de forma clara: ideas, elementos, personas y acciones relativas a problemas o situaciones de su entorno inmediato."
+        },
+        {
+          "id": "IL-ING-1-RP-3",
+          "descripcion": "Interactúa en intercambios comunicativos breves y sencillos, identificando problemas y situaciones variadas de sus actividades cotidianas y de su entorno inmediato, planteando opciones justas para enfrentar la situación, con expresiones breves y sencillas."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Modales can, can't, have to, should para expresar habilidad, obligación y sugerencias",
+          "Imperativo para dar instrucciones",
+          "Vocabulario de situaciones problemáticas del entorno inmediato"
+        ],
+        "procedimentales": [
+          "Identificar y describir situaciones problemáticas sencillas",
+          "Usar estrategias compensatorias (paráfrasis, comodines, lenguaje no verbal)",
+          "Proponer soluciones básicas en inglés"
+        ],
+        "actitudinales": [
+          "Disposición para resolver dificultades comunicativas",
+          "Perseverancia ante situaciones de comunicación difíciles"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-1-EC",
+      "competenciaFundamental": "Ética y Ciudadana",
+      "descripcion": "Se comunica en el idioma inglés, con cortesía, asertividad, actitud de respeto, honestidad y aceptación al referirse a sí mismo, a los demás y a las características del entorno en el que vive.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-1-EC-1",
+          "descripcion": "Participa de forma activa, con escucha atenta y respetuosa en las interacciones formativas e informativas que realiza, identificando aspectos de la identidad social y cultural propia y de otros países, con actitud de aceptación y asertividad."
+        },
+        {
+          "id": "IL-ING-1-EC-2",
+          "descripcion": "Expresa preferencias y puntos de vista de forma oral o escrita, con actitud y conducta respetuosa, cortés y asertiva, teniendo en cuenta las diferencias individuales y la cultura propia y de otras personas."
+        },
+        {
+          "id": "IL-ING-1-EC-3",
+          "descripcion": "Interactúa en un plano de cortesía, asertividad y respeto tomando en cuenta las diferencias individuales y la identidad social y cultural propia y de otras personas relativas a rasgos físicos, formas de interactuar, preferencias, puntualidad, celebraciones y clima."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Vocabulario de celebraciones, tradiciones y normas de cortesía",
+          "Vocabulario de nacionalidades y aspectos culturales",
+          "Expresiones de cortesía: please, thank you, excuse me, sorry"
+        ],
+        "procedimentales": [
+          "Identificar y valorar diferencias culturales entre la RD y países anglófonos",
+          "Participar con respeto y asertividad en intercambios comunicativos",
+          "Escuchar de forma activa y respetuosa"
+        ],
+        "actitudinales": [
+          "Respeto por las diferencias culturales, de género, edad y ocupación",
+          "Cortesía y asertividad en la comunicación",
+          "Reconocimiento de la equidad de género"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-1-CT",
+      "competenciaFundamental": "Científica y Tecnológica",
+      "descripcion": "Interactúa en el idioma inglés compartiendo información, ideas y opiniones sobre aspectos científicos y tecnológicos de su entorno inmediato en distintas situaciones cotidianas de comunicación.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-1-CT-1",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones a partir de la escucha o lectura de textos breves y de vocabulario y expresiones básicas y sencillas sobre asuntos científicos y tecnológicos compartidos de forma presencial o virtual."
+        },
+        {
+          "id": "IL-ING-1-CT-2",
+          "descripcion": "Identifica y describe aspectos científicos y tecnológicos relativos a sus actividades cotidianas y entorno inmediato, tales como anatomía de las personas y elementos tecnológicos y de la naturaleza utilizando frases y oraciones breves y sencillas orales y escritas."
+        },
+        {
+          "id": "IL-ING-1-CT-3",
+          "descripcion": "Interactúa en forma oral o escrita por diferentes medios físicos y electrónicos, para intercambiar información, ideas y opiniones sobre aspectos científicos y tecnológicos del entorno inmediato, actividades cotidianas y la descripción de las personas."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Vocabulario de tecnología: computer, phone, app, internet, send, download",
+          "Vocabulario del cuerpo humano y la naturaleza",
+          "Presente simple para describir hechos científicos básicos"
+        ],
+        "procedimentales": [
+          "Localizar y compartir información de carácter científico y tecnológico en inglés",
+          "Interactuar por medios físicos y electrónicos en inglés",
+          "Uso responsable de las TIC para comunicarse en inglés"
+        ],
+        "actitudinales": [
+          "Uso responsable y juicioso de las tecnologías de información",
+          "Interés por los avances científicos y tecnológicos"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-1-AS",
+      "competenciaFundamental": "Ambiental y de la Salud",
+      "descripcion": "Interactúa para compartir información personal, de su entorno inmediato y de actividades cotidianas, mostrando preferencia por aquellas que impactan positivamente la salud y el medioambiente.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-1-AS-1",
+          "descripcion": "Responde de forma favorable a la preservación del medio ambiente y la salud ante preguntas e indicaciones sobre información de las personas, el entorno y sus actividades cotidianas."
+        },
+        {
+          "id": "IL-ING-1-AS-2",
+          "descripcion": "Ofrece información, opiniones e instrucciones sobre acciones que impactan positivamente el medio ambiente y la salud."
+        },
+        {
+          "id": "IL-ING-1-AS-3",
+          "descripcion": "Interactúa para compartir información personal, de su entorno inmediato y de actividades cotidianas, mostrando preferencia por aquellas que impactan positivamente la salud y el medioambiente."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Vocabulario de alimentación saludable: vegetables, fruit, water, balanced diet",
+          "Vocabulario de hábitos saludables: exercise, sleep, hygiene",
+          "Vocabulario del medioambiente: recycle, pollution, nature, clean energy",
+          "Imperativo y should/shouldn't para dar consejos sobre salud y ambiente"
+        ],
+        "procedimentales": [
+          "Describir hábitos saludables en inglés",
+          "Dar instrucciones y consejos sobre el cuidado del medioambiente",
+          "Identificar y expresar preferencias por opciones saludables y ecológicas"
+        ],
+        "actitudinales": [
+          "Práctica de hábitos saludables",
+          "Cuidado del medioambiente y los recursos naturales",
+          "Valoración de la relación entre alimentación, actividad física y bienestar"
+        ]
+      }
+    },
+    {
+      "id": "CE-ING-1-DP",
+      "competenciaFundamental": "Desarrollo Personal y Espiritual",
+      "descripcion": "Se comunica en el idioma inglés, con cortesía, asertividad, actitud de respeto, honestidad y aceptación al expresarse sobre sí mismo y las demás personas en cuanto a preferencias, experiencias, características personales y actividades cotidianas.",
+      "indicadoresLogro": [
+        {
+          "id": "IL-ING-1-DP-1",
+          "descripcion": "Identifica respetuosamente a las personas por su apariencia y forma de ser, preferencias sobre actividades cotidianas y lugares, en un plano de cortesía, aceptación y asertividad ante sí mismo y los demás."
+        },
+        {
+          "id": "IL-ING-1-DP-2",
+          "descripcion": "Comparte información sobre su identidad personal y preferencias sobre lugares y actividades cotidianas con humildad, cortesía, asertividad y respeto."
+        },
+        {
+          "id": "IL-ING-1-DP-3",
+          "descripcion": "Interactúa con cortesía, asertividad y respeto, en intercambios orales y escritos de información, opiniones e instrucciones."
+        }
+      ],
+      "contenidos": {
+        "conceptuales": [
+          "Vocabulario de rasgos de la personalidad: kind, friendly, honest, responsible",
+          "Adjetivos de descripción física y emocional",
+          "Expresiones de preferencia: I like, I love, I prefer, My favorite..."
+        ],
+        "procedimentales": [
+          "Expresar preferencias, gustos y opiniones personales en inglés",
+          "Compartir información personal con respeto y asertividad",
+          "Escuchar y valorar las opiniones de los demás"
+        ],
+        "actitudinales": [
+          "Autoconocimiento y valoración de la identidad personal",
+          "Respeto por las diferencias individuales",
+          "Honestidad y humildad al compartir experiencias personales"
+        ]
+      }
+    }
+  ]
+}
