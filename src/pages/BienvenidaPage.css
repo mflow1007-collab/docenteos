@@ -1,0 +1,516 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   BienvenidaPage.css — DocenteOS
+   Pantalla de bienvenida y configuración institucional (primer acceso)
+════════════════════════════════════════════════════════════════════════════ */
+
+.bp-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+  background: linear-gradient(145deg, #0F172A 0%, #1E3A8A 40%, #2563EB 100%);
+  overflow: hidden;
+}
+
+/* ── Fondo decorativo ── */
+.bp-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bp-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.bp-bg-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+
+.bp-glow-1 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(96,165,250,0.22), transparent 70%);
+  top: -180px;
+  right: -140px;
+}
+
+.bp-glow-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(129,140,248,0.18), transparent 70%);
+  bottom: -120px;
+  left: -80px;
+}
+
+/* ── Tarjeta principal ── */
+.bp-card {
+  position: relative;
+  z-index: 1;
+  background: #ffffff;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 700px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.05),
+    0 4px 16px rgba(0,0,0,0.08),
+    0 24px 64px rgba(0,0,0,0.16),
+    0 50px 100px rgba(37,99,235,0.1);
+  animation: bp-card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes bp-card-in {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+/* Franja superior */
+.bp-stripe {
+  height: 4px;
+  background: linear-gradient(90deg, #2563EB 0%, #60A5FA 50%, #818CF8 100%);
+}
+
+.bp-card-body {
+  padding: 36px 44px 44px;
+}
+
+/* ── Encabezado (logo + marca) ── */
+.bp-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.bp-logo-wrap {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.bp-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 14px;
+}
+
+.bp-logo-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  background: linear-gradient(135deg, #2563EB, #60A5FA);
+  border-radius: 14px;
+}
+
+.bp-brand {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.bp-brand b {
+  color: #2563EB;
+}
+
+.bp-tagline {
+  font-size: 12.5px;
+  color: #64748B;
+  margin: 2px 0 0;
+}
+
+/* ── Sección bienvenida ── */
+.bp-welcome {
+  background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%);
+  border: 1px solid #BFDBFE;
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+}
+
+.bp-welcome-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1E40AF;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.bp-welcome-desc {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Formulario ── */
+.bp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.bp-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+/* Grid de campos */
+.bp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.bp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bp-field-full {
+  grid-column: 1 / -1;
+}
+
+/* ── Labels e inputs ── */
+.bp-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.bp-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #0F172A;
+  background: #F8FAFC;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  outline: none;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.bp-input:focus {
+  border-color: #2563EB;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.bp-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Flecha para selects */
+select.bp-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748B' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* ── Hints y placeholders de campo ── */
+.bp-field-hint {
+  margin: 2px 0 8px;
+  font-size: 12.5px;
+  color: #64748B;
+  line-height: 1.4;
+}
+
+.bp-field-placeholder {
+  font-size: 13px;
+  color: #94A3B8;
+  font-style: italic;
+  margin: 4px 0 0;
+}
+
+/* ── Checkboxes: Niveles del centro ── */
+.bp-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bp-checkbox-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  background: #F8FAFC;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+  user-select: none;
+}
+
+.bp-checkbox-card input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.bp-checkbox-check {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 5px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  background: #fff;
+}
+
+.bp-checkbox-card.checked .bp-checkbox-check {
+  background: #2563EB;
+  border-color: #2563EB;
+}
+
+.bp-checkbox-card.checked .bp-checkbox-check::after {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.bp-checkbox-card.checked {
+  border-color: #2563EB;
+  background: #EFF6FF;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.bp-checkbox-card.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bp-checkbox-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.bp-checkbox-card.checked .bp-checkbox-label {
+  color: #1D4ED8;
+}
+
+/* ── Radios: Nivel que imparto ── */
+.bp-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bp-radio-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  background: #F8FAFC;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+  user-select: none;
+}
+
+.bp-radio-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.bp-radio-dot {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.bp-radio-card.checked .bp-radio-dot {
+  border-color: #2563EB;
+  background: #2563EB;
+}
+
+.bp-radio-card.checked .bp-radio-dot::after {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.bp-radio-card.checked {
+  border-color: #2563EB;
+  background: #EFF6FF;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.bp-radio-card.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bp-radio-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.bp-radio-card.checked .bp-radio-label {
+  color: #1D4ED8;
+}
+
+/* Select de período escolar (ancho parcial) */
+.bp-input-period {
+  max-width: 240px;
+}
+
+/* ── Error ── */
+.bp-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  color: #DC2626;
+  line-height: 1.4;
+}
+
+.bp-error-pip {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #DC2626;
+  margin-top: 5px;
+}
+
+/* ── Botón principal ── */
+.bp-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  cursor: pointer;
+  transition: opacity 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.38);
+  letter-spacing: 0.01em;
+}
+
+.bp-btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.44);
+}
+
+.bp-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.bp-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Spinner del botón */
+.bp-spin {
+  animation: bp-spin 0.8s linear infinite;
+}
+
+@keyframes bp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ── */
+@media (max-width: 680px) {
+  .bp-card-body {
+    padding: 28px 24px 32px;
+  }
+
+  .bp-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bp-field-full {
+    grid-column: 1;
+  }
+
+  .bp-welcome-title {
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 420px) {
+  .bp-shell {
+    padding: 20px 12px;
+  }
+
+  .bp-card-body {
+    padding: 24px 18px 28px;
+  }
+
+  .bp-header {
+    gap: 10px;
+  }
+
+  .bp-brand {
+    font-size: 19px;
+  }
+}

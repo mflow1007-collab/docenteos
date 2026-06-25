@@ -14,3 +14,6 @@ export const login = (email, pass) =>
 
 export const logout = () =>
   signOut(auth);
+
+export const cerrarSesion = () =>
+  signOut(auth);

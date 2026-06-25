@@ -1,0 +1,368 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   RegistroPage.css — DocenteOS
+   Formulario de creación de cuenta
+════════════════════════════════════════════════════════════════════════════ */
+
+.rp-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+  background: linear-gradient(145deg, #0F172A 0%, #1E3A8A 40%, #2563EB 100%);
+  overflow: hidden;
+}
+
+/* Fondo decorativo */
+.rp-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+.rp-bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.rp-bg-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+
+.rp-glow-1 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(96,165,250,0.25), transparent 70%);
+  top: -150px; right: -120px;
+}
+
+.rp-glow-2 {
+  width: 350px; height: 350px;
+  background: radial-gradient(circle, rgba(129,140,248,0.2), transparent 70%);
+  bottom: -100px; left: -80px;
+}
+
+/* ── Tarjeta ── */
+.rp-card {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.05),
+    0 4px 16px rgba(0,0,0,0.08),
+    0 20px 60px rgba(0,0,0,0.14),
+    0 50px 100px rgba(37,99,235,0.08);
+  animation: rp-card-in 0.6s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+@keyframes rp-card-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Franja superior */
+.rp-stripe {
+  height: 4px;
+  background: linear-gradient(90deg, #2563EB 0%, #60A5FA 50%, #818CF8 100%);
+}
+
+.rp-card-body {
+  padding: 32px 40px 36px;
+}
+
+/* ── Encabezado ── */
+.rp-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.rp-logo-wrap {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+}
+
+.rp-logo {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  display: block;
+}
+
+.rp-logo-fallback {
+  position: absolute;
+  inset: 0;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  border-radius: 12px;
+  color: white;
+}
+
+.rp-brand {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0 0 2px;
+  letter-spacing: -0.3px;
+}
+
+.rp-brand b { color: #2563EB; font-weight: 800; }
+
+.rp-tagline {
+  font-size: 11.5px;
+  color: #64748B;
+  margin: 0;
+}
+
+.rp-titles { margin-bottom: 24px; }
+
+.rp-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0 0 5px;
+  letter-spacing: -0.4px;
+}
+
+.rp-subtitle {
+  font-size: 14px;
+  color: #64748B;
+  margin: 0;
+}
+
+/* ── Formulario ── */
+.rp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rp-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  letter-spacing: 0.01em;
+}
+
+.rp-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.rp-icon {
+  position: absolute;
+  left: 13px;
+  color: #94A3B8;
+  pointer-events: none;
+  transition: color 0.18s ease;
+}
+
+.rp-input-wrap:focus-within .rp-icon { color: #2563EB; }
+
+.rp-input {
+  width: 100%;
+  padding: 11px 14px 11px 40px;
+  font-size: 14px;
+  color: #0F172A;
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.rp-input::placeholder { color: #94A3B8; }
+
+.rp-input:focus {
+  border-color: #2563EB;
+  background: #fff;
+  box-shadow: 0 0 0 3.5px rgba(37,99,235,0.12);
+}
+
+.rp-input:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Select con icono */
+.rp-select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+/* Input con ojo */
+.rp-input-pass { padding-right: 44px; }
+
+.rp-eye-btn {
+  position: absolute;
+  right: 11px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94A3B8;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease, background 0.15s ease;
+  line-height: 0;
+}
+
+.rp-eye-btn:hover { color: #64748B; background: #F1F5F9; }
+
+/* Aviso de estado pendiente */
+.rp-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 9px;
+  padding: 11px 13px;
+  font-size: 12.5px;
+  color: #1E40AF;
+  line-height: 1.45;
+}
+
+.rp-notice-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-style: normal;
+}
+
+.rp-notice strong { font-weight: 700; }
+
+/* Error */
+.rp-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 9px;
+  padding: 11px 14px;
+  font-size: 13px;
+  color: #991B1B;
+  line-height: 1.45;
+  animation: rp-shake 0.38s ease;
+}
+
+@keyframes rp-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60%  { transform: translateX(-5px); }
+  40%, 80%  { transform: translateX(5px); }
+}
+
+.rp-error-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #EF4444;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+/* ── Botón principal ── */
+.rp-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 50px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(37,99,235,0.38);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  margin-top: 2px;
+}
+
+.rp-btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.18), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.rp-btn-primary:hover:not(:disabled)::before { opacity: 1; }
+.rp-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(37,99,235,0.45);
+}
+.rp-btn-primary:active:not(:disabled) { transform: translateY(0); }
+.rp-btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
+
+.rp-spin { animation: rp-rotate 0.75s linear infinite; }
+@keyframes rp-rotate { to { transform: rotate(360deg); } }
+
+/* ── Botón volver ── */
+.rp-btn-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  background: transparent;
+  color: #64748B;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.rp-btn-back:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  color: #334155;
+}
+
+/* ── Responsive ── */
+@media (max-width: 540px) {
+  .rp-card-body { padding: 28px 24px 32px; }
+  .rp-title     { font-size: 20px; }
+}
+
+@media (max-width: 380px) {
+  .rp-card-body { padding: 24px 20px 28px; }
+}

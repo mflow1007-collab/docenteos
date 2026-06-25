@@ -1,0 +1,736 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   LoginPage.css — DocenteOS v2
+   Premium SaaS educativo · dos columnas · totalmente responsive
+════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --lp-navy:        #0F172A;
+  --lp-blue-dark:   #1E3A8A;
+  --lp-blue-mid:    #1D4ED8;
+  --lp-blue:        #2563EB;
+  --lp-blue-light:  #3B82F6;
+  --lp-sky:         #60A5FA;
+  --lp-indigo:      #818CF8;
+  --lp-white:       #FFFFFF;
+  --lp-gray-50:     #F8FAFC;
+  --lp-gray-100:    #F1F5F9;
+  --lp-gray-200:    #E2E8F0;
+  --lp-gray-400:    #94A3B8;
+  --lp-gray-500:    #64748B;
+  --lp-gray-700:    #334155;
+  --lp-text:        #0F172A;
+  --lp-ease:        cubic-bezier(0.22, 1, 0.36, 1);
+  --lp-radius-sm:   10px;
+  --lp-radius:      14px;
+  --lp-radius-lg:   24px;
+}
+
+/* ── Shell ── */
+.lp-shell {
+  min-height: 100vh;
+  display: flex;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+  color: var(--lp-text);
+  background: var(--lp-gray-100);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PANEL IZQUIERDO — 46%
+════════════════════════════════════════════════════════════════════════════ */
+.lp-left {
+  width: 46%;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, var(--lp-navy) 0%, var(--lp-blue-dark) 35%, var(--lp-blue-mid) 70%, var(--lp-blue) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 52px 48px;
+  animation: lp-slide-in-left 0.65s var(--lp-ease) both;
+}
+
+@keyframes lp-slide-in-left {
+  from { opacity: 0; transform: translateX(-36px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Capas decorativas ── */
+.lp-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Rejilla fina */
+.lp-deco-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Brillos */
+.lp-deco-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+
+.lp-glow-top {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(96,165,250,0.3), transparent 70%);
+  top: -240px;
+  right: -200px;
+  animation: lp-glow-drift 12s ease-in-out infinite alternate;
+}
+
+.lp-glow-bottom {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(129,140,248,0.2), transparent 70%);
+  bottom: -140px;
+  left: -100px;
+  animation: lp-glow-drift 9s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes lp-glow-drift {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(24px, 16px); }
+}
+
+/* Círculos decorativos */
+.lp-deco-circle {
+  position: absolute;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 50%;
+}
+
+.lp-circle-1 { width: 360px; height: 360px; top: 10%; right: -100px; }
+.lp-circle-2 { width: 220px; height: 220px; bottom: 15%; left: 5%; opacity: 0.6; }
+.lp-circle-3 { width: 140px; height: 140px; top: 60%; right: 10%; opacity: 0.4; }
+
+/* ── Contenido ── */
+.lp-left-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 400px;
+  width: 100%;
+}
+
+/* Marca */
+.lp-left-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lp-left-logo-wrap {
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  position: relative;
+}
+
+.lp-left-logo {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 0 20px rgba(96,165,250,0.55));
+}
+
+.lp-left-logo-fallback {
+  position: absolute;
+  inset: 0;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.1);
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.18);
+  backdrop-filter: blur(6px);
+}
+
+.lp-left-name {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--lp-white);
+  margin: 0 0 2px;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.lp-left-name span { color: var(--lp-sky); }
+
+.lp-left-tagline {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Hero */
+.lp-hero {
+  padding: 20px 22px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--lp-radius);
+  backdrop-filter: blur(8px);
+}
+
+.lp-hero-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--lp-white);
+  margin: 0 0 10px;
+  line-height: 1.35;
+  letter-spacing: -0.3px;
+}
+
+.lp-hero-desc {
+  font-size: 13.5px;
+  color: rgba(255,255,255,0.72);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Beneficios 2×2 */
+.lp-benefits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.lp-benefit-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: var(--lp-radius-sm);
+  padding: 14px;
+  backdrop-filter: blur(6px);
+  animation: lp-benefit-in 0.5s var(--lp-ease) both;
+  transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.lp-benefit-card:hover {
+  background: rgba(255,255,255,0.13);
+  border-color: rgba(255,255,255,0.2);
+  transform: translateY(-2px);
+}
+
+@keyframes lp-benefit-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.lp-benefit-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lp-benefit-text strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lp-white);
+  margin-bottom: 3px;
+  line-height: 1.3;
+}
+
+.lp-benefit-text span {
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.4;
+}
+
+/* Tarjeta de confianza */
+.lp-trust-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--lp-radius-sm);
+  padding: 14px 16px;
+}
+
+.lp-trust-icon {
+  color: #34D399;
+  flex-shrink: 0;
+}
+
+.lp-trust-card strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lp-white);
+  margin-bottom: 2px;
+}
+
+.lp-trust-card span {
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.55);
+}
+
+/* Footer del panel */
+.lp-left-footer {
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  text-align: center;
+  margin: 0;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PANEL DERECHO — 54%
+════════════════════════════════════════════════════════════════════════════ */
+.lp-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 28px;
+  background: var(--lp-gray-100);
+  animation: lp-slide-in-right 0.65s var(--lp-ease) 0.1s both;
+}
+
+@keyframes lp-slide-in-right {
+  from { opacity: 0; transform: translateX(36px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Tarjeta flotante */
+.lp-card {
+  background: var(--lp-white);
+  border-radius: var(--lp-radius-lg);
+  width: 100%;
+  max-width: 480px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.04),
+    0 2px 8px rgba(0,0,0,0.05),
+    0 12px 36px rgba(0,0,0,0.09),
+    0 40px 80px rgba(37,99,235,0.05);
+  animation: lp-card-float 0.7s var(--lp-ease) 0.15s both;
+}
+
+@keyframes lp-card-float {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Franja superior */
+.lp-card-stripe {
+  height: 4px;
+  background: linear-gradient(90deg, var(--lp-blue) 0%, var(--lp-sky) 50%, var(--lp-indigo) 100%);
+}
+
+.lp-card-body {
+  padding: 36px 40px 32px;
+}
+
+/* Logo en la tarjeta */
+.lp-card-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.lp-card-logo-wrap {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.lp-card-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  display: block;
+}
+
+.lp-card-logo-fallback {
+  position: absolute;
+  inset: 0;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--lp-blue) 0%, var(--lp-blue-mid) 100%);
+  border-radius: 10px;
+  color: white;
+}
+
+.lp-card-brand-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--lp-navy);
+  letter-spacing: -0.3px;
+}
+
+.lp-card-brand-name b {
+  color: var(--lp-blue);
+  font-weight: 800;
+}
+
+/* Encabezado */
+.lp-card-header {
+  margin-bottom: 28px;
+}
+
+.lp-card-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--lp-text);
+  margin: 0 0 6px;
+  letter-spacing: -0.4px;
+}
+
+.lp-card-subtitle {
+  font-size: 14px;
+  color: var(--lp-gray-500);
+  margin: 0;
+}
+
+/* ── Formulario ── */
+.lp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lp-gray-700);
+  letter-spacing: 0.01em;
+}
+
+/* Input con icono */
+.lp-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.lp-input-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--lp-gray-400);
+  pointer-events: none;
+  transition: color 0.18s ease;
+}
+
+.lp-input-wrap:focus-within .lp-input-icon { color: var(--lp-blue); }
+
+.lp-input {
+  width: 100%;
+  padding: 12px 14px 12px 42px;
+  font-size: 14px;
+  color: var(--lp-text);
+  background: var(--lp-gray-50);
+  border: 1.5px solid var(--lp-gray-200);
+  border-radius: var(--lp-radius-sm);
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.lp-input::placeholder { color: var(--lp-gray-400); }
+
+.lp-input:focus {
+  border-color: var(--lp-blue);
+  background: var(--lp-white);
+  box-shadow: 0 0 0 3.5px rgba(37,99,235,0.12);
+}
+
+.lp-input:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.lp-input-pass { padding-right: 46px; }
+
+/* Ojo */
+.lp-eye-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--lp-gray-400);
+  padding: 5px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease, background 0.15s ease;
+  line-height: 0;
+}
+
+.lp-eye-btn:hover { color: var(--lp-gray-500); background: var(--lp-gray-100); }
+
+/* Recordarme + link */
+.lp-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: -2px;
+}
+
+.lp-check-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--lp-gray-500);
+  user-select: none;
+}
+
+.lp-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--lp-blue);
+  cursor: pointer;
+}
+
+.lp-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lp-blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: color 0.15s ease;
+}
+
+.lp-link:hover { color: var(--lp-blue-mid); text-decoration: underline; }
+
+/* Error */
+.lp-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: var(--lp-radius-sm);
+  padding: 11px 14px;
+  font-size: 13px;
+  color: #991B1B;
+  line-height: 1.45;
+  animation: lp-shake 0.38s ease;
+}
+
+@keyframes lp-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60%  { transform: translateX(-5px); }
+  40%, 80%  { transform: translateX(5px); }
+}
+
+.lp-error-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #EF4444;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+/* ── Botón principal ── */
+.lp-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, var(--lp-blue) 0%, var(--lp-blue-mid) 100%);
+  color: var(--lp-white);
+  border: none;
+  border-radius: var(--lp-radius-sm);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 50px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(37,99,235,0.38);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  text-decoration: none;
+}
+
+.lp-btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.lp-btn-primary:hover:not(:disabled)::before { opacity: 1; }
+.lp-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(37,99,235,0.46);
+}
+.lp-btn-primary:active:not(:disabled) { transform: translateY(0); }
+.lp-btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
+
+.lp-btn-arrow {
+  margin-left: auto;
+  transition: transform 0.18s ease;
+}
+.lp-btn-primary:hover:not(:disabled) .lp-btn-arrow { transform: translateX(4px); }
+
+.lp-spin { animation: lp-rotate 0.75s linear infinite; }
+@keyframes lp-rotate { to { transform: rotate(360deg); } }
+
+/* ── Divisor ── */
+.lp-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--lp-gray-400);
+  font-size: 12px;
+  font-weight: 500;
+  margin: 2px 0;
+}
+
+.lp-divider::before,
+.lp-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--lp-gray-200);
+}
+
+/* ── Botón secundario (Crear cuenta) ── */
+.lp-btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  padding: 13px 20px;
+  background: transparent;
+  color: var(--lp-blue);
+  border: 1.5px solid #BFDBFE;
+  border-radius: var(--lp-radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.lp-btn-secondary:hover {
+  background: #EFF6FF;
+  border-color: #93C5FD;
+  transform: translateY(-1px);
+}
+
+/* Texto de ayuda */
+.lp-help-text {
+  font-size: 11.5px;
+  color: var(--lp-gray-400);
+  text-align: center;
+  margin: 0;
+  line-height: 1.55;
+  padding-top: 4px;
+}
+
+.lp-help-text strong { color: var(--lp-gray-500); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+════════════════════════════════════════════════════════════════════════════ */
+
+/* Tablet */
+@media (max-width: 1080px) {
+  .lp-left {
+    width: 42%;
+    padding: 44px 36px;
+  }
+  .lp-left-name { font-size: 26px; }
+  .lp-hero-title { font-size: 17px; }
+  .lp-card-body { padding: 32px 32px 28px; }
+}
+
+/* Tablet pequeña */
+@media (max-width: 900px) {
+  .lp-left { width: 38%; padding: 40px 28px; }
+  .lp-benefits { grid-template-columns: 1fr; }
+}
+
+/* Mobile — login arriba, info abajo */
+@media (max-width: 768px) {
+  .lp-shell { flex-direction: column; }
+
+  .lp-left {
+    order: 2;
+    width: 100%;
+    padding: 36px 24px;
+    animation: lp-slide-in-up 0.55s var(--lp-ease) 0.3s both;
+  }
+
+  @keyframes lp-slide-in-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .lp-left-content { max-width: 540px; }
+  .lp-benefits { grid-template-columns: 1fr 1fr; }
+
+  .lp-right {
+    order: 1;
+    padding: 24px 16px 20px;
+    background: linear-gradient(145deg, var(--lp-navy) 0%, var(--lp-blue-mid) 100%);
+    animation: lp-fade-in 0.5s var(--lp-ease) both;
+  }
+
+  @keyframes lp-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .lp-card { max-width: 100%; border-radius: 18px; }
+  .lp-card-body { padding: 28px 24px 24px; }
+}
+
+/* Mobile pequeño */
+@media (max-width: 480px) {
+  .lp-benefits { grid-template-columns: 1fr; }
+  .lp-card-title { font-size: 20px; }
+  .lp-card-body { padding: 24px 20px 20px; }
+}

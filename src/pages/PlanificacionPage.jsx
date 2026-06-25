@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { usePerfilInstitucional } from "../hooks/usePerfilInstitucional.js";
 import FormularioPlanificacion from "../components/FormularioPlanificacion";
 import ResultadoPlanificacion from "../components/ResultadoPlanificacion";
 import FormularioPlanDiario from "../components/FormularioPlanDiario";
@@ -40,6 +41,9 @@ import {
 export default function PlanificacionPage() {
   const hoyISO = new Date().toISOString().slice(0, 10);
   const STORAGE_USO_TIPOS = "docenteos_planificacion_uso_tipos_v1";
+
+  // ── Perfil institucional global ───────────────────────────────────────────
+  const { formulario: perfilForm } = usePerfilInstitucional();
 
   // ── Estado curricular oficial (Firestore) ─────────────────────────────────
   const [competenciasCurriculares, setCompetenciasCurriculares] = useState([]);
@@ -77,10 +81,9 @@ export default function PlanificacionPage() {
   const [planDiarioDatos, setPlanDiarioDatos] = useState({
     grado: "", seccion: "", area: "", asignatura: "",
     fecha: hoyISO2, duracion: "50 min", tema: "",
-    nombreDocente: "César Jonás Baéz Jiménez", cedula: "012-0107808-4",
-    regional: "02 San Juan Oeste", distrito: "06",
-    centro: "Héctor Fco. López Romero- Hato Nuevo", codigoCentro: "03313",
-    nivel: "Secundaria", ciclo: "Primer Ciclo", modalidad: "Académica",
+    nombreDocente: "", regional: "", distrito: "",
+    centro: "", codigoCentro: "",
+    nivel: "", ciclo: "", modalidad: "", jornada: "",
     indicadoresTexto: "", competenciaEspecificaTexto: "", situacionAprendizajeTexto: "",
     competenciasFundamentalesSeleccionadas: [],
   });
@@ -155,17 +158,38 @@ export default function PlanificacionPage() {
     titulo: "", numSemanas: 4, diasPorSemana: 5,
     estrategiaTexto: "", situacionTexto: "", productoFinalTexto: "",
     asignaturasVinculadasTexto: "",
-    nombreDocente: "César Jonás Baéz Jiménez", cedula: "012-0107808-4",
-    regional: "02 San Juan Oeste", distrito: "06",
-    centro: "Héctor Fco. López Romero- Hato Nuevo", codigoCentro: "03313",
-    nivel: "Secundaria", ciclo: "Primer Ciclo", modalidad: "Académica",
-    periodo: "2025-2026", fechaInicio: hoyISO,
+    nombreDocente: "", regional: "", distrito: "",
+    centro: "", codigoCentro: "",
+    nivel: "", ciclo: "", modalidad: "", jornada: "",
+    periodo: "", fechaInicio: hoyISO,
     competenciasFundamentalesSeleccionadas: [],
   });
   const [unidad, setUnidad] = useState(null);
   const [cargandoUnidad, setCargandoUnidad] = useState(false);
   const [guardandoUnidad, setGuardandoUnidad] = useState(false);
   const [mensajeUnidad, setMensajeUnidad] = useState(null);
+
+  // ── Auto-completar formularios desde el perfil institucional ─────────────
+  useEffect(() => {
+    if (!perfilForm || !perfilForm.nombreDocente) return;
+    const campos = {
+      nombreDocente: perfilForm.nombreDocente,
+      regional:      perfilForm.regional,
+      distrito:      perfilForm.distrito,
+      centro:        perfilForm.centro,
+      codigoCentro:  perfilForm.codigoCentro,
+      nivel:         perfilForm.nivel,
+      modalidad:     perfilForm.modalidad,
+      ciclo:         perfilForm.ciclo,
+      jornada:       perfilForm.jornada,
+    };
+    setPlanDiarioDatos((prev) => ({ ...prev, ...campos }));
+    setUnidadDatos((prev) => ({
+      ...prev,
+      ...campos,
+      periodo: perfilForm.periodo || prev.periodo,
+    }));
+  }, [perfilForm.nombreDocente]); // se ejecuta una vez cuando el perfil llega
 
   const manejarGenerarUnidad = () => {
     setCargandoUnidad(true);

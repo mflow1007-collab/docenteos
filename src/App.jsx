@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { guardarHorarioCurso, guardarPlanificacion } from "./firebase";
+import { cerrarSesion } from "./auth";
 import PlanificacionPage from "./pages/PlanificacionPage";
 import InstrumentosPage from "./pages/InstrumentosPage";
 import RegistroPage from "./RegistroPage";
@@ -304,6 +305,21 @@ function enriquecerCursoInicial(curso, indice = 0) {
 const cursosIniciales = initialCursos.map((curso, indice) => enriquecerCursoInicial(curso, indice));
 
 export default function App() {
+  const [cerrando,    setCerrando]    = useState(false)
+  const [errorCierre, setErrorCierre] = useState('')
+
+  const handleCerrarSesion = async () => {
+    setErrorCierre('')
+    setCerrando(true)
+    try {
+      await cerrarSesion()
+      // onAuthStateChanged en main.jsx redirige a /login automáticamente
+    } catch {
+      setErrorCierre('No fue posible cerrar sesión. Intente nuevamente.')
+      setCerrando(false)
+    }
+  }
+
   const [pagina, setPagina] = useState(() => {
     try {
       const guardada = localStorage.getItem("docenteos_navegacion");
@@ -455,12 +471,26 @@ export default function App() {
           ))}
         </nav>
 
-        <div className="profile">
-          <div className="avatar">CM</div>
-          <div>
-            <strong>César</strong>
-            <p>Docente</p>
+        <div className="sidebar-bottom">
+          <div className="profile">
+            <div className="avatar">CM</div>
+            <div>
+              <strong>César</strong>
+              <p>Docente</p>
+            </div>
           </div>
+          <button
+            className="sidebar-logout-btn"
+            onClick={handleCerrarSesion}
+            disabled={cerrando}
+            aria-label="Cerrar sesión"
+          >
+            <span aria-hidden="true">🚪</span>
+            {cerrando ? 'Cerrando sesión…' : 'Cerrar sesión'}
+          </button>
+          {errorCierre && (
+            <p className="sidebar-logout-error" role="alert">{errorCierre}</p>
+          )}
         </div>
       </aside>
 
