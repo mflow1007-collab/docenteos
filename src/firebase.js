@@ -44,7 +44,14 @@ if (isFirebaseConfigured) {
   db = getFirestore(app);
   auth = getAuth(app);
 } else {
-  console.warn("Firebase no configurado: se ejecuta en modo local sin conexión.");
+  console.warn("[DocenteOS] Firebase no configurado. Variables recibidas:", {
+    apiKey:            Boolean(firebaseConfig.apiKey),
+    authDomain:        Boolean(firebaseConfig.authDomain),
+    projectId:         Boolean(firebaseConfig.projectId),
+    storageBucket:     Boolean(firebaseConfig.storageBucket),
+    messagingSenderId: Boolean(firebaseConfig.messagingSenderId),
+    appId:             Boolean(firebaseConfig.appId),
+  });
 }
 
 export { db, auth };
