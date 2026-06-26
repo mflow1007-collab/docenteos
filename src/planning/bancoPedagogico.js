@@ -773,55 +773,49 @@ const FIHR_CIERRE = [
 // ─── INGLÉS ───────────────────────────────────────────────────────────────────
 
 const EN_INICIO = [
-  // ── Grupo 0: Diagnóstico y activación oral ────────────────────────────────────
+  // ── Grupo 0: Orientación al producto y diagnóstico de vocabulario ─────────────
   [
     [
-      `Responden al saludo e indicaciones iniciales del docente en inglés. _(Good morning! How are you today? Are you ready for the class?)_`,
-      `Observan imágenes relacionadas con "{tema}" e identifican vocabulario clave en inglés que ya conocen. El docente guía con preguntas: _What do you see? What words in English do you know?_`,
-      `Escuchan y practican la pronunciación guiada de verbos de acción y expresiones relacionadas con "{tema}". _(Listen and repeat after me: one by one, slowly, then at normal speed.)_`,
-      `Expresan en inglés palabras o frases que asocian con "{tema}" apoyándose en imágenes y tarjetas de vocabulario en la pizarra.`,
-      `Escuchan la intención pedagógica y el propósito comunicativo de la sesión.`,
+      `Observan ejemplos del producto final de la unidad relacionados con "{tema}" (posters, brochures, diálogos grabados, infografías). Analizan la rúbrica de evaluación: criterios de calidad, descriptores y aspectos que deberán desarrollar durante la unidad.`,
+      `Observan imágenes relacionadas con "{tema}" e identifican vocabulario clave en inglés. Escuchan y practican la pronunciación guiada de verbos de acción y expresiones de uso frecuente _(listen and repeat: wake up, have breakfast, go to school / in the morning, at noon, at night)_.`,
+      `Organizan el vocabulario de "{tema}" por categorías en sus cuadernos: verbos de acción, expresiones de tiempo, adjetivos descriptivos y frases útiles para comunicarse.`,
+      `Guardan la producción escrita como **Entrada 0 del Portafolio**. Elaboran un bosquejo inicial del producto final: qué incluirán, cómo lo organizarán y qué vocabulario usarán.`,
     ],
     [
-      `Responden al saludo e indicaciones del docente en inglés. _(Hello everyone! What day is today? Are you ready to practice?)_`,
-      `Participan en un juego de activación oral: el docente dice una palabra o expresión relacionada con "{tema}" y los estudiantes la repiten, la miman o la ilustran con un dibujo rápido.`,
-      `Escuchan un audio o canción corta en inglés relacionada con "{tema}". Identifican palabras que reconocen y las comparten con el grupo.`,
-      `Relacionan el vocabulario de "{tema}" con su cotidianidad dominicana: _¿Cuándo y dónde usarías estas expresiones en la vida real?_`,
-      `Escuchan el objetivo comunicativo de la sesión y el tipo de producción esperada al final de la clase.`,
+      `Observan producciones auténticas en inglés sobre "{tema}" (posts en redes, textos de libros de texto, videos cortos sin subtítulos). Identifican vocabulario que reconocen y vocabulario nuevo; comparten con el grupo: _What words do you already know?_`,
+      `Escuchan una canción o audio breve en inglés relacionado con "{tema}". Identifican palabras clave y las comparten oralmente. Practican la pronunciación de las expresiones identificadas _(go to school, do homework, have dinner, go to bed)_.`,
+      `Organizan en sus cuadernos las palabras y expresiones de "{tema}" por categorías propias elegidas por ellos mismos. Comparten su organización con un compañero y explican por qué agruparon así.`,
+      `Guardan el vocabulario organizado como **Entrada 0 del Portafolio**. Elaboran un bosquejo inicial de cómo imaginan su producto final sobre "{tema}".`,
     ],
   ],
-  // ── Grupo 1: Construcción lingüística y práctica ──────────────────────────────
+  // ── Grupo 1: Construcción lingüística y activación del conocimiento previo ────
   [
     [
-      `Responden al saludo en inglés y realizan un repaso oral rápido del vocabulario de "{tema}" con tarjetas de palabras o imágenes proyectadas.`,
-      `Retroalimentan la clase anterior: voluntarios producen oraciones en inglés usando estructuras de "{tema}" aprendidas previamente.`,
-      `Escuchan o leen un diálogo o texto más extenso en inglés sobre "{tema}" e identifican: vocabulario nuevo, estructuras gramaticales y la intención comunicativa.`,
-      `Preparan preguntas y respuestas en inglés relacionadas con "{tema}" usando los modelos analizados en clase.`,
-      `Escuchan la intención pedagógica y las actividades de producción planificadas para la sesión.`,
+      `Observan el producto final de la sesión anterior sobre "{tema}" y revisan la rúbrica de evaluación. Identifican qué criterios ya cumplen y cuáles deben seguir desarrollando.`,
+      `Observan un video corto en inglés sobre "{tema}" sin subtítulos. Identifican vocabulario conocido, expresiones nuevas y estructuras gramaticales usadas por los hablantes _(I usually..., Every day I..., First I..., Then I...)_.`,
+      `Organizan en sus cuadernos el vocabulario nuevo de "{tema}" por categorías: palabras que ya usan, palabras nuevas que quieren aprender, expresiones que necesitan practicar más.`,
+      `Guardan el vocabulario organizado como **Entrada 1 del Portafolio**. Elaboran una primera versión escrita del producto con el vocabulario disponible hasta el momento.`,
     ],
     [
-      `Responden al saludo e indicaciones del docente y participan en un warm-up comunicativo oral sobre "{tema}". _(Hi class! Ready to improve your English?)_`,
-      `Analizan un texto auténtico en inglés (anuncio, canción, diálogo real) relacionado con "{tema}": vocabulario, estructura y registro lingüístico.`,
-      `Identifican estrategias comunicativas útiles en inglés para "{tema}": cómo pedir información, cómo describir, cómo expresar opinión o acuerdo.`,
-      `Practican las estrategias identificadas en ejercicios de comprensión oral y lectora sobre "{tema}".`,
-      `Escuchan orientaciones del docente para la producción oral o escrita de la sesión.`,
+      `Observan imágenes y ejemplos de textos en inglés sobre "{tema}" y responden preguntas de activación: _What do you see? What English words can you use to describe this? Have you done this before?_`,
+      `Escuchan un diálogo o conversación auténtica en inglés sobre "{tema}" (2 escuchas). Primera: ¿de qué se habla? Segunda: ¿qué vocabulario y estructuras usan? _(Do you usually...? Yes, I always... / No, I never...)_`,
+      `Identifican y organizan en sus cuadernos las estrategias comunicativas del audio: cómo piden información, cómo describen, cómo expresan frecuencia o rutina sobre "{tema}".`,
+      `Elaboran en parejas una producción oral o escrita inicial sobre "{tema}" usando las estrategias y vocabulario identificados. La guardan en el Portafolio como evidencia de su punto de partida.`,
     ],
   ],
-  // ── Grupo 2: Producción y autonomía comunicativa ──────────────────────────────
+  // ── Grupo 2: Revisión y orientación hacia la producción final ─────────────────
   [
     [
-      `Responden al saludo en inglés. _(Good morning! Today we show what we know about {tema}!)_ Presentan brevemente su producción oral o escrita avanzada.`,
-      `Reciben retroalimentación del docente sobre precisión léxica, pronunciación y estructuras en su producción sobre "{tema}".`,
-      `Revisan y mejoran su producción incorporando las correcciones sobre vocabulario, gramática y fluidez recibidas.`,
-      `Se preparan para la exposición final o el intercambio comunicativo de la sesión sobre "{tema}".`,
-      `Escuchan los criterios de evaluación de la producción final en inglés.`,
+      `Observan su producción anterior de "{tema}" guardada en el Portafolio. La comparan con ejemplos de alta calidad usando la rúbrica de evaluación: ¿qué mejoraron? ¿qué les falta?`,
+      `Identifican brechas de vocabulario en su producción de "{tema}": palabras que necesitan, estructuras que no dominan aún. Escuchan y practican las expresiones que les faltan _(I would like to..., In my opinion..., One example is...)_.`,
+      `Organizan en sus cuadernos una lista de revisión personal para mejorar su producción de "{tema}": vocabulario pendiente, estructuras a practicar, criterios de la rúbrica que deben fortalecer.`,
+      `Guardan la lista de revisión como **Entrada del Portafolio**. Elaboran el borrador mejorado del producto final incorporando los ajustes identificados.`,
     ],
     [
-      `Responden al saludo e indicaciones del docente en inglés y participan en un communicative challenge oral sobre "{tema}". _(Let's see how much you can say in English!)_`,
-      `Evalúan la calidad comunicativa de su producción final sobre "{tema}": precisión de vocabulario, estructuras gramaticales y fluidez oral o escrita.`,
-      `Comparan textos auténticos en inglés con sus propias producciones sobre "{tema}". Identifican diferencias y similitudes para mejorar.`,
-      `Se preparan para la presentación o intercambio comunicativo final de la sesión.`,
-      `Escuchan orientaciones del docente sobre los criterios de la presentación oral o entrega escrita final.`,
+      `Observan producciones de compañeros sobre "{tema}" (con su permiso) y las comparan con la rúbrica de evaluación. Identifican fortalezas y aspectos de mejora de manera respetuosa y constructiva.`,
+      `Escuchan y practican en parejas el vocabulario y las estructuras que más les cuesta usar en inglés sobre "{tema}". El docente rota por los grupos corrigiendo pronunciación y uso gramatical.`,
+      `Identifican y organizan en sus cuadernos las correcciones más importantes recibidas sobre "{tema}": pronunciación, gramática, vocabulario y organización del texto o discurso.`,
+      `Guardan las correcciones en el Portafolio. Elaboran el borrador final del producto sobre "{tema}" incorporando todas las mejoras identificadas durante la revisión entre pares.`,
     ],
   ],
 ];

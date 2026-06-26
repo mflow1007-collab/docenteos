@@ -17,6 +17,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { esUsuarioDocenteOS } from "./utils/permisos.js";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -836,6 +837,7 @@ export const registrarEventoAuditoria = async ({ tipo, evento, modulo, detalle =
 
 // ─── Política de temas de planificación (Activo / Secundario) ──────────────
 
+// Compatibilidad histórica — el chequeo real usa esUsuarioDocenteOS (dominio @docenteos.com)
 const ADMIN_SIN_RESTRICCION = "admin@docenteos.com";
 
 export const normalizarTema = (titulo = "") => {
@@ -1023,7 +1025,7 @@ export const verificarTemaAntesDeGenerar = async ({ tituloTema }) => {
     const activoNorm = normalizarTema(data?.temaActivo?.titulo || data?.temaActivo || "");
     const secundarioNorm = normalizarTema(data?.temaSecundario?.titulo || data?.temaSecundario || "");
 
-    const isAdmin = String(user.email || "").toLowerCase() === ADMIN_SIN_RESTRICCION;
+    const isAdmin = esUsuarioDocenteOS(user.email);
     const creditos = resolverCreditosDisponibles(data);
     const ilimitado = tieneSuscripcionIlimitada(data);
 
@@ -1082,7 +1084,7 @@ export const registrarUsoTemaPlanificacion = async ({
   const userRef = doc(db, "usuarios", user.uid);
   const titulo = String(tituloTema).trim();
   const normalizado = normalizarTema(titulo);
-  const isAdmin = String(user.email || "").toLowerCase() === ADMIN_SIN_RESTRICCION;
+  const isAdmin = esUsuarioDocenteOS(user.email);
 
   const resultado = await runTransaction(db, async (tx) => {
     const userSnap = await tx.get(userRef);

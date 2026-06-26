@@ -1131,31 +1131,41 @@ export default function PlanificacionPage() {
         Genera planificaciones didácticas completas con IA en segundos
       </p>
 
-      <div className="planning-container">
-        {dialogoTema.abierto && (
-          <section className="planning-form-card" style={{ border: "1px solid #f59e0b", background: "#fffbeb" }}>
-            <h2 style={{ marginBottom: 8 }}>Ya tienes dos temas activos</h2>
-            <p style={{ color: "#92400e", marginTop: 0 }}>
+      {dialogoTema.abierto && (
+        <div className="tema-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tema-modal-titulo">
+          <div className="tema-modal">
+            <h2 id="tema-modal-titulo">Ya tienes dos temas activos</h2>
+            <p>
               {dialogoTema?.payload?.mensaje || "Puedes seguir editándolos sin límites. Para iniciar un nuevo tema debes usar un nuevo crédito de planificación o disponer de una suscripción que lo permita."}
             </p>
-            <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
+            <div className="tema-modal-temas">
               <span><strong>Tema 1:</strong> {dialogoTema?.payload?.temas?.temaActivo?.titulo || "No definido"}</span>
               <span><strong>Tema 2:</strong> {dialogoTema?.payload?.temas?.temaSecundario?.titulo || "No definido"}</span>
-              <span><strong>Créditos disponibles:</strong> {Number(dialogoTema?.payload?.creditosDisponibles || 0)}</span>
+              <span className="tema-modal-creditos">
+                Créditos disponibles: <strong>{Number(dialogoTema?.payload?.creditosDisponibles || 0)}</strong>
+              </span>
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={manejarDialogoTemaSeguirEditando}>Seguir editando</button>
-              <button type="button" onClick={manejarDialogoTemaCancelar}>Cancelar</button>
+            <div className="tema-modal-acciones">
+              <button type="button" className="tema-modal-btn-seguir" onClick={manejarDialogoTemaSeguirEditando}>
+                Seguir editando
+              </button>
+              <button type="button" className="tema-modal-btn-cancelar" onClick={manejarDialogoTemaCancelar}>
+                Cancelar
+              </button>
               <button
                 type="button"
+                className="tema-modal-btn-credito"
                 onClick={manejarDialogoTemaUsarCredito}
                 disabled={dialogoTema?.payload?.puedeCrearNuevoTema === false}
               >
                 Usar nuevo crédito
               </button>
             </div>
-          </section>
-        )}
+          </div>
+        </div>
+      )}
+
+      <div className="planning-container">
 
         <section className="planning-type-card">
           <div className="planning-type-head">

@@ -8890,3 +8890,113 @@
   text-align: center;
   flex-shrink: 0;
 }
+
+/* ── Modal de Tema Activo / Tema Secundario ─────────────────────────── */
+.tema-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+  padding: 20px;
+}
+
+.tema-modal {
+  background: #fff;
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+  border-top: 4px solid #f59e0b;
+}
+
+.tema-modal h2 {
+  margin: 0 0 10px;
+  font-size: 19px;
+  color: #0f172a;
+}
+
+.tema-modal p {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 18px;
+}
+
+.tema-modal-temas {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 6px;
+  margin-bottom: 22px;
+  font-size: 14px;
+  color: #334155;
+}
+
+.tema-modal-temas span strong {
+  color: #0f172a;
+}
+
+.tema-modal-creditos {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #92400e;
+  margin-top: 4px;
+}
+
+.tema-modal-acciones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.tema-modal-acciones button {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 120px;
+}
+
+.tema-modal-btn-seguir {
+  background: #f1f5f9;
+  color: #334155;
+}
+.tema-modal-btn-seguir:hover { background: #e2e8f0; }
+
+.tema-modal-btn-cancelar {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+.tema-modal-btn-cancelar:hover { background: #e2e8f0; color: #64748b; }
+
+.tema-modal-btn-credito {
+  background: #0f172a;
+  color: #fff;
+}
+.tema-modal-btn-credito:hover { background: #1e293b; }
+.tema-modal-btn-credito:disabled {
+  background: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+@media (max-width: 500px) {
+  .tema-modal { padding: 24px 18px; }
+  .tema-modal-acciones { flex-direction: column; }
+  .tema-modal-acciones button { min-width: unset; }
+}
