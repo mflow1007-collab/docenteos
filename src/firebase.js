@@ -1074,6 +1074,15 @@ export const verificarTemaAntesDeGenerar = async ({ tituloTema }) => {
     };
   } catch (error) {
     console.error("Error al verificar tema:", error);
+    if (!isFirebaseConfigured || !auth) {
+      return {
+        success: false,
+        permitido: false,
+        motivo: "firebase_no_disponible",
+        mensaje: "El servicio no está disponible. Verifica tu conexión e intenta de nuevo.",
+      };
+    }
+    // Error de red transitorio — permitir para no bloquear al docente innecesariamente
     return { success: false, permitido: true, tipoCoincidencia: "desconocido", requiereCredito: false };
   }
 };

@@ -98,23 +98,62 @@ export default function PlanificacionPage() {
   const [guardandoDiario, setGuardandoDiario] = useState(false);
   const [mensajeDiario, setMensajeDiario] = useState(null);
 
-  const manejarGenerarDiario = () => {
+  const ejecutarGenerarDiario = () => {
+    const indicadoresCustom = planDiarioDatos.indicadoresTexto
+      ? planDiarioDatos.indicadoresTexto.split("\n").map((l) => l.trim()).filter(Boolean)
+      : [];
+    const resultado = generarPlanDiario({
+      ...planDiarioDatos,
+      indicadoresCustom,
+      competenciaEspecificaCustom: planDiarioDatos.competenciaEspecificaTexto || "",
+      situacionCustom: planDiarioDatos.situacionAprendizajeTexto || "",
+    });
+    setPlanDiario(resultado);
+    setTimeout(() => {
+      document.querySelector(".pd-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+
+  const manejarGenerarDiario = async () => {
+    const temaDiario = planDiarioDatos.tema?.trim();
+    if (temaDiario) {
+      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaDiario });
+      if (!verificacion?.permitido) {
+        setDialogoTema({
+          abierto: true,
+          contexto: "diario",
+          payload: {
+            ...verificacion,
+            temaIngresado: temaDiario,
+            temas: {
+              temaActivo: estadoTemas.temaActivo,
+              temaSecundario: estadoTemas.temaSecundario,
+            },
+          },
+        });
+        return;
+      }
+      if (verificacion?.requiereCredito) {
+        setDialogoTema({
+          abierto: true,
+          contexto: "diario",
+          payload: {
+            ...verificacion,
+            temaIngresado: temaDiario,
+            temas: {
+              temaActivo: estadoTemas.temaActivo,
+              temaSecundario: estadoTemas.temaSecundario,
+            },
+          },
+        });
+        return;
+      }
+      await registrarUsoTemaPlanificacion({ tituloTema: temaDiario, forzarNuevoTema: false, contexto: "generacion" });
+    }
     setCargandoDiario(true);
     setMensajeDiario(null);
     try {
-      const indicadoresCustom = planDiarioDatos.indicadoresTexto
-        ? planDiarioDatos.indicadoresTexto.split("\n").map((l) => l.trim()).filter(Boolean)
-        : [];
-      const resultado = generarPlanDiario({
-        ...planDiarioDatos,
-        indicadoresCustom,
-        competenciaEspecificaCustom: planDiarioDatos.competenciaEspecificaTexto || "",
-        situacionCustom: planDiarioDatos.situacionAprendizajeTexto || "",
-      });
-      setPlanDiario(resultado);
-      setTimeout(() => {
-        document.querySelector(".pd-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
+      ejecutarGenerarDiario();
     } catch (error) {
       setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
     } finally {
@@ -208,7 +247,42 @@ export default function PlanificacionPage() {
     }));
   }, [perfilNombreDocente, perfilRegional, perfilDistrito, perfilCentro, perfilCodigoCentro, perfilNivel, perfilModalidad, perfilCiclo, perfilJornada, perfilPeriodo]);
 
-  const manejarGenerarUnidad = () => {
+  const manejarGenerarUnidad = async () => {
+    const temaUnidad = (unidadDatos.tema || unidadDatos.titulo)?.trim();
+    if (temaUnidad) {
+      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaUnidad });
+      if (!verificacion?.permitido) {
+        setDialogoTema({
+          abierto: true,
+          contexto: "unidad",
+          payload: {
+            ...verificacion,
+            temaIngresado: temaUnidad,
+            temas: {
+              temaActivo: estadoTemas.temaActivo,
+              temaSecundario: estadoTemas.temaSecundario,
+            },
+          },
+        });
+        return;
+      }
+      if (verificacion?.requiereCredito) {
+        setDialogoTema({
+          abierto: true,
+          contexto: "unidad",
+          payload: {
+            ...verificacion,
+            temaIngresado: temaUnidad,
+            temas: {
+              temaActivo: estadoTemas.temaActivo,
+              temaSecundario: estadoTemas.temaSecundario,
+            },
+          },
+        });
+        return;
+      }
+      await registrarUsoTemaPlanificacion({ tituloTema: temaUnidad, forzarNuevoTema: false, contexto: "generacion" });
+    }
     setCargandoUnidad(true);
     setMensajeUnidad(null);
     try {
@@ -308,7 +382,7 @@ export default function PlanificacionPage() {
     usoMensual: "Pendiente de completar",
     creditosDisponibles: 0,
   });
-  const [dialogoTema, setDialogoTema] = useState({ abierto: false, payload: null });
+  const [dialogoTema, setDialogoTema] = useState({ abierto: false, payload: null, contexto: "planificacion" });
 
   const formatearFechaRegistro = (fecha) => {
     if (!fecha) return "Sin fecha";
@@ -808,10 +882,44 @@ export default function PlanificacionPage() {
   const manejarGuardar = async () => {
     if (!planificacion) return;
 
-    setGuardando(true);
+    const temaParaControl = planificacion?.metadatos?.tema || tema;
 
+    if (temaParaControl) {
+      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaParaControl });
+      if (!verificacion?.permitido) {
+        setDialogoTema({
+          abierto: true,
+          contexto: "guardar",
+          payload: {
+            ...verificacion,
+            temaIngresado: temaParaControl,
+            temas: {
+              temaActivo: estadoTemas.temaActivo,
+              temaSecundario: estadoTemas.temaSecundario,
+            },
+          },
+        });
+        return;
+      }
+      if (verificacion?.requiereCredito) {
+        setDialogoTema({
+          abierto: true,
+          contexto: "guardar",
+          payload: {
+            ...verificacion,
+            temaIngresado: temaParaControl,
+            temas: {
+              temaActivo: estadoTemas.temaActivo,
+              temaSecundario: estadoTemas.temaSecundario,
+            },
+          },
+        });
+        return;
+      }
+    }
+
+    setGuardando(true);
     try {
-      const temaParaControl = planificacion?.metadatos?.tema || tema;
       if (temaParaControl) {
         await registrarUsoTemaPlanificacion({
           tituloTema: temaParaControl,
@@ -819,7 +927,6 @@ export default function PlanificacionPage() {
           contexto: "edicion",
         });
       }
-
       const resultado = await guardarPlanificacionDetallada(planificacion);
       await cargarHistorial({ mostrarMensajeRecuperacion: false });
       setMensaje({
@@ -965,11 +1072,11 @@ export default function PlanificacionPage() {
   };
 
   const manejarDialogoTemaCancelar = () => {
-    setDialogoTema({ abierto: false, payload: null });
+    setDialogoTema({ abierto: false, payload: null, contexto: "planificacion" });
   };
 
   const manejarDialogoTemaSeguirEditando = () => {
-    setDialogoTema({ abierto: false, payload: null });
+    setDialogoTema({ abierto: false, payload: null, contexto: "planificacion" });
     setMensaje({
       tipo: "info",
       texto: "Puedes seguir editando tu Tema Activo o Tema Secundario sin límites.",
@@ -979,12 +1086,61 @@ export default function PlanificacionPage() {
 
   const manejarDialogoTemaUsarCredito = async () => {
     const temaIngresado = dialogoTema?.payload?.temaIngresado;
+    const contextoDialogo = dialogoTema?.contexto || "planificacion";
     if (!temaIngresado) {
-      setDialogoTema({ abierto: false, payload: null });
+      setDialogoTema({ abierto: false, payload: null, contexto: "planificacion" });
       return;
     }
 
-    setDialogoTema({ abierto: false, payload: null });
+    setDialogoTema({ abierto: false, payload: null, contexto: "planificacion" });
+
+    // Para diario/unidad: registrar crédito y generar sin el flujo de planificación semanal
+    if (contextoDialogo === "diario") {
+      setCargandoDiario(true);
+      try {
+        await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
+        ejecutarGenerarDiario();
+      } catch (error) {
+        setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
+      } finally {
+        setCargandoDiario(false);
+      }
+      return;
+    }
+
+    if (contextoDialogo === "unidad") {
+      setCargandoUnidad(true);
+      try {
+        await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
+        const resultado = generarUnidadAprendizaje(unidadDatos);
+        setUnidad(resultado);
+        setTimeout(() => document.querySelector(".ua-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      } catch (error) {
+        setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
+      } finally {
+        setCargandoUnidad(false);
+      }
+      return;
+    }
+
+    if (contextoDialogo === "guardar") {
+      setGuardando(true);
+      try {
+        await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "edicion" });
+        const resultado = await guardarPlanificacionDetallada(planificacion);
+        await cargarHistorial({ mostrarMensajeRecuperacion: false });
+        setMensaje({ tipo: "success", texto: resultado.mode === "firebase" ? "✅ Guardado en Firebase" : "✅ Guardado localmente" });
+        setTimeout(() => setMensaje(null), 3000);
+      } catch (error) {
+        setMensaje({ tipo: "error", texto: `❌ ${error.message}` });
+        setTimeout(() => setMensaje(null), 3000);
+      } finally {
+        setGuardando(false);
+      }
+      return;
+    }
+
+    // contexto: "planificacion" (flujo original)
     setCargando(true);
     setMensaje(null);
 
