@@ -824,46 +824,46 @@ const EN_DESARROLLO = [
   // ── Grupo 0: Listening + Speaking ─────────────────────────────────────────────
   [
     [
-      `Escuchan un audio o diálogo en inglés relacionado con "{tema}" (2-3 escuchas). Primera escucha: identifican el tema general. Segunda: palabras clave. Tercera: detalles específicos. _(What did you hear? Which words do you recognize?)_`,
-      `Responden preguntas de comprensión oral sobre "{tema}": _(Who is speaking? Where are they? What are they talking about? What happens next?)_`,
-      `Practican la pronunciación del vocabulario de "{tema}" repitiendo y leyendo en voz alta. El docente corrige y enfatiza sonidos del inglés sin equivalente directo en español.`,
-      `Realizan un ejercicio de speaking en parejas sobre "{tema}": preguntas y respuestas usando el vocabulario y estructuras del audio. _(Turn to your partner — you have 2 minutes. Ready? Go!)_`,
+      `Escuchan un audio o diálogo en inglés sobre "{tema}" (3 escuchas progresivas). Primera: identifican el tema general. Segunda: anotan palabras y expresiones clave. Tercera: responden preguntas de detalle _(Who is speaking? What are they doing? When and where?)_.`,
+      `Analizan las estructuras gramaticales del audio de "{tema}": tiempo verbal, orden de palabras, uso de adverbios de frecuencia _(always, usually, sometimes, never)_ y expresiones de tiempo _(at 7 a.m., every morning, on weekdays)_.`,
+      `Practican en parejas la pronunciación del vocabulario de "{tema}": el docente corrige la entonación, el ritmo y los sonidos del inglés sin equivalente directo en español. _(Repeat after me — stress the first syllable: MORning, BREAKfast, SCHOol)_`,
+      `Realizan un speaking en parejas usando el vocabulario y las estructuras del audio sobre "{tema}". _(Ask your partner: What do you usually do in the morning? Then switch — you have 3 minutes. Ready? Go!)_`,
     ],
     [
-      `Observan un video corto en inglés sobre "{tema}" e identifican vocabulario, expresiones y estructuras en uso auténtico y contextualizado.`,
-      `Analizan el vocabulario del video relacionado con "{tema}": palabras clave, cognados con el español y expresiones comunicativas de uso frecuente.`,
-      `Practican oral y auditivamente las estructuras de "{tema}" mediante ejercicios de repetición, sustitución y transformación controlada.`,
-      `Realizan un role-play o diálogo guiado sobre "{tema}" usando las estructuras del video como modelo. _(Practice the dialogue with your partner, then switch roles and try again!)_`,
-    ],
-  ],
-  // ── Grupo 1: Reading + Vocabulary ─────────────────────────────────────────────
-  [
-    [
-      `Leen un texto en inglés relacionado con "{tema}" e identifican: idea principal, vocabulario nuevo, estructuras gramaticales y marcadores del discurso.`,
-      `Analizan el vocabulario nuevo de "{tema}": forma escrita, pronunciación guiada, significado en contexto y uso en oraciones. Registran en su glosario personal.`,
-      `Completan ejercicios de vocabulario contextualizados sobre "{tema}": completar frases, emparejamiento de palabras e imágenes, ordenar palabras para formar oraciones.`,
-      `Leen oraciones o párrafos sobre "{tema}" en voz alta y reciben corrección de pronunciación del docente. Prestan atención a la entonación y el ritmo del inglés.`,
-    ],
-    [
-      `Leen textos de diferente nivel de complejidad sobre "{tema}" y responden preguntas de comprensión literal, inferencial e interpretativa.`,
-      `Identifican patrones gramaticales en los textos de "{tema}": tiempos verbales, preposiciones de tiempo y lugar, adjetivos y adverbios de frecuencia. Los analizan en contexto. _(Look at this sentence. What grammar rule is being used?)_`,
-      `Elaboran un glosario visual de "{tema}": palabra en inglés → imagen o definición sencilla en inglés → oración de ejemplo propia.`,
-      `Practican la lectura expresiva de textos sobre "{tema}" con atención a la pronunciación, el ritmo y la entonación correcta del inglés.`,
+      `Observan un video corto auténtico en inglés sobre "{tema}" sin subtítulos. Identifican vocabulario, expresiones y estructuras en uso real. Anotan en sus cuadernos lo que escuchan y entienden.`,
+      `Analizan con el docente el vocabulario y las estructuras del video sobre "{tema}": palabras clave, cognados útiles _(routine, activity, schedule)_ y expresiones comunicativas de uso frecuente en inglés.`,
+      `Practican las estructuras de "{tema}" mediante ejercicios de sustitución controlada: el docente da el modelo y los estudiantes lo adaptan a su propia realidad _(I wake up at... / She goes to school at... / They usually...)_.`,
+      `Elaboran un role-play o diálogo guiado sobre "{tema}" usando las estructuras del video como modelo. Lo presentan en parejas ante el grupo. _(Switch roles and try again — this time without looking at your notes!)_`,
     ],
   ],
-  // ── Grupo 2: Writing + Grammar in Context ─────────────────────────────────────
+  // ── Grupo 1: Reading + Vocabulary building ────────────────────────────────────
   [
     [
-      `Analizan producciones escritas modelo sobre "{tema}": identifican estructura, vocabulario, conectores y registro lingüístico apropiado.`,
-      `Practican la estructura gramatical de "{tema}" en ejercicios contextualizados: transformación de oraciones, completación y producción guiada. _(Write your own sentence using this structure — make it about your life!)_`,
-      `Redactan una producción escrita sobre "{tema}" (oraciones, párrafo, diálogo o descripción) usando el vocabulario y las estructuras trabajadas en clase.`,
-      `Intercambian producciones con un compañero para revisión por pares: verifican vocabulario, estructuras gramaticales y ortografía. Incorporan las sugerencias recibidas.`,
+      `Leen un texto auténtico en inglés sobre "{tema}" (artículo, blog, descripción personal) e identifican: idea principal, vocabulario nuevo, estructuras gramaticales en uso y conectores del discurso _(first, then, after that, finally)_.`,
+      `Analizan el vocabulario nuevo de "{tema}": pronunciación guiada, significado inferido desde el contexto, uso en oraciones propias. Elaboran un glosario visual en sus cuadernos: **palabra en inglés → imagen o definición en inglés → oración propia**.`,
+      `Completan ejercicios de vocabulario contextualizados sobre "{tema}": completar frases con la palabra correcta, emparejar expresiones con imágenes, ordenar palabras para formar oraciones coherentes.`,
+      `Leen párrafos sobre "{tema}" en voz alta en parejas. Practican la entonación, el ritmo y la pronunciación. El docente rota corrigiendo y modelando la lectura expresiva en inglés.`,
     ],
     [
-      `Observan y analizan textos auténticos en inglés relacionados con "{tema}": mensajes de texto, anuncios, etiquetas de productos, artículos cortos.`,
-      `Comparan el inglés con el español en el contexto de "{tema}": identifican cognados útiles y diferencias en el orden de palabras, la gramática y la pronunciación.`,
-      `Producen un texto escrito más elaborado sobre "{tema}": descripción, narración, argumentación o conversación extendida usando estructuras del nivel.`,
-      `Comparten su producción ante el grupo o en parejas. El docente retroalimenta la precisión gramatical, la expresividad comunicativa y la creatividad del texto.`,
+      `Leen textos de diferente complejidad sobre "{tema}" y responden preguntas de comprensión literal _(What does the text say?)_, inferencial _(What can you conclude?)_ e interpretativa _(How does this connect to your life?)_.`,
+      `Identifican patrones gramaticales en los textos de "{tema}": tiempos verbales, adverbios de frecuencia, preposiciones de tiempo y lugar, adjetivos calificativos. Los analizan en contexto real _(Look at this sentence — what grammar rule is being used? Can you find three more examples in the text?)_.`,
+      `Elaboran en sus cuadernos un glosario visual ampliado de "{tema}" por categorías: **verbos de acción | expresiones de tiempo | adjetivos descriptivos | frases para comunicarse**. Ilustran o ejemplifican cada entrada.`,
+      `Practican la lectura expresiva de textos de "{tema}" en voz alta. Graban o presentan ante un compañero. Reciben retroalimentación sobre pronunciación, entonación y comprensión del texto.`,
+    ],
+  ],
+  // ── Grupo 2: Writing + Grammar in context ────────────────────────────────────
+  [
+    [
+      `Observan y analizan una producción escrita modelo sobre "{tema}": identifican la estructura del texto, el vocabulario seleccionado, los conectores usados _(first, however, in conclusion)_ y el registro lingüístico apropiado para la audiencia.`,
+      `Practican la estructura gramatical de "{tema}" en ejercicios contextualizados: transforman oraciones, completan textos con la forma verbal correcta y producen oraciones propias sobre su realidad _(Write your own sentence using this structure — make it true about your daily life!)_.`,
+      `Redactan una producción escrita individual sobre "{tema}" (descripción, narración, diálogo o párrafo argumentativo) usando el vocabulario y las estructuras trabajadas. Se apoyan en el modelo analizado al inicio de la actividad.`,
+      `Intercambian producciones con un compañero para revisión por pares: verifican vocabulario, estructuras gramaticales, ortografía y coherencia. Dan retroalimentación por escrito y la incorporan a su propia producción.`,
+    ],
+    [
+      `Observan textos auténticos en inglés relacionados con "{tema}": mensajes, anuncios, etiquetas, publicaciones en redes sociales. Identifican cómo el inglés real difiere del inglés académico y qué vocabulario es más útil en contextos cotidianos.`,
+      `Comparan el inglés con el español en el contexto de "{tema}": identifican cognados útiles _(routine → rutina, activity → actividad)_, falsos amigos y diferencias en el orden de palabras, la gramática y la pronunciación que deben atender.`,
+      `Producen un texto escrito más elaborado sobre "{tema}": descripción personal, narración de rutinas, argumentación o conversación extendida usando estructuras del nivel y el vocabulario acumulado en el Portafolio.`,
+      `Comparten su producción ante el grupo o en parejas. Reciben retroalimentación del docente y sus compañeros sobre precisión gramatical, selección de vocabulario, organización del texto y expresividad comunicativa.`,
     ],
   ],
 ];
@@ -872,46 +872,46 @@ const EN_CIERRE = [
   // ── Grupo 0 ──────────────────────────────────────────────────────────────────
   [
     [
-      `Escriben en su cuaderno 5 palabras o expresiones clave de "{tema}" aprendidas en la sesión, con su traducción y una oración de ejemplo en inglés.`,
-      `Reflexionan con apoyo del docente: _(What did I learn today? What was difficult? How can I practice this at home or outside school?)_`,
-      `Integran la retroalimentación del docente sobre pronunciación, vocabulario y comprensión oral trabajados en "{tema}".`,
-      `Despiden la sesión motivacionalmente en inglés: _(Goodbye! See you next class! Keep practicing your English every day!)_`,
+      `Elaboran tres a cinco oraciones sencillas en inglés sobre "{tema}" usando el vocabulario trabajado durante la sesión. Las leen en voz alta al grupo o en parejas. _(Use the words from today: wake up, have breakfast, go to school, in the morning...)_`,
+      `Guardan la producción escrita como **Entrada del Portafolio**. Reflexionan brevemente: _What did I learn today about {tema}? What was difficult? What do I want to keep practicing?_`,
+      `Organizan en sus cuadernos el vocabulario nuevo de "{tema}" aprendido en la sesión: agregan palabras a sus categorías existentes y completan su glosario visual personal.`,
+      `Reciben orientación sobre la tarea de práctica en casa relacionada con "{tema}". El docente conecta el contenido del día con la próxima sesión y motiva: _(Great work! Keep using English outside class — practice makes perfect!)_`,
     ],
     [
-      `Completan un exit ticket en inglés: _(Today I learned... about {tema}. I found it difficult to... I want to keep practicing...)_`,
-      `Resumen oralmente el contenido de "{tema}": tres voluntarios comparten una oración o expresión aprendida y la usan en un ejemplo propio.`,
-      `Reciben orientación sobre la tarea o actividad de práctica en casa relacionada con "{tema}" y la conectan con el aprendizaje del día.`,
-      `Despiden la sesión en inglés: _(Great job today! You're improving every class! See you soon — don't stop practicing!)_`,
+      `Completan un exit ticket en inglés sobre "{tema}": _(Today I learned... I practiced... I found it difficult to... Next class I want to...)_. Lo guardan en el Portafolio como evidencia de su reflexión metacognitiva.`,
+      `Resumen oralmente el contenido de "{tema}": tres voluntarios comparten una oración o expresión aprendida y la usan en un ejemplo de su vida cotidiana dominicana.`,
+      `Organizan en sus cuadernos el vocabulario de "{tema}": revisan las categorías del día y agregan cualquier palabra nueva que identificaron durante la sesión.`,
+      `Reciben retroalimentación final del docente sobre su desempeño en las actividades de listening y speaking de "{tema}". _(You are improving every class! Don't stop practicing!)_`,
     ],
   ],
   // ── Grupo 1 ──────────────────────────────────────────────────────────────────
   [
     [
-      `Construyen colectivamente en la pizarra un "vocabulary wall" de "{tema}": palabras, expresiones y estructuras aprendidas durante la sesión.`,
-      `Reflexionan sobre su aprendizaje: _¿Qué estrategia usé para entender el texto o audio sobre {tema}? ¿Cuál me resultó más útil?_`,
-      `Integran la retroalimentación del docente sobre el uso del vocabulario de "{tema}" en contexto comunicativo real.`,
-      `Reciben la tarea relacionada con "{tema}" y el docente conecta el contenido con la próxima sesión.`,
+      `Construyen colectivamente en la pizarra un **vocabulary wall** de "{tema}": el docente escribe las palabras que los estudiantes van aportando. Lo fotografían o copian en sus cuadernos para usarlo en futuras sesiones.`,
+      `Elaboran de tres a cinco oraciones sobre "{tema}" usando el vocabulario del vocabulary wall. Las leen en voz alta con atención a la pronunciación y la entonación. Reciben retroalimentación del docente.`,
+      `Guardan las oraciones como **Entrada del Portafolio**. Reflexionan: _¿Qué estrategia me ayudó más a entender el inglés sobre {tema}? ¿Cómo puedo seguir practicando fuera de clase?_`,
+      `Reciben orientación sobre la tarea de práctica en casa de "{tema}" y la conectan con el aprendizaje del día y el producto final de la unidad.`,
     ],
     [
-      `Realizan una actividad de síntesis oral en parejas sobre "{tema}": preguntas y respuestas usando el vocabulario y estructuras de la sesión. _(Ask and answer with your partner — use today's vocabulary!)_`,
-      `Reflexionan sobre su avance en el inglés: _¿Qué palabras o expresiones de {tema} puedo usar ya en una conversación real?_`,
-      `Reciben retroalimentación positiva del docente sobre su participación en las actividades de reading y vocabulary building.`,
-      `Despiden la sesión en inglés: _(Excellent work! English takes practice — keep going! See you next time!)_`,
+      `Realizan una síntesis oral en parejas sobre "{tema}": uno hace preguntas y el otro responde usando el vocabulario y estructuras de la sesión. _(Ask your partner: Do you usually...? What time do you...? Switch roles after 2 minutes.)_`,
+      `Elaboran un bosquejo actualizado del producto final sobre "{tema}" incorporando el vocabulario y las estructuras aprendidas en la sesión. Lo comparan con el bosquejo inicial del Portafolio para observar su avance.`,
+      `Guardan el bosquejo actualizado en el **Portafolio**. Reflexionan: _¿Qué palabras o expresiones de {tema} puedo usar ya en una conversación real con un anglófono?_`,
+      `Reciben retroalimentación positiva del docente y cierran la sesión con motivación. _(Excellent English practice today! Every word you learn brings you closer to fluency!)_`,
     ],
   ],
   // ── Grupo 2 ──────────────────────────────────────────────────────────────────
   [
     [
-      `Leen en voz alta su producción final sobre "{tema}" ante el grupo o en parejas. Practican pronunciación, entonación y fluidez en inglés.`,
-      `Reflexionan sobre el proceso de escritura en inglés: _¿Qué estructura gramatical de {tema} domino mejor ahora? ¿Qué sigo necesitando practicar?_`,
-      `Integran las correcciones del docente sobre gramática, vocabulario y estructura de su producción escrita sobre "{tema}".`,
-      `El docente celebra el avance comunicativo del grupo y anuncia el próximo contenido en inglés. _(Amazing class today! You should be proud of your progress!)_`,
+      `Presentan su producción escrita final o avanzada sobre "{tema}" ante el grupo o en parejas. Leen en voz alta con atención a la pronunciación, la entonación y la fluidez en inglés.`,
+      `Autoevalúan su producción de "{tema}" usando la rúbrica de la unidad: vocabulario apropiado, estructuras gramaticales correctas, organización del texto y expresividad comunicativa. Identifican su próximo paso de mejora.`,
+      `Guardan la autoevaluación y la producción como **Entrada Final del Portafolio**. Reflexionan: _¿Qué estructura gramatical de {tema} domino mejor ahora? ¿Qué evidencia tengo de mi progreso desde la Entrada 0?_`,
+      `Reciben retroalimentación final del docente. El grupo celebra el avance comunicativo logrado durante la unidad. _(Amazing progress! You should be proud — look how much English you can use now about {tema}!)_`,
     ],
     [
-      `Autoevalúan su producción escrita sobre "{tema}" usando criterios acordados: vocabulario apropiado, estructuras correctas, coherencia y expresividad.`,
-      `Reflexionan sobre la importancia del inglés: _¿Por qué es valioso aprender inglés? ¿Dónde lo podría usar en mi vida personal, académica o profesional?_`,
-      `Reciben retroalimentación final del docente sobre el nivel de comunicación logrado en "{tema}" durante la sesión.`,
-      `Despiden la sesión en inglés: _(Wonderful session! Keep using English outside the classroom! See you next class — keep it up!)_`,
+      `Comparten su producción final de "{tema}" en pequeños grupos. Cada compañero da retroalimentación escrita usando la rúbrica: una fortaleza y una sugerencia de mejora. Incorporan las sugerencias a su versión final.`,
+      `Reflexionan sobre su trayectoria de aprendizaje: comparan la Entrada 0 del Portafolio con su producción final de "{tema}". Identifican evidencias concretas de su progreso en vocabulario, gramática y producción comunicativa.`,
+      `Guardan la versión final con la reflexión de cierre como **Entrada Final del Portafolio**. Organizan en sus cuadernos el vocabulario y las estructuras más importantes de "{tema}" para uso futuro.`,
+      `Reflexionan sobre la utilidad del inglés: _¿En qué situaciones reales de mi vida puedo usar lo que aprendí sobre {tema}? ¿Dónde tengo oportunidades de practicar inglés en la República Dominicana?_`,
     ],
   ],
 ];
@@ -919,103 +919,97 @@ const EN_CIERRE = [
 // ─── FRANCÉS ──────────────────────────────────────────────────────────────────
 
 const FR_INICIO = [
-  // ── Grupo 0: Diagnóstico y activación oral ────────────────────────────────────
+  // ── Grupo 0: Orientación al producto y diagnóstico de vocabulario ─────────────
   [
     [
-      `Répondent à la salutation et aux indications initiales du professeur en français. _(Bonjour! Comment allez-vous? Êtes-vous prêts?)_`,
-      `Recuperan vocabulario y expresiones previas: el docente muestra imágenes de "{tema}" y los estudiantes dicen en francés las palabras que conocen.`,
-      `Escuchan un audio o diálogo breve sobre "{tema}" e identifican palabras o expresiones que reconocen. _(Qu'est-ce que vous avez compris?)_`,
-      `Expresan predicciones sobre el contenido de la clase usando el vocabulario que conocen con apoyo de imágenes o tarjetas.`,
-      `Escuchan la intención pedagógica y el propósito comunicativo de la sesión.`,
+      `Observan ejemplos del producto final de la unidad relacionados con "{tema}" (affiches, brochures, dialogues enregistrés, infographies). Analizan la rúbrica de evaluación: criterios de calidad, descriptores y aspectos que deberán desarrollar durante la unidad.`,
+      `Observan imágenes relacionadas con "{tema}" e identifican vocabulario clave en francés. Escuchan y practican la pronunciación guiada de verbos de acción y expresiones de uso frecuente _(écoutez et répétez: se réveiller, prendre le petit déjeuner, aller à l'école / le matin, à midi, le soir)_.`,
+      `Organizan el vocabulario de "{tema}" por categorías en sus cuadernos: verbes d'action, expressions de temps, adjectifs descriptifs, phrases utiles pour communiquer.`,
+      `Guardan la producción escrita como **Entrée 0 du Portfolio**. Elaboran un bosquejo inicial del producto final: qué incluirán, cómo lo organizarán y qué vocabulario en francés usarán.`,
     ],
     [
-      `Répondent à la salutation et aux indications du professeur en français et révisent brièvement la leçon précédente sur "{tema}".`,
-      `Leen un texto muy corto (3-5 oraciones) en francés relacionado con "{tema}" e identifican: palabras conocidas, palabras nuevas y la idea general.`,
-      `Retroalimentan la clase anterior: _Quels mots ou expressions avez-vous retenus de la dernière leçon sur {tema}?_`,
-      `Relacionan el vocabulario de "{tema}" con su entorno cotidiano y lo asocian con palabras en español que conocen (cognados).`,
-      `Escuchan el objetivo comunicativo de la sesión y el tipo de producción esperada al final.`,
+      `Observan producciones auténticas en francés sobre "{tema}" (articles, publications, vidéos courtes). Identifican vocabulario conocido y nuevo; lo comparten con el grupo: _Quels mots connaissez-vous déjà en français sur ce sujet?_`,
+      `Escuchan una chanson o audio breve en francés relacionado con "{tema}". Identifican palabras clave y las comparten oralmente. Practican la pronunciación de las expresiones identificadas _(aller à l'école, faire ses devoirs, dîner en famille, se coucher tôt)_.`,
+      `Organizan en sus cuadernos las palabras y expresiones de "{tema}" por categorías propias elegidas por ellos. Comparten su organización con un compañero y explican por qué agruparon así.`,
+      `Guardan el vocabulario organizado como **Entrée 0 du Portfolio**. Elaboran un bosquejo inicial de cómo imaginan su producto final sobre "{tema}" en francés.`,
     ],
   ],
-  // ── Grupo 1: Construcción lingüística y práctica ──────────────────────────────
+  // ── Grupo 1: Construcción lingüística y activación del conocimiento previo ────
   [
     [
-      `Realizan el saludo en francés y una actividad de repaso oral rápido del vocabulario de "{tema}" con tarjetas o imágenes.`,
-      `Retroalimentan: voluntarios producen oraciones en francés usando estructuras de "{tema}" aprendidas previamente.`,
-      `Escuchan o leen un texto más extenso sobre "{tema}" e identifican: vocabulario nuevo, estructuras gramaticales y la intención comunicativa.`,
-      `Preparan preguntas o respuestas en francés relacionadas con "{tema}" usando los modelos analizados.`,
-      `Escuchan la intención pedagógica y las actividades de producción planificadas para la sesión.`,
+      `Observan el producto de la sesión anterior sobre "{tema}" y revisan la rúbrica de evaluación. Identifican qué criterios ya cumplen y cuáles deben seguir desarrollando durante la unidad.`,
+      `Observan una vidéo courte auténtica en francés sobre "{tema}". Identifican vocabulario conocido, expresiones nuevas y estructuras gramaticales usadas por los hablantes _(Je me lève à..., D'habitude je..., D'abord je..., Ensuite je...)_.`,
+      `Organizan en sus cuadernos el vocabulario nuevo de "{tema}" por categorías: mots déjà connus, mots nouveaux à apprendre, expressions à pratiquer davantage.`,
+      `Guardan el vocabulario organizado como **Entrée 1 du Portfolio**. Elaboran una primera versión escrita del producto con el vocabulario disponible hasta el momento.`,
     ],
     [
-      `Répondent à la salutation et aux indications du professeur et participent à un échauffement communicatif oral sur "{tema}".`,
-      `Analizan una producción auténtica en francés (anuncio, artículo corto, conversación) relacionada con "{tema}": vocabulario, estructura, registro.`,
-      `Identifican estrategias comunicativas útiles en francés para "{tema}": cómo pedir información, cómo describir, cómo expresar opinión.`,
-      `Practican las estrategias identificadas en ejercicios de comprensión oral y lectora sobre "{tema}".`,
-      `Escuchan orientaciones del docente para la producción oral o escrita de la sesión.`,
+      `Observan imágenes y ejemplos de textos en francés sobre "{tema}" y responden preguntas de activación: _Qu'est-ce que vous voyez? Quels mots français pouvez-vous utiliser pour décrire ça? Avez-vous déjà vécu quelque chose de similaire?_`,
+      `Escuchan un diálogo o conversación auténtica en francés sobre "{tema}" (2 escuchas). Primera: ¿de qué se habla? Segunda: ¿qué vocabulario y estructuras usan? _(Est-ce que tu... d'habitude? Oui, je toujours... / Non, je ne... jamais.)_`,
+      `Identifican y organizan en sus cuadernos las estrategias comunicativas del audio: cómo piden información, cómo describen, cómo expresan frecuencia o rutina sobre "{tema}" en francés.`,
+      `Elaboran en parejas una producción oral o escrita inicial sobre "{tema}" usando las estrategias y vocabulario identificados. La guardan en el Portfolio como evidencia del punto de partida.`,
     ],
   ],
-  // ── Grupo 2: Producción y autonomía comunicativa ──────────────────────────────
+  // ── Grupo 2: Revisión y orientación hacia la producción final ─────────────────
   [
     [
-      `Répondent à la salutation et aux indications du professeur en français. Participent à un défi communicatif sur "{tema}".`,
-      `Presentan brevemente su producción escrita u oral sobre "{tema}" y reciben retroalimentación del docente sobre precisión y fluidez.`,
-      `Revisan y mejoran su producción incorporando las correcciones de vocabulario, pronunciación o estructuras gramaticales recibidas.`,
-      `Se preparan para la exposición final o el intercambio comunicativo de la sesión sobre "{tema}".`,
-      `Escuchan los criterios de evaluación de la producción final en francés.`,
+      `Observan su producción anterior de "{tema}" guardada en el Portfolio. La comparan con ejemplos de alta calidad usando la rúbrica de evaluación: _Qu'est-ce que j'ai amélioré? Qu'est-ce qu'il me reste à développer?_`,
+      `Identifican brechas de vocabulario en su producción de "{tema}": palabras que necesitan, estructuras que no dominan aún. Escuchan y practican las expresiones que les faltan _(Je voudrais..., À mon avis..., Par exemple..., En résumé...)_.`,
+      `Organizan en sus cuadernos una liste de révision personal para mejorar su producción de "{tema}": vocabulaire manquant, structures à pratiquer, critères de la rubrique à renforcer.`,
+      `Guardan la liste de révision como **Entrée du Portfolio**. Elaboran el borrador mejorado del producto final incorporando los ajustes identificados.`,
     ],
     [
-      `Répondent à la salutation en français et participent à une activité d'activation communicative avancée sur "{tema}".`,
-      `Evalúan la calidad comunicativa de su producción final sobre "{tema}": precisión de vocabulario, estructuras gramaticales y fluidez.`,
-      `Comparan textos auténticos en francés con sus propias producciones sobre "{tema}". Identifican diferencias y similitudes.`,
-      `Se preparan para la presentación o intercambio comunicativo final de la sesión.`,
-      `Escuchan orientaciones del docente sobre los criterios de la presentación oral o entrega escrita final.`,
+      `Observan producciones de compañeros sobre "{tema}" (con su permiso) y las comparan con la rúbrica de evaluación. Identifican fortalezas y aspectos de mejora de manera respetuosa: _Qu'est-ce qui est bien dans cette production? Qu'est-ce qu'on pourrait améliorer?_`,
+      `Escuchan y practican en parejas el vocabulario y las estructuras que más les cuesta usar en francés sobre "{tema}". El docente rota por los grupos corrigiendo la pronunciación del francés _(attention à la liaison, au genre des mots, aux sons nasaux)_.`,
+      `Identifican y organizan en sus cuadernos las correcciones más importantes recibidas sobre "{tema}": prononciation, grammaire, choix de vocabulaire, organisation du texte.`,
+      `Guardan las correcciones en el Portfolio. Elaboran el borrador final del producto sobre "{tema}" incorporando todas las mejoras identificadas durante la révision entre pares.`,
     ],
   ],
 ];
 
 const FR_DESARROLLO = [
-  // ── Grupo 0: Listening + Speaking ─────────────────────────────────────────────
+  // ── Grupo 0: Écoute + Expression orale ────────────────────────────────────────
   [
     [
-      `Escuchan un audio o diálogo en francés relacionado con "{tema}" (2-3 escuchas). En la primera, identifican el tema general; en la segunda, palabras clave; en la tercera, detalles específicos.`,
-      `Responden preguntas de comprensión oral sobre "{tema}": _(Qui parle? Où sont-ils? Qu'est-ce qu'ils font?)_`,
-      `Practican la pronunciación del vocabulario de "{tema}" repitiendo y leyendo en voz alta con corrección del docente.`,
-      `Realizan un ejercicio de speaking en parejas sobre "{tema}": preguntas y respuestas usando el vocabulario y estructuras del audio. _(Posez des questions à votre camarade!)_`,
+      `Escuchan un audio o diálogo en francés sobre "{tema}" (3 escuchas progresivas). Primera: identifican el tema general. Segunda: anotan palabras y expresiones clave. Tercera: responden preguntas de detalle _(Qui parle? Où? Qu'est-ce qu'ils font? Quand?)_.`,
+      `Analizan las estructuras gramaticales del audio de "{tema}": tiempo verbal, lugar de los adjetivos, uso de adverbios de frecuencia _(toujours, souvent, parfois, jamais)_ y conectores _(d'abord, ensuite, puis, enfin)_.`,
+      `Practican en parejas la pronunciación del vocabulario de "{tema}": el docente corrige la liaison, el género gramatical y los sonidos nasales del francés _(attention à la liaison: les enfants → lezenfants; les sons: un/une, en/an, on)_.`,
+      `Realizan un échange oral en parejas usando el vocabulario y las estructuras del audio sobre "{tema}". _(Demandez à votre camarade: Qu'est-ce que tu fais d'habitude le matin? Répondez avec des détails. Ensuite, changez de rôle — 3 minutes!)_`,
     ],
     [
-      `Observan un video en francés sobre "{tema}" e identifican vocabulario, expresiones y estructuras en uso auténtico.`,
-      `Analizan el vocabulario del video relacionado con "{tema}": palabras clave, cognados y expresiones comunicativas útiles.`,
-      `Practican oral y auditivamente las estructuras de "{tema}" mediante ejercicios de repetición, sustitución y transformación.`,
-      `Realizan un role-play o diálogo guiado sobre "{tema}" usando las estructuras del video como modelo. _(Jouez le dialogue avec votre partenaire!)_`,
+      `Observan una vidéo courte auténtica en francés sobre "{tema}". Identifican vocabulario, expresiones y estructuras en uso real. Anotan en sus cuadernos lo que escuchan y comprenden.`,
+      `Analizan con el docente el vocabulario y las estructuras de la vidéo sobre "{tema}": mots clés, cognats utiles _(routine → routine, activité → activité, famille → famille)_ y expressions communicatives frecuentes en francés.`,
+      `Practican las estructuras de "{tema}" mediante ejercicios de sustitución controlada: el docente da el modelo y los estudiantes lo adaptan a su propia realidad dominicana _(Je me réveille à... / Elle va à l'école à... / Ils mangent généralement...)_.`,
+      `Elaboran un jeu de rôle o diálogo guiado sobre "{tema}" usando las estructuras de la vidéo como modelo. Lo presentan en parejas. _(Changez de rôle et recommencez — cette fois sans regarder vos notes!)_`,
     ],
   ],
-  // ── Grupo 1: Reading + Vocabulary ─────────────────────────────────────────────
+  // ── Grupo 1: Lecture + Construction du vocabulaire ────────────────────────────
   [
     [
-      `Leen un texto en francés relacionado con "{tema}" e identifican: idea principal, vocabulario nuevo, estructuras gramaticales y marcadores del discurso.`,
-      `Analizan el vocabulario nuevo de "{tema}": forma, pronunciación, significado y uso en contexto. Registran en su glosario personal.`,
-      `Completan ejercicios de vocabulario contextualizados sobre "{tema}": completar frases, emparejamiento, ordenar palabras.`,
-      `Leen oraciones o párrafos sobre "{tema}" en voz alta y reciben corrección de pronunciación del docente o compañeros.`,
+      `Leen un texto auténtico en francés sobre "{tema}" (article, blog, description personnelle) e identifican: idée principale, vocabulaire nouveau, structures grammaticales en uso y conectores del discurso _(premièrement, de plus, en revanche, finalement)_.`,
+      `Analizan el vocabulario nuevo de "{tema}": pronunciación guiada, significado inferido desde el contexto, uso en oraciones propias. Elaboran un glosario visual en sus cuadernos: **mot en français → image ou définition en français → phrase originale**.`,
+      `Completan ejercicios de vocabulario contextualizados sobre "{tema}": completar frases con la palabra correcta, emparejar expresiones con imágenes, ordenar palabras para formar oraciones en francés coherentes.`,
+      `Leen párrafos sobre "{tema}" en voz alta en parejas. Practican la entonación, el ritmo y la pronunciación correcta del francés. El docente rota corrigiendo y modelando la lecture expressive.`,
     ],
     [
-      `Leen textos de diferente nivel de complejidad sobre "{tema}" y responden preguntas de comprensión literal, inferencial e interpretativa.`,
-      `Identifican patrones gramaticales en los textos de "{tema}": tiempos verbales, género/número, preposiciones, adjetivos. Los analizan en contexto.`,
-      `Elaboran un glosario visual de "{tema}": palabra en francés → imagen o definición en francés → oración de ejemplo.`,
-      `Practican la lectura expresiva de textos sobre "{tema}" con atención a la pronunciación, ritmo y entonación del francés.`,
+      `Leen textos de diferente complejidad sobre "{tema}" y responden preguntas de comprensión literal _(Qu'est-ce que le texte dit?)_, inferencial _(Qu'est-ce qu'on peut conclure?)_ e interpretativa _(Comment cela se connecte-t-il à votre vie?)_.`,
+      `Identifican patrones gramaticales en los textos de "{tema}": temps verbaux, accord du genre et du nombre, place des adjectifs, prépositions de lieu et de temps. Los analizan en contexto real _(Regardez cette phrase — quelle règle grammaticale utilise-t-on? Trouvez trois autres exemples dans le texte.)_.`,
+      `Elaboran en sus cuadernos un glosario visual ampliado de "{tema}" por categorías: **verbes d'action | expressions de temps | adjectifs qualificatifs | phrases pour communiquer**. Ilustran o ejemplifican cada entrada.`,
+      `Practican la lecture expressive de textos de "{tema}" en voz alta. Presentan ante un compañero o graban su lectura. Reciben retroalimentación sobre pronunciación, entonación y compréhension du texte.`,
     ],
   ],
-  // ── Grupo 2: Writing + Grammar in Context ─────────────────────────────────────
+  // ── Grupo 2: Production écrite + Grammaire en contexte ───────────────────────
   [
     [
-      `Analizan producciones escritas modelo sobre "{tema}": identifican estructura, vocabulario, conectores y registro lingüístico.`,
-      `Practican la estructura gramatical de "{tema}" en ejercicios contextualizados: transformación, completación y producción guiada.`,
-      `Redactan una producción escrita sobre "{tema}" (oraciones, párrafo, diálogo, descripción o narración) usando el vocabulario y estructuras trabajados.`,
-      `Intercambian producciones con un compañero para revisión por pares: verifican vocabulario, estructuras y ortografía. Incorporan las sugerencias recibidas.`,
+      `Observan y analizan una producción escrita modelo sobre "{tema}": identifican la structure du texte, el vocabulario seleccionado, los connecteurs utilisés _(d'abord, cependant, par conséquent, en conclusion)_ y el registro lingüístico apropiado para la audiencia.`,
+      `Practican la estructura gramatical de "{tema}" en ejercicios contextualizados: transforman oraciones, completan textos con la forma verbal correcta y producen oraciones propias sobre su realidad _(Écrivez votre propre phrase avec cette structure — rendez-la vraie pour votre vie quotidienne!)_.`,
+      `Redactan una producción escrita individual sobre "{tema}" (description, narration, dialogue ou paragraphe argumentatif) usando el vocabulario y las estructuras trabajadas. Se apoyan en el modelo analizado al inicio de la actividad.`,
+      `Intercambian producciones con un compañero para révision par les pairs: verifican vocabulario, estructuras gramaticales, ortografía y coherencia. Dan retroalimentación por escrito y la incorporan a su propia producción.`,
     ],
     [
-      `Observan y analizan textos auténticos en francés relacionados con "{tema}": artículos, mensajes, formularios, anuncios.`,
-      `Comparan el francés con el español en el contexto de "{tema}": identifican similitudes (cognados) y diferencias (falsos amigos, estructura gramatical).`,
-      `Producen un texto escrito más elaborado sobre "{tema}": descripción, narración, argumentación o conversación extendida.`,
-      `Comparten su producción ante el grupo o en parejas. El docente retroalimenta la precisión gramatical y la expresividad comunicativa.`,
+      `Observan textos auténticos en francés relacionados con "{tema}": articles de presse, messages, affiches, publications en réseaux sociaux. Identifican cómo el francés real difiere del francés académico y qué vocabulario es más útil en contextos cotidianos.`,
+      `Comparan el francés con el español en el contexto de "{tema}": identifican cognats utiles _(routine → rutina, activité → actividad, famille → familia)_, faux amis y diferencias en el orden de palabras, el género gramatical y la pronunciación.`,
+      `Producen un texto escrito más elaborado sobre "{tema}": description personnelle, narration de routines, argumentation ou conversation étendue usando las estructuras del nivel y el vocabulario acumulado en el Portfolio.`,
+      `Comparten su producción ante el grupo o en parejas. Reciben retroalimentación del docente y sus compañeros sobre précision grammaticale, choix de vocabulaire, organisation du texte y expresividad comunicativa en francés.`,
     ],
   ],
 ];
@@ -1024,46 +1018,46 @@ const FR_CIERRE = [
   // ── Grupo 0 ──────────────────────────────────────────────────────────────────
   [
     [
-      `Escriben en su cuaderno 5 palabras o expresiones clave de "{tema}" aprendidas en la sesión con su traducción y una oración de ejemplo.`,
-      `Reflexionan en francés con apoyo del docente: _(Qu'est-ce que j'ai appris? Qu'est-ce qui était difficile? Comment je peux pratiquer?)_`,
-      `Integran la retroalimentación del docente sobre pronunciación, vocabulario y comprensión oral de "{tema}".`,
-      `Despiden la sesión motivacionalmente en francés. _(Au revoir! À la prochaine! Continuez à pratiquer le français!)_`,
+      `Elaboran tres a cinco oraciones sencillas en francés sobre "{tema}" usando el vocabulario trabajado durante la sesión. Las leen en voz alta al grupo o en parejas. _(Utilisez les mots d'aujourd'hui: se réveiller, prendre le petit déjeuner, aller à l'école, le matin, le soir...)_`,
+      `Guardan la producción escrita como **Entrée du Portfolio**. Reflexionan brevemente: _Qu'est-ce que j'ai appris aujourd'hui sur {tema}? Qu'est-ce qui était difficile? Qu'est-ce que je veux continuer à pratiquer?_`,
+      `Organizan en sus cuadernos el vocabulario nuevo de "{tema}" aprendido en la sesión: agregan palabras a sus categorías existentes y completan su glosario visual personal con el vocabulario en francés.`,
+      `Reciben orientación sobre la tarea de práctica en casa relacionada con "{tema}". El docente conecta el contenido del día con la próxima sesión y motiva: _(Très bien! Continuez à pratiquer le français — chaque mot appris est un pas vers la maîtrise!)_`,
     ],
     [
-      `Completan un ticket de salida en francés: _(Aujourd'hui j'ai appris... en {tema}. J'ai du mal à... Je veux pratiquer...)_`,
-      `Resumen oralmente el contenido de "{tema}": tres voluntarios comparten una oración o expresión aprendida durante la sesión.`,
-      `Reciben orientación sobre la tarea relacionada con "{tema}" y la conectan con el aprendizaje del día.`,
-      `Despiden la sesión en francés: _(Merci! Bonne journée! À bientôt!)_`,
+      `Completan un ticket de salida en francés sobre "{tema}": _(Aujourd'hui j'ai appris... J'ai pratiqué... J'ai eu du mal à... La prochaine fois je veux...)_. Lo guardan en el Portfolio como evidencia de reflexión metacognitiva.`,
+      `Resumen oralmente el contenido de "{tema}": tres voluntarios comparten una oración o expresión aprendida durante la sesión y la usan en un ejemplo de su vida cotidiana dominicana.`,
+      `Organizan en sus cuadernos el vocabulario de "{tema}": revisan las categorías del día y agregan cualquier mot nouveau que identificaron durante la sesión.`,
+      `Reciben retroalimentación final del docente sobre su desempeño en las actividades de compréhension orale y expression orale de "{tema}". _(Vous progressez! Continuez à pratiquer le français tous les jours!)_`,
     ],
   ],
   // ── Grupo 1 ──────────────────────────────────────────────────────────────────
   [
     [
-      `Construyen colectivamente en la pizarra un "muro de vocabulario" de "{tema}": palabras, expresiones y estructuras aprendidas durante la sesión.`,
-      `Reflexionan sobre su comprensión: _¿Qué estrategia usé para entender el texto o audio sobre {tema}? ¿Cuál me ayudó más?_`,
-      `Integran la retroalimentación del docente sobre el uso del vocabulario de "{tema}" en contexto.`,
-      `Reciben la tarea relacionada con "{tema}" y el docente conecta el contenido con la próxima sesión.`,
+      `Construyen colectivamente en la pizarra un **mur de vocabulaire** de "{tema}": el docente escribe las palabras que los estudiantes van aportando. Lo fotografían o copian en sus cuadernos para usarlo como referencia en futuras sesiones.`,
+      `Elaboran de tres a cinco oraciones sobre "{tema}" usando el vocabulario del mur de vocabulaire. Las leen en voz alta con atención a la pronunciación, la liaison y la entonación del francés. Reciben retroalimentación del docente.`,
+      `Guardan las oraciones como **Entrée du Portfolio**. Reflexionan: _¿Qué estrategia me ayudó más a entender el francés sobre {tema}? ¿Cómo puedo seguir practicando fuera del aula?_`,
+      `Reciben orientación sobre la tarea de práctica en casa de "{tema}" y la conectan con el aprendizaje del día y el producto final de la unidad.`,
     ],
     [
-      `Realizan una actividad de síntesis oral en parejas sobre "{tema}": preguntas y respuestas usando el vocabulario y estructuras de la sesión.`,
-      `Reflexionan sobre su avance en el aprendizaje del francés: _¿Qué de {tema} puedo usar ya en una conversación real?_`,
-      `Reciben retroalimentación positiva del docente sobre su participación en las actividades de reading y vocabulary.`,
-      `Despiden la sesión en francés de manera motivacional. _(Très bien! Continuez comme ça! À la prochaine!)_`,
+      `Realizan una synthèse orale en parejas sobre "{tema}": uno hace preguntas y el otro responde usando el vocabulario y estructuras de la sesión. _(Pose des questions à ton/ta camarade: Tu fais quoi d'habitude le matin? À quelle heure? Ensuite changez de rôle — 2 minutes chacun.)_`,
+      `Elaboran un brouillon actualizado del producto final sobre "{tema}" incorporando el vocabulario y las estructuras aprendidas en la sesión. Lo comparan con el bosquejo inicial del Portfolio para observar su avance.`,
+      `Guardan el brouillon actualizado en el **Portfolio**. Reflexionan: _¿Qué palabras o expresiones de {tema} en francés puedo usar ya en una conversación real con un francófono?_`,
+      `Reciben retroalimentación positiva del docente y cierran la sesión con motivación. _(Excellent travail! Chaque session vous rapproche de la maîtrise du français. À bientôt!)_`,
     ],
   ],
   // ── Grupo 2 ──────────────────────────────────────────────────────────────────
   [
     [
-      `Leen en voz alta su producción final sobre "{tema}" ante el grupo o en parejas. Practican pronunciación y entonación correctas.`,
-      `Reflexionan sobre el proceso de escritura en francés: _¿Qué estructura gramatical de {tema} domino mejor ahora? ¿Qué sigo necesitando practicar?_`,
-      `Integran las correcciones del docente sobre gramática, vocabulario y estructura de su producción escrita sobre "{tema}".`,
-      `El docente celebra el avance en la producción escrita del grupo y anuncia el próximo contenido comunicativo en francés.`,
+      `Presentan su producción escrita final o avanzada sobre "{tema}" ante el grupo o en parejas. Leen en voz alta con atención a la pronunciación, la entonación y la fluidez en francés.`,
+      `Autoevalúan su producción de "{tema}" usando la rúbrica de la unidad: vocabulaire approprié, structures grammaticales correctes, organisation du texte y expresividad comunicativa. Identifican su próximo paso de mejora.`,
+      `Guardan la autoevaluación y la producción como **Entrée Finale du Portfolio**. Reflexionan: _¿Qué estructura gramatical de {tema} domino mejor ahora? ¿Qué evidencia tengo de mi progreso desde la Entrée 0?_`,
+      `Reciben retroalimentación final del docente. El grupo celebra el avance comunicativo logrado durante la unidad. _(Magnifique! Regardez tout ce que vous pouvez dire en français maintenant sur {tema}! Vous devez être fiers de vous!)_`,
     ],
     [
-      `Autoevalúan su producción escrita sobre "{tema}" usando criterios: vocabulario apropiado, estructuras correctas, coherencia y expresividad.`,
-      `Reflexionan sobre su relación con el francés: _¿Por qué es importante aprender francés? ¿Dónde lo podría usar en mi vida?_`,
-      `Reciben retroalimentación final del docente sobre el nivel de comunicación logrado en "{tema}" durante la sesión.`,
-      `Despiden la sesión motivacionalmente: _(Le français, c'est magnifique! À la prochaine classe! Continuez à pratiquer!)_`,
+      `Comparten su producción final de "{tema}" en pequeños grupos. Cada compañero da retroalimentación escrita usando la rúbrica: une force y une suggestion d'amélioration. Incorporan las sugerencias a su versión final.`,
+      `Reflexionan sobre su trayectoria de aprendizaje: comparan la Entrée 0 del Portfolio con su producción final de "{tema}". Identifican evidencias concretas de su progreso en vocabulario, gramática y producción comunicativa en francés.`,
+      `Guardan la versión final con la reflexión de cierre como **Entrée Finale du Portfolio**. Organizan en sus cuadernos el vocabulario y las estructuras más importantes de "{tema}" para uso futuro en el francés.`,
+      `Reflexionan sobre la utilidad del francés: _¿En qué situaciones reales de mi vida puedo usar lo que aprendí sobre {tema} en francés? ¿Dónde tengo oportunidades de practicar el idioma en la República Dominicana y el mundo?_`,
     ],
   ],
 ];

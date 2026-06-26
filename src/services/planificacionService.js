@@ -1,6 +1,7 @@
 /* Servicio de Planificación — versión enriquecida MINERD */
 import { distribuirTemasEnSemanas, obtenerTemaSemana } from "./curriculumCombinacionService.js";
 import { resolverClave } from "../planning/areaAsignaturaMap.js";
+import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.js";
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 
@@ -430,7 +431,9 @@ const METACOGNICION_POR_MOMENTO = {
   ],
 };
 
-const construirMomento = (tipo, semana, dia, tema, tipoEval, totalMin = 45) => {
+const FASE_A_IDX = { diagnostica: 0, inicial: 0, desarrollo: 1, profundizacion: 1, final: 2 };
+
+const construirMomento = (tipo, semana, dia, tema, tipoEval, totalMin = 45, area = "", fase = "desarrollo") => {
   const tiempos = calcularTiemposMomento(totalMin);
   const instrumentosMapa = {
     diagnostica: { Inicio: "Prueba diagnóstica", Desarrollo: "Observación sistemática", Cierre: "Lista de participación" },
@@ -438,11 +441,20 @@ const construirMomento = (tipo, semana, dia, tema, tipoEval, totalMin = 45) => {
     sumativa:    { Inicio: "Lista de cotejo", Desarrollo: "Rúbrica sumativa", Cierre: "Portafolio / Presentación" },
   };
   const instrumento = instrumentosMapa[tipoEval]?.[tipo] || "Observación";
-  let variaciones;
-  if (tipo === "Inicio")          variaciones = VARIACIONES_INICIO;
-  else if (tipo === "Desarrollo") variaciones = VARIACIONES_DESARROLLO;
-  else                            variaciones = VARIACIONES_CIERRE;
-  const actividades = elegirVariacion(variaciones, semana, dia);
+
+  // Banco especializado por área — si existe, usa sus actividades contextualizadas
+  const faseIdx = FASE_A_IDX[fase] ?? 1;
+  const actividadesBanco = area ? obtenerActividadesBanco(area, tipo, faseIdx, dia - 1) : null;
+  let actividades;
+  if (actividadesBanco) {
+    actividades = withTema(actividadesBanco, tema);
+  } else {
+    let variaciones;
+    if (tipo === "Inicio")          variaciones = VARIACIONES_INICIO;
+    else if (tipo === "Desarrollo") variaciones = VARIACIONES_DESARROLLO;
+    else                            variaciones = VARIACIONES_CIERRE;
+    actividades = elegirVariacion(variaciones, semana, dia);
+  }
 
   const metaVariantes = METACOGNICION_POR_MOMENTO[tipo] || METACOGNICION_POR_MOMENTO.Cierre;
   const metacognicion = tipo === "Cierre"
@@ -670,7 +682,7 @@ const determinarTipoEval = (semana, total) => {
 const generarDesarrolloSemanal = ({
   semanas,
   tema,
-  area: _area = "",
+  area = "",
   competencia,
   diasNombres,
   minutosHoraClase = 45,
@@ -707,9 +719,9 @@ const generarDesarrolloSemanal = ({
         tituloDia: generarTituloDia(diaNum, fase, temaSemana),
         intencionPedagogica: generarIntencionPedagogicaDia(diaNum, fase, temaSemana, competencia),
         momentos: [
-          construirMomento("Inicio",     n, diaNum, temaSemana, tipoEval, totalMin),
-          construirMomento("Desarrollo", n, diaNum, temaSemana, tipoEval, totalMin),
-          construirMomento("Cierre",     n, diaNum, temaSemana, tipoEval, totalMin),
+          construirMomento("Inicio",     n, diaNum, temaSemana, tipoEval, totalMin, area, fase),
+          construirMomento("Desarrollo", n, diaNum, temaSemana, tipoEval, totalMin, area, fase),
+          construirMomento("Cierre",     n, diaNum, temaSemana, tipoEval, totalMin, area, fase),
         ],
       };
     });
