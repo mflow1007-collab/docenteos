@@ -428,7 +428,7 @@ const getActsCierre = (area, tema, fasePos, diaNum) => {
   return generic[fasePos % generic.length];
 };
 
-const getEvidencias = (area, momento, fasePos) => {
+const getEvidencias = (area, momento, _fasePos) => {
   const types = {
     Inicio: {
       "Inglés": "Conocimientos previos:\n• Identifica palabras y expresiones básicas en inglés.\n• Relaciona el vocabulario con situaciones cotidianas conocidas.",
@@ -505,7 +505,7 @@ const getMetacognicion = (momento, area, tema) => {
 
 // ─── Recursos derivados de actividades ─────────────────────────────────────────
 
-const derivarRecursos = (actividades, area, faseNum) => {
+const derivarRecursos = (actividades, area, _faseNum) => {
   const txt = actividades.join(" ").toLowerCase();
   const tiene = (re) => re.test(txt);
 
@@ -903,7 +903,7 @@ const TITULOS_FASE = [
 const INTENCIONES_FASE = [
   [
     (tema) => `Diagnosticar los conocimientos previos de los estudiantes sobre "${tema}", presentar la situación de aprendizaje y generar motivación e interés genuino por los nuevos aprendizajes.`,
-    (tema) => `Profundizar en la exploración de saberes previos, presentar la estructura de la unidad y conectar el contenido con el contexto real y el producto final esperado.`,
+    (_tema) => `Profundizar en la exploración de saberes previos, presentar la estructura de la unidad y conectar el contenido con el contexto real y el producto final esperado.`,
   ],
   [
     (tema) => `Introducir los conceptos y vocabulario esenciales de "${tema}", estableciendo una base conceptual sólida mediante ejemplos del entorno cotidiano.`,
@@ -920,15 +920,15 @@ const INTENCIONES_FASE = [
   ],
   [
     (tema) => `Desarrollar y organizar el producto final que evidencie el dominio de los aprendizajes de la unidad sobre "${tema}".`,
-    (tema) => `Refinar el producto final e incorporar las correcciones necesarias para alcanzar los criterios de calidad de la exposición o entrega.`,
-    (tema) => `Socializar y exponer el producto final ante el grupo, desarrollando habilidades de comunicación y recibiendo retroalimentación de pares y docente.`,
-    (tema) => `Evaluar integralmente los aprendizajes construidos, promover la metacognición y celebrar los logros alcanzados a lo largo de la unidad.`,
+    (_tema) => `Refinar el producto final e incorporar las correcciones necesarias para alcanzar los criterios de calidad de la exposición o entrega.`,
+    (_tema) => `Socializar y exponer el producto final ante el grupo, desarrollando habilidades de comunicación y recibiendo retroalimentación de pares y docente.`,
+    (_tema) => `Evaluar integralmente los aprendizajes construidos, promover la metacognición y celebrar los logros alcanzados a lo largo de la unidad.`,
   ],
 ];
 
 // ─── Generador principal de días y fases ─────────────────────────────────────
 
-const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, productoFinal = "") => {
+const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal = "") => {
   // Título e intención según fase y posición del día
   const titulosF = TITULOS_FASE[faseIdx] || TITULOS_FASE[1];
   const titulo = titulosF[Math.min(numDia - 1, titulosF.length - 1)];
@@ -1093,7 +1093,6 @@ export const analizarComplejidad = ({ area = "", grado = "", nivel = "", titulo 
   else if (palabras >= 2) score += 5;
 
   // ── Grado / nivel ──
-  const gradoNum = parseInt(tema) || 0;
   if (/secundaria|secondary/i.test(nivel) || /[5-6]to|[5-6]th/i.test(grado)) score += 15;
   else if (/[3-4]ro|[3-4]th/i.test(grado)) score += 8;
   else if (/[1-2]ro|[1-2]st|[1-2]nd/i.test(grado)) score += 3;
@@ -1261,7 +1260,7 @@ export const formatearUnidadHTML = (unidad) => {
   `;
 
   const fasesHtml = (unidad.fasesSemanales || []).map((fase) => {
-    const diasHtml = (fase.dias || []).map((dia, di) => {
+    const diasHtml = (fase.dias || []).map((dia) => {
       const momentosHtml = (dia.momentos || []).map((mom) => {
         const actsHtml = (mom.actividades || []).map((a, i) => {
           const html = a.replace(/_([^_]+)_/g, "<em>$1</em>");

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { obtenerPlanificacionesDetalladas } from "../firebase";
+import { obtenerPlanificacionesDetalladas, guardarInstrumentoFirestore, obtenerInstrumentosFirestore, eliminarInstrumentoFirestore } from "../firebase";
 import "./InstrumentosPage.css";
 
 const TIPOS_INSTRUMENTO = [
@@ -74,55 +74,6 @@ const crearDraft = (tipo = "Rúbrica", curriculo = null) => ({
   estructura: crearEstructuraPorTipo(tipo),
 });
 
-const crearInstrumentoBase = (tipo, curriculo, indice = 0) => ({
-  id: `ins-${Date.now()}-${indice}-${Math.random().toString(36).slice(2, 7)}`,
-  tipo,
-  nombre: `${tipo} - ${curriculo?.competencia || "Nuevo instrumento"}`,
-  descripcion: "Diseño listo para evaluar competencias del currículo.",
-  curso: curriculo?.curso || "2do Secundaria A",
-  area: curriculo?.area || "Matemática",
-  asignatura: curriculo?.asignatura || curriculo?.area || "Matemática",
-  grado: curriculo?.grado || "2do Secundaria",
-  periodo: curriculo?.periodo || "Periodo 1",
-  competencia: curriculo?.competencia || "Competencia no definida",
-  indicador: curriculo?.indicador || "Indicador no definido",
-  fechaCreacion: new Date().toISOString(),
-  estado: "Borrador",
-  usos: 0,
-  curriculoId: curriculo?.id || "",
-  vinculacion: {
-    area: curriculo?.area || "",
-    asignatura: curriculo?.asignatura || "",
-    grado: curriculo?.grado || "",
-    curso: curriculo?.curso || "",
-    competenciaEspecifica: curriculo?.competencia || "",
-    indicadorLogro: curriculo?.indicador || "",
-    periodo: curriculo?.periodo || "",
-  },
-  estructura: crearEstructuraPorTipo(tipo),
-  registroIntegracion: {
-    competenciaEvaluada: curriculo?.competencia || "",
-    indicadorEvaluado: curriculo?.indicador || "",
-    calificacionObtenida: null,
-    fecha: null,
-    periodo: curriculo?.periodo || "",
-  },
-  aplicaciones: [],
-});
-
-const instrumentosIniciales = [
-  crearInstrumentoBase("Rúbrica", { id: "demo-1", curso: "2do Secundaria A", grado: "2do Secundaria", area: "Matemática", asignatura: "Matemática", periodo: "Periodo 1", competencia: "Resuelve problemas con funciones lineales", indicador: "Modela situaciones usando relaciones lineales" }, 0),
-  crearInstrumentoBase("Lista de cotejo", { id: "demo-2", curso: "1ro Secundaria B", grado: "1ro Secundaria", area: "Lengua Española", asignatura: "Lengua Española", periodo: "Periodo 2", competencia: "Comunica ideas con coherencia", indicador: "Sustenta su postura con argumentos" }, 1),
-  crearInstrumentoBase("Escala de estimación", { id: "demo-3", curso: "6to Primaria", grado: "6to Primaria", area: "Ciencias Naturales", asignatura: "Ciencias de la Naturaleza", periodo: "Periodo 3", competencia: "Explica fenómenos de su entorno", indicador: "Relaciona causas y efectos" }, 2),
-  crearInstrumentoBase("Registro anecdótico", { id: "demo-4", curso: "3ro Secundaria A", grado: "3ro Secundaria", area: "Historia", asignatura: "Ciencias Sociales", periodo: "Periodo 1", competencia: "Analiza procesos históricos", indicador: "Identifica hechos relevantes" }, 3),
-  crearInstrumentoBase("Prueba escrita", { id: "demo-5", curso: "5to Primaria", grado: "5to Primaria", area: "Matemática", asignatura: "Matemática", periodo: "Periodo 4", competencia: "Aplica fracciones en contextos cotidianos", indicador: "Resuelve operaciones con fracciones" }, 4),
-  crearInstrumentoBase("Debate", { id: "demo-6", curso: "4to Secundaria C", grado: "4to Secundaria", area: "Formación Integral Humana y Religiosa", asignatura: "FIHR", periodo: "Periodo 2", competencia: "Argumenta con respeto sobre problemáticas sociales", indicador: "Escucha y contrasta ideas" }, 5),
-].map((item, index) => ({
-  ...item,
-  estado: index % 3 === 0 ? "Activo" : index % 3 === 1 ? "En uso" : "Borrador",
-  usos: index % 4,
-}));
-
 const guardarLocal = (clave, valor) => localStorage.setItem(clave, JSON.stringify(valor));
 
 const cargarLocal = (clave, fallback) => {
@@ -185,7 +136,8 @@ const crearValorInicial = (tipo, estructura) => {
 function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
   const [planificaciones, setPlanificaciones] = useState([]);
   const [cargandoPlanificaciones, setCargandoPlanificaciones] = useState(true);
-  const [instrumentos, setInstrumentos] = useState(() => cargarLocal("docenteos_instrumentos_v1", instrumentosIniciales));
+  const [instrumentosCargados, setInstrumentosCargados] = useState(false);
+  const [instrumentos, setInstrumentos] = useState([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("Todos");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
@@ -260,9 +212,37 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
     [curriculoId, curriculosDisponibles]
   );
 
+  // Cargar instrumentos desde Firestore al montar
   useEffect(() => {
-    guardarLocal("docenteos_instrumentos_v1", instrumentos);
-  }, [instrumentos]);
+    let activo = true;
+    (async () => {
+      try {
+        const resultado = await obtenerInstrumentosFirestore();
+        if (!activo) return;
+        if (resultado.success && resultado.data.length > 0) {
+          setInstrumentos(resultado.data);
+        } else {
+          const local = cargarLocal("docenteos_instrumentos_v1", []);
+          if (activo && local.length > 0) setInstrumentos(local);
+        }
+      } catch {
+        if (activo) {
+          const local = cargarLocal("docenteos_instrumentos_v1", []);
+          setInstrumentos(local);
+        }
+      } finally {
+        if (activo) setInstrumentosCargados(true);
+      }
+    })();
+    return () => { activo = false; };
+  }, []);
+
+  // Cache local (solo después de cargar para no sobrescribir datos de Firestore)
+  useEffect(() => {
+    if (instrumentosCargados) {
+      guardarLocal("docenteos_instrumentos_v2", instrumentos);
+    }
+  }, [instrumentos, instrumentosCargados]);
 
   const instrumentosFiltrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
@@ -386,6 +366,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
       const existe = prev.some((item) => item.id === instrumento.id);
       return existe ? prev.map((item) => (item.id === instrumento.id ? instrumento : item)) : [instrumento, ...prev];
     });
+    guardarInstrumentoFirestore(instrumento).catch((err) => console.error("[Instrumentos] Error al guardar:", err));
     setModal(null);
     setMensaje({ tipo: "success", texto: "Instrumento guardado y listo para usar." });
     setTimeout(() => setMensaje(null), 2000);
@@ -402,10 +383,12 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
       usos: 0,
     };
     setInstrumentos((prev) => [copia, ...prev]);
+    guardarInstrumentoFirestore(copia).catch((err) => console.error("[Instrumentos] Error al duplicar:", err));
   };
 
   const eliminarInstrumento = (id) => {
     setInstrumentos((prev) => prev.filter((item) => item.id !== id));
+    eliminarInstrumentoFirestore(id).catch((err) => console.error("[Instrumentos] Error al eliminar:", err));
   };
 
   const abrirAplicacion = (instrumento) => {
@@ -454,22 +437,27 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
       detalle: evaluacionAplicar,
     };
 
-    setInstrumentos((prev) => prev.map((item) => {
-      if (item.id !== instrumentoAplicar.id) return item;
-      return {
-        ...item,
-        usos: (item.usos || 0) + 1,
-        estado: item.estado === "Borrador" ? "Activo" : item.estado,
-        aplicaciones: [...(item.aplicaciones || []), registro],
-        registroIntegracion: {
-          competenciaEvaluada: item.competencia,
-          indicadorEvaluado: item.indicador,
-          calificacionObtenida: calificacion,
-          fecha: registro.fecha,
-          periodo: item.periodo,
-        },
-      };
-    }));
+    setInstrumentos((prev) => {
+      const actualizados = prev.map((item) => {
+        if (item.id !== instrumentoAplicar.id) return item;
+        return {
+          ...item,
+          usos: (item.usos || 0) + 1,
+          estado: item.estado === "Borrador" ? "Activo" : item.estado,
+          aplicaciones: [...(item.aplicaciones || []), registro],
+          registroIntegracion: {
+            competenciaEvaluada: item.competencia,
+            indicadorEvaluado: item.indicador,
+            calificacionObtenida: calificacion,
+            fecha: registro.fecha,
+            periodo: item.periodo,
+          },
+        };
+      });
+      const actualizado = actualizados.find((i) => i.id === instrumentoAplicar.id);
+      if (actualizado) guardarInstrumentoFirestore(actualizado).catch((err) => console.error("[Instrumentos] Error al guardar aplicación:", err));
+      return actualizados;
+    });
 
     setModal(null);
     setMensaje({ tipo: "success", texto: "Aplicación registrada y preparada para Registro." });

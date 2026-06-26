@@ -1,215 +1,50 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useRef } from "react";
 import "./App.css";
-import { guardarHorarioCurso, guardarPlanificacion } from "./firebase";
+import {
+  guardarHorarioCurso,
+  guardarCurso as guardarCursoFS,
+  obtenerCursos,
+  eliminarCurso as eliminarCursoFS,
+  guardarPreferenciaUsuario,
+  obtenerPreferenciaUsuario,
+  guardarEstadoDetalleEstudiante,
+  obtenerEstadoDetalleEstudiante,
+} from "./firebase";
 import { cerrarSesion } from "./auth";
-import PlanificacionPage from "./pages/PlanificacionPage";
-import InstrumentosPage from "./pages/InstrumentosPage";
-import RegistroPage from "./RegistroPage";
-import CurriculumImportPage from "./pages/CurriculumImportPage";
+import { useAuth } from "./context/AuthContext.jsx";
 import { crearHorarioPorJornada, crearHorarioPredeterminado, normalizarHorarioCurso } from "./utils/horarioCurso";
+import { AdminProvider } from "./context/AdminContext.jsx";
+import { useAdmin } from "./context/AdminContext.jsx";
+import AdminBar from "./components/AdminBar.jsx";
+import { esUsuarioDocenteOS } from "./utils/permisos.js";
+import { useNavigate } from "react-router-dom";
 
-const initialCursos = [
-  {
-    id: "curso-1",
-    nombre: "2do Secundaria A",
-    area: "Matemática",
-    nivel: "Secundaria",
-    estudiantes: 32,
-    promedio: 84,
-    pendientes: 1,
-    proximaClase: "Hoy 08:00",
-    icono: "∑",
-    acento: "#2563eb",
-    temaActual: "Funciones lineales",
-    historialPromedio: [72, 74, 76, 78, 79, 81, 83, 84],
-    flujo: [
-      { etapa: "Planificación", estado: "completado", detalle: "Unidad 4 lista" },
-      { etapa: "Actividad", estado: "completado", detalle: "3 actividades" },
-      { etapa: "Instrumento", estado: "en-curso", detalle: "Rúbrica en uso" },
-      { etapa: "Evaluación", estado: "pendiente", detalle: "1 por aplicar" },
-      { etapa: "Registro", estado: "pendiente", detalle: "—" },
-      { etapa: "Reporte", estado: "pendiente", detalle: "—" },
-    ],
-    enRiesgo: [
-      { nombre: "Fernanda Lozano", promedio: 64 },
-      { nombre: "Gabriel Ortiz", promedio: 58 },
-    ],
-    resumenRapido: { instrumentos: 3, evaluaciones: 12, enRiesgo: 2 },
-    destacados: [
-      { nombre: "Katherin Romero", promedio: 92, estado: "Al día" },
-      { nombre: "Carlos Méndez", promedio: 88, estado: "Al día" },
-      { nombre: "Diana Suárez", promedio: 81, estado: "Regular" },
-    ],
-    instrumentosRecientes: [
-      { nombre: "Rúbrica", contexto: "Funciones lineales", estado: "En uso" },
-      { nombre: "Lista de cotejo", contexto: "Tarea 3", estado: "Lista" },
-      { nombre: "Examen Unidad 4", contexto: "", estado: "Borrador" },
-    ],
-  },
-  {
-    id: "curso-2",
-    nombre: "1ro Secundaria B",
-    area: "Lengua",
-    nivel: "Secundaria",
-    estudiantes: 28,
-    promedio: 78,
-    pendientes: 0,
-    proximaClase: "Hoy 10:00",
-    icono: "A",
-    acento: "#7c3aed",
-    temaActual: "Texto argumentativo",
-    historialPromedio: [70, 71, 72, 73, 74, 76, 77, 78],
-    flujo: [
-      { etapa: "Planificación", estado: "completado", detalle: "Secuencia lista" },
-      { etapa: "Actividad", estado: "completado", detalle: "2 actividades" },
-      { etapa: "Instrumento", estado: "en-curso", detalle: "Lista de cotejo" },
-      { etapa: "Evaluación", estado: "pendiente", detalle: "Sin pendientes" },
-      { etapa: "Registro", estado: "pendiente", detalle: "—" },
-      { etapa: "Reporte", estado: "pendiente", detalle: "—" },
-    ],
-    enRiesgo: [{ nombre: "María Almonte", promedio: 66 }],
-    resumenRapido: { instrumentos: 2, evaluaciones: 9, enRiesgo: 1 },
-    destacados: [
-      { nombre: "Luis Santana", promedio: 90, estado: "Al día" },
-      { nombre: "Rosa Pichardo", promedio: 86, estado: "Al día" },
-    ],
-    instrumentosRecientes: [
-      { nombre: "Lista de cotejo", contexto: "Debate", estado: "En uso" },
-      { nombre: "Rúbrica", contexto: "Ensayo", estado: "Lista" },
-    ],
-  },
-  {
-    id: "curso-3",
-    nombre: "6to Primaria",
-    area: "Ciencias Nat.",
-    nivel: "Primaria",
-    estudiantes: 25,
-    promedio: 91,
-    pendientes: 2,
-    proximaClase: "Hoy 13:00",
-    icono: "⚗",
-    acento: "#16a34a",
-    temaActual: "Ecosistemas",
-    historialPromedio: [83, 84, 85, 86, 87, 89, 90, 91],
-    flujo: [
-      { etapa: "Planificación", estado: "completado", detalle: "Unidad 3 lista" },
-      { etapa: "Actividad", estado: "completado", detalle: "4 actividades" },
-      { etapa: "Instrumento", estado: "en-curso", detalle: "Rúbrica de proyecto" },
-      { etapa: "Evaluación", estado: "pendiente", detalle: "2 por aplicar" },
-      { etapa: "Registro", estado: "pendiente", detalle: "—" },
-      { etapa: "Reporte", estado: "pendiente", detalle: "—" },
-    ],
-    enRiesgo: [{ nombre: "Pedro Ruiz", promedio: 67 }],
-    resumenRapido: { instrumentos: 4, evaluaciones: 11, enRiesgo: 1 },
-    destacados: [
-      { nombre: "Noemí Díaz", promedio: 95, estado: "Al día" },
-      { nombre: "Diego Peralta", promedio: 89, estado: "Al día" },
-    ],
-    instrumentosRecientes: [
-      { nombre: "Rúbrica", contexto: "Proyecto ecosistema", estado: "En uso" },
-      { nombre: "Lista de cotejo", contexto: "Práctica 2", estado: "Lista" },
-    ],
-  },
-  {
-    id: "curso-4",
-    nombre: "3ro Secundaria A",
-    area: "Física",
-    nivel: "Secundaria",
-    estudiantes: 30,
-    promedio: 69,
-    pendientes: 3,
-    proximaClase: "Mañana 09:00",
-    icono: "Φ",
-    acento: "#ef4444",
-    temaActual: "Movimiento rectilíneo",
-    historialPromedio: [64, 65, 66, 66, 67, 68, 69, 69],
-    flujo: [
-      { etapa: "Planificación", estado: "completado", detalle: "Unidad en revisión" },
-      { etapa: "Actividad", estado: "completado", detalle: "2 actividades" },
-      { etapa: "Instrumento", estado: "en-curso", detalle: "Examen diagnóstico" },
-      { etapa: "Evaluación", estado: "pendiente", detalle: "3 por aplicar" },
-      { etapa: "Registro", estado: "pendiente", detalle: "—" },
-      { etapa: "Reporte", estado: "pendiente", detalle: "—" },
-    ],
-    enRiesgo: [
-      { nombre: "Samuel Torres", promedio: 55 },
-      { nombre: "Ruth Encarnación", promedio: 61 },
-      { nombre: "Brayan Gómez", promedio: 63 },
-    ],
-    resumenRapido: { instrumentos: 3, evaluaciones: 10, enRiesgo: 3 },
-    destacados: [
-      { nombre: "Camila Rojas", promedio: 87, estado: "Al día" },
-      { nombre: "Javier Ureña", promedio: 82, estado: "Regular" },
-    ],
-    instrumentosRecientes: [
-      { nombre: "Examen", contexto: "Movimiento rectilíneo", estado: "Borrador" },
-      { nombre: "Rúbrica", contexto: "Laboratorio", estado: "En uso" },
-    ],
-  },
-  {
-    id: "curso-5",
-    nombre: "5to Primaria",
-    area: "Matemática",
-    nivel: "Primaria",
-    estudiantes: 24,
-    promedio: 88,
-    pendientes: 0,
-    proximaClase: "Lun 08:00",
-    icono: "π",
-    acento: "#0ea5e9",
-    temaActual: "Fracciones",
-    historialPromedio: [81, 82, 83, 84, 85, 86, 87, 88],
-    flujo: [
-      { etapa: "Planificación", estado: "completado", detalle: "Unidad 2 lista" },
-      { etapa: "Actividad", estado: "completado", detalle: "3 actividades" },
-      { etapa: "Instrumento", estado: "en-curso", detalle: "Lista de cotejo" },
-      { etapa: "Evaluación", estado: "pendiente", detalle: "Sin pendientes" },
-      { etapa: "Registro", estado: "pendiente", detalle: "—" },
-      { etapa: "Reporte", estado: "pendiente", detalle: "—" },
-    ],
-    enRiesgo: [],
-    resumenRapido: { instrumentos: 2, evaluaciones: 8, enRiesgo: 0 },
-    destacados: [
-      { nombre: "Elena Arias", promedio: 93, estado: "Al día" },
-      { nombre: "Miguel Rijo", promedio: 89, estado: "Al día" },
-    ],
-    instrumentosRecientes: [
-      { nombre: "Lista de cotejo", contexto: "Fracciones", estado: "En uso" },
-    ],
-  },
-  {
-    id: "curso-6",
-    nombre: "4to Secundaria C",
-    area: "Historia",
-    nivel: "Secundaria",
-    estudiantes: 27,
-    promedio: 73,
-    pendientes: 1,
-    proximaClase: "Lun 11:00",
-    icono: "⌛",
-    acento: "#f59e0b",
-    temaActual: "Independencia dominicana",
-    historialPromedio: [69, 69, 70, 71, 71, 72, 72, 73],
-    flujo: [
-      { etapa: "Planificación", estado: "completado", detalle: "Unidad 5 lista" },
-      { etapa: "Actividad", estado: "completado", detalle: "2 actividades" },
-      { etapa: "Instrumento", estado: "en-curso", detalle: "Rúbrica de exposición" },
-      { etapa: "Evaluación", estado: "pendiente", detalle: "1 por aplicar" },
-      { etapa: "Registro", estado: "pendiente", detalle: "—" },
-      { etapa: "Reporte", estado: "pendiente", detalle: "—" },
-    ],
-    enRiesgo: [{ nombre: "Karen Mejía", promedio: 62 }],
-    resumenRapido: { instrumentos: 3, evaluaciones: 11, enRiesgo: 1 },
-    destacados: [
-      { nombre: "Pedro Linares", promedio: 90, estado: "Al día" },
-      { nombre: "Jade Núñez", promedio: 84, estado: "Regular" },
-    ],
-    instrumentosRecientes: [
-      { nombre: "Rúbrica", contexto: "Exposición", estado: "En uso" },
-      { nombre: "Examen corto", contexto: "Unidad 4", estado: "Lista" },
-    ],
-  },
+const PlanificacionPage = lazy(() => import("./pages/PlanificacionPage"));
+const InstrumentosPage = lazy(() => import("./pages/InstrumentosPage"));
+const RegistroPage = lazy(() => import("./RegistroPage"));
+const CurriculumImportPage = lazy(() => import("./pages/CurriculumImportPage"));
+const CentroIAPage = lazy(() => import("./pages/CentroIAPage"));
+
+const CURSOS_ASIGNATURAS_BASE = ["Inglés", "Francés"];
+const CURSOS_GRADOS_POR_NIVEL = {
+  Primaria: ["1ro Primaria", "2do Primaria", "3ro Primaria", "4to Primaria", "5to Primaria", "6to Primaria"],
+  Secundaria: ["1ro Secundaria", "2do Secundaria", "3ro Secundaria", "4to Secundaria", "5to Secundaria", "6to Secundaria"],
+};
+
+const EVALUACIONES_BASE_DETALLE = [
+  { fecha: "18 jun 2026", actividad: "Prueba unidad 3", area: "Matematica", calificacion: "58%", estado: "Bajo", observacion: "Requiere refuerzo" },
+  { fecha: "12 jun 2026", actividad: "Tarea practica", area: "Lengua", calificacion: "65%", estado: "Regular", observacion: "Mejorar entrega" },
+  { fecha: "05 jun 2026", actividad: "Participacion", area: "Ingles", calificacion: "62%", estado: "Regular", observacion: "Necesita seguimiento" },
 ];
+
+const PLAN_APOYO_BASE_DETALLE = [
+  "Refuerzo en Matematica 2 veces por semana.",
+  "Actividades cortas de recuperacion.",
+  "Seguimiento de asistencia.",
+  "Conversacion con madre/tutor.",
+  "Evaluacion diagnostica en 15 dias.",
+];
+
 
 function generarNombreEstudiante(curso, indice) {
   return `${curso.nombre} - Estudiante ${String(indice + 1).padStart(2, "0")}`;
@@ -302,9 +137,22 @@ function enriquecerCursoInicial(curso, indice = 0) {
   };
 }
 
-const cursosIniciales = initialCursos.map((curso, indice) => enriquecerCursoInicial(curso, indice));
 
 export default function App() {
+  return (
+    <AdminProvider>
+      <AppInner />
+    </AdminProvider>
+  )
+}
+
+function AppInner() {
+  const { formulario, user } = useAuth()
+  const { esAdmin } = useAdmin()
+  const navigate = useNavigate()
+
+  const esDocenteOS = esUsuarioDocenteOS(user?.email)
+
   const [cerrando,    setCerrando]    = useState(false)
   const [errorCierre, setErrorCierre] = useState('')
 
@@ -313,60 +161,40 @@ export default function App() {
     setCerrando(true)
     try {
       await cerrarSesion()
-      // onAuthStateChanged en main.jsx redirige a /login automáticamente
     } catch {
       setErrorCierre('No fue posible cerrar sesión. Intente nuevamente.')
       setCerrando(false)
     }
   }
 
-  const [pagina, setPagina] = useState(() => {
-    try {
-      const guardada = localStorage.getItem("docenteos_navegacion");
-      if (!guardada) return "inicio";
-      const parseada = JSON.parse(guardada);
-      return typeof parseada?.pagina === "string" ? parseada.pagina : "inicio";
-    } catch {
-      return "inicio";
-    }
-  });
+  // Derivados del perfil para sidebar y topbar
+  const nombreDocente   = formulario.nombreDocente || ''
+  const primerNombre    = nombreDocente.split(' ')[0] || 'Docente'
+  const inicialesAvatar = nombreDocente.trim()
+    ? nombreDocente.trim().split(/\s+/).slice(0, 2).map(p => p[0].toUpperCase()).join('')
+    : 'DO'
+
+  const [pagina, setPagina] = useState("inicio");
+  const [cursosLoaded, setCursosLoaded] = useState(false);
   const [cursos, setCursos] = useState(() => {
     try {
-      const guardados = localStorage.getItem("docenteos_cursos");
-      if (!guardados) return cursosIniciales;
+      const guardados = localStorage.getItem("docenteos_cursos_v2");
+      if (!guardados) return [];
       const parseados = JSON.parse(guardados);
       return Array.isArray(parseados)
         ? parseados.map((curso, indice) => enriquecerCursoInicial(curso, indice))
-        : cursosIniciales;
+        : [];
     } catch {
-      return cursosIniciales;
+      return [];
     }
   });
   const [cursoSeleccionadoId, setCursoSeleccionadoId] = useState(null);
   const [cursoAEditar, setCursoAEditar] = useState(null);
   const [tabDetalleInicial, setTabDetalleInicial] = useState("Resumen");
-  const [detalleEstudianteTab, setDetalleEstudianteTab] = useState(() => {
-    try {
-      const guardada = localStorage.getItem("docenteos_navegacion");
-      if (!guardada) return "Resumen";
-      const parseada = JSON.parse(guardada);
-      return typeof parseada?.detalleEstudianteTab === "string" ? parseada.detalleEstudianteTab : "Resumen";
-    } catch {
-      return "Resumen";
-    }
-  });
-  const [estudianteDetalle, setEstudianteDetalle] = useState(() => {
-    try {
-      const guardada = localStorage.getItem("docenteos_navegacion");
-      if (!guardada) return null;
-      const parseada = JSON.parse(guardada);
-      return parseada?.estudianteDetalle && typeof parseada.estudianteDetalle === "object"
-        ? parseada.estudianteDetalle
-        : null;
-    } catch {
-      return null;
-    }
-  });
+  const [detalleEstudianteTab, setDetalleEstudianteTab] = useState("Resumen");
+  const [estudianteDetalle, setEstudianteDetalle] = useState(null);
+  const [navegacionLista, setNavegacionLista] = useState(false);
+  const inicializoNavegacion = useRef(false);
 
   const abrirDetalleCurso = (curso) => {
     if (!curso) return;
@@ -384,6 +212,7 @@ export default function App() {
 
   const crearCurso = (nuevoCurso) => {
     setCursos((prev) => [nuevoCurso, ...prev]);
+    guardarCursoFS(nuevoCurso).catch((err) => console.error("[App] Error al guardar curso:", err));
   };
 
   const abrirHorarioCurso = (cursoId) => {
@@ -397,6 +226,7 @@ export default function App() {
     if (cursoSeleccionadoId === cursoActualizado.id) {
       setCursoSeleccionadoId(cursoActualizado.id);
     }
+    guardarCursoFS(cursoActualizado).catch((err) => console.error("[App] Error al actualizar curso:", err));
   };
 
   const eliminarCurso = (idCurso) => {
@@ -405,6 +235,7 @@ export default function App() {
       setPagina("cursos");
       setCursoSeleccionadoId(null);
     }
+    eliminarCursoFS(idCurso).catch((err) => console.error("[App] Error al eliminar curso:", err));
   };
 
   const abrirDetalleEstudiante = (estudiante) => {
@@ -421,8 +252,85 @@ export default function App() {
     cursos.find((curso) => curso.id === cursoSeleccionadoId) || null;
 
   useEffect(() => {
-    localStorage.setItem("docenteos_cursos", JSON.stringify(cursos));
-  }, [cursos]);
+    let activo = true;
+    const cargarNavegacion = async () => {
+      try {
+        const preferencia = await obtenerPreferenciaUsuario("navegacion");
+        if (!activo) return;
+
+        const parsearNavegacion = (data) => {
+          if (!data || typeof data !== "object") return null;
+          return {
+            pagina: typeof data.pagina === "string" ? data.pagina : "inicio",
+            detalleEstudianteTab: typeof data.detalleEstudianteTab === "string" ? data.detalleEstudianteTab : "Resumen",
+            estudianteDetalle: data.estudianteDetalle && typeof data.estudianteDetalle === "object"
+              ? data.estudianteDetalle
+              : null,
+          };
+        };
+
+        const remoto = parsearNavegacion(preferencia?.data);
+        if (remoto) {
+          setPagina(remoto.pagina);
+          setDetalleEstudianteTab(remoto.detalleEstudianteTab);
+          setEstudianteDetalle(remoto.estudianteDetalle);
+        } else {
+          try {
+            const guardada = localStorage.getItem("docenteos_navegacion");
+            const local = guardada ? parsearNavegacion(JSON.parse(guardada)) : null;
+            if (local) {
+              setPagina(local.pagina);
+              setDetalleEstudianteTab(local.detalleEstudianteTab);
+              setEstudianteDetalle(local.estudianteDetalle);
+            }
+          } catch {
+            // Sin datos previos locales.
+          }
+        }
+      } catch {
+        // Mantener estado por defecto.
+      } finally {
+        if (activo) {
+          inicializoNavegacion.current = true;
+          setNavegacionLista(true);
+        }
+      }
+    };
+
+    cargarNavegacion();
+    return () => {
+      activo = false;
+    };
+  }, [user?.uid]);
+
+  // Cargar cursos desde Firestore al montar
+  useEffect(() => {
+    let activo = true;
+    const cargar = async () => {
+      try {
+        const resultado = await obtenerCursos();
+        if (!activo) return;
+        if (resultado.success && resultado.data.length > 0) {
+          const enriquecidos = resultado.data.map((c, i) => enriquecerCursoInicial(c, i));
+          setCursos(enriquecidos);
+          localStorage.setItem("docenteos_cursos_v2", JSON.stringify(enriquecidos));
+        }
+      } catch (err) {
+        console.error("[App] Error al cargar cursos:", err);
+      } finally {
+        if (activo) setCursosLoaded(true);
+      }
+    };
+    cargar();
+    return () => { activo = false; };
+  }, []);
+
+  // Cache local de cursos (solo después de cargar de Firestore para no sobrescribir)
+  useEffect(() => {
+    if (cursosLoaded) {
+      localStorage.setItem("docenteos_cursos_v2", JSON.stringify(cursos));
+    }
+  }, [cursos, cursosLoaded]);
 
   useEffect(() => {
     if (pagina === "detalle-estudiante" && !estudianteDetalle) {
@@ -431,52 +339,173 @@ export default function App() {
   }, [pagina, estudianteDetalle]);
 
   useEffect(() => {
+    if (!inicializoNavegacion.current || !navegacionLista) return;
     const payload = {
       pagina,
       estudianteDetalle: pagina === "detalle-estudiante" ? estudianteDetalle : null,
       detalleEstudianteTab: pagina === "detalle-estudiante" ? detalleEstudianteTab : "Resumen",
     };
-    localStorage.setItem("docenteos_navegacion", JSON.stringify(payload));
-  }, [pagina, estudianteDetalle, detalleEstudianteTab]);
 
-  const menu = [
-    ["inicio", "🏠 Inicio"],
-    ["planificacion", "📝 Planificación"],
-    ["cursos", "📘 Cursos"],
-    ["estudiantes", "👥 Estudiantes"],
-    ["instrumentos", "📋 Instrumentos"],
-    ["registro", "📝 Registro"],
-    ["reportes", "📊 Reportes"],
-    ["ia", "✨ IA"],
-    ["curriculo", "📖 Currículo"],
-    ["configuracion", "⚙️ Configuración"],
+    localStorage.setItem("docenteos_navegacion", JSON.stringify(payload));
+    guardarPreferenciaUsuario({ clave: "navegacion", valor: payload }).catch((err) => {
+      console.error("[App] Error al guardar navegación:", err);
+    });
+  }, [pagina, estudianteDetalle, detalleEstudianteTab, navegacionLista]);
+
+  const [seccionIA,   setSeccionIA]   = useState("bienvenida");
+  const [iaExpandido, setIAExpandido] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+
+  const cerrarMenu = () => setMenuAbierto(false);
+
+  const IA_SECCIONES = [
+    { id: "bienvenida",   icon: "✦",  label: "Bienvenida"               },
+    { id: "rol",          icon: "👤", label: "Rol del docente"           },
+    { id: "planificar",   icon: "📋", label: "IA para planificar"        },
+    { id: "experiencias", icon: "🎨", label: "Diseñar experiencias"      },
+    { id: "prompts",      icon: "💡", label: "Banco de prompts"          },
+    { id: "materiales",   icon: "📁", label: "Crear materiales"          },
+    { id: "evaluaciones", icon: "📊", label: "Crear evaluaciones"        },
+    { id: "ev-autentica", icon: "✅", label: "Evaluación auténtica"     },
+    { id: "personal",     icon: "🎯", label: "Personalización"           },
+    { id: "etica",        icon: "🛡️", label: "Ética y responsabilidad"   },
+    { id: "laboratorio",  icon: "🧪", label: "Laboratorio IA"            },
+    { id: "academia",     icon: "🎓", label: "Academia DocenteOS"        },
   ];
 
+  const MENU_GRUPOS = [
+    {
+      label: "General",
+      items: [["inicio", "🏠 Inicio"]],
+    },
+    {
+      label: "Planificación",
+      items: [
+        ["planificacion", "📝 Planificación"],
+        ["cursos",        "📘 Cursos"],
+        ["estudiantes",   "👥 Estudiantes"],
+        ["registro",      "📝 Registro"],
+      ],
+    },
+    {
+      label: "Evaluación",
+      items: [
+        ["instrumentos", "📋 Instrumentos"],
+        ["reportes",     "📊 Reportes"],
+        ["curriculo",    "📖 Currículo"],
+      ],
+    },
+  ];
+
+  const irAIA = () => {
+    if (pagina !== "ia") {
+      setPagina("ia");
+      setIAExpandido(true);
+      cerrarMenu();
+    } else {
+      setIAExpandido((v) => !v);
+    }
+  };
+
+  const irA = (id) => {
+    setPagina(id);
+    cerrarMenu();
+  };
+
+  const irAdmin = (seccion) => {
+    navigate(`/admin${seccion ? `/${seccion}` : ''}`)
+  }
+
   return (
-    <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          🎓 <span>Docente<span>OS</span></span>
+    <div className={`app${esAdmin ? ' has-adminbar' : ''}`}>
+      {/* Barra de administración (solo @docenteos.com) */}
+      <AdminBar onIrAdmin={irAdmin} />
+
+      {/* Overlay mobile */}
+      {menuAbierto && (
+        <div className="sidebar-overlay" onClick={cerrarMenu} />
+      )}
+
+      <aside className={`sidebar${menuAbierto ? " open" : ""}`}>
+        {/* Brand — fuera del área scrollable */}
+        <div className="sidebar-header">
+          <div className="brand">
+            🎓 <span>Docente<span>OS</span></span>
+          </div>
         </div>
 
+        {/* Nav — área scrollable */}
         <nav>
-          {menu.map(([id, label]) => (
-            <button
-              key={id}
-              className={pagina === id ? "active" : ""}
-              onClick={() => setPagina(id)}
-            >
-              {label}
-            </button>
-          ))}
+          {/* Grupos del menú principal */}
+          {MENU_GRUPOS.map((grupo) => {
+            const itemsVisibles = grupo.items.filter(([id]) =>
+              id !== 'curriculo' || esDocenteOS
+            )
+            if (itemsVisibles.length === 0) return null
+            return (
+              <div key={grupo.label}>
+                <div className="sidebar-group-label">{grupo.label}</div>
+                {itemsVisibles.map(([id, label]) => (
+                  <button
+                    key={id}
+                    className={pagina === id ? "active" : ""}
+                    onClick={() => irA(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )
+          })}
+
+          {/* IA con submenú desplegable — solo @docenteos.com */}
+          {esDocenteOS && <div className="sidebar-group-label">Inteligencia Artificial</div>}
+          {esDocenteOS && (
+            <div className="ia-group">
+              <button
+                className={`ia-parent${pagina === "ia" ? " active" : ""}`}
+                onClick={irAIA}
+              >
+                <span>✨ IA</span>
+                <span className="ia-chevron">
+                  {pagina === "ia" && iaExpandido ? "▾" : "▸"}
+                </span>
+              </button>
+
+              {pagina === "ia" && iaExpandido && (
+                <div className="ia-submenu">
+                  {IA_SECCIONES.map((s) => (
+                    <button
+                      key={s.id}
+                      className={`ia-sub-btn${seccionIA === s.id ? " active" : ""}`}
+                      onClick={() => setSeccionIA(s.id)}
+                    >
+                      <span className="ia-sub-icon">{s.icon}</span>
+                      <span>{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Configuración */}
+          <div className="sidebar-group-label">Sistema</div>
+          <button
+            className={pagina === "configuracion" ? "active" : ""}
+            onClick={() => irA("configuracion")}
+          >
+            ⚙️ Configuración
+          </button>
         </nav>
 
+        {/* Footer — fuera del área scrollable, siempre visible */}
         <div className="sidebar-bottom">
           <div className="profile">
-            <div className="avatar">CM</div>
+            <div className="avatar">{inicialesAvatar}</div>
             <div>
-              <strong>César</strong>
-              <p>Docente</p>
+              <strong>{primerNombre}</strong>
+              <p>{formulario.nivel ? `Docente · ${formulario.nivel}` : 'Docente'}</p>
             </div>
           </div>
           <button
@@ -496,15 +525,23 @@ export default function App() {
 
       <main className="main">
         <header className="topbar">
+          <button
+            className="hamburger"
+            onClick={() => setMenuAbierto((v) => !v)}
+            aria-label="Abrir menú"
+          >
+            ☰
+          </button>
           <input placeholder="Buscar curso..." />
           <div className="user">
             🔔 <span className="badge">3</span>
-            <div className="avatar small">CM</div>
-            <strong>César</strong>
+            <div className="avatar small">{inicialesAvatar}</div>
+            <strong>{primerNombre}</strong>
           </div>
         </header>
 
         <section className="content">
+          <Suspense fallback={<div className="card">Cargando módulo...</div>}>
           {pagina === "inicio" && (
             <Inicio
               cursos={cursos}
@@ -567,13 +604,22 @@ export default function App() {
             />
           )}
           {pagina === "reportes" && <Pagina titulo="Reportes" texto="Aquí veremos desempeño, riesgos, indicadores y alertas." />}
-          {pagina === "ia" && <IAPro />}
-          {pagina === "curriculo" && <CurriculumImportPage />}
+          {pagina === "ia"       && esDocenteOS && <CentroIAPage seccion={seccionIA} />}
+          {pagina === "curriculo" && esDocenteOS && <CurriculumImportPage />}
           {pagina === "configuracion" && <Pagina titulo="Configuración" texto="Perfil docente, centro educativo y preferencias." />}
+          </Suspense>
         </section>
       </main>
     </div>
   );
+}
+
+// ── Helpers de presentación ───────────────────────────────────────────────────
+function saludoHora() {
+  const h = new Date().getHours();
+  if (h < 12) return "Buenos días";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
 }
 
 function Inicio({
@@ -582,9 +628,19 @@ function Inicio({
   onIrA = () => {},
   onAbrirCurso = () => {},
 }) {
-  const nombreCentro = "Centro Educativo Héctor Francisco López";
-  const distritoEducativo = "Distrito Educativo 02-06";
-  const anioEscolar = "Año Escolar 2026-2027";
+  const { formulario, cargando } = useAuth();
+
+  // Datos del Hero — dinámicos desde el perfil del docente
+  const primerNombreDocente = formulario.nombreDocente
+    ? formulario.nombreDocente.split(" ")[0]
+    : "";
+  const nombreCentro = formulario.centro || "Centro Educativo";
+  const distritoEducativo = [formulario.regional, formulario.distrito]
+    .filter(Boolean)
+    .join(" · ") || "Distrito Educativo";
+  const anioEscolar = formulario.periodo
+    ? `Año Escolar ${formulario.periodo}`
+    : "Período Escolar";
 
   const obtenerMarcaAcceso = (curso) => {
     const marca = curso?.ultimoAcceso || curso?.fechaUltimoAcceso || curso?.ultimoUso;
@@ -780,8 +836,14 @@ function Inicio({
   return (
     <div className="inicio-saas-shell">
       <div className="inicio-saludo-pro">
-        <h1>👋 Buenos días, César</h1>
-        <p>Aquí tienes un resumen de tu actividad académica.</p>
+        <h1>
+          👋 {saludoHora()}{primerNombreDocente ? `, ${primerNombreDocente}` : ""}
+        </h1>
+        <p>
+          {cargando
+            ? "Cargando tu información…"
+            : "Aquí tienes un resumen de tu actividad académica."}
+        </p>
       </div>
 
       <section className="inicio-hero-pro">
@@ -792,8 +854,9 @@ function Inicio({
               <span aria-hidden="true">{nombreCentro}</span>
             </h2>
           </div>
-          <p>🏛 {distritoEducativo}</p>
-          <p>📅 {anioEscolar}</p>
+          {distritoEducativo && <p>🏛 {distritoEducativo}</p>}
+          {formulario.periodo && <p>📅 {anioEscolar}</p>}
+          {formulario.jornada && <p>🕐 Jornada {formulario.jornada}</p>}
 
           <article className="inicio-hero-plan-pro">
             <strong>➕ Nueva Planificación</strong>
@@ -1017,24 +1080,21 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
   const [mostrarModalCurso, setMostrarModalCurso] = useState(Boolean(cursoParaEditar));
   const [cursoEnEdicion, setCursoEnEdicion] = useState(cursoParaEditar);
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
-  const asignaturasBase = ["Inglés", "Francés"];
-  const gradosPorNivel = {
-    Primaria: ["1ro Primaria", "2do Primaria", "3ro Primaria", "4to Primaria", "5to Primaria", "6to Primaria"],
-    Secundaria: ["1ro Secundaria", "2do Secundaria", "3ro Secundaria", "4to Secundaria", "5to Secundaria", "6to Secundaria"],
-  };
+  const asignaturasBase = CURSOS_ASIGNATURAS_BASE;
+  const gradosPorNivel = CURSOS_GRADOS_POR_NIVEL;
 
-  const crearFormCurso = (curso = null) => {
+  const crearFormCurso = useCallback((curso = null) => {
     const nivel = curso?.nivel || "Secundaria";
     return {
       nivel,
       jornadaTipo: curso?.jornadaTipo || nivel,
-      grado: curso?.nombre?.split(" ").slice(0, 2).join(" ") || gradosPorNivel[nivel][0],
-      area: curso?.area || asignaturasBase[0],
+      grado: curso?.nombre?.split(" ").slice(0, 2).join(" ") || CURSOS_GRADOS_POR_NIVEL[nivel][0],
+      area: curso?.area || CURSOS_ASIGNATURAS_BASE[0],
       seccion: curso?.seccion || (curso?.nombre?.split(" ").slice(-1)[0] || "A"),
       estudiantes: String(curso?.estudiantes || ""),
       configurarHorario: false,
     };
-  };
+  }, []);
 
   const [formCurso, setFormCurso] = useState(() => crearFormCurso(cursoParaEditar));
 
@@ -1044,7 +1104,7 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
       setFormCurso(crearFormCurso(cursoParaEditar));
       setMostrarModalCurso(true);
     }
-  }, [cursoParaEditar]);
+  }, [cursoParaEditar, crearFormCurso]);
 
   const totalEstudiantes = cursos.reduce((acum, curso) => acum + (curso.estudiantes || 0), 0);
 
@@ -1502,13 +1562,8 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
       ? data.horarioClase
       : construirHorarioClasePredeterminado(data.nivel, data.nombre, data.area, normalizarHorarioCurso(data.horario || []))
   );
-  const [diaVistaHorario, setDiaVistaHorario] = useState(() => {
-    try {
-      return localStorage.getItem(claveDiaHorario) || "";
-    } catch {
-      return "";
-    }
-  });
+  const [diaVistaHorario, setDiaVistaHorario] = useState("");
+  const [diaHorarioListo, setDiaHorarioListo] = useState(false);
 
   const actualizarFilaHorarioClase = (idFila, campo, valor) => {
     setHorarioClaseEditable((prev) => prev.map((fila) => (fila.id === idFila ? { ...fila, [campo]: valor } : fila)));
@@ -1570,14 +1625,44 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
   const estadoClasePrincipal = indiceClaseActual >= 0 ? "Ahora" : "Próxima clase";
 
   useEffect(() => {
-    try {
-      if (diaVistaHorario) {
-        localStorage.setItem(claveDiaHorario, diaVistaHorario);
+    let activo = true;
+    const cargarDiaHorario = async () => {
+      try {
+        const res = await obtenerPreferenciaUsuario(claveDiaHorario);
+        if (!activo) return;
+        if (typeof res?.data === "string" && res.data) {
+          setDiaVistaHorario(res.data);
+        } else {
+          try {
+            const valorLocal = localStorage.getItem(claveDiaHorario) || "";
+            if (valorLocal) setDiaVistaHorario(valorLocal);
+          } catch {
+            // noop
+          }
+        }
+      } finally {
+        if (activo) setDiaHorarioListo(true);
       }
+    };
+
+    cargarDiaHorario();
+    return () => {
+      activo = false;
+    };
+  }, [claveDiaHorario]);
+
+  useEffect(() => {
+    if (!diaHorarioListo || !diaVistaHorario) return;
+    try {
+      localStorage.setItem(claveDiaHorario, diaVistaHorario);
     } catch {
       // Si localStorage falla, no interrumpimos la UX.
     }
-  }, [claveDiaHorario, diaVistaHorario]);
+
+    guardarPreferenciaUsuario({ clave: claveDiaHorario, valor: diaVistaHorario }).catch(() => {
+      // Si falla remoto, mantenemos fallback local.
+    });
+  }, [claveDiaHorario, diaVistaHorario, diaHorarioListo]);
 
   const estudiantesDetalle = data.estudiantesDetalle || [];
   const totalEstudiantes = data.estudiantes || estudiantesDetalle.length || 0;
@@ -2084,25 +2169,6 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
   );
 }
 
-function Class({ time, course, room }) {
-  return (
-    <div className="class-row">
-      <span>{time}</span>
-      <strong>{course}</strong>
-      <em>{room}</em>
-    </div>
-  );
-}
-
-function Alert({ title, text }) {
-  return (
-    <div className="alert">
-      <strong>{title}</strong>
-      <p>{text}</p>
-    </div>
-  );
-}
-
 function Action({ icon, title, text, onClick, className = "" }) {
   return (
     <button type="button" className={`action ${className}`.trim()} onClick={onClick}>
@@ -2124,19 +2190,7 @@ function Pagina({ titulo, texto }) {
   );
 }
 
-function Card({ icon, number, label, color }) {
-  return (
-    <div className="card">
-      <div className={`icon ${color}`}>{icon}</div>
-      <div>
-        <h3>{number}</h3>
-        <p>{label}</p>
-      </div>
-    </div>
-  );
-}
-
-function EstudiantesPage({ cursos = [], onAbrirCurso = () => {}, onAbrirPerfil = () => {} }) {
+function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
   const [vistaEstudiantes, setVistaEstudiantes] = useState("Por Período");
   const [busqueda, setBusqueda] = useState("");
   const [fGrado, setFGrado] = useState("Todos");
@@ -2485,7 +2539,6 @@ function EstudiantesPage({ cursos = [], onAbrirCurso = () => {}, onAbrirPerfil =
                 <tbody>
                   {filtrados.map((e) => {
                     const activo = seleccionado?.id === e.id;
-                    const cursoRelacionado = cursos.find((c) => c.id === e.cursoId);
                     return (
                       <tr key={e.id} className={activo ? "activo" : ""} onClick={() => setSeleccionadoId(e.id)}>
                         <td><input type="checkbox" aria-label={`Seleccionar ${e.nombre}`} /></td>
@@ -2638,8 +2691,6 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   const promedio = estudiante?.promedio || 58;
   const asistencia = estudiante?.asistencia || 82;
   const faltas = Math.max(0, 100 - asistencia);
-  const ultimaEvaluacion = estudiante?.ultimaEvaluacion || "18 junio 2026";
-  const tendencia = promedio < 65 ? "Bajando rendimiento" : "Mejorando";
 
   const evolucion = [
     { mes: "Ene", valor: 72 },
@@ -2657,20 +2708,6 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     { area: "Ingles", valor: 62 },
   ];
 
-  const evaluacionesBase = [
-    { fecha: "18 jun 2026", actividad: "Prueba unidad 3", area: "Matematica", calificacion: "58%", estado: "Bajo", observacion: "Requiere refuerzo" },
-    { fecha: "12 jun 2026", actividad: "Tarea practica", area: "Lengua", calificacion: "65%", estado: "Regular", observacion: "Mejorar entrega" },
-    { fecha: "05 jun 2026", actividad: "Participacion", area: "Ingles", calificacion: "62%", estado: "Regular", observacion: "Necesita seguimiento" },
-  ];
-
-  const planApoyoBase = [
-    "Refuerzo en Matematica 2 veces por semana.",
-    "Actividades cortas de recuperacion.",
-    "Seguimiento de asistencia.",
-    "Conversacion con madre/tutor.",
-    "Evaluacion diagnostica en 15 dias.",
-  ];
-
   const periodosEstudiante = [
     { numero: 1, nombre: "Período 1", rango: "Ene-Mar", promedio: Math.max(45, promedio - 8), competencias: 12, indicadores: 18 },
     { numero: 2, nombre: "Período 2", rango: "Abr-Jun", promedio: Math.max(50, promedio - 4), competencias: 16, indicadores: 32 },
@@ -2680,8 +2717,8 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   const periodoSeleccionado = periodosEstudiante[periodoActual] || periodosEstudiante[2];
 
   const informeIaBase = "El estudiante presenta una combinacion de fortalezas en Ciencias y oportunidades de mejora en Matematica. Se recomienda andamiaje por objetivos semanales y acompanamiento familiar continuo.";
-  const [evaluaciones, setEvaluaciones] = useState(evaluacionesBase);
-  const [planApoyo, setPlanApoyo] = useState(planApoyoBase);
+  const [evaluaciones, setEvaluaciones] = useState(EVALUACIONES_BASE_DETALLE);
+  const [planApoyo, setPlanApoyo] = useState(PLAN_APOYO_BASE_DETALLE);
   const [informeIa, setInformeIa] = useState(informeIaBase);
 
   const totalCirc = 276;
@@ -2696,43 +2733,62 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     const identificador = `${nombre}-${curso}`.replace(/\s+/g, "-").toLowerCase();
     return `docenteos.detalle-estudiante.${identificador}`;
   }, [nombre, curso]);
+  const detalleId = useMemo(() => storageKey.replace("docenteos.detalle-estudiante.", ""), [storageKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     setStorageListo(false);
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (!raw) {
+    const cargar = async () => {
+      try {
+        const remoto = await obtenerEstadoDetalleEstudiante(detalleId);
+        const remotoData = remoto?.data && typeof remoto.data === "object" ? remoto.data : null;
+        if (remotoData) {
+          setTabActiva(remotoData.tabActiva || "Resumen");
+          setEstadoPlan(remotoData.estadoPlan || "Pendiente de iniciar");
+          setUltimoEnvio(remotoData.ultimoEnvio || null);
+          setMensajeAccion(remotoData.mensajeAccion || "");
+          setEvaluaciones(Array.isArray(remotoData.evaluaciones) ? remotoData.evaluaciones : EVALUACIONES_BASE_DETALLE);
+          setPlanApoyo(Array.isArray(remotoData.planApoyo) ? remotoData.planApoyo : PLAN_APOYO_BASE_DETALLE);
+          setInformeIa(remotoData.informeIa || informeIaBase);
+          setStorageListo(true);
+          return;
+        }
+
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) {
+          setTabActiva("Resumen");
+          setEstadoPlan("Pendiente de iniciar");
+          setUltimoEnvio(null);
+          setMensajeAccion("");
+          setEvaluaciones(EVALUACIONES_BASE_DETALLE);
+          setPlanApoyo(PLAN_APOYO_BASE_DETALLE);
+          setInformeIa(informeIaBase);
+          setStorageListo(true);
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        setTabActiva(parsed.tabActiva || "Resumen");
+        setEstadoPlan(parsed.estadoPlan || "Pendiente de iniciar");
+        setUltimoEnvio(parsed.ultimoEnvio || null);
+        setMensajeAccion(parsed.mensajeAccion || "");
+        setEvaluaciones(Array.isArray(parsed.evaluaciones) ? parsed.evaluaciones : EVALUACIONES_BASE_DETALLE);
+        setPlanApoyo(Array.isArray(parsed.planApoyo) ? parsed.planApoyo : PLAN_APOYO_BASE_DETALLE);
+        setInformeIa(parsed.informeIa || informeIaBase);
+        setStorageListo(true);
+      } catch {
         setTabActiva("Resumen");
         setEstadoPlan("Pendiente de iniciar");
         setUltimoEnvio(null);
         setMensajeAccion("");
-        setEvaluaciones(evaluacionesBase);
-        setPlanApoyo(planApoyoBase);
+        setEvaluaciones(EVALUACIONES_BASE_DETALLE);
+        setPlanApoyo(PLAN_APOYO_BASE_DETALLE);
         setInformeIa(informeIaBase);
         setStorageListo(true);
-        return;
       }
-      const parsed = JSON.parse(raw);
-      setTabActiva(parsed.tabActiva || "Resumen");
-      setEstadoPlan(parsed.estadoPlan || "Pendiente de iniciar");
-      setUltimoEnvio(parsed.ultimoEnvio || null);
-      setMensajeAccion(parsed.mensajeAccion || "");
-      setEvaluaciones(Array.isArray(parsed.evaluaciones) ? parsed.evaluaciones : evaluacionesBase);
-      setPlanApoyo(Array.isArray(parsed.planApoyo) ? parsed.planApoyo : planApoyoBase);
-      setInformeIa(parsed.informeIa || informeIaBase);
-      setStorageListo(true);
-    } catch {
-      setTabActiva("Resumen");
-      setEstadoPlan("Pendiente de iniciar");
-      setUltimoEnvio(null);
-      setMensajeAccion("");
-      setEvaluaciones(evaluacionesBase);
-      setPlanApoyo(planApoyoBase);
-      setInformeIa(informeIaBase);
-      setStorageListo(true);
-    }
-  }, [storageKey]);
+    };
+
+    cargar();
+  }, [storageKey, detalleId]);
 
   useEffect(() => {
     setTabActiva(initialTab || "Resumen");
@@ -2755,7 +2811,10 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       informeIa,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
-  }, [storageKey, storageListo, tabActiva, estadoPlan, ultimoEnvio, mensajeAccion, evaluaciones, planApoyo, informeIa]);
+    guardarEstadoDetalleEstudiante({ estudianteId: detalleId, payload }).catch(() => {
+      // Fallback local ya aplicado.
+    });
+  }, [storageKey, detalleId, storageListo, tabActiva, estadoPlan, ultimoEnvio, mensajeAccion, evaluaciones, planApoyo, informeIa]);
 
   const manejarGenerarInformeIA = () => {
     const hoy = new Date();
@@ -3138,436 +3197,5 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         <button type="button" onClick={manejarEnviarReporte}>Enviar Reporte a Familia</button>
       </section>
     </div>
-  );
-}
-
-function IAPro() {
-  const [entrada, setEntrada] = useState("");
-  const [planificacionIa, setPlanificacionIa] = useState(null);
-  const [generando, setGenerando] = useState(false);
-  const [guardando, setGuardando] = useState(false);
-  const [mensaje, setMensaje] = useState(null);
-
-  // Analizador de entrada: "2do Secundaria Francés - Relaciones Humanas"
-  const analizarEntrada = (texto) => {
-    const partes = texto.split("-");
-    if (partes.length < 2) return null;
-
-    const gradoMateria = partes[0].trim(); // "2do Secundaria Francés"
-    const tema = partes[1].trim(); // "Relaciones Humanas"
-
-    // Extraer grado, nivel y materia
-    const esGradomatch = gradoMateria.match(/^(\d+(?:er|do|ro|to))\s+(Primaria|Secundaria)\s*(?:-\s*)?(.+)?/i);
-    if (!esGradomatch) return null;
-
-    const grado = esGradomatch[1];
-    const nivel = esGradomatch[2];
-    const materia = esGradomatch[3] || "General";
-
-    return { grado, nivel, materia, tema };
-  };
-
-  // IA Avanzada que genera planificación completa
-  const generarPlanificacionCompleta = (analisis) => {
-    const { grado, nivel, materia, tema } = analisis;
-
-    // Competencia específica según materia
-    const competencias = {
-      "Inglés": `Comprende y se expresa en inglés de forma oral y escrita sobre ${tema}.`,
-      "Francés": `Comprende y se expresa en francés de forma oral y escrita sobre ${tema}.`,
-      "Literatura": `Analiza y produce textos literarios relacionados con ${tema}.`,
-      "Matemática": `Resuelve problemas aplicando conceptos de ${tema}.`,
-      "Ciencias": `Explica fenómenos científicos relacionados con ${tema}.`,
-      "default": `Comprende y aplica conceptos de ${tema} en contextos reales.`,
-    };
-
-    const competencia = competencias[materia] || competencias.default;
-
-    // Indicadores específicos
-    const indicadores = [
-      `Identifica y explica conceptos clave sobre ${tema}`,
-      `Comunica ideas claras y coherentes sobre ${tema}`,
-      `Aplica ${tema} en situaciones de la vida cotidiana`,
-      `Trabaja colaborativamente en actividades sobre ${tema}`,
-      `Reflexiona sobre su propio proceso de aprendizaje`,
-    ];
-
-    // Contenidos desglosados
-    const contenidos = {
-      conceptuales: [
-        `Conceptos fundamentales de ${tema}`,
-        `Características principales de ${tema}`,
-        `Relaciones y conexiones con otros temas`,
-      ],
-      procedimentales: [
-        `Identificación de elementos relacionados con ${tema}`,
-        `Análisis y comparación de información`,
-        `Producción de textos o materiales sobre ${tema}`,
-      ],
-      actitudinales: [
-        `Interés por aprender sobre ${tema}`,
-        `Respeto por diversas perspectivas`,
-        `Compromiso con la calidad del trabajo`,
-      ],
-    };
-
-    // Estrategias pedagógicas
-    const estrategias = [
-      `Enseñanza basada en proyectos: proyecto integrador sobre ${tema}`,
-      `Aprendizaje cooperativo: trabajo en equipos de ${grado.includes("Primaria") ? "4-5" : "3-4"} estudiantes`,
-      `Pensamiento crítico: análisis y reflexión sobre ${tema}`,
-      `Diferenciación: actividades adaptadas al ritmo de aprendizaje`,
-    ];
-
-    // Actividades sugeridas
-    const tieneIdioma = materia.includes("Inglés") || materia.includes("Francés");
-    const actividades = [
-      tieneIdioma
-        ? `Presentación y debate oral sobre ${tema}`
-        : `Presentación interactiva: introducción al tema`,
-      `Lectura y análisis crítico de materiales sobre ${tema}`,
-      `Actividad colaborativa: creación de material sobre ${tema}`,
-      `Proyecto final: presentación multimedia o exposición`,
-      `Metacognición: reflexión sobre lo aprendido`,
-    ];
-
-    // Evidencias de aprendizaje
-    const evidencias = [
-      `Participación en discusiones y debates`,
-      `Trabajos escritos o proyectos sobre ${tema}`,
-      `Presentación oral de ideas y conclusiones`,
-      `Autoevaluación reflexiva del proceso`,
-    ];
-
-    // Instrumentos de evaluación
-    const instrumentos = [
-      {
-        tipo: "Rúbrica analítica",
-        criterios:
-          "Conocimiento, comunicación, aplicación, colaboración",
-      },
-      {
-        tipo: "Lista de cotejo",
-        criterios: "Participación, entrega de trabajos, calidad",
-      },
-      {
-        tipo: "Evaluación por pares",
-        criterios: "Retroalimentación constructiva entre compañeros",
-      },
-      {
-        tipo: "Autoevaluación",
-        criterios: "Reflexión sobre fortalezas y áreas de mejora",
-      },
-    ];
-
-    // Adecuación curricular (para estudiantes con NEE)
-    const adecuacion = {
-      objetivo: `Adaptar ${tema} a ritmo y estilo de aprendizaje individual`,
-      estrategias: [
-        "Reducción de complejidad sin perder esencia",
-        "Apoyo visual y multisensorial",
-        "Evaluación flexible y diversificada",
-        "Tutoría individualizada según necesidad",
-      ],
-    };
-
-    // Metacognición
-    const metacognicion = [
-      "¿Qué sabía al inicio sobre este tema?",
-      "¿Qué estrategias usé para aprender?",
-      "¿Qué dificultades encontré?",
-      "¿Cómo superé esos obstáculos?",
-      "¿Qué aprendí sobre mí mismo como aprendiz?",
-      "¿Cómo aplicaré esto en el futuro?",
-    ];
-
-    // Plan B tecnológico (alternativa sin internet)
-    const planB = {
-      descripcion: `Alternativa sin tecnología para ${tema}`,
-      actividades: [
-        "Materiales impresos: guías y lecturas",
-        "Actividades manuales: carteles, maquetas, dibujos",
-        "Juegos educativos sin dispositivos",
-        "Presentaciones orales sin proyector",
-        "Trabajos colaborativos presenciales",
-      ],
-    };
-
-    return {
-      competencia,
-      indicadores,
-      contenidos,
-      estrategias,
-      actividades,
-      evidencias,
-      instrumentos,
-      adecuacion,
-      metacognicion,
-      planB,
-      info: { grado, nivel, materia, tema },
-    };
-  };
-
-  const manejarGenerar = async () => {
-    if (!entrada.trim()) {
-      setMensaje({ tipo: "error", texto: "Por favor escribe un tema" });
-      return;
-    }
-
-    const analisis = analizarEntrada(entrada);
-    if (!analisis) {
-      setMensaje({
-        tipo: "error",
-        texto:
-          'Formato incorrecto. Usa: "2do Secundaria Francés - Tema"',
-      });
-      return;
-    }
-
-    setGenerando(true);
-    setMensaje(null);
-
-    // Simular delay de generación (en producción sería API a backend IA)
-    setTimeout(() => {
-      const resultado = generarPlanificacionCompleta(analisis);
-      setPlanificacionIa(resultado);
-      setGenerando(false);
-    }, 800);
-  };
-
-  const guardarEnFirebase = async () => {
-    if (!planificacionIa) return;
-
-    setGuardando(true);
-    try {
-      await guardarPlanificacion({
-        curso: `${planificacionIa.info.grado} ${planificacionIa.info.nivel} - ${planificacionIa.info.materia}`,
-        periodo: "Flexible",
-        tema: planificacionIa.info.tema,
-        competencia: planificacionIa.competencia,
-        resultado: planificacionIa,
-      });
-
-      setMensaje({
-        tipo: "success",
-        texto: "✅ Planificación guardada en tu biblioteca",
-      });
-      setTimeout(() => setMensaje(null), 3000);
-    } catch {
-      setMensaje({
-        tipo: "error",
-        texto: "⚠️ Debes iniciar sesión para guardar",
-      });
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  return (
-    <>
-      <h1>🚀 DocenteOS AI PRO</h1>
-      <p style={{ color: "#64748b", marginBottom: "24px" }}>
-        Planificación completa con IA en una línea. Genera en segundos lo que
-        tomaría horas.
-      </p>
-
-      <div className="ia-pro-container">
-        <div className="ia-input-card">
-          <h2>📝 Escribe tu idea</h2>
-          <p style={{ color: "#64748b", marginBottom: "16px" }}>
-            Ejemplo: "2do Secundaria Francés - Relaciones Humanas"
-          </p>
-
-          <input
-            type="text"
-            placeholder="2do Secundaria Inglés - Viajes y Turismo"
-            value={entrada}
-            onChange={(e) => setEntrada(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === "Enter") manejarGenerar();
-            }}
-            className="ia-input"
-          />
-
-          <button
-            className="generate-btn-pro"
-            onClick={manejarGenerar}
-            disabled={generando || !entrada.trim()}
-          >
-            {generando ? "⏳ Generando..." : "✨ Generar planificación"}
-          </button>
-
-          {mensaje && (
-            <div className={`mensaje ${mensaje.tipo}`}>
-              {mensaje.texto}
-            </div>
-          )}
-        </div>
-
-        {planificacionIa && (
-          <div className="ia-resultado">
-            <div className="resultado-header">
-              <h2>🎓 {planificacionIa.info.grado} {planificacionIa.info.nivel} - {planificacionIa.info.materia}</h2>
-              <p className="tema-titulo">📚 Tema: {planificacionIa.info.tema}</p>
-            </div>
-
-            {/* Competencia */}
-            <div className="seccion-ia">
-              <h3>🎯 Competencia</h3>
-              <p>{planificacionIa.competencia}</p>
-            </div>
-
-            {/* Indicadores */}
-            <div className="seccion-ia">
-              <h3>📊 Indicadores de Logro</h3>
-              <ul>
-                {planificacionIa.indicadores.map((ind, idx) => (
-                  <li key={idx}>{ind}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Contenidos */}
-            <div className="seccion-ia">
-              <h3>📚 Contenidos</h3>
-              <div className="contenidos-grid">
-                <div className="contenido-tipo">
-                  <h4>Conceptuales</h4>
-                  <ul>
-                    {planificacionIa.contenidos.conceptuales.map((c, idx) => (
-                      <li key={idx}>{c}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="contenido-tipo">
-                  <h4>Procedimentales</h4>
-                  <ul>
-                    {planificacionIa.contenidos.procedimentales.map((c, idx) => (
-                      <li key={idx}>{c}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="contenido-tipo">
-                  <h4>Actitudinales</h4>
-                  <ul>
-                    {planificacionIa.contenidos.actitudinales.map((c, idx) => (
-                      <li key={idx}>{c}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Estrategias */}
-            <div className="seccion-ia">
-              <h3>💡 Estrategias Pedagógicas</h3>
-              <ul>
-                {planificacionIa.estrategias.map((est, idx) => (
-                  <li key={idx}>{est}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Actividades */}
-            <div className="seccion-ia">
-              <h3>🎨 Actividades</h3>
-              <ul>
-                {planificacionIa.actividades.map((act, idx) => (
-                  <li key={idx}>{act}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Evidencias */}
-            <div className="seccion-ia">
-              <h3>✅ Evidencias de Aprendizaje</h3>
-              <ul>
-                {planificacionIa.evidencias.map((ev, idx) => (
-                  <li key={idx}>{ev}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Instrumentos */}
-            <div className="seccion-ia">
-              <h3>📋 Instrumentos de Evaluación</h3>
-              <div className="instrumentos-grid">
-                {planificacionIa.instrumentos.map((inst, idx) => (
-                  <div key={idx} className="instrumento-card">
-                    <h4>{inst.tipo}</h4>
-                    <p>{inst.criterios}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Adecuación Curricular */}
-            <div className="seccion-ia">
-              <h3>♿ Adecuación Curricular (NEE)</h3>
-              <p>
-                <strong>Objetivo:</strong> {planificacionIa.adecuacion.objetivo}
-              </p>
-              <ul>
-                {planificacionIa.adecuacion.estrategias.map((est, idx) => (
-                  <li key={idx}>{est}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Metacognición */}
-            <div className="seccion-ia">
-              <h3>🧠 Metacognición</h3>
-              <p style={{ marginBottom: "12px" }}>
-                Preguntas para que el estudiante reflexione:
-              </p>
-              <ul>
-                {planificacionIa.metacognicion.map((preg, idx) => (
-                  <li key={idx}>{preg}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Plan B Tecnológico */}
-            <div className="seccion-ia">
-              <h3>🔌 Plan B Tecnológico</h3>
-              <p>
-                <strong>{planificacionIa.planB.descripcion}</strong>
-              </p>
-              <ul>
-                {planificacionIa.planB.actividades.map((act, idx) => (
-                  <li key={idx}>{act}</li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Botones de acción */}
-            <div className="acciones-ia-pro">
-              <button
-                className="save-btn"
-                onClick={guardarEnFirebase}
-                disabled={guardando}
-              >
-                {guardando ? "⏳ Guardando..." : "💾 Guardar en mi biblioteca"}
-              </button>
-              <button
-                className="export-btn"
-                onClick={() => alert("PDF próximamente disponible")}
-              >
-                📥 Descargar PDF
-              </button>
-              <button
-                className="reset-btn"
-                onClick={() => {
-                  setPlanificacionIa(null);
-                  setEntrada("");
-                }}
-              >
-                ↻ Nueva planificación
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </>
   );
 }

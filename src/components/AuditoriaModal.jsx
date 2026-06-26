@@ -42,7 +42,9 @@ export default function AuditoriaModal({ unidad, onClose }) {
       await navigator.clipboard.writeText(texto);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
-    } catch {}
+    } catch {
+      setCopiado(false);
+    }
   };
 
   const estadoLabel = {

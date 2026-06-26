@@ -148,7 +148,7 @@ const normalizarCompetencia = (competencia) => ({
 
 /**
  * Importa una asignatura individual a Firestore.
- * Sobreescribe el documento existente (upsert).
+ * Upsert seguro compatible con datos existentes.
  */
 const importarAsignatura = async (nivel, ciclo, version, fuente, asignatura) => {
   const { grado, area } = asignatura;
@@ -185,10 +185,11 @@ const importarAsignatura = async (nivel, ciclo, version, fuente, asignatura) => 
     version: version || "sin_version",
     fuente: fuente || "MINERD",
     importadoEn: serverTimestamp(),
+    actualizadoEn: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
 
-  await setDoc(ref, payload, { merge: false });
+  await setDoc(ref, payload, { merge: true });
   return docId;
 };
 

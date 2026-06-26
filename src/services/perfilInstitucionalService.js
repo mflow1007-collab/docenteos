@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../firebase.js'
+import { auth, db } from '../firebase.js'
 
 /**
  * Lee el perfilInstitucional de un usuario desde Firestore.
@@ -22,6 +22,9 @@ export async function obtenerPerfilInstitucional(uid) {
  */
 export async function guardarPerfilInstitucional(uid, datos) {
   if (!db || !uid) throw new Error('Sin conexión o usuario no identificado.')
+  if (!auth?.currentUser || auth.currentUser.uid !== uid) {
+    throw new Error('No autorizado para actualizar este perfil.')
+  }
   await setDoc(
     doc(db, 'usuarios', uid),
     {

@@ -36,6 +36,12 @@ import {
   eliminarPlanificacionDetallada,
   guardarPlanificacionDetallada,
   obtenerPlanificacionesDetalladas,
+  guardarPreferenciaUsuario,
+  obtenerPreferenciaUsuario,
+  verificarTemaAntesDeGenerar,
+  registrarUsoTemaPlanificacion,
+  registrarUsoPDFTema,
+  suscribirseEstadoTemasPlanificacion,
 } from "../firebase";
 
 export default function PlanificacionPage() {
@@ -169,27 +175,38 @@ export default function PlanificacionPage() {
   const [guardandoUnidad, setGuardandoUnidad] = useState(false);
   const [mensajeUnidad, setMensajeUnidad] = useState(null);
 
+  const perfilNombreDocente = perfilForm?.nombreDocente || "";
+  const perfilRegional = perfilForm?.regional || "";
+  const perfilDistrito = perfilForm?.distrito || "";
+  const perfilCentro = perfilForm?.centro || "";
+  const perfilCodigoCentro = perfilForm?.codigoCentro || "";
+  const perfilNivel = perfilForm?.nivel || "";
+  const perfilModalidad = perfilForm?.modalidad || "";
+  const perfilCiclo = perfilForm?.ciclo || "";
+  const perfilJornada = perfilForm?.jornada || "";
+  const perfilPeriodo = perfilForm?.periodo || "";
+
   // ── Auto-completar formularios desde el perfil institucional ─────────────
   useEffect(() => {
-    if (!perfilForm || !perfilForm.nombreDocente) return;
+    if (!perfilNombreDocente) return;
     const campos = {
-      nombreDocente: perfilForm.nombreDocente,
-      regional:      perfilForm.regional,
-      distrito:      perfilForm.distrito,
-      centro:        perfilForm.centro,
-      codigoCentro:  perfilForm.codigoCentro,
-      nivel:         perfilForm.nivel,
-      modalidad:     perfilForm.modalidad,
-      ciclo:         perfilForm.ciclo,
-      jornada:       perfilForm.jornada,
+      nombreDocente: perfilNombreDocente,
+      regional:      perfilRegional,
+      distrito:      perfilDistrito,
+      centro:        perfilCentro,
+      codigoCentro:  perfilCodigoCentro,
+      nivel:         perfilNivel,
+      modalidad:     perfilModalidad,
+      ciclo:         perfilCiclo,
+      jornada:       perfilJornada,
     };
     setPlanDiarioDatos((prev) => ({ ...prev, ...campos }));
     setUnidadDatos((prev) => ({
       ...prev,
       ...campos,
-      periodo: perfilForm.periodo || prev.periodo,
+      periodo: perfilPeriodo || prev.periodo,
     }));
-  }, [perfilForm.nombreDocente]); // se ejecuta una vez cuando el perfil llega
+  }, [perfilNombreDocente, perfilRegional, perfilDistrito, perfilCentro, perfilCodigoCentro, perfilNivel, perfilModalidad, perfilCiclo, perfilJornada, perfilPeriodo]);
 
   const manejarGenerarUnidad = () => {
     setCargandoUnidad(true);
@@ -284,6 +301,14 @@ export default function PlanificacionPage() {
   const [historialMode, setHistorialMode] = useState("local");
   const [historialAbierto, setHistorialAbierto] = useState(false);
   const [usoTiposPlanificacion, setUsoTiposPlanificacion] = useState({});
+  const [estadoTemas, setEstadoTemas] = useState({
+    temaActivo: null,
+    temaSecundario: null,
+    suscripcion: "Pendiente de completar",
+    usoMensual: "Pendiente de completar",
+    creditosDisponibles: 0,
+  });
+  const [dialogoTema, setDialogoTema] = useState({ abierto: false, payload: null });
 
   const formatearFechaRegistro = (fecha) => {
     if (!fecha) return "Sin fecha";
@@ -332,6 +357,27 @@ export default function PlanificacionPage() {
     }, 0);
 
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const unsub = suscribirseEstadoTemasPlanificacion(
+      (data) => {
+        setEstadoTemas({
+          temaActivo: data?.temaActivo || null,
+          temaSecundario: data?.temaSecundario || null,
+          suscripcion: data?.suscripcion ?? "Pendiente de completar",
+          usoMensual: data?.usoMensual ?? "Pendiente de completar",
+          creditosDisponibles: Number(data?.creditosDisponibles || 0),
+        });
+      },
+      () => {
+        // En error mantenemos última foto de estado.
+      }
+    );
+
+    return () => {
+      if (typeof unsub === "function") unsub();
+    };
   }, []);
 
   // ── Consulta curricular oficial al cambiar Grado o Área ───────────────────
@@ -391,16 +437,32 @@ export default function PlanificacionPage() {
   }, [grado, area, consultarCurriculoOficial]);
 
   useEffect(() => {
-    try {
-      const guardado = localStorage.getItem(STORAGE_USO_TIPOS);
-      if (!guardado) return;
-      const parsed = JSON.parse(guardado);
-      if (parsed && typeof parsed === "object") {
-        setUsoTiposPlanificacion(parsed);
+    let activo = true;
+    const cargarUsoTipos = async () => {
+      try {
+        const preferencia = await obtenerPreferenciaUsuario(STORAGE_USO_TIPOS);
+        if (!activo) return;
+        const remoto = preferencia?.data;
+        if (remoto && typeof remoto === "object") {
+          setUsoTiposPlanificacion(remoto);
+          return;
+        }
+
+        const guardado = localStorage.getItem(STORAGE_USO_TIPOS);
+        if (!guardado) return;
+        const parsed = JSON.parse(guardado);
+        if (parsed && typeof parsed === "object") {
+          setUsoTiposPlanificacion(parsed);
+        }
+      } catch {
+        // Si storage falla, usamos el orden base por defecto.
       }
-    } catch {
-      // Si storage falla, usamos el orden base por defecto.
-    }
+    };
+
+    cargarUsoTipos();
+    return () => {
+      activo = false;
+    };
   }, []);
 
   // Opciones de grados (sin áreas)
@@ -499,6 +561,9 @@ export default function PlanificacionPage() {
       };
       try {
         localStorage.setItem(STORAGE_USO_TIPOS, JSON.stringify(next));
+        guardarPreferenciaUsuario({ clave: STORAGE_USO_TIPOS, valor: next }).catch(() => {
+          // fallback local ya aplicado
+        });
       } catch {
         // Si no se puede persistir, no bloqueamos la selección.
       }
@@ -510,6 +575,9 @@ export default function PlanificacionPage() {
     setUsoTiposPlanificacion({});
     try {
       localStorage.removeItem(STORAGE_USO_TIPOS);
+      guardarPreferenciaUsuario({ clave: STORAGE_USO_TIPOS, valor: {} }).catch(() => {
+        // fallback local ya aplicado
+      });
     } catch {
       // Si falla storage, mantenemos el estado en memoria.
     }
@@ -583,10 +651,10 @@ export default function PlanificacionPage() {
           "Aprendizaje autónomo",
         ];
 
-  const parsearSemanas = (valor) => {
+  const parsearSemanas = useCallback((valor) => {
     const numero = parseInt(String(valor || "").match(/\d+/)?.[0] || "", 10);
     return Number.isFinite(numero) && numero > 0 ? numero : 0;
-  };
+  }, []);
 
   // ── Regla de Combinación Curricular ─────────────────────────────────────────
   // Cuando tema o duración cambian, re-evalúa si se necesita integración curricular.
@@ -602,7 +670,7 @@ export default function PlanificacionPage() {
       analizarCombinacionTematica(curriculoCompleto, tema, numSemanas);
     setCombinacionSugerida(necesitaCombinacion ? sugerencia : null);
     setTemasIntegrados([]);
-  }, [tema, duracion, curriculoCompleto]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tema, duracion, curriculoCompleto, parsearSemanas]);
 
   const manejarAceptarCombinacion = () => {
     if (!combinacionSugerida) return;
@@ -623,6 +691,44 @@ export default function PlanificacionPage() {
     setMensaje(null);
 
     try {
+      const verificacionTema = await verificarTemaAntesDeGenerar({ tituloTema: tema });
+      if (!verificacionTema?.permitido) {
+        if (verificacionTema?.motivo === "tercer_tema_sin_credito") {
+          setDialogoTema({
+            abierto: true,
+            payload: {
+              ...verificacionTema,
+              temaIngresado: tema,
+            },
+          });
+          return;
+        }
+        throw new Error(verificacionTema?.mensaje || "No se pudo validar el tema actual");
+      }
+
+      if (verificacionTema?.requiereCredito) {
+        setDialogoTema({
+          abierto: true,
+          payload: {
+            ...verificacionTema,
+            temaIngresado: tema,
+            mensaje:
+              "Ya tienes dos temas activos. Puedes seguir editándolos sin límites. Para iniciar un nuevo tema debes usar un nuevo crédito de planificación o una suscripción compatible.",
+            temas: {
+              temaActivo: estadoTemas.temaActivo,
+              temaSecundario: estadoTemas.temaSecundario,
+            },
+          },
+        });
+        return;
+      }
+
+      await registrarUsoTemaPlanificacion({
+        tituloTema: tema,
+        forzarNuevoTema: false,
+        contexto: "generacion",
+      });
+
       const gradoData = grados.find((item) => item.grado === grado);
       const curso = [grado, seccion].filter(Boolean).join(" ").trim();
       const totalSemanas = configuracionTipo.mostrarSemanas
@@ -705,6 +811,15 @@ export default function PlanificacionPage() {
     setGuardando(true);
 
     try {
+      const temaParaControl = planificacion?.metadatos?.tema || tema;
+      if (temaParaControl) {
+        await registrarUsoTemaPlanificacion({
+          tituloTema: temaParaControl,
+          forzarNuevoTema: false,
+          contexto: "edicion",
+        });
+      }
+
       const resultado = await guardarPlanificacionDetallada(planificacion);
       await cargarHistorial({ mostrarMensajeRecuperacion: false });
       setMensaje({
@@ -829,6 +944,13 @@ export default function PlanificacionPage() {
       ventanaImpresion.focus();
       ventanaImpresion.print();
 
+      const temaParaMetricas = planificacion?.metadatos?.tema || tema;
+      if (temaParaMetricas) {
+        registrarUsoPDFTema({ tituloTema: temaParaMetricas }).catch(() => {
+          // No bloquear exportación por métricas.
+        });
+      }
+
       setMensaje({
         tipo: "success",
         texto: "✅ Documento listo para guardar en PDF"
@@ -839,6 +961,112 @@ export default function PlanificacionPage() {
         tipo: "error",
         texto: `❌ ${error.message || "Error al exportar PDF"}`
       });
+    }
+  };
+
+  const manejarDialogoTemaCancelar = () => {
+    setDialogoTema({ abierto: false, payload: null });
+  };
+
+  const manejarDialogoTemaSeguirEditando = () => {
+    setDialogoTema({ abierto: false, payload: null });
+    setMensaje({
+      tipo: "info",
+      texto: "Puedes seguir editando tu Tema Activo o Tema Secundario sin límites.",
+    });
+    setTimeout(() => setMensaje(null), 3000);
+  };
+
+  const manejarDialogoTemaUsarCredito = async () => {
+    const temaIngresado = dialogoTema?.payload?.temaIngresado;
+    if (!temaIngresado) {
+      setDialogoTema({ abierto: false, payload: null });
+      return;
+    }
+
+    setDialogoTema({ abierto: false, payload: null });
+    setCargando(true);
+    setMensaje(null);
+
+    try {
+      await registrarUsoTemaPlanificacion({
+        tituloTema: temaIngresado,
+        forzarNuevoTema: true,
+        contexto: "generacion",
+      });
+
+      const gradoData = grados.find((item) => item.grado === grado);
+      const curso = [grado, seccion].filter(Boolean).join(" ").trim();
+      const totalSemanas = configuracionTipo.mostrarSemanas
+        ? parsearSemanas(duracion)
+        : tipoPlanificacion === "Plan Anual"
+          ? 40
+          : 1;
+
+      const diasActivos = configuracionTipo.mostrarDiasClase ? diasClase : [];
+      const encuentrosSemana = diasActivos.length || 1;
+      const encuentrosEstimados = totalSemanas * encuentrosSemana;
+
+      const minutosSemanales = diasActivos.length > 0
+        ? diasActivos.reduce((acc, dia) => acc + (periodosClasePorDia[dia] || 1) * minutosHoraClase, 0)
+        : minutosHoraClase;
+      const tiempoTotalMinutos = totalSemanas * minutosSemanales;
+
+      const datosValidados = {
+        curso,
+        grado,
+        seccion,
+        area,
+        asignatura,
+        periodo: configuracionTipo.mostrarPeriodo ? periodo : "",
+        fechaInicio: configuracionTipo.mostrarFechaInicio ? fechaInicio : "",
+        duracion: configuracionTipo.mostrarSemanas ? duracion : `${totalSemanas} semanas`,
+        tema,
+        competencia,
+        indicadoresOficiales,
+        imagenTematicaSrc,
+        imagenTematicaNombre,
+        tipoPlanificacion,
+        diasClase: diasActivos,
+        ejesTematicos,
+        asignaturasVinculadas,
+        situacionAprendizaje,
+        minutosHoraClase,
+        periodosClasePorDia,
+        temasIntegrados,
+        nivelEducativo: gradoData?.nivel || "Primaria",
+        jornadaTipo: gradoData?.nivel === "Secundaria" ? "Secundaria" : "Primaria",
+        resumenHorario: {
+          encuentrosPorSemana: encuentrosSemana,
+          minutosPorHoraClase: minutosHoraClase,
+          periodosClasePorDia,
+          minutosSemanales,
+          totalSemanas,
+          encuentrosEstimados,
+          tiempoTotalMinutos,
+        },
+      };
+
+      const resultado = await generarPlanificacion(datosValidados);
+      setPlanificacion(resultado);
+      setMensaje({
+        tipo: "success",
+        texto: "✅ Nuevo tema registrado y planificación generada",
+      });
+      setTimeout(() => setMensaje(null), 2800);
+      setTimeout(() => {
+        document.querySelector(".resultado")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    } catch (error) {
+      setMensaje({
+        tipo: "error",
+        texto: `❌ ${error.message || "No fue posible crear el nuevo tema"}`,
+      });
+    } finally {
+      setCargando(false);
     }
   };
 
@@ -904,6 +1132,31 @@ export default function PlanificacionPage() {
       </p>
 
       <div className="planning-container">
+        {dialogoTema.abierto && (
+          <section className="planning-form-card" style={{ border: "1px solid #f59e0b", background: "#fffbeb" }}>
+            <h2 style={{ marginBottom: 8 }}>Ya tienes dos temas activos</h2>
+            <p style={{ color: "#92400e", marginTop: 0 }}>
+              {dialogoTema?.payload?.mensaje || "Puedes seguir editándolos sin límites. Para iniciar un nuevo tema debes usar un nuevo crédito de planificación o disponer de una suscripción que lo permita."}
+            </p>
+            <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
+              <span><strong>Tema 1:</strong> {dialogoTema?.payload?.temas?.temaActivo?.titulo || "No definido"}</span>
+              <span><strong>Tema 2:</strong> {dialogoTema?.payload?.temas?.temaSecundario?.titulo || "No definido"}</span>
+              <span><strong>Créditos disponibles:</strong> {Number(dialogoTema?.payload?.creditosDisponibles || 0)}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" onClick={manejarDialogoTemaSeguirEditando}>Seguir editando</button>
+              <button type="button" onClick={manejarDialogoTemaCancelar}>Cancelar</button>
+              <button
+                type="button"
+                onClick={manejarDialogoTemaUsarCredito}
+                disabled={dialogoTema?.payload?.puedeCrearNuevoTema === false}
+              >
+                Usar nuevo crédito
+              </button>
+            </div>
+          </section>
+        )}
+
         <section className="planning-type-card">
           <div className="planning-type-head">
             <h2>🧭 TIPO DE PLANIFICACIÓN</h2>
@@ -1062,6 +1315,11 @@ export default function PlanificacionPage() {
         )}
 
         <section className="planning-history-card secondary">
+          <p style={{ marginTop: 0 }}>
+            <strong>Tema Activo:</strong> {estadoTemas?.temaActivo?.titulo || "Pendiente de completar"}
+            {" · "}
+            <strong>Tema Secundario:</strong> {estadoTemas?.temaSecundario?.titulo || "Pendiente de completar"}
+          </p>
           <button
             className="history-collapse-btn"
             type="button"

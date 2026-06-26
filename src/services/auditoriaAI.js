@@ -4,6 +4,8 @@
  * Requiere VITE_ANTHROPIC_API_KEY en .env.local
  */
 
+import { registrarEventoAuditoria, registrarEventoIA } from "../firebase";
+
 // ─── PROMPT MAESTRO ───────────────────────────────────────────────────────────
 
 const PROMPT_MAESTRO = `# PROMPT MAESTRO — DOCENTEOS AI
@@ -197,8 +199,15 @@ const serializarUnidad = (unidad) => {
 
 export const auditarUnidad = async (unidad, { onChunk, onFinish, onError }) => {
   const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  let respuestaAcumulada = "";
 
   if (!apiKey || apiKey === "sk-ant-...") {
+    await registrarEventoAuditoria({
+      tipo: "ia",
+      evento: "auditoria_api_key_no_configurada",
+      modulo: "auditoria-ia",
+      detalle: { tieneApiKey: false },
+    });
     onError(
       "No hay API key de Anthropic configurada.\n\n" +
       "Agrega esta línea a tu archivo .env.local:\n" +
@@ -238,6 +247,12 @@ ${textoUnidad}`;
       }),
     });
   } catch (err) {
+    await registrarEventoAuditoria({
+      tipo: "ia",
+      evento: "auditoria_error_red",
+      modulo: "auditoria-ia",
+      detalle: { mensaje: err.message },
+    });
     onError(`Error de red: ${err.message}`);
     return;
   }
@@ -247,7 +262,23 @@ ${textoUnidad}`;
     try {
       const body = await response.json();
       msg = body?.error?.message || msg;
-    } catch {}
+    } catch {
+      // Mantener mensaje HTTP por defecto.
+    }
+    await registrarEventoIA({
+      modulo: "auditoria-ia",
+      accion: "auditar-unidad",
+      prompt,
+      respuesta: "",
+      estado: "error",
+      meta: { status: response.status, mensaje: msg },
+    });
+    await registrarEventoAuditoria({
+      tipo: "ia",
+      evento: "auditoria_http_error",
+      modulo: "auditoria-ia",
+      detalle: { status: response.status, mensaje: msg },
+    });
     onError(msg);
     return;
   }
@@ -271,16 +302,64 @@ ${textoUnidad}`;
         try {
           const parsed = JSON.parse(data);
           if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+            respuestaAcumulada += parsed.delta.text;
             onChunk(parsed.delta.text);
           }
-          if (parsed.type === "message_stop") { onFinish(); return; }
-        } catch {}
+          if (parsed.type === "message_stop") {
+            await registrarEventoIA({
+              modulo: "auditoria-ia",
+              accion: "auditar-unidad",
+              prompt,
+              respuesta: respuestaAcumulada,
+              estado: "exito",
+              meta: { fuente: "anthropic", longitudRespuesta: respuestaAcumulada.length },
+            });
+            await registrarEventoAuditoria({
+              tipo: "ia",
+              evento: "auditoria_exitosa",
+              modulo: "auditoria-ia",
+              detalle: { longitudRespuesta: respuestaAcumulada.length },
+            });
+            onFinish();
+            return;
+          }
+        } catch {
+          // Ignorar eventos SSE no parseables.
+        }
       }
     }
   } catch (err) {
+    await registrarEventoIA({
+      modulo: "auditoria-ia",
+      accion: "auditar-unidad",
+      prompt,
+      respuesta: respuestaAcumulada,
+      estado: "error",
+      meta: { mensaje: err.message },
+    });
+    await registrarEventoAuditoria({
+      tipo: "ia",
+      evento: "auditoria_error_stream",
+      modulo: "auditoria-ia",
+      detalle: { mensaje: err.message },
+    });
     onError(`Error durante la lectura del stream: ${err.message}`);
     return;
   }
 
+  await registrarEventoIA({
+    modulo: "auditoria-ia",
+    accion: "auditar-unidad",
+    prompt,
+    respuesta: respuestaAcumulada,
+    estado: "exito",
+    meta: { fuente: "anthropic", longitudRespuesta: respuestaAcumulada.length },
+  });
+  await registrarEventoAuditoria({
+    tipo: "ia",
+    evento: "auditoria_exitosa",
+    modulo: "auditoria-ia",
+    detalle: { longitudRespuesta: respuestaAcumulada.length },
+  });
   onFinish();
 };

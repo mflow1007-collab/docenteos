@@ -263,39 +263,39 @@ const generarTituloDia = (diaNum, fase, tema) => {
 
 const INTENCIONES_DIA = {
   diagnostica: [
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes explorarán sus conocimientos previos sobre "${t}" mediante observación de imágenes, preguntas diagnósticas y actividades de activación, identificando lo que saben y estableciendo la base para el aprendizaje de la unidad.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes se familiarizarán con el vocabulario y los conceptos clave de "${t}" mediante lluvia de ideas, observación y clasificación de términos, conectando el contenido con sus experiencias cotidianas.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes activarán sus saberes previos sobre "${t}" mediante diálogo guiado, exploración de materiales y respuesta a preguntas clave, identificando los puntos de partida para su proceso de aprendizaje.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes conocerán la unidad de aprendizaje "${t}" mediante la presentación del contexto, la situación de aprendizaje y los criterios de evaluación que guiarán el proceso durante la unidad.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes explorarán la situación de aprendizaje de "${t}" mediante análisis de imágenes, respuesta a preguntas motivadoras y producción oral inicial, estableciendo la intención y el propósito de la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes explorarán sus conocimientos previos sobre "${t}" mediante observación de imágenes, preguntas diagnósticas y actividades de activación, identificando lo que saben y estableciendo la base para el aprendizaje de la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes se familiarizarán con el vocabulario y los conceptos clave de "${t}" mediante lluvia de ideas, observación y clasificación de términos, conectando el contenido con sus experiencias cotidianas.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes activarán sus saberes previos sobre "${t}" mediante diálogo guiado, exploración de materiales y respuesta a preguntas clave, identificando los puntos de partida para su proceso de aprendizaje.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes conocerán la unidad de aprendizaje "${t}" mediante la presentación del contexto, la situación de aprendizaje y los criterios de evaluación que guiarán el proceso durante la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes explorarán la situación de aprendizaje de "${t}" mediante análisis de imágenes, respuesta a preguntas motivadoras y producción oral inicial, estableciendo la intención y el propósito de la unidad.`,
   ],
   inicial: [
     (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes se introducirán en "${t}" mediante presentación modelada del docente, trabajo en parejas y práctica guiada, desarrollando una comprensión inicial del tema y la competencia de ${c}.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes explorarán el vocabulario y los conceptos fundamentales de "${t}" mediante observación, análisis de ejemplos y producción oral inicial, construyendo la base conceptual para las próximas sesiones.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes explorarán el vocabulario y los conceptos fundamentales de "${t}" mediante observación, análisis de ejemplos y producción oral inicial, construyendo la base conceptual para las próximas sesiones.`,
     (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes trabajarán con los elementos clave de "${t}" mediante modelado, práctica colaborativa y producción guiada, fortaleciendo su comprensión del contenido y la competencia de ${c}.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes practicarán de forma guiada los contenidos de "${t}" mediante ejercicios progresivos, retroalimentación inmediata y producción inicial, consolidando el vocabulario y las estructuras trabajadas.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes realizarán una primera producción sobre "${t}" mediante actividades de aplicación guiada y socialización oral, transfiriendo los aprendizajes iniciales a situaciones concretas.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes practicarán de forma guiada los contenidos de "${t}" mediante ejercicios progresivos, retroalimentación inmediata y producción inicial, consolidando el vocabulario y las estructuras trabajadas.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes realizarán una primera producción sobre "${t}" mediante actividades de aplicación guiada y socialización oral, transfiriendo los aprendizajes iniciales a situaciones concretas.`,
   ],
   desarrollo: [
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes profundizarán en "${t}" mediante producción oral, interacción colaborativa y escritura guiada, utilizando los conceptos trabajados para comunicarse en situaciones concretas y significativas.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes profundizarán en "${t}" mediante producción oral, interacción colaborativa y escritura guiada, utilizando los conceptos trabajados para comunicarse en situaciones concretas y significativas.`,
     (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes aplicarán sus conocimientos sobre "${t}" mediante trabajo cooperativo, producción escrita y socialización oral, fortaleciendo la competencia de ${c} a través de actividades contextualizadas.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes construirán conocimientos sobre "${t}" mediante comprensión oral, análisis de ejemplos y producción guiada, desarrollando habilidades que puedan aplicar en contextos reales.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes integrarán habilidades sobre "${t}" mediante actividades de producción, retroalimentación entre pares y reflexión grupal, consolidando los aprendizajes y avanzando hacia el producto final.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes construirán conocimientos sobre "${t}" mediante comprensión oral, análisis de ejemplos y producción guiada, desarrollando habilidades que puedan aplicar en contextos reales.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes integrarán habilidades sobre "${t}" mediante actividades de producción, retroalimentación entre pares y reflexión grupal, consolidando los aprendizajes y avanzando hacia el producto final.`,
     (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes trabajarán de forma colaborativa sobre "${t}" mediante resolución de situaciones problema, producción grupal y presentación oral, demostrando avance en la competencia de ${c}.`,
   ],
   profundizacion: [
     (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes aplicarán de forma autónoma sus aprendizajes sobre "${t}" mediante producción escrita, presentación oral y retroalimentación entre pares, demostrando dominio de la competencia de ${c}.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes consolidarán sus aprendizajes sobre "${t}" mediante análisis crítico, producción avanzada y coevaluación, preparándose para la presentación del producto final de la unidad.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes presentarán los avances de su producción sobre "${t}" mediante exposición oral, retroalimentación entre pares y ajuste de sus trabajos, acercándose al producto final.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes profundizarán en los aspectos clave de "${t}" mediante discusión crítica, producción escrita y socialización, integrando todos los aprendizajes desarrollados durante la unidad.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes prepararán el producto final sobre "${t}" mediante planificación, producción organizada y revisión entre pares, aplicando todos los conocimientos y habilidades desarrollados.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes consolidarán sus aprendizajes sobre "${t}" mediante análisis crítico, producción avanzada y coevaluación, preparándose para la presentación del producto final de la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes presentarán los avances de su producción sobre "${t}" mediante exposición oral, retroalimentación entre pares y ajuste de sus trabajos, acercándose al producto final.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes profundizarán en los aspectos clave de "${t}" mediante discusión crítica, producción escrita y socialización, integrando todos los aprendizajes desarrollados durante la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes prepararán el producto final sobre "${t}" mediante planificación, producción organizada y revisión entre pares, aplicando todos los conocimientos y habilidades desarrollados.`,
   ],
   final: [
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes presentarán el producto final de la unidad sobre "${t}" mediante exposición, coevaluación y reflexión metacognitiva, demostrando el logro de las competencias desarrolladas durante la unidad.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes evaluarán y reflexionarán sobre sus aprendizajes de "${t}" mediante coevaluación, autoevaluación y retroalimentación del docente, identificando sus logros y áreas de mejora.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes sintetizarán y socializarán sus aprendizajes sobre "${t}" mediante presentación oral, retroalimentación entre pares y reflexión final, cerrando el proceso de aprendizaje de la unidad.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes celebrarán los logros alcanzados en la unidad sobre "${t}" mediante socialización de productos, reconocimiento del esfuerzo colectivo y reflexión metacognitiva sobre el proceso vivido.`,
-    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes completarán el proceso de evaluación de "${t}" mediante presentación, coevaluación y metacognición, reconociendo el valor de los aprendizajes en su desarrollo personal y académico.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes presentarán el producto final de la unidad sobre "${t}" mediante exposición, coevaluación y reflexión metacognitiva, demostrando el logro de las competencias desarrolladas durante la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes evaluarán y reflexionarán sobre sus aprendizajes de "${t}" mediante coevaluación, autoevaluación y retroalimentación del docente, identificando sus logros y áreas de mejora.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes sintetizarán y socializarán sus aprendizajes sobre "${t}" mediante presentación oral, retroalimentación entre pares y reflexión final, cerrando el proceso de aprendizaje de la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes celebrarán los logros alcanzados en la unidad sobre "${t}" mediante socialización de productos, reconocimiento del esfuerzo colectivo y reflexión metacognitiva sobre el proceso vivido.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes completarán el proceso de evaluación de "${t}" mediante presentación, coevaluación y metacognición, reconociendo el valor de los aprendizajes en su desarrollo personal y académico.`,
   ],
 };
 
@@ -605,7 +605,7 @@ const generarMaterialesSemana = (area, fase) => {
 
 // ─── Evaluación por semana ────────────────────────────────────────────────────
 
-const generarEvaluacionSemana = (tipoEval, fase) => {
+const generarEvaluacionSemana = (tipoEval, _fase) => {
   const tecnicas = {
     diagnostica: ["Preguntas exploratorias", "Lluvia de ideas", "Observación directa"],
     formativa:   ["Observación sistemática", "Trabajo práctico", "Participación activa"],
@@ -670,7 +670,7 @@ const determinarTipoEval = (semana, total) => {
 const generarDesarrolloSemanal = ({
   semanas,
   tema,
-  area = "",
+  area: _area = "",
   competencia,
   diasNombres,
   minutosHoraClase = 45,

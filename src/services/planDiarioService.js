@@ -251,7 +251,7 @@ const generarIndicadoresLogro = (area, tema, grado) => {
   ];
 };
 
-const generarActividades = (area, tema, grado) => {
+const generarActividades = (area, tema, _grado) => {
   const mapas = {
     "Inglés": {
       inicio: [
@@ -348,7 +348,7 @@ const generarRecursos = (area) => {
   };
 };
 
-const generarEvaluacion = (area, tema) => ({
+const generarEvaluacion = (_area, _tema) => ({
   inicio: {
     evidencias: [
       "Conocimientos previos sobre el tema",
@@ -384,7 +384,7 @@ const generarEvaluacion = (area, tema) => ({
   },
 });
 
-const generarAdaptacionesNEAE = (area) => ({
+const generarAdaptacionesNEAE = (_area) => ({
   acceso:
     "Uso de apoyo visual, imágenes y ejemplos escritos para facilitar la comprensión de estudiantes con ritmo de aprendizaje más lento y dificultades en la expresión oral.",
   metodologicas:
@@ -456,15 +456,15 @@ export const generarPlanDiario = (datos) => {
     competenciaEspecificaCustom = "",
     indicadoresCustom = [],
     situacionCustom = "",
-    nombreDocente = "César Jonás Baéz Jiménez",
-    cedula = "012-0107808-4",
-    regional = "02 San Juan Oeste",
-    distrito = "06",
-    centro = "Héctor Fco. López Romero- Hato Nuevo",
-    codigoCentro = "03313",
-    nivel = "Secundaria",
-    ciclo = "Primer Ciclo",
-    modalidad = "Académica",
+    nombreDocente = "",
+    cedula = "",
+    regional = "",
+    distrito = "",
+    centro = "",
+    codigoCentro = "",
+    nivel = "",
+    ciclo = "",
+    modalidad = "",
     competenciasFundamentalesSeleccionadas = null,
   } = datos;
 
@@ -550,7 +550,6 @@ export const formatearPlanDiarioHTML = (plan) => {
           contenidos, desarrolloClase: dc, adaptacionesNEAE: neae,
           resumenEvaluacion: re, instrumentosEvaluacion: ie } = plan;
 
-  const celda = (txt) => `<td>${txt || ""}</td>`;
   const th = (txt, attrs = "") => `<th ${attrs}>${txt}</th>`;
 
   const compFundHTML = (ci.competenciasFundamentales || [])
@@ -587,8 +586,6 @@ export const formatearPlanDiarioHTML = (plan) => {
       <td>${metaHTML(mom.metacognicion)}</td>
       <td>${recurHTML(mom.recursos)}</td>
     </tr>`;
-
-  const cotejoCols = (crit) => `<td class="cb-cell">☐ Sí &nbsp; ☐ No</td>`.repeat(crit.length > 0 ? 1 : 0);
 
   const css = `
     * { box-sizing: border-box; margin: 0; padding: 0; }

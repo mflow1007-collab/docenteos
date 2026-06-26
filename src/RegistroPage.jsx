@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { guardarRegistroCalificaciones, obtenerRegistroCalificaciones } from "./firebase";
+import { useAuth } from "./context/AuthContext.jsx";
 import "./RegistroPage.css";
 
-const PERIODOS = ["Periodo 1", "Periodo 2", "Periodo 3", "Periodo 4"];
 const DIAS = ["L", "M", "I", "J", "V"];
 const ESTADOS_ASISTENCIA = ["", "P", "A", "T", "E"];
 
@@ -71,29 +71,6 @@ const competenciasFallback = [
     ],
   },
 ];
-
-const contenidosFallback = {
-  "Periodo 1": [
-    "Ideas principales y vocabulario básico",
-    "Actividades de observación guiada",
-    "Introducción a procedimientos esenciales",
-  ],
-  "Periodo 2": [
-    "Aplicación de conceptos en tareas cortas",
-    "Trabajo colaborativo por estaciones",
-    "Refuerzo pedagógico focalizado",
-  ],
-  "Periodo 3": [
-    "Desempeño en situaciones de contexto",
-    "Resolución de problemas y transferencia",
-    "Seguimiento por evidencias",
-  ],
-  "Periodo 4": [
-    "Consolidación de aprendizajes",
-    "Cierre de competencias del grado",
-    "Evaluación final y recuperación",
-  ],
-};
 
 function promedio(nums) {
   const valores = nums.filter((n) => typeof n === "number" && !Number.isNaN(n));
@@ -179,20 +156,18 @@ function calcularResumenEstudiante(notas) {
 function RegistroPage({
   onVolver,
   curso,
-  estudiante,
   estudiantesCurso = [],
-  planificaciones = [],
-  evaluaciones = [],
 }) {
-  const cursoNombre = curso?.nombre || "2do Secundaria A";
-  const centro = curso?.centro || "Centro Educativo Héctor Francisco López";
-  const grado = curso?.grado || "2do Secundaria";
-  const seccion = curso?.seccion || "A";
-  const area = curso?.area || "Matemática";
-  const docente = curso?.docente || "César Jonás Báez";
-  const mes = curso?.mes || "Junio";
-  const periodo = curso?.periodo || "3";
-  const anioEscolar = curso?.anioEscolar || "2025-2026";
+  const { formulario } = useAuth();
+  const cursoNombre = curso?.nombre || "Curso";
+  const centro = curso?.centro || formulario.centro || "Pendiente de completar";
+  const grado = curso?.grado || "";
+  const seccion = curso?.seccion || "";
+  const area = curso?.area || "";
+  const docente = curso?.docente || formulario.nombreDocente || "Pendiente de completar";
+  const mes = curso?.mes || new Date().toLocaleDateString("es-DO", { month: "long" });
+  const periodo = curso?.periodo || "";
+  const anioEscolar = curso?.anioEscolar || formulario.periodo || "Pendiente de completar";
 
   const estudiantes = useMemo(() => {
     if (estudiantesCurso.length > 0) return estudiantesCurso;
@@ -202,7 +177,7 @@ function RegistroPage({
   }, [curso, estudiantesCurso]);
 
   const [tabActiva, setTabActiva] = useState("Resumen");
-  const [periodoActivo, setPeriodoActivo] = useState("Periodo 1");
+  const [periodoActivo] = useState("Periodo 1");
   const [mesActivo, setMesActivo] = useState("Agosto");
   const [asistencia, setAsistencia] = useState(
     estudiantes.map((est) => ({
@@ -211,7 +186,7 @@ function RegistroPage({
       meses: Object.fromEntries(MESES_ESCOLAR.map((m) => [m, crearMesVacio()])),
     }))
   );
-  const [competencias, setCompetencias] = useState(competenciasFallback);
+  const competencias = competenciasFallback;
   const [observaciones, setObservaciones] = useState({});
   const [notasEstudiantes, setNotasEstudiantes] = useState({});
   const [guardando, setGuardando] = useState(false);
@@ -230,7 +205,6 @@ function RegistroPage({
         if (data.observaciones)    setObservaciones(data.observaciones);
       })
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursoId]);
 
   const codigosComp = COMP_CODIGOS[area] || ["CE-1","CE-2","CE-3","CE-4"];
@@ -263,9 +237,6 @@ function RegistroPage({
       return { ...prev, [estId]: { ...actual, [campo]: valor } };
     });
   };
-
-  const periodosActivos = contenidosFallback[periodoActivo] || [];
-  const nombreActivo = estudiante?.nombre || estudiantes[0]?.nombre || "Sin estudiante seleccionado";
 
   const resumen = useMemo(() => {
     const asistenciaGeneral = promedio(
@@ -310,18 +281,6 @@ function RegistroPage({
           si !== semanaIdx ? sem : sem.map((d, di) => (di !== diaIdx ? d : valor))
         );
         return { ...est, meses: nuevosMeses };
-      })
-    );
-  };
-
-  const actualizarCompetencia = (compIndex, periodoIndex, campo, valor) => {
-    setCompetencias((prev) =>
-      prev.map((comp, index) => {
-        if (index !== compIndex) return comp;
-        const nuevosPeriodos = comp.periodos.map((periodoItem, pIndex) =>
-          pIndex === periodoIndex ? { ...periodoItem, [campo]: valor } : periodoItem
-        );
-        return { ...comp, periodos: nuevosPeriodos };
       })
     );
   };

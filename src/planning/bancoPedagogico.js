@@ -770,6 +770,158 @@ const FIHR_CIERRE = [
   ],
 ];
 
+// ─── INGLÉS ───────────────────────────────────────────────────────────────────
+
+const EN_INICIO = [
+  // ── Grupo 0: Diagnóstico y activación oral ────────────────────────────────────
+  [
+    [
+      `Responden al saludo e indicaciones iniciales del docente en inglés. _(Good morning! How are you today? Are you ready for the class?)_`,
+      `Observan imágenes relacionadas con "{tema}" e identifican vocabulario clave en inglés que ya conocen. El docente guía con preguntas: _What do you see? What words in English do you know?_`,
+      `Escuchan y practican la pronunciación guiada de verbos de acción y expresiones relacionadas con "{tema}". _(Listen and repeat after me: one by one, slowly, then at normal speed.)_`,
+      `Expresan en inglés palabras o frases que asocian con "{tema}" apoyándose en imágenes y tarjetas de vocabulario en la pizarra.`,
+      `Escuchan la intención pedagógica y el propósito comunicativo de la sesión.`,
+    ],
+    [
+      `Responden al saludo e indicaciones del docente en inglés. _(Hello everyone! What day is today? Are you ready to practice?)_`,
+      `Participan en un juego de activación oral: el docente dice una palabra o expresión relacionada con "{tema}" y los estudiantes la repiten, la miman o la ilustran con un dibujo rápido.`,
+      `Escuchan un audio o canción corta en inglés relacionada con "{tema}". Identifican palabras que reconocen y las comparten con el grupo.`,
+      `Relacionan el vocabulario de "{tema}" con su cotidianidad dominicana: _¿Cuándo y dónde usarías estas expresiones en la vida real?_`,
+      `Escuchan el objetivo comunicativo de la sesión y el tipo de producción esperada al final de la clase.`,
+    ],
+  ],
+  // ── Grupo 1: Construcción lingüística y práctica ──────────────────────────────
+  [
+    [
+      `Responden al saludo en inglés y realizan un repaso oral rápido del vocabulario de "{tema}" con tarjetas de palabras o imágenes proyectadas.`,
+      `Retroalimentan la clase anterior: voluntarios producen oraciones en inglés usando estructuras de "{tema}" aprendidas previamente.`,
+      `Escuchan o leen un diálogo o texto más extenso en inglés sobre "{tema}" e identifican: vocabulario nuevo, estructuras gramaticales y la intención comunicativa.`,
+      `Preparan preguntas y respuestas en inglés relacionadas con "{tema}" usando los modelos analizados en clase.`,
+      `Escuchan la intención pedagógica y las actividades de producción planificadas para la sesión.`,
+    ],
+    [
+      `Responden al saludo e indicaciones del docente y participan en un warm-up comunicativo oral sobre "{tema}". _(Hi class! Ready to improve your English?)_`,
+      `Analizan un texto auténtico en inglés (anuncio, canción, diálogo real) relacionado con "{tema}": vocabulario, estructura y registro lingüístico.`,
+      `Identifican estrategias comunicativas útiles en inglés para "{tema}": cómo pedir información, cómo describir, cómo expresar opinión o acuerdo.`,
+      `Practican las estrategias identificadas en ejercicios de comprensión oral y lectora sobre "{tema}".`,
+      `Escuchan orientaciones del docente para la producción oral o escrita de la sesión.`,
+    ],
+  ],
+  // ── Grupo 2: Producción y autonomía comunicativa ──────────────────────────────
+  [
+    [
+      `Responden al saludo en inglés. _(Good morning! Today we show what we know about {tema}!)_ Presentan brevemente su producción oral o escrita avanzada.`,
+      `Reciben retroalimentación del docente sobre precisión léxica, pronunciación y estructuras en su producción sobre "{tema}".`,
+      `Revisan y mejoran su producción incorporando las correcciones sobre vocabulario, gramática y fluidez recibidas.`,
+      `Se preparan para la exposición final o el intercambio comunicativo de la sesión sobre "{tema}".`,
+      `Escuchan los criterios de evaluación de la producción final en inglés.`,
+    ],
+    [
+      `Responden al saludo e indicaciones del docente en inglés y participan en un communicative challenge oral sobre "{tema}". _(Let's see how much you can say in English!)_`,
+      `Evalúan la calidad comunicativa de su producción final sobre "{tema}": precisión de vocabulario, estructuras gramaticales y fluidez oral o escrita.`,
+      `Comparan textos auténticos en inglés con sus propias producciones sobre "{tema}". Identifican diferencias y similitudes para mejorar.`,
+      `Se preparan para la presentación o intercambio comunicativo final de la sesión.`,
+      `Escuchan orientaciones del docente sobre los criterios de la presentación oral o entrega escrita final.`,
+    ],
+  ],
+];
+
+const EN_DESARROLLO = [
+  // ── Grupo 0: Listening + Speaking ─────────────────────────────────────────────
+  [
+    [
+      `Escuchan un audio o diálogo en inglés relacionado con "{tema}" (2-3 escuchas). Primera escucha: identifican el tema general. Segunda: palabras clave. Tercera: detalles específicos. _(What did you hear? Which words do you recognize?)_`,
+      `Responden preguntas de comprensión oral sobre "{tema}": _(Who is speaking? Where are they? What are they talking about? What happens next?)_`,
+      `Practican la pronunciación del vocabulario de "{tema}" repitiendo y leyendo en voz alta. El docente corrige y enfatiza sonidos del inglés sin equivalente directo en español.`,
+      `Realizan un ejercicio de speaking en parejas sobre "{tema}": preguntas y respuestas usando el vocabulario y estructuras del audio. _(Turn to your partner — you have 2 minutes. Ready? Go!)_`,
+    ],
+    [
+      `Observan un video corto en inglés sobre "{tema}" e identifican vocabulario, expresiones y estructuras en uso auténtico y contextualizado.`,
+      `Analizan el vocabulario del video relacionado con "{tema}": palabras clave, cognados con el español y expresiones comunicativas de uso frecuente.`,
+      `Practican oral y auditivamente las estructuras de "{tema}" mediante ejercicios de repetición, sustitución y transformación controlada.`,
+      `Realizan un role-play o diálogo guiado sobre "{tema}" usando las estructuras del video como modelo. _(Practice the dialogue with your partner, then switch roles and try again!)_`,
+    ],
+  ],
+  // ── Grupo 1: Reading + Vocabulary ─────────────────────────────────────────────
+  [
+    [
+      `Leen un texto en inglés relacionado con "{tema}" e identifican: idea principal, vocabulario nuevo, estructuras gramaticales y marcadores del discurso.`,
+      `Analizan el vocabulario nuevo de "{tema}": forma escrita, pronunciación guiada, significado en contexto y uso en oraciones. Registran en su glosario personal.`,
+      `Completan ejercicios de vocabulario contextualizados sobre "{tema}": completar frases, emparejamiento de palabras e imágenes, ordenar palabras para formar oraciones.`,
+      `Leen oraciones o párrafos sobre "{tema}" en voz alta y reciben corrección de pronunciación del docente. Prestan atención a la entonación y el ritmo del inglés.`,
+    ],
+    [
+      `Leen textos de diferente nivel de complejidad sobre "{tema}" y responden preguntas de comprensión literal, inferencial e interpretativa.`,
+      `Identifican patrones gramaticales en los textos de "{tema}": tiempos verbales, preposiciones de tiempo y lugar, adjetivos y adverbios de frecuencia. Los analizan en contexto. _(Look at this sentence. What grammar rule is being used?)_`,
+      `Elaboran un glosario visual de "{tema}": palabra en inglés → imagen o definición sencilla en inglés → oración de ejemplo propia.`,
+      `Practican la lectura expresiva de textos sobre "{tema}" con atención a la pronunciación, el ritmo y la entonación correcta del inglés.`,
+    ],
+  ],
+  // ── Grupo 2: Writing + Grammar in Context ─────────────────────────────────────
+  [
+    [
+      `Analizan producciones escritas modelo sobre "{tema}": identifican estructura, vocabulario, conectores y registro lingüístico apropiado.`,
+      `Practican la estructura gramatical de "{tema}" en ejercicios contextualizados: transformación de oraciones, completación y producción guiada. _(Write your own sentence using this structure — make it about your life!)_`,
+      `Redactan una producción escrita sobre "{tema}" (oraciones, párrafo, diálogo o descripción) usando el vocabulario y las estructuras trabajadas en clase.`,
+      `Intercambian producciones con un compañero para revisión por pares: verifican vocabulario, estructuras gramaticales y ortografía. Incorporan las sugerencias recibidas.`,
+    ],
+    [
+      `Observan y analizan textos auténticos en inglés relacionados con "{tema}": mensajes de texto, anuncios, etiquetas de productos, artículos cortos.`,
+      `Comparan el inglés con el español en el contexto de "{tema}": identifican cognados útiles y diferencias en el orden de palabras, la gramática y la pronunciación.`,
+      `Producen un texto escrito más elaborado sobre "{tema}": descripción, narración, argumentación o conversación extendida usando estructuras del nivel.`,
+      `Comparten su producción ante el grupo o en parejas. El docente retroalimenta la precisión gramatical, la expresividad comunicativa y la creatividad del texto.`,
+    ],
+  ],
+];
+
+const EN_CIERRE = [
+  // ── Grupo 0 ──────────────────────────────────────────────────────────────────
+  [
+    [
+      `Escriben en su cuaderno 5 palabras o expresiones clave de "{tema}" aprendidas en la sesión, con su traducción y una oración de ejemplo en inglés.`,
+      `Reflexionan con apoyo del docente: _(What did I learn today? What was difficult? How can I practice this at home or outside school?)_`,
+      `Integran la retroalimentación del docente sobre pronunciación, vocabulario y comprensión oral trabajados en "{tema}".`,
+      `Despiden la sesión motivacionalmente en inglés: _(Goodbye! See you next class! Keep practicing your English every day!)_`,
+    ],
+    [
+      `Completan un exit ticket en inglés: _(Today I learned... about {tema}. I found it difficult to... I want to keep practicing...)_`,
+      `Resumen oralmente el contenido de "{tema}": tres voluntarios comparten una oración o expresión aprendida y la usan en un ejemplo propio.`,
+      `Reciben orientación sobre la tarea o actividad de práctica en casa relacionada con "{tema}" y la conectan con el aprendizaje del día.`,
+      `Despiden la sesión en inglés: _(Great job today! You're improving every class! See you soon — don't stop practicing!)_`,
+    ],
+  ],
+  // ── Grupo 1 ──────────────────────────────────────────────────────────────────
+  [
+    [
+      `Construyen colectivamente en la pizarra un "vocabulary wall" de "{tema}": palabras, expresiones y estructuras aprendidas durante la sesión.`,
+      `Reflexionan sobre su aprendizaje: _¿Qué estrategia usé para entender el texto o audio sobre {tema}? ¿Cuál me resultó más útil?_`,
+      `Integran la retroalimentación del docente sobre el uso del vocabulario de "{tema}" en contexto comunicativo real.`,
+      `Reciben la tarea relacionada con "{tema}" y el docente conecta el contenido con la próxima sesión.`,
+    ],
+    [
+      `Realizan una actividad de síntesis oral en parejas sobre "{tema}": preguntas y respuestas usando el vocabulario y estructuras de la sesión. _(Ask and answer with your partner — use today's vocabulary!)_`,
+      `Reflexionan sobre su avance en el inglés: _¿Qué palabras o expresiones de {tema} puedo usar ya en una conversación real?_`,
+      `Reciben retroalimentación positiva del docente sobre su participación en las actividades de reading y vocabulary building.`,
+      `Despiden la sesión en inglés: _(Excellent work! English takes practice — keep going! See you next time!)_`,
+    ],
+  ],
+  // ── Grupo 2 ──────────────────────────────────────────────────────────────────
+  [
+    [
+      `Leen en voz alta su producción final sobre "{tema}" ante el grupo o en parejas. Practican pronunciación, entonación y fluidez en inglés.`,
+      `Reflexionan sobre el proceso de escritura en inglés: _¿Qué estructura gramatical de {tema} domino mejor ahora? ¿Qué sigo necesitando practicar?_`,
+      `Integran las correcciones del docente sobre gramática, vocabulario y estructura de su producción escrita sobre "{tema}".`,
+      `El docente celebra el avance comunicativo del grupo y anuncia el próximo contenido en inglés. _(Amazing class today! You should be proud of your progress!)_`,
+    ],
+    [
+      `Autoevalúan su producción escrita sobre "{tema}" usando criterios acordados: vocabulario apropiado, estructuras correctas, coherencia y expresividad.`,
+      `Reflexionan sobre la importancia del inglés: _¿Por qué es valioso aprender inglés? ¿Dónde lo podría usar en mi vida personal, académica o profesional?_`,
+      `Reciben retroalimentación final del docente sobre el nivel de comunicación logrado en "{tema}" durante la sesión.`,
+      `Despiden la sesión en inglés: _(Wonderful session! Keep using English outside the classroom! See you next class — keep it up!)_`,
+    ],
+  ],
+];
+
 // ─── FRANCÉS ──────────────────────────────────────────────────────────────────
 
 const FR_INICIO = [
@@ -930,6 +1082,7 @@ export const BANCOS_ESPECIALIZADOS = {
   "Educación Física":                      { Inicio: EF_INICIO,   Desarrollo: EF_DESARROLLO,   Cierre: EF_CIERRE   },
   "Educación Artística":                   { Inicio: EA_INICIO,   Desarrollo: EA_DESARROLLO,   Cierre: EA_CIERRE   },
   "Formación Integral Humana y Religiosa": { Inicio: FIHR_INICIO, Desarrollo: FIHR_DESARROLLO, Cierre: FIHR_CIERRE },
+  "Inglés":                                { Inicio: EN_INICIO,   Desarrollo: EN_DESARROLLO,   Cierre: EN_CIERRE   },
   "Francés":                               { Inicio: FR_INICIO,   Desarrollo: FR_DESARROLLO,   Cierre: FR_CIERRE   },
 };
 

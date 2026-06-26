@@ -1,88 +1,66 @@
-import { StrictMode, useEffect, useState } from 'react'
+import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { onAuthStateChanged } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
 import './index.css'
-import App from './App.jsx'
-import LoginPage from './pages/LoginPage.jsx'
-import RegistroPage from './pages/RegistroPage.jsx'
-import BienvenidaPage from './pages/BienvenidaPage.jsx'
-import { auth, db } from './firebase.js'
+import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 
+const App = lazy(() => import('./App.jsx'))
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'))
+const RegistroPage = lazy(() => import('./pages/RegistroPage.jsx'))
+const BienvenidaPage = lazy(() => import('./pages/BienvenidaPage.jsx'))
+const Admin = lazy(() => import('./admin/Admin.jsx'))
+
+// ── Router ────────────────────────────────────────────────────────────────────
 function DocenteOSRouter() {
-  const [authUser,       setAuthUser]       = useState(undefined)
-  const [perfilCompleto, setPerfilCompleto] = useState(undefined)
+  const { user, perfilCompleto, cargando } = useAuth()
 
-  useEffect(() => {
-    if (!auth) {
-      setAuthUser(null)
-      setPerfilCompleto(false)
-      return
-    }
-
-    return onAuthStateChanged(auth, async (user) => {
-      setAuthUser(user)
-
-      if (!user) {
-        setPerfilCompleto(false)
-        return
-      }
-
-      if (!db) {
-        // Sin Firestore configurado, saltar directamente al dashboard
-        setPerfilCompleto(true)
-        return
-      }
-
-      try {
-        const snap = await getDoc(doc(db, 'usuarios', user.uid))
-        setPerfilCompleto(snap.data()?.perfilInstitucionalCompleto === true)
-      } catch {
-        setPerfilCompleto(false)
-      }
-    })
-  }, [])
-
-  const cargando = authUser === undefined || (authUser !== null && perfilCompleto === undefined)
   if (cargando) return <PantallaCarga />
 
-  const destino = !authUser ? '/login' : perfilCompleto ? '/dashboard' : '/bienvenida'
+  const destino = !user ? '/login' : perfilCompleto ? '/dashboard' : '/bienvenida'
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={authUser ? <Navigate to={destino} replace /> : <LoginPage />}
-      />
-      <Route
-        path="/registro"
-        element={authUser ? <Navigate to={destino} replace /> : <RegistroPage />}
-      />
-      <Route
-        path="/bienvenida"
-        element={
-          !authUser        ? <Navigate to="/login"     replace /> :
-          perfilCompleto   ? <Navigate to="/dashboard" replace /> :
-          <BienvenidaPage onPerfilGuardado={() => setPerfilCompleto(true)} />
-        }
-      />
-      <Route
-        path="/dashboard/*"
-        element={
-          !authUser      ? <Navigate to="/login"      replace /> :
-          !perfilCompleto ? <Navigate to="/bienvenida" replace /> :
-          <App />
-        }
-      />
-      <Route
-        path="*"
-        element={<Navigate to={destino} replace />}
-      />
-    </Routes>
+    <Suspense fallback={<PantallaCarga />}>
+      <Routes>
+        <Route
+          path="/login"
+          element={user ? <Navigate to={destino} replace /> : <LoginPage />}
+        />
+        <Route
+          path="/registro"
+          element={user ? <Navigate to={destino} replace /> : <RegistroPage />}
+        />
+        <Route
+          path="/bienvenida"
+          element={
+            !user          ? <Navigate to="/login"     replace /> :
+            perfilCompleto ? <Navigate to="/dashboard" replace /> :
+            // onPerfilGuardado es no-op: AuthContext detecta el cambio vía onSnapshot
+            <BienvenidaPage onPerfilGuardado={() => {}} />
+          }
+        />
+        <Route
+          path="/dashboard/*"
+          element={
+            !user          ? <Navigate to="/login"      replace /> :
+            !perfilCompleto ? <Navigate to="/bienvenida" replace /> :
+            <App />
+          }
+        />
+        <Route
+          path="/admin/*"
+          element={
+            !user          ? <Navigate to="/login"     replace /> :
+            !perfilCompleto ? <Navigate to="/bienvenida" replace /> :
+            <Admin />
+          }
+        />
+        <Route path="*" element={<Navigate to={destino} replace />} />
+      </Routes>
+    </Suspense>
   )
 }
 
+// ── Loading screen ────────────────────────────────────────────────────────────
 function PantallaCarga() {
   return (
     <div style={{
@@ -108,10 +86,13 @@ function PantallaCarga() {
   )
 }
 
+// ── Entry point ───────────────────────────────────────────────────────────────
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <DocenteOSRouter />
+      <AuthProvider>
+        <DocenteOSRouter />
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
 )

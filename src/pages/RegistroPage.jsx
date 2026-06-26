@@ -44,6 +44,8 @@ const CARGOS = [
   { value: 'docente',      label: 'Docente' },
   { value: 'coordinador',  label: 'Coordinador Pedagógico' },
   { value: 'director',     label: 'Director' },
+  { value: 'orientador',   label: 'Orientador(a) Escolar' },
+  { value: 'psicologo',    label: 'Psicólogo(a) Escolar' },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,14 +90,20 @@ export default function RegistroPage() {
       // Guardar en Firestore con estado pendiente (fallo no bloquea el acceso)
       if (db) {
         try {
+          const cargoSeleccionado = CARGOS.find((c) => c.value === cargo)
           await setDoc(doc(db, 'usuarios', user.uid), {
             uid:           user.uid,
             nombre:        nombre.trim(),
             email:         correo.trim().toLowerCase(),
             rol:           cargo,
+            cargo:         cargoSeleccionado?.label ?? cargo,
             estado:        'pendiente',
             fechaCreacion: serverTimestamp(),
-          })
+            actualizadoEn: serverTimestamp(),
+            suscripcion: 'Pendiente de completar',
+            temaActivo: 'Pendiente de completar',
+            usoMensual: 'Pendiente de completar',
+          }, { merge: true })
         } catch (fsErr) {
           console.error('[RegistroPage] Firestore error:', fsErr.code, fsErr.message)
         }
