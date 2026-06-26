@@ -109,7 +109,52 @@ Inserta solo lo que aporte valor pedagógico real, exactamente donde corresponde
 
 ---
 
-Responde en español. Sé específico, pedagógicamente riguroso y orientado a la acción. Organiza tu respuesta en FASE 1 (Auditoría) y FASE 2 (Mejoras quirúrgicas) claramente diferenciadas.`;
+## FASE 3 — ACCIONES APLICABLES (bloque de datos)
+
+Después del informe en texto, emite **un bloque JSON** que convierte cada mejora quirúrgica en una acción que el docente pueda aplicar con un clic. Este bloque NO es para leer: es para que el sistema modifique la planificación sin volver a llamar a la IA.
+
+Reglas del bloque:
+
+1. Delimítalo EXACTAMENTE así (sin nada antes ni después de los delimitadores):
+\`\`\`
+===ACCIONES_JSON===
+{ "accionesAplicables": [ ... ] }
+===FIN_ACCIONES===
+\`\`\`
+2. Cada acción tiene esta forma:
+\`\`\`
+{
+  "id": "accion_001",
+  "titulo": "texto corto y claro",
+  "tipo": "insertar" | "reemplazar",
+  "seccion": "<una de las secciones válidas>",
+  "descripcion": "qué cambia y por qué (1-2 frases)",
+  "contenidoNuevo": <string | array de strings | objeto NEAE>,
+  "locator": { ... },        // solo cuando la sección lo requiere
+  "requiereConfirmacion": true
+}
+\`\`\`
+3. **Secciones válidas** (usa solo estas claves, sin inventar otras):
+   - \`"metadatos.productoFinal"\` → contenidoNuevo: string. (sin locator)
+   - \`"situacionAprendizaje"\` → contenidoNuevo: string. (sin locator)
+   - \`"ambienteAprendizaje"\` → contenidoNuevo: string. (sin locator)
+   - \`"competencias.especifica"\` → contenidoNuevo: string. (sin locator)
+   - \`"competencias.indicadores"\` → contenidoNuevo: array de strings. (sin locator)
+   - \`"contenidos.conceptuales"\` → contenidoNuevo: array de strings. (sin locator)
+   - \`"contenidos.procedimentales"\` → contenidoNuevo: array de strings. (sin locator)
+   - \`"contenidos.actitudinales"\` → contenidoNuevo: array de strings. (sin locator)
+   - \`"momento.actividades"\` → contenidoNuevo: array de strings. locator: { "faseNumero": N, "diaGlobal": N, "momentoNombre": "Inicio"|"Desarrollo"|"Cierre" }
+   - \`"dia.adaptacionesNEAE"\` → contenidoNuevo: objeto { "acceso": string, "metodologicas": string, "evaluacion": string }. locator: { "faseNumero": N, "diaGlobal": N }
+   - \`"fase.posiblesDificultades"\` → contenidoNuevo: string. locator: { "faseNumero": N }
+4. \`tipo: "insertar"\` AGREGA al contenido existente (solo para secciones de tipo array). \`tipo: "reemplazar"\` SUSTITUYE el valor.
+5. \`faseNumero\` es el número de fase mostrado (1, 2, 3…). \`diaGlobal\` es el número global de clase (CLASE 1, CLASE 2…) tal como aparece en la unidad serializada. \`momentoNombre\` debe ser exactamente "Inicio", "Desarrollo" o "Cierre".
+6. \`contenidoNuevo\` debe traer el texto YA mejorado y final, listo para insertarse (el sistema no volverá a procesarlo). Adáptalo al área detectada.
+7. Genera entre 3 y 8 acciones, priorizando las de mayor impacto pedagógico. Si una mejora no encaja en ninguna sección válida, descríbela solo en el informe y no la incluyas en el JSON.
+8. El JSON debe ser válido y parseable. No incluyas comentarios dentro del JSON.
+
+---
+
+Responde en español. Sé específico, pedagógicamente riguroso y orientado a la acción. Organiza tu respuesta en FASE 1 (Auditoría) y FASE 2 (Mejoras quirúrgicas) claramente diferenciadas, y cierra SIEMPRE con el bloque FASE 3 (===ACCIONES_JSON===).`;
 
 // ─── Serialización de la unidad a texto legible ───────────────────────────────
 
@@ -205,6 +250,7 @@ export const auditarUnidad = async (unidad, { onChunk, onFinish, onError }) => {
 Ejecuta:
 - FASE 1: Auditoría diagnóstica integral — evalúa todas las dimensiones pedagógicas del área detectada
 - FASE 2: Mejoras quirúrgicas completas — inserta exactamente donde corresponde, sin eliminar ni reorganizar
+- FASE 3: Bloque ===ACCIONES_JSON=== con las mejoras convertidas en acciones aplicables
 
 ---
 
@@ -214,7 +260,7 @@ ${textoUnidad}`;
     module: "auditoria-ia",
     prompt,
     system: PROMPT_MAESTRO,
-    maxTokens: 8000,
+    maxTokens: 12000,
     onChunk,
     onFinish: async (respuesta) => {
       await registrarEventoIA({

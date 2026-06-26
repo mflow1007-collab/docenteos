@@ -9171,6 +9171,179 @@
   50%       { opacity: 0; }
 }
 
+/* ── Auditoría: acciones aplicables ─────────────────────────────────── */
+.audit-acciones {
+  margin-top: 22px;
+  border-top: 1px solid #334155;
+  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.audit-acciones-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.audit-acciones-titulo {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+.audit-acciones-nota {
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+.audit-acciones-vacio {
+  margin-top: 18px;
+  font-size: 13px;
+  color: #94a3b8;
+  font-style: italic;
+}
+.audit-aplicadas-ok {
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4ade80;
+  background: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(22, 163, 74, 0.4);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+/* Tarjeta de sugerencia */
+.audit-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.audit-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.audit-card-titulo {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+.audit-card-seccion {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.18);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  border-radius: 99px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+.audit-card-desc {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #cbd5e1;
+  margin: 0;
+}
+.audit-card-preview {
+  font-family: "SF Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #94a3b8;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 9px 11px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.audit-card-editor {
+  width: 100%;
+  font-family: "SF Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #e2e8f0;
+  background: #0f172a;
+  border: 1px solid #7c3aed;
+  border-radius: 6px;
+  padding: 9px 11px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.audit-card-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.audit-mini-btn {
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.audit-mini-btn.aplicar {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+.audit-mini-btn.aplicar:hover { background: #15803d; }
+.audit-mini-btn.editar {
+  background: #334155;
+  color: #cbd5e1;
+}
+.audit-mini-btn.editar:hover { background: #475569; }
+.audit-mini-btn.ignorar {
+  background: transparent;
+  color: #94a3b8;
+}
+.audit-mini-btn.ignorar:hover { color: #f87171; border-color: #f87171; }
+
+/* Barra inferior del modal */
+.audit-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #1e293b;
+  border-top: 1px solid #334155;
+  flex-shrink: 0;
+}
+.audit-foot-btn {
+  border-radius: 7px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.audit-foot-btn.aplicar-todas {
+  background: #7c3aed;
+  color: #fff;
+  border: 1px solid #7c3aed;
+}
+.audit-foot-btn.aplicar-todas:hover:not(:disabled) { background: #6d28d9; }
+.audit-foot-btn.aplicar-todas:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.audit-foot-btn.cerrar {
+  background: #334155;
+  color: #cbd5e1;
+  border: 1px solid #475569;
+}
+.audit-foot-btn.cerrar:hover { background: #475569; }
+
 /* ── Sidebar bottom: perfil + logout ─────────────────────────────────── */
 .sidebar-bottom {
   margin-top: auto;

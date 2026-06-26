@@ -37,6 +37,7 @@ import {
   generarUnidadAprendizaje,
   formatearUnidadHTML,
 } from "../services/unidadAprendizajeService";
+import { applyAuditAction } from "../services/auditAcciones.js";
 import {
   eliminarPlanificacionDetallada,
   guardarPlanificacionDetallada,
@@ -393,6 +394,35 @@ export default function PlanificacionPage() {
     setUnidad(null);
     setMensajeUnidad(null);
     document.querySelector(".pd-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  // Aplica una o varias acciones de la Auditoría IA sobre la unidad en memoria.
+  // No llama a la IA (0 tokens). El docente luego guarda con el flujo normal.
+  const manejarAplicarAcciones = (accionesAplicar) => {
+    if (!unidad || !Array.isArray(accionesAplicar) || accionesAplicar.length === 0) {
+      return { ok: false, error: "No hay acciones para aplicar." };
+    }
+    let actual = unidad;
+    let aplicadas = 0;
+    let ultimoError = null;
+    for (const accion of accionesAplicar) {
+      const res = applyAuditAction(actual, accion);
+      if (res.ok) {
+        actual = res.unidad;
+        aplicadas += 1;
+      } else {
+        ultimoError = res.error;
+      }
+    }
+    if (aplicadas === 0) {
+      return { ok: false, error: ultimoError || "No se pudo aplicar la acción." };
+    }
+    setUnidad(actual);
+    setMensajeUnidad({
+      tipo: "success",
+      texto: `✅ ${aplicadas} mejora${aplicadas > 1 ? "s" : ""} aplicada${aplicadas > 1 ? "s" : ""}. Recuerda guardar la unidad.`,
+    });
+    return { ok: true, aplicadas, error: ultimoError };
   };
 
   // ── Estado de generación (planificación general) ──
@@ -1723,6 +1753,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
               onDescargar={manejarDescargarUnidad}
               onVer={manejarVerUnidad}
               onNueva={manejarNuevaUnidad}
+              onAplicarAcciones={manejarAplicarAcciones}
               guardando={guardandoUnidad}
               mensaje={mensajeUnidad}
             />

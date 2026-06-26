@@ -7,7 +7,7 @@
 import { useState } from "react";
 import AuditoriaModal from "./AuditoriaModal.jsx";
 
-export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onNueva, guardando, mensaje }) {
+export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onNueva, onAplicarAcciones, guardando, mensaje }) {
   const [mostrarAuditoria, setMostrarAuditoria] = useState(false);
 
   if (!unidad) return null;
@@ -31,7 +31,11 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       </div>
 
       {mostrarAuditoria && (
-        <AuditoriaModal unidad={unidad} onClose={() => setMostrarAuditoria(false)} />
+        <AuditoriaModal
+          unidad={unidad}
+          onClose={() => setMostrarAuditoria(false)}
+          onAplicarAcciones={onAplicarAcciones}
+        />
       )}
 
       {/* ═══ ENCABEZADO ═══ */}

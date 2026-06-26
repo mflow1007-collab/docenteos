@@ -1218,7 +1218,7 @@ export const generarUnidadAprendizaje = (datos) => {
       };
     })(),
     contenidos,
-    fasesSemanales: generarFases(numSemanas, schedule, area, titulo, estrategiaEf, producto, { grado, nivel }),
+    fasesSemanales: generarFases(numSemanas, schedule, claveContenido, titulo, estrategiaEf, producto, { grado, nivel }),
   };
 };
 
