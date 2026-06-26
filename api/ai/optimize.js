@@ -11,7 +11,7 @@
  * No usar en Edge Runtime — requiere Node.js runtime.
  */
 
-export const config = { runtime: "nodejs18.x" };
+export const config = { runtime: "nodejs" };
 
 const ALLOWED_TYPES = ["planes", "actividades", "instrumentos"];
 
