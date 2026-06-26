@@ -24,8 +24,15 @@ const MENU = [
   {
     grupo: 'Inteligencia Artificial',
     items: [
+      { id: 'gateway-ia',   icon: '🔀', label: 'Gateway de Proveedores' },
       { id: 'prompts',      icon: '✨', label: 'Banco de Prompts' },
       { id: 'historial-ia', icon: '🕒', label: 'Historial IA' },
+    ]
+  },
+  {
+    grupo: 'Pagos y Suscripciones',
+    items: [
+      { id: 'suscripciones', icon: '💳', label: 'Gestión de Suscripciones' },
     ]
   },
   {

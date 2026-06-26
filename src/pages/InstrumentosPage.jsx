@@ -1,6 +1,61 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { obtenerPlanificacionesDetalladas, guardarInstrumentoFirestore, obtenerInstrumentosFirestore, eliminarInstrumentoFirestore } from "../firebase";
+import { AIService } from "../services/ai/AIService";
 import "./InstrumentosPage.css";
+
+const SYSTEM_INSTRUMENTOS = `Eres un experto en evaluación educativa del sistema dominicano (MINERD).
+Diseñas rúbricas precisas, alineadas al enfoque por competencias.
+Cuando el usuario pide un instrumento, respondes ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown, sin explicaciones.`;
+
+const buildInstrumentPrompt = (tema, curriculo) => {
+  const ctx = curriculo
+    ? `Área: ${curriculo.area || "—"} | Asignatura: ${curriculo.asignatura || "—"} | Grado: ${curriculo.grado || "—"}\nCompetencia: ${curriculo.competencia || "—"}\nIndicador: ${curriculo.indicador || "—"}`
+    : "";
+  return `Genera una rúbrica de evaluación para: "${tema}"
+${ctx}
+
+Responde ÚNICAMENTE con este JSON (sin texto extra, sin \`\`\`):
+{
+  "nombre": "Nombre descriptivo de la rúbrica",
+  "descripcion": "Propósito breve del instrumento",
+  "criterios": [
+    {
+      "criterio": "Nombre del criterio",
+      "nivel4": "Logro sobresaliente",
+      "nivel3": "Logro adecuado",
+      "nivel2": "Logro básico",
+      "nivel1": "En proceso"
+    }
+  ]
+}
+Incluye entre 4 y 6 criterios específicos al tema. Cada nivel debe tener descripción concreta y observable.`;
+};
+
+const parseInstrumentJSON = (text, prompt, curriculo, crearDraftFn, crearCriterioFn) => {
+  try {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    const data = JSON.parse(match[0]);
+    const base = crearDraftFn("Rúbrica", curriculo);
+    base.nombre = (data.nombre || prompt).slice(0, 120);
+    base.descripcion = (data.descripcion || `Instrumento generado para ${prompt}`).slice(0, 300);
+    if (Array.isArray(data.criterios) && data.criterios.length > 0) {
+      base.estructura = {
+        criterios: data.criterios.slice(0, 8).map((c, i) => ({
+          ...crearCriterioFn(i),
+          criterio: c.criterio || `Criterio ${i + 1}`,
+          nivel4: c.nivel4 || "Logro sobresaliente",
+          nivel3: c.nivel3 || "Logro adecuado",
+          nivel2: c.nivel2 || "Logro básico",
+          nivel1: c.nivel1 || "En proceso",
+        })),
+      };
+    }
+    return base;
+  } catch {
+    return null;
+  }
+};
 
 const TIPOS_INSTRUMENTO = [
   "Rúbrica",
@@ -150,6 +205,8 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
   const [evaluacionAplicar, setEvaluacionAplicar] = useState({});
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiDraft, setAiDraft] = useState(null);
+  const [aiGenerando, setAiGenerando] = useState(false);
+  const [aiError, setAiError] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const busquedaRef = useRef(null);
   const statsRef = useRef(null);
@@ -304,24 +361,40 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
     setModal("editar");
   };
 
-  const crearConIA = () => {
+  const crearConIA = async () => {
     const prompt = aiPrompt.trim() || "Debate sobre contaminación ambiental";
-    const texto = prompt.toLowerCase();
-    const base = crearDraft("Rúbrica", curriculoActivo);
+    setAiGenerando(true);
+    setAiError(null);
+    setAiDraft(null);
 
-    base.nombre = prompt;
-    base.descripcion = `Instrumento generado por IA para ${prompt}.`;
-    base.estructura = {
-      criterios: [
-        { ...crearCriterio(0), criterio: texto.includes("debate") ? "Argumentación" : "Comprensión" },
-        { ...crearCriterio(1), criterio: texto.includes("ambient") ? "Relación con el contexto" : "Organización" },
-        { ...crearCriterio(2), criterio: "Evidencia y sustento" },
-        { ...crearCriterio(3), criterio: "Participación" },
-      ],
-    };
+    let accumulated = "";
 
-    setAiDraft(base);
-    setModal("ia");
+    await AIService.generate({
+      module: "instrumentos",
+      prompt: buildInstrumentPrompt(prompt, curriculoActivo),
+      system: SYSTEM_INSTRUMENTOS,
+      maxTokens: 2048,
+      onChunk: (chunk) => { accumulated += chunk; },
+      onFinish: () => {
+        const parsed = parseInstrumentJSON(accumulated, prompt, curriculoActivo, crearDraft, crearCriterio);
+        if (parsed) {
+          setAiDraft(parsed);
+          setModal("ia");
+        } else {
+          // Fallback: plantilla básica con nombre del prompt
+          const base = crearDraft("Rúbrica", curriculoActivo);
+          base.nombre = prompt;
+          base.descripcion = `Instrumento de evaluación para: ${prompt}`;
+          setAiDraft(base);
+          setModal("ia");
+        }
+        setAiGenerando(false);
+      },
+      onError: (msg) => {
+        setAiError(msg);
+        setAiGenerando(false);
+      },
+    });
   };
 
   const guardarInstrumento = () => {
@@ -699,14 +772,21 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
             <div className="panel-head-inline compact">
               <div>
                 <h2>✨ Crear Instrumento con IA</h2>
-                <p>Simulación generativa lista para convertir ideas en rúbricas o listas de cotejo.</p>
+                <p>Describe el instrumento que necesitas y la IA lo generará automáticamente.</p>
               </div>
             </div>
-            <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder='Ej.: Debate sobre contaminación ambiental' />
+            <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder='Ej.: Debate sobre contaminación ambiental' disabled={aiGenerando} />
             <div className="ai-actions">
-              <button className="primary-btn" onClick={crearConIA}>Generar</button>
-              <button className="ghost-btn" onClick={() => setAiDraft(null)}>Limpiar</button>
+              <button className="primary-btn" onClick={crearConIA} disabled={aiGenerando}>
+                {aiGenerando ? "Generando…" : "Generar"}
+              </button>
+              <button className="ghost-btn" onClick={() => { setAiDraft(null); setAiError(null); }} disabled={aiGenerando}>Limpiar</button>
             </div>
+            {aiError && (
+              <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 8, background: "var(--color-error-bg, #fff0f0)", color: "var(--color-error, #c0392b)", fontSize: 13 }}>
+                {aiError}
+              </div>
+            )}
             {aiDraft && (
               <div className="ai-preview">
                 <span className="tipo-pill">Rúbrica generada</span>

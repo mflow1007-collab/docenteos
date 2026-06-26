@@ -13,11 +13,20 @@ crear evaluaciones y mejorar su práctica educativa. Tus respuestas están aline
 del MINERD y el enfoque por competencias. Usas lenguaje claro, profesional y motivador.
 Responde siempre en español.`;
 
-export async function llamarIALab(prompt, { onChunk, onFinish, onError }) {
+/**
+ * @param {string}   prompt
+ * @param {Object}   callbacks   { onChunk, onFinish, onError }
+ * @param {string}   [contextoDocente]  Bloque de contexto generado por buildTeacherContext()
+ */
+export async function llamarIALab(prompt, { onChunk, onFinish, onError }, contextoDocente = "") {
+  const system = contextoDocente
+    ? `${SYSTEM_LAB}\n\n${contextoDocente}`
+    : SYSTEM_LAB;
+
   await AIService.generate({
     module: "centro-ia",
     prompt,
-    system: SYSTEM_LAB,
+    system,
     onChunk,
     onFinish: async (respuesta) => {
       await registrarEventoIA({

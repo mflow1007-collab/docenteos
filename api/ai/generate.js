@@ -9,15 +9,26 @@
  *   ANTHROPIC_API_KEY
  *   OPENAI_API_KEY
  *   ABACUS_API_KEY
+ *
+ * Body acepta:
+ *   module           string
+ *   prompt           string  (requerido)
+ *   system           string
+ *   maxTokens        number
+ *   preferredProvider string  — mueve este proveedor al frente si está disponible
+ *   providerOrder    string[] — orden completo enviado desde Firestore (sobrescribe default)
+ *   modelOverrides   object  — { openai: "gpt-4o-mini", anthropic: "claude-opus-4-8" }
  */
 
 export const config = { runtime: "edge" };
 
-// ─── Modelos por proveedor ─────────────────────────────────────────────────────
+// ─── Configuración por defecto ────────────────────────────────────────────────
 
-const PROVIDER_MODELS = {
-  openai: "gpt-4o",
-  abacus: "route-llm",
+const DEFAULT_ORDER = ["openai", "abacus", "anthropic"];
+
+const DEFAULT_MODELS = {
+  openai:    "gpt-4o",
+  abacus:    "route-llm",
   anthropic: "claude-sonnet-4-6",
 };
 
@@ -37,16 +48,36 @@ function getApiKey(provider) {
   }
 }
 
-/** Devuelve proveedores disponibles en orden de prioridad: openai → abacus → anthropic */
-function getAvailableProviders(preferred) {
-  const order = ["openai", "abacus", "anthropic"];
-  const available = order.filter((p) => getApiKey(p));
+function getModel(provider, modelOverrides) {
+  return (modelOverrides?.[provider]) || DEFAULT_MODELS[provider] || provider;
+}
 
-  // Si el caller pide un proveedor específico y está disponible, va primero
-  if (preferred && available.includes(preferred)) {
-    return [preferred, ...available.filter((p) => p !== preferred)];
+/**
+ * Construye la lista de proveedores a intentar, en orden.
+ *
+ * Prioridad de resolución:
+ *   1. Si llega `providerOrder` (desde Firestore admin), úsalo filtrado a los
+ *      que tienen API key. Añade fallbacks de DEFAULT_ORDER al final.
+ *   2. Si llega `preferredProvider`, muévelo al frente del DEFAULT_ORDER.
+ *   3. Si no llega nada, usa DEFAULT_ORDER.
+ */
+function getProviderQueue(preferredProvider, providerOrder) {
+  let queue;
+
+  if (providerOrder && Array.isArray(providerOrder) && providerOrder.length > 0) {
+    // Usar el orden de Firestore, filtrando solo los que tienen key
+    const ordered = providerOrder.filter((p) => getApiKey(p));
+    // Añadir cualquier proveedor de DEFAULT_ORDER que no esté en el order del admin
+    const extras  = DEFAULT_ORDER.filter((p) => !providerOrder.includes(p) && getApiKey(p));
+    queue = [...ordered, ...extras];
+  } else {
+    queue = DEFAULT_ORDER.filter((p) => getApiKey(p));
+    if (preferredProvider && queue.includes(preferredProvider)) {
+      queue = [preferredProvider, ...queue.filter((p) => p !== preferredProvider)];
+    }
   }
-  return available;
+
+  return queue;
 }
 
 // ─── Llamadas a proveedores ────────────────────────────────────────────────────
@@ -60,7 +91,7 @@ async function callAnthropic(apiKey, { system, prompt, maxTokens, model }) {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: model || PROVIDER_MODELS.anthropic,
+      model: model || DEFAULT_MODELS.anthropic,
       max_tokens: maxTokens || 4096,
       stream: true,
       system: system || "",
@@ -89,13 +120,13 @@ async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens
 }
 
 // ─── Normalización del stream ──────────────────────────────────────────────────
-// Convierte el formato SSE de cada proveedor en un formato unificado:
+// Formato unificado:
 //   data: {"text":"chunk"}\n\n
 //   data: {"meta":{"provider":"...","model":"..."}}\n\n
 //   data: [DONE]\n\n
 
 function buildNormalizedStream(providerResponse, provider, model) {
-  const reader = providerResponse.body.getReader();
+  const reader  = providerResponse.body.getReader();
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
 
@@ -124,7 +155,6 @@ function buildNormalizedStream(providerResponse, provider, model) {
               let text = null;
 
               if (provider === "anthropic") {
-                // Anthropic SSE: content_block_delta → delta.text
                 if (
                   parsed.type === "content_block_delta" &&
                   parsed.delta?.type === "text_delta"
@@ -132,7 +162,6 @@ function buildNormalizedStream(providerResponse, provider, model) {
                   text = parsed.delta.text;
                 }
               } else {
-                // OpenAI-compatible (openai, abacus)
                 text = parsed.choices?.[0]?.delta?.content ?? null;
               }
 
@@ -172,11 +201,13 @@ export default async function handler(request) {
   }
 
   const {
-    module: mod = "general",
+    module: mod        = "general",
     prompt,
     system,
-    maxTokens = 4096,
+    maxTokens          = 4096,
     preferredProvider,
+    providerOrder,     // string[] desde Firestore vía AIService
+    modelOverrides,    // { openai: "gpt-4.1", ... } desde Firestore vía AIService
   } = body;
 
   if (!prompt) {
@@ -186,10 +217,10 @@ export default async function handler(request) {
     });
   }
 
-  const providers = getAvailableProviders(preferredProvider);
+  const queue = getProviderQueue(preferredProvider, providerOrder);
 
-  if (providers.length === 0) {
-    console.error("[AI Gateway] No hay proveedores de IA configurados (OPENAI_API_KEY / ABACUS_API_KEY / ANTHROPIC_API_KEY)");
+  if (queue.length === 0) {
+    console.error("[AI Gateway] No hay proveedores configurados (OPENAI_API_KEY / ABACUS_API_KEY / ANTHROPIC_API_KEY)");
     return new Response(
       JSON.stringify({
         error: "No hay ningún servicio de Inteligencia Artificial disponible en este momento. Verifica la configuración del administrador o intenta nuevamente más tarde.",
@@ -200,9 +231,9 @@ export default async function handler(request) {
 
   let lastError = null;
 
-  for (const provider of providers) {
+  for (const provider of queue) {
     const apiKey = getApiKey(provider);
-    const model = PROVIDER_MODELS[provider];
+    const model  = getModel(provider, modelOverrides);
 
     try {
       let providerResponse;
@@ -229,10 +260,10 @@ export default async function handler(request) {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
+          "Connection":    "keep-alive",
           "X-AI-Provider": provider,
-          "X-AI-Model": model,
-          "X-AI-Module": mod,
+          "X-AI-Model":    model,
+          "X-AI-Module":   mod,
         },
       });
     } catch (err) {
@@ -242,7 +273,6 @@ export default async function handler(request) {
     }
   }
 
-  // Todos los proveedores fallaron — solo log interno, mensaje amigable al usuario
   console.error(`[AI Gateway] Todos los proveedores fallaron. Último error: ${lastError}`);
   return new Response(
     JSON.stringify({

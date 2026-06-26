@@ -9,30 +9,63 @@
  *
  * Flujo interno:
  *   1. Verificar cache en Firebase
- *   2. POST /api/ai/generate (Edge Function del servidor)
- *   3. Leer stream SSE normalizado
- *   4. Guardar en cache si aplica
- *   5. Registrar uso en aiLogs/
- *   6. Llamar onFinish(textoCompleto)
+ *   2. Cargar configuración de Firestore (prioridad + modelos del admin)
+ *   3. POST /api/ai/generate (Edge Function del servidor)
+ *   4. Leer stream SSE normalizado
+ *   5. Guardar en cache si aplica
+ *   6. Registrar uso en aiLogs/
+ *   7. Llamar onFinish(textoCompleto)
  */
 
 import { AIConfig, getModuleConfig } from "./AIConfig";
 import { resolveModuleOptions } from "./router";
 import { getCached, setCached } from "./cache";
 import { logUsage } from "./usage";
+import { db } from "../../firebase.js";
+import { doc, getDoc } from "firebase/firestore";
+
+// ─── Config cache (Firestore config/ia-gateway) ───────────────────────────────
+// Se carga una vez y se refresca cada 5 minutos.
+// Así el admin puede cambiar la prioridad/modelo y se aplica sin recargar.
+
+let _gwConfig    = null;
+let _gwLoadedAt  = 0;
+const GW_TTL_MS  = 5 * 60 * 1000; // 5 minutos
+
+async function loadGatewayConfig() {
+  const now = Date.now();
+  if (_gwConfig !== null && now - _gwLoadedAt < GW_TTL_MS) return _gwConfig;
+
+  try {
+    if (!db) { _gwConfig = {}; _gwLoadedAt = now; return _gwConfig; }
+    const snap = await getDoc(doc(db, "config", "ia-gateway"));
+    _gwConfig   = snap.exists() ? snap.data() : {};
+    _gwLoadedAt = now;
+  } catch {
+    // No fatal — sin config usaremos el orden por defecto del servidor
+    if (_gwConfig === null) _gwConfig = {};
+  }
+
+  return _gwConfig;
+}
+
+/** Invalida el cache local para que la próxima llamada cargue config fresca. */
+export function invalidateGatewayConfig() {
+  _gwLoadedAt = 0;
+}
 
 export const AIService = {
   /**
    * Genera una respuesta de IA con streaming.
    *
    * @param {Object} opts
-   * @param {string}   opts.module         - Identificador del módulo ('auditoria-ia', 'centro-ia', etc.)
+   * @param {string}   opts.module         - Identificador del módulo
    * @param {string}   opts.prompt         - Prompt del usuario
-   * @param {string}   [opts.system]       - System prompt (instrucciones del asistente)
-   * @param {number}   [opts.maxTokens]    - Máximo de tokens (sobreescribe config del módulo)
-   * @param {Function} opts.onChunk        - Llamado por cada fragmento de texto recibido
+   * @param {string}   [opts.system]       - System prompt
+   * @param {number}   [opts.maxTokens]    - Máximo de tokens
+   * @param {Function} opts.onChunk        - Llamado por cada fragmento de texto
    * @param {Function} opts.onFinish       - Llamado al finalizar con el texto completo
-   * @param {Function} opts.onError        - Llamado con un mensaje de error amigable
+   * @param {Function} opts.onError        - Llamado con mensaje de error amigable
    */
   async generate({ module, prompt, system, maxTokens, onChunk, onFinish, onError }) {
     const moduleConfig      = getModuleConfig(module);
@@ -58,7 +91,20 @@ export const AIService = {
       }
     }
 
-    // ── 2. Llamar al Gateway (servidor) ──────────────────────────────────────
+    // ── 2. Cargar config dinámica de Firestore ───────────────────────────────
+    //    priority:      orden de proveedores guardado por el admin
+    //    modelOverrides: modelo seleccionado por el admin por proveedor
+    let providerOrder  = null;
+    let modelOverrides = null;
+    try {
+      const gwConfig  = await loadGatewayConfig();
+      providerOrder   = gwConfig.priority || null;
+      modelOverrides  = gwConfig.models   || null;
+    } catch {
+      // no-fatal — el gateway usará su orden por defecto
+    }
+
+    // ── 3. Llamar al Gateway (servidor) ──────────────────────────────────────
     let response;
     try {
       response = await fetch("/api/ai/generate", {
@@ -68,8 +114,10 @@ export const AIService = {
           module,
           prompt,
           system,
-          maxTokens: resolvedMaxTokens,
+          maxTokens:         resolvedMaxTokens,
           preferredProvider: routerOpts.preferredProvider,
+          providerOrder,    // orden del admin desde Firestore
+          modelOverrides,   // modelos del admin desde Firestore
         }),
       });
     } catch (err) {
@@ -94,7 +142,7 @@ export const AIService = {
     usedProvider = response.headers.get("X-AI-Provider") || "unknown";
     usedModel    = response.headers.get("X-AI-Model")    || "unknown";
 
-    // ── 3. Leer el stream SSE normalizado ────────────────────────────────────
+    // ── 4. Leer el stream SSE normalizado ────────────────────────────────────
     try {
       const reader  = response.body.getReader();
       const decoder = new TextDecoder();
@@ -134,12 +182,12 @@ export const AIService = {
 
     const ms = Date.now() - startTime;
 
-    // ── 4. Guardar en cache ──────────────────────────────────────────────────
+    // ── 5. Guardar en cache ──────────────────────────────────────────────────
     if (moduleConfig.cache && accumulated) {
       setCached(module, prompt, accumulated, moduleConfig.cacheTTLHours);
     }
 
-    // ── 5. Registrar uso ─────────────────────────────────────────────────────
+    // ── 6. Registrar uso ─────────────────────────────────────────────────────
     if (AIConfig.logging) {
       logUsage({
         module,
@@ -151,7 +199,7 @@ export const AIService = {
       });
     }
 
-    // ── 6. Finalizar ─────────────────────────────────────────────────────────
+    // ── 7. Finalizar ─────────────────────────────────────────────────────────
     onFinish(accumulated);
   },
 };

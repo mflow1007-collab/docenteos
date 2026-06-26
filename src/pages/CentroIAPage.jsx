@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { llamarIALab } from '../services/centroIAService.js'
+import { useContextoDocente } from '../hooks/useContextoDocente.js'
 import './CentroIAPage.css'
 
 // ── Prompt Bank Data ──────────────────────────────────────────────────────────
@@ -962,6 +963,7 @@ function SecLaboratorio() {
   const [error,  setError]    = useState('')
   const [gen,    setGen]      = useState(false)
   const outputRef             = useRef('')
+  const { contexto }          = useContextoDocente()
 
   const enviar = async () => {
     if (!prompt.trim() || gen) return
@@ -974,7 +976,7 @@ function SecLaboratorio() {
       onChunk:  (t) => { outputRef.current += t; setOutput(outputRef.current) },
       onFinish: () => setGen(false),
       onError:  (e) => { setError(e); setGen(false) },
-    })
+    }, contexto)
   }
 
   const usarSug = (s) => {

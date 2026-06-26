@@ -16,6 +16,7 @@ import { crearHorarioPorJornada, crearHorarioPredeterminado, normalizarHorarioCu
 import { AdminProvider } from "./context/AdminContext.jsx";
 import { useAdmin } from "./context/AdminContext.jsx";
 import AdminBar from "./components/AdminBar.jsx";
+import SubscriptionBanner from "./components/SubscriptionBanner.jsx";
 import { esUsuarioDocenteOS } from "./utils/permisos.js";
 import { useNavigate } from "react-router-dom";
 
@@ -24,6 +25,7 @@ const InstrumentosPage = lazy(() => import("./pages/InstrumentosPage"));
 const RegistroPage = lazy(() => import("./RegistroPage"));
 const CurriculumImportPage = lazy(() => import("./pages/CurriculumImportPage"));
 const CentroIAPage = lazy(() => import("./pages/CentroIAPage"));
+const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage"));
 
 const CURSOS_ASIGNATURAS_BASE = ["Inglés", "Francés"];
 const CURSOS_GRADOS_POR_NIVEL = {
@@ -489,6 +491,15 @@ function AppInner() {
             </div>
           )}
 
+          {/* Mi Suscripción */}
+          <div className="sidebar-group-label">Cuenta</div>
+          <button
+            className={pagina === "suscripcion" ? "active" : ""}
+            onClick={() => irA("suscripcion")}
+          >
+            💳 Mi Suscripción
+          </button>
+
           {/* Configuración */}
           <div className="sidebar-group-label">Sistema</div>
           <button
@@ -540,6 +551,7 @@ function AppInner() {
           </div>
         </header>
 
+        <SubscriptionBanner />
         <section className="content">
           <Suspense fallback={<div className="card">Cargando módulo...</div>}>
           {pagina === "inicio" && (
@@ -606,6 +618,7 @@ function AppInner() {
           {pagina === "reportes" && <Pagina titulo="Reportes" texto="Aquí veremos desempeño, riesgos, indicadores y alertas." />}
           {pagina === "ia"       && esDocenteOS && <CentroIAPage seccion={seccionIA} />}
           {pagina === "curriculo" && esDocenteOS && <CurriculumImportPage />}
+          {pagina === "suscripcion" && <SubscriptionPage />}
           {pagina === "configuracion" && <Pagina titulo="Configuración" texto="Perfil docente, centro educativo y preferencias." />}
           </Suspense>
         </section>
