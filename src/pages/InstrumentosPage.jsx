@@ -1,45 +1,79 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { obtenerPlanificacionesDetalladas, guardarInstrumentoFirestore, obtenerInstrumentosFirestore, eliminarInstrumentoFirestore } from "../firebase";
 import { AIService } from "../services/ai/AIService";
+import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import "./InstrumentosPage.css";
 
 const SYSTEM_INSTRUMENTOS = `Eres un experto en evaluación educativa del sistema dominicano (MINERD).
-Diseñas rúbricas precisas, alineadas al enfoque por competencias.
+Diseñas instrumentos de evaluación precisos, alineados al enfoque por competencias del Diseño Curricular Dominicano.
 Cuando el usuario pide un instrumento, respondes ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown, sin explicaciones.`;
 
-const buildInstrumentPrompt = (tema, curriculo) => {
-  const ctx = curriculo
-    ? `Área: ${curriculo.area || "—"} | Asignatura: ${curriculo.asignatura || "—"} | Grado: ${curriculo.grado || "—"}\nCompetencia: ${curriculo.competencia || "—"}\nIndicador: ${curriculo.indicador || "—"}`
-    : "";
-  return `Genera una rúbrica de evaluación para: "${tema}"
-${ctx}
+const TIPOS_IA_PRIORITARIOS = [
+  "Rúbrica",
+  "Lista de cotejo",
+  "Escala de estimación",
+  "Registro anecdótico",
+  "Prueba escrita",
+  "Autoevaluación",
+  "Coevaluación",
+];
 
-Responde ÚNICAMENTE con este JSON (sin texto extra, sin \`\`\`):
-{
-  "nombre": "Nombre descriptivo de la rúbrica",
-  "descripcion": "Propósito breve del instrumento",
-  "criterios": [
-    {
-      "criterio": "Nombre del criterio",
-      "nivel4": "Logro sobresaliente",
-      "nivel3": "Logro adecuado",
-      "nivel2": "Logro básico",
-      "nivel1": "En proceso"
-    }
-  ]
-}
-Incluye entre 4 y 6 criterios específicos al tema. Cada nivel debe tener descripción concreta y observable.`;
+const buildInstrumentPrompt = (tema, curriculo, tipo = "Rúbrica") => {
+  const ctx = curriculo
+    ? `Área: ${curriculo.area || "—"} | Grado: ${curriculo.grado || "—"}\nCompetencia: ${curriculo.competencia || "—"}\nIndicador: ${curriculo.indicador || "—"}`
+    : "";
+
+  const prompts = {
+    "Rúbrica": `Genera una rúbrica de evaluación para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","criterios":[{"criterio":"Nombre criterio","nivel4":"Logro sobresaliente","nivel3":"Logro adecuado","nivel2":"Logro básico","nivel1":"En proceso"}]}\nIncluye 4 a 6 criterios específicos y observables.`,
+
+    "Lista de cotejo": `Genera una lista de cotejo para evaluar: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","indicadores":[{"indicador":"Descripción observable del indicador"}]}\nIncluye 6 a 8 indicadores observables y verificables.`,
+
+    "Escala de estimación": `Genera una escala de estimación para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","indicadores":[{"indicador":"Descripción del criterio","excelente":"Siempre y con precisión","bueno":"Casi siempre","regular":"Ocasionalmente","necesitaApoyo":"Requiere guía"}]}\nIncluye 5 a 7 indicadores.`,
+
+    "Registro anecdótico": `Genera una guía de registro anecdótico para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito del registro","criterios":[{"criterio":"Aspecto a observar","nivel4":"Descripción detallada","nivel3":"Descripción adecuada","nivel2":"Descripción básica","nivel1":"Descripción inicial"}]}\nIncluye 4 aspectos cualitativos clave para observar y registrar.`,
+
+    "Prueba escrita": `Genera una prueba escrita para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre de la prueba","descripcion":"Instrucciones generales","criterios":[{"criterio":"Ítem o pregunta","nivel4":"Respuesta completa (4 pts)","nivel3":"Respuesta adecuada (3 pts)","nivel2":"Respuesta parcial (2 pts)","nivel1":"Respuesta incompleta (1 pt)"}]}\nIncluye 5 a 8 ítems o preguntas.`,
+
+    "Autoevaluación": `Genera un instrumento de autoevaluación para que el estudiante evalúe su propio proceso en: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","indicadores":[{"indicador":"Reflexión sobre mi proceso o desempeño"}]}\nIncluye 6 a 8 preguntas reflexivas en primera persona (¿Logré...? ¿Pude...? ¿Participé...?).`,
+
+    "Coevaluación": `Genera un instrumento de coevaluación entre pares para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","criterios":[{"criterio":"Aspecto a evaluar del compañero","nivel4":"Excelente","nivel3":"Muy bien","nivel2":"Bien","nivel1":"Necesita mejorar"}]}\nIncluye 4 a 6 criterios observables para evaluar al compañero.`,
+  };
+
+  return prompts[tipo] || prompts["Rúbrica"];
 };
 
-const parseInstrumentJSON = (text, prompt, curriculo, crearDraftFn, crearCriterioFn) => {
+const parseInstrumentJSON = (text, prompt, curriculo, crearDraftFn, crearCriterioFn, tipo = "Rúbrica") => {
   try {
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return null;
     const data = JSON.parse(match[0]);
-    const base = crearDraftFn("Rúbrica", curriculo);
+    const tipoEfectivo = tipo || "Rúbrica";
+    const base = crearDraftFn(tipoEfectivo, curriculo);
     base.nombre = (data.nombre || prompt).slice(0, 120);
     base.descripcion = (data.descripcion || `Instrumento generado para ${prompt}`).slice(0, 300);
-    if (Array.isArray(data.criterios) && data.criterios.length > 0) {
+
+    if ((tipoEfectivo === "Lista de cotejo" || tipoEfectivo === "Autoevaluación") && Array.isArray(data.indicadores)) {
+      base.tipo = tipoEfectivo === "Autoevaluación" ? "Lista de cotejo" : tipoEfectivo;
+      base.estructura = {
+        indicadores: data.indicadores.slice(0, 10).map((ind, i) => ({
+          id: `ind-${Date.now()}-${i}`,
+          indicador: typeof ind === "string" ? ind : (ind.indicador || `Indicador ${i + 1}`),
+          si: true,
+          no: false,
+        })),
+      };
+    } else if (tipoEfectivo === "Escala de estimación" && Array.isArray(data.indicadores)) {
+      base.estructura = {
+        indicadores: data.indicadores.slice(0, 10).map((ind, i) => ({
+          id: `esc-${Date.now()}-${i}`,
+          indicador: ind.indicador || `Indicador ${i + 1}`,
+          excelente: ind.excelente || "Siempre y con precisión",
+          bueno: ind.bueno || "Casi siempre",
+          regular: ind.regular || "Ocasionalmente",
+          necesitaApoyo: ind.necesitaApoyo || "Requiere guía",
+        })),
+      };
+    } else if (Array.isArray(data.criterios) && data.criterios.length > 0) {
       base.estructura = {
         criterios: data.criterios.slice(0, 8).map((c, i) => ({
           ...crearCriterioFn(i),
@@ -62,8 +96,10 @@ const TIPOS_INSTRUMENTO = [
   "Lista de cotejo",
   "Escala de estimación",
   "Registro anecdótico",
-  "Guía de observación",
   "Prueba escrita",
+  "Autoevaluación",
+  "Coevaluación",
+  "Guía de observación",
   "Proyecto",
   "Exposición oral",
   "Debate",
@@ -204,6 +240,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
   const [estudianteAplicar, setEstudianteAplicar] = useState(ESTUDIANTES_FALLBACK[0]);
   const [evaluacionAplicar, setEvaluacionAplicar] = useState({});
   const [aiPrompt, setAiPrompt] = useState("");
+  const [aiTipo, setAiTipo] = useState("Rúbrica");
   const [aiDraft, setAiDraft] = useState(null);
   const [aiGenerando, setAiGenerando] = useState(false);
   const [aiError, setAiError] = useState(null);
@@ -361,40 +398,59 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
     setModal("editar");
   };
 
-  const crearConIA = async () => {
-    const prompt = aiPrompt.trim() || "Debate sobre contaminación ambiental";
+  const crearConIAInterno = async (tipo, temaPrompt) => {
     setAiGenerando(true);
     setAiError(null);
     setAiDraft(null);
-
     let accumulated = "";
+
+    // Usar ContextBuilder para contexto mínimo: solo tipo + tema + UNA competencia + UN indicador
+    const ctx = buildAIContext("generar_instrumento", {
+      tipo,
+      tema: temaPrompt,
+      area:        curriculoActivo?.area        || "",
+      grado:       curriculoActivo?.grado       || "",
+      competencia: curriculoActivo?.competencia || "",
+      indicador:   curriculoActivo?.indicador   || "",
+    });
 
     await AIService.generate({
       module: "instrumentos",
-      prompt: buildInstrumentPrompt(prompt, curriculoActivo),
-      system: SYSTEM_INSTRUMENTOS,
-      maxTokens: 2048,
+      prompt: ctx.prompt,
+      system: ctx.system,
+      maxTokens: ctx.recommendedMaxTokens,
+      _contextMeta: ctx.meta,
       onChunk: (chunk) => { accumulated += chunk; },
       onFinish: () => {
-        const parsed = parseInstrumentJSON(accumulated, prompt, curriculoActivo, crearDraft, crearCriterio);
+        const parsed = parseInstrumentJSON(accumulated, temaPrompt, curriculoActivo, crearDraft, crearCriterio, tipo);
         if (parsed) {
           setAiDraft(parsed);
           setModal("ia");
         } else {
-          // Fallback: plantilla básica con nombre del prompt
-          const base = crearDraft("Rúbrica", curriculoActivo);
-          base.nombre = prompt;
-          base.descripcion = `Instrumento de evaluación para: ${prompt}`;
+          const base = crearDraft(tipo, curriculoActivo);
+          base.nombre = temaPrompt;
+          base.descripcion = `Instrumento de evaluación para: ${temaPrompt}`;
           setAiDraft(base);
           setModal("ia");
         }
         setAiGenerando(false);
       },
-      onError: (msg) => {
-        setAiError(msg);
-        setAiGenerando(false);
-      },
+      onError: (msg) => { setAiError(msg); setAiGenerando(false); },
     });
+  };
+
+  const crearConIA = () => {
+    const tema = aiPrompt.trim() ||
+      (curriculoActivo?.competencia ? `${curriculoActivo.competencia} — ${curriculoActivo.area || ""}` : "Evaluación de competencias");
+    crearConIAInterno(aiTipo, tema);
+  };
+
+  const crearConIARapido = (tipo) => {
+    const tema = curriculoActivo?.competencia
+      ? `${curriculoActivo.competencia}${curriculoActivo.indicador ? ` — ${curriculoActivo.indicador}` : ""}`
+      : aiPrompt.trim() || `${tipo} de evaluación`;
+    setAiTipo(tipo);
+    crearConIAInterno(tipo, tema);
   };
 
   const guardarInstrumento = () => {
@@ -772,13 +828,37 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
             <div className="panel-head-inline compact">
               <div>
                 <h2>✨ Crear Instrumento con IA</h2>
-                <p>Describe el instrumento que necesitas y la IA lo generará automáticamente.</p>
+                <p>Un clic genera el instrumento usando la competencia e indicadores de la planificación activa.</p>
               </div>
+            </div>
+
+            {/* Creación rápida por tipo */}
+            <div className="ai-tipos-rapidos">
+              {TIPOS_IA_PRIORITARIOS.map((tipo) => (
+                <button
+                  key={tipo}
+                  type="button"
+                  className={`ai-tipo-btn${aiTipo === tipo ? " ai-tipo-activo" : ""}`}
+                  onClick={() => crearConIARapido(tipo)}
+                  disabled={aiGenerando}
+                  title={`Crear ${tipo} con IA`}
+                >
+                  {aiGenerando && aiTipo === tipo ? "⏳" : "✨"} {tipo}
+                </button>
+              ))}
+            </div>
+
+            <div className="ai-sep-o">— o describe manualmente —</div>
+
+            <div className="ai-tipo-selector">
+              <select value={aiTipo} onChange={(e) => setAiTipo(e.target.value)} disabled={aiGenerando}>
+                {TIPOS_INSTRUMENTO.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
             </div>
             <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder='Ej.: Debate sobre contaminación ambiental' disabled={aiGenerando} />
             <div className="ai-actions">
               <button className="primary-btn" onClick={crearConIA} disabled={aiGenerando}>
-                {aiGenerando ? "Generando…" : "Generar"}
+                {aiGenerando ? "Generando…" : `Generar ${aiTipo}`}
               </button>
               <button className="ghost-btn" onClick={() => { setAiDraft(null); setAiError(null); }} disabled={aiGenerando}>Limpiar</button>
             </div>
@@ -789,7 +869,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
             )}
             {aiDraft && (
               <div className="ai-preview">
-                <span className="tipo-pill">Rúbrica generada</span>
+                <span className="tipo-pill">{aiDraft.tipo} generada</span>
                 <h3>{aiDraft.nombre}</h3>
                 <p>{aiDraft.descripcion}</p>
                 <button className="primary-btn full" onClick={() => {
@@ -841,6 +921,8 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
               {tipo === "Registro anecdótico" && "Notas descriptivas para seguimiento cualitativo."}
               {tipo === "Guía de observación" && "Matriz de observación directa vinculada al currículo."}
               {tipo === "Prueba escrita" && "Instrumento formal con calificación y retroalimentación."}
+              {tipo === "Autoevaluación" && "El estudiante reflexiona y evalúa su propio proceso de aprendizaje."}
+              {tipo === "Coevaluación" && "Evaluación entre pares con criterios observables compartidos."}
               {tipo === "Proyecto" && "Evaluación por producto, proceso y evidencia."}
               {tipo === "Exposición oral" && "Observación del discurso, claridad y argumentación."}
               {tipo === "Debate" && "Argumentación, escucha activa y participación."}

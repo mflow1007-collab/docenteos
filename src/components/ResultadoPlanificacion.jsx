@@ -6,6 +6,19 @@ const TIPO_EVAL_LABEL = { diagnostica: "Diagnóstica", formativa: "Formativa", s
 
 const COLOR_EJE = ["eje-violeta", "eje-azul", "eje-verde", "eje-naranja"];
 
+const IA_ACCIONES = [
+  { id: "mejorar",              label: "✨ Mejorar",          title: "Sugerencias pedagógicas" },
+  { id: "corregir",             label: "🔧 Corregir",         title: "Alinear con MINERD" },
+  { id: "regenerar-actividades",label: "🔄 Nuevas actividades",title: "Regenerar actividades" },
+  { id: "neae",                 label: "♿ Adaptar NEAE",      title: "Adecuaciones curriculares" },
+  { id: "adaptar-tiempo",       label: "⏱ Adaptar tiempo",    title: "Ajustar duración de clase" },
+];
+
+function renderBold(text) {
+  const parts = String(text).split(/\*\*(.+?)\*\*/g);
+  return parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part);
+}
+
 export default function ResultadoPlanificacion({
   planificacion,
   onGuardar,
@@ -14,6 +27,15 @@ export default function ResultadoPlanificacion({
   guardando,
   canGuardar = true,
   mensaje,
+  onAccionIA,
+  iaAccion,
+  iaTexto,
+  iaGenerando,
+  iaError,
+  iaMinutos,
+  setIaMinutos,
+  iaRef,
+  onLimpiarIA,
 }) {
   if (!planificacion) return null;
 
@@ -52,6 +74,67 @@ export default function ResultadoPlanificacion({
         <button className="export-btn" onClick={onDescargar}>📥 PDF</button>
         <button className="reset-btn"  onClick={onNueva}>↻ Nueva</button>
       </div>
+
+      {/* ── Acciones IA ── */}
+      {onAccionIA && (
+        <div className="plan-ia-bar">
+          <span className="plan-ia-label">🤖 IA:</span>
+          {IA_ACCIONES.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              className={`plan-ia-btn${iaAccion === a.id && iaGenerando ? " plan-ia-btn-active" : ""}`}
+              title={a.title}
+              disabled={iaGenerando}
+              onClick={() => onAccionIA(a.id, { minutos: iaMinutos })}
+            >
+              {iaAccion === a.id && iaGenerando ? "⏳..." : a.label}
+            </button>
+          ))}
+          {iaAccion === "adaptar-tiempo" && (
+            <label className="plan-ia-min-label">
+              <input
+                type="number"
+                min={20}
+                max={120}
+                value={iaMinutos}
+                onChange={(e) => setIaMinutos?.(Number(e.target.value))}
+                className="plan-ia-min-input"
+              />
+              min
+            </label>
+          )}
+          {(iaTexto || iaError) && (
+            <button type="button" className="plan-ia-limpiar" onClick={onLimpiarIA}>✕ Limpiar</button>
+          )}
+        </div>
+      )}
+
+      {onAccionIA && iaError && (
+        <div className="plan-ia-error">⚠️ {iaError}</div>
+      )}
+
+      {onAccionIA && (iaTexto || iaGenerando) && (
+        <div className="plan-ia-panel" ref={iaRef}>
+          <div className="plan-ia-panel-header">
+            <span>
+              {IA_ACCIONES.find((a) => a.id === iaAccion)?.title || "Análisis IA"}
+            </span>
+            {iaGenerando && <span className="plan-ia-spinner">Generando...</span>}
+          </div>
+          <div className="plan-ia-content">
+            {iaTexto.split("\n").map((line, i) => {
+              if (line.startsWith("## "))  return <h3 key={i} className="plan-ia-h3">{line.slice(3)}</h3>;
+              if (line.startsWith("### ")) return <h4 key={i} className="plan-ia-h4">{line.slice(4)}</h4>;
+              if (line.startsWith("- ") || line.startsWith("* "))
+                return <li key={i} className="plan-ia-li">{renderBold(line.slice(2))}</li>;
+              if (line.trim() === "") return <br key={i} />;
+              return <p key={i} className="plan-ia-p">{renderBold(line)}</p>;
+            })}
+            {iaGenerando && <span className="plan-ia-cursor">▋</span>}
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
           CABECERA DE LA UNIDAD

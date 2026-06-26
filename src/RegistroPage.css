@@ -1313,3 +1313,114 @@
     border: 1px solid #999;
   }
 }
+
+/* ========================================
+   ASISTENTE IA — Sugerir apoyo
+   ======================================== */
+
+.rs-ia-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 0;
+}
+
+.rs-ia-btn {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
+  font-size: 0.95rem;
+  padding: 10px 20px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);
+  transition: all 0.2s;
+}
+.rs-ia-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+}
+.rs-ia-btn:disabled { opacity: 0.7; cursor: wait; }
+
+.rs-ia-error {
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.rs-ia-panel {
+  margin: 16px 0 0;
+  border: 1.5px solid #e0e7ff;
+  border-radius: 16px;
+  overflow: hidden;
+  max-height: 600px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  background: #fafbff;
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);
+}
+
+.rs-ia-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.rs-ia-spinner {
+  font-size: 0.78rem;
+  font-weight: 400;
+  opacity: 0.85;
+  animation: ia-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ia-pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+
+.rs-ia-content {
+  padding: 20px 24px;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: #1e293b;
+}
+
+.rs-ia-h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #4f46e5;
+  margin: 20px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid #e0e7ff;
+}
+.rs-ia-h3:first-child { margin-top: 0; }
+
+.rs-ia-h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #6d28d9;
+  margin: 12px 0 4px;
+}
+
+.rs-ia-li {
+  margin: 4px 0 4px 16px;
+  list-style: disc;
+}
+
+.rs-ia-p {
+  margin: 4px 0;
+}
+
+.rs-ia-cursor {
+  display: inline-block;
+  animation: ia-blink 0.8s step-end infinite;
+  color: #7c3aed;
+  font-weight: 900;
+}
+@keyframes ia-blink { 0%,100%{opacity:1} 50%{opacity:0} }

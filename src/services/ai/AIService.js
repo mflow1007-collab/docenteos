@@ -67,7 +67,7 @@ export const AIService = {
    * @param {Function} opts.onFinish       - Llamado al finalizar con el texto completo
    * @param {Function} opts.onError        - Llamado con mensaje de error amigable
    */
-  async generate({ module, prompt, system, maxTokens, onChunk, onFinish, onError }) {
+  async generate({ module, prompt, system, maxTokens, onChunk, onFinish, onError, _contextMeta }) {
     const moduleConfig      = getModuleConfig(module);
     const routerOpts        = resolveModuleOptions(module);
     const resolvedMaxTokens = maxTokens ?? routerOpts.maxTokens;
@@ -75,6 +75,13 @@ export const AIService = {
     let accumulated  = "";
     let usedProvider = "unknown";
     let usedModel    = "unknown";
+
+    // ── Log de contexto (si no viene del ContextBuilder, estimar aquí) ───────
+    if (import.meta.env.DEV && !_contextMeta) {
+      const chars  = (prompt || "").length + (system || "").length;
+      const tokens = Math.ceil(chars / 3.8);
+      console.debug(`[DocenteOS AI] generate — módulo: ${module} | tokens estimados: ${tokens} | chars: ${chars}`);
+    }
 
     // ── 1. Buscar en cache ───────────────────────────────────────────────────
     if (moduleConfig.cache) {

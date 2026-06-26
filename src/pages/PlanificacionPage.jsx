@@ -9,7 +9,12 @@
  * - Manejar guardado local (Firebase pendiente)
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AIService } from "../services/ai/AIService.js";
+import { buildAIContext } from "../services/ai/ContextBuilder.js";
+import { checkBIC, indexarEnBIC } from "../services/ai/agents/AgentOrchestrator.js";
+import { adaptar as bicAdaptar } from "../services/ai/agents/AgentePlanificador.js";
+import { registrarUso as bicRegistrarUso } from "../services/ai/learning/KnowledgeBank.js";
 import { usePerfilInstitucional } from "../hooks/usePerfilInstitucional.js";
 import FormularioPlanificacion from "../components/FormularioPlanificacion";
 import ResultadoPlanificacion from "../components/ResultadoPlanificacion";
@@ -97,6 +102,21 @@ export default function PlanificacionPage() {
   const [cargandoDiario, setCargandoDiario] = useState(false);
   const [guardandoDiario, setGuardandoDiario] = useState(false);
   const [mensajeDiario, setMensajeDiario] = useState(null);
+
+  // ── IA sobre planificación generada ───────────────────────────────────────
+  const [iaAccion, setIaAccion] = useState(null);
+  const [iaTexto, setIaTexto] = useState("");
+  const [iaGenerando, setIaGenerando] = useState(false);
+  const [iaError, setIaError] = useState(null);
+  const [iaMinutos, setIaMinutos] = useState(45);
+  const iaRef = useRef(null);
+
+  // ── Banco Inteligente de Conocimiento (BIC) ───────────────────────────────
+  const [bicBanner, setBicBanner] = useState({ abierto: false, nivel: null, candidato: null, score: null });
+  const [bicDatosValidados, setBicDatosValidados] = useState(null);
+  const [bicAdaptando, setBicAdaptando] = useState(false);
+  const [bicFuente, setBicFuente] = useState(null); // "reutilizado"|"adaptado"|"generado"|"indexado"
+  const [bicId, setBicId] = useState(null);
 
   const ejecutarGenerarDiario = () => {
     const indicadoresCustom = planDiarioDatos.indicadoresTexto
@@ -866,9 +886,25 @@ export default function PlanificacionPage() {
         },
       };
 
+      // ── BIC: buscar planificación reutilizable antes de gastar tokens ────
+      const bicQ = {
+        nivel: gradoData?.nivel,
+        grado, area, asignatura, competencia,
+        indicadores: indicadoresOficiales ? indicadoresOficiales.split("\n").filter(Boolean) : [],
+        tema, tipo: tipoPlanificacion,
+      };
+      const bicHit = await checkBIC("planes", bicQ).catch(() => null);
+      if (bicHit) {
+        setBicDatosValidados(datosValidados);
+        setBicBanner({ abierto: true, nivel: bicHit.nivel, candidato: bicHit.mejor, score: bicHit.score });
+        return; // finally → setCargando(false) sigue corriendo
+      }
+
       const resultado = await generarPlanificacion(datosValidados);
       setPlanificacion(resultado);
-      
+      setBicFuente("generado");
+      setBicId(null);
+
       // Scroll al resultado
       setTimeout(() => {
         document.querySelector(".resultado")?.scrollIntoView({
@@ -1255,6 +1291,221 @@ export default function PlanificacionPage() {
     setImagenTematicaNombre("");
   };
 
+  const ejecutarAccionIA = (accion, opciones = {}) => {
+    if (!planificacion) return;
+    setIaAccion(accion);
+    setIaTexto("");
+    setIaError(null);
+    setIaGenerando(true);
+
+    const meta    = planificacion.metadatos       || {};
+    const datos   = planificacion.datosGenerales  || {};
+    const semanas = planificacion.desarrolloSemanal || [];
+
+    const temaActual        = meta.tema        || datos.tema        || "";
+    const areaActual        = meta.area        || datos.area        || "";
+    const gradoActual       = meta.grado       || "";
+    const competenciaActual = datos.competencia || meta.competenciaSeleccionada || "";
+    const indicadoresActual = datos.indicadoresOficiales || [];
+    const tipoPlan          = meta.tipoPlanificacion || "";
+    const duracionActual    = meta.duracion    || "";
+    const minClase          = meta.minutosHoraClase || minutosHoraClase || 50;
+
+    // ── Auditoría → usa ContextBuilder (mínimo necesario) ──────────────────
+    if (accion === "mejorar" || accion === "corregir") {
+      const ctxAction = accion === "corregir" ? "auditar_planificacion" : "auditar_planificacion";
+
+      // Para "mejorar" reusamos auditar pero con prompt de sugerencias
+      const ctx = buildAIContext("auditar_planificacion", {
+        grado: gradoActual,
+        area: areaActual,
+        tema: temaActual,
+        competencia: competenciaActual,
+        indicadores: indicadoresActual,
+        semanas,
+        tipo: tipoPlan,
+        periodo: meta.periodo || "",
+      });
+
+      const systemMejorar = accion === "mejorar"
+        ? "Eres DocenteOS, asistente pedagógico del MINERD. Identifica fortalezas y sugiere mejoras pedagógicas concretas. Usa ## para secciones. Responde en español."
+        : "Eres DocenteOS, experto auditor pedagógico del MINERD. Identifica problemas de coherencia curricular y proporciona correcciones precisas. Usa ## para secciones. Responde en español.";
+
+      const extraPrompt = accion === "mejorar"
+        ? "\n\n## Fortalezas identificadas\n## Áreas de mejora\n## Sugerencias por semana\n## Recursos adicionales\n## Evaluación formativa sugerida"
+        : "\n\n## Verificación de coherencia curricular\n## Correcciones necesarias\n## Alineación competencia–indicadores–actividades\n## Ajustes recomendados por semana";
+
+      AIService.generate({
+        module: "planificacion-ia",
+        prompt: ctx.prompt + extraPrompt,
+        system: systemMejorar,
+        maxTokens: 2000,
+        _contextMeta: ctx.meta,
+        onChunk: (chunk) => {
+          setIaTexto((prev) => prev + chunk);
+          setTimeout(() => iaRef.current?.scrollTo({ top: iaRef.current.scrollHeight, behavior: "smooth" }), 50);
+        },
+        onFinish: () => setIaGenerando(false),
+        onError:  (err) => { setIaError(err); setIaGenerando(false); },
+      });
+      return;
+    }
+
+    // ── Regenerar actividades → mejorar_actividades con contexto semana 1 ──
+    if (accion === "regenerar-actividades") {
+      // Enviar semanas resumidas (solo títulos) — sin JSON completo
+      const actividadesResumen = semanas.slice(0, 6).flatMap((sem, si) =>
+        (sem.actividades || []).slice(0, 3).map((a) => `[S${si + 1}] ${a.titulo || a.nombre || "Actividad"}`)
+      );
+
+      const ctx = buildAIContext("mejorar_actividades", {
+        grado: gradoActual,
+        asignatura: areaActual,
+        tema: temaActual,
+        fase: "Todas las fases",
+        semana: `1 a ${semanas.length}`,
+        dia: "Todos los días",
+        momento: "Todos los momentos",
+        tiempo: `${minClase} min por clase`,
+        intencionPedagogica: competenciaActual,
+        actividades: actividadesResumen,
+        sugerencia: `Genera actividades NUEVAS y diferentes para las ${semanas.length} semanas. Más dinámicas y contextualizadas para República Dominicana.`,
+      });
+
+      AIService.generate({
+        module: "planificacion-ia",
+        prompt: ctx.prompt,
+        system: ctx.system,
+        maxTokens: 2500,
+        _contextMeta: ctx.meta,
+        onChunk: (chunk) => {
+          setIaTexto((prev) => prev + chunk);
+          setTimeout(() => iaRef.current?.scrollTo({ top: iaRef.current.scrollHeight, behavior: "smooth" }), 50);
+        },
+        onFinish: () => setIaGenerando(false),
+        onError:  (err) => { setIaError(err); setIaGenerando(false); },
+      });
+      return;
+    }
+
+    // ── NEAE y adaptar-tiempo → prompts específicos compactos ──────────────
+    const semanasCompacto = semanas.slice(0, 6).map((sem, i) => {
+      const acts = (sem.actividades || []).slice(0, 3)
+        .map((a) => `  · ${a.titulo || a.nombre || "Actividad"}`)
+        .join("\n");
+      return `Semana ${i + 1}:\n${acts || "  Sin actividades"}`;
+    }).join("\n\n");
+
+    const baseCtx = `Tema: ${temaActual} | Área: ${areaActual} | Grado: ${gradoActual}\n\nActividades actuales:\n${semanasCompacto}`;
+
+    const PROMPTS_EXTRA = {
+      neae: `${baseCtx}
+
+Genera adecuaciones curriculares NEAE para este contenido:
+
+## Discapacidad visual
+## Discapacidad auditiva
+## Discapacidad intelectual
+## Dificultades de aprendizaje (dislexia, TDAH, discalculia)
+## Altas capacidades`,
+
+      "adaptar-tiempo": `${baseCtx}
+
+Las actividades están planificadas para ${minClase} min. Adapta para clases de ${opciones.minutos || iaMinutos} min.
+
+## Ajuste de tiempos por semana
+## Actividades a eliminar o acortar
+## Extensiones si sobra tiempo
+## Consideraciones pedagógicas`,
+    };
+
+    const system = "Eres DocenteOS, asistente pedagógico MINERD. Responde en español con ## para secciones y listas con -.";
+
+    AIService.generate({
+      module: "planificacion-ia",
+      prompt:  PROMPTS_EXTRA[accion] || PROMPTS_EXTRA.neae,
+      system,
+      maxTokens: 2000,
+      onChunk:  (chunk) => {
+        setIaTexto((prev) => prev + chunk);
+        setTimeout(() => iaRef.current?.scrollTo({ top: iaRef.current.scrollHeight, behavior: "smooth" }), 50);
+      },
+      onFinish: () => setIaGenerando(false),
+      onError:  (err) => { setIaError(err); setIaGenerando(false); },
+    });
+  };
+
+  // ── BIC handlers ─────────────────────────────────────────────────────────
+
+  const manejarBICReutilizar = () => {
+    const candidato = bicBanner.candidato;
+    if (!candidato?.contenido) { setBicBanner({ abierto: false }); return; }
+    setPlanificacion(candidato.contenido);
+    setBicFuente("reutilizado");
+    setBicId(candidato.id);
+    setBicBanner({ abierto: false });
+    bicRegistrarUso("planes", candidato.id).catch(() => {});
+    setTimeout(() => document.querySelector(".resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  };
+
+  const manejarBICAdaptar = async () => {
+    const candidato = bicBanner.candidato;
+    if (!candidato) return;
+    setBicAdaptando(true);
+    setBicBanner({ abierto: false });
+    try {
+      const adaptado = await bicAdaptar(candidato, { grado, area, tema, competencia });
+      setPlanificacion({ ...(candidato.contenido ?? {}), ...(adaptado ?? {}) });
+      setBicFuente("adaptado");
+      setBicId(candidato.id);
+      setTimeout(() => document.querySelector(".resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    } catch {
+      manejarBICGenerarDesde();
+    } finally {
+      setBicAdaptando(false);
+    }
+  };
+
+  const manejarBICGenerarDesde = async () => {
+    setBicBanner({ abierto: false });
+    if (!bicDatosValidados) return;
+    setCargando(true);
+    try {
+      const resultado = await generarPlanificacion(bicDatosValidados);
+      setPlanificacion(resultado);
+      setBicFuente("generado");
+      setBicId(null);
+      setTimeout(() => document.querySelector(".resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    } catch (error) {
+      setMensaje({ tipo: "error", texto: `❌ ${error.message}` });
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const manejarBICGuardar = async () => {
+    if (!planificacion || bicFuente !== "generado") return;
+    const meta  = planificacion.metadatos     ?? {};
+    const datos = planificacion.datosGenerales ?? {};
+    const gradoData = grados.find(g => g.grado === (meta.grado || grado));
+    const id = await indexarEnBIC("planes", {
+      nivel:       gradoData?.nivel ?? "Primaria",
+      grado:       meta.grado       || grado,
+      area:        meta.area        || area,
+      asignatura,
+      competencia: datos.competencia || competencia,
+      indicadores: datos.indicadoresOficiales || [],
+      tema:        meta.tema        || tema,
+      tipo:        meta.tipoPlanificacion || tipoPlanificacion,
+    }, planificacion).catch(() => null);
+    if (id) {
+      setBicId(id);
+      setBicFuente("indexado");
+      setMensaje({ tipo: "success", texto: "✅ Guardado en el Banco Pedagógico" });
+      setTimeout(() => setMensaje(null), 3000);
+    }
+  };
+
   /**
    * Maneja la creación de nueva planificación
    */
@@ -1478,6 +1729,79 @@ export default function PlanificacionPage() {
           </>
         ) : (
           /* Resultado Plan Semanal / resto */
+          <>
+            {bicBanner.abierto && (
+              <div className="bic-banner" role="dialog" aria-live="polite">
+                <div className="bic-banner-icon">
+                  {bicBanner.nivel === 1 ? "✅" : "🔄"}
+                </div>
+                <div className="bic-banner-body">
+                  <p className="bic-banner-titulo">
+                    {bicBanner.nivel === 1
+                      ? "Encontré una planificación casi idéntica en el Banco Pedagógico"
+                      : "Encontré una planificación similar en el Banco Pedagógico"}
+                  </p>
+                  <p className="bic-banner-sub">
+                    {bicBanner.candidato?.area ?? area} · {bicBanner.candidato?.grado ?? grado}
+                    {" "}
+                    <span className="bic-score-badge">
+                      {Math.round((bicBanner.score ?? 0) * 100)}% similitud
+                    </span>
+                  </p>
+                </div>
+                <div className="bic-banner-acciones">
+                  {bicBanner.nivel === 1 ? (
+                    <>
+                      <button type="button" className="bic-btn-primary" onClick={manejarBICReutilizar}>
+                        Usar directamente · 0 tokens
+                      </button>
+                      <button type="button" className="bic-btn-secondary" onClick={manejarBICGenerarDesde}>
+                        Generar nueva igual
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" className="bic-btn-primary" onClick={manejarBICAdaptar}>
+                        Adaptar · rápido
+                      </button>
+                      <button type="button" className="bic-btn-secondary" onClick={manejarBICGenerarDesde}>
+                        Generar desde cero
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {bicAdaptando && (
+              <div className="bic-adaptando">
+                <span className="bic-spinner" />
+                Adaptando desde el Banco Pedagógico...
+              </div>
+            )}
+
+            {planificacion && bicFuente && (
+              <div className="bic-status">
+                {bicFuente === "reutilizado" && (
+                  <span className="bic-badge bic-badge-green">✅ Del Banco Pedagógico · 0 tokens</span>
+                )}
+                {bicFuente === "adaptado" && (
+                  <span className="bic-badge bic-badge-blue">🔄 Adaptado del Banco Pedagógico</span>
+                )}
+                {bicFuente === "generado" && (
+                  <>
+                    <span className="bic-badge bic-badge-gray">✨ Generado por IA</span>
+                    <button type="button" className="bic-guardar-btn" onClick={manejarBICGuardar}>
+                      Guardar en Banco Pedagógico
+                    </button>
+                  </>
+                )}
+                {bicFuente === "indexado" && (
+                  <span className="bic-badge bic-badge-green">✅ Guardado en el Banco Pedagógico · ID: {bicId?.slice(0, 8)}</span>
+                )}
+              </div>
+            )}
+
           <ResultadoPlanificacion
             planificacion={planificacion}
             onGuardar={manejarGuardar}
@@ -1486,7 +1810,17 @@ export default function PlanificacionPage() {
             guardando={guardando}
             canGuardar={true}
             mensaje={mensaje}
+            onAccionIA={ejecutarAccionIA}
+            iaAccion={iaAccion}
+            iaTexto={iaTexto}
+            iaGenerando={iaGenerando}
+            iaError={iaError}
+            iaMinutos={iaMinutos}
+            setIaMinutos={setIaMinutos}
+            iaRef={iaRef}
+            onLimpiarIA={() => { setIaTexto(""); setIaError(null); setIaAccion(null); }}
           />
+          </>
         )}
 
         <section className="planning-history-card secondary">

@@ -1,4 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AIService } from "./services/ai/AIService.js";
 import "./App.css";
 import {
   guardarHorarioCurso,
@@ -1490,6 +1491,10 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
   const [mostrarMenuCurso, setMostrarMenuCurso] = useState(false);
   const [mostrarModalHorarioClase, setMostrarModalHorarioClase] = useState(false);
   const [mensajeHorario, setMensajeHorario] = useState(null);
+  const [iaApoyoTexto, setIaApoyoTexto] = useState("");
+  const [iaApoyoGenerando, setIaApoyoGenerando] = useState(false);
+  const [iaApoyoError, setIaApoyoError] = useState(null);
+  const iaApoyoRef = useRef(null);
 
   const data = curso || {
     id: "curso-fallback",
@@ -1635,6 +1640,49 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
     );
     setMostrarModalHorarioClase(false);
     setMensajeHorario({ tipo: "success", texto: "Horario de clase actualizado" });
+  };
+
+  const sugerirApoyoCurso = () => {
+    setIaApoyoTexto("");
+    setIaApoyoError(null);
+    setIaApoyoGenerando(true);
+
+    const enRiesgoTexto = (data.enRiesgo || [])
+      .map((e) => `- ${e.nombre}: promedio ${e.promedio}%`)
+      .join("\n") || "Sin estudiantes en riesgo registrados";
+
+    const prompt = `Analiza los datos del siguiente curso y genera recomendaciones pedagógicas para los estudiantes en riesgo.
+
+DATOS DEL CURSO:
+- Nombre: ${data.nombre}
+- Área: ${data.area}
+- Nivel: ${data.nivel || "Secundaria"}
+- Promedio general: ${data.promedio || "—"}%
+- Tema actual: ${data.temaActual || "—"}
+
+ESTUDIANTES EN RIESGO (promedio < 70):
+${enRiesgoTexto}
+
+Genera recomendaciones prácticas con estas secciones:
+
+## Diagnóstico del grupo
+## Estrategias para estudiantes en riesgo
+## Actividades de recuperación sugeridas
+## Comunicación con familias
+## Próximas acciones prioritarias`;
+
+    AIService.generate({
+      module: "registro-apoyo",
+      prompt,
+      system: "Eres DocenteOS, asistente pedagógico del sistema educativo dominicano (MINERD). Responde en español con recomendaciones concretas y accionables para docentes de aula.",
+      maxTokens: 1500,
+      onChunk: (chunk) => {
+        setIaApoyoTexto((prev) => prev + chunk);
+        setTimeout(() => iaApoyoRef.current?.scrollTo({ top: iaApoyoRef.current.scrollHeight, behavior: "smooth" }), 50);
+      },
+      onFinish: () => setIaApoyoGenerando(false),
+      onError: (err) => { setIaApoyoError(err); setIaApoyoGenerando(false); },
+    });
   };
 
   const hoy = new Date();
@@ -1984,7 +2032,41 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
           <section className="detalle-card ia-card">
             <h2>Asistente IA</h2>
             <p>Genera retroalimentación para los {data.enRiesgo.length} estudiantes en riesgo a partir de su registro.</p>
-            <button className="ia-support-btn">Sugerir apoyo</button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                className="ia-support-btn"
+                onClick={sugerirApoyoCurso}
+                disabled={iaApoyoGenerando}
+              >
+                {iaApoyoGenerando ? "⏳ Analizando..." : "🤖 Sugerir apoyo"}
+              </button>
+              {(iaApoyoTexto || iaApoyoError) && !iaApoyoGenerando && (
+                <button
+                  type="button"
+                  className="ia-support-btn"
+                  style={{ background: "#f1f5f9", color: "#64748b", fontSize: "0.78rem" }}
+                  onClick={() => { setIaApoyoTexto(""); setIaApoyoError(null); }}
+                >
+                  ✕ Limpiar
+                </button>
+              )}
+            </div>
+            {iaApoyoError && (
+              <p style={{ color: "#dc2626", fontSize: "0.82rem", marginTop: 8 }}>⚠️ {iaApoyoError}</p>
+            )}
+            {(iaApoyoTexto || iaApoyoGenerando) && (
+              <div className="ia-apoyo-panel" ref={iaApoyoRef}>
+                <div className="ia-apoyo-content">
+                  {iaApoyoTexto.split("\n").map((line, i) => {
+                    if (line.startsWith("## ")) return <h4 key={i} style={{ color: "#4f46e5", margin: "12px 0 4px", fontSize: "0.88rem", fontWeight: 800 }}>{line.slice(3)}</h4>;
+                    if (line.startsWith("- ")) return <li key={i} style={{ marginLeft: 14, marginBottom: 2 }}>{line.slice(2)}</li>;
+                    if (line.trim() === "") return <br key={i} />;
+                    return <p key={i} style={{ margin: "2px 0" }}>{line}</p>;
+                  })}
+                  {iaApoyoGenerando && <span style={{ color: "#7c3aed", fontWeight: 900, animation: "plan-ia-blink 0.8s step-end infinite" }}>▋</span>}
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="detalle-card span-2">
@@ -2266,6 +2348,11 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
   const [fNivelRiesgo, setFNivelRiesgo] = useState("Todos");
   const [seleccionadoId, setSeleccionadoId] = useState(null);
   const [tabDetalle, setTabDetalle] = useState("Resumen");
+  const [panelIaTexto, setPanelIaTexto] = useState("");
+  const [panelIaAccion, setPanelIaAccion] = useState(null);
+  const [panelIaGenerando, setPanelIaGenerando] = useState(false);
+  const [panelIaError, setPanelIaError] = useState(null);
+  const panelIaRef = useRef(null);
 
   const estadoPorPromedio = (prom) => {
     if (prom >= 90) return { key: "excelente", label: "Excelente", clase: "exito" };
@@ -2347,6 +2434,62 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
     const bajando = filtrados.filter((e) => e.tendencia === "Bajando").length;
     return { total: filtrados.length, enRiesgo, excelentes, promGeneral, asistenciaProm, mejorando, estables, bajando };
   }, [filtrados]);
+
+  const ejecutarIaEstudiante = (accion, est) => {
+    if (!est) return;
+    setPanelIaTexto("");
+    setPanelIaError(null);
+    setPanelIaAccion(accion);
+    setPanelIaGenerando(true);
+
+    const areasTexto = [
+      `Matematica: ${Math.max(45, est.promedio - 8)}%`,
+      `Lengua: ${Math.max(50, est.promedio - 4)}%`,
+      `Ciencias: ${Math.min(99, est.promedio + 5)}%`,
+      `Ingles: ${Math.max(50, est.promedio - 2)}%`,
+    ].join(", ");
+
+    const contexto = `Estudiante: ${est.nombre}
+Curso: ${est.cursoNombre} | Área: ${est.area} | Grado: ${est.grado}
+Promedio general: ${est.promedio}% | Asistencia: ${est.asistencia}%
+Nivel de riesgo: ${est.nivelRiesgo}
+Rendimiento por área: ${areasTexto}`;
+
+    const prompts = {
+      recomendaciones: `${contexto}
+
+Genera recomendaciones pedagógicas específicas para este estudiante:
+
+## Diagnóstico individual
+## Estrategias de intervención
+## Actividades de apoyo sugeridas
+## Recomendaciones para la familia`,
+
+      informe: `${contexto}
+
+Genera un informe individual completo para este estudiante:
+
+## Perfil académico
+## Fortalezas identificadas
+## Áreas de oportunidad
+## Plan de acción sugerido
+## Mensaje para la familia
+## Compromisos recomendados`,
+    };
+
+    AIService.generate({
+      module: "registro-apoyo",
+      prompt: prompts[accion] || prompts.informe,
+      system: "Eres DocenteOS, asistente pedagógico del sistema educativo dominicano (MINERD). Responde en español. Sé concreto, empático y orientado al docente de aula.",
+      maxTokens: accion === "informe" ? 2000 : 1200,
+      onChunk: (chunk) => {
+        setPanelIaTexto((prev) => prev + chunk);
+        setTimeout(() => panelIaRef.current?.scrollTo({ top: panelIaRef.current.scrollHeight, behavior: "smooth" }), 50);
+      },
+      onFinish: () => setPanelIaGenerando(false),
+      onError: (err) => { setPanelIaError(err); setPanelIaGenerando(false); },
+    });
+  };
 
   const limpiar = () => {
     setBusqueda("");
@@ -2705,15 +2848,61 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
 
               <section className="panel-acciones">
                 <article className="panel-alertas ia-alert-card">
-                  <h3>Alertas IA</h3>
+                  <h3>🤖 Alertas IA</h3>
                   <ul className="alertas-lista">
-                    <li>"El estudiante ha disminuido 12 puntos en las últimas evaluaciones."</li>
-                    <li>"Se recomienda intervención pedagógica."</li>
+                    {seleccionado && seleccionado.promedio < 70 && (
+                      <li>Promedio actual ({seleccionado.promedio}%) está por debajo del mínimo de aprobación.</li>
+                    )}
+                    {seleccionado && seleccionado.asistencia < 85 && (
+                      <li>Asistencia ({seleccionado.asistencia}%) requiere seguimiento y comunicación familiar.</li>
+                    )}
+                    {seleccionado && seleccionado.nivelRiesgo === "Alto" && (
+                      <li>Nivel de riesgo alto — se recomienda intervención pedagógica inmediata.</li>
+                    )}
                   </ul>
-                  <button type="button" className="secundario ia-recomendaciones-btn">Ver recomendaciones</button>
+                  <button
+                    type="button"
+                    className="secundario ia-recomendaciones-btn"
+                    disabled={panelIaGenerando}
+                    onClick={() => ejecutarIaEstudiante("recomendaciones", seleccionado)}
+                  >
+                    {panelIaGenerando && panelIaAccion === "recomendaciones" ? "⏳ Generando..." : "Ver recomendaciones IA"}
+                  </button>
                 </article>
-                <button type="button" className="ancho-completo">✨ Generar Informe Individual IA</button>
+                <button
+                  type="button"
+                  className="ancho-completo"
+                  disabled={panelIaGenerando}
+                  onClick={() => ejecutarIaEstudiante("informe", seleccionado)}
+                >
+                  {panelIaGenerando && panelIaAccion === "informe" ? "⏳ Generando informe..." : "✨ Generar Informe Individual IA"}
+                </button>
                 <p className="ia-informe-caption">Genera fortalezas, debilidades, acuerdos y recomendaciones para la familia.</p>
+
+                {panelIaError && (
+                  <p style={{ color: "#dc2626", fontSize: "0.8rem", marginTop: 8 }}>⚠️ {panelIaError}</p>
+                )}
+                {(panelIaTexto || panelIaGenerando) && (
+                  <div className="panel-ia-resultado" ref={panelIaRef}>
+                    <div className="panel-ia-header">
+                      <span>{panelIaAccion === "informe" ? "Informe Individual IA" : "Recomendaciones IA"}</span>
+                      {panelIaGenerando && <span className="panel-ia-spinner">Generando...</span>}
+                      {!panelIaGenerando && (
+                        <button type="button" style={{ fontSize: "0.72rem", background: "none", border: "none", color: "#fff", cursor: "pointer", opacity: 0.7 }}
+                          onClick={() => { setPanelIaTexto(""); setPanelIaAccion(null); }}>✕</button>
+                      )}
+                    </div>
+                    <div className="panel-ia-content">
+                      {panelIaTexto.split("\n").map((line, i) => {
+                        if (line.startsWith("## ")) return <h4 key={i} className="plan-ia-h3" style={{ fontSize: "0.85rem" }}>{line.slice(3)}</h4>;
+                        if (line.startsWith("- ")) return <li key={i} className="plan-ia-li">{line.slice(2)}</li>;
+                        if (line.trim() === "") return <br key={i} />;
+                        return <p key={i} className="plan-ia-p">{line}</p>;
+                      })}
+                      {panelIaGenerando && <span className="plan-ia-cursor">▋</span>}
+                    </div>
+                  </div>
+                )}
               </section>
             </article>
           )}
@@ -2786,6 +2975,8 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   const [evaluaciones, setEvaluaciones] = useState(EVALUACIONES_BASE_DETALLE);
   const [planApoyo, setPlanApoyo] = useState(PLAN_APOYO_BASE_DETALLE);
   const [informeIa, setInformeIa] = useState(informeIaBase);
+  const [informeIaGenerando, setInformeIaGenerando] = useState(false);
+  const informeIaRef = useRef(null);
 
   const totalCirc = 276;
   const pctAsis = asistencia;
@@ -2883,13 +3074,64 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   }, [storageKey, detalleId, storageListo, tabActiva, estadoPlan, ultimoEnvio, mensajeAccion, evaluaciones, planApoyo, informeIa]);
 
   const manejarGenerarInformeIA = () => {
-    const hoy = new Date();
-    const fecha = hoy.toLocaleDateString("es-DO", { day: "2-digit", month: "short", year: "numeric" });
-    setInformeIa(
-      `${nombre} muestra un perfil de aprendizaje con promedio ${promedio}% y asistencia ${asistencia}%. Priorizar refuerzo en Matematica y actividades de transferencia en Ingles. Informe actualizado ${fecha}.`
-    );
+    setInformeIa("");
+    setInformeIaGenerando(true);
     setTabActiva("Informe IA");
-    setMensajeAccion("Informe IA generado y actualizado en la pestaña correspondiente.");
+
+    const evalsTexto = evaluaciones.slice(0, 5)
+      .map((ev) => `- ${ev.actividad} (${ev.area}): ${ev.calificacion} — ${ev.estado}`)
+      .join("\n");
+
+    const planTexto = planApoyo.join("\n- ");
+    const areasTexto = areas.map((a) => `${a.area}: ${a.valor}%`).join(", ");
+
+    const prompt = `Genera un informe pedagógico individual completo para el siguiente estudiante del sistema educativo dominicano (MINERD).
+
+DATOS DEL ESTUDIANTE:
+- Nombre: ${nombre}
+- Curso: ${curso} | Edad: ${edad} años
+- Estado académico: ${estado}
+- Promedio general: ${promedio}%
+- Asistencia: ${asistencia}%
+- Tutora/Madre: ${tutor} | Teléfono: ${telefono}
+
+RENDIMIENTO POR ÁREA:
+${areasTexto}
+
+EVALUACIONES RECIENTES:
+${evalsTexto || "Sin evaluaciones registradas"}
+
+PLAN DE APOYO ACTUAL:
+- ${planTexto || "Sin plan activo"}
+
+Genera el informe con estas secciones:
+
+## Perfil académico general
+## Fortalezas identificadas
+## Áreas que requieren refuerzo
+## Análisis de asistencia
+## Plan de acción recomendado
+## Mensaje para la familia de ${nombre.split(" ")[0]}
+## Compromisos y próximos pasos`;
+
+    AIService.generate({
+      module: "registro-apoyo",
+      prompt,
+      system: "Eres DocenteOS, asistente pedagógico del sistema educativo dominicano (MINERD). Genera informes individuales claros, empáticos y accionables. Usa lenguaje profesional pero accesible para familias y docentes. Responde en español.",
+      maxTokens: 2000,
+      onChunk: (chunk) => {
+        setInformeIa((prev) => prev + chunk);
+        setTimeout(() => informeIaRef.current?.scrollTo({ top: informeIaRef.current.scrollHeight, behavior: "smooth" }), 50);
+      },
+      onFinish: () => {
+        setInformeIaGenerando(false);
+        setMensajeAccion("Informe IA generado en la pestaña Informe IA.");
+      },
+      onError: (err) => {
+        setInformeIa(`Error al generar el informe: ${err}`);
+        setInformeIaGenerando(false);
+      },
+    });
   };
 
   const manejarCrearPlanApoyo = () => {
@@ -2996,8 +3238,22 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     ),
     "Informe IA": (
       <div className="detalle-tab-lista">
-        <p>{informeIa}</p>
-        {ultimoEnvio && <p>Ultimo envio familiar: {ultimoEnvio}</p>}
+        {informeIaGenerando && (
+          <p style={{ color: "#7c3aed", fontSize: "0.85rem", marginBottom: 8 }}>⏳ Generando informe con IA...</p>
+        )}
+        {!informeIa && !informeIaGenerando && (
+          <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Haz clic en "Generar Informe Individual IA" para crear un análisis completo con IA.</p>
+        )}
+        <div ref={informeIaRef} style={{ maxHeight: 420, overflowY: "auto" }}>
+          {informeIa.split("\n").map((line, i) => {
+            if (line.startsWith("## ")) return <h4 key={i} style={{ color: "#4f46e5", margin: "14px 0 4px", fontSize: "0.92rem", fontWeight: 800, borderBottom: "2px solid #e0e7ff", paddingBottom: 3 }}>{line.slice(3)}</h4>;
+            if (line.startsWith("- ")) return <li key={i} style={{ marginLeft: 14, marginBottom: 2, fontSize: "0.85rem" }}>{line.slice(2)}</li>;
+            if (line.trim() === "") return <br key={i} />;
+            return <p key={i} style={{ margin: "3px 0", fontSize: "0.85rem" }}>{line}</p>;
+          })}
+          {informeIaGenerando && <span style={{ color: "#7c3aed", fontWeight: 900, animation: "plan-ia-blink 0.8s step-end infinite" }}>▋</span>}
+        </div>
+        {ultimoEnvio && <p style={{ marginTop: 12, fontSize: "0.8rem", color: "#64748b" }}>Ultimo envio familiar: {ultimoEnvio}</p>}
       </div>
     ),
   };
@@ -3164,14 +3420,17 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
 
       <section className="detalle-card detalle-ia-alerta">
         <h3>🤖 Alertas DOCENTEOS AI</h3>
-        <p>
-          {nombre} ha disminuido 14 puntos en su promedio durante los ultimos 3 meses.
-          Presenta baja asistencia y rendimiento irregular en Matematica e Ingles.
-        </p>
-        <p>
-          Recomendacion: Aplicar plan de refuerzo individual, seguimiento semanal y comunicacion con la familia.
-        </p>
-        <button type="button" className="secundario">Ver recomendaciones</button>
+        {promedio < 70 && <p>Promedio actual ({promedio}%) está por debajo del mínimo de aprobación. Requiere intervención pedagógica.</p>}
+        {asistencia < 85 && <p>Asistencia ({asistencia}%) puede afectar el rendimiento académico. Se recomienda contactar a la familia.</p>}
+        {promedio >= 70 && asistencia >= 85 && <p>{nombre} mantiene un desempeño académico dentro del rango esperado.</p>}
+        <button
+          type="button"
+          className="secundario"
+          onClick={manejarGenerarInformeIA}
+          disabled={informeIaGenerando}
+        >
+          {informeIaGenerando ? "⏳ Generando..." : "Ver informe IA completo"}
+        </button>
       </section>
 
       <section className="detalle-card">

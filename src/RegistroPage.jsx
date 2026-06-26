@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { guardarRegistroCalificaciones, obtenerRegistroCalificaciones } from "./firebase";
 import { useAuth } from "./context/AuthContext.jsx";
+import { AIService } from "./services/ai/AIService.js";
+import { buildAIContext } from "./services/ai/ContextBuilder.js";
 import "./RegistroPage.css";
 
 const DIAS = ["L", "M", "I", "J", "V"];
@@ -192,6 +194,12 @@ function RegistroPage({
   const [guardando, setGuardando] = useState(false);
   const [mensajeGuardado, setMensajeGuardado] = useState(null);
 
+  // IA — Asistente pedagógico
+  const [iaTexto, setIaTexto] = useState("");
+  const [iaGenerando, setIaGenerando] = useState(false);
+  const [iaError, setIaError] = useState(null);
+  const iaRef = useRef(null);
+
   const cursoId = curso?.id || "sin-id";
 
   // Cargar registro guardado al abrir
@@ -290,6 +298,73 @@ function RegistroPage({
       ...prev,
       [estudianteId]: texto,
     }));
+  };
+
+  const renderBold = (text) => {
+    const parts = text.split(/\*\*(.+?)\*\*/g);
+    return parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part);
+  };
+
+  const sugerirApoyoIA = () => {
+    setIaTexto("");
+    setIaError(null);
+    setIaGenerando(true);
+
+    // Construir lista de estudiantes en riesgo (solo ellos — no todos)
+    const estudiantesEnRiesgo = estudiantes
+      .map((est) => {
+        const notas = notasEstudiantes[est.id] ?? crearNotasVacias();
+        const r = calcularResumenEstudiante(notas);
+        if (r.cf <= 0) return null;
+
+        const estAsist = asistencia.find((a) => a.id === est.id);
+        let pctAsist = null;
+        if (estAsist) {
+          const todos = MESES_ESCOLAR.flatMap((m) => (estAsist.meses?.[m] ?? crearMesVacio()).flat());
+          const total = todos.filter((x) => x !== "").length;
+          const excusas = todos.filter((x) => x === "E").length;
+          const presentes = todos.filter((x) => x === "P").length + Math.floor(excusas / 2);
+          pctAsist = total > 0 ? Math.round((presentes / total) * 100) : null;
+        }
+
+        const competenciasDebiles = r.compAvgs
+          .map((avg, ci) => avg > 0 && avg < 70 ? codigosComp[ci] || `C${ci + 1}` : null)
+          .filter(Boolean);
+
+        return {
+          nombre: est.nombre,
+          cf: r.cf,
+          situacion: r.situacion,
+          competenciasDebiles,
+          asistencia: pctAsist,
+          observacion: observaciones[est.id] || null,
+        };
+      })
+      .filter((e) => e !== null && e.cf < 70);
+
+    const ctx = buildAIContext("sugerir_apoyo", {
+      area,
+      grado: `${grado} ${seccion}`.trim(),
+      docente,
+      estudiantesEnRiesgo,
+      promedioGrupo: resumen.promedioCompetencias > 0 ? resumen.promedioCompetencias : null,
+      asistenciaGeneral: resumen.asistenciaGeneral > 0 ? resumen.asistenciaGeneral : null,
+      codigosCompetencias: codigosComp,
+    });
+
+    AIService.generate({
+      module: "registro-apoyo",
+      prompt: ctx.prompt,
+      system: ctx.system,
+      maxTokens: ctx.recommendedMaxTokens,
+      _contextMeta: ctx.meta,
+      onChunk: (chunk) => {
+        setIaTexto((prev) => prev + chunk);
+        setTimeout(() => iaRef.current?.scrollTo({ top: iaRef.current.scrollHeight, behavior: "smooth" }), 50);
+      },
+      onFinish: () => setIaGenerando(false),
+      onError: (err) => { setIaError(err); setIaGenerando(false); },
+    });
   };
 
   const handleGuardar = async () => {
@@ -547,6 +622,62 @@ function RegistroPage({
               <span>Con calificaciones</span>
             </div>
           </div>
+
+          {/* ── Asistente IA ── */}
+          <div className="rs-ia-bar">
+            <button
+              type="button"
+              className="rh-btn-primary rs-ia-btn"
+              onClick={sugerirApoyoIA}
+              disabled={iaGenerando}
+            >
+              {iaGenerando ? "⏳ Analizando..." : "🤖 Sugerir apoyo (IA)"}
+            </button>
+            {(iaTexto || iaError) && !iaGenerando && (
+              <button
+                type="button"
+                className="rh-btn-secondary"
+                onClick={() => { setIaTexto(""); setIaError(null); }}
+              >
+                Limpiar análisis
+              </button>
+            )}
+          </div>
+
+          {iaError && (
+            <div className="rs-ia-error">⚠️ {iaError}</div>
+          )}
+
+          {(iaTexto || iaGenerando) && (
+            <div className="rs-ia-panel" ref={iaRef}>
+              <div className="rs-ia-header">
+                <span>🤖 Diagnóstico pedagógico IA</span>
+                {iaGenerando && <span className="rs-ia-spinner">Generando análisis...</span>}
+              </div>
+              <div className="rs-ia-content">
+                {iaTexto.split("\n").map((line, i) => {
+                  if (line.startsWith("## ")) {
+                    return <h3 key={i} className="rs-ia-h3">{line.slice(3)}</h3>;
+                  }
+                  if (line.startsWith("### ")) {
+                    return <h4 key={i} className="rs-ia-h4">{line.slice(4)}</h4>;
+                  }
+                  if (line.startsWith("- ") || line.startsWith("* ")) {
+                    return (
+                      <li key={i} className="rs-ia-li">
+                        {renderBold(line.slice(2))}
+                      </li>
+                    );
+                  }
+                  if (line.trim() === "") {
+                    return <br key={i} />;
+                  }
+                  return <p key={i} className="rs-ia-p">{renderBold(line)}</p>;
+                })}
+                {iaGenerando && <span className="rs-ia-cursor">▋</span>}
+              </div>
+            </div>
+          )}
 
           {/* ── Tabla resumen por estudiante ── */}
           <div className="registro-section-head" style={{ marginTop: "24px" }}>

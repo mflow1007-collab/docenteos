@@ -27,6 +27,10 @@ export const AIConfig = {
       cache: true,
       cacheTTLHours: 24,
     },
+    "planificacion-ia": {
+      maxTokens: 2500,
+      cache: false,
+    },
     instrumentos: {
       maxTokens: 4096,
       cache: true,
@@ -34,6 +38,10 @@ export const AIConfig = {
     },
     registro: {
       maxTokens: 2048,
+      cache: false,
+    },
+    "registro-apoyo": {
+      maxTokens: 2000,
       cache: false,
     },
     reportes: {

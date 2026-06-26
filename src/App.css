@@ -6474,6 +6474,48 @@
   padding-left: 8px;
 }
 
+/* ── Panel IA inline (DetalleCurso + EstudiantesPage) ── */
+.ia-apoyo-panel,
+.panel-ia-resultado {
+  margin-top: 12px;
+  border: 1.5px solid #e0e7ff;
+  border-radius: 12px;
+  overflow: hidden;
+  max-height: 320px;
+  overflow-y: auto;
+  background: #fafbff;
+  font-size: 0.83rem;
+  scroll-behavior: smooth;
+}
+
+.ia-apoyo-content,
+.panel-ia-content {
+  padding: 12px 16px;
+  line-height: 1.65;
+  color: #1e293b;
+}
+
+.panel-ia-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.82rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.panel-ia-spinner {
+  font-size: 0.72rem;
+  font-weight: 400;
+  opacity: 0.8;
+  animation: ia-pulse-p 1.4s ease-in-out infinite;
+}
+
 @media (max-width: 1280px) {
   .estudiantes-kpis-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -7408,6 +7450,237 @@
   margin-bottom: 20px;
 }
 .minerd-acciones.top { margin-top: 4px; }
+
+/* ── BIC — Banco Inteligente de Conocimiento ── */
+.bic-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1.5px solid #86efac;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.bic-banner-icon { font-size: 2rem; flex-shrink: 0; }
+.bic-banner-body { flex: 1; min-width: 200px; }
+.bic-banner-titulo { margin: 0 0 4px; font-weight: 700; font-size: 0.95rem; color: #166534; }
+.bic-banner-sub { margin: 0; font-size: 0.85rem; color: #4b5563; display: flex; align-items: center; gap: 8px; }
+.bic-score-badge {
+  background: #16a34a;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+.bic-banner-acciones { display: flex; gap: 10px; flex-wrap: wrap; }
+.bic-btn-primary {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.bic-btn-primary:hover { opacity: 0.88; }
+.bic-btn-secondary {
+  background: transparent;
+  color: #374151;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.bic-btn-secondary:hover { border-color: #9ca3af; }
+
+.bic-adaptando {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: #f0f9ff;
+  border: 1.5px solid #bae6fd;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+  color: #0369a1;
+  font-weight: 600;
+}
+.bic-spinner {
+  width: 18px; height: 18px;
+  border: 2.5px solid #bae6fd;
+  border-top-color: #0369a1;
+  border-radius: 50%;
+  display: inline-block;
+  animation: bic-spin 0.7s linear infinite;
+}
+@keyframes bic-spin { to { transform: rotate(360deg); } }
+
+.bic-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.bic-badge {
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+.bic-badge-green { background: #dcfce7; color: #166534; }
+.bic-badge-blue  { background: #dbeafe; color: #1e40af; }
+.bic-badge-gray  { background: #f1f5f9; color: #475569; }
+.bic-guardar-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1.5px solid #8b5cf6;
+  color: #7c3aed;
+  border-radius: 8px;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.bic-guardar-btn:hover { background: #f5f3ff; }
+
+/* ── Acciones IA — Planificación ── */
+.plan-ia-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: #f5f3ff;
+  border: 1.5px solid #ddd6fe;
+  border-radius: 12px;
+}
+.plan-ia-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #6d28d9;
+  white-space: nowrap;
+  margin-right: 2px;
+}
+.plan-ia-btn {
+  padding: 6px 13px;
+  border: 1.5px solid #7c3aed;
+  background: #fff;
+  color: #6d28d9;
+  border-radius: 8px;
+  font-size: 0.81rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.17s;
+  white-space: nowrap;
+}
+.plan-ia-btn:hover:not(:disabled) {
+  background: #7c3aed;
+  color: #fff;
+}
+.plan-ia-btn:disabled { opacity: 0.6; cursor: wait; }
+.plan-ia-btn-active { background: #7c3aed !important; color: #fff !important; }
+.plan-ia-limpiar {
+  margin-left: auto;
+  padding: 5px 10px;
+  border: none;
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.plan-ia-min-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: #6d28d9;
+  font-weight: 600;
+}
+.plan-ia-min-input {
+  width: 52px;
+  padding: 4px 6px;
+  border: 1.5px solid #7c3aed;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  text-align: center;
+}
+.plan-ia-error {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+.plan-ia-panel {
+  border: 1.5px solid #e0e7ff;
+  border-radius: 16px;
+  overflow: hidden;
+  max-height: 520px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  background: #fafbff;
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);
+  scroll-behavior: smooth;
+}
+.plan-ia-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.87rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.plan-ia-spinner {
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.85;
+  animation: ia-pulse-p 1.4s ease-in-out infinite;
+}
+@keyframes ia-pulse-p { 0%,100%{opacity:.5} 50%{opacity:1} }
+.plan-ia-content {
+  padding: 16px 20px;
+  font-size: 0.87rem;
+  line-height: 1.7;
+  color: #1e293b;
+}
+.plan-ia-h3 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #4f46e5;
+  margin: 18px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 2px solid #e0e7ff;
+}
+.plan-ia-h3:first-child { margin-top: 0; }
+.plan-ia-h4 { font-size: 0.88rem; font-weight: 700; color: #6d28d9; margin: 10px 0 4px; }
+.plan-ia-li { margin: 3px 0 3px 16px; list-style: disc; }
+.plan-ia-p  { margin: 3px 0; }
+.plan-ia-cursor { display: inline-block; animation: plan-ia-blink 0.8s step-end infinite; color: #7c3aed; font-weight: 900; }
+@keyframes plan-ia-blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
 /* ── Cabecera de la unidad ── */
 .minerd-cabecera {

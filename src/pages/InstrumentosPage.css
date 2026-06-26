@@ -562,9 +562,48 @@
   gap: 18px;
 }
 
+/* ── Quick-create buttons por tipo ── */
+.ai-tipos-rapidos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ai-tipo-btn {
+  padding: 6px 12px;
+  border: 1.5px solid #7c3aed;
+  background: #fff;
+  color: #6d28d9;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.ai-tipo-btn:hover:not(:disabled) { background: #7c3aed; color: #fff; }
+.ai-tipo-btn:disabled { opacity: 0.6; cursor: wait; }
+.ai-tipo-activo { background: #7c3aed !important; color: #fff !important; }
+.ai-sep-o {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 6px 0;
+}
+.ai-tipo-selector {
+  margin-bottom: 8px;
+}
+.ai-tipo-selector select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
 .ai-card textarea,
 .aplicar-textual textarea {
-  min-height: 120px;
+  min-height: 80px;
   resize: vertical;
 }
 
