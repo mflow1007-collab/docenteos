@@ -1,10 +1,11 @@
 /**
  * Servicio de Auditoría Pedagógica con IA
- * Llama a Claude API usando el PROMPT MAESTRO como system prompt.
- * Requiere VITE_ANTHROPIC_API_KEY en .env.local
+ * Usa AIService.generate() → AI Gateway (api/ai/generate.js)
+ * Las API keys viven en el servidor — nunca en el frontend.
  */
 
 import { registrarEventoAuditoria, registrarEventoIA } from "../firebase";
+import { AIService } from "./ai/AIService";
 
 // ─── PROMPT MAESTRO ───────────────────────────────────────────────────────────
 
@@ -195,28 +196,9 @@ const serializarUnidad = (unidad) => {
   return lines.join("\n");
 };
 
-// ─── Llamada a Claude API con streaming ───────────────────────────────────────
+// ─── Llamada al AI Gateway ────────────────────────────────────────────────────
 
 export const auditarUnidad = async (unidad, { onChunk, onFinish, onError }) => {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  let respuestaAcumulada = "";
-
-  if (!apiKey || apiKey === "sk-ant-...") {
-    await registrarEventoAuditoria({
-      tipo: "ia",
-      evento: "auditoria_api_key_no_configurada",
-      modulo: "auditoria-ia",
-      detalle: { tieneApiKey: false },
-    });
-    onError(
-      "No hay API key de Anthropic configurada.\n\n" +
-      "Agrega esta línea a tu archivo .env.local:\n" +
-      "VITE_ANTHROPIC_API_KEY=sk-ant-tu-clave-aqui\n\n" +
-      "Luego reinicia el servidor de desarrollo."
-    );
-    return;
-  }
-
   const textoUnidad = serializarUnidad(unidad);
   const prompt = `Realiza la AUDITORÍA PEDAGÓGICA AVANZADA completa de la siguiente Unidad de Aprendizaje generada por DocenteOS.
 
@@ -228,138 +210,45 @@ Ejecuta:
 
 ${textoUnidad}`;
 
-  let response;
-  try {
-    response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-allow-browser": "true",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 8000,
-        stream: true,
-        system: PROMPT_MAESTRO,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-  } catch (err) {
-    await registrarEventoAuditoria({
-      tipo: "ia",
-      evento: "auditoria_error_red",
-      modulo: "auditoria-ia",
-      detalle: { mensaje: err.message },
-    });
-    onError(`Error de red: ${err.message}`);
-    return;
-  }
-
-  if (!response.ok) {
-    let msg = `Error ${response.status}`;
-    try {
-      const body = await response.json();
-      msg = body?.error?.message || msg;
-    } catch {
-      // Mantener mensaje HTTP por defecto.
-    }
-    await registrarEventoIA({
-      modulo: "auditoria-ia",
-      accion: "auditar-unidad",
-      prompt,
-      respuesta: "",
-      estado: "error",
-      meta: { status: response.status, mensaje: msg },
-    });
-    await registrarEventoAuditoria({
-      tipo: "ia",
-      evento: "auditoria_http_error",
-      modulo: "auditoria-ia",
-      detalle: { status: response.status, mensaje: msg },
-    });
-    onError(msg);
-    return;
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const data = line.slice(6).trim();
-        if (data === "[DONE]") { onFinish(); return; }
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.type === "content_block_delta" && parsed.delta?.text) {
-            respuestaAcumulada += parsed.delta.text;
-            onChunk(parsed.delta.text);
-          }
-          if (parsed.type === "message_stop") {
-            await registrarEventoIA({
-              modulo: "auditoria-ia",
-              accion: "auditar-unidad",
-              prompt,
-              respuesta: respuestaAcumulada,
-              estado: "exito",
-              meta: { fuente: "anthropic", longitudRespuesta: respuestaAcumulada.length },
-            });
-            await registrarEventoAuditoria({
-              tipo: "ia",
-              evento: "auditoria_exitosa",
-              modulo: "auditoria-ia",
-              detalle: { longitudRespuesta: respuestaAcumulada.length },
-            });
-            onFinish();
-            return;
-          }
-        } catch {
-          // Ignorar eventos SSE no parseables.
-        }
-      }
-    }
-  } catch (err) {
-    await registrarEventoIA({
-      modulo: "auditoria-ia",
-      accion: "auditar-unidad",
-      prompt,
-      respuesta: respuestaAcumulada,
-      estado: "error",
-      meta: { mensaje: err.message },
-    });
-    await registrarEventoAuditoria({
-      tipo: "ia",
-      evento: "auditoria_error_stream",
-      modulo: "auditoria-ia",
-      detalle: { mensaje: err.message },
-    });
-    onError(`Error durante la lectura del stream: ${err.message}`);
-    return;
-  }
-
-  await registrarEventoIA({
-    modulo: "auditoria-ia",
-    accion: "auditar-unidad",
+  await AIService.generate({
+    module: "auditoria-ia",
     prompt,
-    respuesta: respuestaAcumulada,
-    estado: "exito",
-    meta: { fuente: "anthropic", longitudRespuesta: respuestaAcumulada.length },
+    system: PROMPT_MAESTRO,
+    maxTokens: 8000,
+    onChunk,
+    onFinish: async (respuesta) => {
+      await registrarEventoIA({
+        modulo: "auditoria-ia",
+        accion: "auditar-unidad",
+        prompt,
+        respuesta,
+        estado: "exito",
+        meta: { longitudRespuesta: respuesta.length },
+      });
+      await registrarEventoAuditoria({
+        tipo: "ia",
+        evento: "auditoria_exitosa",
+        modulo: "auditoria-ia",
+        detalle: { longitudRespuesta: respuesta.length },
+      });
+      onFinish();
+    },
+    onError: async (msg) => {
+      await registrarEventoIA({
+        modulo: "auditoria-ia",
+        accion: "auditar-unidad",
+        prompt,
+        respuesta: "",
+        estado: "error",
+        meta: { mensaje: msg },
+      });
+      await registrarEventoAuditoria({
+        tipo: "ia",
+        evento: "auditoria_error",
+        modulo: "auditoria-ia",
+        detalle: { mensaje: msg },
+      });
+      onError(msg);
+    },
   });
-  await registrarEventoAuditoria({
-    tipo: "ia",
-    evento: "auditoria_exitosa",
-    modulo: "auditoria-ia",
-    detalle: { longitudRespuesta: respuestaAcumulada.length },
-  });
-  onFinish();
 };

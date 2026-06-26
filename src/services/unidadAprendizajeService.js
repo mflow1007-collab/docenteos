@@ -1224,39 +1224,59 @@ export const generarUnidadAprendizaje = (datos) => {
 
 // ─── Formateador HTML para PDF ────────────────────────────────────────────────
 
-export const formatearUnidadHTML = (unidad) => {
+export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   if (!unidad) return "";
   const m = unidad.metadatos || {};
 
   const estilos = `
-    body { font-family: Arial, sans-serif; font-size: 11px; color: #111; margin: 0; }
-    .page { width: 100%; max-width: 900px; margin: 0 auto; padding: 20px; box-sizing: border-box; }
-    h1 { font-size: 14px; text-align: center; color: #1e3a8a; margin: 0 0 4px; }
-    .sub { font-size: 12px; text-align: center; color: #1d4ed8; margin: 0 0 16px; font-weight: bold; }
+    body { font-family: 'Book Antiqua', Palatino, 'Palatino Linotype', serif; font-size: 12pt; line-height: 1.15; color: #111; margin: 0; }
+    p { margin: 0 0 3pt; }
+    .page { width: 100%; max-width: 1120px; margin: 0 auto; padding: 20px; box-sizing: border-box; }
+    .header-minerd { text-align: center; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 2px solid #1e3a8a; }
+    .header-minerd img { display: block; margin: 0 auto 10px; width: 220px; max-width: 65mm; height: auto; }
+    h1 { font-size: 16pt; font-weight: bold; text-align: center; color: #1e3a8a; margin: 0 0 3pt; }
+    .sub { font-size: 14pt; font-weight: bold; text-align: center; color: #1d4ed8; margin: 0; }
     .datos-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-    .datos-table td { border: 1px solid #93c5fd; padding: 4px 8px; font-size: 10px; }
-    .datos-table .lbl { background: #dbeafe; font-weight: bold; width: 160px; }
-    .section-head { background: #1d4ed8; color: white; padding: 5px 10px; font-weight: bold; font-size: 11px; margin: 10px 0 0; }
+    .datos-table td { border: 1px solid #93c5fd; padding: 4px 8px; font-size: 12pt; }
+    .datos-table .lbl { background: #dbeafe; font-weight: bold; width: 160px; font-size: 11pt; }
+    .section-head { background: #1d4ed8; color: white; padding: 5px 10px; font-weight: bold; font-size: 11pt; margin: 10px 0 0; }
     .contenidos { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; margin-bottom: 12px; }
     .cont-col { border: 1px solid #93c5fd; }
-    .cont-head { background: #bfdbfe; padding: 4px 8px; font-weight: bold; font-size: 10px; }
-    .cont-list { padding: 4px 8px 4px 18px; margin: 0; font-size: 10px; }
-    .fase-band { background: #1e3a5f; color: white; padding: 6px 10px; font-weight: bold; font-size: 11px; margin-top: 18px; page-break-before: auto; }
-    .est-band { background: #2563eb; color: white; padding: 4px 10px; font-size: 10px; }
-    .semana-band { background: #3b82f6; color: white; padding: 5px 10px; font-weight: bold; font-size: 11px; margin-top: 12px; }
-    .intencion-band { background: #eff6ff; border: 1px solid #93c5fd; padding: 5px 10px; font-size: 10px; margin-bottom: 6px; }
+    .cont-head { background: #bfdbfe; padding: 4px 8px; font-weight: bold; font-size: 11pt; }
+    .cont-list { padding: 4px 8px 4px 18px; margin: 0; font-size: 12pt; }
+    .fase-band { background: #1e3a5f; color: white; padding: 6px 10px; font-weight: bold; font-size: 11pt; margin-top: 18px; }
+    .est-band { background: #2563eb; color: white; padding: 4px 10px; font-size: 10pt; }
+    .semana-band { background: #3b82f6; color: white; padding: 5px 10px; font-weight: bold; font-size: 11pt; margin-top: 12px; }
+    .intencion-band { background: #eff6ff; border: 1px solid #93c5fd; padding: 5px 10px; font-size: 12pt; margin-bottom: 6px; }
     .dia-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    .dia-table th { background: #1d4ed8; color: white; padding: 5px; font-size: 10px; border: 1px solid #1e40af; text-align: left; }
-    .dia-table td { border: 1px solid #93c5fd; padding: 4px 6px; font-size: 10px; vertical-align: top; }
+    .dia-table th { background: #1d4ed8; color: white; padding: 5px; font-size: 11pt; font-weight: bold; border: 1px solid #1e40af; text-align: left; }
+    .dia-table td { border: 1px solid #93c5fd; padding: 4px 6px; font-size: 12pt; vertical-align: top; }
     .td-momento { background: #f0f9ff; font-weight: bold; text-align: center; width: 65px; }
     .td-tiempo { text-align: center; width: 55px; }
     .td-meta { background: #d1fae5; font-style: italic; }
     .meta-lbl { font-weight: bold; font-style: normal; color: #065f46; }
     .neae-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; margin-bottom: 8px; }
     .neae-col { border: 1px solid #e2e8f0; }
-    .neae-head { background: #f1f5f9; padding: 3px 8px; font-weight: bold; font-size: 10px; }
-    .neae-body { padding: 3px 8px; font-size: 10px; }
-    @media print { .page { padding: 10px; } .fase-band { page-break-before: always; } }
+    .neae-head { background: #f1f5f9; padding: 3px 8px; font-weight: bold; font-size: 11pt; }
+    .neae-body { padding: 3px 8px; font-size: 10pt; }
+    .texto-seccion { border: 1px solid #93c5fd; padding: 8px 10px; font-size: 12pt; font-weight: normal; line-height: 1.3; text-align: justify; height: auto; min-height: 40px; margin-bottom: 8px; }
+    @page { size: A4 landscape; margin: 12mm; }
+    @media print {
+      .page { padding: 0; max-width: 100%; }
+      .header-minerd { break-after: avoid; page-break-after: avoid; }
+      button { display: none !important; }
+      [style*="position:fixed"] { display: none !important; }
+      thead { display: table-header-group; }
+      thead tr { break-inside: avoid; page-break-inside: avoid; }
+      tbody tr { break-inside: auto; page-break-inside: auto; }
+      .dia-table { break-inside: auto; page-break-inside: auto; margin-bottom: 6px; }
+      .semana-band { break-after: avoid; page-break-after: avoid; }
+      .intencion-band { break-after: avoid; page-break-after: avoid; }
+      .fase-band { break-before: auto; page-break-before: auto; break-after: avoid; page-break-after: avoid; }
+      .section-head { break-after: avoid; page-break-after: avoid; }
+      .neae-grid { break-inside: auto; page-break-inside: auto; }
+      .neae-col { break-inside: auto; page-break-inside: auto; }
+    }
   `;
 
   const fasesHtml = (unidad.fasesSemanales || []).map((fase) => {
@@ -1288,14 +1308,22 @@ export const formatearUnidadHTML = (unidad) => {
         <div class="semana-band">FASE ${fase.numero} — CLASE ${dia.numeroGlobal} (Sem. ${dia.semana}, ${dia.diaCalendario}${dia.mostrarHora ? " H" + dia.hora : ""}): "${dia.titulo}"</div>
         <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${dia.intencionPedagogica}</div>
         <table class="dia-table">
+          <colgroup>
+            <col style="width:65px">
+            <col style="width:50px">
+            <col>
+            <col style="width:15%">
+            <col style="width:15%">
+            <col style="width:13%">
+          </colgroup>
           <thead>
             <tr>
-              <th style="width:65px">Momento</th>
-              <th style="width:55px">Tiempo</th>
+              <th>Momento</th>
+              <th>Tiempo</th>
               <th>Actividades</th>
-              <th style="width:16%">Evidencias:</th>
-              <th style="width:16%">Evaluación</th>
-              <th style="width:14%">Recursos</th>
+              <th>Evidencias</th>
+              <th>Evaluación</th>
+              <th>Recursos</th>
             </tr>
           </thead>
           <tbody>${momentosHtml}</tbody>
@@ -1332,8 +1360,11 @@ export const formatearUnidadHTML = (unidad) => {
 <head><meta charset="UTF-8"><title>Unidad de Aprendizaje — ${m.titulo}</title>
 <style>${estilos}</style></head>
 <body><div class="page">
-  <h1>MINISTERIO DE EDUCACIÓN DE LA REPÚBLICA DOMINICANA</h1>
-  <div class="sub">PLANIFICACIÓN: UNIDAD DE APRENDIZAJE</div>
+  <div class="header-minerd">
+    ${logoUrl ? `<img src="${logoUrl}" alt="Logo MINERD" onerror="this.style.display='none'">` : ""}
+    <h1>MINISTERIO DE EDUCACIÓN DE LA REPÚBLICA DOMINICANA</h1>
+    <div class="sub">PLANIFICACIÓN: UNIDAD DE APRENDIZAJE</div>
+  </div>
 
   <div class="section-head">DATOS GENERALES</div>
   <table class="datos-table">
@@ -1352,9 +1383,9 @@ export const formatearUnidadHTML = (unidad) => {
   </table>
 
   <div class="section-head">SITUACIÓN DE APRENDIZAJE</div>
-  <div style="border:1px solid #93c5fd;padding:6px 10px;font-size:10px;margin-bottom:8px">${unidad.situacionAprendizaje}</div>
+  <div class="texto-seccion">${unidad.situacionAprendizaje}</div>
   <div class="section-head">AMBIENTE DE APRENDIZAJE</div>
-  <div style="border:1px solid #93c5fd;padding:6px 10px;font-size:10px;margin-bottom:8px">${unidad.ambienteAprendizaje}</div>
+  <div class="texto-seccion">${unidad.ambienteAprendizaje}</div>
 
   <div class="section-head">CONTENIDOS</div>
   <div class="contenidos">

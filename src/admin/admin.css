@@ -833,3 +833,158 @@
 @media (max-width: 500px) {
   .admin-stats-grid { grid-template-columns: 1fr; }
 }
+
+/* ── AI Gateway — Provider Cards ─────────────────────────────────────────── */
+
+.ai-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.ai-provider-card {
+  background: var(--adm-surface2);
+  border: 1px solid var(--adm-border);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+
+.ai-provider-card--off {
+  opacity: 0.6;
+}
+
+.ai-provider-card--ok {
+  border-color: var(--adm-success);
+}
+
+.ai-prov-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-prov-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--adm-text);
+}
+
+.ai-prov-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.ai-prov-priority {
+  font-size: 11px;
+  color: var(--adm-dim);
+  margin-top: 4px;
+  margin-left: 18px;
+}
+
+.ai-prov-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--adm-info-bg);
+  color: var(--adm-info);
+  border: 1px solid var(--adm-info);
+  white-space: nowrap;
+}
+
+.ai-prov-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.ai-prov-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.ai-prov-label {
+  color: var(--adm-dim);
+  flex-shrink: 0;
+}
+
+.ai-prov-val {
+  color: var(--adm-text);
+  font-size: 12px;
+  text-align: right;
+}
+
+.ai-prov-val code {
+  font-size: 11px;
+  background: var(--adm-surface3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--adm-accent);
+}
+
+.ai-test-ok {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--adm-success);
+  padding: 6px 10px;
+  background: var(--adm-success-bg);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.ai-test-fail {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--adm-danger);
+  padding: 6px 10px;
+  background: var(--adm-danger-bg);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.ai-test-btn {
+  width: 100%;
+  padding: 8px 14px;
+  background: var(--adm-surface3);
+  border: 1px solid var(--adm-border2);
+  border-radius: 8px;
+  color: var(--adm-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ai-test-btn:hover:not(:disabled) {
+  background: var(--adm-accent);
+  border-color: var(--adm-accent);
+  color: #fff;
+}
+
+.ai-test-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .ai-provider-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 560px) {
+  .ai-provider-grid { grid-template-columns: 1fr; }
+}

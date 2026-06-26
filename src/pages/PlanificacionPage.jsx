@@ -185,7 +185,6 @@ export default function PlanificacionPage() {
       win.document.write(html);
       win.document.close();
       win.focus();
-      win.print();
     } catch (error) {
       setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
     }
@@ -319,7 +318,8 @@ export default function PlanificacionPage() {
   const manejarDescargarUnidad = () => {
     if (!unidad) return;
     try {
-      const html = formatearUnidadHTML(unidad);
+      const logoUrl = `${window.location.origin}/logo-minerd.svg`;
+      const html = formatearUnidadHTML(unidad, logoUrl);
       const iframe = document.createElement("iframe");
       iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;border:0;visibility:hidden";
       document.body.appendChild(iframe);
@@ -329,10 +329,19 @@ export default function PlanificacionPage() {
       doc.write(html);
       doc.close();
       iframe.contentWindow.focus();
-      setTimeout(() => {
+      const dispararImpresion = () => {
         iframe.contentWindow?.print();
         setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 10000);
-      }, 400);
+      };
+      const imgs = Array.from(doc.querySelectorAll("img"));
+      if (imgs.length === 0) {
+        setTimeout(dispararImpresion, 300);
+      } else {
+        let pendientes = imgs.length;
+        const onDone = () => { if (--pendientes === 0) dispararImpresion(); };
+        imgs.forEach((img) => { img.onload = onDone; img.onerror = onDone; });
+        setTimeout(dispararImpresion, 1800); // fallback máximo
+      }
       setMensajeUnidad({
         tipo: "info",
         texto: "🖨️ Se abrirá el diálogo de impresión → en 'Destino' elige 'Guardar como PDF' → clic en Guardar.",
@@ -346,7 +355,8 @@ export default function PlanificacionPage() {
   const manejarVerUnidad = () => {
     if (!unidad) return;
     try {
-      const html = formatearUnidadHTML(unidad);
+      const logoUrl = `${window.location.origin}/logo-minerd.svg`;
+      const html = formatearUnidadHTML(unidad, logoUrl);
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const win = window.open(url, "_blank");
@@ -1049,7 +1059,6 @@ export default function PlanificacionPage() {
       ventanaImpresion.document.write(contenidoHtml);
       ventanaImpresion.document.close();
       ventanaImpresion.focus();
-      ventanaImpresion.print();
 
       const temaParaMetricas = planificacion?.metadatos?.tema || tema;
       if (temaParaMetricas) {

@@ -589,30 +589,38 @@ export const formatearPlanDiarioHTML = (plan) => {
 
   const css = `
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 9.5px; color: #111; padding: 10mm; }
-    h1 { text-align: center; font-size: 12px; color: #1d4ed8; margin-bottom: 4px; }
-    h2 { text-align: center; font-size: 10px; color: #374151; margin-bottom: 10px; }
-    h3 { font-size: 10px; background: #dbeafe; color: #1e40af; padding: 4px 6px; margin: 12px 0 4px; border-left: 4px solid #2563eb; }
-    h4 { font-size: 9px; background: #e0f2fe; padding: 3px 6px; margin: 8px 0 3px; }
+    body { font-family: 'Book Antiqua', Palatino, 'Palatino Linotype', serif; font-size: 12pt; line-height: 1.15; color: #111; padding: 10mm; }
+    h1 { text-align: center; font-size: 16pt; font-weight: bold; color: #1d4ed8; margin-bottom: 3pt; }
+    h2 { text-align: center; font-size: 14pt; font-weight: bold; color: #374151; margin-bottom: 10px; }
+    h3 { font-size: 11pt; font-weight: bold; background: #dbeafe; color: #1e40af; padding: 4px 6px; margin: 12px 0 3pt; border-left: 4px solid #2563eb; }
+    h4 { font-size: 11pt; font-weight: bold; background: #e0f2fe; padding: 3px 6px; margin: 8px 0 3pt; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-    th, td { border: 1px solid #94a3b8; padding: 4px 6px; vertical-align: top; font-size: 8.5px; }
-    th { background: #1d4ed8; color: #fff; text-align: center; font-size: 8px; }
-    .sec-header { background: #1e3a8a; color: #fff; text-align: center; font-size: 9px; font-weight: bold; }
-    .lbl { background: #dbeafe; color: #1e40af; font-weight: bold; width: 120px; }
-    .momento-cell { background: #eff6ff; font-size: 9px; width: 55px; text-align: center; }
-    .tiempo-cell { text-align: center; width: 45px; }
+    th, td { border: 1px solid #94a3b8; padding: 4px 6px; vertical-align: top; font-size: 12pt; }
+    th { background: #1d4ed8; color: #fff; text-align: center; font-size: 11pt; font-weight: bold; }
+    .sec-header { background: #1e3a8a; color: #fff; text-align: center; font-size: 11pt; font-weight: bold; }
+    .lbl { background: #dbeafe; color: #1e40af; font-weight: bold; width: 120px; font-size: 11pt; }
+    .momento-cell { background: #eff6ff; font-size: 11pt; width: 55px; text-align: center; }
+    .tiempo-cell { text-align: center; width: 45px; font-size: 12pt; }
     .cb-cell { text-align: center; }
     .comp-cb { display: inline-block; margin: 2px; }
     ul { margin: 3px 0 3px 14px; }
-    li { margin: 1px 0; }
-    p { margin: 2px 0; }
+    li { margin: 0 0 3pt; }
+    p { margin: 0 0 3pt; }
     em { font-style: italic; color: #374151; }
     .firma { display: flex; justify-content: space-between; margin-top: 24px; }
-    .firma-line { text-align: center; width: 200px; }
+    .firma-line { text-align: center; width: 200px; font-size: 10pt; }
     .firma-line hr { margin: 32px 0 4px; border: none; border-top: 1px solid #111; }
     .nivel3 { background: #dcfce7; } .nivel2 { background: #fef9c3; } .nivel1 { background: #fee2e2; }
-    @page { size: A4 portrait; margin: 10mm; }
-    @media print { body { padding: 0; } }
+    @page { size: A4 portrait; margin: 10mm 12mm; }
+    @media print {
+      body { padding: 0; }
+      thead { display: table-header-group; }
+      thead tr { break-inside: avoid; page-break-inside: avoid; }
+      tbody tr { break-inside: auto; page-break-inside: auto; }
+      h3 { break-after: avoid; page-break-after: avoid; }
+      h4 { break-after: avoid; page-break-after: avoid; }
+      table { break-inside: auto; page-break-inside: auto; }
+    }
   `;
 
   const rubricaHTML = (ie.criteriosRubrica || []).map((c) =>
@@ -691,14 +699,18 @@ export const formatearPlanDiarioHTML = (plan) => {
 
 <h3>DESARROLLO DE LA CLASE</h3>
 <table>
-  <tr>
-    ${th("Momento")}${th("Tiempo")}${th("Actividades")}
-    <th>Evaluación<br><small>(Evidencias · Técnicas e Instrumentos)</small></th>
-    ${th("Metacognición")}${th("Recursos")}
-  </tr>
-  ${buildMomentoRow("Inicio", dc.inicio)}
-  ${buildMomentoRow("Desarrollo", dc.desarrollo)}
-  ${buildMomentoRow("Cierre", dc.cierre)}
+  <thead>
+    <tr>
+      ${th("Momento")}${th("Tiempo")}${th("Actividades")}
+      <th>Evaluación<br><small>(Evidencias · Técnicas e Instrumentos)</small></th>
+      ${th("Metacognición")}${th("Recursos")}
+    </tr>
+  </thead>
+  <tbody>
+    ${buildMomentoRow("Inicio", dc.inicio)}
+    ${buildMomentoRow("Desarrollo", dc.desarrollo)}
+    ${buildMomentoRow("Cierre", dc.cierre)}
+  </tbody>
 </table>
 
 <h3>ADAPTACIONES (Para estudiantes con NEAE — si aplica)</h3>

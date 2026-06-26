@@ -1085,9 +1085,14 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
 
   const crearFormCurso = useCallback((curso = null) => {
     const nivel = curso?.nivel || "Secundaria";
+    const duracionClaseMinutos =
+      nivel === "Primaria"
+        ? 45
+        : (curso?.duracionClaseMinutos || (curso?.jornadaTipo === "Secundaria" ? 50 : 50));
     return {
       nivel,
-      jornadaTipo: curso?.jornadaTipo || nivel,
+      duracionClaseMinutos,
+      jornadaTipo: nivel === "Primaria" ? "Primaria" : duracionClaseMinutos === 45 ? "Primaria" : "Secundaria",
       grado: curso?.nombre?.split(" ").slice(0, 2).join(" ") || CURSOS_GRADOS_POR_NIVEL[nivel][0],
       area: curso?.area || CURSOS_ASIGNATURAS_BASE[0],
       seccion: curso?.seccion || (curso?.nombre?.split(" ").slice(-1)[0] || "A"),
@@ -1138,6 +1143,8 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
     const nombre = `${formCurso.grado} ${formCurso.seccion}`;
     const baseCurso = cursoEnEdicion || {};
     const estudiantes = Number(formCurso.estudiantes);
+    const duracionClaseMinutos = formCurso.nivel === "Primaria" ? 45 : (formCurso.duracionClaseMinutos || 50);
+    const jornadaTipo = formCurso.nivel === "Primaria" ? "Primaria" : duracionClaseMinutos === 45 ? "Primaria" : "Secundaria";
     const promedioBase = baseCurso.promedio ?? (formCurso.area === "Inglés" ? 84 : 80);
     const promedio = cursoEnEdicion ? promedioBase : Math.max(60, Math.min(96, formCurso.area === "Inglés" ? 84 : 82));
     const estudiantesDetalle = cursoEnEdicion
@@ -1170,7 +1177,8 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
       nombre,
       area: formCurso.area,
       nivel: formCurso.nivel,
-      jornadaTipo: formCurso.jornadaTipo,
+      jornadaTipo,
+      duracionClaseMinutos,
       seccion: formCurso.seccion,
       estudiantes,
       promedio,
@@ -1189,8 +1197,8 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
       estudiantesDetalle,
       horario: normalizarHorarioCurso(
         cursoEnEdicion
-          ? baseCurso.horario || crearHorarioPorJornada(formCurso.jornadaTipo, formCurso.nivel)
-          : crearHorarioPorJornada(formCurso.jornadaTipo, formCurso.nivel)
+          ? baseCurso.horario || crearHorarioPorJornada(jornadaTipo, formCurso.nivel)
+          : crearHorarioPorJornada(jornadaTipo, formCurso.nivel)
       ),
     };
 
@@ -1350,10 +1358,12 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
                   value={formCurso.nivel}
                   onChange={(e) => {
                     const nextNivel = e.target.value;
+                    const nextDuracion = nextNivel === "Primaria" ? 45 : 50;
                     setFormCurso((prev) => ({
                       ...prev,
                       nivel: nextNivel,
-                      jornadaTipo: prev.jornadaTipo === "Personalizada" ? "Personalizada" : nextNivel,
+                      duracionClaseMinutos: nextDuracion,
+                      jornadaTipo: nextNivel === "Primaria" ? "Primaria" : "Secundaria",
                       grado: gradosPorNivel[nextNivel][0],
                     }));
                   }}
@@ -1363,27 +1373,39 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
                 </select>
               </label>
 
-              <label>
-                Tipo de Jornada
-                <div className="jornada-radio-group">
-                  {[
-                    { value: "Primaria", label: "Primaria (45 minutos)" },
-                    { value: "Secundaria", label: "Secundaria (50 minutos)" },
-                    { value: "Personalizada", label: "Personalizada" },
-                  ].map((opcion) => (
-                    <label key={opcion.value} className="jornada-radio-option">
-                      <input
-                        type="radio"
-                        name="jornadaTipo"
-                        value={opcion.value}
-                        checked={formCurso.jornadaTipo === opcion.value}
-                        onChange={(e) => setFormCurso((prev) => ({ ...prev, jornadaTipo: e.target.value }))}
-                      />
-                      {opcion.label}
-                    </label>
-                  ))}
-                </div>
-              </label>
+              {formCurso.nivel === "Secundaria" ? (
+                <label>
+                  Duración de clase
+                  <div className="jornada-radio-group">
+                    {[
+                      { value: 45, label: "45 minutos" },
+                      { value: 50, label: "50 minutos" },
+                    ].map((opcion) => (
+                      <label key={opcion.value} className="jornada-radio-option">
+                        <input
+                          type="radio"
+                          name="duracionClaseMinutos"
+                          value={opcion.value}
+                          checked={formCurso.duracionClaseMinutos === opcion.value}
+                          onChange={() =>
+                            setFormCurso((prev) => ({
+                              ...prev,
+                              duracionClaseMinutos: opcion.value,
+                              jornadaTipo: opcion.value === 45 ? "Primaria" : "Secundaria",
+                            }))
+                          }
+                        />
+                        {opcion.label}
+                      </label>
+                    ))}
+                  </div>
+                </label>
+              ) : (
+                <label>
+                  Duración de clase
+                  <p className="duracion-fija-nota">45 minutos (Primaria)</p>
+                </label>
+              )}
 
               <label>
                 Grado
@@ -1532,8 +1554,8 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
     return `${h12}:${mStr} ${periodo}`;
   };
 
-  const construirHorarioClasePredeterminado = (nivel, cursoNombre, areaNombre, horarioBase = []) => {
-    const duracionClase = nivel === "Secundaria" ? 50 : 45;
+  const construirHorarioClasePredeterminado = (nivelODuracion, cursoNombre, areaNombre, horarioBase = []) => {
+    const duracionClase = typeof nivelODuracion === "number" ? nivelODuracion : nivelODuracion === "Secundaria" ? 50 : 45;
     let cursor = 8 * 60;
     const cursoTexto = `${cursoNombre} · ${areaNombre}`;
 
@@ -1560,7 +1582,10 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
   const [horarioClaseEditable, setHorarioClaseEditable] = useState(() =>
     Array.isArray(data.horarioClase) && data.horarioClase.length > 0
       ? data.horarioClase
-      : construirHorarioClasePredeterminado(data.nivel, data.nombre, data.area, normalizarHorarioCurso(data.horario || []))
+      : construirHorarioClasePredeterminado(data.duracionClaseMinutos || data.nivel || 45, data.nombre, data.area, normalizarHorarioCurso(data.horario || []))
+  );
+  const [duracionModal, setDuracionModal] = useState(
+    data.nivel === "Primaria" ? 45 : (data.duracionClaseMinutos || 50)
   );
   const [diaVistaHorario, setDiaVistaHorario] = useState("");
   const [diaHorarioListo, setDiaHorarioListo] = useState(false);
@@ -1580,7 +1605,7 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
       horarioClaseEditable.map((fila, idx) => ({
         id: `h-${idx + 1}`,
         tipo: fila.tipo || "clase",
-        nombre: fila.horaAcademica || `Bloque ${idx + 1}`,
+        nombre: fila.bloque || fila.horaAcademica || `Bloque ${idx + 1}`,
         inicio: fila.inicio,
         fin: fila.fin,
       }))
@@ -1592,10 +1617,11 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
         ...data,
         horario: nuevoHorarioCurso,
         horarioClase: horarioClaseEditable,
+        duracionClaseMinutos: duracionModal,
       })
     );
     setMostrarModalHorarioClase(false);
-    setMensajeHorario({ tipo: "success", texto: "Horario de clase actualizado localmente" });
+    setMensajeHorario({ tipo: "success", texto: "Horario de clase actualizado" });
   };
 
   const hoy = new Date();
@@ -1859,8 +1885,8 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
               <span className="horario-pill ahora">{estadoClasePrincipal}</span>
               {clasePrincipal ? (
                 <>
-                  <p className="horario-linea-fuerte">{clasePrincipal.horaAcademica} · {aHora12(clasePrincipal.inicio)} - {aHora12(clasePrincipal.fin)}</p>
-                  <p className="horario-linea-suave">{clasePrincipal.curso || `${data.nombre} · ${data.area}`}</p>
+                  <p className="horario-linea-fuerte">{clasePrincipal.bloque || clasePrincipal.horaAcademica} · {aHora12(clasePrincipal.inicio)} - {aHora12(clasePrincipal.fin)}</p>
+                  <p className="horario-linea-suave">{clasePrincipal.cursoAsignatura || clasePrincipal.curso || `${data.nombre} · ${data.area}`}</p>
                   <p className="horario-linea-suave">{clasePrincipal.aula || "Aula por definir"}</p>
                 </>
               ) : (
@@ -1872,8 +1898,8 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
               <span className="horario-pill siguiente">Siguiente curso</span>
               {claseSiguiente ? (
                 <>
-                  <p className="horario-linea-fuerte">{claseSiguiente.horaAcademica} · {aHora12(claseSiguiente.inicio)} - {aHora12(claseSiguiente.fin)}</p>
-                  <p className="horario-linea-suave">{claseSiguiente.curso || `${data.nombre} · ${data.area}`}</p>
+                  <p className="horario-linea-fuerte">{claseSiguiente.bloque || claseSiguiente.horaAcademica} · {aHora12(claseSiguiente.inicio)} - {aHora12(claseSiguiente.fin)}</p>
+                  <p className="horario-linea-suave">{claseSiguiente.cursoAsignatura || claseSiguiente.curso || `${data.nombre} · ${data.area}`}</p>
                   <p className="horario-linea-suave">{claseSiguiente.aula || "Aula por definir"}</p>
                 </>
               ) : (
@@ -2118,17 +2144,42 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
 
       {mostrarModalHorarioClase && (
         <div className="modal-overlay" onClick={() => setMostrarModalHorarioClase(false)}>
-          <div className="modal-curso modal-horario-clase" onClick={(e) => e.stopPropagation()}>
-            <h2>🕒 Configurar horario</h2>
-            <div className="preset-horario-row">
-              <span>Horario predeterminado:</span>
-              <button type="button" onClick={() => aplicarPresetHorarioClase("Primaria")}>Primaria (45 min)</button>
-              <button type="button" onClick={() => aplicarPresetHorarioClase("Secundaria")}>Secundaria (50 min)</button>
+          <div className="modal-horario-clase" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-horario-header">
+              <h2>Configurar horario</h2>
+              <div className="preset-horario-row">
+                <span>Duración de clase:</span>
+                {data.nivel === "Primaria" ? (
+                  <span className="preset-duracion-fija">45 minutos</span>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className={duracionModal === 45 ? "preset-activo" : ""}
+                      onClick={() => { setDuracionModal(45); aplicarPresetHorarioClase(45); }}
+                    >45 min</button>
+                    <button
+                      type="button"
+                      className={duracionModal === 50 ? "preset-activo" : ""}
+                      onClick={() => { setDuracionModal(50); aplicarPresetHorarioClase(50); }}
+                    >50 min</button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="horario-config-header-cols">
+              <span>Día</span>
+              <span>Bloque</span>
+              <span>Hora inicio</span>
+              <span>Hora fin</span>
+              <span>Curso / Asignatura</span>
+              <span>Aula</span>
             </div>
 
             <div className="horario-config-lista">
               {horarioClaseEditable.map((fila) => (
-                <article key={fila.id} className="horario-config-item">
+                <article key={fila.id} className={`horario-config-item${fila.tipo !== "clase" ? " horario-config-item--break" : ""}`}>
                   <select value={fila.dia} onChange={(e) => actualizarFilaHorarioClase(fila.id, "dia", e.target.value)}>
                     {diasSemana.map((dia) => (
                       <option key={dia} value={dia}>{dia}</option>
@@ -2136,29 +2187,31 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
                   </select>
                   <input
                     type="text"
-                    value={fila.horaAcademica}
-                    onChange={(e) => actualizarFilaHorarioClase(fila.id, "horaAcademica", e.target.value)}
-                    placeholder="Hora académica"
+                    value={fila.bloque || fila.horaAcademica || ""}
+                    onChange={(e) => actualizarFilaHorarioClase(fila.id, "bloque", e.target.value)}
+                    placeholder="Bloque"
                   />
                   <input type="time" value={fila.inicio} onChange={(e) => actualizarFilaHorarioClase(fila.id, "inicio", e.target.value)} />
                   <input type="time" value={fila.fin} onChange={(e) => actualizarFilaHorarioClase(fila.id, "fin", e.target.value)} />
                   <input
                     type="text"
-                    value={fila.curso}
-                    onChange={(e) => actualizarFilaHorarioClase(fila.id, "curso", e.target.value)}
-                    placeholder="Curso"
+                    value={fila.cursoAsignatura || fila.curso || ""}
+                    onChange={(e) => actualizarFilaHorarioClase(fila.id, "cursoAsignatura", e.target.value)}
+                    placeholder="Curso / Asignatura"
+                    disabled={fila.tipo !== "clase"}
                   />
                   <input
                     type="text"
-                    value={fila.aula}
+                    value={fila.aula || ""}
                     onChange={(e) => actualizarFilaHorarioClase(fila.id, "aula", e.target.value)}
                     placeholder="Aula"
+                    disabled={fila.tipo !== "clase"}
                   />
                 </article>
               ))}
             </div>
 
-            <div className="modal-actions">
+            <div className="modal-horario-footer">
               <button className="modal-cancel" onClick={() => setMostrarModalHorarioClase(false)}>Cancelar</button>
               <button className="modal-save" onClick={guardarHorarioClaseModal}>Guardar horario</button>
             </div>
