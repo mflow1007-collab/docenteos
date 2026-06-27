@@ -26,7 +26,8 @@ const MENU = [
     items: [
       { id: 'gateway-ia',   icon: '🔀', label: 'Gateway de Proveedores' },
       { id: 'prompts',      icon: '✨', label: 'Banco de Prompts' },
-      { id: 'historial-ia', icon: '🕒', label: 'Historial IA' },
+      { id: 'historial-ia',      icon: '🕒', label: 'Historial IA' },
+      { id: 'entrenamiento-ia',  icon: '🧠', label: 'Entrenamiento IA' },
     ]
   },
   {

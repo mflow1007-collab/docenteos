@@ -12,9 +12,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
-import { checkBIC, indexarEnBIC } from "../services/ai/agents/AgentOrchestrator.js";
+import { indexarEnBIC } from "../services/ai/agents/AgentOrchestrator.js";
 import { adaptar as bicAdaptar } from "../services/ai/agents/AgentePlanificador.js";
 import { registrarUso as bicRegistrarUso } from "../services/ai/learning/KnowledgeBank.js";
+import { EventTracker } from "../services/ai/learning/EventTracker.js";
+import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
+import { generarPlanificacionInteligente } from "../services/ai/PlanificacionInteligente.js";
+import { extractStyle } from "../services/ai/style/StyleEngine.js";
+import { crearCasoExito } from "../services/ai/CasosExitoService.js";
 import { usePerfilInstitucional } from "../hooks/usePerfilInstitucional.js";
 import FormularioPlanificacion from "../components/FormularioPlanificacion";
 import ResultadoPlanificacion from "../components/ResultadoPlanificacion";
@@ -119,6 +124,18 @@ export default function PlanificacionPage() {
   const [bicFuente, setBicFuente] = useState(null); // "reutilizado"|"adaptado"|"generado"|"indexado"
   const [bicId, setBicId] = useState(null);
 
+  // ── Entrenar IA ───────────────────────────────────────────────────────────
+  const [guardandoEstilo,    setGuardandoEstilo]    = useState(false);
+  const [guardandoCasoExito, setGuardandoCasoExito] = useState(false);
+  const [mensajeEntrenar,    setMensajeEntrenar]    = useState(null);
+  const [bannerEntrenar,     setBannerEntrenar]     = useState(false);
+
+  const _mostrarBannerEntrenar = useCallback(() => {
+    if (localStorage.getItem("doe_entrenar_visto")) return;
+    setBannerEntrenar(true);
+    localStorage.setItem("doe_entrenar_visto", "1");
+  }, []);
+
   const ejecutarGenerarDiario = () => {
     const indicadoresCustom = planDiarioDatos.indicadoresTexto
       ? planDiarioDatos.indicadoresTexto.split("\n").map((l) => l.trim()).filter(Boolean)
@@ -187,6 +204,14 @@ export default function PlanificacionPage() {
     setGuardandoDiario(true);
     try {
       await guardarPlanificacionDetallada(planDiario);
+      EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
+        agentId: AGENT_IDS.PLANIFICADOR,
+        area:       planDiarioDatos.area ?? null,
+        asignatura: planDiarioDatos.asignatura ?? null,
+        grado:      planDiarioDatos.grado ?? null,
+        tema:       planDiarioDatos.tema ?? null,
+        metadata:   { tipo: 'diario' }
+      });
       setMensajeDiario({ tipo: "success", texto: "✅ Plan diario guardado" });
     } catch (error) {
       setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
@@ -327,6 +352,14 @@ export default function PlanificacionPage() {
         metadatos: { ...unidad.metadatos, tema: unidad.metadatos?.titulo },
       };
       await guardarPlanificacionDetallada(payload);
+      EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
+        agentId: AGENT_IDS.PLANIFICADOR,
+        area:       unidadDatos.area ?? null,
+        asignatura: unidadDatos.asignatura ?? null,
+        grado:      unidadDatos.grado ?? null,
+        tema:       unidad.metadatos?.titulo ?? unidadDatos.tema ?? null,
+        metadata:   { tipo: 'unidad' }
+      });
       setMensajeUnidad({ tipo: "success", texto: "✅ Unidad de aprendizaje guardada" });
     } catch (error) {
       setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
@@ -810,6 +843,14 @@ export default function PlanificacionPage() {
     if (!combinacionSugerida) return;
     setTemasIntegrados(combinacionSugerida.temas);
     setCombinacionSugerida(null);
+    EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
+      agentId: AGENT_IDS.PLANIFICADOR,
+      area:       area ?? null,
+      asignatura: asignatura ?? null,
+      grado:      grado ?? null,
+      tema:       tema ?? null,
+      metadata:   { tipo: 'combinacion' }
+    });
   };
 
   const manejarIgnorarCombinacion = () => {
@@ -916,24 +957,24 @@ export default function PlanificacionPage() {
         },
       };
 
-      // ── BIC: buscar planificación reutilizable antes de gastar tokens ────
-      const bicQ = {
-        nivel: gradoData?.nivel,
-        grado, area, asignatura, competencia,
-        indicadores: indicadoresOficiales ? indicadoresOficiales.split("\n").filter(Boolean) : [],
-        tema, tipo: tipoPlanificacion,
-      };
-      const bicHit = await checkBIC("planes", bicQ).catch(() => null);
-      if (bicHit) {
+      // ── KE + BIC: flujo inteligente completo (pasos 1-7) ────────────────
+      const respuesta = await generarPlanificacionInteligente(datosValidados);
+
+      if (respuesta.tipo === "bic_hit") {
         setBicDatosValidados(datosValidados);
-        setBicBanner({ abierto: true, nivel: bicHit.nivel, candidato: bicHit.mejor, score: bicHit.score });
+        setBicBanner({
+          abierto: true,
+          nivel:      respuesta.bicHit.nivel,
+          candidato:  respuesta.bicHit.mejor,
+          score:      respuesta.bicHit.score,
+        });
         return; // finally → setCargando(false) sigue corriendo
       }
 
-      const resultado = await generarPlanificacion(datosValidados);
-      setPlanificacion(resultado);
+      setPlanificacion(respuesta.resultado);
       setBicFuente("generado");
       setBicId(null);
+      _mostrarBannerEntrenar();
 
       // Scroll al resultado
       setTimeout(() => {
@@ -1004,6 +1045,14 @@ export default function PlanificacionPage() {
         });
       }
       const resultado = await guardarPlanificacionDetallada(planificacion);
+      EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
+        agentId: AGENT_IDS.PLANIFICADOR,
+        area:       planificacion?.metadatos?.area ?? area ?? null,
+        asignatura: asignatura ?? null,
+        grado:      planificacion?.metadatos?.grado ?? grado ?? null,
+        tema:       planificacion?.metadatos?.tema ?? tema ?? null,
+        metadata:   { tipo: 'semanal' }
+      });
       await cargarHistorial({ mostrarMensajeRecuperacion: false });
       setMensaje({
         tipo: "success",
@@ -1278,8 +1327,22 @@ export default function PlanificacionPage() {
         },
       };
 
-      const resultado = await generarPlanificacion(datosValidados);
-      setPlanificacion(resultado);
+      const respuesta = await generarPlanificacionInteligente(datosValidados);
+
+      if (respuesta.tipo === "bic_hit") {
+        setBicDatosValidados(datosValidados);
+        setBicBanner({
+          abierto: true,
+          nivel:     respuesta.bicHit.nivel,
+          candidato: respuesta.bicHit.mejor,
+          score:     respuesta.bicHit.score,
+        });
+      } else {
+        setPlanificacion(respuesta.resultado);
+        setBicFuente("generado");
+        setBicId(null);
+        _mostrarBannerEntrenar();
+      }
       setMensaje({
         tipo: "success",
         texto: "✅ Nuevo tema registrado y planificación generada",
@@ -1321,7 +1384,7 @@ export default function PlanificacionPage() {
     setImagenTematicaNombre("");
   };
 
-  const ejecutarAccionIA = (accion, opciones = {}) => {
+  const ejecutarAccionIA = async (accion, opciones = {}) => {
     if (!planificacion) return;
     setIaAccion(accion);
     setIaTexto("");
@@ -1346,7 +1409,7 @@ export default function PlanificacionPage() {
       const ctxAction = accion === "corregir" ? "auditar_planificacion" : "auditar_planificacion";
 
       // Para "mejorar" reusamos auditar pero con prompt de sugerencias
-      const ctx = buildAIContext("auditar_planificacion", {
+      const ctx = await buildAIContext("auditar_planificacion", {
         grado: gradoActual,
         area: areaActual,
         tema: temaActual,
@@ -1375,7 +1438,17 @@ export default function PlanificacionPage() {
           setIaTexto((prev) => prev + chunk);
           setTimeout(() => iaRef.current?.scrollTo({ top: iaRef.current.scrollHeight, behavior: "smooth" }), 50);
         },
-        onFinish: () => setIaGenerando(false),
+        onFinish: () => {
+          setIaGenerando(false);
+          EventTracker.track(LEARNING_EVENTS.MEJORA_ACEPTADA, {
+            agentId: AGENT_IDS.AUDITOR,
+            area:       areaActual ?? null,
+            asignatura: areaActual ?? null,
+            grado:      gradoActual ?? null,
+            tema:       temaActual ?? null,
+            metadata:   { accion }
+          });
+        },
         onError:  (err) => { setIaError(err); setIaGenerando(false); },
       });
       return;
@@ -1388,7 +1461,7 @@ export default function PlanificacionPage() {
         (sem.actividades || []).slice(0, 3).map((a) => `[S${si + 1}] ${a.titulo || a.nombre || "Actividad"}`)
       );
 
-      const ctx = buildAIContext("mejorar_actividades", {
+      const ctx = await buildAIContext("mejorar_actividades", {
         grado: gradoActual,
         asignatura: areaActual,
         tema: temaActual,
@@ -1412,7 +1485,17 @@ export default function PlanificacionPage() {
           setIaTexto((prev) => prev + chunk);
           setTimeout(() => iaRef.current?.scrollTo({ top: iaRef.current.scrollHeight, behavior: "smooth" }), 50);
         },
-        onFinish: () => setIaGenerando(false),
+        onFinish: () => {
+          setIaGenerando(false);
+          EventTracker.track(LEARNING_EVENTS.PLANIFICACION_REGENERADA, {
+            agentId: AGENT_IDS.PLANIFICADOR,
+            area:       areaActual ?? null,
+            asignatura: areaActual ?? null,
+            grado:      gradoActual ?? null,
+            tema:       temaActual ?? null,
+            metadata:   { accion: 'regenerar-actividades' }
+          });
+        },
         onError:  (err) => { setIaError(err); setIaGenerando(false); },
       });
       return;
@@ -1460,7 +1543,17 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
         setIaTexto((prev) => prev + chunk);
         setTimeout(() => iaRef.current?.scrollTo({ top: iaRef.current.scrollHeight, behavior: "smooth" }), 50);
       },
-      onFinish: () => setIaGenerando(false),
+      onFinish: () => {
+        setIaGenerando(false);
+        EventTracker.track(LEARNING_EVENTS.ACTIVIDAD_MODIFICADA, {
+          agentId:    AGENT_IDS.MEJORADOR_ACTIVIDADES,
+          area:       areaActual  ?? null,
+          asignatura: areaActual  ?? null,
+          grado:      gradoActual ?? null,
+          tema:       temaActual  ?? null,
+          metadata:   { accion },
+        });
+      },
       onError:  (err) => { setIaError(err); setIaGenerando(false); },
     });
   };
@@ -1533,6 +1626,71 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
       setBicFuente("indexado");
       setMensaje({ tipo: "success", texto: "✅ Guardado en el Banco Pedagógico" });
       setTimeout(() => setMensaje(null), 3000);
+    }
+  };
+
+  // ── Handlers: Entrenar IA ─────────────────────────────────────────────────
+
+  const flashEntrenar = (texto, tipo = "success") => {
+    setMensajeEntrenar({ texto, tipo });
+    setTimeout(() => setMensajeEntrenar(null), 3500);
+  };
+
+  const manejarGuardarEstilo = async () => {
+    if (!planificacion) return;
+    setGuardandoEstilo(true);
+    try {
+      const meta  = planificacion.metadatos    || {};
+      const datos = planificacion.datosGenerales || {};
+      const temaActual = meta.tema || tema || "Sin tema";
+      const areaActual = meta.area || area || "";
+      const gradoActual = meta.grado || grado || "";
+
+      // Serializar planificacion a texto para que IA extraiga el estilo
+      const lineas = [
+        `TEMA: ${temaActual}`,
+        `ÁREA: ${areaActual}`,
+        `GRADO: ${gradoActual}`,
+        `COMPETENCIA: ${datos.competencia || ""}`,
+        "",
+        ...((planificacion.desarrolloSemanal || []).slice(0, 4).flatMap((sem, i) => [
+          `SEMANA ${i + 1} (${sem.fase || ""})`,
+          ...(sem.actividades || []).slice(0, 3).map(a =>
+            `  [${a.momento || ""}] ${a.titulo || a.nombre || "Actividad"}`
+          ),
+        ])),
+      ];
+
+      await extractStyle(lineas.join("\n"), {
+        nombre:       `${temaActual} — ${areaActual} — ${gradoActual}`,
+        asignatura:   areaActual,
+        grado:        gradoActual,
+        temaOriginal: temaActual,
+      });
+
+      flashEntrenar("Estilo guardado correctamente.");
+    } catch (err) {
+      flashEntrenar(`Error al guardar estilo: ${err.message}`, "error");
+    } finally {
+      setGuardandoEstilo(false);
+    }
+  };
+
+  const manejarConvertirCasoExito = async () => {
+    if (!planificacion) return;
+    setGuardandoCasoExito(true);
+    try {
+      await crearCasoExito({
+        planificacion,
+        planificacionId: bicId ?? null,
+        topicId:         null,
+        calificacion:    null,
+      });
+      flashEntrenar("Enviado para revisión. El administrador lo aprobará.");
+    } catch (err) {
+      flashEntrenar(`Error al convertir: ${err.message}`, "error");
+    } finally {
+      setGuardandoCasoExito(false);
     }
   };
 
@@ -1833,6 +1991,26 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
               </div>
             )}
 
+          {bannerEntrenar && (
+            <div className="doe-entrenar-banner">
+              <span className="doe-entrenar-banner-icon">🧠</span>
+              <div className="doe-entrenar-banner-body">
+                <strong>¿Quieres ayudar a mejorar DocenteOS?</strong>
+                <span>
+                  {" "}Guarda tu estilo pedagógico o convierte esta planificación en un caso de éxito.
+                  Los ejemplos aprobados entrenan la IA para todos los docentes.
+                </span>
+              </div>
+              <button
+                className="doe-entrenar-banner-close"
+                onClick={() => setBannerEntrenar(false)}
+                title="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           <ResultadoPlanificacion
             planificacion={planificacion}
             onGuardar={manejarGuardar}
@@ -1850,6 +2028,11 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             setIaMinutos={setIaMinutos}
             iaRef={iaRef}
             onLimpiarIA={() => { setIaTexto(""); setIaError(null); setIaAccion(null); }}
+            onGuardarEstilo={manejarGuardarEstilo}
+            onConvertirCasoExito={manejarConvertirCasoExito}
+            guardandoEstilo={guardandoEstilo}
+            guardandoCasoExito={guardandoCasoExito}
+            mensajeEntrenar={mensajeEntrenar}
           />
           </>
         )}

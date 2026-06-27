@@ -62,6 +62,18 @@ export const AIConfig = {
       maxTokens: 4096,
       cache: false,
     },
+    "style-extractor": {
+      maxTokens: 800,
+      cache: false,
+    },
+    "style-replicar": {
+      maxTokens: 3000,
+      cache: false,
+    },
+    "style-combinar": {
+      maxTokens: 3000,
+      cache: false,
+    },
   },
 
   // Valores por defecto para módulos no listados

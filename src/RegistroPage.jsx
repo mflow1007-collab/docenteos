@@ -3,6 +3,8 @@ import { guardarRegistroCalificaciones, obtenerRegistroCalificaciones } from "./
 import { useAuth } from "./context/AuthContext.jsx";
 import { AIService } from "./services/ai/AIService.js";
 import { buildAIContext } from "./services/ai/ContextBuilder.js";
+import { EventTracker } from "./services/ai/learning/EventTracker.js";
+import { LEARNING_EVENTS, AGENT_IDS } from "./services/ai/knowledge/KnowledgeTypes.js";
 import "./RegistroPage.css";
 
 const DIAS = ["L", "M", "I", "J", "V"];
@@ -305,7 +307,7 @@ function RegistroPage({
     return parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part);
   };
 
-  const sugerirApoyoIA = () => {
+  const sugerirApoyoIA = async () => {
     setIaTexto("");
     setIaError(null);
     setIaGenerando(true);
@@ -342,7 +344,7 @@ function RegistroPage({
       })
       .filter((e) => e !== null && e.cf < 70);
 
-    const ctx = buildAIContext("sugerir_apoyo", {
+    const ctx = await buildAIContext("sugerir_apoyo", {
       area,
       grado: `${grado} ${seccion}`.trim(),
       docente,
@@ -362,7 +364,17 @@ function RegistroPage({
         setIaTexto((prev) => prev + chunk);
         setTimeout(() => iaRef.current?.scrollTo({ top: iaRef.current.scrollHeight, behavior: "smooth" }), 50);
       },
-      onFinish: () => setIaGenerando(false),
+      onFinish: () => {
+        setIaGenerando(false);
+        EventTracker.track(LEARNING_EVENTS.APOYO_GENERADO, {
+          agentId:    AGENT_IDS.GENERADOR_REPORTES,
+          area:       area       || null,
+          asignatura: area       || null,
+          grado:      grado      || null,
+          tema:       null,
+          metadata:   { estudiantesEnRiesgo: estudiantesEnRiesgo.length },
+        });
+      },
       onError: (err) => { setIaError(err); setIaGenerando(false); },
     });
   };

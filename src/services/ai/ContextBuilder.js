@@ -7,7 +7,7 @@
  * USO:
  *   import { buildAIContext } from "./ContextBuilder";
  *
- *   const ctx = buildAIContext("mejorar_actividades", { grado, tema, actividades, ... });
+ *   const ctx = await buildAIContext("mejorar_actividades", { grado, tema, actividades, ... });
  *   AIService.generate({ module: "planificacion-ia", ...ctx });
  *
  * ACCIONES DISPONIBLES:
@@ -16,6 +16,7 @@
  */
 
 import { getAuth } from "firebase/auth";
+import { resolveForAction } from "./knowledge/KnowledgeEngine.js";
 
 // ─── Estimación de tokens ─────────────────────────────────────────────────────
 // El español usa ~3.8 caracteres por token (vs ~4 en inglés).
@@ -414,10 +415,11 @@ function buildLog({ action, uid, promptLength, systemLength, estimatedTokens, ca
 
 /**
  * Construye el contexto mínimo necesario para la acción especificada.
+ * Inyecta conocimiento activo del Knowledge Engine cuando hay memorias disponibles.
  *
  * @param {string} action  - Una de las 6 acciones disponibles
  * @param {Object} data    - Datos específicos de la acción
- * @returns {{
+ * @returns {Promise<{
  *   prompt:            string,
  *   system:            string,
  *   estimatedTokens:   number,
@@ -425,9 +427,9 @@ function buildLog({ action, uid, promptLength, systemLength, estimatedTokens, ca
  *   recommendedMaxTokens: number,
  *   action:            string,
  *   meta:              Object,
- * }}
+ * }>}
  */
-export function buildAIContext(action, data = {}) {
+export async function buildAIContext(action, data = {}) {
   const builder = BUILDERS[action];
 
   if (!builder) {
@@ -435,12 +437,25 @@ export function buildAIContext(action, data = {}) {
     throw new Error(`[ContextBuilder] Acción desconocida: "${action}". Válidas: ${valid}`);
   }
 
-  const { prompt, system } = builder(data);
+  // Resolución de conocimiento activo — no es fatal si falla
+  let knowledgeContext = "";
+  try {
+    knowledgeContext = await resolveForAction(action, data);
+  } catch {
+    // KnowledgeEngine no disponible — continuar sin contexto
+  }
 
-  const promptLength  = prompt.length;
-  const systemLength  = (system || "").length;
+  const { prompt: basePrompt, system } = builder(data);
+
+  // Inyectar el contexto del Knowledge Engine justo antes de la instrucción final del builder
+  const prompt = knowledgeContext
+    ? basePrompt + `\n\nCONTEXTO DE CONOCIMIENTO ACTIVO:\n${knowledgeContext}\n`
+    : basePrompt;
+
+  const promptLength    = prompt.length;
+  const systemLength    = (system || "").length;
   const estimatedTokens = estimateTokens(prompt + (system || ""));
-  const uid = data.uid || getAuth().currentUser?.uid || null;
+  const uid             = data.uid || getAuth().currentUser?.uid || null;
 
   const meta = buildLog({
     action,

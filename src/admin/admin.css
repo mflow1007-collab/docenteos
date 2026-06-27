@@ -1511,3 +1511,21 @@
   .aim-tabs           { overflow-x: auto; }
   .aim-priority-list  { max-width: 100%; }
 }
+
+/* ── aim-input-sm / aim-select-sm ─────────────────────────────────────────── */
+.aim-input-sm,
+.aim-select-sm {
+  padding: 5px 10px;
+  border: 1px solid var(--adm-border);
+  border-radius: 8px;
+  background: var(--adm-surface2);
+  color: var(--adm-text);
+  font-size: 12px;
+  min-width: 110px;
+  height: 30px;
+}
+.aim-input-sm:focus,
+.aim-select-sm:focus {
+  outline: none;
+  border-color: var(--adm-accent);
+}

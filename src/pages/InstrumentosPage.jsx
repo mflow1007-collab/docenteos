@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { obtenerPlanificacionesDetalladas, guardarInstrumentoFirestore, obtenerInstrumentosFirestore, eliminarInstrumentoFirestore } from "../firebase";
 import { AIService } from "../services/ai/AIService";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
+import { EventTracker } from "../services/ai/learning/EventTracker.js";
+import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import "./InstrumentosPage.css";
 
 const SYSTEM_INSTRUMENTOS = `Eres un experto en evaluación educativa del sistema dominicano (MINERD).
@@ -405,10 +407,11 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
     let accumulated = "";
 
     // Usar ContextBuilder para contexto mínimo: solo tipo + tema + UNA competencia + UN indicador
-    const ctx = buildAIContext("generar_instrumento", {
+    const ctx = await buildAIContext("generar_instrumento", {
       tipo,
-      tema: temaPrompt,
+      tema:        temaPrompt,
       area:        curriculoActivo?.area        || "",
+      asignatura:  curriculoActivo?.asignatura  || curriculoActivo?.area || "",
       grado:       curriculoActivo?.grado       || "",
       competencia: curriculoActivo?.competencia || "",
       indicador:   curriculoActivo?.indicador   || "",
@@ -496,6 +499,14 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
       return existe ? prev.map((item) => (item.id === instrumento.id ? instrumento : item)) : [instrumento, ...prev];
     });
     guardarInstrumentoFirestore(instrumento).catch((err) => console.error("[Instrumentos] Error al guardar:", err));
+    EventTracker.track(LEARNING_EVENTS.INSTRUMENTO_ACEPTADO, {
+      agentId: AGENT_IDS.GENERADOR_INSTRUMENTOS,
+      area:       instrumento.area ?? null,
+      asignatura: instrumento.asignatura ?? null,
+      grado:      instrumento.grado ?? null,
+      tema:       instrumento.nombre ?? null,
+      metadata:   { tipoInstrumento: instrumento.tipo }
+    });
     setModal(null);
     setMensaje({ tipo: "success", texto: "Instrumento guardado y listo para usar." });
     setTimeout(() => setMensaje(null), 2000);

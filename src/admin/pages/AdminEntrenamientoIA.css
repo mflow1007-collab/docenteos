@@ -1,0 +1,414 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   aeia — Entrenamiento IA (aeia-*)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Agent cards grid ────────────────────────────────────────────────────────── */
+.aeia-agent-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.aeia-agent-card {
+  background: var(--adm-surface2);
+  border: 1px solid var(--adm-border);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+
+.aeia-agent-card--selected {
+  border-color: var(--adm-accent);
+  box-shadow: 0 0 0 1px var(--adm-accent)44;
+}
+
+.aeia-agent-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.aeia-agent-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--adm-text);
+}
+
+.aeia-agent-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.aeia-agent-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aeia-agent-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--adm-text);
+  line-height: 1;
+}
+
+.aeia-agent-stat-val--warn { color: var(--adm-warning); }
+
+.aeia-agent-stat-label {
+  font-size: 10px;
+  color: var(--adm-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Memory panel ────────────────────────────────────────────────────────────── */
+.aeia-memory-panel {
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border2);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.aeia-memory-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.aeia-memory-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--adm-text);
+  margin: 0;
+}
+
+.aeia-memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aeia-memory-item {
+  background: var(--adm-surface2);
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s;
+}
+
+.aeia-memory-item:hover {
+  border-color: var(--adm-border2);
+}
+
+.aeia-memory-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aeia-memory-content {
+  flex: 1;
+  font-size: 13px;
+  color: var(--adm-text);
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.aeia-memory-badges {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.aeia-memory-scope {
+  font-size: 11px;
+  color: var(--adm-dim);
+}
+
+.aeia-memory-actions {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* ── Badges específicos ───────────────────────────────────────────────────────── */
+.aeia-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.aeia-badge--regla          { background: var(--adm-info-bg);    color: #93c5fd; border-color: #1d4ed8; }
+.aeia-badge--criterio       { background: #1e1b4b;               color: #a5b4fc; border-color: #4338ca; }
+.aeia-badge--prohibicion    { background: var(--adm-danger-bg);  color: #fca5a5; border-color: #991b1b; }
+.aeia-badge--preferencia    { background: var(--adm-success-bg); color: #86efac; border-color: #166534; }
+.aeia-badge--ejemplo        { background: var(--adm-surface3);   color: var(--adm-muted); border-color: var(--adm-border2); }
+.aeia-badge--patron         { background: #1e3a5f;               color: #7dd3fc; border-color: #0369a1; }
+.aeia-badge--recomendacion  { background: #1a2e1a;               color: #86efac; border-color: #15803d; }
+.aeia-badge--pendiente      { background: var(--adm-warning-bg); color: #fcd34d; border-color: #92400e; }
+.aeia-badge--activo         { background: var(--adm-success-bg); color: #86efac; border-color: #166534; }
+.aeia-badge--inactivo       { background: var(--adm-surface3);   color: var(--adm-dim);   border-color: var(--adm-border2); }
+.aeia-badge--archivado      { background: #0f172a;               color: var(--adm-dim);   border-color: var(--adm-border); }
+.aeia-badge--rechazado      { background: var(--adm-danger-bg);  color: #fca5a5; border-color: #991b1b; }
+
+/* ── Topics table ────────────────────────────────────────────────────────────── */
+.aeia-topics-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+/* ── Insights list ───────────────────────────────────────────────────────────── */
+.aeia-insight-card {
+  background: var(--adm-surface2);
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aeia-insight-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aeia-insight-desc {
+  flex: 1;
+  font-size: 13px;
+  color: var(--adm-text);
+  line-height: 1.6;
+}
+
+.aeia-insight-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--adm-dim);
+}
+
+.aeia-insight-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ── Edit modal form ─────────────────────────────────────────────────────────── */
+.aeia-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Tab badge ───────────────────────────────────────────────────────────────── */
+.aeia-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--adm-warning);
+  color: #000;
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 999px;
+  margin-left: 5px;
+  line-height: 1;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .aeia-agent-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 700px) {
+  .aeia-agent-grid { grid-template-columns: 1fr; }
+  .aeia-memory-item-top { flex-direction: column; }
+}
+
+/* ── BIC Tab ─────────────────────────────────────────────────────────────────── */
+.aeia-bic-config {
+  background: var(--adm-surface2);
+  border: 1px solid var(--adm-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+
+.aeia-bic-tipo-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 16px;
+  background: var(--adm-surface3);
+  border: 1px solid var(--adm-border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--adm-text);
+  transition: border-color 0.15s, background 0.15s;
+  min-width: 140px;
+}
+
+.aeia-bic-tipo-btn:hover:not(:disabled) {
+  border-color: var(--adm-border2);
+}
+
+.aeia-bic-tipo-btn--active {
+  border-color: var(--adm-accent);
+  background: var(--adm-surface);
+  box-shadow: 0 0 0 1px var(--adm-accent)44;
+}
+
+.aeia-bic-tipo-btn:disabled { opacity: 0.5; cursor: default; }
+
+.aeia-bic-tipo-desc {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--adm-dim);
+  white-space: nowrap;
+}
+
+.aeia-bic-running {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--adm-surface2);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--adm-muted);
+  margin-top: 4px;
+}
+
+.aeia-bic-result {
+  background: var(--adm-surface2);
+  border: 1px solid var(--adm-border2);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-top: 4px;
+}
+
+.aeia-bic-result-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--adm-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 14px;
+}
+
+.aeia-bic-result-grid {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.aeia-bic-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aeia-bic-stat-val {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--adm-text);
+  line-height: 1;
+}
+
+.aeia-bic-stat-label {
+  font-size: 11px;
+  color: var(--adm-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Topic Training Panel ────────────────────────────────────────────────────── */
+.aeia-training-panel {
+  margin-top: 20px;
+  background: var(--adm-surface2);
+  border: 1.5px solid var(--adm-accent);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.aeia-training-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.aeia-training-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--adm-text);
+  margin: 0 0 2px;
+}
+
+.aeia-training-ia-response {
+  background: var(--adm-surface3);
+  border: 1px solid var(--adm-border2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--adm-text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  min-height: 80px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* ── Seed button ─────────────────────────────────────────────────────────────── */
+.aeia-seed-btn {
+  padding: 8px 16px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.aeia-seed-btn:hover:not(:disabled) { background: #dcfce7; }
+.aeia-seed-btn:disabled { opacity: 0.6; cursor: default; }
+
+.aeia-seed-result {
+  padding: 8px 14px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 500;
+}

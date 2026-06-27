@@ -1,23 +1,20 @@
 /**
  * AgentOrchestrator — Coordinador del sistema multi-agente de DocenteOS.
  *
- * Implementa el flujo de decisión de 3 niveles del BIC:
- *
- *   Nivel 1 (≥ 90% similitud): Reutilización directa — sin IA, 0 tokens
- *   Nivel 2 (70-90%):          Adaptación — IA mínima para ajustar contexto
- *   Nivel 3 (< 70%):           Generación nueva + indexación automática en BIC
+ * Orden de resolución de contexto y contenido:
+ *   1. ke_estilos relacionados (modelos de estilo del docente)
+ *   2. ke_ejemplos tipo caso_exito (planificaciones exitosas validadas)
+ *   3. ke_memoria filtradas por topicId (reglas específicas del tema)
+ *   4. ke_memoria del agente (criterios generales del agente)
+ *   5. bic_planes / bic_actividades / bic_instrumentos (banco de contenido)
+ *      → Nivel 1 (≥90%): reutilizar directo, 0 tokens
+ *      → Nivel 2 (70-89%): adaptar con IA mínima
+ *   6. Currículo oficial MINERD en Firestore (inyectado por ContextBuilder)
+ *   7. IA externa — solo cuando los pasos anteriores no son suficientes
  *
  * Punto de entrada único para planificaciones, actividades e instrumentos.
  * Los componentes React NO deben llamar directamente a KnowledgeBank ni a agentes
  * individuales — siempre pasan por aquí.
- *
- * Flujo completo:
- *   1. buscarEnBIC(tipo, query) → candidatos rankeados
- *   2. determinarNivel(bestScore) → 1 | 2 | 3
- *   3a. Nivel 1: registrarUso() → devolver contenido
- *   3b. Nivel 2: AgentePlanificador.adaptar() → devolver adaptado
- *   3c. Nivel 3: [agente correspondiente].generar() → guardar en BIC → devolver
- *   4. crearVersion() si el docente modifica después
  */
 
 import { buscarCandidatos, guardar, registrarUso } from "../learning/KnowledgeBank.js";
@@ -26,8 +23,63 @@ import { crearVersion } from "../learning/VersionManager.js";
 import { calcularCalidad } from "../learning/QualityIndex.js";
 import { adaptar as planificadorAdaptar, ajustarTiempo, adaptarNEAE } from "./AgentePlanificador.js";
 import { adaptarInstrumento } from "./AgenteEvaluador.js";
+import { query as keQuery } from "../knowledge/KnowledgeEngine.js";
 
 // ── API principal ──────────────────────────────────────────────────────────────
+
+/**
+ * Consulta el Knowledge Engine para una acción dada y devuelve el contexto
+ * enriquecido (estilos, casos de éxito, memorias, topics) sin tomar decisiones
+ * sobre el BIC ni llamar a la IA externa.
+ *
+ * Punto de entrada para generarPlanificacionInteligente y otros callers
+ * que necesitan el contexto KE antes de decidir qué camino tomar.
+ *
+ * @param {Object} params
+ * @param {string}   params.action     - Acción del contexto (ej: "generar_planificacion")
+ * @param {string}   [params.agentId]  - ID del agente (alternativo a action)
+ * @param {string}   [params.topic]    - Tema de la planificación
+ * @param {string}   [params.area]     - Área curricular
+ * @param {string}   [params.asignatura]
+ * @param {string}   [params.grado]
+ * @param {string}   [params.nivel]
+ * @param {string}   [params.topicId]  - ID del topic en ke_topics
+ * @param {Object}   [params.context]  - Contexto adicional (payload original)
+ *
+ * @returns {Promise<KERunResult>}
+ */
+export async function run({ action, agentId, topic, area, asignatura, grado, topicId, context = {} }) {
+  const keResult = await _fetchKE({
+    agentId:    agentId    ?? null,
+    action:     action     ?? null,
+    area:       area       ?? asignatura ?? null,
+    asignatura: asignatura ?? null,
+    grado:      grado      ?? null,
+    tema:       topic      ?? null,
+    topicId:    topicId    ?? context.topicId ?? null,
+  }).catch(() => ({ contextText: "", memories: [], topics: [], casosExito: [], estilos: [], totalItems: 0 }));
+
+  return {
+    knowledgeContext:      keResult.contextText    ?? "",
+    estilosEncontrados:   (keResult.estilos        ?? []).length > 0,
+    casosExitoEncontrados:(keResult.casosExito     ?? []).length > 0,
+    memoriasEncontradas:  (keResult.memories       ?? []).length > 0,
+    topicsEncontrados:    (keResult.topics         ?? []).length > 0,
+    totalItemsKE:          keResult.totalItems     ?? 0,
+    keResult,
+  };
+}
+
+/**
+ * @typedef {Object} KERunResult
+ * @property {string}   knowledgeContext       - Texto listo para inyectar en el prompt
+ * @property {boolean}  estilosEncontrados     - true si hay plantillas de estilo relevantes
+ * @property {boolean}  casosExitoEncontrados  - true si hay casos de éxito disponibles
+ * @property {boolean}  memoriasEncontradas    - true si hay memorias activas del agente
+ * @property {boolean}  topicsEncontrados      - true si hay topics pedagógicos registrados
+ * @property {number}   totalItemsKE           - Total de ítems KE encontrados
+ * @property {Object}   keResult               - Resultado completo de KnowledgeEngine.query()
+ */
 
 /**
  * Resuelve una planificación usando el flujo BIC de 3 niveles.
@@ -165,17 +217,25 @@ export async function checkBIC(tipo, query) {
 // ── Privadas ────────────────────────────────────────────────────────────────────
 
 /**
- * Motor interno del flujo de 3 niveles.
+ * Motor interno del flujo de resolución completo.
+ *
+ * Orden:
+ *   Pasos 1-4: KE (estilos, casos_exito, memorias topicId, memorias agente) — en paralelo con BIC
+ *   Paso  5:   BIC (Nivel 1→reuso / Nivel 2→adaptar)
+ *   Pasos 6-7: Currículo + IA externa — solo si Nivel 3
  */
 async function _resolver(tipo, query, opciones, adaptarFn) {
   const resultado = _resultadoVacio();
 
-  // 1. Buscar candidatos en el BIC
-  let candidatos = [];
-  try {
-    candidatos = await buscarCandidatos(tipo, query, 5);
-  } catch {
-    // BIC no disponible — ir a generación directamente
+  // Pasos 1-5 en paralelo: KE + BIC simultáneamente
+  const [keResult, candidatos] = await Promise.all([
+    _fetchKE(query).catch(() => ({ contextText: "" })),
+    buscarCandidatos(tipo, query, 5).catch(() => null),
+  ]);
+
+  resultado.knowledgeContext = keResult.contextText;
+
+  if (candidatos === null) {
     resultado.nivelDecision = 3;
     resultado.fuente = "generado_sin_bic";
     _logDecision(tipo, query, 3, null, "BIC no disponible");
@@ -189,21 +249,20 @@ async function _resolver(tipo, query, opciones, adaptarFn) {
   resultado.score = bestScore;
   resultado.candidatoId = candidatos[0]?.id ?? null;
 
-  // Nivel 1: Reutilización directa
+  // Nivel 1: Reutilización directa — sin IA, 0 tokens
   if (nivel === 1) {
     const candidato = candidatos[0];
     resultado.fuente = "reutilizado";
     resultado.contenido = candidato.contenido;
     resultado.guardadoEnBIC = true;
 
-    // Registrar uso en background (no bloquea el return)
     registrarUso(tipo, candidato.id).catch(() => {});
 
     _logDecision(tipo, query, 1, bestScore, `reutilizando ${candidato.id}`);
     return resultado;
   }
 
-  // Nivel 2: Adaptación
+  // Nivel 2: Adaptación con IA mínima
   if (nivel === 2) {
     const candidato = candidatos[0];
     resultado.fuente = "adaptado";
@@ -221,21 +280,44 @@ async function _resolver(tipo, query, opciones, adaptarFn) {
     return resultado;
   }
 
-  // Nivel 3: Generación nueva
+  // Nivel 3: IA externa (currículo + KE ya inyectados por ContextBuilder)
   resultado.fuente = "generado";
   resultado.guardadoEnBIC = false;
   _logDecision(tipo, query, 3, bestScore, "sin candidatos suficientes");
   return resultado;
 }
 
+/**
+ * Pasos 1-4: Consulta el KE en el orden aprobado.
+ * El resultado (knowledgeContext) se pasa a ContextBuilder antes del prompt.
+ *
+ * Orden interno de KnowledgeEngine.query():
+ *   1. ke_estilos (modelos de estilo)
+ *   2. ke_ejemplos tipo caso_exito
+ *   3. ke_memoria filtradas por topicId
+ *   4. ke_memoria generales del agente
+ */
+async function _fetchKE(query) {
+  return keQuery({
+    agentId:    query.agentId    ?? null,
+    action:     query.action     ?? null,
+    area:       query.area       ?? query.asignatura ?? null,
+    asignatura: query.asignatura ?? null,
+    grado:      query.grado      ?? null,
+    tema:       query.tema       ?? null,
+    topicId:    query.topicId    ?? null,
+  });
+}
+
 function _resultadoVacio() {
   return {
-    nivelDecision: 3,
-    fuente: "generado",
-    contenido: null,
-    candidatoId: null,
-    score: null,
-    guardadoEnBIC: false,
+    nivelDecision:    3,
+    fuente:           "generado",
+    contenido:        null,
+    candidatoId:      null,
+    score:            null,
+    guardadoEnBIC:    false,
+    knowledgeContext: "", // contexto KE listo para inyectar (pasos 1-4)
   };
 }
 
@@ -266,10 +348,11 @@ export const DECISION_UMBRALES = UMBRALES;
 
 /**
  * @typedef {Object} DecisionResult
- * @property {1|2|3} nivelDecision - Nivel del flujo de decisión aplicado
+ * @property {1|2|3}  nivelDecision    - Nivel del flujo de decisión aplicado
  * @property {"reutilizado"|"adaptado"|"generado"|"generado_sin_bic"|"generado_fallback"} fuente
- * @property {Object|null} contenido - Contenido resuelto (null si Nivel 3 → generar externamente)
+ * @property {Object|null} contenido   - Contenido resuelto (null si Nivel 3 → generar externamente)
  * @property {string|null} candidatoId - ID del candidato del BIC usado (si aplica)
- * @property {number|null} score - Similitud del mejor candidato (0.0–1.0)
- * @property {boolean} guardadoEnBIC - Si el resultado ya está indexado en el BIC
+ * @property {number|null} score       - Similitud del mejor candidato (0.0–1.0)
+ * @property {boolean} guardadoEnBIC   - Si el resultado ya está indexado en el BIC
+ * @property {string}  knowledgeContext - Contexto KE listo para inyectar al prompt (pasos 1-4)
  */

@@ -7595,6 +7595,102 @@
 }
 .plan-ia-btn:disabled { opacity: 0.6; cursor: wait; }
 .plan-ia-btn-active { background: #7c3aed !important; color: #fff !important; }
+
+/* ── Barra entrenar IA ─────────────────────────────────────────────────────── */
+.plan-entrenar-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 8px 14px;
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 12px;
+}
+.plan-entrenar-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #15803d;
+  white-space: nowrap;
+  margin-right: 2px;
+}
+.plan-entrenar-btn {
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #86efac;
+  background: #fff;
+  color: #166534;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.plan-entrenar-btn:hover:not(:disabled) { background: #dcfce7; }
+.plan-entrenar-btn:disabled { opacity: 0.6; cursor: wait; }
+.plan-entrenar-msg {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-left: 4px;
+}
+.plan-entrenar-msg--success { color: #16a34a; }
+.plan-entrenar-msg--error   { color: #dc2626; }
+
+/* ── Banner opt-in entrenar ──────────────────────────────────────────────────── */
+.doe-entrenar-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #86efac;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  animation: doe-fadeIn 0.35s ease;
+}
+
+@keyframes doe-fadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.doe-entrenar-banner-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.doe-entrenar-banner-body {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #14532d;
+  line-height: 1.5;
+}
+
+.doe-entrenar-banner-body strong {
+  display: block;
+  font-size: 0.88rem;
+  margin-bottom: 2px;
+}
+
+.doe-entrenar-banner-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #16a34a;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.doe-entrenar-banner-close:hover { opacity: 1; }
+
 .plan-ia-limpiar {
   margin-left: auto;
   padding: 5px 10px;

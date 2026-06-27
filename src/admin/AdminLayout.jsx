@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
-const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones']
+const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia']
 import AdminSidebar from './AdminSidebar.jsx'
 import AdminTopbar from './AdminTopbar.jsx'
 import AdminHome from './pages/AdminHome.jsx'
@@ -16,6 +16,7 @@ import AdminFirebase from './pages/AdminFirebase.jsx'
 import AdminIA from './pages/AdminIA.jsx'
 import AdminSubscriptions from './pages/AdminSubscriptions.jsx'
 import AdminConfiguracion from './pages/AdminConfiguracion.jsx'
+import AdminEntrenamientoIA from './pages/AdminEntrenamientoIA.jsx'
 import './admin.css'
 
 export default function AdminLayout({ paginaInicial = 'home' }) {
@@ -47,7 +48,8 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
           {pagina === 'seguridad'     && <AdminSeguridad     />}
           {pagina === 'firebase'      && <AdminFirebase      />}
           {pagina === 'suscripciones'  && <AdminSubscriptions />}
-          {pagina === 'configuracion' && <AdminConfiguracion />}
+          {pagina === 'configuracion'   && <AdminConfiguracion  />}
+          {pagina === 'entrenamiento-ia' && <AdminEntrenamientoIA />}
         </main>
       </div>
     </div>

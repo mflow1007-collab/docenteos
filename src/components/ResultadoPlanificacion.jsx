@@ -2,6 +2,9 @@
  * ResultadoPlanificacion — estructura MINERD enriquecida
  */
 
+import { EventTracker } from '../services/ai/learning/EventTracker.js';
+import { LEARNING_EVENTS, AGENT_IDS } from '../services/ai/knowledge/KnowledgeTypes.js';
+
 const TIPO_EVAL_LABEL = { diagnostica: "Diagnóstica", formativa: "Formativa", sumativa: "Sumativa" };
 
 const COLOR_EJE = ["eje-violeta", "eje-azul", "eje-verde", "eje-naranja"];
@@ -36,6 +39,12 @@ export default function ResultadoPlanificacion({
   setIaMinutos,
   iaRef,
   onLimpiarIA,
+  // Entrenar IA
+  onGuardarEstilo,
+  onConvertirCasoExito,
+  guardandoEstilo,
+  guardandoCasoExito,
+  mensajeEntrenar,
 }) {
   if (!planificacion) return null;
 
@@ -70,7 +79,7 @@ export default function ResultadoPlanificacion({
 
       {/* ── Botones superiores ── */}
       <div className="minerd-acciones top">
-        <button className="save-btn"   onClick={onGuardar}   disabled={guardando || !canGuardar}>{botonGuardar}</button>
+        <button className="save-btn"   onClick={() => { EventTracker.track(LEARNING_EVENTS.AUDITORIA_APLICADA, { agentId: AGENT_IDS.AUDITOR, area: area ?? null, asignatura: null, grado: meta.grado ?? null, tema: tema ?? null, metadata: {} }); onGuardar(); }}   disabled={guardando || !canGuardar}>{botonGuardar}</button>
         <button className="export-btn" onClick={onDescargar}>📥 PDF</button>
         <button className="reset-btn"  onClick={onNueva}>↻ Nueva</button>
       </div>
@@ -112,6 +121,40 @@ export default function ResultadoPlanificacion({
 
       {onAccionIA && iaError && (
         <div className="plan-ia-error">⚠️ {iaError}</div>
+      )}
+
+      {/* ── Barra: Entrenar IA ── */}
+      {(onGuardarEstilo || onConvertirCasoExito) && (
+        <div className="plan-entrenar-bar">
+          <span className="plan-entrenar-label">Entrenar:</span>
+          {onGuardarEstilo && (
+            <button
+              type="button"
+              className="plan-entrenar-btn"
+              disabled={guardandoEstilo || guardandoCasoExito}
+              onClick={onGuardarEstilo}
+              title="Extrae la estructura, actividades y estilo de esta planificación para usarlo en futuras generaciones"
+            >
+              {guardandoEstilo ? "⏳ Guardando..." : "🎨 Guardar como mi estilo"}
+            </button>
+          )}
+          {onConvertirCasoExito && (
+            <button
+              type="button"
+              className="plan-entrenar-btn"
+              disabled={guardandoEstilo || guardandoCasoExito}
+              onClick={onConvertirCasoExito}
+              title="Marca esta planificación como caso de éxito para que el sistema la use de referencia"
+            >
+              {guardandoCasoExito ? "⏳ Guardando..." : "⭐ Convertir en caso de éxito"}
+            </button>
+          )}
+          {mensajeEntrenar && (
+            <span className={`plan-entrenar-msg plan-entrenar-msg--${mensajeEntrenar.tipo}`}>
+              {mensajeEntrenar.texto}
+            </span>
+          )}
+        </div>
       )}
 
       {onAccionIA && (iaTexto || iaGenerando) && (
