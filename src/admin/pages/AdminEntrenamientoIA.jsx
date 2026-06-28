@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { collection, getDocs, query, where, orderBy, doc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 import { db } from '../../firebase.js'
 import { AGENT_IDS, COLLECTIONS, STATES, MEMORY_TYPES, MEMORY_SOURCES } from '../../services/ai/knowledge/KnowledgeTypes.js'
 import {
@@ -1446,7 +1447,14 @@ function TabEstilos() {
                   <button
                     className="admin-btn-sm green"
                     disabled={procesando[estilo.id]}
-                    onClick={() => accion(estilo.id, aprobarPlantilla, 'Estilo aprobado como global.')}
+                    onClick={() => {
+                      const uid = getAuth().currentUser?.uid ?? 'anon'
+                      setProcesando(p => ({ ...p, [estilo.id]: true }))
+                      aprobarPlantilla(estilo.id, uid)
+                        .then(() => { flash('Estilo aprobado como global.'); return cargar() })
+                        .catch(() => flash('Error al aprobar.', false))
+                        .finally(() => setProcesando(p => ({ ...p, [estilo.id]: false })))
+                    }}
                   >
                     Aprobar → Global
                   </button>

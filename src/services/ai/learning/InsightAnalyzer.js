@@ -66,6 +66,9 @@ function _tipoInsight(tipoEvento) {
   if (tipoEvento === "actividad_modificada")     return "patron_modificacion";
   if (tipoEvento === "mejora_aceptada")          return "patron_exito";
   if (tipoEvento === "apoyo_generado")           return "patron_riesgo";
+  if (tipoEvento === "instrumento_aceptado")     return "patron_instrumento";
+  if (tipoEvento === "auditoria_aplicada")       return "patron_auditoria";
+  if (tipoEvento === "plantilla_usada")          return "patron_plantilla";
   return "patron_detectado";
 }
 
@@ -128,19 +131,29 @@ export async function analyzePatterns({ limite = 200 } = {}) {
 }
 
 function _accionSugerida(patron) {
+  const ctx = [patron.asignatura, patron.tema].filter(Boolean).join(" — ");
   if (patron.tipo === "planificacion_regenerada") {
-    return `Actualizar plantilla de ${patron.asignatura} — tema: ${patron.tema}`;
+    return `Actualizar plantilla de ${ctx}`;
   }
   if (patron.tipo === "actividad_modificada") {
-    return `Revisar actividades generadas para ${patron.asignatura} — ${patron.tema}`;
+    return `Revisar actividades generadas para ${ctx}`;
   }
   if (patron.tipo === "mejora_aceptada") {
-    return `Promover como plantilla base el contenido de ${patron.asignatura} — ${patron.tema}`;
+    return `Promover como plantilla base el contenido de ${ctx}`;
   }
   if (patron.tipo === "apoyo_generado") {
     return `Revisar memorias del Generador de Reportes para ${patron.asignatura} — grado ${patron.grado}`;
   }
-  return `Revisar contenido de ${patron.asignatura} — ${patron.tema}`;
+  if (patron.tipo === "instrumento_aceptado") {
+    return `Convertir instrumento de ${ctx} en plantilla global`;
+  }
+  if (patron.tipo === "auditoria_aplicada") {
+    return `Reforzar criterios de auditoría para ${ctx}`;
+  }
+  if (patron.tipo === "plantilla_usada") {
+    return `Revisar y enriquecer la plantilla más usada en ${ctx}`;
+  }
+  return `Revisar contenido de ${ctx}`;
 }
 
 /**
@@ -359,7 +372,11 @@ async function _convertirEnMemoria(insight, insightId, adminUid) {
 }
 
 function _agentIdParaInsight(tipo) {
-  if (tipo === "patron_modificacion") return AGENT_IDS.MEJORADOR_ACTIVIDADES;
+  if (tipo === "patron_modificacion")  return AGENT_IDS.MEJORADOR_ACTIVIDADES;
+  if (tipo === "patron_riesgo")        return AGENT_IDS.GENERADOR_REPORTES;
+  if (tipo === "patron_exito")         return AGENT_IDS.AUDITOR;
+  if (tipo === "patron_auditoria")     return AGENT_IDS.AUDITOR;
+  if (tipo === "patron_instrumento")   return AGENT_IDS.GENERADOR_INSTRUMENTOS;
   return AGENT_IDS.PLANIFICADOR;
 }
 
@@ -368,6 +385,9 @@ function _tipoMemoriaParaInsight(tipo) {
   if (tipo === "patron_modificacion") return MEMORY_TYPES.RECOMENDACION;
   if (tipo === "patron_exito")        return MEMORY_TYPES.PATRON;
   if (tipo === "patron_riesgo")       return MEMORY_TYPES.RECOMENDACION;
+  if (tipo === "patron_instrumento")  return MEMORY_TYPES.EJEMPLO;
+  if (tipo === "patron_auditoria")    return MEMORY_TYPES.CRITERIO;
+  if (tipo === "patron_plantilla")    return MEMORY_TYPES.PREFERENCIA;
   return MEMORY_TYPES.PATRON;
 }
 

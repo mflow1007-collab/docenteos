@@ -135,10 +135,11 @@ async function _fetchCasosExito(agentId, filters = {}) {
 }
 
 async function _fetchEstilos({ asignatura, grado } = {}) {
+  // Firestore no permite dos operadores "in" en la misma query.
+  // Filtramos visibilidad en memoria para evitar el error.
   try {
     const conditions = [
-      where("estado", "in", [STATES.ACTIVE]),
-      where("visibilidad", "in", ["global", "centro"]),
+      where("estado", "==", STATES.ACTIVE),
     ];
     if (asignatura) conditions.push(where("asignatura", "==", asignatura));
     if (grado)      conditions.push(where("grado",      "==", grado));
@@ -146,10 +147,13 @@ async function _fetchEstilos({ asignatura, grado } = {}) {
     const q = fsQuery(
       collection(db, COLLECTIONS.KE_ESTILOS),
       ...conditions,
-      limit(2),
+      limit(20),
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(e => e.visibilidad === "global" || e.visibilidad === "centro")
+      .slice(0, 2);
   } catch {
     return [];
   }
@@ -168,27 +172,6 @@ async function _fetchTopics(tema, asignatura) {
       collection(db, COLLECTIONS.KE_TOPICS),
       ...conditions,
       limit(CONTEXT_LIMITS.MAX_TOPICS),
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch {
-    return [];
-  }
-}
-
-async function _fetchExamples(agentId, filters = {}) {
-  try {
-    const conditions = [
-      where("agentId", "==", agentId),
-      where("estado",  "==", STATES.ACTIVE),
-    ];
-    if (filters.asignatura) conditions.push(where("asignatura", "==", filters.asignatura));
-
-    const q = fsQuery(
-      collection(db, COLLECTIONS.KE_EJEMPLOS),
-      ...conditions,
-      orderBy("calidad", "desc"),
-      limit(CONTEXT_LIMITS.MAX_EXAMPLES),
     );
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -279,7 +262,7 @@ function _normalizeTema(tema) {
 }
 
 function _empty() {
-  return { memories: [], topics: [], examples: [], contextText: "", totalItems: 0, agentId: null };
+  return { memories: [], topics: [], examples: [], casosExito: [], estilos: [], contextText: "", totalItems: 0, agentId: null };
 }
 
 /**

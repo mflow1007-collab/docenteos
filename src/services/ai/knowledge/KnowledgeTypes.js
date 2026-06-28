@@ -70,14 +70,18 @@ export const EXAMPLE_TYPES = {
 
 // ── Tipos de eventos del Learning Engine ────────────────────────────────────────
 export const LEARNING_EVENTS = {
-  PLANIFICACION_ACEPTADA:   "planificacion_aceptada",
-  PLANIFICACION_REGENERADA: "planificacion_regenerada",
-  ACTIVIDAD_MODIFICADA:     "actividad_modificada",
-  AUDITORIA_APLICADA:       "auditoria_aplicada",
-  MEJORA_ACEPTADA:          "mejora_aceptada",
-  PLANTILLA_USADA:          "plantilla_usada",
-  INSTRUMENTO_ACEPTADO:     "instrumento_aceptado",
-  APOYO_GENERADO:           "apoyo_generado",
+  PLANIFICACION_ACEPTADA:      "planificacion_aceptada",
+  PLANIFICACION_REGENERADA:    "planificacion_regenerada",
+  ACTIVIDAD_MODIFICADA:        "actividad_modificada",
+  AUDITORIA_APLICADA:          "auditoria_aplicada",
+  MEJORA_ACEPTADA:             "mejora_aceptada",
+  PLANTILLA_USADA:             "plantilla_usada",
+  INSTRUMENTO_ACEPTADO:        "instrumento_aceptado",
+  APOYO_GENERADO:              "apoyo_generado",
+  CHAT_CONSULTADO:             "chat_consultado",
+  APOYO_CURSO_GENERADO:        "apoyo_curso_generado",
+  INFORME_ESTUDIANTE_GENERADO: "informe_estudiante_generado",
+  IA_RECOMENDACION_GENERADA:   "ia_recomendacion_generada",
 };
 
 // ── Estados de insights ─────────────────────────────────────────────────────────

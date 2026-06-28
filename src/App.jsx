@@ -1,5 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AIService } from "./services/ai/AIService.js";
+import { buildAIContext } from "./services/ai/ContextBuilder.js";
+import { EventTracker } from "./services/ai/learning/EventTracker.js";
+import { LEARNING_EVENTS, AGENT_IDS } from "./services/ai/knowledge/KnowledgeTypes.js";
 import "./App.css";
 import {
   guardarHorarioCurso,
@@ -355,63 +358,43 @@ function AppInner() {
     });
   }, [pagina, estudianteDetalle, detalleEstudianteTab, navegacionLista]);
 
-  const [seccionIA,   setSeccionIA]   = useState("bienvenida");
-  const [iaExpandido, setIAExpandido] = useState(false);
-  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [seccionIA,        setSeccionIA]        = useState("bienvenida");
+  const [grupoExpandido,   setGrupoExpandido]   = useState("inicio");
+  const [menuAbierto,      setMenuAbierto]       = useState(false);
 
   const cerrarMenu = () => setMenuAbierto(false);
 
-  const IA_SECCIONES = [
-    { id: "bienvenida",   icon: "✦",  label: "Bienvenida"               },
-    { id: "rol",          icon: "👤", label: "Rol del docente"           },
-    { id: "planificar",   icon: "📋", label: "IA para planificar"        },
-    { id: "experiencias", icon: "🎨", label: "Diseñar experiencias"      },
-    { id: "prompts",      icon: "💡", label: "Banco de prompts"          },
-    { id: "materiales",   icon: "📁", label: "Crear materiales"          },
-    { id: "evaluaciones", icon: "📊", label: "Crear evaluaciones"        },
-    { id: "ev-autentica", icon: "✅", label: "Evaluación auténtica"     },
-    { id: "personal",     icon: "🎯", label: "Personalización"           },
-    { id: "etica",        icon: "🛡️", label: "Ética y responsabilidad"   },
-    { id: "laboratorio",  icon: "🧪", label: "Laboratorio IA"            },
-    { id: "academia",     icon: "🎓", label: "Academia DocenteOS"        },
-  ];
-
-  const MENU_GRUPOS = [
-    {
-      label: "General",
-      items: [["inicio", "🏠 Inicio"]],
-    },
-    {
-      label: "Planificación",
-      items: [
-        ["planificacion", "📝 Planificación"],
-        ["cursos",        "📘 Cursos"],
-        ["estudiantes",   "👥 Estudiantes"],
-        ["registro",      "📝 Registro"],
-      ],
-    },
-    {
-      label: "Evaluación",
-      items: [
-        ["instrumentos", "📋 Instrumentos"],
-        ["reportes",     "📊 Reportes"],
-        ["curriculo",    "📖 Currículo"],
-      ],
-    },
-  ];
-
-  const irAIA = () => {
-    if (pagina !== "ia") {
-      setPagina("ia");
-      setIAExpandido(true);
-      cerrarMenu();
-    } else {
-      setIAExpandido((v) => !v);
-    }
+  // Determina qué grupo sidebar debe estar abierto según la página activa
+  const grupoDePageID = (id) => {
+    if (id === "inicio")                                        return "inicio";
+    if (["cursos","detalle-curso","planificacion","instrumentos","registro","reportes"].includes(id)) return "docencia";
+    if (["estudiantes","detalle-estudiante"].includes(id))      return "estudiantes";
+    if (id === "ia" || id === "curriculo")                      return "inteligencia";
+    if (id === "suscripcion" || id === "configuracion")         return "configuracion";
+    return grupoExpandido;
   };
+
+  // Secciones del módulo Inteligencia que mapean a CentroIAPage
+  const IA_SECCIONES = [
+    { id: "laboratorio",  icon: "🤖", label: "Asistente IA"            },
+    { id: "planificar",   icon: "📋", label: "Planificación Inteligente"},
+    { id: "prompts",      icon: "📚", label: "Biblioteca Inteligente"   },
+    { id: "materiales",   icon: "🛠️", label: "Generador de Recursos"    },
+    { id: "mi-ia",        icon: "✨", label: "Mi IA"                   },
+    { id: "academia",     icon: "🎓", label: "Academia"                 },
+    { id: "personal",     icon: "🧠", label: "Entrenar mi IA"          },
+  ];
 
   const irA = (id) => {
     setPagina(id);
+    setGrupoExpandido(grupoDePageID(id));
+    cerrarMenu();
+  };
+
+  const irASeccionIA = (seccionId) => {
+    setSeccionIA(seccionId);
+    setPagina("ia");
+    setGrupoExpandido("inteligencia");
     cerrarMenu();
   };
 
@@ -430,88 +413,114 @@ function AppInner() {
       )}
 
       <aside className={`sidebar${menuAbierto ? " open" : ""}`}>
-        {/* Brand — fuera del área scrollable */}
+        {/* Brand */}
         <div className="sidebar-header">
           <div className="brand">
             🎓 <span>Docente<span>OS</span></span>
           </div>
         </div>
 
-        {/* Nav — área scrollable */}
+        {/* Nav */}
         <nav>
-          {/* Grupos del menú principal */}
-          {MENU_GRUPOS.map((grupo) => {
-            const itemsVisibles = grupo.items.filter(([id]) =>
-              id !== 'curriculo' || esDocenteOS
-            )
-            if (itemsVisibles.length === 0) return null
-            return (
-              <div key={grupo.label}>
-                <div className="sidebar-group-label">{grupo.label}</div>
-                {itemsVisibles.map(([id, label]) => (
-                  <button
-                    key={id}
-                    className={pagina === id ? "active" : ""}
-                    onClick={() => irA(id)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )
-          })}
 
-          {/* IA con submenú desplegable — solo @docenteos.com */}
-          {esDocenteOS && <div className="sidebar-group-label">Inteligencia Artificial</div>}
+          {/* ── 1. INICIO ─────────────────────────────────────────── */}
+          <SidebarGrupo
+            label="Inicio"
+            abierto={grupoExpandido === "inicio"}
+            onToggle={() => { irA("inicio"); }}
+            activo={grupoExpandido === "inicio"}
+          >
+            <SidebarItem id="inicio" label="🏠 Inicio" pagina={pagina} onClick={() => irA("inicio")} />
+          </SidebarGrupo>
+
+          {/* ── 2. DOCENCIA ───────────────────────────────────────── */}
+          <SidebarGrupo
+            label="Docencia"
+            abierto={grupoExpandido === "docencia"}
+            onToggle={() => setGrupoExpandido(g => g === "docencia" ? "inicio" : "docencia")}
+            activo={grupoDePageID(pagina) === "docencia"}
+          >
+            <SidebarItem id="cursos"        label="📘 Cursos"        pagina={pagina} onClick={() => irA("cursos")} />
+            <SidebarItem id="planificacion" label="📝 Planificación" pagina={pagina} onClick={() => irA("planificacion")} />
+            <SidebarItem id="instrumentos"  label="📋 Instrumentos"  pagina={pagina} onClick={() => irA("instrumentos")} />
+            <SidebarItem id="registro"      label="📓 Registro"      pagina={pagina} onClick={() => irA("registro")} />
+            <SidebarItem id="reportes"      label="📊 Reportes"      pagina={pagina} onClick={() => irA("reportes")} />
+          </SidebarGrupo>
+
+          {/* ── 3. ESTUDIANTES ────────────────────────────────────── */}
+          <SidebarGrupo
+            label="Estudiantes"
+            abierto={grupoExpandido === "estudiantes"}
+            onToggle={() => setGrupoExpandido(g => g === "estudiantes" ? "inicio" : "estudiantes")}
+            activo={grupoDePageID(pagina) === "estudiantes"}
+          >
+            <SidebarItem id="estudiantes" label="👥 Estudiantes" pagina={pagina} onClick={() => irA("estudiantes")} />
+          </SidebarGrupo>
+
+          {/* ── 4. INTELIGENCIA (solo @docenteos.com) ─────────────── */}
           {esDocenteOS && (
-            <div className="ia-group">
-              <button
-                className={`ia-parent${pagina === "ia" ? " active" : ""}`}
-                onClick={irAIA}
-              >
-                <span>✨ IA</span>
-                <span className="ia-chevron">
-                  {pagina === "ia" && iaExpandido ? "▾" : "▸"}
-                </span>
-              </button>
-
-              {pagina === "ia" && iaExpandido && (
-                <div className="ia-submenu">
-                  {IA_SECCIONES.map((s) => (
-                    <button
-                      key={s.id}
-                      className={`ia-sub-btn${seccionIA === s.id ? " active" : ""}`}
-                      onClick={() => setSeccionIA(s.id)}
-                    >
-                      <span className="ia-sub-icon">{s.icon}</span>
-                      <span>{s.label}</span>
-                    </button>
-                  ))}
-                </div>
+            <SidebarGrupo
+              label="Inteligencia"
+              abierto={grupoExpandido === "inteligencia"}
+              onToggle={() => setGrupoExpandido(g => g === "inteligencia" ? "inicio" : "inteligencia")}
+              activo={grupoDePageID(pagina) === "inteligencia"}
+            >
+              {IA_SECCIONES.map((s) => (
+                <button
+                  key={s.id}
+                  className={`ia-sub-btn${pagina === "ia" && seccionIA === s.id ? " active" : ""}`}
+                  onClick={() => irASeccionIA(s.id)}
+                >
+                  <span className="ia-sub-icon">{s.icon}</span>
+                  <span>{s.label}</span>
+                </button>
+              ))}
+              {esDocenteOS && (
+                <SidebarItem id="curriculo" label="📖 Currículo" pagina={pagina} onClick={() => irA("curriculo")} />
               )}
-            </div>
+            </SidebarGrupo>
           )}
 
-          {/* Mi Suscripción */}
-          <div className="sidebar-group-label">Cuenta</div>
-          <button
-            className={pagina === "suscripcion" ? "active" : ""}
-            onClick={() => irA("suscripcion")}
-          >
-            💳 Mi Suscripción
-          </button>
+          {/* ── 5. ADMINISTRACIÓN (solo @docenteos.com via AdminBar) ─ */}
+          {esDocenteOS && (
+            <SidebarGrupo
+              label="Administración"
+              abierto={grupoExpandido === "admin"}
+              onToggle={() => setGrupoExpandido(g => g === "admin" ? "inicio" : "admin")}
+              activo={false}
+            >
+              {[
+                ["usuarios",    "👤 Usuarios"],
+                ["centros",     "🏫 Centros"],
+                ["curriculo",   "📖 Currículo"],
+                ["prompts",     "💬 Prompts IA"],
+                ["agentes",     "🤖 Agentes"],
+                ["topics",      "📌 Topics"],
+                ["insights",    "💡 Insights"],
+                ["firebase",    "🔥 Firebase"],
+                ["config",      "⚙️ Config Admin"],
+              ].map(([sec, label]) => (
+                <button key={sec} className="ia-sub-btn" onClick={() => irAdmin(sec)}>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </SidebarGrupo>
+          )}
 
-          {/* Configuración */}
-          <div className="sidebar-group-label">Sistema</div>
-          <button
-            className={pagina === "configuracion" ? "active" : ""}
-            onClick={() => irA("configuracion")}
+          {/* ── 6. CONFIGURACIÓN ─────────────────────────────────── */}
+          <SidebarGrupo
+            label="Configuración"
+            abierto={grupoExpandido === "configuracion"}
+            onToggle={() => setGrupoExpandido(g => g === "configuracion" ? "inicio" : "configuracion")}
+            activo={grupoDePageID(pagina) === "configuracion"}
           >
-            ⚙️ Configuración
-          </button>
+            <SidebarItem id="suscripcion"  label="💳 Mi Suscripción"  pagina={pagina} onClick={() => irA("suscripcion")} />
+            <SidebarItem id="configuracion" label="⚙️ Preferencias"   pagina={pagina} onClick={() => irA("configuracion")} />
+          </SidebarGrupo>
+
         </nav>
 
-        {/* Footer — fuera del área scrollable, siempre visible */}
+        {/* Footer */}
         <div className="sidebar-bottom">
           <div className="profile">
             <div className="avatar">{inicialesAvatar}</div>
@@ -625,6 +634,38 @@ function AppInner() {
         </section>
       </main>
     </div>
+  );
+}
+
+// ── Sidebar helpers ───────────────────────────────────────────────────────────
+
+function SidebarGrupo({ label, abierto, onToggle, activo, children }) {
+  return (
+    <div className={`sb-grupo${activo ? " sb-grupo-activo" : ""}`}>
+      <button
+        className={`sb-grupo-header${abierto ? " abierto" : ""}${activo ? " activo" : ""}`}
+        onClick={onToggle}
+      >
+        <span>{label}</span>
+        <span className="sb-chevron">{abierto ? "▾" : "▸"}</span>
+      </button>
+      {abierto && (
+        <div className="sb-grupo-items">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SidebarItem({ id, label, pagina, onClick }) {
+  return (
+    <button
+      className={`sb-item${pagina === id ? " active" : ""}`}
+      onClick={onClick}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -1642,45 +1683,46 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
     setMensajeHorario({ tipo: "success", texto: "Horario de clase actualizado" });
   };
 
-  const sugerirApoyoCurso = () => {
+  const sugerirApoyoCurso = async () => {
     setIaApoyoTexto("");
     setIaApoyoError(null);
     setIaApoyoGenerando(true);
 
-    const enRiesgoTexto = (data.enRiesgo || [])
-      .map((e) => `- ${e.nombre}: promedio ${e.promedio}%`)
-      .join("\n") || "Sin estudiantes en riesgo registrados";
-
-    const prompt = `Analiza los datos del siguiente curso y genera recomendaciones pedagógicas para los estudiantes en riesgo.
-
-DATOS DEL CURSO:
-- Nombre: ${data.nombre}
-- Área: ${data.area}
-- Nivel: ${data.nivel || "Secundaria"}
-- Promedio general: ${data.promedio || "—"}%
-- Tema actual: ${data.temaActual || "—"}
-
-ESTUDIANTES EN RIESGO (promedio < 70):
-${enRiesgoTexto}
-
-Genera recomendaciones prácticas con estas secciones:
-
-## Diagnóstico del grupo
-## Estrategias para estudiantes en riesgo
-## Actividades de recuperación sugeridas
-## Comunicación con familias
-## Próximas acciones prioritarias`;
+    let ctx;
+    try {
+      ctx = await buildAIContext("sugerir_apoyo", {
+        area:                data.area  || "",
+        grado:               data.nivel || "Secundaria",
+        estudiantesEnRiesgo: (data.enRiesgo || []).map((e) => ({
+          nombre: e.nombre,
+          cf:     e.promedio ?? 0,
+        })),
+        promedioGrupo: data.promedio ?? null,
+      });
+    } catch {
+      setIaApoyoError("No se pudo construir el contexto IA.");
+      setIaApoyoGenerando(false);
+      return;
+    }
 
     AIService.generate({
-      module: "registro-apoyo",
-      prompt,
-      system: "Eres DocenteOS, asistente pedagógico del sistema educativo dominicano (MINERD). Responde en español con recomendaciones concretas y accionables para docentes de aula.",
-      maxTokens: 1500,
+      module:    "registro-apoyo",
+      prompt:    ctx.prompt,
+      system:    ctx.system,
+      maxTokens: ctx.recommendedMaxTokens,
       onChunk: (chunk) => {
         setIaApoyoTexto((prev) => prev + chunk);
         setTimeout(() => iaApoyoRef.current?.scrollTo({ top: iaApoyoRef.current.scrollHeight, behavior: "smooth" }), 50);
       },
-      onFinish: () => setIaApoyoGenerando(false),
+      onFinish: () => {
+        setIaApoyoGenerando(false);
+        EventTracker.track(LEARNING_EVENTS.APOYO_CURSO_GENERADO, {
+          agentId:    AGENT_IDS.GENERADOR_REPORTES,
+          area:       data.area  || "",
+          grado:      data.nivel || "",
+          enRiesgo:   (data.enRiesgo || []).length,
+        });
+      },
       onError: (err) => { setIaApoyoError(err); setIaApoyoGenerando(false); },
     });
   };
@@ -2435,58 +2477,55 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
     return { total: filtrados.length, enRiesgo, excelentes, promGeneral, asistenciaProm, mejorando, estables, bajando };
   }, [filtrados]);
 
-  const ejecutarIaEstudiante = (accion, est) => {
+  const ejecutarIaEstudiante = async (accion, est) => {
     if (!est) return;
     setPanelIaTexto("");
     setPanelIaError(null);
     setPanelIaAccion(accion);
     setPanelIaGenerando(true);
 
-    const areasTexto = [
-      `Matematica: ${Math.max(45, est.promedio - 8)}%`,
-      `Lengua: ${Math.max(50, est.promedio - 4)}%`,
-      `Ciencias: ${Math.min(99, est.promedio + 5)}%`,
-      `Ingles: ${Math.max(50, est.promedio - 2)}%`,
-    ].join(", ");
+    let ctx;
+    try {
+      ctx = await buildAIContext("sugerir_apoyo", {
+        area:  est.area  || "",
+        grado: est.grado || "",
+        estudiantesEnRiesgo: [{
+          nombre:             est.nombre,
+          cf:                 est.promedio ?? 0,
+          asistencia:         est.asistencia ?? null,
+          observacion:        `Nivel de riesgo: ${est.nivelRiesgo || "—"}`,
+          competenciasDebiles: [],
+        }],
+        promedioGrupo: est.promedio ?? null,
+      });
+    } catch {
+      setPanelIaError("No se pudo construir el contexto IA.");
+      setPanelIaGenerando(false);
+      return;
+    }
 
-    const contexto = `Estudiante: ${est.nombre}
-Curso: ${est.cursoNombre} | Área: ${est.area} | Grado: ${est.grado}
-Promedio general: ${est.promedio}% | Asistencia: ${est.asistencia}%
-Nivel de riesgo: ${est.nivelRiesgo}
-Rendimiento por área: ${areasTexto}`;
-
-    const prompts = {
-      recomendaciones: `${contexto}
-
-Genera recomendaciones pedagógicas específicas para este estudiante:
-
-## Diagnóstico individual
-## Estrategias de intervención
-## Actividades de apoyo sugeridas
-## Recomendaciones para la familia`,
-
-      informe: `${contexto}
-
-Genera un informe individual completo para este estudiante:
-
-## Perfil académico
-## Fortalezas identificadas
-## Áreas de oportunidad
-## Plan de acción sugerido
-## Mensaje para la familia
-## Compromisos recomendados`,
-    };
+    const eventoTipo = accion === "informe"
+      ? LEARNING_EVENTS.INFORME_ESTUDIANTE_GENERADO
+      : LEARNING_EVENTS.IA_RECOMENDACION_GENERADA;
 
     AIService.generate({
-      module: "registro-apoyo",
-      prompt: prompts[accion] || prompts.informe,
-      system: "Eres DocenteOS, asistente pedagógico del sistema educativo dominicano (MINERD). Responde en español. Sé concreto, empático y orientado al docente de aula.",
-      maxTokens: accion === "informe" ? 2000 : 1200,
+      module:    "registro-apoyo",
+      prompt:    ctx.prompt,
+      system:    ctx.system,
+      maxTokens: accion === "informe" ? 2000 : ctx.recommendedMaxTokens,
       onChunk: (chunk) => {
         setPanelIaTexto((prev) => prev + chunk);
         setTimeout(() => panelIaRef.current?.scrollTo({ top: panelIaRef.current.scrollHeight, behavior: "smooth" }), 50);
       },
-      onFinish: () => setPanelIaGenerando(false),
+      onFinish: () => {
+        setPanelIaGenerando(false);
+        EventTracker.track(eventoTipo, {
+          agentId:  AGENT_IDS.GENERADOR_REPORTES,
+          area:     est.area  || "",
+          grado:    est.grado || "",
+          accion,
+        });
+      },
       onError: (err) => { setPanelIaError(err); setPanelIaGenerando(false); },
     });
   };
@@ -3073,51 +3112,40 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     });
   }, [storageKey, detalleId, storageListo, tabActiva, estadoPlan, ultimoEnvio, mensajeAccion, evaluaciones, planApoyo, informeIa]);
 
-  const manejarGenerarInformeIA = () => {
+  const manejarGenerarInformeIA = async () => {
     setInformeIa("");
     setInformeIaGenerando(true);
     setTabActiva("Informe IA");
 
-    const evalsTexto = evaluaciones.slice(0, 5)
-      .map((ev) => `- ${ev.actividad} (${ev.area}): ${ev.calificacion} — ${ev.estado}`)
-      .join("\n");
+    const areaActiva = areas[0]?.area || "";
 
-    const planTexto = planApoyo.join("\n- ");
-    const areasTexto = areas.map((a) => `${a.area}: ${a.valor}%`).join(", ");
-
-    const prompt = `Genera un informe pedagógico individual completo para el siguiente estudiante del sistema educativo dominicano (MINERD).
-
-DATOS DEL ESTUDIANTE:
-- Nombre: ${nombre}
-- Curso: ${curso} | Edad: ${edad} años
-- Estado académico: ${estado}
-- Promedio general: ${promedio}%
-- Asistencia: ${asistencia}%
-- Tutora/Madre: ${tutor} | Teléfono: ${telefono}
-
-RENDIMIENTO POR ÁREA:
-${areasTexto}
-
-EVALUACIONES RECIENTES:
-${evalsTexto || "Sin evaluaciones registradas"}
-
-PLAN DE APOYO ACTUAL:
-- ${planTexto || "Sin plan activo"}
-
-Genera el informe con estas secciones:
-
-## Perfil académico general
-## Fortalezas identificadas
-## Áreas que requieren refuerzo
-## Análisis de asistencia
-## Plan de acción recomendado
-## Mensaje para la familia de ${nombre.split(" ")[0]}
-## Compromisos y próximos pasos`;
+    let ctx;
+    try {
+      ctx = await buildAIContext("sugerir_apoyo", {
+        area:  areaActiva,
+        grado: curso || "",
+        estudiantesEnRiesgo: [{
+          nombre,
+          cf:          promedio,
+          asistencia,
+          observacion: `Estado: ${estado}. Plan de apoyo: ${planApoyo.slice(0, 2).join("; ")}`,
+          competenciasDebiles: evaluaciones
+            .filter((ev) => parseInt(ev.calificacion) < 70)
+            .slice(0, 3)
+            .map((ev) => ev.area),
+        }],
+        promedioGrupo: promedio,
+      });
+    } catch {
+      setInformeIa("Error al construir el contexto IA.");
+      setInformeIaGenerando(false);
+      return;
+    }
 
     AIService.generate({
-      module: "registro-apoyo",
-      prompt,
-      system: "Eres DocenteOS, asistente pedagógico del sistema educativo dominicano (MINERD). Genera informes individuales claros, empáticos y accionables. Usa lenguaje profesional pero accesible para familias y docentes. Responde en español.",
+      module:    "registro-apoyo",
+      prompt:    ctx.prompt,
+      system:    ctx.system,
       maxTokens: 2000,
       onChunk: (chunk) => {
         setInformeIa((prev) => prev + chunk);
@@ -3126,6 +3154,11 @@ Genera el informe con estas secciones:
       onFinish: () => {
         setInformeIaGenerando(false);
         setMensajeAccion("Informe IA generado en la pestaña Informe IA.");
+        EventTracker.track(LEARNING_EVENTS.INFORME_ESTUDIANTE_GENERADO, {
+          agentId: AGENT_IDS.GENERADOR_REPORTES,
+          area:    areaActiva,
+          grado:   curso || "",
+        });
       },
       onError: (err) => {
         setInformeIa(`Error al generar el informe: ${err}`);

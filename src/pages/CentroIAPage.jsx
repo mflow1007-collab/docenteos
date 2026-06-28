@@ -1,6 +1,12 @@
-import { useState, useRef, useCallback } from 'react'
-import { llamarIALab } from '../services/centroIAService.js'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useContextoDocente } from '../hooks/useContextoDocente.js'
+import { useAuth } from '../context/AuthContext.jsx'
+import { AIService } from '../services/ai/AIService.js'
+import { buildAIContext } from '../services/ai/ContextBuilder.js'
+import { EventTracker } from '../services/ai/learning/EventTracker.js'
+import { LEARNING_EVENTS, AGENT_IDS, MEMORY_TYPES, MEMORY_SOURCES, STATES } from '../services/ai/knowledge/KnowledgeTypes.js'
+import { crearMemoria } from '../services/ai/memory/AgentMemoryService.js'
+import { esUsuarioDocenteOS } from '../utils/permisos.js'
 import './CentroIAPage.css'
 
 // ── Prompt Bank Data ──────────────────────────────────────────────────────────
@@ -218,20 +224,32 @@ const SUGERENCIAS_LAB = [
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function CentroIAPage({ seccion = 'bienvenida' }) {
+  const [seccionInterna,    setSeccionInterna]    = useState(seccion)
+  const [promptPreCargado,  setPromptPreCargado]  = useState('')
+
+  // Sincroniza cuando el sidebar cambia la sección externamente
+  useEffect(() => { setSeccionInterna(seccion) }, [seccion])
+
+  const irALaboratorio = useCallback((prompt = '') => {
+    setPromptPreCargado(prompt)
+    setSeccionInterna('laboratorio')
+  }, [])
+
   return (
     <div className="cia-shell">
-      {seccion === 'bienvenida'   && <SecBienvenida />}
-      {seccion === 'rol'          && <SecRol />}
-      {seccion === 'planificar'   && <SecPlanificar />}
-      {seccion === 'experiencias' && <SecExperiencias />}
-      {seccion === 'prompts'      && <SecPrompts />}
-      {seccion === 'materiales'   && <SecMateriales />}
-      {seccion === 'evaluaciones' && <SecEvaluaciones />}
-      {seccion === 'ev-autentica' && <SecEvAutentica />}
-      {seccion === 'personal'     && <SecPersonal />}
-      {seccion === 'etica'        && <SecEtica />}
-      {seccion === 'laboratorio'  && <SecLaboratorio />}
-      {seccion === 'academia'     && <SecAcademia />}
+      {seccionInterna === 'bienvenida'   && <SecBienvenida />}
+      {seccionInterna === 'rol'          && <SecRol />}
+      {seccionInterna === 'planificar'   && <SecPlanificar />}
+      {seccionInterna === 'experiencias' && <SecExperiencias />}
+      {seccionInterna === 'prompts'      && <SecPrompts onEjecutar={irALaboratorio} />}
+      {seccionInterna === 'materiales'   && <SecMateriales onEjecutar={irALaboratorio} />}
+      {seccionInterna === 'evaluaciones' && <SecEvaluaciones onEjecutar={irALaboratorio} />}
+      {seccionInterna === 'ev-autentica' && <SecEvAutentica />}
+      {seccionInterna === 'personal'     && <SecPersonal />}
+      {seccionInterna === 'etica'        && <SecEtica />}
+      {seccionInterna === 'laboratorio'  && <SecLaboratorio initialPrompt={promptPreCargado} />}
+      {seccionInterna === 'academia'     && <SecAcademia />}
+      {seccionInterna === 'mi-ia'        && <SecProximamente titulo="Mi IA" desc="Pronto podrás ver tus planificaciones generadas, estilos aprendidos, casos de éxito y el nivel de aprendizaje de tu IA personal." />}
     </div>
   )
 }
@@ -551,18 +569,33 @@ function SecExperiencias() {
 // ════════════════════════════════════════════════════════════════════════════
 // SECTION 5 · Banco de Prompts
 // ════════════════════════════════════════════════════════════════════════════
-function SecPrompts() {
-  const [cat, setCat] = useState('planif')
+function SecPrompts({ onEjecutar }) {
+  const [cat,     setCat]     = useState('planif')
   const [copiado, setCopiado] = useState(null)
   const catActual = BANCO.find(c => c.id === cat) || BANCO[0]
 
+  const { datosCurriculares } = useContextoDocente()
+
+  // Reemplaza placeholders con datos reales del docente cuando están disponibles
+  const rellenar = useCallback((texto) => {
+    if (!datosCurriculares) return texto
+    const { grado, area, asignatura, tema } = datosCurriculares
+    let r = texto
+    if (grado)      r = r.replace(/\[GRADO\]/g, grado)
+    if (area)       r = r.replace(/\[ÁREA\]/g,  area)
+    if (asignatura) r = r.replace(/\[ASIGNATURA\]/g, asignatura)
+    if (tema)       r = r.replace(/\[TEMA\]/g,  tema)
+    return r
+  }, [datosCurriculares])
+
   const copiar = useCallback((texto, id) => {
-    navigator.clipboard.writeText(texto).then(() => {
+    const textoFinal = rellenar(texto)
+    navigator.clipboard.writeText(textoFinal).then(() => {
       setCopiado(id)
       setTimeout(() => setCopiado(null), 2000)
     }).catch(() => {
       const ta = document.createElement('textarea')
-      ta.value = texto
+      ta.value = textoFinal
       document.body.appendChild(ta)
       ta.select()
       document.execCommand('copy')
@@ -570,15 +603,26 @@ function SecPrompts() {
       setCopiado(id)
       setTimeout(() => setCopiado(null), 2000)
     })
-  }, [])
+  }, [rellenar])
+
+  const tieneRelleno = datosCurriculares &&
+    (datosCurriculares.grado || datosCurriculares.area || datosCurriculares.tema)
 
   return (
     <div className="cia-section">
       <SH
         badge="💡 PROMPTS"
         title="Banco de Prompts Pedagógicos"
-        desc="Prompts listos para usar, diseñados específicamente para docentes del sistema educativo dominicano. Cópialos y pégalos en el Laboratorio IA o en ChatGPT."
+        desc="Prompts diseñados para docentes dominicanos. Ejecútalos directamente en el Laboratorio IA o cópialos para usarlos en otra herramienta."
       />
+
+      {tieneRelleno && (
+        <Info tipo="blue" icon="✨">
+          <strong>Personalizados para ti:</strong> Los campos{' '}
+          {[datosCurriculares.grado && '[GRADO]', datosCurriculares.area && '[ÁREA]', datosCurriculares.tema && '[TEMA]'].filter(Boolean).join(', ')}{' '}
+          ya están pre-llenados con tu planificación activa.
+        </Info>
+      )}
 
       <div className="cia-prompts-tabs">
         {BANCO.map(c => (
@@ -588,31 +632,43 @@ function SecPrompts() {
         ))}
       </div>
 
-      {catActual.prompts.map(p => (
-        <div className="cia-prompt-card" key={p.id}>
-          <div className="cia-prompt-top">
-            <p className="cia-prompt-title">{p.titulo}</p>
+      {catActual.prompts.map(p => {
+        const textoFinal = rellenar(p.texto)
+        const tieneCorchetes = textoFinal.includes('[')
+        return (
+          <div className="cia-prompt-card" key={p.id}>
+            <div className="cia-prompt-top">
+              <p className="cia-prompt-title">{p.titulo}</p>
+            </div>
+            <p className="cia-prompt-desc">{p.desc}</p>
+            <div className="cia-prompt-body">{textoFinal}</div>
+            <div className="cia-prompt-actions">
+              <button
+                className="cia-btn cia-btn-primary"
+                onClick={() => onEjecutar(textoFinal)}
+                title="Ejecutar este prompt en el Laboratorio IA"
+              >
+                ✦ Ejecutar en Laboratorio
+              </button>
+              <button
+                className={`cia-btn ${copiado === p.id ? 'cia-btn-success' : 'cia-btn-ghost'}`}
+                onClick={() => copiar(p.texto, p.id)}
+              >
+                {copiado === p.id ? '✓ Copiado' : '📋 Copiar'}
+              </button>
+              {tieneCorchetes && (
+                <span style={{ fontSize: '0.78rem', color: 'var(--cia-text-3)' }}>
+                  Completa los campos [CORCHETES] antes de ejecutar
+                </span>
+              )}
+            </div>
           </div>
-          <p className="cia-prompt-desc">{p.desc}</p>
-          <div className="cia-prompt-body">{p.texto}</div>
-          <div className="cia-prompt-actions">
-            <button
-              className={`cia-btn ${copiado === p.id ? 'cia-btn-success' : 'cia-btn-ghost'}`}
-              onClick={() => copiar(p.texto, p.id)}
-            >
-              {copiado === p.id ? '✓ Copiado' : '📋 Copiar'}
-            </button>
-            <span style={{ fontSize: '0.78rem', color: 'var(--cia-text-3)' }}>
-              Personaliza los campos entre [CORCHETES] con tu información
-            </span>
-          </div>
-        </div>
-      ))}
+        )
+      })}
 
-      <Info tipo="blue" icon="💡">
-        <strong>Tip:</strong> Los campos entre [CORCHETES] son los que debes personalizar.
-        Por ejemplo, reemplaza [GRADO] por "3er grado de Primaria" y [ÁREA] por "Matemática".
-        Cuantos más detalles des, mejor será el resultado.
+      <Info tipo="amber" icon="💡">
+        <strong>Tip:</strong> Usa "Ejecutar en Laboratorio" para enviar el prompt directamente a la IA.
+        Con "Copiar" obtienes el texto para usarlo en otras herramientas.
       </Info>
     </div>
   )
@@ -636,19 +692,23 @@ const MATS = [
   { icon: '🔬', label: 'Guía de Experimento',desc: 'Procedimiento científico' },
 ]
 
-function SecMateriales() {
+function SecMateriales({ onEjecutar }) {
   const [sel, setSel] = useState(null)
+  const { datosCurriculares } = useContextoDocente()
 
-  const promptMat = sel != null ? `Crea ${MATS[sel].label.toLowerCase()} sobre [TEMA] para estudiantes de [GRADO] de [ÁREA].
-Incluye: objetivo claro, instrucciones detalladas, contenido completo y bien organizado, y actividades de aplicación.
-Usa lenguaje apropiado para la edad y adapta el formato al tipo de material seleccionado.` : ''
+  const promptMat = sel != null ? (() => {
+    const grado = datosCurriculares?.grado || '[GRADO]'
+    const area  = datosCurriculares?.area  || '[ÁREA]'
+    const tema  = datosCurriculares?.tema  || '[TEMA]'
+    return `Crea ${MATS[sel].label.toLowerCase()} sobre ${tema} para estudiantes de ${grado} de ${area}.\nIncluye: objetivo claro, instrucciones detalladas, contenido completo y bien organizado, y actividades de aplicación.\nUsa lenguaje apropiado para la edad y adapta el formato al tipo de material seleccionado.`
+  })() : ''
 
   return (
     <div className="cia-section">
       <SH
         badge="📁 MATERIALES"
         title="Crear Materiales Didácticos"
-        desc="La IA puede crear cualquier material educativo en segundos. Selecciona el tipo, personaliza el prompt y obtén un borrador listo para revisar y adaptar."
+        desc="La IA puede crear cualquier material educativo en segundos. Selecciona el tipo y ejecútalo directamente en el Laboratorio IA."
       />
 
       <div className="cia-section-label">Selecciona el tipo de material</div>
@@ -672,12 +732,20 @@ Usa lenguaje apropiado para la edad y adapta el formato al tipo de material sele
             {MATS[sel].icon} Prompt para {MATS[sel].label}
           </p>
           <div className="cia-prompt-body">{promptMat}</div>
-          <button
-            className="cia-btn cia-btn-primary"
-            onClick={() => navigator.clipboard.writeText(promptMat)}
-          >
-            📋 Copiar prompt
-          </button>
+          <div className="cia-prompt-actions">
+            <button
+              className="cia-btn cia-btn-primary"
+              onClick={() => onEjecutar(promptMat)}
+            >
+              ✦ Ejecutar en Laboratorio
+            </button>
+            <button
+              className="cia-btn cia-btn-ghost"
+              onClick={() => navigator.clipboard.writeText(promptMat)}
+            >
+              📋 Copiar
+            </button>
+          </div>
         </div>
       )}
 
@@ -715,13 +783,23 @@ const TIPOS_EVAL = [
   { icon: '📈', label: 'Escala de Estimación',  desc: 'Frecuencia de actitudes', prompt: 'Crea una escala de estimación de 4 niveles con 10 ítems para evaluar [ACTITUD/PROCESO] en estudiantes de [GRADO] de [ÁREA].' },
 ]
 
-function SecEvaluaciones() {
+function SecEvaluaciones({ onEjecutar }) {
   const [sel, setSel] = useState(null)
   const [copiado, setCopiado] = useState(false)
+  const { datosCurriculares } = useContextoDocente()
+
+  const getPrompt = useCallback((idx) => {
+    if (idx == null) return ''
+    let p = TIPOS_EVAL[idx].prompt
+    if (datosCurriculares?.grado) p = p.replace(/\[GRADO\]/g, datosCurriculares.grado)
+    if (datosCurriculares?.area)  p = p.replace(/\[ÁREA\]/g,  datosCurriculares.area)
+    if (datosCurriculares?.tema)  p = p.replace(/\[TEMA\]/g,  datosCurriculares.tema)
+    return p
+  }, [datosCurriculares])
 
   const copiar = () => {
     if (sel == null) return
-    navigator.clipboard.writeText(TIPOS_EVAL[sel].prompt)
+    navigator.clipboard.writeText(getPrompt(sel))
     setCopiado(true)
     setTimeout(() => setCopiado(false), 2000)
   }
@@ -731,7 +809,7 @@ function SecEvaluaciones() {
       <SH
         badge="📊 EVALUACIÓN"
         title="Crear Instrumentos de Evaluación"
-        desc="La IA genera instrumentos de evaluación alineados a las competencias del MINERD. Selecciona el tipo, copia el prompt y obtén tu instrumento en segundos."
+        desc="La IA genera instrumentos de evaluación alineados a las competencias del MINERD. Selecciona el tipo y ejecútalo directamente en el Laboratorio IA."
       />
 
       <div className="cia-grid cia-grid-2" style={{ marginBottom: 20 }}>
@@ -757,10 +835,15 @@ function SecEvaluaciones() {
       {sel != null && (
         <div className="cia-card">
           <p className="cia-card-title" style={{ marginBottom: 10 }}>Prompt para {TIPOS_EVAL[sel].label}</p>
-          <div className="cia-prompt-body">{TIPOS_EVAL[sel].prompt}</div>
-          <button className={`cia-btn ${copiado ? 'cia-btn-success' : 'cia-btn-primary'}`} onClick={copiar}>
-            {copiado ? '✓ Copiado' : '📋 Copiar prompt'}
-          </button>
+          <div className="cia-prompt-body">{getPrompt(sel)}</div>
+          <div className="cia-prompt-actions">
+            <button className="cia-btn cia-btn-primary" onClick={() => onEjecutar(getPrompt(sel))}>
+              ✦ Ejecutar en Laboratorio
+            </button>
+            <button className={`cia-btn ${copiado ? 'cia-btn-success' : 'cia-btn-ghost'}`} onClick={copiar}>
+              {copiado ? '✓ Copiado' : '📋 Copiar'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -955,42 +1038,127 @@ function SecEtica() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// SECTION 11 · Laboratorio IA
+// SECTION 11 · Laboratorio IA — Chat multi-turno
 // ════════════════════════════════════════════════════════════════════════════
-function SecLaboratorio() {
-  const [prompt, setPrompt]   = useState('')
-  const [output, setOutput]   = useState('')
-  const [error,  setError]    = useState('')
-  const [gen,    setGen]      = useState(false)
-  const outputRef             = useRef('')
-  const { contexto }          = useContextoDocente()
+function SecLaboratorio({ initialPrompt = '' }) {
+  const [mensajes, setMensajesState] = useState([])
+  const [texto,    setTexto]         = useState('')
+  const [gen,      setGenState]      = useState(false)
+  const [error,    setError]         = useState('')
 
-  const enviar = async () => {
-    if (!prompt.trim() || gen) return
-    setOutput('')
+  const mensajesRef    = useRef([])
+  const genRef         = useRef(false)
+  const streamingRef   = useRef('')
+  const messagesEndRef = useRef(null)
+  const lastInitRef    = useRef('')
+
+  const { contexto, datosCurriculares } = useContextoDocente()
+  const { user, perfil }               = useAuth()
+  const esAdmin = esUsuarioDocenteOS(user?.email)
+
+  // Mantiene ref + state sincronizados para que callbacks async no lean closures obsoletas
+  const setGen = (v) => { genRef.current = v; setGenState(v) }
+  const updateMensajes = (updater) => {
+    const next = typeof updater === 'function' ? updater(mensajesRef.current) : updater
+    mensajesRef.current = next
+    setMensajesState(next)
+  }
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [mensajes])
+
+  useEffect(() => {
+    if (initialPrompt && initialPrompt !== lastInitRef.current) {
+      lastInitRef.current = initialPrompt
+      ejecutar(initialPrompt)
+    }
+  }, [initialPrompt])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const ejecutar = async (textoEnviado) => {
+    if (!textoEnviado?.trim() || genRef.current) return
+    const pregunta       = textoEnviado.trim()
+    const historialAntes = mensajesRef.current
+    const msgIdUser      = Date.now()
+    const msgIdAI        = Date.now() + 1
+
+    updateMensajes([...historialAntes, { _id: msgIdUser, rol: 'user', contenido: pregunta, fecha: new Date() }])
+    setTexto('')
     setError('')
     setGen(true)
-    outputRef.current = ''
+    streamingRef.current = ''
 
-    await llamarIALab(prompt.trim(), {
-      onChunk:  (t) => { outputRef.current += t; setOutput(outputRef.current) },
-      onFinish: () => setGen(false),
-      onError:  (e) => { setError(e); setGen(false) },
-    }, contexto)
+    updateMensajes(prev => [...prev, { _id: msgIdAI, rol: 'assistant', contenido: '', fecha: new Date(), _streaming: true }])
+
+    try {
+      const ctx = await buildAIContext('chat_docente', {
+        pregunta,
+        mensajes:      historialAntes,
+        perfilDocente: perfil,
+        cursoActivo:   contexto,
+        area:          datosCurriculares?.area       || '',
+        asignatura:    datosCurriculares?.asignatura || '',
+        grado:         datosCurriculares?.grado      || '',
+        tema:          datosCurriculares?.tema       || '',
+      })
+
+      await AIService.generate({
+        module:    'centro-ia',
+        prompt:    ctx.prompt,
+        system:    ctx.system,
+        maxTokens: ctx.recommendedMaxTokens,
+        onChunk: (t) => {
+          streamingRef.current += t
+          const current = streamingRef.current
+          updateMensajes(prev => prev.map(m => m._id === msgIdAI ? { ...m, contenido: current } : m))
+        },
+        onFinish: () => {
+          const respuesta = streamingRef.current
+          updateMensajes(prev => prev.map(m =>
+            m._id === msgIdAI ? { ...m, contenido: respuesta, _streaming: false } : m
+          ))
+          setGen(false)
+          EventTracker.track(LEARNING_EVENTS.CHAT_CONSULTADO, {
+            agentId:    AGENT_IDS.CHAT_DOCENTE,
+            tema:       datosCurriculares?.tema       || '',
+            area:       datosCurriculares?.area       || '',
+            asignatura: datosCurriculares?.asignatura || '',
+            grado:      datosCurriculares?.grado      || '',
+            metadata: {
+              longitudPrompt:    pregunta.length,
+              longitudRespuesta: respuesta.length,
+              cantidadMensajes:  historialAntes.length + 2,
+            },
+          })
+        },
+        onError: (e) => {
+          updateMensajes(prev => prev.filter(m => m._id !== msgIdAI))
+          setError(typeof e === 'string' ? e : 'Error al generar respuesta. Intenta de nuevo.')
+          setGen(false)
+        },
+      })
+    } catch {
+      updateMensajes(prev => prev.filter(m => m._id !== msgIdAI))
+      setError('Error al conectar con DocenteOS AI. Intenta de nuevo.')
+      setGen(false)
+    }
   }
 
-  const usarSug = (s) => {
-    const texto = s.replace(/^[^\s]+ /, '')
-    setPrompt(texto)
-    setOutput('')
-    setError('')
-  }
+  const enviar       = () => { if (!genRef.current && texto.trim()) ejecutar(texto) }
+  const usarSug      = (s) => setTexto(s.replace(/^[^\s]+ /, ''))
+  const limpiar      = () => { if (genRef.current) return; updateMensajes([]); setTexto(''); setError('') }
+  const sinMensajes  = mensajes.length === 0
 
-  const limpiar = () => {
-    setPrompt('')
-    setOutput('')
-    setError('')
-    setGen(false)
+  const guardarMemoria = async (contenido) => {
+    try {
+      await crearMemoria(AGENT_IDS.CHAT_DOCENTE, {
+        tipo:      MEMORY_TYPES.REGLA,
+        fuente:    MEMORY_SOURCES.CHAT,
+        estado:    STATES.PENDING,
+        contenido,
+        creadoPor: user?.uid,
+      })
+    } catch { /* silent */ }
   }
 
   return (
@@ -998,7 +1166,7 @@ function SecLaboratorio() {
       <SH
         badge="🧪 LABORATORIO"
         title="Laboratorio IA"
-        desc="Espacio libre para experimentar con la IA. Escribe cualquier prompt pedagógico y obtén una respuesta generada por DocenteOS AI PRO en tiempo real."
+        desc="Conversa con DocenteOS AI PRO en tiempo real. Haz preguntas, pide recursos y refina tus ideas con contexto de tu planificación activa."
       />
 
       <div className="cia-lab">
@@ -1006,55 +1174,88 @@ function SecLaboratorio() {
           <div className="cia-lab-dot cia-lab-dot-r" />
           <div className="cia-lab-dot cia-lab-dot-y" />
           <div className="cia-lab-dot cia-lab-dot-g" />
-          <span className="cia-lab-top-title">DocenteOS AI PRO · Laboratorio</span>
+          <span className="cia-lab-top-title">DocenteOS AI PRO · Chat</span>
+          {!sinMensajes && (
+            <button className="cia-chat-clear-btn" onClick={limpiar} disabled={gen}>
+              ↺ Limpiar
+            </button>
+          )}
         </div>
-        <div className="cia-lab-body">
-          <label className="cia-lab-label">Tu prompt pedagógico</label>
+
+        {!sinMensajes && (
+          <div className="cia-chat-messages">
+            {mensajes.map((msg, i) => (
+              <div key={msg._id ?? i} className={`cia-chat-msg cia-chat-msg-${msg.rol}`}>
+                <div className="cia-chat-msg-avatar">
+                  {msg.rol === 'user' ? '👤' : '✦'}
+                </div>
+                <div className="cia-chat-msg-body">
+                  <div className="cia-chat-msg-content">
+                    {msg.contenido}
+                    {msg._streaming && <span className="cia-lab-cursor" />}
+                    {msg._streaming && !msg.contenido && (
+                      <span style={{ color: 'var(--cia-text-3)' }}>Generando...</span>
+                    )}
+                  </div>
+                  {msg.rol === 'assistant' && !msg._streaming && msg.contenido && (
+                    <div className="cia-chat-msg-actions">
+                      <button
+                        className="cia-btn cia-btn-ghost"
+                        style={{ fontSize: '0.71rem', padding: '2px 8px' }}
+                        onClick={() => navigator.clipboard.writeText(msg.contenido)}
+                      >
+                        📋 Copiar
+                      </button>
+                      {esAdmin && (
+                        <button
+                          className="cia-btn cia-btn-ghost"
+                          style={{ fontSize: '0.71rem', padding: '2px 8px' }}
+                          onClick={() => guardarMemoria(msg.contenido)}
+                        >
+                          💾 Guardar como memoria
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {error && <div className="cia-lab-error" style={{ margin: '8px 12px' }}>{error}</div>}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        <div className={`cia-lab-body${!sinMensajes ? ' cia-lab-body-reply' : ''}`}>
+          {sinMensajes && error && (
+            <div className="cia-lab-error" style={{ marginBottom: '10px' }}>{error}</div>
+          )}
+          <label className="cia-lab-label">
+            {sinMensajes ? 'Tu prompt pedagógico' : 'Continuar conversación'}
+          </label>
           <textarea
             className="cia-lab-textarea"
-            placeholder="Escribe aquí tu petición... Por ejemplo: 'Crea 5 actividades para enseñar las fracciones a 4to grado de Primaria'"
-            value={prompt}
-            onChange={e => setPrompt(e.target.value)}
+            placeholder={
+              sinMensajes
+                ? "Escribe aquí tu petición... Por ejemplo: 'Crea 5 actividades para enseñar las fracciones a 4to grado de Primaria'"
+                : 'Escribe tu siguiente mensaje...'
+            }
+            value={texto}
+            onChange={e => setTexto(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) enviar() }}
           />
           <div className="cia-lab-actions">
-            <button className="cia-lab-send" onClick={enviar} disabled={gen || !prompt.trim()}>
-              {gen ? '⏳ Generando...' : '✦ Generar'}
+            <button className="cia-lab-send" onClick={enviar} disabled={gen || !texto.trim()}>
+              {gen ? '⏳ Generando...' : sinMensajes ? '✦ Generar' : '✦ Enviar'}
             </button>
-            <button className="cia-lab-clear" onClick={limpiar}>Limpiar</button>
+            {sinMensajes && (
+              <button className="cia-lab-clear" onClick={limpiar}>Limpiar</button>
+            )}
             <span className="cia-lab-hint">Ctrl+Enter para enviar</span>
           </div>
-
-          {(output || error || gen) && (
-            <div className="cia-lab-output">
-              <div className="cia-lab-output-label">
-                ✦ Respuesta de DocenteOS AI PRO
-                {output && !gen && (
-                  <button
-                    className="cia-btn cia-btn-ghost"
-                    style={{ marginLeft: 'auto', fontSize: '0.73rem', padding: '3px 10px' }}
-                    onClick={() => navigator.clipboard.writeText(output)}
-                  >
-                    📋 Copiar
-                  </button>
-                )}
-              </div>
-              {error
-                ? <div className="cia-lab-error">{error}</div>
-                : (
-                  <div className="cia-lab-output-text">
-                    {output}
-                    {gen && <span className="cia-lab-cursor" />}
-                    {!gen && !output && <span style={{ color: 'var(--cia-text-3)' }}>Iniciando...</span>}
-                  </div>
-                )
-              }
-            </div>
-          )}
         </div>
       </div>
 
-      {!output && !error && !gen && (
+      {sinMensajes && !gen && (
         <>
           <div className="cia-section-label">Sugerencias para empezar</div>
           <div className="cia-lab-sugerencias">
@@ -1079,6 +1280,34 @@ function SecLaboratorio() {
 // ════════════════════════════════════════════════════════════════════════════
 // SECTION 12 · Academia DocenteOS
 // ════════════════════════════════════════════════════════════════════════════
+function SecProximamente({ titulo = "Próximamente", desc = "Esta sección está en desarrollo." }) {
+  return (
+    <div className="cia-section">
+      <div className="cia-sh">
+        <div className="cia-sh-badge">🚧</div>
+        <h1>{titulo}</h1>
+        <p>{desc}</p>
+      </div>
+      <div style={{
+        marginTop: 32,
+        padding: '32px 24px',
+        background: 'var(--cia-card-bg)',
+        border: '1px dashed var(--cia-border)',
+        borderRadius: 16,
+        textAlign: 'center',
+        color: 'var(--cia-text-3)',
+        fontSize: '0.9rem',
+      }}>
+        <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>⚡</div>
+        <strong>En construcción</strong>
+        <p style={{ marginTop: 8, lineHeight: 1.6 }}>
+          Estamos desarrollando esta sección. Pronto estará disponible.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function SecAcademia() {
   return (
     <div className="cia-section">

@@ -1,0 +1,68 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "ke_ejemplos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "agentId",  "order": "ASCENDING"  },
+        { "fieldPath": "estado",   "order": "ASCENDING"  },
+        { "fieldPath": "tipo",     "order": "ASCENDING"  },
+        { "fieldPath": "calidad",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ke_ejemplos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tipo",     "order": "ASCENDING"  },
+        { "fieldPath": "estado",   "order": "ASCENDING"  },
+        { "fieldPath": "creadoEn", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ke_estilos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "visibilidad", "order": "ASCENDING"  },
+        { "fieldPath": "estado",      "order": "ASCENDING"  },
+        { "fieldPath": "creadoEn",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ke_estilos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid",      "order": "ASCENDING"  },
+        { "fieldPath": "creadoEn", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ke_memoria",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "topicId",   "order": "ASCENDING"  },
+        { "fieldPath": "prioridad", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ke_ejemplos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "agentId",    "order": "ASCENDING"  },
+        { "fieldPath": "estado",     "order": "ASCENDING"  },
+        { "fieldPath": "tipo",       "order": "ASCENDING"  },
+        { "fieldPath": "asignatura", "order": "ASCENDING"  },
+        { "fieldPath": "calidad",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "le_insights",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estado",   "order": "ASCENDING"  },
+        { "fieldPath": "creadoEn", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

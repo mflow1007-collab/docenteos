@@ -25,10 +25,12 @@ export function useContextoDocente() {
   const { user, perfil } = useAuth();
   const [contexto,  setContexto]  = useState("");
   const [cargando,  setCargando]  = useState(false);
+  const [datosCurriculares, setDatosCurriculares] = useState(null);
 
   useEffect(() => {
     if (!user?.uid) {
       setContexto("");
+      setDatosCurriculares(null);
       return;
     }
 
@@ -50,11 +52,12 @@ export function useContextoDocente() {
         const planActiva =
           planes.find((p) => p.estado !== "archivada") ?? planes[0] ?? null;
 
+        let datos = null;
+
         if (planActiva) {
           const m = planActiva.metadatos    || {};
           const d = planActiva.datosGenerales || {};
 
-          // Nivel: primero desde planificación, luego desde perfil docente
           const nivel =
             m.nivelEducativo ||
             m.nivel ||
@@ -63,8 +66,12 @@ export function useContextoDocente() {
               : perfil?.nivel) ||
             "";
 
-          const grado = m.grado || "";
-          const area  = m.area  || d.area || "";
+          const grado      = m.grado      || "";
+          const area       = m.area       || d.area       || "";
+          const asignatura = m.asignatura || d.asignatura || area;
+          const tema       = m.tema       || m.tituloTema || d.tema || "";
+
+          datos = { nivel, grado, area, asignatura, tema };
 
           if (nivel && grado && area) {
             const curriculoDoc = await consultarCurriculo(nivel, grado, area);
@@ -77,17 +84,22 @@ export function useContextoDocente() {
           }
         }
 
-        if (activo) setContexto(teacherCtx + curriculumCtx);
+        if (activo) {
+          setContexto(teacherCtx + curriculumCtx);
+          setDatosCurriculares(datos);
+        }
       } catch {
-        // Fallo silencioso: contexto parcial con solo perfil
-        if (activo) setContexto(buildTeacherContext(perfil, []));
+        if (activo) {
+          setContexto(buildTeacherContext(perfil, []));
+          setDatosCurriculares(null);
+        }
       } finally {
         if (activo) setCargando(false);
       }
     })();
 
     return () => { activo = false; };
-  }, [user?.uid]); // Solo recarga si cambia el usuario autenticado
+  }, [user?.uid]);
 
-  return { contexto, cargando };
+  return { contexto, cargando, datosCurriculares };
 }

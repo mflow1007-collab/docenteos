@@ -25,16 +25,14 @@ function _uid() {
 // inyecta en el prompt de la IA cuando hay un caso de éxito relevante.
 
 function _serializarPlanificacion(planificacion) {
-  const meta   = planificacion.metadatos    || {};
-  const datos  = planificacion.datosGenerales || {};
-  const semanas = planificacion.desarrolloSemanal || [];
+  const meta  = planificacion.metadatos     || {};
+  const datos = planificacion.datosGenerales || {};
 
-  const lines = [
+  const header = [
     `TEMA: ${meta.tema || ""}`,
     `ÁREA: ${meta.area || ""}`,
     `GRADO: ${[meta.grado, meta.seccion].filter(Boolean).join(" ")}`,
     `TIPO: ${meta.tipoPlanificacion || ""}`,
-    `DURACIÓN: ${meta.duracion || ""}`,
     `COMPETENCIA: ${datos.competencia || ""}`,
     "",
     "SITUACIÓN DE APRENDIZAJE:",
@@ -42,19 +40,42 @@ function _serializarPlanificacion(planificacion) {
     "",
   ];
 
-  semanas.slice(0, 6).forEach((sem, i) => {
-    lines.push(`--- SEMANA ${i + 1} (${sem.fase || ""}) ---`);
-    (sem.actividades || []).slice(0, 4).forEach((act) => {
-      const titulo = act.titulo || act.nombre || "Actividad";
-      const desc   = act.descripcion ? ` — ${act.descripcion.slice(0, 150)}` : "";
-      lines.push(`  [${act.momento || "—"}] ${titulo}${desc}`);
+  // Planificación semanal / unidad
+  const semanas = planificacion.desarrolloSemanal || planificacion.desarrolloUnidad || [];
+  if (semanas.length > 0) {
+    semanas.slice(0, 6).forEach((sem, i) => {
+      header.push(`--- SEMANA ${i + 1} (${sem.fase || ""}) ---`);
+      (sem.actividades || []).slice(0, 4).forEach((act) => {
+        const titulo = act.titulo || act.nombre || "Actividad";
+        const desc   = act.descripcion ? ` — ${act.descripcion.slice(0, 150)}` : "";
+        header.push(`  [${act.momento || "—"}] ${titulo}${desc}`);
+      });
+      if (sem.evaluacionSemana?.instrumento) {
+        header.push(`  Evaluación: ${sem.evaluacionSemana.instrumento}`);
+      }
     });
-    if (sem.evaluacionSemana?.instrumento) {
-      lines.push(`  Evaluación: ${sem.evaluacionSemana.instrumento}`);
-    }
-  });
+    return header.join("\n");
+  }
 
-  return lines.join("\n");
+  // Plan diario
+  const sesiones = planificacion.sesiones || planificacion.desarrolloDiario || [];
+  if (sesiones.length > 0) {
+    sesiones.slice(0, 3).forEach((ses, i) => {
+      header.push(`--- SESIÓN ${i + 1} ---`);
+      (ses.actividades || ses.momentos || []).slice(0, 4).forEach((act) => {
+        const titulo = act.titulo || act.momento || act.nombre || "Actividad";
+        const desc   = act.descripcion ? ` — ${act.descripcion.slice(0, 150)}` : "";
+        header.push(`  ${titulo}${desc}`);
+      });
+    });
+    return header.join("\n");
+  }
+
+  // Fallback: cualquier campo de texto libre
+  const textoLibre = planificacion.contenido || planificacion.texto || "";
+  if (textoLibre) header.push(String(textoLibre).slice(0, 600));
+
+  return header.join("\n");
 }
 
 // ── API pública ───────────────────────────────────────────────────────────────
@@ -84,7 +105,7 @@ export async function crearCasoExito({ planificacion, planificacionId, topicId, 
     planificacionId:  planificacionId ?? null,
     topicId:          topicId         ?? null,
     area:             meta.area       ?? null,
-    asignatura:       meta.area       ?? datos.asignatura ?? null,
+    asignatura:       meta.asignatura ?? datos.asignatura ?? meta.area ?? null,
     grado:            meta.grado      ?? null,
     tema:             meta.tema       ?? null,
     tipoPlanificacion: meta.tipoPlanificacion ?? null,

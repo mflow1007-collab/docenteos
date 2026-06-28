@@ -995,3 +995,86 @@
   .cia-hero-stats { gap: 6px; }
   .cia-hero { padding: 14px 14px 12px; }
 }
+
+/* ── Chat multi-turno (SecLaboratorio) ───────────────────────────────────── */
+.cia-chat-messages {
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cia-chat-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.cia-chat-msg-user {
+  flex-direction: row-reverse;
+}
+
+.cia-chat-msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  background: var(--cia-bg-2);
+  border: 1px solid var(--cia-border);
+}
+
+.cia-chat-msg-body {
+  max-width: calc(100% - 46px);
+}
+
+.cia-chat-msg-content {
+  padding: 9px 13px;
+  border-radius: 10px;
+  font-size: 0.855rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cia-chat-msg-user .cia-chat-msg-content {
+  background: var(--cia-accent);
+  color: #fff;
+  border-radius: 10px 10px 2px 10px;
+}
+
+.cia-chat-msg-assistant .cia-chat-msg-content {
+  background: var(--cia-bg-2);
+  color: var(--cia-text-1);
+  border-radius: 10px 10px 10px 2px;
+  border: 1px solid var(--cia-border);
+}
+
+.cia-chat-msg-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.cia-chat-clear-btn {
+  margin-left: auto;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.75);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cia-chat-clear-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.cia-chat-clear-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cia-lab-body-reply {
+  border-top: 1px solid var(--cia-border);
+}
