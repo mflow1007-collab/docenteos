@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import CentroDecisionesKE from "../components/CentroDecisionesKE.jsx";
 import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import { indexarEnBIC } from "../services/ai/agents/AgentOrchestrator.js";
@@ -465,8 +466,6 @@ export default function PlanificacionPage() {
   const [planificacion, setPlanificacion] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const [historialPlanificaciones, setHistorialPlanificaciones] = useState([]);
-  const [historialMode, setHistorialMode] = useState("local");
-  const [historialAbierto, setHistorialAbierto] = useState(false);
   const [usoTiposPlanificacion, setUsoTiposPlanificacion] = useState({});
   const [estadoTemas, setEstadoTemas] = useState({
     temaActivo: null,
@@ -495,7 +494,6 @@ export default function PlanificacionPage() {
       const resultado = await obtenerPlanificacionesDetalladas();
       const lista = (resultado.data || []).filter((item) => item?.contenido?.metadatos);
       setHistorialPlanificaciones(lista);
-      setHistorialMode(resultado.mode || "local");
 
       if (!lista.length) {
         return { lista: [], mode: resultado.mode || "local" };
@@ -2037,65 +2035,15 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
           </>
         )}
 
-        <section className="planning-history-card secondary">
-          <p style={{ marginTop: 0 }}>
-            <strong>Tema Activo:</strong> {estadoTemas?.temaActivo?.titulo || "Pendiente de completar"}
-            {" · "}
-            <strong>Tema Secundario:</strong> {estadoTemas?.temaSecundario?.titulo || "Pendiente de completar"}
-          </p>
-          <button
-            className="history-collapse-btn"
-            type="button"
-            onClick={() => setHistorialAbierto((prev) => !prev)}
-          >
-            <span>🗂️ Historial reciente</span>
-            <span>{historialAbierto ? "Ocultar" : "Mostrar"}</span>
-          </button>
-
-          {historialAbierto && (
-            <>
-              <p>
-                Fuente actual: <strong>{historialMode === "firebase" ? "Firebase" : "Local"}</strong>
-              </p>
-              <div className="history-cards">
-                {historialPlanificaciones.slice(0, 5).map((item) => {
-                  const meta = item?.contenido?.metadatos || {};
-                  const gradoSeccion = [meta.grado, meta.seccion].filter(Boolean).join(" ").trim() || item.curso || "Curso";
-                  const areaActual = meta.area || item.area || "Área";
-                  const tipo = meta.tipoPlanificacion || "No definido";
-
-                  return (
-                    <article key={item.id} className="history-item-card">
-                      <div className="history-item-head">
-                        <strong>{gradoSeccion}</strong>
-                        <span>{areaActual}</span>
-                      </div>
-                      <div className="history-item-meta">
-                        <span>Tipo: {tipo}</span>
-                        <span>Creado: {formatearFechaRegistro(item.createdAt)}</span>
-                      </div>
-                      <div className="history-item-actions">
-                        <button type="button" onClick={() => manejarCargarHistorial(item.id)}>Cargar</button>
-                        <button type="button" onClick={() => manejarDuplicarHistorial(item.id)}>Duplicar</button>
-                        <button
-                          type="button"
-                          className="danger"
-                          onClick={() => manejarEliminarHistorial(item.id)}
-                          disabled={eliminando}
-                        >
-                          {eliminando ? "Eliminando..." : "Eliminar"}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-                {historialPlanificaciones.length === 0 && (
-                  <p className="history-empty">No hay planificaciones guardadas todavía.</p>
-                )}
-              </div>
-            </>
-          )}
-        </section>
+        <CentroDecisionesKE
+          estadoTemas={estadoTemas}
+          historialPlanificaciones={historialPlanificaciones}
+          tieneCurriculoOficial={tieneCurriculoOficial}
+          area={area}
+          asignatura={asignatura}
+          grado={grado}
+          nivel={perfilNivel}
+        />
       </div>
     </>
   );
