@@ -1078,3 +1078,82 @@
 .cia-lab-body-reply {
   border-top: 1px solid var(--cia-border);
 }
+
+/* ── SecMiIA ──────────────────────────────────────────────────────────────── */
+.cia-mia-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.cia-mia-stat {
+  background: #f8fbff;
+  border: 1px solid #dbe5f3;
+  border-radius: 12px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.cia-mia-num {
+  font-size: 26px;
+  font-weight: 800;
+  color: #1E40AF;
+  line-height: 1;
+}
+.cia-mia-lab {
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}
+.cia-mia-block { margin-bottom: 16px; }
+.cia-mia-block-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+.cia-mia-estilo {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  color: #1e3a5f;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cia-mia-estilo-body { display: flex; flex-direction: column; gap: 5px; }
+.cia-mia-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cia-mia-lista li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+}
+.cia-mia-chip {
+  background: #e0e7ff;
+  color: #3730a3;
+  border-radius: 5px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+@media (max-width: 480px) {
+  .cia-mia-stats { grid-template-columns: repeat(3, 1fr); }
+}

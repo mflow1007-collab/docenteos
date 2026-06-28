@@ -1,10 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore'
+import { db } from '../firebase.js'
 import { useContextoDocente } from '../hooks/useContextoDocente.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { AIService } from '../services/ai/AIService.js'
 import { buildAIContext } from '../services/ai/ContextBuilder.js'
 import { EventTracker } from '../services/ai/learning/EventTracker.js'
-import { LEARNING_EVENTS, AGENT_IDS, MEMORY_TYPES, MEMORY_SOURCES, STATES } from '../services/ai/knowledge/KnowledgeTypes.js'
+import { LEARNING_EVENTS, AGENT_IDS, MEMORY_TYPES, MEMORY_SOURCES, STATES, COLLECTIONS } from '../services/ai/knowledge/KnowledgeTypes.js'
 import { crearMemoria } from '../services/ai/memory/AgentMemoryService.js'
 import { esUsuarioDocenteOS } from '../utils/permisos.js'
 import './CentroIAPage.css'
@@ -184,11 +186,13 @@ const CURSOS = [
     id: 'c1', icon: '🤖', titulo: 'IA para Docentes: Fundamentos',
     desc: 'Comprende qué es la IA, cómo funciona y cómo puede transformar tu práctica docente.',
     lecciones: 5, duracion: '45 min', nivel: 'Básico', color: '#2563EB', disponible: true,
+    promptInicial: 'Quiero comenzar el curso "IA para Docentes: Fundamentos". Explícame qué es la inteligencia artificial, cómo funciona de forma sencilla y dame 3 ejemplos concretos de cómo puede transformar mi práctica docente en el aula.',
   },
   {
     id: 'c2', icon: '📋', titulo: 'Planifica mejor con IA',
     desc: 'Aprende a crear planificaciones alineadas al MINERD usando inteligencia artificial.',
     lecciones: 6, duracion: '60 min', nivel: 'Intermedio', color: '#7C3AED', disponible: true,
+    promptInicial: 'Quiero comenzar el curso "Planifica mejor con IA". Muéstrame paso a paso cómo crear una planificación semanal alineada al Diseño Curricular del MINERD usando inteligencia artificial. Empieza con un ejemplo práctico para cualquier grado y asignatura.',
   },
   {
     id: 'c3', icon: '💡', titulo: 'Arte del Prompting Educativo',
@@ -248,8 +252,8 @@ export default function CentroIAPage({ seccion = 'bienvenida' }) {
       {seccionInterna === 'personal'     && <SecPersonal />}
       {seccionInterna === 'etica'        && <SecEtica />}
       {seccionInterna === 'laboratorio'  && <SecLaboratorio initialPrompt={promptPreCargado} />}
-      {seccionInterna === 'academia'     && <SecAcademia />}
-      {seccionInterna === 'mi-ia'        && <SecProximamente titulo="Mi IA" desc="Pronto podrás ver tus planificaciones generadas, estilos aprendidos, casos de éxito y el nivel de aprendizaje de tu IA personal." />}
+      {seccionInterna === 'academia'     && <SecAcademia onIrALab={irALaboratorio} />}
+      {seccionInterna === 'mi-ia'        && <SecMiIA />}
     </div>
   )
 }
@@ -1308,7 +1312,7 @@ function SecProximamente({ titulo = "Próximamente", desc = "Esta sección está
   )
 }
 
-function SecAcademia() {
+function SecAcademia({ onIrALab = () => {} }) {
   return (
     <div className="cia-section">
       <SH
@@ -1317,10 +1321,9 @@ function SecAcademia() {
         desc="Cursos cortos para dominar la IA educativa paso a paso. Aprende a tu ritmo, obtén reconocimientos y conviértete en referente de innovación en tu centro educativo."
       />
 
-      <Info tipo="blue" icon="🚀">
-        <strong>Próximamente:</strong> La Academia DocenteOS lanzará sus primeros cursos interactivos
-        con videolecciones, ejercicios prácticos y certificados digitales verificables.
-        Los dos primeros ya están disponibles.
+      <Info tipo="blue" icon="🎓">
+        Los dos primeros cursos ya están disponibles. Comenzar un curso abre el Laboratorio IA
+        con la lección inicial cargada para que practiques de inmediato.
       </Info>
 
       <div className="cia-academia-grid" style={{ marginTop: 16 }}>
@@ -1342,7 +1345,11 @@ function SecAcademia() {
                 </div>
                 <span className="cia-progress-label">0 de {c.lecciones} lecciones completadas</span>
               </div>
-              <button className={`cia-curso-btn${c.disponible ? '' : ' proxim'}`}>
+              <button
+                className={`cia-curso-btn${c.disponible ? '' : ' proxim'}`}
+                disabled={!c.disponible}
+                onClick={c.disponible ? () => onIrALab(c.promptInicial || '') : undefined}
+              >
                 {c.disponible ? '▶ Comenzar curso' : '🔒 Próximamente'}
               </button>
             </div>
@@ -1359,6 +1366,151 @@ function SecAcademia() {
         <li>Capacidad para replicar lo aprendido con colegas en tu centro educativo.</li>
         <li>Acceso prioritario a nuevos cursos y funciones del Centro IA Docente.</li>
       </ul>
+    </div>
+  )
+}
+
+// ── SecMiIA ───────────────────────────────────────────────────────────────────
+function SecMiIA() {
+  const { user } = useAuth()
+  const [memorias, setMemorias] = useState([])
+  const [estilo, setEstilo] = useState(null)
+  const [casos, setCasos] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!user?.uid) return
+    const uid = user.uid
+
+    async function cargar() {
+      setCargando(true)
+      setError('')
+      try {
+        const agentIds = Object.values(AGENT_IDS)
+        const [memResultados, estiloSnap, casosSnap] = await Promise.all([
+          Promise.all(agentIds.map(agentId =>
+            getDocs(query(
+              collection(db, COLLECTIONS.KE_AGENTES, agentId, COLLECTIONS.KE_MEMORIA),
+              where('creadoPor', '==', uid),
+              where('estado', '==', STATES.ACTIVE),
+              limit(5)
+            ))
+          )),
+          getDocs(query(
+            collection(db, COLLECTIONS.KE_ESTILOS),
+            where('userId', '==', uid),
+            limit(1)
+          )),
+          getDocs(query(
+            collection(db, COLLECTIONS.KE_EJEMPLOS),
+            where('creadoPor', '==', uid),
+            limit(10)
+          )),
+        ])
+
+        const todasMemoria = memResultados.flatMap(snap => snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        setMemorias(todasMemoria)
+        setEstilo(estiloSnap.docs[0]?.data() || null)
+        setCasos(casosSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+      } catch (e) {
+        setError('Error cargando datos: ' + (e.message || e))
+      } finally {
+        setCargando(false)
+      }
+    }
+
+    cargar()
+  }, [user?.uid])
+
+  return (
+    <div className="cia-section">
+      <SH
+        badge="🧠 MI IA"
+        title="Mi IA Personal"
+        desc="Todo lo que tu IA ha aprendido de ti: memorias activas, tu estilo de enseñanza detectado y los casos de éxito que has validado."
+      />
+
+      {cargando && (
+        <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>Cargando tu perfil IA…</div>
+      )}
+
+      {error && (
+        <Info tipo="red" icon="⚠️">{error}</Info>
+      )}
+
+      {!cargando && !error && (
+        <>
+          <div className="cia-mia-stats">
+            <div className="cia-mia-stat">
+              <span className="cia-mia-num">{memorias.length}</span>
+              <span className="cia-mia-lab">Memorias activas</span>
+            </div>
+            <div className="cia-mia-stat">
+              <span className="cia-mia-num">{casos.length}</span>
+              <span className="cia-mia-lab">Casos de éxito</span>
+            </div>
+            <div className="cia-mia-stat">
+              <span className="cia-mia-num">{estilo ? '✓' : '—'}</span>
+              <span className="cia-mia-lab">Estilo detectado</span>
+            </div>
+          </div>
+
+          {estilo && (
+            <div className="cia-mia-estilo">
+              <div className="cia-mia-block-title">🎨 Tu estilo de enseñanza</div>
+              <div className="cia-mia-estilo-body">
+                {estilo.estrategias?.length > 0 && (
+                  <div><strong>Estrategias preferidas:</strong> {estilo.estrategias.join(', ')}</div>
+                )}
+                {estilo.tiposRecursos?.length > 0 && (
+                  <div><strong>Recursos habituales:</strong> {estilo.tiposRecursos.join(', ')}</div>
+                )}
+                {estilo.areasPrincipales?.length > 0 && (
+                  <div><strong>Áreas principales:</strong> {estilo.areasPrincipales.join(', ')}</div>
+                )}
+                {estilo.gradosPrincipales?.length > 0 && (
+                  <div><strong>Grados:</strong> {estilo.gradosPrincipales.join(', ')}</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {memorias.length > 0 && (
+            <div className="cia-mia-block">
+              <div className="cia-mia-block-title">💡 Memorias activas</div>
+              <ul className="cia-mia-lista">
+                {memorias.map(m => (
+                  <li key={m.id}>
+                    <span className="cia-mia-chip">{m.tipo || 'regla'}</span>
+                    <span>{m.contenido}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {casos.length > 0 && (
+            <div className="cia-mia-block">
+              <div className="cia-mia-block-title">⭐ Casos de éxito validados</div>
+              <ul className="cia-mia-lista">
+                {casos.map(c => (
+                  <li key={c.id}>
+                    <span className="cia-mia-chip">{c.tipo || 'caso'}</span>
+                    <span>{c.descripcion || c.contenido || '—'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {memorias.length === 0 && casos.length === 0 && !estilo && (
+            <Info tipo="blue" icon="💡">
+              Tu IA aún está aprendiendo. Cada vez que generas planificaciones, consultas el chat y validas resultados, tu IA construye un perfil personalizado de tu estilo docente.
+            </Info>
+          )}
+        </>
+      )}
     </div>
   )
 }

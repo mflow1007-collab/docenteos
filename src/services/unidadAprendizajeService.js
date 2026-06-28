@@ -107,7 +107,254 @@ const getEjesTematicos = (area) => {
 
 // ─── Generador de momentos por día ────────────────────────────────────────────
 
+// ─── Banco temático para Inglés — Retroalimentación y Recuperación narrativa ──
+
+const _BANCO_TEMAS_INGLES = [
+  {
+    test: /rutina|routine|daily life|vida diaria|daily routine|my life|actividades diarias/i,
+    preguntas: [
+      ["What time do you wake up?", "What do you do before going to school?"],
+      ["What do you do after school?", "What time do you have lunch?"],
+      ["What do you do in the evenings?", "What time do you go to bed?"],
+      ["What do you do on weekends?", "Do you have a morning routine?"],
+    ],
+    vocabulario: [
+      "wake up, brush teeth, have breakfast, go to school",
+      "have lunch, do homework, have dinner, go to bed",
+      "morning, afternoon, evening, always, usually, sometimes",
+      "daily activities, parts of the day, time expressions, daily schedule",
+    ],
+    temaHoy: [
+      "actividades cotidianas y vocabulario de rutinas diarias",
+      "actividades diarias y partes del día",
+      "expresiones de tiempo y la rutina del hogar",
+      "la rutina completa y los elementos del producto final",
+    ],
+    temaAnterior: [
+      "las actividades cotidianas exploradas en la clase anterior",
+      "el vocabulario de rutinas y las actividades de la mañana",
+      "las expresiones de tiempo y la rutina escolar",
+      "las actividades del hogar y los fines de semana",
+    ],
+  },
+  {
+    test: /greet|salud|introduc|hello|hi\b|presentation|presentaci/i,
+    preguntas: [
+      ["How are you today?", "What's your name?"],
+      ["Where are you from?", "How old are you?"],
+      ["What do you like to do?", "Do you have brothers or sisters?"],
+      ["What is your favorite subject?", "What do you want to be when you grow up?"],
+    ],
+    vocabulario: [
+      "hello, good morning, my name is, nice to meet you",
+      "I'm from, I'm _ years old, I live in",
+      "I like, I don't like, my favorite is, pleased to meet you",
+      "greetings, introductions, personal information, formal and informal expressions",
+    ],
+    temaHoy: [
+      "saludos y presentaciones básicas en inglés",
+      "información personal y expresiones de presentación",
+      "descripciones personales y preferencias",
+      "presentaciones formales e informales en inglés",
+    ],
+    temaAnterior: [
+      "los saludos y expresiones básicas de presentación",
+      "el vocabulario de información personal",
+      "las descripciones y preferencias personales",
+      "las presentaciones formales e informales",
+    ],
+  },
+  {
+    test: /famil|family|relatives|mi familia/i,
+    preguntas: [
+      ["How many people are in your family?", "Who is in your family?"],
+      ["What does your mother or father do?", "How old is your grandmother?"],
+      ["What do you do together as a family?", "Who lives in your house?"],
+      ["What is your family like?", "What traditions does your family have?"],
+    ],
+    vocabulario: [
+      "mother, father, brother, sister, grandmother, grandfather",
+      "aunt, uncle, cousin, family members, relatives",
+      "tall, short, young, old, kind, funny, hard-working",
+      "family activities, traditions, household chores, roles",
+    ],
+    temaHoy: [
+      "los miembros de la familia y el vocabulario familiar en inglés",
+      "descripciones físicas y de personalidad de los familiares",
+      "las actividades familiares y las rutinas del hogar",
+      "la familia y las relaciones interpersonales",
+    ],
+    temaAnterior: [
+      "el vocabulario básico de los miembros de la familia",
+      "los nombres y roles de los familiares",
+      "las descripciones de los miembros de la familia",
+      "las actividades y rutinas familiares",
+    ],
+  },
+  {
+    test: /food|comida|nutrition|nutrici|healthy|saludable|eat|comer|meal|aliment/i,
+    preguntas: [
+      ["What did you have for breakfast today?", "What is your favorite food?"],
+      ["What do you eat for lunch?", "Do you like vegetables?"],
+      ["What is a healthy meal?", "How often do you eat fruit?"],
+      ["What food is popular in your community?", "What are the benefits of healthy eating?"],
+    ],
+    vocabulario: [
+      "fruit, vegetables, bread, rice, chicken, water, juice",
+      "breakfast, lunch, dinner, snack, meal",
+      "delicious, healthy, sweet, salty, fresh, tasty",
+      "nutrition, balanced diet, food groups, healthy habits",
+    ],
+    temaHoy: [
+      "el vocabulario de alimentos y comidas del día",
+      "los grupos alimenticios y los hábitos saludables",
+      "las preferencias alimenticias y las descripciones de comidas",
+      "la nutrición y la alimentación equilibrada",
+    ],
+    temaAnterior: [
+      "el vocabulario básico de alimentos y comidas",
+      "los alimentos y las comidas del día",
+      "los hábitos alimenticios y los grupos de alimentos",
+      "las preferencias y descripciones de comidas",
+    ],
+  },
+  {
+    test: /weather|clima|season|estaci|temperature|temperatura/i,
+    preguntas: [
+      ["What's the weather like today?", "What is your favorite season?"],
+      ["What do you wear when it rains?", "What do you do on a sunny day?"],
+      ["How does the weather affect what you do?", "What is the weather usually like in your town?"],
+      ["What season is it now?", "How has the weather changed recently?"],
+    ],
+    vocabulario: [
+      "sunny, rainy, cloudy, windy, hot, cold, warm",
+      "spring, summer, autumn, winter, season",
+      "umbrella, raincoat, sweater, sunscreen, boots",
+      "temperature, forecast, climate, natural events",
+    ],
+    temaHoy: [
+      "el vocabulario del tiempo y las condiciones climáticas",
+      "las estaciones del año y las actividades relacionadas",
+      "las descripciones del tiempo y su impacto en la vida diaria",
+      "el clima, el medio ambiente y los cambios estacionales",
+    ],
+    temaAnterior: [
+      "el vocabulario básico del tiempo y las condiciones climáticas",
+      "los tipos de tiempo y el vocabulario de las estaciones",
+      "las estaciones y las actividades según el clima",
+      "las condiciones climáticas y su impacto cotidiano",
+    ],
+  },
+  {
+    test: /body|cuerpo|body parts|partes del cuerpo/i,
+    preguntas: [
+      ["Can you name five parts of the body in English?", "What do you use your hands for?"],
+      ["What do you do to keep your body healthy?", "How many times a day do you brush your teeth?"],
+      ["What do you do when you feel sick?", "Why is it important to exercise?"],
+      ["How do you take care of your body?", "What healthy habits do you practice every day?"],
+    ],
+    vocabulario: [
+      "head, shoulders, arms, legs, hands, feet, eyes, nose, mouth",
+      "healthy, sick, exercise, rest, hygiene, nutrition",
+      "doctor, medicine, hospital, feelings, symptoms",
+      "body systems, health habits, physical activity, well-being",
+    ],
+    temaHoy: [
+      "las partes del cuerpo y el vocabulario de salud en inglés",
+      "los hábitos de higiene y el cuidado personal",
+      "la salud, el ejercicio y los hábitos saludables",
+      "el cuerpo humano y la salud integral",
+    ],
+    temaAnterior: [
+      "el vocabulario básico de las partes del cuerpo",
+      "las partes del cuerpo y los hábitos de higiene",
+      "los hábitos saludables y el cuidado físico",
+      "la salud y los hábitos de vida saludable",
+    ],
+  },
+  {
+    test: /school|escuela|community|comunidad|classroom|aula|places|lugares/i,
+    preguntas: [
+      ["What is your school like?", "What is your favorite subject?"],
+      ["What places are in your community?", "Where do you go after school?"],
+      ["What do you like most about your school?", "What is special about your community?"],
+      ["How do people help each other in your community?", "What places are important in your town?"],
+    ],
+    vocabulario: [
+      "classroom, teacher, student, school, subjects, schedule",
+      "library, cafeteria, gym, playground, office, hall",
+      "community, neighborhood, park, market, church, town",
+      "places, buildings, community helpers, local services",
+    ],
+    temaHoy: [
+      "el vocabulario de la escuela y las aulas en inglés",
+      "los lugares de la comunidad y su descripción",
+      "la escuela, la comunidad y los servicios locales",
+      "la comunidad y las personas que la conforman",
+    ],
+    temaAnterior: [
+      "el vocabulario básico de la escuela y las materias",
+      "los lugares de la escuela y la comunidad cercana",
+      "los lugares y las personas de la comunidad",
+      "la escuela y la comunidad local",
+    ],
+  },
+];
+
+const _getBancoTemaIngles = (tema) => {
+  for (const banco of _BANCO_TEMAS_INGLES) {
+    if (banco.test.test(tema)) return banco;
+  }
+  return null;
+};
+
+const _getActsInicioIngles = (tema, fasePos, diaNum) => {
+  const banco = _getBancoTemaIngles(tema);
+  const varIdx = Math.min(fasePos, 3);
+
+  // Primera clase de la unidad — diagnóstico sin retroalimentación previa
+  if (fasePos === 0 && diaNum === 0) {
+    const vocabInicio = banco ? banco.vocabulario[0] : `palabras conocidas en inglés relacionadas con "${tema}"`;
+    const temaHoy0   = banco ? banco.temaHoy[0]    : `el vocabulario básico de "${tema}"`;
+    return [
+      `El docente da la bienvenida a los estudiantes. "Good morning, everyone! How are you today? Are you ready to start our new unit?" Los estudiantes responden usando expresiones básicas en inglés.`,
+      `Observan imágenes relacionadas con "${tema}" y expresan en inglés palabras o frases que ya conocen. El docente organiza el vocabulario aportado en la pizarra como banco inicial de la unidad.`,
+      `Exploración diagnóstica de saberes previos: mencionando palabras conocidas en inglés relacionadas con ${temaHoy0}. Vocabulario esperado: ${vocabInicio}.`,
+      `El docente presenta la intención pedagógica de la unidad, el producto final esperado y el propósito de aprender sobre "${tema}".`,
+    ];
+  }
+
+  // Retroalimentación mira UN paso atrás; recuperación apunta a HOY
+  const retroIdx = Math.max(0, varIdx - (fasePos > 0 ? 1 : 0));
+
+  const pregsFase = banco
+    ? banco.preguntas[Math.min(retroIdx, banco.preguntas.length - 1)]
+    : [`What did we learn about "${tema}" last time?`, `Can you remember 3 words we studied about "${tema}"?`];
+  const preguntasStr = (pregsFase || []).join(" ");
+
+  const temaAnteriorStr = banco
+    ? banco.temaAnterior[Math.min(retroIdx, banco.temaAnterior.length - 1)]
+    : `el contenido trabajado en la clase anterior sobre "${tema}"`;
+
+  const vocabHoy = banco
+    ? banco.vocabulario[Math.min(varIdx, banco.vocabulario.length - 1)]
+    : `vocabulario y expresiones relacionadas con "${tema}"`;
+
+  const temaHoyStr = banco
+    ? banco.temaHoy[Math.min(varIdx, banco.temaHoy.length - 1)]
+    : `el contenido de hoy sobre "${tema}"`;
+
+  return [
+    `El docente saluda a los estudiantes en inglés. "Good morning! How are you today? Are you ready for today's class?" Los estudiantes responden usando las expresiones trabajadas.`,
+    `Retroalimentación de experiencias relacionadas con ${temaAnteriorStr} mediante preguntas orales. (${preguntasStr})`,
+    `Recuperación o exploración de saberes previos: mencionando palabras conocidas en inglés relacionadas con ${temaHoyStr}. Vocabulario esperado: ${vocabHoy}.`,
+    `El docente presenta la intención pedagógica y el propósito de la clase de hoy.`,
+  ];
+};
+
 const getActsInicio = (area, tema, fasePos, diaNum) => {
+  if (area === "Inglés") return _getActsInicioIngles(tema, fasePos, diaNum);
+
   const variantes = {
     "Inglés": [
       // Variante 0 — Fase 1 (Presentación): LISTENING + SPEAKING diagnóstico

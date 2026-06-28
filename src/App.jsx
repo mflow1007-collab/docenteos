@@ -597,6 +597,7 @@ function AppInner() {
               onActualizarCurso={actualizarCurso}
               onEliminarCurso={eliminarCurso}
               initialTab={tabDetalleInicial}
+              onIrA={(destino) => setPagina(destino)}
             />
           )}
           {pagina === "estudiantes" && (
@@ -1525,7 +1526,7 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
   );
 }
 
-function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEliminarCurso, initialTab = "Resumen" }) {
+function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEliminarCurso, initialTab = "Resumen", onIrA = () => {} }) {
   const claveDiaHorario = `docenteos_detalle_dia_horario_${curso?.id || "curso-fallback"}`;
   const [tabActiva, setTabActiva] = useState(initialTab);
   const [busquedaEstudiante, setBusquedaEstudiante] = useState("");
@@ -1964,7 +1965,7 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
                 </li>
               ))}
             </ul>
-            <button className="continuar-btn">Continuar: aplicar evaluación</button>
+            <button className="continuar-btn" onClick={() => setTabActiva("Instrumentos")}>Continuar: aplicar evaluación</button>
           </section>
 
           <section className="detalle-card horario-clase-card">
@@ -2145,9 +2146,19 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
           <section className="detalle-card span-2">
             <h2>Próximas acciones</h2>
             <div className="acciones-proximas">
-              {data.proximasAcciones.map((accion) => (
-                <button key={accion}>{accion}</button>
-              ))}
+              {data.proximasAcciones.map((accion) => {
+                const mapaAcciones = {
+                  "Configurar planificación": () => onIrA("planificacion"),
+                  "Crear instrumento":        () => setTabActiva("Instrumentos"),
+                  "Registrar primera clase":  () => setTabActiva("Horario"),
+                  "Aplicar evaluación":       () => setTabActiva("Instrumentos"),
+                  "Registrar notas":          () => setTabActiva("Registro"),
+                  "Generar reporte":          () => setTabActiva("Registro"),
+                };
+                return (
+                  <button key={accion} onClick={mapaAcciones[accion] || undefined}>{accion}</button>
+                );
+              })}
             </div>
           </section>
         </div>
@@ -2392,6 +2403,10 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
   const [tabDetalle, setTabDetalle] = useState("Resumen");
   const [panelIaTexto, setPanelIaTexto] = useState("");
   const [panelIaAccion, setPanelIaAccion] = useState(null);
+  const [estudiantesExtra, setEstudiantesExtra] = useState([]);
+  const [modalAgregar, setModalAgregar] = useState(false);
+  const [formNuevo, setFormNuevo] = useState({ nombre: "", grado: "", seccion: "", area: "" });
+  const [periodoExpandido, setPeriodoExpandido] = useState(null);
   const [panelIaGenerando, setPanelIaGenerando] = useState(false);
   const [panelIaError, setPanelIaError] = useState(null);
   const panelIaRef = useRef(null);
@@ -2404,7 +2419,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
   };
 
   const estudiantes = useMemo(() => {
-    return cursos.flatMap((curso) => {
+    const desdeCursos = cursos.flatMap((curso) => {
       const base = curso.estudiantesDetalle?.length ? curso.estudiantesDetalle : generarEstudiantesDetalle(curso);
       return base.map((estudiante, indice) => {
         const promedio = Number(estudiante.promedio ?? 0);
@@ -2415,12 +2430,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
         return {
           id: `${curso.id}-${indice}-${estudiante.nombre}`,
           nombre: estudiante.nombre,
-          avatar: estudiante.nombre
-            .split(" ")
-            .map((p) => p[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase(),
+          avatar: estudiante.nombre.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(),
           promedio,
           asistencia,
           estado,
@@ -2440,7 +2450,8 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
         };
       });
     });
-  }, [cursos]);
+    return [...desdeCursos, ...estudiantesExtra];
+  }, [cursos, estudiantesExtra]);
 
   const gradoOpts = useMemo(() => ["Todos", ...new Set(estudiantes.map((e) => e.grado))], [estudiantes]);
   const seccionOpts = useMemo(() => ["Todas", ...new Set(estudiantes.map((e) => e.seccion))], [estudiantes]);
@@ -2537,6 +2548,55 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
     setFArea("Todas");
     setFEstado("Todos");
     setFNivelRiesgo("Todos");
+  };
+
+  const exportarCSV = () => {
+    const cabecera = ["Nombre", "Grado", "Sección", "Área", "Curso", "Promedio (%)", "Asistencia (%)", "Estado", "Tendencia"];
+    const filas = filtrados.map((e) => [
+      e.nombre, e.grado, e.seccion, e.area, e.cursoNombre,
+      e.promedio, e.asistencia, e.estado.label, e.tendencia,
+    ]);
+    const csv = [cabecera, ...filas].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `estudiantes_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const agregarEstudiante = (e) => {
+    e.preventDefault();
+    if (!formNuevo.nombre.trim()) return;
+    const promedio = 75;
+    const estado = estadoPorPromedio(promedio);
+    setEstudiantesExtra((prev) => [
+      ...prev,
+      {
+        id: `extra-${Date.now()}`,
+        nombre: formNuevo.nombre.trim(),
+        avatar: formNuevo.nombre.trim().split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(),
+        promedio,
+        asistencia: 90,
+        estado,
+        nivelRiesgo: "Bajo",
+        cursoId: "",
+        cursoNombre: "Sin asignar",
+        area: formNuevo.area || "General",
+        grado: formNuevo.grado || "Sin definir",
+        seccion: formNuevo.seccion || "A",
+        edad: 13,
+        fechaNacimiento: "—",
+        tutor: "—",
+        telefono: "—",
+        ultimaEvaluacion: "—",
+        tendencia: "Estables",
+        tendenciaValor: 0,
+      },
+    ]);
+    setFormNuevo({ nombre: "", grado: "", seccion: "", area: "" });
+    setModalAgregar(false);
   };
 
   const topRiesgo = [...filtrados]
@@ -2648,7 +2708,32 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
                 <div className="periodo-riesgo">
                   <span>⚠️ Estudiantes en riesgo: <strong>{periodo.enRiesgo}</strong></span>
                 </div>
-                <button type="button" className="estudiantes-secondary">Ver detalle del período →</button>
+                <button
+                  type="button"
+                  className="estudiantes-secondary"
+                  onClick={() => setPeriodoExpandido(periodoExpandido === idx ? null : idx)}
+                >
+                  {periodoExpandido === idx ? "▲ Ocultar detalle" : "Ver detalle del período →"}
+                </button>
+                {periodoExpandido === idx && (
+                  <div className="periodo-detalle-expandido">
+                    <p><strong>Top estudiantes en riesgo — {periodo.nombre}:</strong></p>
+                    {filtrados
+                      .filter((e) => e.promedio < 65)
+                      .sort((a, b) => a.promedio - b.promedio)
+                      .slice(0, 5)
+                      .map((e) => (
+                        <div key={e.id} className="periodo-detalle-item" onClick={() => onAbrirPerfil(e)} style={{ cursor: "pointer" }}>
+                          <span className="estudiante-avatar-inline">{e.avatar}</span>
+                          <span>{e.nombre}</span>
+                          <span className={`tabla-chip ${e.estado.clase}`}>{e.promedio}%</span>
+                        </div>
+                      ))}
+                    {filtrados.filter((e) => e.promedio < 65).length === 0 && (
+                      <p style={{ color: "#64748b", fontSize: "13px" }}>✅ Sin estudiantes en riesgo en este período.</p>
+                    )}
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -2719,7 +2804,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
               </div>
             ))}
           </div>
-          <button type="button" className="estudiantes-secondary">Ver todos los estudiantes en riesgo</button>
+          <button type="button" className="estudiantes-secondary" onClick={() => { setFEstado("riesgo"); setVistaEstudiantes("General"); }}>Ver todos los estudiantes en riesgo</button>
         </article>
 
         <article className="estudiantes-card">
@@ -2735,7 +2820,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
               </div>
             ))}
           </div>
-          <button type="button" className="estudiantes-secondary">Ver todos los destacados</button>
+          <button type="button" className="estudiantes-secondary" onClick={() => { setFEstado("excelente"); setVistaEstudiantes("General"); }}>Ver todos los destacados</button>
         </article>
 
         <article className="estudiantes-card estudiantes-chart-card">
@@ -2754,7 +2839,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
             <span className="tabla-chip seguimiento">🔵 Estables {porcentaje(resumen.estables)}%</span>
             <span className="tabla-chip desarrollo">🟠 Bajando rendimiento {porcentaje(resumen.bajando)}%</span>
           </div>
-          <button type="button" className="estudiantes-secondary">Ver análisis completo</button>
+          <button type="button" className="estudiantes-secondary" onClick={() => setVistaEstudiantes("Por Mes")}>Ver análisis completo</button>
         </article>
       </section>
 
@@ -2764,8 +2849,8 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
             <div className="estudiantes-card-head">
               <div><h2>Lista de estudiantes ({filtrados.length})</h2></div>
               <div className="estudiantes-row-actions estudiantes-row-actions-top">
-                <button type="button" className="secundario">📤 Exportar</button>
-                <button type="button">➕ Agregar estudiante</button>
+                <button type="button" className="secundario" onClick={exportarCSV}>📤 Exportar</button>
+                <button type="button" onClick={() => setModalAgregar(true)}>➕ Agregar estudiante</button>
               </div>
             </div>
 
@@ -2947,6 +3032,36 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
           )}
         </aside>
       </section>
+
+      {modalAgregar && (
+        <div className="modal-overlay" onClick={() => setModalAgregar(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>➕ Agregar estudiante</h3>
+            <form onSubmit={agregarEstudiante} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
+                Nombre completo *
+                <input required value={formNuevo.nombre} onChange={(e) => setFormNuevo((p) => ({ ...p, nombre: e.target.value }))} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
+                Grado
+                <input value={formNuevo.grado} onChange={(e) => setFormNuevo((p) => ({ ...p, grado: e.target.value }))} placeholder="Ej: 3ro" />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
+                Sección
+                <input value={formNuevo.seccion} onChange={(e) => setFormNuevo((p) => ({ ...p, seccion: e.target.value }))} placeholder="Ej: A" />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
+                Área
+                <input value={formNuevo.area} onChange={(e) => setFormNuevo((p) => ({ ...p, area: e.target.value }))} placeholder="Ej: Matemáticas" />
+              </label>
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <button type="submit" style={{ flex: 1 }}>Guardar</button>
+                <button type="button" className="secundario" onClick={() => setModalAgregar(false)} style={{ flex: 1 }}>Cancelar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
         </>
       )}
     </div>

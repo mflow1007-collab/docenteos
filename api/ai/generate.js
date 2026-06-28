@@ -21,6 +21,11 @@
  */
 
 export const config = { runtime: "edge" };
+console.log("=== VARIABLES ===");
+console.log("OPENAI:", !!process.env.OPENAI_API_KEY);
+console.log("ABACUS:", !!process.env.ABACUS_API_KEY);
+console.log("ANTHROPIC:", !!process.env.ANTHROPIC_API_KEY);
+console.log("=================");
 
 // ─── Configuración por defecto ────────────────────────────────────────────────
 

@@ -7317,6 +7317,38 @@
   border-color: #2563eb;
 }
 
+.periodo-detalle-expandido {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8fbff;
+  border: 1px solid #dbe5f3;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.periodo-detalle-expandido p {
+  font-size: 13px;
+  color: #475569;
+  margin: 0 0 4px;
+}
+
+.periodo-detalle-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #334155;
+  transition: background 0.15s;
+}
+
+.periodo-detalle-item:hover { background: #eff6ff; }
+
 /* Tarjetas de período del estudiante */
 .detalle-periodos-tabs {
   display: grid;
