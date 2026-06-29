@@ -5,6 +5,7 @@
 import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.js";
 import { inyectarExpresiones } from "../planning/bancoExpresionesIdiomas.js";
+import { obtenerBPActs } from "./bpCache.js";
 import { getCompetenciasIdiomas } from "../data/indicadoresIdiomas.js";
 import { getCompetenciasArea } from "../data/indicadoresAreasMINERD.js";
 
@@ -438,7 +439,11 @@ const getActsInicio = (area, tema, fasePos, diaNum) => {
     return acts;
   }
 
-  // Banco especializado para las demás áreas
+  // Banco Pedagógico Firestore (oficial) tiene prioridad
+  const bpActsInicio = obtenerBPActs(area, "Inicio", diaNum);
+  if (bpActsInicio) return withTema(bpActsInicio, tema);
+
+  // Banco especializado estático como fallback
   const bankActs = obtenerActividadesBanco(area, "Inicio", fasePos, diaNum);
   if (bankActs) return withTema(bankActs, tema);
 
@@ -469,7 +474,45 @@ const getActsInicio = (area, tema, fasePos, diaNum) => {
   return generic[fasePos % generic.length];
 };
 
+const _getActsDesarrolloIngles = (tema, fasePos, diaNum) => {
+  const banco = _getBancoTemaIngles(tema);
+  const varIdx = Math.min(fasePos, 2);
+
+  // Fase 0 — Presentación / Diagnóstico: vocabulario + speaking oral
+  if (fasePos === 0) {
+    const vocab = banco ? banco.vocabulario[0] : `vocabulario esencial de "${tema}"`;
+    return [
+      `Presentan vocabulario clave de "${tema}" con imágenes de personas realizando las actividades. Los estudiantes repiten cada palabra en coro y luego individualmente, cuidando la pronunciación.`,
+      `Practican en parejas usando las imágenes: "Look at the picture. What is she/he doing?" Los compañeros responden con oraciones completas: "She/He is waking up / having breakfast / going to school."`,
+      `Realizan actividad de asociación: relacionan el vocabulario de "${tema}" con las imágenes o descripciones correspondientes. Verifican respuestas con el compañero y corrigen juntos los errores.`,
+      `El docente modela oraciones completas sobre "${tema}" usando el vocabulario presentado. Vocabulario trabajado: ${vocab}. Los estudiantes construyen sus propias oraciones siguiendo el modelo dado.`,
+    ];
+  }
+
+  // Fase 1 — Desarrollo: lectura + gramática en contexto
+  if (fasePos === 1) {
+    const vocab = banco ? banco.vocabulario[1] : `estructuras y vocabulario de "${tema}"`;
+    return [
+      `Leen un texto corto sobre "${tema}" y responden preguntas de comprensión en tres niveles: literal (¿qué dice?), inferencial (¿qué significa?) e interpretativo (¿qué opinas?).`,
+      `Analizan la estructura gramatical del texto: identifican el patrón, lo nombran y explican su función. El docente presenta la regla en la pizarra con ejemplos del contexto de "${tema}".`,
+      `Practican la estructura en ejercicios contextualizados: completan oraciones, transforman ejemplos y construyen 3–5 oraciones propias sobre "${tema}". Vocabulario de apoyo: ${vocab}.`,
+      `Comparten sus respuestas en parejas. El docente retroalimenta la precisión gramatical y corrige errores comunes frente a toda la clase de manera positiva y motivadora.`,
+    ];
+  }
+
+  // Fase 2 — Profundización: escritura + revisión por pares
+  const vocab2 = banco ? banco.vocabulario[2] : `vocabulario avanzado de "${tema}"`;
+  return [
+    `Amplían el vocabulario de "${tema}" con nuevas expresiones y colocaciones. Los estudiantes las registran en su glosario personal con definición y oración de ejemplo propia. Vocabulario: ${vocab2}.`,
+    `Redactan un párrafo o diálogo sobre "${tema}" usando el vocabulario y las estructuras trabajadas. Utilizan el organizador gráfico de la unidad como guía de escritura.`,
+    `Intercambian su producción para revisión por pares (peer editing): verifican vocabulario, gramática y claridad. Anotan dos aspectos positivos y una sugerencia concreta de mejora.`,
+    `Incorporan las correcciones del peer editing y comparten oralmente un fragmento de su producción ante el grupo. El docente retroalimenta la expresión oral y escrita de manera formativa.`,
+  ];
+};
+
 const getActsDesarrollo = (area, tema, fasePos, diaNum) => {
+  if (area === "Inglés") return _getActsDesarrolloIngles(tema, fasePos, diaNum);
+
   const variantes = {
     "Inglés": [
       // Variante 0 — Fase 1 (Presentación): LISTENING + SPEAKING
@@ -543,7 +586,11 @@ const getActsDesarrollo = (area, tema, fasePos, diaNum) => {
     return acts;
   }
 
-  // Banco especializado para las demás áreas
+  // Banco Pedagógico Firestore (oficial) tiene prioridad
+  const bpActsDesarrollo = obtenerBPActs(area, "Desarrollo", diaNum);
+  if (bpActsDesarrollo) return withTema(bpActsDesarrollo, tema);
+
+  // Banco especializado estático como fallback
   const bankActs = obtenerActividadesBanco(area, "Desarrollo", fasePos, diaNum);
   if (bankActs) return withTema(bankActs, tema);
 
@@ -571,7 +618,43 @@ const getActsDesarrollo = (area, tema, fasePos, diaNum) => {
   return generic[fasePos % generic.length];
 };
 
+const _getActsCierreIngles = (tema, fasePos, diaNum) => {
+  const banco = _getBancoTemaIngles(tema);
+
+  // Fase 0 — Presentación: síntesis de vocabulario + exit ticket
+  if (fasePos === 0) {
+    const vocab = banco ? banco.vocabulario[0] : `palabras de "${tema}"`;
+    return [
+      `Nombran en voz alta las palabras de "${tema}" que recuerdan de la sesión usando las imágenes o tarjetas de vocabulario. El docente retroalimenta la pronunciación de manera positiva.`,
+      `Reflexionan oralmente: "Today I learned ___ words about ${tema}. I can say ___ in English now. I still need to practice ___."`,
+      `Completan un exit ticket individual: escriben o dibujan 3 actividades relacionadas con "${tema}" que realizan cada día, indicando la hora aproximada. Vocabulario esperado: ${vocab}.`,
+      `El docente orienta la tarea para el hogar y conecta con la próxima sesión. "For homework, write 5 sentences about your own daily routine. See you next class!"`,
+    ];
+  }
+
+  // Fase 1 — Desarrollo: word wall + síntesis gramatical + tarea
+  if (fasePos === 1) {
+    const vocab = banco ? banco.vocabulario[1] : `vocabulario y estructuras de "${tema}"`;
+    return [
+      `Construyen colectivamente en la pizarra un Word Wall con vocabulario, expresiones de tiempo y estructuras gramaticales de "${tema}" aprendidas durante la sesión.`,
+      `Reflexionan sobre lo aprendido: "What grammar structure did we practice today? When do we use it? Can you give me one example about ${tema}?"`,
+      `Completan un exit ticket: escriben 3 oraciones sobre "${tema}" usando la estructura gramatical trabajada. Vocabulario de apoyo: ${vocab}.`,
+      `El docente orienta la tarea relacionada con "${tema}" y anuncia el contenido de la próxima sesión. "Excellent work today! See you next class!"`,
+    ];
+  }
+
+  // Fase 2 — Profundización: compartir producción + autoevaluación + portafolio
+  return [
+    `Leen en voz alta un fragmento de su producción escrita sobre "${tema}" ante el grupo o en parejas. Los compañeros escuchan y ofrecen retroalimentación positiva y constructiva.`,
+    `Autoevalúan su producción respondiendo: "Is my vocabulary appropriate for ${tema}? Are my sentences correct? Is my paragraph clear and well-organized?"`,
+    `Incorporan las correcciones finales en su producción y la archivan en su portafolio de la unidad como evidencia de avance hacia el producto final.`,
+    `El docente cierra la sesión con reconocimiento al grupo: "Excellent work today! You're making great progress with ${tema}. See you next class!"`,
+  ];
+};
+
 const getActsCierre = (area, tema, fasePos, diaNum) => {
+  if (area === "Inglés") return _getActsCierreIngles(tema, fasePos, diaNum);
+
   const variantes = {
     "Inglés": [
       // Variante 0 — Fase 1 (Presentación): reflexión LISTENING + primer vocabulario
@@ -647,7 +730,11 @@ const getActsCierre = (area, tema, fasePos, diaNum) => {
     return acts;
   }
 
-  // Banco especializado para las demás áreas
+  // Banco Pedagógico Firestore (oficial) tiene prioridad
+  const bpActsCierre = obtenerBPActs(area, "Cierre", diaNum);
+  if (bpActsCierre) return withTema(bpActsCierre, tema);
+
+  // Banco especializado estático como fallback
   const bankActs = obtenerActividadesBanco(area, "Cierre", fasePos, diaNum);
   if (bankActs) return withTema(bankActs, tema);
 

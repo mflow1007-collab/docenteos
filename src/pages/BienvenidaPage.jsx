@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
-import { auth, db } from '../firebase.js'
+import { auth, db, guardarCurso } from '../firebase.js'
 import { guardarPerfilInstitucional } from '../services/perfilInstitucionalService.js'
 import './BienvenidaPage.css'
 
@@ -53,6 +53,16 @@ function buildCicloOptions(nivelesDocente) {
   )
 }
 
+// Grados disponibles por ciclo (value coincide con el formato de buildCicloOptions)
+const GRADOS_CICLO = {
+  'Secundaria - Primer Ciclo (1ro-3ro)':  { grados: ['1ro Secundaria', '2do Secundaria', '3ro Secundaria'], autoSelect: false },
+  'Secundaria - Segundo Ciclo (4to-6to)': { grados: ['4to Secundaria', '5to Secundaria', '6to Secundaria'], autoSelect: true  },
+  'Primaria - Primer Ciclo (1ro-3ro)':    { grados: ['1ro Primaria', '2do Primaria', '3ro Primaria'],        autoSelect: false },
+  'Primaria - Segundo Ciclo (4to-6to)':   { grados: ['4to Primaria', '5to Primaria', '6to Primaria'],        autoSelect: false },
+  'Inicial - Primer Ciclo (0-3 años)':    { grados: ['Nivel 1 (0-1 año)', 'Nivel 2 (1-2 años)', 'Nivel 3 (2-3 años)'],             autoSelect: true },
+  'Inicial - Segundo Ciclo (3-6 años)':   { grados: ['Pre-Kínder (3-4 años)', 'Kínder (4-5 años)', 'Preparatorio (5-6 años)'],    autoSelect: true },
+}
+
 const JORNADAS = ['Matutina', 'Vespertina', 'Nocturna', 'Extendida']
 
 const PERIODOS = ['2024-2025', '2025-2026', '2026-2027']
@@ -69,6 +79,7 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
   const [nivelesDocente,  setNivelesDocente]  = useState([])   // multi-select
   const [modalidad,       setModalidad]       = useState('')
   const [ciclos,          setCiclos]          = useState([])   // multi-select
+  const [gradosDocente,   setGradosDocente]   = useState([])   // grados seleccionados
   const [jornada,         setJornada]         = useState('')
   const [periodo,         setPeriodo]         = useState('')
 
@@ -96,6 +107,19 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
   useEffect(() => {
     setCiclos([])
   }, [nivelesDocente])
+
+  // Auto-seleccionar grados para ciclos con autoSelect=true; limpiar grados de ciclos deseleccionados
+  useEffect(() => {
+    const autoGrados = ciclos.flatMap((c) => {
+      const cfg = GRADOS_CICLO[c]
+      return cfg?.autoSelect ? cfg.grados : []
+    })
+    const todosLosGrados = new Set(ciclos.flatMap((c) => GRADOS_CICLO[c]?.grados ?? []))
+    setGradosDocente((prev) => {
+      const manuales = prev.filter((g) => todosLosGrados.has(g) && !autoGrados.includes(g))
+      return [...new Set([...manuales, ...autoGrados])]
+    })
+  }, [ciclos])
 
   // Si un nivel del docente ya no está en los del centro, quitarlo
   useEffect(() => {
@@ -131,6 +155,19 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
     )
   }
 
+  const toggleGrado = (grado) => {
+    setError('')
+    setGradosDocente((prev) =>
+      prev.includes(grado) ? prev.filter((g) => g !== grado) : [...prev, grado]
+    )
+  }
+
+  const gradoOptions = ciclos.flatMap((c) => {
+    const cfg = GRADOS_CICLO[c]
+    if (!cfg) return []
+    return cfg.grados.map((g) => ({ value: g, autoSelect: cfg.autoSelect, ciclo: c }))
+  })
+
   const handleGuardar = async (e) => {
     e.preventDefault()
     setError('')
@@ -144,6 +181,7 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
     if (nivelesDocente.length === 0) { setError('Indique en qué nivel o niveles imparte clases.'); return }
     if (!modalidad)                  { setError('Seleccione la modalidad.'); return }
     if (ciclos.length === 0)         { setError('Seleccione al menos un ciclo.'); return }
+    if (gradoOptions.length > 0 && gradosDocente.length === 0) { setError('Seleccione al menos un grado en el que imparte clases.'); return }
     if (!jornada)                  { setError('Seleccione la jornada escolar.'); return }
     if (!periodo)                  { setError('Seleccione el período escolar.'); return }
     if (!user)                     { setError('Sesión no encontrada. Recargue la página.'); return }
@@ -161,9 +199,43 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
         nivelesDocente,
         modalidad,
         ciclos,
+        gradosDocente,
         jornadaEscolar:  jornada,
         periodoEscolar:  periodo,
       })
+
+      // Auto-crear un curso por cada grado seleccionado
+      for (let idx = 0; idx < gradosDocente.length; idx++) {
+        const grado = gradosDocente[idx]
+        const nivel = grado.includes('Secundaria') ? 'Secundaria' : grado.includes('Primaria') ? 'Primaria' : 'Inicial'
+        try {
+          await guardarCurso({
+            id: `auto-${Date.now()}-${idx}`,
+            nombre: `${grado} A`,
+            grado,
+            nivel,
+            area: 'General',
+            seccion: 'A',
+            estudiantes: 30,
+            promedio: 80,
+            pendientes: 0,
+            icono: grado[0].toUpperCase(),
+            acento: '#2563eb',
+            temaActual: 'Tema por definir',
+            estudiantesDetalle: [],
+            flujo: [],
+            enRiesgo: [],
+            destacados: [],
+            historialPromedio: [72, 74, 76, 78, 79, 81, 83, 84],
+            resumenRapido: { instrumentos: 0, evaluaciones: 0, enRiesgo: 0 },
+            instrumentosRecientes: [],
+            proximasAcciones: ['Configurar área/asignatura', 'Crear instrumento', 'Registrar primera clase'],
+          })
+        } catch {
+          // No es fatal: el docente puede crear cursos manualmente
+        }
+      }
+
       onPerfilGuardado()
     } catch (err) {
       console.error('[BienvenidaPage] Error guardando perfil:', err)
@@ -368,6 +440,42 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
                         <span className="bp-checkbox-check" aria-hidden="true" />
                         <span className="bp-checkbox-label">{label}</span>
                       </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Grados que imparte ── */}
+              {gradoOptions.length > 0 && (
+                <div className="bp-field bp-field-full">
+                  <span className="bp-label">Grados que impartes</span>
+                  <p className="bp-field-hint">
+                    Selecciona los grados específicos en los que das clases.
+                    {ciclos.some((c) => GRADOS_CICLO[c]?.autoSelect) && (
+                      <> Los marcados como <strong>Auto</strong> se agregan solos porque pertenecen al ciclo completo.</>
+                    )}
+                  </p>
+                  <div className="bp-checkbox-group" role="group" aria-label="Grados">
+                    {gradoOptions.map(({ value, autoSelect }) => (
+                      autoSelect ? (
+                        <div key={value} className="bp-checkbox-card checked" style={{ opacity: 0.8, cursor: 'default' }}>
+                          <span className="bp-checkbox-check" aria-hidden="true" />
+                          <span className="bp-checkbox-label">{value}</span>
+                          <span style={{ fontSize: 10, background: '#2563eb', color: '#fff', borderRadius: 4, padding: '1px 5px', marginLeft: 6 }}>Auto</span>
+                        </div>
+                      ) : (
+                        <label key={value} className={`bp-checkbox-card ${gradosDocente.includes(value) ? 'checked' : ''} ${cargando ? 'disabled' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={gradosDocente.includes(value)}
+                            onChange={() => toggleGrado(value)}
+                            disabled={cargando}
+                            aria-label={value}
+                          />
+                          <span className="bp-checkbox-check" aria-hidden="true" />
+                          <span className="bp-checkbox-label">{value}</span>
+                        </label>
+                      )
                     ))}
                   </div>
                 </div>

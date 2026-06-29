@@ -30,6 +30,7 @@ const RegistroPage = lazy(() => import("./RegistroPage"));
 const CurriculumImportPage = lazy(() => import("./pages/CurriculumImportPage"));
 const CentroIAPage = lazy(() => import("./pages/CentroIAPage"));
 const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage"));
+const AsistentePersonalPage = lazy(() => import("./pages/AsistentePersonalPage"));
 
 const CURSOS_ASIGNATURAS_BASE = ["Inglés", "Francés"];
 const CURSOS_GRADOS_POR_NIVEL = {
@@ -514,6 +515,7 @@ function AppInner() {
             onToggle={() => setGrupoExpandido(g => g === "configuracion" ? "inicio" : "configuracion")}
             activo={grupoDePageID(pagina) === "configuracion"}
           >
+            <SidebarItem id="asistente-personal" label="🤖 Asistente Personal" pagina={pagina} onClick={() => irA("asistente-personal")} />
             <SidebarItem id="suscripcion"  label="💳 Mi Suscripción"  pagina={pagina} onClick={() => irA("suscripcion")} />
             <SidebarItem id="configuracion" label="⚙️ Preferencias"   pagina={pagina} onClick={() => irA("configuracion")} />
           </SidebarGrupo>
@@ -569,6 +571,7 @@ function AppInner() {
               cursos={cursos}
               onNuevaPlanificacion={() => setPagina("planificacion")}
               onIrA={(destino) => setPagina(destino)}
+              onIrASeccionIA={irASeccionIA}
               onAbrirCurso={(cursoId) => {
                 const curso = cursos.find((item) => item.id === cursoId);
                 if (curso) abrirDetalleCurso(curso);
@@ -630,6 +633,12 @@ function AppInner() {
           {pagina === "ia"       && esDocenteOS && <CentroIAPage seccion={seccionIA} />}
           {pagina === "curriculo" && esDocenteOS && <CurriculumImportPage />}
           {pagina === "suscripcion" && <SubscriptionPage />}
+          {pagina === "asistente-personal" && (
+            <AsistentePersonalPage
+              userId={user?.uid}
+              planPersonal={formulario?.plan_personal === true}
+            />
+          )}
           {pagina === "configuracion" && <Pagina titulo="Configuración" texto="Perfil docente, centro educativo y preferencias." />}
           </Suspense>
         </section>
@@ -678,10 +687,58 @@ function saludoHora() {
   return "Buenas noches";
 }
 
+// ─── Sugerencias contextuales por área / tema ────────────────────────────────
+
+const SUGERENCIAS_POR_AREA = {
+  "Inglés": {
+    "rutina|routine|daily": ["Home Safety", "Daily Routine at School", "Parts of the Day"],
+    "house|home|furniture": ["Daily Routine", "Household Chores", "Family Members"],
+    "family|familia": ["Daily Routine", "Descriptions", "Daily Activities"],
+    "food|comida": ["Shopping", "Health and Nutrition", "Daily Routine"],
+    "default": ["Greetings & Introductions", "Colors and Numbers", "My School"],
+  },
+  "Lengua Española": {
+    "narrat|cuento|historia": ["Descripción de personajes", "Estructura del texto narrativo", "El diálogo literario"],
+    "poem|poesía": ["Figuras literarias", "Texto lírico", "Métrica y rima"],
+    "default": ["Tipos de texto", "Ortografía y gramática", "Comunicación oral"],
+  },
+  "Matemática": {
+    "fracci": ["Números mixtos", "Operaciones con fracciones", "Proporcionalidad"],
+    "geometr|figura": ["Perímetro y área", "Sólidos geométricos", "Ángulos"],
+    "default": ["Resolución de problemas", "Estadística básica", "Números decimales"],
+  },
+  "Ciencias de la Naturaleza": {
+    "célula|cuerpo": ["Sistemas del cuerpo humano", "Nutrición", "Salud y bienestar"],
+    "ecosistem|medio": ["Cadenas alimenticias", "Biodiversidad dominicana", "Cambio climático"],
+    "default": ["El método científico", "Materia y energía", "Seres vivos"],
+  },
+  "Ciencias Sociales": {
+    "coloniz|histori": ["La República Dominicana", "Independencia Nacional", "Próceres dominicanos"],
+    "democrac|ciudadan": ["Derechos y deberes", "Las instituciones del Estado", "Participación ciudadana"],
+    "default": ["Geografía dominicana", "Economía básica", "Cultura e identidad"],
+  },
+};
+
+const generarSugerenciasContextuales = (tema = "", area = "") => {
+  const bancoArea = SUGERENCIAS_POR_AREA[area];
+  if (!bancoArea) {
+    return { temaBase: tema || "el tema actual", sugerencias: [] };
+  }
+  const temaLower = tema.toLowerCase();
+  for (const [patron, sugs] of Object.entries(bancoArea)) {
+    if (patron === "default") continue;
+    if (patron.split("|").some((p) => temaLower.includes(p))) {
+      return { temaBase: tema || area, sugerencias: sugs };
+    }
+  }
+  return { temaBase: tema || area, sugerencias: bancoArea.default || [] };
+};
+
 function Inicio({
   cursos = [],
   onNuevaPlanificacion = () => {},
   onIrA = () => {},
+  onIrASeccionIA = () => {},
   onAbrirCurso = () => {},
 }) {
   const { formulario, cargando } = useAuth();
@@ -882,12 +939,20 @@ function Inicio({
             titulo: `${grado}${seccion} · ${area}`,
             detalle: tipo,
             fecha: typeof fecha === "string" ? fecha : "Reciente",
+            tema: item?.titulo || item?.tema || "",
+            area: item?.area || "",
           };
         });
     } catch {
       return [];
     }
   }, []);
+
+  // Sugerencias contextuales basadas en el curso/tema más reciente
+  const cursoActivo = cursosPorUsoReciente[0];
+  const temaParaSugerencia = cursoActivo?.temaActual || historialReciente[0]?.tema || "";
+  const areaParaSugerencia = cursoActivo?.area || historialReciente[0]?.area || "";
+  const { temaBase, sugerencias } = generarSugerenciasContextuales(temaParaSugerencia, areaParaSugerencia);
 
   return (
     <div className="inicio-saas-shell">
@@ -1049,12 +1114,42 @@ function Inicio({
           ))}
         </div>
 
-        <article className="inicio-resumen-ai-pro">
-          <h3>🤖 Resumen DOCENTEOS AI</h3>
-          <p>
-            Hoy tienes {totalPlanificacionesPendientes} planificaciones pendientes, {totalPendientes} evaluaciones por registrar y {estudiantesEnRiesgo} estudiantes que requieren seguimiento.
-          </p>
-          <button type="button" onClick={() => onIrA("ia")}>Ver recomendaciones</button>
+        <article className="inicio-sugerencias-ia">
+          <div className="sugerencias-ia-header">
+            <span className="sugerencias-ia-badge">🤖 IA</span>
+            <h3>Sugerencias para tu próxima clase</h3>
+          </div>
+          {sugerencias.length > 0 ? (
+            <>
+              <p className="sugerencias-ia-tema">
+                Estás trabajando <strong>"{temaBase}"</strong>. Podrías integrar:
+              </p>
+              <div className="sugerencias-ia-chips">
+                {sugerencias.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="sugerencia-chip"
+                    onClick={onNuevaPlanificacion}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="sugerencias-ia-cta" onClick={onNuevaPlanificacion}>
+                Generar planificación →
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="sugerencias-ia-tema">
+                Hoy tienes <strong>{totalPlanificacionesPendientes}</strong> planificaciones pendientes y <strong>{estudiantesEnRiesgo}</strong> estudiantes que requieren seguimiento.
+              </p>
+              <button type="button" className="sugerencias-ia-cta" onClick={() => onIrA("ia")}>
+                Ver recomendaciones →
+              </button>
+            </>
+          )}
         </article>
       </section>
 
@@ -1094,15 +1189,42 @@ function Inicio({
         </div>
       </section>
 
-      <section className="panel assistant-actions">
-        <h2>⚡ Acciones rápidas</h2>
-        <div className="actions">
-          <Action icon="➕" title="Nuevo Curso" text="Crear curso" onClick={() => onIrA("cursos")} />
-          <Action icon="🧠" title="Planificación IA" text="Generar MINERD" onClick={onNuevaPlanificacion} className="action-priority" />
-          <Action icon="📋" title="Nuevo Instrumento" text="Crear instrumento" onClick={() => onIrA("instrumentos")} />
-          <Action icon="✅" title="Registrar Evaluación" text="Registrar notas" onClick={() => onIrA("registro")} />
-          <Action icon="📊" title="Reportes" text="Ver indicadores" onClick={() => onIrA("reportes")} />
-          <Action icon="📄" title="Registro de Grado" text="Gestionar registro" onClick={() => onIrA("registro")} />
+      <section className="panel asistente-ia-panel">
+        <div className="asistente-ia-header">
+          <h2>🤖 Asistente IA</h2>
+          <span className="asistente-ia-sub">¿Qué quieres hacer hoy?</span>
+        </div>
+        <div className="asistente-ia-grid">
+          <button type="button" className="ai-action-btn ai-action-primary" onClick={onNuevaPlanificacion}>
+            <span className="ai-action-icon">🪄</span>
+            <strong>Generar planificación</strong>
+            <small>Nueva planificación MINERD</small>
+          </button>
+          <button type="button" className="ai-action-btn" onClick={() => onIrASeccionIA("actividades")}>
+            <span className="ai-action-icon">✨</span>
+            <strong>Mejorar actividades</strong>
+            <small>Optimiza tus actividades</small>
+          </button>
+          <button type="button" className="ai-action-btn" onClick={onNuevaPlanificacion}>
+            <span className="ai-action-icon">📋</span>
+            <strong>Revisar planificación</strong>
+            <small>Revisa y ajusta planes</small>
+          </button>
+          <button type="button" className="ai-action-btn" onClick={() => onIrASeccionIA("materiales")}>
+            <span className="ai-action-icon">📚</span>
+            <strong>Sugerir recursos</strong>
+            <small>Materiales y actividades</small>
+          </button>
+          <button type="button" className="ai-action-btn" onClick={() => onIrA("instrumentos")}>
+            <span className="ai-action-icon">📝</span>
+            <strong>Crear instrumento</strong>
+            <small>Rúbricas y evaluaciones</small>
+          </button>
+          <button type="button" className="ai-action-btn" onClick={() => onIrA("reportes")}>
+            <span className="ai-action-icon">📊</span>
+            <strong>Generar informe</strong>
+            <small>Reportes del grupo</small>
+          </button>
         </div>
       </section>
 
@@ -2410,6 +2532,16 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
   const [panelIaGenerando, setPanelIaGenerando] = useState(false);
   const [panelIaError, setPanelIaError] = useState(null);
   const panelIaRef = useRef(null);
+  const [registroCerrado, setRegistroCerrado] = useState(() => {
+    try { return localStorage.getItem("docenteos_registro_cerrado") === "true"; } catch { return false; }
+  });
+  const [modoFoto, setModoFoto] = useState(false);
+  const [fotoPreview, setFotoPreview] = useState(null);
+  const [fotoBase64, setFotoBase64] = useState(null);
+  const [fotoMimeType, setFotoMimeType] = useState("image/jpeg");
+  const [nombresEditados, setNombresEditados] = useState([]);
+  const [analizandoFoto, setAnalizandoFoto] = useState(false);
+  const [fotoError, setFotoError] = useState(null);
 
   const estadoPorPromedio = (prom) => {
     if (prom >= 90) return { key: "excelente", label: "Excelente", clase: "exito" };
@@ -2459,7 +2591,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    return estudiantes.filter((e) => {
+    const base = estudiantes.filter((e) => {
       const okTexto =
         !q ||
         e.nombre.toLowerCase().includes(q) ||
@@ -2471,6 +2603,13 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
       const okEstado = fEstado === "Todos" || e.estado.key === fEstado;
       const okNivelRiesgo = fNivelRiesgo === "Todos" || e.nivelRiesgo === fNivelRiesgo;
       return okTexto && okGrado && okSeccion && okArea && okEstado && okNivelRiesgo;
+    });
+    // Orden: regulares alfabético, tardíos al final en orden de ingreso
+    return base.sort((a, b) => {
+      if (a.tardio && !b.tardio) return 1;
+      if (!a.tardio && b.tardio) return -1;
+      if (!a.tardio && !b.tardio) return a.nombre.localeCompare(b.nombre, "es");
+      return 0;
     });
   }, [busqueda, estudiantes, fGrado, fSeccion, fArea, fEstado, fNivelRiesgo]);
 
@@ -2566,37 +2705,103 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
     URL.revokeObjectURL(url);
   };
 
+  const crearEstudianteExtra = (nombre, overrides = {}) => ({
+    id: `extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    nombre,
+    avatar: nombre.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(),
+    promedio: 75,
+    asistencia: 90,
+    estado: estadoPorPromedio(75),
+    nivelRiesgo: "Bajo",
+    cursoId: "",
+    cursoNombre: "Sin asignar",
+    area: "General",
+    grado: "Sin definir",
+    seccion: "A",
+    edad: 13,
+    fechaNacimiento: "—",
+    tutor: "—",
+    telefono: "—",
+    ultimaEvaluacion: "—",
+    tendencia: "Estables",
+    tendenciaValor: 0,
+    tardio: registroCerrado,
+    ...overrides,
+  });
+
   const agregarEstudiante = (e) => {
     e.preventDefault();
     if (!formNuevo.nombre.trim()) return;
-    const promedio = 75;
-    const estado = estadoPorPromedio(promedio);
     setEstudiantesExtra((prev) => [
       ...prev,
-      {
-        id: `extra-${Date.now()}`,
-        nombre: formNuevo.nombre.trim(),
-        avatar: formNuevo.nombre.trim().split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(),
-        promedio,
-        asistencia: 90,
-        estado,
-        nivelRiesgo: "Bajo",
-        cursoId: "",
-        cursoNombre: "Sin asignar",
+      crearEstudianteExtra(formNuevo.nombre.trim(), {
         area: formNuevo.area || "General",
         grado: formNuevo.grado || "Sin definir",
         seccion: formNuevo.seccion || "A",
-        edad: 13,
-        fechaNacimiento: "—",
-        tutor: "—",
-        telefono: "—",
-        ultimaEvaluacion: "—",
-        tendencia: "Estables",
-        tendenciaValor: 0,
-      },
+      }),
     ]);
     setFormNuevo({ nombre: "", grado: "", seccion: "", area: "" });
     setModalAgregar(false);
+  };
+
+  const handleFotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFotoMimeType(file.type || "image/jpeg");
+    setFotoError(null);
+    setNombresEditados([]);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataURL = ev.target.result;
+      setFotoPreview(dataURL);
+      setFotoBase64(dataURL.split(",")[1]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const analizarFoto = () => {
+    if (!fotoBase64) return;
+    setAnalizandoFoto(true);
+    setFotoError(null);
+    let accumulated = "";
+    AIService.generate({
+      module: "vision-estudiantes",
+      prompt: "Observa esta imagen de una lista de estudiantes y extrae todos los nombres. Devuelve SOLO un JSON array de strings con los nombres completos, sin texto adicional, sin markdown. Ejemplo: [\"Juan Pérez\",\"María López\",\"Carlos García\"]",
+      imageBase64: fotoBase64,
+      imageMediaType: fotoMimeType,
+      onChunk: (chunk) => { accumulated += chunk; },
+      onFinish: () => {
+        try {
+          const match = accumulated.match(/\[[\s\S]*?\]/);
+          const nombres = match ? JSON.parse(match[0]) : [];
+          setNombresEditados(nombres.filter(Boolean).map((n, i) => ({ id: i, nombre: n })));
+          if (nombres.length === 0) setFotoError("No se encontraron nombres. Intenta con una imagen más clara.");
+        } catch {
+          setFotoError("No se pudo leer la lista. Intenta de nuevo o agrega manualmente.");
+        }
+        setAnalizandoFoto(false);
+      },
+      onError: (err) => { setFotoError(err); setAnalizandoFoto(false); },
+    });
+  };
+
+  const confirmarNombresFoto = () => {
+    const validos = nombresEditados.filter((n) => n.nombre.trim());
+    setEstudiantesExtra((prev) => [
+      ...prev,
+      ...validos.map((item) => crearEstudianteExtra(item.nombre.trim())),
+    ]);
+    setModoFoto(false);
+    setNombresEditados([]);
+    setFotoPreview(null);
+    setFotoBase64(null);
+    setModalAgregar(false);
+  };
+
+  const toggleRegistroCerrado = () => {
+    const nuevoEstado = !registroCerrado;
+    setRegistroCerrado(nuevoEstado);
+    try { localStorage.setItem("docenteos_registro_cerrado", String(nuevoEstado)); } catch { /* */ }
   };
 
   const topRiesgo = [...filtrados]
@@ -2610,6 +2815,9 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
 
   const totalTrend = Math.max(1, resumen.mejorando + resumen.estables + resumen.bajando);
   const porcentaje = (n) => Math.round((n / totalTrend) * 100);
+  const totalGrafico = Math.max(1, resumen.total);
+  const restoGrafico = Math.max(0, resumen.total - resumen.enRiesgo - resumen.excelentes);
+  const arcLen = (n) => (276 * n) / totalGrafico;
 
   const periodos = [
     {
@@ -2790,57 +2998,157 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
         </div>
       </section>
 
-      <section className="estudiantes-dual-grid estudiantes-triple-grid">
-        <article className="estudiantes-card">
-          <div className="estudiantes-card-head"><div><h2>Estudiantes en Riesgo</h2><p>Seguimiento prioritario</p></div><span className="estudiantes-chip">{topRiesgo.length}</span></div>
-          <div className="estudiantes-lista-alertas">
+      <section className="eg-triple-grid">
+
+        {/* En Riesgo */}
+        <article className="eg-card">
+          <div className="eg-card-head">
+            <div className="eg-card-title">
+              <span className="eg-icon eg-icon-red">🚨</span>
+              <div>
+                <h3>Estudiantes en Riesgo</h3>
+                <p>Seguimiento prioritario</p>
+              </div>
+            </div>
+            <span className="eg-chip red">{topRiesgo.length}</span>
+          </div>
+          <div className="eg-list">
+            {topRiesgo.length === 0 && <p className="eg-empty">✅ Sin estudiantes en riesgo.</p>}
             {topRiesgo.map((e) => (
-              <div key={e.id} className="estudiantes-alerta-item" onClick={() => onAbrirPerfil(e)} style={{ cursor: 'pointer' }}>
-                <div className="estudiante-alert-main">
-                  <span className="estudiante-avatar-inline">{e.avatar}</span>
-                  <div><strong>{e.nombre}</strong><p>{e.cursoNombre}</p></div>
+              <div key={e.id} className="eg-row" onClick={() => onAbrirPerfil(e)}>
+                <span className="eg-avatar red">{e.avatar}</span>
+                <div className="eg-row-info">
+                  <strong>{e.nombre}</strong>
+                  <p>{e.cursoNombre}</p>
                 </div>
-                <div className="estudiantes-alerta-score red"><strong>{e.promedio}%</strong><span className={`nivel-riesgo-chip ${e.nivelRiesgo.toLowerCase()}`}>{e.nivelRiesgo}</span></div>
+                <div className="eg-score red">
+                  <strong>{e.promedio}%</strong>
+                  <span className={`nivel-riesgo-chip ${e.nivelRiesgo.toLowerCase()}`}>{e.nivelRiesgo}</span>
+                </div>
               </div>
             ))}
           </div>
-          <button type="button" className="estudiantes-secondary" onClick={() => { setFEstado("riesgo"); setVistaEstudiantes("General"); }}>Ver todos los estudiantes en riesgo</button>
+          <button type="button" className="eg-link" onClick={() => { setFEstado("riesgo"); }}>Ver todos los estudiantes en riesgo →</button>
         </article>
 
-        <article className="estudiantes-card">
-          <div className="estudiantes-card-head"><div><h2>Estudiantes Destacados</h2><p>Alto rendimiento sostenido</p></div><span className="estudiantes-chip">{topDestacados.length}</span></div>
-          <div className="estudiantes-lista-destacados">
+        {/* Destacados */}
+        <article className="eg-card">
+          <div className="eg-card-head">
+            <div className="eg-card-title">
+              <span className="eg-icon eg-icon-gold">⭐</span>
+              <div>
+                <h3>Estudiantes Destacados</h3>
+                <p>Alto rendimiento sostenido</p>
+              </div>
+            </div>
+            <span className="eg-chip gold">{topDestacados.length}</span>
+          </div>
+          <div className="eg-list">
+            {topDestacados.length === 0 && <p className="eg-empty">Sin destacados todavía.</p>}
             {topDestacados.map((e) => (
-              <div key={e.id} className="estudiantes-destacado-item" onClick={() => onAbrirPerfil(e)} style={{ cursor: 'pointer' }}>
-                <div className="estudiante-alert-main">
-                  <span className="estudiante-avatar-inline">{e.avatar}</span>
-                  <div><strong>{e.nombre}</strong><p>{e.cursoNombre}</p></div>
+              <div key={e.id} className="eg-row" onClick={() => onAbrirPerfil(e)}>
+                <span className="eg-avatar gold">{e.avatar}</span>
+                <div className="eg-row-info">
+                  <strong>{e.nombre}</strong>
+                  <p>{e.cursoNombre}</p>
                 </div>
-                <div className="estudiantes-alerta-score green"><strong>{e.promedio}%</strong><span>{e.promedio >= 95 ? "Sobresaliente" : "Excelente"}</span></div>
+                <div className="eg-score gold">
+                  <strong>{e.promedio}%</strong>
+                  <span>{e.promedio >= 95 ? "Sobresaliente" : "Excelente"}</span>
+                </div>
               </div>
             ))}
           </div>
-          <button type="button" className="estudiantes-secondary" onClick={() => { setFEstado("excelente"); setVistaEstudiantes("General"); }}>Ver todos los destacados</button>
+          <button type="button" className="eg-link" onClick={() => { setFEstado("excelente"); }}>Ver todos los destacados →</button>
         </article>
 
-        <article className="estudiantes-card estudiantes-chart-card">
-          <div className="estudiantes-card-head"><div><h2>Seguimiento Académico</h2><p>Tendencia del rendimiento</p></div></div>
-          <div className="donut-wrap">
-            <svg viewBox="0 0 120 120" width="150" height="150" aria-hidden="true">
-              <circle cx="60" cy="60" r="44" fill="none" stroke="#e2e8f0" strokeWidth="14" />
-              <circle cx="60" cy="60" r="44" fill="none" stroke="#22c55e" strokeWidth="14" strokeDasharray={`${(276 * porcentaje(resumen.mejorando)) / 100} 276`} strokeDashoffset="0" transform="rotate(-90 60 60)" />
-              <circle cx="60" cy="60" r="44" fill="none" stroke="#2563eb" strokeWidth="14" strokeDasharray={`${(276 * porcentaje(resumen.estables)) / 100} 276`} strokeDashoffset={`-${(276 * porcentaje(resumen.mejorando)) / 100}`} transform="rotate(-90 60 60)" />
-              <circle cx="60" cy="60" r="44" fill="none" stroke="#f59e0b" strokeWidth="14" strokeDasharray={`${(276 * porcentaje(resumen.bajando)) / 100} 276`} strokeDashoffset={`-${(276 * (porcentaje(resumen.mejorando) + porcentaje(resumen.estables))) / 100}`} transform="rotate(-90 60 60)" />
-            </svg>
-            <div className="donut-summary"><strong>{resumen.total}</strong><p>Estudiantes</p></div>
+        {/* Seguimiento Académico */}
+        <article className="eg-card eg-card-donut">
+          <div className="eg-card-head">
+            <div className="eg-card-title">
+              <span className="eg-icon eg-icon-blue">📊</span>
+              <div>
+                <h3>Seguimiento Académico</h3>
+                <p>Distribución del grupo</p>
+              </div>
+            </div>
           </div>
-          <div className="donut-legend donut-legend-pro">
-            <span className="tabla-chip exito">🟢 Mejorando {porcentaje(resumen.mejorando)}%</span>
-            <span className="tabla-chip seguimiento">🔵 Estables {porcentaje(resumen.estables)}%</span>
-            <span className="tabla-chip desarrollo">🟠 Bajando rendimiento {porcentaje(resumen.bajando)}%</span>
+          <div className="eg-donut-body">
+            <div className="eg-donut-chart-wrap">
+              <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+                <defs>
+                  <linearGradient id="eg-grad-dest" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#818cf8" />
+                    <stop offset="100%" stopColor="#3730a3" />
+                  </linearGradient>
+                  <linearGradient id="eg-grad-riesgo" x1="120" y1="0" x2="0" y2="120" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#fb7185" />
+                    <stop offset="100%" stopColor="#9f1239" />
+                  </linearGradient>
+                  <filter id="eg-glow-dest" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="2.5" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                  <filter id="eg-glow-risk" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="2.5" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                </defs>
+                {/* track */}
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#e8edf5" strokeWidth="12" />
+                {/* destacados — azul/índigo */}
+                <circle cx="60" cy="60" r="44" fill="none" stroke="url(#eg-grad-dest)" strokeWidth="12" strokeLinecap="round"
+                  strokeDasharray={`${arcLen(resumen.excelentes)} 276`}
+                  strokeDashoffset="0"
+                  transform="rotate(-90 60 60)"
+                  filter="url(#eg-glow-dest)"
+                />
+                {/* en progreso — gris neutro */}
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#c8d3e0" strokeWidth="12" strokeLinecap="round"
+                  strokeDasharray={`${arcLen(restoGrafico)} 276`}
+                  strokeDashoffset={`-${arcLen(resumen.excelentes)}`}
+                  transform="rotate(-90 60 60)"
+                />
+                {/* en riesgo — rojo */}
+                <circle cx="60" cy="60" r="44" fill="none" stroke="url(#eg-grad-riesgo)" strokeWidth="12" strokeLinecap="round"
+                  strokeDasharray={`${arcLen(resumen.enRiesgo)} 276`}
+                  strokeDashoffset={`-${arcLen(resumen.excelentes + restoGrafico)}`}
+                  transform="rotate(-90 60 60)"
+                  filter="url(#eg-glow-risk)"
+                />
+              </svg>
+              <div className="eg-donut-center">
+                <strong>{resumen.total}</strong>
+                <span>total</span>
+              </div>
+            </div>
+            <div className="eg-donut-legend">
+              <div className="eg-legend-item eg-li-dest">
+                <span />
+                <div>
+                  <b>{resumen.excelentes}</b>
+                  <p>Destacados</p>
+                </div>
+              </div>
+              <div className="eg-legend-item eg-li-neutral">
+                <span />
+                <div>
+                  <b>{restoGrafico}</b>
+                  <p>En progreso</p>
+                </div>
+              </div>
+              <div className="eg-legend-item eg-li-risk">
+                <span />
+                <div>
+                  <b>{resumen.enRiesgo}</b>
+                  <p>En riesgo</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <button type="button" className="estudiantes-secondary" onClick={() => setVistaEstudiantes("Por Mes")}>Ver análisis completo</button>
+          <button type="button" className="eg-link" onClick={() => setVistaEstudiantes("Por Mes")}>Ver análisis completo →</button>
         </article>
+
       </section>
 
       <section className="estudiantes-shell">
@@ -2850,7 +3158,16 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
               <div><h2>Lista de estudiantes ({filtrados.length})</h2></div>
               <div className="estudiantes-row-actions estudiantes-row-actions-top">
                 <button type="button" className="secundario" onClick={exportarCSV}>📤 Exportar</button>
-                <button type="button" onClick={() => setModalAgregar(true)}>➕ Agregar estudiante</button>
+                <button
+                  type="button"
+                  className="secundario"
+                  onClick={toggleRegistroCerrado}
+                  title={registroCerrado ? "Registro oficial cerrado — los nuevos estudiantes quedan al final" : "Registro abierto — los nuevos estudiantes se ordenan alfabéticamente"}
+                  style={{ color: registroCerrado ? "#dc2626" : "#059669", borderColor: registroCerrado ? "#dc2626" : "#059669" }}
+                >
+                  {registroCerrado ? "🔒 Registro cerrado" : "📋 Registro abierto"}
+                </button>
+                <button type="button" onClick={() => { setModoFoto(false); setModalAgregar(true); }}>➕ Agregar estudiante</button>
               </div>
             </div>
 
@@ -2876,7 +3193,11 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
                       <tr key={e.id} className={activo ? "activo" : ""} onClick={() => setSeleccionadoId(e.id)}>
                         <td><input type="checkbox" aria-label={`Seleccionar ${e.nombre}`} /></td>
                         <td><span className="estudiante-avatar-inline foto">{e.avatar}</span></td>
-                        <td><strong>{e.nombre}</strong><small>{e.area}</small></td>
+                        <td>
+                          <strong>{e.nombre}</strong>
+                          {e.tardio && <span style={{ fontSize: 10, background: "#fef3c7", color: "#92400e", borderRadius: 4, padding: "1px 5px", marginLeft: 6, verticalAlign: "middle" }}>Ingresó tarde</span>}
+                          <small>{e.area}</small>
+                        </td>
                         <td>{e.cursoNombre}</td>
                         <td><div className="promedio-cell"><span className="estudiantes-table-score">{e.promedio}%</span><em className={e.tendenciaValor >= 0 ? "trend-up" : "trend-down"}>{e.tendenciaValor >= 0 ? "⬆" : "⬇"} {Math.abs(e.tendenciaValor)} pts</em></div></td>
                         <td>{e.asistencia}%</td>
@@ -3034,31 +3355,179 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
       </section>
 
       {modalAgregar && (
-        <div className="modal-overlay" onClick={() => setModalAgregar(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>➕ Agregar estudiante</h3>
-            <form onSubmit={agregarEstudiante} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
-                Nombre completo *
-                <input required value={formNuevo.nombre} onChange={(e) => setFormNuevo((p) => ({ ...p, nombre: e.target.value }))} />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
-                Grado
-                <input value={formNuevo.grado} onChange={(e) => setFormNuevo((p) => ({ ...p, grado: e.target.value }))} placeholder="Ej: 3ro" />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
-                Sección
-                <input value={formNuevo.seccion} onChange={(e) => setFormNuevo((p) => ({ ...p, seccion: e.target.value }))} placeholder="Ej: A" />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 14 }}>
-                Área
-                <input value={formNuevo.area} onChange={(e) => setFormNuevo((p) => ({ ...p, area: e.target.value }))} placeholder="Ej: Matemáticas" />
-              </label>
-              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                <button type="submit" style={{ flex: 1 }}>Guardar</button>
-                <button type="button" className="secundario" onClick={() => setModalAgregar(false)} style={{ flex: 1 }}>Cancelar</button>
+        <div className="ma-overlay" onClick={() => { setModalAgregar(false); setModoFoto(false); }}>
+          <div className="ma-card" onClick={(e) => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="ma-header">
+              <div className="ma-header-left">
+                <div className="ma-header-icon">{modoFoto ? "📷" : "👤"}</div>
+                <div className="ma-header-text">
+                  <h2>{modoFoto ? "Importar lista con IA" : "Nuevo estudiante"}</h2>
+                  <p>{modoFoto ? "Sube una foto — la IA lee los nombres" : "Completa los datos del estudiante"}</p>
+                  {registroCerrado && <span className="ma-badge-cerrado">🔒 Registro cerrado — irá al final de la lista</span>}
+                </div>
               </div>
-            </form>
+              <button className="ma-close" onClick={() => { setModalAgregar(false); setModoFoto(false); }}>✕</button>
+            </div>
+
+            {/* Tabs */}
+            <div className="ma-tabs">
+              <button type="button" className={`ma-tab ${!modoFoto ? "active" : "inactive"}`} onClick={() => setModoFoto(false)}>
+                <span>✏️</span> Agregar uno
+              </button>
+              <button type="button" className={`ma-tab ${modoFoto ? "active" : "inactive"}`} onClick={() => { setModoFoto(true); setFotoError(null); }}>
+                <span>📷</span> Subir foto de lista
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="ma-body">
+              {!modoFoto ? (
+                <form id="ma-form-manual" onSubmit={agregarEstudiante}>
+                  <div className="ma-field">
+                    <label className="ma-label">Nombre completo</label>
+                    <input
+                      className="ma-input"
+                      required
+                      placeholder="Ej: Juan Carlos Pérez"
+                      autoFocus
+                      value={formNuevo.nombre}
+                      onChange={(e) => setFormNuevo((p) => ({ ...p, nombre: e.target.value }))}
+                    />
+                  </div>
+                  <div className="ma-grid-2">
+                    <div className="ma-field">
+                      <label className="ma-label">Grado</label>
+                      <input
+                        className="ma-input"
+                        placeholder="Ej: 1ro Secundaria"
+                        value={formNuevo.grado}
+                        onChange={(e) => setFormNuevo((p) => ({ ...p, grado: e.target.value }))}
+                      />
+                    </div>
+                    <div className="ma-field">
+                      <label className="ma-label">Sección</label>
+                      <input
+                        className="ma-input"
+                        placeholder="Ej: A"
+                        value={formNuevo.seccion}
+                        onChange={(e) => setFormNuevo((p) => ({ ...p, seccion: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="ma-field">
+                    <label className="ma-label">Área / Asignatura</label>
+                    <input
+                      className="ma-input"
+                      placeholder="Ej: Matemáticas, Lengua, Inglés…"
+                      value={formNuevo.area}
+                      onChange={(e) => setFormNuevo((p) => ({ ...p, area: e.target.value }))}
+                    />
+                  </div>
+                </form>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {!fotoPreview ? (
+                    <label className="ma-upload-zone">
+                      <input type="file" accept="image/*" onChange={handleFotoSelect} />
+                      <div className="ma-upload-icon">📷</div>
+                      <p className="ma-upload-title">Arrastra la foto aquí o haz clic</p>
+                      <p className="ma-upload-desc">JPG, PNG, HEIC — hasta 20 MB</p>
+                    </label>
+                  ) : (
+                    <>
+                      <img src={fotoPreview} alt="Lista de estudiantes" className="ma-preview" />
+                      <button
+                        type="button"
+                        style={{ fontSize: 12, background: "none", border: "none", color: "#64748b", cursor: "pointer", textDecoration: "underline", padding: 0, textAlign: "left" }}
+                        onClick={() => { setFotoPreview(null); setFotoBase64(null); setNombresEditados([]); setFotoError(null); }}
+                      >Cambiar imagen</button>
+                    </>
+                  )}
+
+                  {fotoBase64 && nombresEditados.length === 0 && (
+                    <button
+                      type="button"
+                      className={`ma-btn-ia${analizandoFoto ? " analyzing" : ""}`}
+                      onClick={analizarFoto}
+                      disabled={analizandoFoto}
+                    >
+                      {analizandoFoto ? (
+                        <><span style={{ display: "inline-block", animation: "ma-spin 0.8s linear infinite" }}>⏳</span> Analizando imagen…</>
+                      ) : (
+                        <><span>✨</span> Analizar con IA</>
+                      )}
+                    </button>
+                  )}
+
+                  {fotoError && (
+                    <div className="ma-error">
+                      <span>⚠️</span> {fotoError}
+                    </div>
+                  )}
+
+                  {nombresEditados.length > 0 && (
+                    <div>
+                      <div className="ma-names-header">
+                        <span>Revisa y edita los nombres</span>
+                        <span className="ma-names-count">{nombresEditados.filter((n) => n.nombre.trim()).length} estudiantes</span>
+                      </div>
+                      <div className="ma-names-list">
+                        {nombresEditados.map((item, idx) => (
+                          <div key={item.id} className="ma-name-row">
+                            <span className="ma-name-num">{idx + 1}</span>
+                            <input
+                              className="ma-name-input"
+                              value={item.nombre}
+                              onChange={(e) => setNombresEditados((prev) => prev.map((n, i) => i === idx ? { ...n, nombre: e.target.value } : n))}
+                              placeholder="Nombre completo…"
+                            />
+                            <button type="button" className="ma-name-del" onClick={() => setNombresEditados((prev) => prev.filter((_, i) => i !== idx))}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="ma-add-link"
+                        onClick={() => setNombresEditados((prev) => [...prev, { id: Date.now(), nombre: "" }])}
+                      >
+                        <span>＋</span> Agregar nombre manualmente
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="ma-footer">
+              {!modoFoto ? (
+                <>
+                  <button type="submit" form="ma-form-manual" className="ma-btn-primary">
+                    Guardar estudiante
+                  </button>
+                  <button type="button" className="ma-btn-ghost" onClick={() => setModalAgregar(false)}>
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <>
+                  {nombresEditados.length > 0 && (
+                    <button type="button" className="ma-btn-primary" onClick={confirmarNombresFoto}>
+                      ✅ Agregar {nombresEditados.filter((n) => n.nombre.trim()).length} estudiantes
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="ma-btn-ghost"
+                    onClick={() => { setModalAgregar(false); setModoFoto(false); setNombresEditados([]); setFotoPreview(null); setFotoBase64(null); }}
+                  >
+                    Cancelar
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -43,6 +43,7 @@ import {
   generarUnidadAprendizaje,
   formatearUnidadHTML,
 } from "../services/unidadAprendizajeService";
+import { precargarBP } from "../services/bpCache.js";
 import { applyAuditAction } from "../services/auditAcciones.js";
 import {
   eliminarPlanificacionDetallada,
@@ -332,6 +333,7 @@ export default function PlanificacionPage() {
     setCargandoUnidad(true);
     setMensajeUnidad(null);
     try {
+      await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
       const resultado = generarUnidadAprendizaje(unidadDatos);
       setUnidad(resultado);
       setTimeout(() => {
@@ -1234,6 +1236,7 @@ export default function PlanificacionPage() {
       setCargandoUnidad(true);
       try {
         await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
+        await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
         const resultado = generarUnidadAprendizaje(unidadDatos);
         setUnidad(resultado);
         setTimeout(() => document.querySelector(".ua-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);

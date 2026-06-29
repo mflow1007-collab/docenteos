@@ -1322,8 +1322,8 @@ function SecAcademia({ onIrALab = () => {} }) {
       />
 
       <Info tipo="blue" icon="🎓">
-        Los dos primeros cursos ya están disponibles. Comenzar un curso abre el Laboratorio IA
-        con la lección inicial cargada para que practiques de inmediato.
+        2 de 6 cursos disponibles. Comenzar un curso abre el Laboratorio IA con la lección inicial
+        cargada. Los demás cursos estarán disponibles próximamente.
       </Info>
 
       <div className="cia-academia-grid" style={{ marginTop: 16 }}>
@@ -1358,13 +1358,13 @@ function SecAcademia({ onIrALab = () => {} }) {
       </div>
 
       <hr className="cia-divider" />
-      <div className="cia-section-label">Lo que obtendrás al completar la Academia</div>
+      <div className="cia-section-label">Lo que obtendrás al avanzar en la Academia</div>
       <ul className="cia-checklist">
-        <li>Certificado digital de "Docente IA DocenteOS" verificable y descargable.</li>
-        <li>Dominio práctico de 6 módulos de IA aplicados al aula dominicana.</li>
-        <li>Banco personal de más de 50 prompts probados y refinados.</li>
+        <li>Dominio práctico de IA aplicada al aula dominicana, módulo a módulo.</li>
+        <li>Banco personal de prompts probados y refinados para tu área y grado.</li>
         <li>Capacidad para replicar lo aprendido con colegas en tu centro educativo.</li>
-        <li>Acceso prioritario a nuevos cursos y funciones del Centro IA Docente.</li>
+        <li>Acceso anticipado a nuevos cursos y funciones del Centro IA Docente.</li>
+        <li>Certificado digital DocenteOS al completar los 6 módulos <em>(próximamente)</em>.</li>
       </ul>
     </div>
   )
@@ -1427,8 +1427,8 @@ function SecMiIA() {
     <div className="cia-section">
       <SH
         badge="🧠 MI IA"
-        title="Mi IA Personal"
-        desc="Todo lo que tu IA ha aprendido de ti: memorias activas, tu estilo de enseñanza detectado y los casos de éxito que has validado."
+        title="Mi perfil docente"
+        desc="Tu IA personalizada conoce tu estilo de enseñanza, tus áreas principales y las estrategias que mejor te funcionan. Aquí puedes ver lo que ha aprendido de ti."
       />
 
       {cargando && (
@@ -1443,16 +1443,16 @@ function SecMiIA() {
         <>
           <div className="cia-mia-stats">
             <div className="cia-mia-stat">
+              <span className="cia-mia-num">{estilo ? '✓' : '—'}</span>
+              <span className="cia-mia-lab">Perfil creado</span>
+            </div>
+            <div className="cia-mia-stat">
               <span className="cia-mia-num">{memorias.length}</span>
-              <span className="cia-mia-lab">Memorias activas</span>
+              <span className="cia-mia-lab">Preferencias guardadas</span>
             </div>
             <div className="cia-mia-stat">
               <span className="cia-mia-num">{casos.length}</span>
-              <span className="cia-mia-lab">Casos de éxito</span>
-            </div>
-            <div className="cia-mia-stat">
-              <span className="cia-mia-num">{estilo ? '✓' : '—'}</span>
-              <span className="cia-mia-lab">Estilo detectado</span>
+              <span className="cia-mia-lab">Planificaciones aprendidas</span>
             </div>
           </div>
 
@@ -1461,7 +1461,7 @@ function SecMiIA() {
               <div className="cia-mia-block-title">🎨 Tu estilo de enseñanza</div>
               <div className="cia-mia-estilo-body">
                 {estilo.estrategias?.length > 0 && (
-                  <div><strong>Estrategias preferidas:</strong> {estilo.estrategias.join(', ')}</div>
+                  <div><strong>Estrategias que usas:</strong> {estilo.estrategias.join(', ')}</div>
                 )}
                 {estilo.tiposRecursos?.length > 0 && (
                   <div><strong>Recursos habituales:</strong> {estilo.tiposRecursos.join(', ')}</div>
@@ -1470,7 +1470,7 @@ function SecMiIA() {
                   <div><strong>Áreas principales:</strong> {estilo.areasPrincipales.join(', ')}</div>
                 )}
                 {estilo.gradosPrincipales?.length > 0 && (
-                  <div><strong>Grados:</strong> {estilo.gradosPrincipales.join(', ')}</div>
+                  <div><strong>Grados que atiendes:</strong> {estilo.gradosPrincipales.join(', ')}</div>
                 )}
               </div>
             </div>
@@ -1478,11 +1478,11 @@ function SecMiIA() {
 
           {memorias.length > 0 && (
             <div className="cia-mia-block">
-              <div className="cia-mia-block-title">💡 Memorias activas</div>
+              <div className="cia-mia-block-title">💡 Lo que la IA recuerda de ti</div>
               <ul className="cia-mia-lista">
                 {memorias.map(m => (
                   <li key={m.id}>
-                    <span className="cia-mia-chip">{m.tipo || 'regla'}</span>
+                    <span className="cia-mia-chip">{m.tipo === 'regla' ? 'preferencia' : (m.tipo || 'preferencia')}</span>
                     <span>{m.contenido}</span>
                   </li>
                 ))}
@@ -1492,11 +1492,11 @@ function SecMiIA() {
 
           {casos.length > 0 && (
             <div className="cia-mia-block">
-              <div className="cia-mia-block-title">⭐ Casos de éxito validados</div>
+              <div className="cia-mia-block-title">⭐ Planificaciones que la IA ha aprendido</div>
               <ul className="cia-mia-lista">
                 {casos.map(c => (
                   <li key={c.id}>
-                    <span className="cia-mia-chip">{c.tipo || 'caso'}</span>
+                    <span className="cia-mia-chip">{c.tipo === 'caso' ? 'planificación' : (c.tipo || 'planificación')}</span>
                     <span>{c.descripcion || c.contenido || '—'}</span>
                   </li>
                 ))}
@@ -1506,7 +1506,7 @@ function SecMiIA() {
 
           {memorias.length === 0 && casos.length === 0 && !estilo && (
             <Info tipo="blue" icon="💡">
-              Tu IA aún está aprendiendo. Cada vez que generas planificaciones, consultas el chat y validas resultados, tu IA construye un perfil personalizado de tu estilo docente.
+              Tu IA aún está aprendiendo de ti. Cada planificación que generas y cada resultado que apruebas ayuda a personalizar tu asistente. Sigue usando DocenteOS y tu perfil se irá construyendo solo.
             </Info>
           )}
         </>

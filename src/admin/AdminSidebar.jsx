@@ -4,28 +4,35 @@ const MENU = [
   {
     grupo: 'General',
     items: [
-      { id: 'home',         icon: '⊞',  label: 'Resumen' },
+      { id: 'home', icon: '⊞', label: 'Resumen' },
     ]
   },
   {
     grupo: 'Usuarios & Centros',
     items: [
-      { id: 'usuarios',    icon: '👥', label: 'Usuarios' },
-      { id: 'centros',     icon: '🏫', label: 'Centros Educativos' },
-      { id: 'seguridad',   icon: '🔒', label: 'Seguridad' },
+      { id: 'usuarios',  icon: '👥', label: 'Usuarios' },
+      { id: 'centros',   icon: '🏫', label: 'Centros Educativos' },
+      { id: 'seguridad', icon: '🔒', label: 'Seguridad' },
     ]
   },
   {
-    grupo: 'Contenido',
+    grupo: 'Centro de Inteligencia',
     items: [
-      { id: 'curriculo',   icon: '📚', label: 'Currículo' },
+      { id: 'curriculo',           icon: '📚', label: 'Banco Curricular' },
+      { id: 'banco-pedagogico',    icon: '🏦', label: 'Banco Pedagógico' },
+      { id: 'prompts',             icon: '✨', label: 'Banco IA (Prompts)' },
+      { id: 'banco-aprendizaje',   icon: '🧠', label: 'Banco de Aprendizaje' },
+      { id: 'banco-docente',       icon: '👨‍🏫', label: 'Banco Docente' },
+      { id: 'asistente-personal',  icon: '🤖', label: 'Asistente Personal' },
+      { id: 'estadisticas',        icon: '📊', label: 'Estadísticas' },
     ]
   },
   {
     grupo: 'Inteligencia Artificial',
     items: [
-      { id: 'gateway-ia',   icon: '🔀', label: 'Gateway de Proveedores' },
-      { id: 'prompts',      icon: '✨', label: 'Banco de Prompts' },
+      { id: 'costos-ia',         icon: '💰', label: 'Costos por Proveedor' },
+      { id: 'uso-ia',            icon: '⚡', label: 'Uso IA por Docente' },
+      { id: 'gateway-ia',        icon: '🔀', label: 'Gateway de Proveedores' },
       { id: 'historial-ia',      icon: '🕒', label: 'Historial IA' },
       { id: 'entrenamiento-ia',  icon: '🧠', label: 'Entrenamiento IA' },
     ]

@@ -74,6 +74,14 @@ export const AIConfig = {
       maxTokens: 3000,
       cache: false,
     },
+    "chat-personal": {
+      maxTokens: 2048,
+      cache: false,
+    },
+    "vision-estudiantes": {
+      maxTokens: 1024,
+      cache: false,
+    },
   },
 
   // Valores por defecto para módulos no listados

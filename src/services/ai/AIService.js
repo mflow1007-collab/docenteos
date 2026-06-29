@@ -67,7 +67,7 @@ export const AIService = {
    * @param {Function} opts.onFinish       - Llamado al finalizar con el texto completo
    * @param {Function} opts.onError        - Llamado con mensaje de error amigable
    */
-  async generate({ module, prompt, system, maxTokens, onChunk, onFinish, onError, _contextMeta }) {
+  async generate({ module, prompt, system, maxTokens, imageBase64, imageMediaType, onChunk, onFinish, onError, _contextMeta }) {
     const moduleConfig      = getModuleConfig(module);
     const routerOpts        = resolveModuleOptions(module);
     const resolvedMaxTokens = maxTokens ?? routerOpts.maxTokens;
@@ -122,9 +122,11 @@ export const AIService = {
           prompt,
           system,
           maxTokens:         resolvedMaxTokens,
-          preferredProvider: routerOpts.preferredProvider,
-          providerOrder,    // orden del admin desde Firestore
+          preferredProvider: imageBase64 ? "anthropic" : routerOpts.preferredProvider,
+          providerOrder:     imageBase64 ? ["anthropic"] : providerOrder,
           modelOverrides,   // modelos del admin desde Firestore
+          imageBase64,
+          imageMediaType,
         }),
       });
     } catch (err) {
@@ -196,11 +198,14 @@ export const AIService = {
 
     // ── 6. Registrar uso ─────────────────────────────────────────────────────
     if (AIConfig.logging) {
+      const tokensIn  = Math.ceil(((prompt || '').length + (system || '').length) / 4);
+      const tokensOut = Math.ceil(accumulated.length / 4);
       logUsage({
         module,
-        provider: usedProvider,
-        model:    usedModel,
-        tokensOut: Math.ceil(accumulated.length / 4),
+        provider:  usedProvider,
+        model:     usedModel,
+        tokensIn,
+        tokensOut,
         ms,
         fromCache: false,
       });

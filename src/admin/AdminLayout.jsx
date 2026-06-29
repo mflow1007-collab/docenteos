@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
-const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia']
+const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','banco-pedagogico','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-docente','asistente-personal','uso-ia','costos-ia']
 import AdminSidebar from './AdminSidebar.jsx'
 import AdminTopbar from './AdminTopbar.jsx'
 import AdminHome from './pages/AdminHome.jsx'
@@ -17,6 +17,13 @@ import AdminIA from './pages/AdminIA.jsx'
 import AdminSubscriptions from './pages/AdminSubscriptions.jsx'
 import AdminConfiguracion from './pages/AdminConfiguracion.jsx'
 import AdminEntrenamientoIA from './pages/AdminEntrenamientoIA.jsx'
+import AdminBancoPedagogico from './pages/AdminBancoPedagogico.jsx'
+import AdminEstadisticas from './pages/AdminEstadisticas.jsx'
+import AdminBancoAprendizaje from './pages/AdminBancoAprendizaje.jsx'
+import AdminBancoDocente from './pages/AdminBancoDocente.jsx'
+import AdminAsistentePersonal from './pages/AdminAsistentePersonal.jsx'
+import AdminUsoIA from './pages/AdminUsoIA.jsx'
+import AdminCostosIA from './pages/AdminCostosIA.jsx'
 import './admin.css'
 
 export default function AdminLayout({ paginaInicial = 'home' }) {
@@ -49,7 +56,14 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
           {pagina === 'firebase'      && <AdminFirebase      />}
           {pagina === 'suscripciones'  && <AdminSubscriptions />}
           {pagina === 'configuracion'   && <AdminConfiguracion  />}
-          {pagina === 'entrenamiento-ia' && <AdminEntrenamientoIA />}
+          {pagina === 'entrenamiento-ia'  && <AdminEntrenamientoIA  />}
+          {pagina === 'banco-pedagogico'  && <AdminBancoPedagogico  />}
+          {pagina === 'estadisticas'     && <AdminEstadisticas     />}
+          {pagina === 'banco-aprendizaje'  && <AdminBancoAprendizaje  />}
+          {pagina === 'banco-docente'     && <AdminBancoDocente     />}
+          {pagina === 'asistente-personal' && <AdminAsistentePersonal />}
+          {pagina === 'uso-ia'            && <AdminUsoIA            />}
+          {pagina === 'costos-ia'         && <AdminCostosIA         />}
         </main>
       </div>
     </div>

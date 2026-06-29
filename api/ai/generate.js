@@ -87,7 +87,14 @@ function getProviderQueue(preferredProvider, providerOrder) {
 
 // ─── Llamadas a proveedores ────────────────────────────────────────────────────
 
-async function callAnthropic(apiKey, { system, prompt, maxTokens, model }) {
+async function callAnthropic(apiKey, { system, prompt, maxTokens, model, imageBase64, imageMediaType }) {
+  const userContent = imageBase64
+    ? [
+        { type: "image", source: { type: "base64", media_type: imageMediaType || "image/jpeg", data: imageBase64 } },
+        { type: "text", text: prompt },
+      ]
+    : prompt;
+
   return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -100,7 +107,7 @@ async function callAnthropic(apiKey, { system, prompt, maxTokens, model }) {
       max_tokens: maxTokens || 4096,
       stream: true,
       system: system || "",
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user", content: userContent }],
     }),
   });
 }
@@ -213,6 +220,8 @@ export default async function handler(request) {
     preferredProvider,
     providerOrder,     // string[] desde Firestore vía AIService
     modelOverrides,    // { openai: "gpt-4.1", ... } desde Firestore vía AIService
+    imageBase64,       // base64 image for vision (Anthropic only)
+    imageMediaType,    // e.g. "image/jpeg"
   } = body;
 
   if (!prompt) {
@@ -244,7 +253,7 @@ export default async function handler(request) {
       let providerResponse;
 
       if (provider === "anthropic") {
-        providerResponse = await callAnthropic(apiKey, { system, prompt, maxTokens, model });
+        providerResponse = await callAnthropic(apiKey, { system, prompt, maxTokens, model, imageBase64, imageMediaType });
       } else {
         const baseURL = PROVIDER_BASE_URLS[provider];
         providerResponse = await callOpenAICompatible(apiKey, baseURL, {

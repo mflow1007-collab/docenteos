@@ -2,6 +2,7 @@
 import { distribuirTemasEnSemanas, obtenerTemaSemana } from "./curriculumCombinacionService.js";
 import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.js";
+import { precargarBP, obtenerBPActs } from "./bpCache.js";
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 
@@ -442,11 +443,17 @@ const construirMomento = (tipo, semana, dia, tema, tipoEval, totalMin = 45, area
   };
   const instrumento = instrumentosMapa[tipoEval]?.[tipo] || "Observación";
 
-  // Banco especializado por área — si existe, usa sus actividades contextualizadas
+  // Banco Pedagógico Firestore (oficial) tiene prioridad
+  const bpActs = area ? obtenerBPActs(area, tipo, dia - 1) : null;
+
+  // Banco especializado estático como fallback
   const faseIdx = FASE_A_IDX[fase] ?? 1;
-  const actividadesBanco = area ? obtenerActividadesBanco(area, tipo, faseIdx, dia - 1) : null;
+  const actividadesBanco = (!bpActs && area) ? obtenerActividadesBanco(area, tipo, faseIdx, dia - 1) : null;
+
   let actividades;
-  if (actividadesBanco) {
+  if (bpActs) {
+    actividades = withTema(bpActs, tema);
+  } else if (actividadesBanco) {
     actividades = withTema(actividadesBanco, tema);
   } else {
     let variaciones;
@@ -750,6 +757,9 @@ const generarDesarrolloSemanal = ({
 
 const generarPlanificacion = async (datos) => {
   validarDatosPlanificacion(datos);
+
+  // Precalentar Banco Pedagógico Firestore antes de generar
+  await precargarBP(datos.area || "", datos.grado || "");
 
   const {
     tema, grado, seccion, area, periodo,
