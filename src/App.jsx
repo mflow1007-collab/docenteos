@@ -13,6 +13,7 @@ import {
   obtenerPreferenciaUsuario,
   guardarEstadoDetalleEstudiante,
   obtenerEstadoDetalleEstudiante,
+  obtenerPlanificacionesDetalladas,
 } from "./firebase";
 import { cerrarSesion } from "./auth";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -38,23 +39,22 @@ const CURSOS_GRADOS_POR_NIVEL = {
   Secundaria: ["1ro Secundaria", "2do Secundaria", "3ro Secundaria", "4to Secundaria", "5to Secundaria", "6to Secundaria"],
 };
 
-const EVALUACIONES_BASE_DETALLE = [
-  { fecha: "18 jun 2026", actividad: "Prueba unidad 3", area: "Matematica", calificacion: "58%", estado: "Bajo", observacion: "Requiere refuerzo" },
-  { fecha: "12 jun 2026", actividad: "Tarea practica", area: "Lengua", calificacion: "65%", estado: "Regular", observacion: "Mejorar entrega" },
-  { fecha: "05 jun 2026", actividad: "Participacion", area: "Ingles", calificacion: "62%", estado: "Regular", observacion: "Necesita seguimiento" },
+const EVALUACIONES_BASE_DETALLE = [];
+
+const PLAN_APOYO_BASE_DETALLE = [];
+
+
+const NOMBRES_DEMO = [
+  "Ana García","Carlos Pérez","María López","José Rodríguez","Carmen Martínez",
+  "Luis Santos","Rosa Reyes","Pedro Díaz","Isabel Fernández","Miguel Moreno",
+  "Lucía Jiménez","Andrés Torres","Sofía Ruiz","Diego Vargas","Paula Romero",
+  "Valentina Cruz","Ricardo Flores","Daniela Mendoza","Alejandro Herrera","Natalia Suárez",
+  "Fernando Medina","Laura Guerrero","Sebastián Molina","Camila Morales","Emilio Vega",
+  "Diana Ramos","Ernesto Silva","Paola Cortés","Manuel Ortega","Elena Castillo",
 ];
 
-const PLAN_APOYO_BASE_DETALLE = [
-  "Refuerzo en Matematica 2 veces por semana.",
-  "Actividades cortas de recuperacion.",
-  "Seguimiento de asistencia.",
-  "Conversacion con madre/tutor.",
-  "Evaluacion diagnostica en 15 dias.",
-];
-
-
-function generarNombreEstudiante(curso, indice) {
-  return `${curso.nombre} - Estudiante ${String(indice + 1).padStart(2, "0")}`;
+function generarNombreEstudiante(_curso, indice) {
+  return NOMBRES_DEMO[indice % NOMBRES_DEMO.length];
 }
 
 function generarEstudiantesDetalle(curso) {
@@ -310,6 +310,8 @@ function AppInner() {
     };
   }, [user?.uid]);
 
+  const [errorCarga, setErrorCarga] = useState(null);
+
   // Cargar cursos desde Firestore al montar
   useEffect(() => {
     let activo = true;
@@ -324,6 +326,7 @@ function AppInner() {
         }
       } catch (err) {
         console.error("[App] Error al cargar cursos:", err);
+        if (activo) setErrorCarga("No fue posible sincronizar con el servidor. Estás viendo la última versión guardada en tu dispositivo.");
       } finally {
         if (activo) setCursosLoaded(true);
       }
@@ -555,15 +558,19 @@ function AppInner() {
           >
             ☰
           </button>
-          <input placeholder="Buscar curso..." />
           <div className="user">
-            🔔 <span className="badge">3</span>
             <div className="avatar small">{inicialesAvatar}</div>
             <strong>{primerNombre}</strong>
           </div>
         </header>
 
         <SubscriptionBanner />
+        {errorCarga && (
+          <div className="app-error-banner" role="alert">
+            <span>⚠️ {errorCarga}</span>
+            <button type="button" onClick={() => setErrorCarga(null)}>×</button>
+          </div>
+        )}
         <section className="content">
           <Suspense fallback={<div className="card">Cargando módulo...</div>}>
           {pagina === "inicio" && (
@@ -608,6 +615,8 @@ function AppInner() {
               cursos={cursos}
               onAbrirCurso={abrirDetalleCurso}
               onAbrirPerfil={abrirDetalleEstudiante}
+              onActualizarCurso={actualizarCurso}
+              onCrearCurso={crearCurso}
             />
           )}
           {pagina === "detalle-estudiante" && estudianteDetalle && (
@@ -627,6 +636,7 @@ function AppInner() {
               estudiantesCurso={cursoSeleccionado?.estudiantesDetalle || []}
               planificaciones={[]}
               evaluaciones={[]}
+              onAbrirPerfil={abrirDetalleEstudiante}
             />
           )}
           {pagina === "reportes" && <Pagina titulo="Reportes" texto="Aquí veremos desempeño, riesgos, indicadores y alertas." />}
@@ -814,14 +824,12 @@ function Inicio({
     0,
     cursos.reduce((acum, curso) => acum + ((curso.resumenRapido?.evaluaciones || 0) - (curso.pendientes || 0)), 0)
   );
-  const cursoReferenciaProxima = cursos.find((curso) => curso.nombre === "1ro Secundaria B");
   const proximaClaseBase = cursosPorUsoReciente[0]?.proximaClase || "Sin clases programadas";
   const proximaClaseConPeriodo = /\b(AM|PM)\b/i.test(proximaClaseBase)
     ? proximaClaseBase
     : proximaClaseBase.replace(/(\d{1,2}:\d{2})/, "$1 AM");
-  const proximaClaseNormalizada = proximaClaseConPeriodo.replace(/\b0(\d:\d{2}\s?(?:AM|PM))/i, "$1");
-  const proximaClase = cursoReferenciaProxima ? "Hoy 8:00 AM" : proximaClaseNormalizada;
-  const cursoProximaClase = cursoReferenciaProxima?.nombre || cursosPorUsoReciente[0]?.nombre || "Sin curso asignado";
+  const proximaClase = proximaClaseConPeriodo.replace(/\b0(\d:\d{2}\s?(?:AM|PM))/i, "$1");
+  const cursoProximaClase = cursosPorUsoReciente[0]?.nombre || "Sin curso asignado";
 
   const estadoCurso = (curso) => {
     const riesgoCurso = curso.enRiesgo?.length || 0;
@@ -920,32 +928,36 @@ function Inicio({
     },
   ];
 
-  const historialReciente = useMemo(() => {
+  const normalizarHistorial = (items) =>
+    (Array.isArray(items) ? items : []).map((item, indice) => {
+      const grado = item?.grado || item?.curso || "Curso";
+      const seccion = item?.seccion ? ` ${item.seccion}` : "";
+      const area = item?.area || "Área";
+      const tipo = item?.tipoPlanificacion || "Planificación";
+      const fecha = item?.fechaGuardado || item?.fecha || item?.createdAt || "Reciente";
+      return {
+        id: item?.id || `${grado}-${area}-${indice}`,
+        titulo: `${grado}${seccion} · ${area}`,
+        detalle: tipo,
+        fecha: typeof fecha === "string" ? fecha : "Reciente",
+        tema: item?.titulo || item?.tema || "",
+        area: item?.area || "",
+      };
+    });
+
+  const [historialReciente, setHistorialReciente] = useState(() => {
     try {
       const guardadas = JSON.parse(localStorage.getItem("docenteos_planificaciones_guardadas") || "[]");
-      if (!Array.isArray(guardadas)) return [];
+      return Array.isArray(guardadas) ? normalizarHistorial(guardadas) : [];
+    } catch { return []; }
+  });
 
-      return [...guardadas]
-        .reverse()
-        .slice(0, 5)
-        .map((item, indice) => {
-          const grado = item?.grado || item?.curso || "Curso";
-          const seccion = item?.seccion ? ` ${item.seccion}` : "";
-          const area = item?.area || "Área";
-          const tipo = item?.tipoPlanificacion || "Planificación";
-          const fecha = item?.fechaGuardado || item?.fecha || item?.createdAt || "Reciente";
-          return {
-            id: item?.id || `${grado}-${area}-${indice}`,
-            titulo: `${grado}${seccion} · ${area}`,
-            detalle: tipo,
-            fecha: typeof fecha === "string" ? fecha : "Reciente",
-            tema: item?.titulo || item?.tema || "",
-            area: item?.area || "",
-          };
-        });
-    } catch {
-      return [];
-    }
+  useEffect(() => {
+    obtenerPlanificacionesDetalladas().then((res) => {
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setHistorialReciente(normalizarHistorial(res.data));
+      }
+    }).catch(() => {});
   }, []);
 
   // Sugerencias contextuales basadas en el curso/tema más reciente
@@ -1157,9 +1169,9 @@ function Inicio({
         <h2>📊 Indicadores pedagógicos</h2>
         <div className="indicadores-grid indicadores-iconicos">
           <article className="indicador-card">
-            <small>🎯 Competencias cubiertas</small>
-            <strong>{Math.max(0, Math.min(100, promedioGlobal + 6))}%</strong>
-            <span>Seguimiento curricular</span>
+            <small>📋 Cursos activos</small>
+            <strong>{cursos.length}</strong>
+            <span>Cursos en gestión</span>
           </article>
           <article className="indicador-card">
             <small>📈 Promedio global</small>
@@ -1489,6 +1501,12 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
                 <strong>{curso.proximaClase}</strong>
               </div>
             </div>
+
+            {curso.esAutoGenerado && (
+              <div className="curso-auto-aviso">
+                <span>⚠️ Curso de ejemplo — los estudiantes y datos son de práctica. Edítalo con tu información real o elimínalo si no lo impartes.</span>
+              </div>
+            )}
 
             <div className="curso-card-footer">
               <div className="acciones-mini">
@@ -1929,10 +1947,11 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
     { excelente: 0, bueno: 0, regular: 0, riesgo: 0 }
   );
 
+  const estudiantesConNota = estudiantesDetalle.filter((e) => e.promedio !== null && e.promedio !== undefined);
   const promedioGeneral =
-    estudiantesDetalle.length > 0
-      ? Math.round(estudiantesDetalle.reduce((acum, estudiante) => acum + estudiante.promedio, 0) / estudiantesDetalle.length)
-      : data.promedio;
+    estudiantesConNota.length > 0
+      ? Math.round(estudiantesConNota.reduce((acum, e) => acum + Number(e.promedio), 0) / estudiantesConNota.length)
+      : (data.promedio || 0);
   const metaGrado = 80;
   const radio = 88;
   const circunferencia = 2 * Math.PI * radio;
@@ -2513,7 +2532,14 @@ function Pagina({ titulo, texto }) {
   );
 }
 
-function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
+function capitalizarNombre(str) {
+  return str
+    .split(" ")
+    .map((w) => w.length > 0 ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w)
+    .join(" ");
+}
+
+function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onActualizarCurso = () => {}, onCrearCurso = () => {} }) {
   const [vistaEstudiantes, setVistaEstudiantes] = useState("Por Período");
   const [busqueda, setBusqueda] = useState("");
   const [fGrado, setFGrado] = useState("Todos");
@@ -2527,7 +2553,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
   const [panelIaAccion, setPanelIaAccion] = useState(null);
   const [estudiantesExtra, setEstudiantesExtra] = useState([]);
   const [modalAgregar, setModalAgregar] = useState(false);
-  const [formNuevo, setFormNuevo] = useState({ nombre: "", grado: "", seccion: "", area: "" });
+  const [formNuevo, setFormNuevo] = useState({ nombre: "", cursoId: "", nombreCursoNuevo: "" });
   const [periodoExpandido, setPeriodoExpandido] = useState(null);
   const [panelIaGenerando, setPanelIaGenerando] = useState(false);
   const [panelIaError, setPanelIaError] = useState(null);
@@ -2544,6 +2570,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
   const [fotoError, setFotoError] = useState(null);
 
   const estadoPorPromedio = (prom) => {
+    if (prom === null || prom === undefined) return { key: "sin-datos", label: "Sin notas", clase: "sin-datos" };
     if (prom >= 90) return { key: "excelente", label: "Excelente", clase: "exito" };
     if (prom >= 80) return { key: "estable", label: "Estable", clase: "seguimiento" };
     if (prom >= 65) return { key: "seguimiento", label: "En seguimiento", clase: "desarrollo" };
@@ -2554,10 +2581,10 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
     const desdeCursos = cursos.flatMap((curso) => {
       const base = curso.estudiantesDetalle?.length ? curso.estudiantesDetalle : generarEstudiantesDetalle(curso);
       return base.map((estudiante, indice) => {
-        const promedio = Number(estudiante.promedio ?? 0);
+        const promedio = (estudiante.promedio !== null && estudiante.promedio !== undefined) ? Number(estudiante.promedio) : null;
         const estado = estadoPorPromedio(promedio);
-        const asistencia = Math.max(76, Math.min(99, Math.round(88 + (promedio - 70) * 0.25)));
-        const nivelRiesgo = promedio < 60 ? "Alto" : promedio < 70 ? "Medio" : "Bajo";
+        const asistencia = promedio !== null ? Math.max(76, Math.min(99, Math.round(88 + (promedio - 70) * 0.25))) : null;
+        const nivelRiesgo = promedio === null ? "—" : promedio < 60 ? "Alto" : promedio < 70 ? "Medio" : "Bajo";
         const dia = String((indice % 28) + 1).padStart(2, "0");
         return {
           id: `${curso.id}-${indice}-${estudiante.nombre}`,
@@ -2574,11 +2601,11 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
           seccion: curso.seccion || (curso.nombre.match(/[A-Z]$/)?.[0] || "A"),
           edad: 11 + ((indice + 2) % 7),
           fechaNacimiento: `${dia}/0${(indice % 8) + 1}/201${indice % 7}`,
-          tutor: `Tutor de ${estudiante.nombre.split(" ")[0]}`,
+          tutor: ["María García","Rosa Martínez","Carmen Reyes","Juan Pérez","Ana Rodríguez","Luis Santos","Isabel López","Pedro Díaz"][indice % 8],
           telefono: `809-55${(indice % 9) + 1}-1${String(100 + indice).slice(-3)}`,
           ultimaEvaluacion: `${dia} junio 2026`,
-          tendencia: promedio >= 88 ? "Mejorando" : promedio >= 70 ? "Estables" : "Bajando",
-          tendenciaValor: promedio >= 88 ? 4 : promedio >= 70 ? 1 : -3,
+          tendencia: promedio === null ? "—" : promedio >= 88 ? "Mejorando" : promedio >= 70 ? "Estables" : "Bajando",
+          tendenciaValor: promedio === null ? null : promedio >= 88 ? 4 : promedio >= 70 ? 1 : -3,
         };
       });
     });
@@ -2709,10 +2736,10 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
     id: `extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     nombre,
     avatar: nombre.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(),
-    promedio: 75,
-    asistencia: 90,
-    estado: estadoPorPromedio(75),
-    nivelRiesgo: "Bajo",
+    promedio: null,
+    asistencia: null,
+    estado: { label: "Sin notas", clase: "sin-datos" },
+    nivelRiesgo: "—",
     cursoId: "",
     cursoNombre: "Sin asignar",
     area: "General",
@@ -2723,7 +2750,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
     tutor: "—",
     telefono: "—",
     ultimaEvaluacion: "—",
-    tendencia: "Estables",
+    tendencia: "—",
     tendenciaValor: 0,
     tardio: registroCerrado,
     ...overrides,
@@ -2731,16 +2758,47 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
 
   const agregarEstudiante = (e) => {
     e.preventDefault();
-    if (!formNuevo.nombre.trim()) return;
-    setEstudiantesExtra((prev) => [
-      ...prev,
-      crearEstudianteExtra(formNuevo.nombre.trim(), {
-        area: formNuevo.area || "General",
-        grado: formNuevo.grado || "Sin definir",
-        seccion: formNuevo.seccion || "A",
-      }),
-    ]);
-    setFormNuevo({ nombre: "", grado: "", seccion: "", area: "" });
+    const nombreFinal = capitalizarNombre(formNuevo.nombre.trim());
+    if (!nombreFinal) return;
+
+    const cursoExistente = cursos.find((c) => c.id === formNuevo.cursoId);
+
+    if (cursoExistente) {
+      // Agregar al curso existente y persistir en Firestore
+      const nuevoEst = { nombre: nombreFinal, promedio: null };
+      const detalle = [...(cursoExistente.estudiantesDetalle || []), nuevoEst];
+      onActualizarCurso({ ...cursoExistente, estudiantesDetalle: detalle, estudiantes: detalle.length });
+    } else if (formNuevo.cursoId === "_nuevo_" && formNuevo.nombreCursoNuevo.trim()) {
+      // Crear curso nuevo con el estudiante incluido
+      const nombreCurso = formNuevo.nombreCursoNuevo.trim();
+      const nuevoCurso = enriquecerCursoInicial({
+        id: `auto-${Date.now()}`,
+        nombre: nombreCurso,
+        grado: nombreCurso,
+        nivel: nombreCurso.toLowerCase().includes("primaria") ? "Primaria" : "Secundaria",
+        area: "General",
+        seccion: "A",
+        estudiantes: 1,
+        promedio: 0,
+        pendientes: 0,
+        icono: nombreCurso[0]?.toUpperCase() || "C",
+        acento: "#2563eb",
+        temaActual: "Tema por definir",
+        estudiantesDetalle: [{ nombre: nombreFinal, promedio: null }],
+        esAutoGenerado: true,
+        flujo: [], enRiesgo: [], destacados: [],
+        historialPromedio: [],
+        resumenRapido: { instrumentos: 0, evaluaciones: 0, enRiesgo: 0 },
+        instrumentosRecientes: [],
+        proximasAcciones: ["Configurar área/asignatura", "Registrar primera clase"],
+      });
+      onCrearCurso(nuevoCurso);
+    } else {
+      // Sin curso seleccionado: solo agregar a la lista local
+      setEstudiantesExtra((prev) => [...prev, crearEstudianteExtra(nombreFinal)]);
+    }
+
+    setFormNuevo({ nombre: "", cursoId: "", nombreCursoNuevo: "" });
     setModalAgregar(false);
   };
 
@@ -2864,6 +2922,13 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
         <div className="estudiantes-card-head">
           <div><h2>🎓 Gestión de Estudiantes</h2><p>Centro de inteligencia estudiantil</p></div>
           <div className="estudiantes-vista-tabs">
+            <button
+              type="button"
+              className="est-btn-agregar"
+              onClick={() => { setModoFoto(false); setModalAgregar(true); }}
+            >
+              ➕ Agregar estudiante
+            </button>
             {["General", "Por Período", "Por Mes"].map((vista) => (
               <button
                 key={vista}
@@ -2950,6 +3015,68 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
 
       {(vistaEstudiantes === "General" || vistaEstudiantes === "Por Mes") && (
         <>
+
+      {/* ── Banner del estudiante seleccionado ── */}
+      {seleccionado && (
+        <article className="est-banner">
+          <div className="est-banner-identidad">
+            <div className="est-banner-avatar">{seleccionado.avatar}</div>
+            <div className="est-banner-info">
+              <strong>{seleccionado.nombre}</strong>
+              <span>{seleccionado.cursoNombre}</span>
+              <span className={`tabla-chip ${seleccionado.estado.clase}`}>{seleccionado.estado.label}</span>
+            </div>
+          </div>
+          <div className="est-banner-metricas">
+            <div><span>Edad</span><b>{seleccionado.edad}</b></div>
+            <div><span>Asistencia</span><b>{seleccionado.asistencia !== null ? `${seleccionado.asistencia}%` : "—"}</b></div>
+            <div><span>Promedio</span><b>{seleccionado.promedio !== null ? `${seleccionado.promedio}%` : "—"}</b></div>
+          </div>
+          <div className="est-banner-contacto">
+            <span>👨‍👩‍👧 {seleccionado.tutor}</span>
+            <span>📞 {seleccionado.telefono}</span>
+            <span>📅 Nac. {seleccionado.fechaNacimiento}</span>
+          </div>
+          <div className="est-banner-btns">
+            <button type="button" className="secundario" onClick={() => onAbrirPerfil(seleccionado)}>👁 Ver perfil</button>
+            <button
+              type="button"
+              className="secundario"
+              disabled={panelIaGenerando}
+              onClick={() => ejecutarIaEstudiante("informe", seleccionado)}
+            >
+              {panelIaGenerando && panelIaAccion === "informe" ? "⏳ Generando..." : "✨ Informe IA"}
+            </button>
+          </div>
+        </article>
+      )}
+
+      {(panelIaTexto || panelIaGenerando) && (
+        <div className="panel-ia-resultado est-banner-ia" ref={panelIaRef}>
+          <div className="panel-ia-header">
+            <span>{panelIaAccion === "informe" ? "Informe Individual IA" : "Recomendaciones IA"}</span>
+            {panelIaGenerando && <span className="panel-ia-spinner">Generando...</span>}
+            {!panelIaGenerando && (
+              <button type="button" style={{ fontSize: "0.72rem", background: "none", border: "none", color: "#fff", cursor: "pointer", opacity: 0.7 }}
+                onClick={() => { setPanelIaTexto(""); setPanelIaAccion(null); }}>✕</button>
+            )}
+          </div>
+          <div className="panel-ia-content">
+            {panelIaTexto.split("\n").map((line, i) => {
+              if (line.startsWith("## ")) return <h4 key={i} className="plan-ia-h3" style={{ fontSize: "0.85rem" }}>{line.slice(3)}</h4>;
+              if (line.startsWith("- ")) return <li key={i} className="plan-ia-li">{line.slice(2)}</li>;
+              if (line.trim() === "") return <br key={i} />;
+              return <p key={i} className="plan-ia-p">{line}</p>;
+            })}
+            {panelIaGenerando && <span className="plan-ia-cursor">▋</span>}
+          </div>
+        </div>
+      )}
+
+      {panelIaError && (
+        <p style={{ color: "#dc2626", fontSize: "0.8rem", padding: "8px 14px" }}>⚠️ {panelIaError}</p>
+      )}
+
       <section className="estudiantes-card estudiantes-header-card">
 
         <div className="estudiantes-kpis-grid">
@@ -3199,8 +3326,10 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
                           <small>{e.area}</small>
                         </td>
                         <td>{e.cursoNombre}</td>
-                        <td><div className="promedio-cell"><span className="estudiantes-table-score">{e.promedio}%</span><em className={e.tendenciaValor >= 0 ? "trend-up" : "trend-down"}>{e.tendenciaValor >= 0 ? "⬆" : "⬇"} {Math.abs(e.tendenciaValor)} pts</em></div></td>
-                        <td>{e.asistencia}%</td>
+                        <td><div className="promedio-cell">
+                          {e.promedio !== null ? <><span className="estudiantes-table-score">{e.promedio}%</span><em className={e.tendenciaValor >= 0 ? "trend-up" : "trend-down"}>{e.tendenciaValor >= 0 ? "⬆" : "⬇"} {Math.abs(e.tendenciaValor)} pts</em></> : <span className="sin-nota-dash">—</span>}
+                        </div></td>
+                        <td>{e.asistencia !== null ? `${e.asistencia}%` : "—"}</td>
                         <td><span className={`tabla-chip ${e.estado.clase}`}>{e.estado.label}</span></td>
                         <td><small>{e.ultimaEvaluacion}</small></td>
                         <td>
@@ -3220,7 +3349,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
           </article>
         </div>
 
-        <aside className="estudiantes-panel">
+        <aside className="estudiantes-panel" style={{ display: "none" }}>
           {seleccionado && (
             <article className="estudiantes-card estudiantes-panel-card">
               <section className="panel-estudiante">
@@ -3394,37 +3523,37 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {} }) {
                       autoFocus
                       value={formNuevo.nombre}
                       onChange={(e) => setFormNuevo((p) => ({ ...p, nombre: e.target.value }))}
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v) setFormNuevo((p) => ({ ...p, nombre: capitalizarNombre(v) }));
+                      }}
                     />
-                  </div>
-                  <div className="ma-grid-2">
-                    <div className="ma-field">
-                      <label className="ma-label">Grado</label>
-                      <input
-                        className="ma-input"
-                        placeholder="Ej: 1ro Secundaria"
-                        value={formNuevo.grado}
-                        onChange={(e) => setFormNuevo((p) => ({ ...p, grado: e.target.value }))}
-                      />
-                    </div>
-                    <div className="ma-field">
-                      <label className="ma-label">Sección</label>
-                      <input
-                        className="ma-input"
-                        placeholder="Ej: A"
-                        value={formNuevo.seccion}
-                        onChange={(e) => setFormNuevo((p) => ({ ...p, seccion: e.target.value }))}
-                      />
-                    </div>
                   </div>
                   <div className="ma-field">
-                    <label className="ma-label">Área / Asignatura</label>
-                    <input
+                    <label className="ma-label">Curso</label>
+                    <select
                       className="ma-input"
-                      placeholder="Ej: Matemáticas, Lengua, Inglés…"
-                      value={formNuevo.area}
-                      onChange={(e) => setFormNuevo((p) => ({ ...p, area: e.target.value }))}
-                    />
+                      value={formNuevo.cursoId}
+                      onChange={(e) => setFormNuevo((p) => ({ ...p, cursoId: e.target.value, nombreCursoNuevo: "" }))}
+                    >
+                      <option value="">— Selecciona un curso —</option>
+                      {cursos.map((c) => (
+                        <option key={c.id} value={c.id}>{c.nombre} · {c.area}</option>
+                      ))}
+                      <option value="_nuevo_">➕ Crear nuevo curso…</option>
+                    </select>
                   </div>
+                  {formNuevo.cursoId === "_nuevo_" && (
+                    <div className="ma-field">
+                      <label className="ma-label">Nombre del nuevo curso</label>
+                      <input
+                        className="ma-input"
+                        placeholder="Ej: 1ro Secundaria A"
+                        value={formNuevo.nombreCursoNuevo}
+                        onChange={(e) => setFormNuevo((p) => ({ ...p, nombreCursoNuevo: e.target.value }))}
+                      />
+                    </div>
+                  )}
                 </form>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -3553,6 +3682,18 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     estado: "En progreso",
     observacion: "",
   });
+  const [expediente, setExpediente] = useState(null);
+
+  // Cargar expediente real desde Firestore si existe
+  useEffect(() => {
+    const cursoId = estudiante?.cursoId;
+    const estId   = estudiante?.id;
+    if (!cursoId || !estId) return;
+    import("./services/expedienteEstudianteService.js")
+      .then(({ obtenerExpedienteEstudiante }) => obtenerExpedienteEstudiante(cursoId, estId))
+      .then((data) => { if (data) setExpediente(data); })
+      .catch(() => {});
+  }, [estudiante?.cursoId, estudiante?.id]);
 
   const nombreBase = estudiante?.nombre || "Juan Perez Rodriguez";
   const nombre = nombreBase === "Ana Belén Reyes" ? "Katherin Romero" : nombreBase;
@@ -3566,44 +3707,52 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     .replaceAll("Ana Rodriguez", "Katherin Romero")
     .replaceAll("Tutor de Ana", "Tutor de Katherin");
   const telefono = estudiante?.telefono || "829-123-4567";
-  const promedio = estudiante?.promedio || 58;
-  const asistencia = estudiante?.asistencia || 82;
-  const faltas = Math.max(0, 100 - asistencia);
+  const promedio = estudiante?.promedio ?? null;
+  const sinNotas = promedio === null || promedio === undefined;
+  const promedioNum = sinNotas ? 0 : promedio;
+  const asistencia = estudiante?.asistencia ?? null;
+  const sinAsistencia = asistencia === null || asistencia === undefined;
+  const asistenciaNum = sinAsistencia ? 0 : asistencia;
+  const faltas = sinAsistencia ? 0 : Math.max(0, 100 - asistenciaNum);
 
-  const evolucion = [
-    { mes: "Ene", valor: 72 },
-    { mes: "Feb", valor: 74 },
-    { mes: "Mar", valor: 68 },
-    { mes: "Abr", valor: 63 },
-    { mes: "May", valor: 60 },
-    { mes: "Jun", valor: 58 },
+  const evolucion = sinNotas ? [] : [
+    { mes: "Ene", valor: Math.max(40, Math.min(100, promedioNum - 8)) },
+    { mes: "Feb", valor: Math.max(40, Math.min(100, promedioNum - 5)) },
+    { mes: "Mar", valor: Math.max(40, Math.min(100, promedioNum - 10)) },
+    { mes: "Abr", valor: Math.max(40, Math.min(100, promedioNum - 4)) },
+    { mes: "May", valor: Math.max(40, Math.min(100, promedioNum - 2)) },
+    { mes: "Jun", valor: promedioNum },
   ];
 
-  const areas = [
-    { area: "Matematica", valor: 58 },
-    { area: "Lengua", valor: 65 },
-    { area: "Ciencias", valor: 70 },
-    { area: "Ingles", valor: 62 },
+  const areas = sinNotas ? [] : [
+    { area: "Matematica", valor: Math.max(40, Math.min(100, promedioNum - 8)) },
+    { area: "Lengua",     valor: Math.max(40, Math.min(100, promedioNum + 7)) },
+    { area: "Ciencias",   valor: Math.max(40, Math.min(100, promedioNum + 10)) },
+    { area: "Ingles",     valor: Math.max(40, Math.min(100, promedioNum - 4)) },
   ];
 
   const periodosEstudiante = [
-    { numero: 1, nombre: "Período 1", rango: "Ene-Mar", promedio: Math.max(45, promedio - 8), competencias: 12, indicadores: 18 },
-    { numero: 2, nombre: "Período 2", rango: "Abr-Jun", promedio: Math.max(50, promedio - 4), competencias: 16, indicadores: 32 },
-    { numero: 3, nombre: "Período 3", rango: "Jul-Sep", promedio: promedio, competencias: 18, indicadores: 42 },
+    { numero: 1, nombre: "Período 1", rango: "Ene-Mar", promedio: sinNotas ? null : Math.max(45, promedioNum - 8), competencias: sinNotas ? null : 12, indicadores: sinNotas ? null : 18 },
+    { numero: 2, nombre: "Período 2", rango: "Abr-Jun", promedio: sinNotas ? null : Math.max(50, promedioNum - 4), competencias: sinNotas ? null : 16, indicadores: sinNotas ? null : 32 },
+    { numero: 3, nombre: "Período 3", rango: "Jul-Sep", promedio: sinNotas ? null : promedioNum, competencias: sinNotas ? null : 18, indicadores: sinNotas ? null : 42 },
     { numero: 4, nombre: "Período 4", rango: "Oct-Dic", promedio: null, competencias: null, indicadores: null },
   ];
   const periodoSeleccionado = periodosEstudiante[periodoActual] || periodosEstudiante[2];
 
   const informeIaBase = "El estudiante presenta una combinacion de fortalezas en Ciencias y oportunidades de mejora en Matematica. Se recomienda andamiaje por objetivos semanales y acompanamiento familiar continuo.";
-  const [evaluaciones, setEvaluaciones] = useState(EVALUACIONES_BASE_DETALLE);
+  // Usar evaluaciones del expediente Firestore si existen, si no el estado local vacío
+  const evaluacionesExpediente = expediente?.evaluaciones ?? [];
+  const [evaluacionesLocales, setEvaluacionesLocales] = useState(EVALUACIONES_BASE_DETALLE);
+  const evaluaciones = evaluacionesExpediente.length > 0 ? evaluacionesExpediente : evaluacionesLocales;
+  const setEvaluaciones = setEvaluacionesLocales;
   const [planApoyo, setPlanApoyo] = useState(PLAN_APOYO_BASE_DETALLE);
   const [informeIa, setInformeIa] = useState(informeIaBase);
   const [informeIaGenerando, setInformeIaGenerando] = useState(false);
   const informeIaRef = useRef(null);
 
   const totalCirc = 276;
-  const pctAsis = asistencia;
-  const pctFaltas = 100 - asistencia;
+  const pctAsis = asistenciaNum;
+  const pctFaltas = 100 - asistenciaNum;
   const dashAsis = (totalCirc * pctAsis) / 100;
   const dashFaltas = (totalCirc * pctFaltas) / 100;
   const tienePromedioPeriodo = periodoSeleccionado.promedio !== null;
@@ -3834,23 +3983,36 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     ),
     "Evaluaciones": (
       <div className="detalle-tab-lista">
-        {evaluaciones.slice(0, 3).map((ev, idx) => (
-          <p key={idx}>{ev.fecha} · {ev.actividad} · {ev.calificacion}</p>
-        ))}
+        {evaluaciones.length === 0
+          ? <p className="detalle-sin-datos">Sin evaluaciones registradas. Usa el botón "Registrar evaluación" para agregar una.</p>
+          : evaluaciones.slice(0, 3).map((ev, idx) => (
+              <p key={idx}>{ev.fecha} · {ev.actividad} · {ev.calificacion}</p>
+            ))
+        }
       </div>
     ),
     "Asistencia": (
       <div className="detalle-tab-lista">
-        <p>Asistencia acumulada: {asistencia}%</p>
-        <p>Faltas estimadas: {faltas}%</p>
-        <p>Patron detectado: ausencias concentradas en inicio de semana.</p>
+        {sinAsistencia && !expediente
+          ? <p className="detalle-sin-datos">Sin registros de asistencia aún. El registro se lleva desde el módulo Registro.</p>
+          : <>
+              <p>Asistencia acumulada: {expediente?.asistenciaPct ?? asistenciaNum}%</p>
+              {expediente?.timeline?.filter((e) => e.tipo === "asistencia").map((e) => (
+                <p key={e.id}>📅 {e.titulo} — {e.subtitulo}</p>
+              ))}
+              {!expediente && <p>Faltas estimadas: {faltas}%</p>}
+            </>
+        }
       </div>
     ),
     "Intervenciones": (
       <div className="detalle-tab-lista">
-        {planApoyo.map((linea, idx) => (
-          <p key={idx}>• {linea}</p>
-        ))}
+        {planApoyo.length === 0
+          ? <p className="detalle-sin-datos">Sin plan de apoyo registrado. Usa "Crear plan de intervención" para agregar uno.</p>
+          : planApoyo.map((linea, idx) => (
+              <p key={idx}>• {linea}</p>
+            ))
+        }
       </div>
     ),
     "Informe IA": (
@@ -3927,15 +4089,19 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
           <div className="detalle-chart-header">
             <h3>Evolucion del promedio</h3>
           </div>
-          <div className="detalle-line-chart">
-            {evolucion.map((p) => (
-              <div key={p.mes} className="detalle-line-col">
-                <span style={{ height: `${p.valor}%` }} />
-                <strong>{p.valor}</strong>
-                <small>{p.mes}</small>
-              </div>
-            ))}
-          </div>
+          {sinNotas ? (
+            <p className="detalle-sin-datos">Sin calificaciones registradas aún.</p>
+          ) : (
+            <div className="detalle-line-chart">
+              {evolucion.map((p) => (
+                <div key={p.mes} className="detalle-line-col">
+                  <span style={{ height: `${p.valor}%` }} />
+                  <strong>{p.valor}</strong>
+                  <small>{p.mes}</small>
+                </div>
+              ))}
+            </div>
+          )}
         </article>
 
         <article className="detalle-card detalle-card-compacta detalle-card-periodo detalle-card-periodo-actual">
@@ -3962,30 +4128,38 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
 
         <article className="detalle-card detalle-card-compacta detalle-card-asistencia">
           <h3>Asistencia vs faltas</h3>
-          <div className="detalle-donut-wrap detalle-donut-wrap-compacto">
-            <svg viewBox="0 0 120 120" width="132" height="132" aria-hidden="true">
-              <circle cx="60" cy="60" r="44" fill="none" stroke="#e2e8f0" strokeWidth="14" />
-              <circle cx="60" cy="60" r="44" fill="none" stroke="#2563eb" strokeWidth="14" strokeDasharray={`${dashAsis} ${totalCirc}`} strokeDashoffset="0" transform="rotate(-90 60 60)" />
-              <circle cx="60" cy="60" r="44" fill="none" stroke="#ef4444" strokeWidth="14" strokeDasharray={`${dashFaltas} ${totalCirc}`} strokeDashoffset={`-${dashAsis}`} transform="rotate(-90 60 60)" />
-            </svg>
-            <div>
-              <p>Asistencia: {asistencia}%</p>
-              <p>Faltas: {faltas}%</p>
+          {sinAsistencia ? (
+            <p className="detalle-sin-datos">Sin registros de asistencia aún.</p>
+          ) : (
+            <div className="detalle-donut-wrap detalle-donut-wrap-compacto">
+              <svg viewBox="0 0 120 120" width="132" height="132" aria-hidden="true">
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#e2e8f0" strokeWidth="14" />
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#2563eb" strokeWidth="14" strokeDasharray={`${dashAsis} ${totalCirc}`} strokeDashoffset="0" transform="rotate(-90 60 60)" />
+                <circle cx="60" cy="60" r="44" fill="none" stroke="#ef4444" strokeWidth="14" strokeDasharray={`${dashFaltas} ${totalCirc}`} strokeDashoffset={`-${dashAsis}`} transform="rotate(-90 60 60)" />
+              </svg>
+              <div>
+                <p>Asistencia: {asistenciaNum}%</p>
+                <p>Faltas: {faltas}%</p>
+              </div>
             </div>
-          </div>
+          )}
         </article>
 
         <article className="detalle-card detalle-card-compacta detalle-card-rendimiento">
           <h3>Rendimiento por area</h3>
-          <div className="detalle-bars">
-            {areas.map((a) => (
-              <div key={a.area}>
-                <span>{a.area}</span>
-                <div className="detalle-bar-track"><i style={{ width: `${a.valor}%` }} /></div>
-                <strong>{a.valor}%</strong>
-              </div>
-            ))}
-          </div>
+          {sinNotas ? (
+            <p className="detalle-sin-datos">Sin calificaciones por área aún.</p>
+          ) : (
+            <div className="detalle-bars">
+              {areas.map((a) => (
+                <div key={a.area}>
+                  <span>{a.area}</span>
+                  <div className="detalle-bar-track"><i style={{ width: `${a.valor}%` }} /></div>
+                  <strong>{a.valor}%</strong>
+                </div>
+              ))}
+            </div>
+          )}
         </article>
       </section>
 
@@ -4020,16 +4194,19 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
               </tr>
             </thead>
             <tbody>
-              {evaluaciones.map((ev, idx) => (
-                <tr key={idx}>
-                  <td>{ev.fecha}</td>
-                  <td>{ev.actividad}</td>
-                  <td>{ev.area}</td>
-                  <td>{ev.calificacion}</td>
-                  <td>{ev.estado}</td>
-                  <td>{ev.observacion}</td>
-                </tr>
-              ))}
+              {evaluaciones.length === 0
+                ? <tr><td colSpan={6} style={{ textAlign: "center", color: "#94a3b8", padding: "20px", fontStyle: "italic" }}>Sin evaluaciones registradas aún.</td></tr>
+                : evaluaciones.map((ev, idx) => (
+                    <tr key={idx}>
+                      <td>{ev.fecha}</td>
+                      <td>{ev.actividad}</td>
+                      <td>{ev.area}</td>
+                      <td>{ev.calificacion}</td>
+                      <td>{ev.estado}</td>
+                      <td>{ev.observacion}</td>
+                    </tr>
+                  ))
+              }
             </tbody>
           </table>
         </div>
@@ -4037,9 +4214,10 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
 
       <section className="detalle-card detalle-ia-alerta">
         <h3>🤖 Alertas DOCENTEOS AI</h3>
-        {promedio < 70 && <p>Promedio actual ({promedio}%) está por debajo del mínimo de aprobación. Requiere intervención pedagógica.</p>}
-        {asistencia < 85 && <p>Asistencia ({asistencia}%) puede afectar el rendimiento académico. Se recomienda contactar a la familia.</p>}
-        {promedio >= 70 && asistencia >= 85 && <p>{nombre} mantiene un desempeño académico dentro del rango esperado.</p>}
+        {sinNotas && sinAsistencia && <p className="detalle-sin-datos">Sin calificaciones ni asistencia registradas aún para este estudiante.</p>}
+        {!sinNotas && promedioNum < 70 && <p>Promedio actual ({promedioNum}%) está por debajo del mínimo de aprobación. Requiere intervención pedagógica.</p>}
+        {!sinAsistencia && asistenciaNum < 85 && <p>Asistencia ({asistenciaNum}%) puede afectar el rendimiento académico. Se recomienda contactar a la familia.</p>}
+        {!sinNotas && promedioNum >= 70 && !sinAsistencia && asistenciaNum >= 85 && <p>{nombre} mantiene un desempeño académico dentro del rango esperado.</p>}
         <button
           type="button"
           className="secundario"
@@ -4052,11 +4230,10 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
 
       <section className="detalle-card">
         <h3>Plan de apoyo</h3>
-        <ul className="detalle-plan-lista">
-          {planApoyo.map((item, idx) => (
-            <li key={idx}>{item}</li>
-          ))}
-        </ul>
+        {planApoyo.length === 0
+          ? <p className="detalle-sin-datos">Sin plan de apoyo creado aún.</p>
+          : <ul className="detalle-plan-lista">{planApoyo.map((item, idx) => <li key={idx}>{item}</li>)}</ul>
+        }
         <p className="detalle-plan-estado">Estado: {estadoPlan}</p>
         <button type="button" onClick={manejarCrearPlanApoyo}>Crear plan de intervencion</button>
       </section>

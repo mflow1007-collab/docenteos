@@ -1423,4 +1423,94 @@
   color: #7c3aed;
   font-weight: 900;
 }
+
+/* ── Pestaña Currículo ──────────────────────────────────────────────────────── */
+.curriculo-periodo-bloque {
+  margin-bottom: 28px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.curriculo-periodo-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #1e40af 0%, #4338ca 100%);
+  padding: 10px 16px;
+}
+
+.curriculo-periodo-chip {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.curriculo-periodo-titulo {
+  color: rgba(255,255,255,0.9);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.curriculo-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.curriculo-tabla thead tr {
+  background: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.curriculo-tabla th {
+  padding: 10px 14px;
+  font-weight: 700;
+  color: #334155;
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.curriculo-th-ce   { width: 90px; }
+.curriculo-th-il   { width: 55%; }
+.curriculo-th-cont { }
+
+.curriculo-tabla td {
+  padding: 14px;
+  vertical-align: top;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.curriculo-td-ce {
+  font-weight: 800;
+  color: #1e40af;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.curriculo-vacio {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.curriculo-nota {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  line-height: 1.6;
+}
 @keyframes ia-blink { 0%,100%{opacity:1} 50%{opacity:0} }

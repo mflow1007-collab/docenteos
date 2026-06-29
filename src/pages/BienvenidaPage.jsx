@@ -5,6 +5,25 @@ import { auth, db, guardarCurso } from '../firebase.js'
 import { guardarPerfilInstitucional } from '../services/perfilInstitucionalService.js'
 import './BienvenidaPage.css'
 
+const NOMBRES_EJEMPLO = [
+  "María García", "Juan Pérez", "Carmen López", "José Rodríguez",
+  "Ana Martínez", "Luis Santos", "Rosa Reyes", "Pedro Díaz",
+  "Isabel Fernández", "Carlos Moreno", "Lucía Jiménez", "Miguel Torres",
+  "Sofía Ruiz", "Andrés Vargas", "Paula Romero", "Diego Castillo",
+  "Valentina Cruz", "Ricardo Flores", "Daniela Mendoza", "Alejandro Herrera",
+  "Natalia Suárez", "Fernando Medina", "Laura Guerrero", "Sebastián Molina",
+  "Camila Morales", "Emilio Vega", "Diana Ramos", "Ernesto Silva",
+  "Paola Cortés", "Manuel Ortega",
+]
+
+function generarEstudiantesEjemplo(total = 30) {
+  const puntajes = [94, 91, 88, 86, 84, 82, 80, 78, 76, 74, 72, 70, 68, 65, 62, 58, 55, 52]
+  return Array.from({ length: total }, (_, i) => ({
+    nombre: NOMBRES_EJEMPLO[i % NOMBRES_EJEMPLO.length],
+    promedio: puntajes[i % puntajes.length],
+  }))
+}
+
 const REGIONALES = [
   'Regional 01 - Barahona',
   'Regional 02 - San Juan de la Maguana',
@@ -56,7 +75,7 @@ function buildCicloOptions(nivelesDocente) {
 // Grados disponibles por ciclo (value coincide con el formato de buildCicloOptions)
 const GRADOS_CICLO = {
   'Secundaria - Primer Ciclo (1ro-3ro)':  { grados: ['1ro Secundaria', '2do Secundaria', '3ro Secundaria'], autoSelect: false },
-  'Secundaria - Segundo Ciclo (4to-6to)': { grados: ['4to Secundaria', '5to Secundaria', '6to Secundaria'], autoSelect: true  },
+  'Secundaria - Segundo Ciclo (4to-6to)': { grados: ['4to Secundaria', '5to Secundaria', '6to Secundaria'], autoSelect: false },
   'Primaria - Primer Ciclo (1ro-3ro)':    { grados: ['1ro Primaria', '2do Primaria', '3ro Primaria'],        autoSelect: false },
   'Primaria - Segundo Ciclo (4to-6to)':   { grados: ['4to Primaria', '5to Primaria', '6to Primaria'],        autoSelect: false },
   'Inicial - Primer Ciclo (0-3 años)':    { grados: ['Nivel 1 (0-1 año)', 'Nivel 2 (1-2 años)', 'Nivel 3 (2-3 años)'],             autoSelect: true },
@@ -208,6 +227,8 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
       for (let idx = 0; idx < gradosDocente.length; idx++) {
         const grado = gradosDocente[idx]
         const nivel = grado.includes('Secundaria') ? 'Secundaria' : grado.includes('Primaria') ? 'Primaria' : 'Inicial'
+        const estudiantesDetalle = generarEstudiantesEjemplo(30)
+        const promedioEjemplo = Math.round(estudiantesDetalle.reduce((s, e) => s + e.promedio, 0) / estudiantesDetalle.length)
         try {
           await guardarCurso({
             id: `auto-${Date.now()}-${idx}`,
@@ -217,12 +238,13 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
             area: 'General',
             seccion: 'A',
             estudiantes: 30,
-            promedio: 80,
+            promedio: promedioEjemplo,
             pendientes: 0,
             icono: grado[0].toUpperCase(),
             acento: '#2563eb',
             temaActual: 'Tema por definir',
-            estudiantesDetalle: [],
+            estudiantesDetalle,
+            esAutoGenerado: true,
             flujo: [],
             enRiesgo: [],
             destacados: [],

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { guardarRegistroCalificaciones, obtenerRegistroCalificaciones } from "./firebase";
+import { escribirExpedienteDesdeRegistro } from "./services/expedienteEstudianteService.js";
 import { useAuth } from "./context/AuthContext.jsx";
 import { AIService } from "./services/ai/AIService.js";
 import { buildAIContext } from "./services/ai/ContextBuilder.js";
@@ -161,6 +162,7 @@ function RegistroPage({
   onVolver,
   curso,
   estudiantesCurso = [],
+  onAbrirPerfil = null,
 }) {
   const { formulario } = useAuth();
   const cursoNombre = curso?.nombre || "Curso";
@@ -394,6 +396,17 @@ function RegistroPage({
         asistencia,
         observaciones,
       });
+      // Escritura silenciosa al expediente de cada estudiante (no bloquea el guardado)
+      escribirExpedienteDesdeRegistro({
+        estudiantes,
+        notasEstudiantes,
+        asistencia,
+        observaciones,
+        cursoId,
+        cursoNombre,
+        area,
+        grado,
+      }).catch(() => {});
       setMensajeGuardado({ tipo: "ok", texto: "✅ Registro guardado correctamente." });
     } catch {
       setMensajeGuardado({ tipo: "error", texto: "❌ Error al guardar. Intenta de nuevo." });
@@ -597,7 +610,7 @@ function RegistroPage({
       </section>
 
       <section className="registro-tabs">
-        {["Asistencia", "Competencias", "Indicadores", "Calificaciones", "Resumen"].map((tab) => (
+        {["Asistencia", "Competencias", "Indicadores", "Aspectos", "Calificaciones", "Resumen"].map((tab) => (
           <button
             key={tab}
             type="button"
@@ -702,6 +715,7 @@ function RegistroPage({
                 <tr>
                   <th className="sticky-col">N.º</th>
                   <th className="sticky-name">Estudiante</th>
+                  {onAbrirPerfil && <th style={{ width: 36 }} />}
                   <th>PC1</th>
                   <th>PC2</th>
                   <th>PC3</th>
@@ -720,6 +734,18 @@ function RegistroPage({
                     <tr key={est.id}>
                       <td className="sticky-col">{idx + 1}</td>
                       <td className="sticky-name">{est.nombre}</td>
+                      {onAbrirPerfil && (
+                        <td style={{ padding: "0 4px", textAlign: "center" }}>
+                          <button
+                            type="button"
+                            title="Ver expediente del estudiante"
+                            onClick={() => onAbrirPerfil({ ...est, cursoNombre, cursoId })}
+                            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 2, opacity: 0.7 }}
+                          >
+                            👤
+                          </button>
+                        </td>
+                      )}
                       {r.compAvgs.map((avg, ci) => (
                         <td key={ci} className={avg >= 70 ? "rs-nota-ok" : avg > 0 ? "rs-nota-risk" : ""}>
                           {avg > 0 ? avg.toFixed(1) : "—"}
@@ -973,6 +999,53 @@ function RegistroPage({
           </section>
         );
       })()}
+
+      {tabActiva === "Aspectos" && (
+        <section className="registro-panel">
+          <div className="registro-section-head">
+            <h2>Especificación Curricular Aplicada por Período</h2>
+            <p>
+              Se completa automáticamente desde tus planificaciones. Solo aparecen las competencias
+              e indicadores que realmente trabajaste en cada período.
+            </p>
+          </div>
+
+          {["P1", "P2", "P3", "P4"].map((per, idx) => (
+            <div key={per} className="curriculo-periodo-bloque">
+              <div className="curriculo-periodo-header">
+                <span className="curriculo-periodo-chip">Período {idx + 1}</span>
+                <span className="curriculo-periodo-titulo">Especificación Curricular Aplicada por Período</span>
+              </div>
+              <table className="curriculo-tabla">
+                <thead>
+                  <tr>
+                    <th className="curriculo-th-ce">CE</th>
+                    <th className="curriculo-th-il">Indicadores de Logro</th>
+                    <th className="curriculo-th-cont">Contenidos Claves</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="curriculo-td-ce" />
+                    <td className="curriculo-td-il">
+                      <p className="curriculo-vacio">
+                        Los indicadores se completarán automáticamente cuando registres planificaciones
+                        con códigos CE e IL para este período.
+                      </p>
+                    </td>
+                    <td className="curriculo-td-cont" />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ))}
+
+          <p className="curriculo-nota">
+            📌 El MINERD indica: <em>"Los aspectos esenciales de la planificación, su ejecución y evaluación
+            ofrecen los insumos que se utilizarán para las precisiones curriculares."</em>
+          </p>
+        </section>
+      )}
 
       {tabActiva === "Calificaciones" && (
   <section className="registro-panel rg-panel">
