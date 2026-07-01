@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { obtenerCompetencias } from "../services/curriculumService.js";
-import { normalizarAreaCurricular } from "../services/bancoCurricularLocal.js";
 import {
   guardarEvidenciaEstudiante,
   guardarRegistroAspecto,
@@ -215,14 +214,14 @@ const COMP_CODIGOS = {
 // Descripciones oficiales MINERD de competencias por código
 // Fuente: Diseño Curricular Nivel Secundario — educando.edu.do
 const COMP_DESCRIPCIONES = {
-  // Inglés / Lenguas Extranjeras
-  "CE-LEI1": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicación orales y escritas relativas a necesidades concretas y temas cotidianos, utilizando el idioma inglés de forma breve y sencilla para compartir información propia y de otras personas, describir sus actividades cotidianas, el entorno inmediato, y sus puntos de vista.",
-  "CE-LEI2": "Interactúa en el idioma inglés, empleando estrategias de desempeño, el razonamiento lógico-verbal y la expresión creativa y crítica con el propósito de comunicarse de forma clara y efectiva en distintas situaciones concretas de comunicación oral y escrita.",
-  "CE-LEI3": "Se comunica en inglés oral y escrito de forma básica, pero comprensible, compartiendo información que permite identificar, describir y abordar problemas y situaciones comunes de su entorno inmediato.",
-  "CE-LEI4": "Se comunica en intercambios breves y sencillos, participando en un plano de respeto y colaboración, e identificando algunas de las diferencias individuales y la identidad social y cultural propia y de otros países.",
-  "CE-LEI5": "Interactúa en el idioma inglés compartiendo información, ideas y opiniones sobre aspectos científicos y tecnológicos de su entorno inmediato en distintas situaciones cotidianas de comunicación.",
-  "CE-LEI6": "Muestra preferencias por actividades cotidianas y opciones que impactan de forma positiva la salud y el medioambiente en distintas situaciones de comunicación.",
-  "CE-LEI7": "Se comunica en el idioma inglés, con cortesía, asertividad, actitud de respeto, honestidad y aceptación al expresarse sobre sí mismo y las demás personas en cuanto a preferencias, experiencias, características personales y actividades cotidianas.",
+  // Inglés / Lenguas Extranjeras (Nivel Secundario — educando.edu.do)
+  "CE-LEI1": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicación, utilizando el idioma inglés de forma breve y sencilla con la finalidad de informar, ofrecer ayuda, sugerir, comprar, describir planes futuros, y narrar experiencias, con relación a necesidades concretas y temas cotidianos.",
+  "CE-LEI2": "Interactúa de forma oral y escrita en el idioma inglés empleando razonamiento lógico-verbal y estrategias de desempeño de manera creativa y crítica en distintas situaciones de comunicación donde narra experiencias, da sugerencias y consejos y expresa planes en expresiones breves y sencillas.",
+  "CE-LEI3": "Interactúa en inglés ante diversas circunstancias y problemas comunes de su entorno inmediato en las que solicita u ofrece ayuda, da consejos y sugerencias pertinentes y emplea estrategias de desempeño oral y escrito para lograr la claridad del mensaje, aunque el interlocutor deba hacer cierto esfuerzo oral y escrito para comprenderle.",
+  "CE-LEI4": "Se comunica en el idioma inglés de forma breve y sencilla, con cortesía y respeto, reconociendo las diferencias individuales más comunes, y la identidad social y cultural propias de la comunidad local y global.",
+  "CE-LEI5": "Se comunica en el idioma inglés con el propósito de solicitar y ofrecer ayuda, expresar interés y dar sugerencias sobre asuntos científicos, tecnológicos y de otra índole, en situaciones inmediatas de comunicación.",
+  "CE-LEI6": "Muestra preferencia por opciones que impactan positivamente la salud y el medio ambiente al interactuar en inglés sobre sus actividades cotidianas y en situaciones de compra, así como al describir estados anímicos y físicos.",
+  "CE-LEI7": "Interactúa en el idioma inglés, con cortesía, honestidad, actitud de respeto y aceptación al referirse a sí mismo/a y a las demás personas, al hacer sugerencias y al describir experiencias, planes, estados anímicos y físicos.",
   // Lengua Española
   "CLE-1": "Comprende y produce textos orales y escritos de diferente tipo, propósito y registro, adaptando su comunicación a distintas situaciones sociales.",
   "CLE-2": "Usa el lenguaje para reflexionar, construir conocimiento y participar activamente en prácticas comunicativas de la vida cotidiana, académica y ciudadana.",
@@ -370,7 +369,6 @@ function RegistroPage({
   const grado = curso?.grado || "";
   const seccion = curso?.seccion || "";
   const area = curso?.area || "";
-  const areaCurricular = normalizarAreaCurricular(curso?.asignatura || curso?.area || "");
   const docente = curso?.docente || formulario.nombreDocente || "Pendiente de completar";
   const mes = curso?.mes || new Date().toLocaleDateString("es-DO", { month: "long" });
   const periodo = curso?.periodo || "";
@@ -403,8 +401,7 @@ function RegistroPage({
 
     // Primero aplicar fallback estático desde COMP_CODIGOS + COMP_DESCRIPCIONES
     // para que el docente vea los códigos oficiales MINERD inmediatamente.
-    const areaCanonica = normalizarAreaCurricular(areaRaw);
-    const codigosFallback = COMP_CODIGOS[areaCanonica] || COMP_CODIGOS[areaRaw] || COMP_CODIGOS[areaRaw?.trim()] || [];
+    const codigosFallback = COMP_CODIGOS[areaRaw] || COMP_CODIGOS[areaRaw?.trim()] || [];
     if (codigosFallback.length) {
       setCompetencias(codigosFallback.map((cod) => ({
         id: cod,
@@ -416,7 +413,7 @@ function RegistroPage({
 
     // Luego actualizar desde Firestore si hay datos del currículo importado
     if (!nivel || !grado) return;
-    obtenerCompetencias(nivel, grado, areaCanonica).then((comps) => {
+    obtenerCompetencias(nivel, grado, areaRaw).then((comps) => {
       if (comps?.length) {
         setCompetencias(comps.map((c) => ({
           id: c.id,
@@ -426,7 +423,7 @@ function RegistroPage({
         })));
       }
     });
-  }, [curso?.id, curso?.nivel, curso?.grado, curso?.area, curso?.asignatura, curso?.nombre]);
+  }, [curso?.id]);
   const [observaciones, setObservaciones] = useState({});
   const [notasEstudiantes, setNotasEstudiantes] = useState({});
   const [evaluacionesInstrumentos, setEvaluacionesInstrumentos] = useState({});
@@ -615,8 +612,8 @@ function RegistroPage({
     const desdeCompetencias = competencias.map((comp) => comp.id).filter(Boolean);
     return desdeCompetencias.length > 0
       ? desdeCompetencias
-      : (COMP_CODIGOS[areaCurricular] || COMP_CODIGOS[area] || ["CE-1","CE-2","CE-3","CE-4"]);
-  }, [competencias, areaCurricular, area]);
+      : (COMP_CODIGOS[area] || ["CE-1","CE-2","CE-3","CE-4"]);
+  }, [competencias, area]);
   const cantidadCompetencias = codigosComp.length;
   const calendarioMesActivo = useMemo(
     () => crearCalendarioMes(mesActivo, anioEscolar),
@@ -2058,6 +2055,53 @@ function RegistroPage({
               </tr>
             );
           })}
+          {/* Fila de media del grupo */}
+          {(() => {
+            const mediaData = codigosComp.map((_, ci) =>
+              Array.from({ length: 4 }, (_, pi) => {
+                const pVals  = estudiantes.map(est => Number(getNotasEstudiante(est.id).competencias[ci]?.periodos[pi]?.p)).filter(v => v > 0);
+                const rpVals = estudiantes.flatMap(est => {
+                  const n = getNotasEstudiante(est.id);
+                  const pv = Number(n.competencias[ci]?.periodos[pi]?.p) || 0;
+                  const rv = Number(n.competencias[ci]?.periodos[pi]?.rp) || 0;
+                  return pv < 70 && rv > 0 ? [rv] : [];
+                });
+                return {
+                  p:  pVals.length  ? Math.round(pVals.reduce((a,b)=>a+b,0)/pVals.length)   : 0,
+                  rp: rpVals.length ? Math.round(rpVals.reduce((a,b)=>a+b,0)/rpVals.length) : 0,
+                };
+              })
+            );
+            const mediaAvg = codigosComp.map((_, ci) => {
+              const vals = estudiantes.map(est => calcularResumenEstudiante(getNotasEstudiante(est.id)).compAvgs[ci]).filter(v => v > 0);
+              return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*10)/10 : 0;
+            });
+            const mediaCF = (() => {
+              const vals = estudiantes.map(est => calcularResumenEstudiante(getNotasEstudiante(est.id)).cf).filter(v => v > 0);
+              return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+            })();
+            return (
+              <tr className="rg-row-media">
+                <td className="rg-td rg-td-fixed rg-td-num">—</td>
+                <td className="rg-td rg-td-fixed rg-td-nombre rg-td-media-label">c. Media</td>
+                {mediaData.flatMap((periodos, ci) =>
+                  periodos.flatMap(({ p, rp }, pi) => [
+                    <td key={`m-c${ci}p${pi}-p`}  className={`rg-td rg-td-nota rg-comp-bg-${ci+1}`}>{p  > 0 ? p  : "—"}</td>,
+                    <td key={`m-c${ci}p${pi}-rp`} className={`rg-td rg-td-nota rg-td-rp-pend rg-comp-bg-${ci+1}`}>{rp > 0 ? rp : ""}</td>,
+                  ])
+                )}
+                {mediaAvg.map((avg, ci) => (
+                  <td key={`ma-${ci}`} className="rg-td rg-td-prom">
+                    <strong className={avg >= 70 ? "nota-ok" : avg > 0 ? "nota-riesgo" : ""}>{avg > 0 ? avg.toFixed(1) : "—"}</strong>
+                  </td>
+                ))}
+                <td className="rg-td rg-td-cf-cell">
+                  {mediaCF > 0 ? <span className="rg-cf-formula"><span className={`rg-cf-entero ${mediaCF >= 70 ? "nota-ok" : "nota-riesgo"}`}>{mediaCF}</span></span> : "—"}
+                </td>
+                {Array.from({ length: 13 }, (_, i) => <td key={`me-${i}`} className="rg-td"> </td>)}
+              </tr>
+            );
+          })()}
         </tbody>
       </table>
     </div>
