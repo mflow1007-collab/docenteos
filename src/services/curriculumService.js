@@ -18,6 +18,10 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import {
+  DOCUMENTOS_ADECUACIONES_CURRICULARES,
+  FUENTE_ADECUACIONES_CURRICULARES,
+} from "../data/adecuacionesCurriculares.js";
 
 const COLECCION = "diseñoCurricular";
 
@@ -36,6 +40,21 @@ export const slugCurriculo = (nivel, grado, area) =>
     .join("__");
 
 const estaDisponible = () => Boolean(db);
+
+// ── Adecuaciones curriculares oficiales ─────────────────────────────────────
+
+export const obtenerFuenteAdecuacionesCurriculares = () =>
+  FUENTE_ADECUACIONES_CURRICULARES;
+
+export const obtenerAdecuacionesCurricularesActualizadas = ({
+  nivel = "",
+  tipo = "",
+} = {}) =>
+  DOCUMENTOS_ADECUACIONES_CURRICULARES.filter((doc) => {
+    const coincideNivel = !nivel || doc.nivel.toLowerCase() === String(nivel).toLowerCase();
+    const coincideTipo = !tipo || doc.tipo === tipo;
+    return coincideNivel && coincideTipo;
+  });
 
 // ── Consulta base ──────────────────────────────────────────────────────────────
 

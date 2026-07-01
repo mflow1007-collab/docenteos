@@ -2,11 +2,13 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import process from 'node:process'
 import fuenteCheckHandler from './api/fuentes/check.js'
+import educandoHandler from './api/materiales/educando.js'
 import libroAbiertoHandler from './api/materiales/libro-abierto.js'
 import libroAbiertoPdfHandler from './api/materiales/libro-abierto-pdf.js'
 
 const API_HANDLERS = {
   '/api/fuentes/check': fuenteCheckHandler,
+  '/api/materiales/educando': educandoHandler,
   '/api/materiales/libro-abierto': libroAbiertoHandler,
   '/api/materiales/libro-abierto-pdf': libroAbiertoPdfHandler,
 }

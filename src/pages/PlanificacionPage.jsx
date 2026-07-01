@@ -40,6 +40,7 @@ import {
 import { obtenerCompetencias, consultarCurriculo } from "../services/curriculumService.js";
 import { getAreas, getAsignaturaAutomatica } from "../planning/areaAsignaturaMap.js";
 import { analizarCombinacionTematica } from "../services/curriculumCombinacionService.js";
+import { getReferenciaAdecuacionesCurriculares } from "../data/adecuacionesCurriculares.js";
 import {
   eliminarPlanificacionDetallada,
   guardarPlanificacionDetallada,
@@ -1294,10 +1295,16 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
 
     const baseCtx = `Tema: ${temaActual} | Área: ${areaActual} | Grado: ${gradoActual}\n\nActividades actuales:\n${semanasCompacto}`;
 
+    const referenciaAdecuaciones = getReferenciaAdecuacionesCurriculares();
+
     const PROMPTS_EXTRA = {
       neae: `${baseCtx}
 
 Genera adecuaciones curriculares NEAE para este contenido:
+
+Referencia oficial actualizada: ${referenciaAdecuaciones}
+
+Organiza la respuesta en adecuaciones de acceso, metodológicas y de evaluación. Mantén el referente curricular del grado siempre que sea posible y prioriza aprendizajes esenciales cuando existan barreras significativas.
 
 ## Discapacidad visual
 ## Discapacidad auditiva

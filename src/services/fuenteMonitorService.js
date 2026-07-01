@@ -12,6 +12,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "../firebase.js";
+import { FUENTE_ADECUACIONES_CURRICULARES } from "../data/adecuacionesCurriculares.js";
 
 const FUENTES_KEY = "docenteos_monitor_fuentes";
 const CAMBIOS_KEY = "docenteos_monitor_cambios";
@@ -43,6 +44,17 @@ export const FUENTES_OFICIALES_BASE = [
     activa: true,
   },
   {
+    id: "educando-adecuacion-curricular",
+    nombre: "Educando - Adecuación Curricular",
+    url: FUENTE_ADECUACIONES_CURRICULARES.url,
+    categoria: "Currículo",
+    destino: "Adecuaciones curriculares actualizadas",
+    activa: true,
+    auth: {
+      type: "none",
+    },
+  },
+  {
     id: "minerd-libro-abierto",
     nombre: "MINERD - Libro Abierto",
     url: "https://libroabierto.minerd.gob.do/",
@@ -70,6 +82,43 @@ const guardarLocal = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value));
 };
 
+const normalizarUrlSimple = (url = "") => String(url).trim().replace(/\/+$/, "");
+
+const esEducandoGenerico = (fuente = {}) =>
+  fuente.nombre === "Educando" &&
+  normalizarUrlSimple(fuente.url) === "https://educando.edu.do" &&
+  (!fuente.destino || fuente.destino === "Revisión manual");
+
+const normalizarFuenteMonitor = (fuente = {}) => {
+  if (!esEducandoGenerico(fuente)) return fuente;
+
+  return {
+    ...fuente,
+    nombre: "Educando - Adecuación Curricular",
+    url: FUENTE_ADECUACIONES_CURRICULARES.url,
+    categoria: "Currículo",
+    destino: "Adecuaciones curriculares actualizadas",
+    auth: {
+      type: "none",
+    },
+    lastHash: "",
+    lastTitle: "",
+    lastExcerpt: "",
+    lastCheckedAt: "",
+    lastStatus: "",
+  };
+};
+
+const mezclarFuentesBase = (fuentes = []) => {
+  const normalizadas = fuentes.map(normalizarFuenteMonitor);
+  const idsExistentes = new Set(normalizadas.map((fuente) => fuente.id));
+  const urlsExistentes = new Set(normalizadas.map((fuente) => normalizarUrlSimple(fuente.url)));
+  const faltantes = FUENTES_OFICIALES_BASE.filter(
+    (fuente) => !idsExistentes.has(fuente.id) && !urlsExistentes.has(normalizarUrlSimple(fuente.url))
+  );
+  return [...normalizadas, ...faltantes];
+};
+
 const nowIso = () => new Date().toISOString();
 
 const puedeUsarFirebase = () => Boolean(db && auth?.currentUser);
@@ -77,8 +126,9 @@ const puedeUsarFirebase = () => Boolean(db && auth?.currentUser);
 const leerRespuestaJson = async (response) => {
   const text = await response.text();
   if (!text.trim()) {
+    const status = response.status ? ` (${response.status})` : "";
     throw new Error(
-      "El endpoint /api/fuentes/check respondió vacío. En local, usa npm run dev para levantar las funciones API."
+      `El endpoint respondió vacío${status}. En local, reinicia npm run dev para cargar las rutas API de Vite, o usa npm run dev:vercel si quieres probar el entorno Vercel completo.`
     );
   }
 
@@ -158,9 +208,10 @@ const colorForCover = (material = {}) => {
 
 const buildGeneratedCoverUrl = (material = {}) => {
   const [start, end] = colorForCover(material);
-  const titleLines = splitCoverLines(material.titulo || "Libro Abierto");
+  const fuente = material.fuente || "Recurso oficial";
+  const titleLines = splitCoverLines(material.titulo || fuente);
   const grado = material.gradoEtiqueta || material.grado || material.nivel || "Recurso oficial";
-  const asignatura = material.asignatura || "Libro Abierto MINERD";
+  const asignatura = material.asignatura || material.tipo || fuente;
   const titleSvg = titleLines
     .map((line, index) => `<text x="42" y="${178 + index * 34}" class="title">${escapeSvgText(line)}</text>`)
     .join("");
@@ -181,7 +232,7 @@ const buildGeneratedCoverUrl = (material = {}) => {
   <rect x="24" y="24" width="432" height="592" rx="26" fill="none" stroke="rgba(255,255,255,.34)" stroke-width="3"/>
   <circle cx="398" cy="112" r="54" fill="rgba(255,255,255,.16)"/>
   <circle cx="72" cy="526" r="88" fill="rgba(255,255,255,.12)"/>
-  <text x="42" y="88" class="kicker">Libro Abierto</text>
+  <text x="42" y="88" class="kicker">${escapeSvgText(fuente)}</text>
   ${titleSvg}
   <text x="42" y="382" class="meta">${escapeSvgText(grado)}</text>
   <text x="42" y="416" class="meta">${escapeSvgText(asignatura)}</text>
@@ -212,8 +263,16 @@ const materialLogicalKey = (material = {}) =>
 const hasOfficialCover = (material = {}) =>
   Boolean(material.portadaUrl && !material.portadaGenerada && !String(material.portadaUrl).startsWith("data:"));
 
+const materialUpdatedScore = (material = {}) => {
+  const timestamp = Date.parse(material.actualizadoEnFuente || material.fuenteActualizadaEn || "");
+  if (!Number.isNaN(timestamp)) return Math.floor(timestamp / 1000);
+  const year = Number(material.actualizadoEtiqueta || material.raw?.fechaDetectada?.year || 0);
+  return year ? Math.floor(Date.UTC(year, 11, 31) / 1000) : 0;
+};
+
 const materialScore = (material = {}) =>
   [
+    materialUpdatedScore(material),
     hasOfficialCover(material) ? 100 : 0,
     material.archivoUrl ? 20 : 0,
     material.paginas ? 5 : 0,
@@ -258,14 +317,14 @@ const normalizarMaterialBiblioteca = (material = {}) => {
 };
 
 export async function listarFuentesMonitor() {
-  const locales = leerLocal(FUENTES_KEY, FUENTES_OFICIALES_BASE);
+  const locales = mezclarFuentesBase(leerLocal(FUENTES_KEY, FUENTES_OFICIALES_BASE));
 
   if (!puedeUsarFirebase()) return locales;
 
   try {
     const snap = await getDocs(query(collection(db, "fuentesOficiales"), orderBy("nombre", "asc")));
     const remotas = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
-    return remotas.length ? remotas : locales;
+    return remotas.length ? mezclarFuentesBase(remotas) : locales;
   } catch {
     return locales;
   }
@@ -415,6 +474,33 @@ export async function obtenerLibroAbiertoMateriales(fuente = {}) {
   return resultado;
 }
 
+export async function obtenerEducandoMateriales(fuente = {}) {
+  let response;
+  try {
+    response = await fetch("/api/materiales/educando", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: fuente.url, auth: { type: "none" } }),
+    });
+  } catch (error) {
+    throw new Error(`No fue posible conectar con /api/materiales/educando: ${error.message}`, {
+      cause: error,
+    });
+  }
+
+  const resultado = await leerRespuestaJson(response);
+  if (!response.ok) {
+    throw new Error(resultado.detail || resultado.error || "No fue posible importar documentos de Educando");
+  }
+
+  return {
+    ...resultado,
+    materiales: Array.isArray(resultado.materiales)
+      ? resultado.materiales.map(normalizarMaterialBiblioteca)
+      : [],
+  };
+}
+
 export async function guardarMaterialesLibroAbierto(resultado = {}) {
   const materiales = Array.isArray(resultado.materiales) ? resultado.materiales : [];
   const fecha = new Date().toISOString();
@@ -470,6 +556,63 @@ export async function guardarMaterialesLibroAbierto(resultado = {}) {
   };
 }
 
+export async function guardarMaterialesEducando(resultado = {}) {
+  const materiales = Array.isArray(resultado.materiales)
+    ? resultado.materiales.map(normalizarMaterialBiblioteca)
+    : [];
+  const fecha = new Date().toISOString();
+  const locales = leerLocal(MATERIALES_KEY, []);
+  const porId = new Map(locales.map((item) => [item.id, item]));
+
+  materiales.forEach((material) => {
+    const id = `educando-${slugMaterial(material.idOrigen || material.archivoUrl || material.origen || material.titulo)}`;
+    const persistible = prepararMaterialParaGuardar(material);
+    porId.set(id, {
+      ...porId.get(id),
+      ...persistible,
+      id,
+      estado: "activo",
+      actualizadoEn: fecha,
+      importadoEn: porId.get(id)?.importadoEn || fecha,
+    });
+  });
+  guardarLocal(MATERIALES_KEY, Array.from(porId.values()));
+
+  if (puedeUsarFirebase() && materiales.length) {
+    const chunks = [];
+    for (let i = 0; i < materiales.length; i += 400) {
+      chunks.push(materiales.slice(i, i + 400));
+    }
+
+    for (const chunk of chunks) {
+      const batch = writeBatch(db);
+      chunk.forEach((material) => {
+        const id = `educando-${slugMaterial(material.idOrigen || material.archivoUrl || material.origen || material.titulo)}`;
+        const persistible = prepararMaterialParaGuardar(material);
+        batch.set(
+          doc(db, "materiales", id),
+          {
+            ...persistible,
+            id,
+            estado: "activo",
+            actualizadoEn: serverTimestamp(),
+            importadoPor: auth.currentUser.uid,
+            importadoPorEmail: auth.currentUser.email,
+            fuenteActualizadaEn: resultado.checkedAt || fecha,
+          },
+          { merge: true }
+        );
+      });
+      await batch.commit();
+    }
+  }
+
+  return {
+    ...resultado,
+    guardados: materiales.length,
+  };
+}
+
 export async function importarLibroAbiertoMateriales(fuente = {}) {
   const resultado = await obtenerLibroAbiertoMateriales(fuente);
   return guardarMaterialesLibroAbierto(resultado);
@@ -498,6 +641,35 @@ export async function listarMaterialesBiblioteca() {
       locales.filter((material) => material.estado !== "inactivo")
     );
   }
+}
+
+export async function eliminarMaterialBiblioteca(materialId) {
+  if (!materialId) {
+    throw new Error("Falta el ID del material.");
+  }
+
+  const fecha = nowIso();
+  const locales = leerLocal(MATERIALES_KEY, []);
+  const existeLocal = locales.some((material) => material.id === materialId);
+  const siguiente = existeLocal
+    ? locales.map((material) =>
+        material.id === materialId
+          ? { ...material, estado: "inactivo", eliminadoEn: fecha }
+          : material
+      )
+    : [...locales, { id: materialId, estado: "inactivo", eliminadoEn: fecha }];
+  guardarLocal(MATERIALES_KEY, siguiente);
+
+  if (puedeUsarFirebase()) {
+    await updateDoc(doc(db, "materiales", materialId), {
+      estado: "inactivo",
+      eliminadoEn: serverTimestamp(),
+      eliminadoPor: auth.currentUser.uid,
+      eliminadoPorEmail: auth.currentUser.email,
+    });
+  }
+
+  return { success: true, id: materialId };
 }
 
 export async function aprobarCambioMonitor(cambio, adminEmail) {

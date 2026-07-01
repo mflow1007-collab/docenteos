@@ -9,12 +9,13 @@
 export const config = { runtime: "edge" };
 
 const PROVIDERS = [
-  { id: "openai",    displayName: "OpenAI",    model: "gpt-4o",            envVar: "OPENAI_API_KEY" },
-  { id: "abacus",    displayName: "Abacus AI",  model: "route-llm",         envVar: "ABACUS_API_KEY" },
-  { id: "anthropic", displayName: "Anthropic",  model: "claude-sonnet-4-6", envVar: "ANTHROPIC_API_KEY" },
+  { id: "openai",    displayName: "OpenAI",      model: "gpt-4o",                                  envVar: "OPENAI_API_KEY"    },
+  { id: "abacus",    displayName: "Abacus AI",   model: "route-llm",                               envVar: "ABACUS_API_KEY"    },
+  { id: "anthropic", displayName: "Anthropic",   model: "claude-sonnet-4-6",                       envVar: "ANTHROPIC_API_KEY" },
+  { id: "nvidia",    displayName: "NVIDIA NIM",  model: "nvidia/llama-3.1-nemotron-70b-instruct",  envVar: "NVIDIA_API_KEY"    },
 ];
 
-const PRIORITY_ORDER = ["openai", "abacus", "anthropic"];
+const PRIORITY_ORDER = ["openai", "abacus", "anthropic", "nvidia"];
 
 export default function handler() {
   const providers = {};

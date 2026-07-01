@@ -202,8 +202,8 @@ function Inicio({
           valor: totalPendientes,
           etiqueta: totalPendientes === 1 ? "evaluación pendiente" : "evaluaciones pendientes",
           detalle: "Completa los registros pendientes para mantener actualizado el seguimiento académico.",
-          accion: () => onIrA("registro"),
-          accionTexto: "Ir al registro",
+          accion: () => onIrA("mi-registro"),
+          accionTexto: "Ir a Mi Registro",
           tono: "pendiente",
         }
       : {
@@ -289,7 +289,7 @@ function Inicio({
       tono: "evaluaciones",
       icono: "🧾",
       etiquetaEstado: "Acción requerida",
-      accion: () => onIrA("registro"),
+      accion: () => onIrA("mi-registro"),
     },
     {
       id: "instrumentos",
@@ -632,6 +632,21 @@ function Inicio({
             <span className="ai-action-icon">📚</span>
             <strong>Sugerir recursos</strong>
             <small>Materiales y actividades</small>
+          </button>
+          <button type="button" className="ai-action-btn" onClick={() => onIrA("libro-abierto")}>
+            <span className="ai-action-icon">📚</span>
+            <strong>Libro Abierto</strong>
+            <small>Libros oficiales por grado y área</small>
+          </button>
+          <button type="button" className="ai-action-btn" onClick={() => onIrA("curricular")}>
+            <span className="ai-action-icon">📖</span>
+            <strong>Diseño curricular</strong>
+            <small>Adecuaciones y documentos oficiales</small>
+          </button>
+          <button type="button" className="ai-action-btn" onClick={() => onIrA("formatos-minerd")}>
+            <span className="ai-action-icon">📒</span>
+            <strong>Registro del MINERD</strong>
+            <small>Registros oficiales de Educando</small>
           </button>
           <button type="button" className="ai-action-btn" onClick={() => onIrA("instrumentos")}>
             <span className="ai-action-icon">📝</span>

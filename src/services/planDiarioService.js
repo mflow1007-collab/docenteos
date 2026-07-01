@@ -1,5 +1,7 @@
 /* Servicio: Plan Diario MINERD */
 
+import { FUENTE_ADECUACIONES_CURRICULARES } from "../data/adecuacionesCurriculares.js";
+
 // ─── Constantes curriculares ─────────────────────────────────────────────────
 
 const COMPETENCIAS_FUNDAMENTALES = [
@@ -386,11 +388,11 @@ const generarEvaluacion = (_area, _tema) => ({
 
 const generarAdaptacionesNEAE = (_area) => ({
   acceso:
-    "Uso de apoyo visual, imágenes y ejemplos escritos para facilitar la comprensión de estudiantes con ritmo de aprendizaje más lento y dificultades en la expresión oral.",
+    `Uso de apoyos visuales, ejemplos escritos, recursos manipulativos o comunicación alternativa según necesidad, tomando como referente la Adecuación Curricular MINERD actualizada (${FUENTE_ADECUACIONES_CURRICULARES.actualizado}).`,
   metodologicas:
-    "Participación guiada mediante preguntas sencillas, repetición oral e instrucciones fragmentadas para estudiantes con timidez o dificultades en la expresión.",
+    "Instrucciones fragmentadas, modelado, andamiaje, agrupamientos flexibles y participación guiada para sostener el mismo propósito de aprendizaje con distintos niveles de apoyo.",
   evaluacion:
-    "Tiempo adicional, acompañamiento del docente y ejemplos modelo durante la realización de actividades para estudiantes con ritmo de aprendizaje más lento.",
+    "Evidencias variadas, tiempo flexible, acompañamiento docente y criterios priorizados sin penalizar barreras de acceso, comunicación o ritmo de aprendizaje.",
 });
 
 const generarInstrumentos = (area, tema) => {

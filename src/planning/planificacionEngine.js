@@ -7,6 +7,10 @@
 import generarSituacion from "./generarSituacion.js";
 import { generarSemanas } from "./generarSemanas.js";
 import { generarMatrizEvaluacion } from "./generarEvaluacion.js";
+import {
+  FUENTE_ADECUACIONES_CURRICULARES,
+  RESUMEN_ADECUACIONES_CURRICULARES,
+} from "../data/adecuacionesCurriculares.js";
 
 /**
  * Validar datos de entrada
@@ -160,27 +164,29 @@ const generarCronogramaEvaluacion = (semanas) => {
  */
 const generarAdecuacionesNEAE = () => {
   return {
-    titulo: "Adecuaciones para Necesidades Educativas Especiales",
+    titulo: "Adecuaciones curriculares para estudiantes con NEAE",
     descripcion:
-      "Estrategias inclusivas para garantizar acceso equitativo al currículo",
+      `Estrategias inclusivas alineadas a la Adecuación Curricular MINERD actualizada (${FUENTE_ADECUACIONES_CURRICULARES.actualizado}).`,
+    fuenteOficial: FUENTE_ADECUACIONES_CURRICULARES,
+    principios: RESUMEN_ADECUACIONES_CURRICULARES,
     nivelAcceso: {
-      tiempo: "Extender tiempo de evaluación en 25-50%",
-      formato: "Proveer formatos alternativos (oral, escrito, práctico)",
-      recursos: "Permitir uso de recursos de apoyo (calculadora, diccionario, etc.)",
-      ambiente: "Evaluar en ambiente tranquilo con distracciones mínimas",
+      presentacion: "Presentar contenidos en formatos visuales, auditivos, manipulativos o digitales accesibles.",
+      comunicacion: "Permitir sistemas alternativos o aumentativos de comunicación cuando aplique.",
+      recursos: "Usar apoyos concretos, tecnológicos, letra ampliada, pictogramas, organizadores gráficos o material adaptado.",
+      ambiente: "Ajustar ubicación, iluminación, ruido, movilidad y condiciones del aula para reducir barreras.",
     },
     nivelCurricular: {
-      priorizar: "Enfatizar contenidos esenciales",
-      simplificar: "Adaptar complejidad manteniendo significatividad",
-      ampliar: "Ofrecer profundización para estudiantes avanzados",
-      enfocar: "Énfasis en puntos de interés del estudiante",
+      priorizar: "Priorizar aprendizajes esenciales e indicadores clave del grado.",
+      graduar: "Graduar la complejidad de tareas manteniendo el propósito pedagógico.",
+      flexibilizar: "Flexibilizar tiempos, secuencia, cantidad de ejercicios y formas de respuesta.",
+      enriquecer: "Ofrecer profundización, retos abiertos y producción creativa para altas capacidades.",
     },
     estrategias: [
-      "Diferenciación de instrucción",
-      "Agrupamientos flexibles",
-      "Tutoreo entre pares",
-      "Retroalimentación individualizada",
-      "Evaluación formativa continua",
+      "Diseño Universal para el Aprendizaje",
+      "Instrucciones breves, modeladas y verificadas",
+      "Agrupamientos flexibles y apoyo entre pares",
+      "Andamiaje gradual y retroalimentación individualizada",
+      "Evaluación formativa con evidencias variadas",
     ],
     recursosPersonales: [
       "Docente de educación especial",

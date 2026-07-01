@@ -11,9 +11,13 @@ import { getAuth } from "firebase/auth";
 
 // Tarifas aproximadas en USD por 1M tokens (actualizar según cambien)
 const COST_RATES = {
-  "claude-sonnet-4-6": { in: 3.0,  out: 15.0 },
-  "gpt-4o":            { in: 2.5,  out: 10.0 },
-  "route-llm":         { in: 1.0,  out: 3.0  },
+  "claude-sonnet-4-6":                       { in: 3.0,  out: 15.0 },
+  "gpt-4o":                                  { in: 2.5,  out: 10.0 },
+  "route-llm":                               { in: 1.0,  out: 3.0  },
+  // NVIDIA NIM — https://build.nvidia.com/pricing
+  "nvidia/llama-3.1-nemotron-70b-instruct":  { in: 1.25, out: 5.0  },
+  "meta/llama-3.1-8b-instruct":              { in: 0.20, out: 0.20 },
+  "mistralai/mixtral-8x7b-instruct-v0.1":   { in: 0.60, out: 0.60 },
 };
 
 function estimateCost(model, tokensIn, tokensOut) {

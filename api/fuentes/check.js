@@ -1,3 +1,6 @@
+import http from "node:http";
+import https from "node:https";
+
 const MAX_CHARS = 600000;
 
 function normalizeText(input) {
@@ -62,6 +65,64 @@ function buildAuthHeaders(auth = {}) {
   throw new Error(`Tipo de autenticación no soportado: ${auth.type}`);
 }
 
+function absoluteUrl(url = "", base = "") {
+  try {
+    return new URL(url, base || undefined).href;
+  } catch {
+    return "";
+  }
+}
+
+function shouldAllowEducandoTlsFallback(url = "") {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "") === "educando.edu.do";
+  } catch {
+    return false;
+  }
+}
+
+function requestText(url, headers = {}, redirects = 0) {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const client = parsed.protocol === "http:" ? http : https;
+    const req = client.request(
+      parsed,
+      {
+        method: "GET",
+        headers,
+        rejectUnauthorized: !shouldAllowEducandoTlsFallback(url),
+      },
+      (response) => {
+        const location = response.headers.location ? absoluteUrl(response.headers.location, url) : "";
+        if ([301, 302, 303, 307, 308].includes(response.statusCode) && location && redirects < 5) {
+          response.resume();
+          requestText(location, headers, redirects + 1).then(resolve, reject);
+          return;
+        }
+
+        let text = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          text += chunk;
+        });
+        response.on("end", () => {
+          resolve({
+            ok: response.statusCode >= 200 && response.statusCode < 300,
+            status: response.statusCode,
+            url,
+            text,
+          });
+        });
+      }
+    );
+    req.on("error", reject);
+    req.setTimeout(20000, () => {
+      req.destroy(new Error(`Timeout al consultar ${url}`));
+    });
+    req.end();
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -76,24 +137,39 @@ export default async function handler(req, res) {
 
     const authHeaders = buildAuthHeaders(auth);
 
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "DocenteOS-Monitor/1.0 (+https://docenteos.com)",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.5",
-        ...authHeaders,
-      },
-      redirect: "follow",
-    });
+    const headers = {
+      "User-Agent": "DocenteOS-Monitor/1.0 (+https://docenteos.com)",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.5",
+      ...authHeaders,
+    };
+    let result;
+    try {
+      const response = await fetch(url, {
+        headers,
+        redirect: "follow",
+      });
+      result = {
+        ok: response.ok,
+        status: response.status,
+        url: response.url || url,
+        text: await response.text(),
+      };
+    } catch (error) {
+      if (error?.cause?.code !== "UNABLE_TO_VERIFY_LEAF_SIGNATURE" || !shouldAllowEducandoTlsFallback(url)) {
+        throw error;
+      }
+      result = await requestText(url, headers);
+    }
 
-    const raw = await response.text();
+    const raw = result.text;
     const title = getTitle(raw);
     const normalized = normalizeText(raw);
     const hash = hashText(normalized);
 
     return res.status(200).json({
-      ok: response.ok,
-      status: response.status,
-      url: response.url || url,
+      ok: result.ok,
+      status: result.status,
+      url: result.url || url,
       title,
       hash,
       excerpt: normalized.slice(0, 1200),

@@ -4,10 +4,12 @@ import {
   aprobarCambioMonitor,
   eliminarFuenteMonitor,
   FUENTES_OFICIALES_BASE,
+  guardarMaterialesEducando,
   guardarMaterialesLibroAbierto,
   guardarFuenteMonitor,
   listarCambiosMonitor,
   listarFuentesMonitor,
+  obtenerEducandoMateriales,
   obtenerLibroAbiertoMateriales,
   rechazarCambioMonitor,
   verificarFuenteMonitor,
@@ -128,6 +130,9 @@ export default function AdminMonitorFuentes() {
   const nivelesMateriales = useMemo(() => opcionesUnicas(materialesPreview, "nivel"), [materialesPreview]);
   const gradosMateriales = useMemo(() => opcionesUnicas(materialesPreview, "grado"), [materialesPreview]);
   const asignaturasMateriales = useMemo(() => opcionesUnicas(materialesPreview, "asignatura"), [materialesPreview]);
+  const previewEsEducando = previewMateriales?.fuenteId === "educando-documentos";
+  const previewNombreFuente = previewEsEducando ? "Educando" : "Libro Abierto";
+  const previewTipoRecurso = previewEsEducando ? "documentos" : "materiales";
 
   const cargar = async () => {
     setCargando(true);
@@ -250,6 +255,12 @@ export default function AdminMonitorFuentes() {
     FUENTES_OFICIALES_BASE.find((fuente) => fuente.id === "minerd-libro-abierto") ||
     {};
 
+  const getFuenteEducando = () =>
+    fuentes.find((fuente) => fuente.id === "educando-adecuacion-curricular") ||
+    fuentes.find((fuente) => fuente.fuenteId === "educando-documentos") ||
+    FUENTES_OFICIALES_BASE.find((fuente) => fuente.id === "educando-adecuacion-curricular") ||
+    {};
+
   const previsualizarLibroAbierto = async () => {
     const fuenteLibroAbierto =
       getFuenteLibroAbierto();
@@ -278,6 +289,33 @@ export default function AdminMonitorFuentes() {
     }
   };
 
+  const previsualizarEducando = async () => {
+    const fuenteEducando = getFuenteEducando();
+
+    setImportandoMateriales(true);
+    setMensaje(null);
+    try {
+      const resultado = await obtenerEducandoMateriales(fuenteEducando);
+      setPreviewMateriales(resultado);
+      setMaterialesSeleccionados((resultado.materiales || []).map(materialKey));
+      setFiltroMateriales({
+        busqueda: "",
+        nivel: FILTRO_TODOS,
+        grado: FILTRO_TODOS,
+        asignatura: FILTRO_TODOS,
+      });
+      setMensaje({
+        tipo: "info",
+        texto: `Educando listo para revisión: ${resultado.total || resultado.materiales?.length || 0} documentos encontrados.`,
+      });
+    } catch (error) {
+      console.error("[AdminMonitorFuentes] previsualizarEducando:", error);
+      setMensaje({ tipo: "error", texto: error.message || "No fue posible revisar documentos de Educando." });
+    } finally {
+      setImportandoMateriales(false);
+    }
+  };
+
   const confirmarImportacionLibroAbierto = async () => {
     if (!previewMateriales) return;
     const seleccionados = (previewMateriales.materiales || [])
@@ -290,7 +328,8 @@ export default function AdminMonitorFuentes() {
     setImportandoMateriales(true);
     setMensaje(null);
     try {
-      const resultado = await guardarMaterialesLibroAbierto({
+      const guardar = previewEsEducando ? guardarMaterialesEducando : guardarMaterialesLibroAbierto;
+      const resultado = await guardar({
         ...previewMateriales,
         materiales: seleccionados,
         total: seleccionados.length,
@@ -299,11 +338,11 @@ export default function AdminMonitorFuentes() {
       setMaterialesSeleccionados([]);
       setMensaje({
         tipo: "success",
-        texto: `Libro Abierto importado: ${resultado.guardados || 0} materiales guardados en la colección materiales.`,
+        texto: `${previewNombreFuente} importado: ${resultado.guardados || 0} ${previewTipoRecurso} guardados en la colección materiales.`,
       });
     } catch (error) {
       console.error("[AdminMonitorFuentes] confirmarImportacionLibroAbierto:", error);
-      setMensaje({ tipo: "error", texto: error.message || "No fue posible guardar los materiales." });
+      setMensaje({ tipo: "error", texto: error.message || "No fue posible guardar los recursos." });
     } finally {
       setImportandoMateriales(false);
     }
@@ -374,6 +413,13 @@ export default function AdminMonitorFuentes() {
             disabled={cargando || importandoMateriales}
           >
             {importandoMateriales ? "Revisando libros..." : "Ver Libro Abierto"}
+          </button>
+          <button
+            className="admin-btn admin-btn-secondary"
+            onClick={previsualizarEducando}
+            disabled={cargando || importandoMateriales}
+          >
+            {importandoMateriales ? "Revisando documentos..." : "Ver Educando"}
           </button>
           <button className="admin-btn admin-btn-primary" onClick={verificarTodas} disabled={cargando || Boolean(verificando)}>
             {verificando ? "Revisando..." : "Comprobar fuentes"}
@@ -663,17 +709,17 @@ export default function AdminMonitorFuentes() {
         <div className="admin-modal-overlay" onClick={() => setPreviewMateriales(null)}>
           <div className="admin-modal admin-modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="admin-modal-header">
-              <h3>Revisar materiales de Libro Abierto</h3>
+              <h3>Revisar {previewTipoRecurso} de {previewNombreFuente}</h3>
               <button className="admin-modal-close" onClick={() => setPreviewMateriales(null)}>✕</button>
             </div>
             <div className="admin-modal-body">
               <div className="admin-form-grid cols-1">
                 <div className="admin-form-group">
                   <span className="admin-form-label">
-                    {materialesSeleccionados.length} de {previewMateriales.materiales?.length || 0} materiales seleccionados
+                    {materialesSeleccionados.length} de {previewMateriales.materiales?.length || 0} {previewTipoRecurso} seleccionados
                   </span>
                   <small className="admin-form-hint">
-                    Filtra y marca solo los libros que quieres guardar como metadatos en la colección materiales.
+                    Filtra y marca solo los recursos que quieres guardar como metadatos en la colección materiales.
                   </small>
                 </div>
               </div>
@@ -760,6 +806,24 @@ export default function AdminMonitorFuentes() {
                 </div>
               )}
 
+              {previewEsEducando && previewMateriales.resumen?.porTipo && (
+                <div className="admin-info-panel" style={{ marginBottom: 16 }}>
+                  <h3>Documentos encontrados</h3>
+                  <div className="admin-tags">
+                    {Object.entries(previewMateriales.resumen.porTipo).map(([tipo, total]) => (
+                      <span className="admin-tag" key={tipo}>{tipo}: {total}</span>
+                    ))}
+                  </div>
+                  {previewMateriales.resumen?.porNivel && (
+                    <div className="admin-tags" style={{ marginTop: 10 }}>
+                      {Object.entries(previewMateriales.resumen.porNivel).map(([nivel, total]) => (
+                        <span className="admin-tag" key={nivel}>{nivel}: {total}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="admin-table-wrap">
                 <table className="admin-table">
                   <thead>
@@ -813,7 +877,7 @@ export default function AdminMonitorFuentes() {
                     ))}
                     {materialesFiltrados.length === 0 && (
                       <tr>
-                        <td className="admin-table-empty" colSpan={4}>No hay materiales con esos filtros.</td>
+                        <td className="admin-table-empty" colSpan={4}>No hay recursos con esos filtros.</td>
                       </tr>
                     )}
                   </tbody>

@@ -12,11 +12,13 @@
 export { anthropic } from "./anthropic";
 export { openai } from "./openai";
 export { abacus } from "./abacus";
+export { nvidia } from "./nvidia";
 
 export const PROVIDER_META = {
-  openai:    { displayName: "OpenAI",     model: "gpt-4o",            icon: "🟢" },
-  abacus:    { displayName: "Abacus AI",  model: "route-llm",         icon: "🔵" },
-  anthropic: { displayName: "Anthropic",  model: "claude-sonnet-4-6", icon: "🟠" },
+  openai:    { displayName: "OpenAI",      model: "gpt-4o",                                  icon: "🟢" },
+  abacus:    { displayName: "Abacus AI",   model: "route-llm",                               icon: "🔵" },
+  anthropic: { displayName: "Anthropic",   model: "claude-sonnet-4-6",                       icon: "🟠" },
+  nvidia:    { displayName: "NVIDIA NIM",  model: "nvidia/llama-3.1-nemotron-70b-instruct",  icon: "🟩" },
 };
 
 /** Proveedores futuros — agregar aquí cuando se implementen en el servidor */

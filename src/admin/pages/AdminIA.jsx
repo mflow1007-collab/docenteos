@@ -31,6 +31,11 @@ const PROVIDER_CATALOG = [
     desc: 'Claude Sonnet 4.6 · API nativa',
   },
   {
+    id: 'nvidia',     name: 'NVIDIA NIM',        model: 'nvidia/llama-3.1-nemotron-70b-instruct',
+    envVar: 'NVIDIA_API_KEY',    logo: '🟩', type: 'active',
+    desc: 'Nemotron-70B · Compatible OpenAI · build.nvidia.com',
+  },
+  {
     id: 'gemini',     name: 'Google Gemini',     model: 'gemini-2.0-flash',
     envVar: 'GEMINI_API_KEY',    logo: '🔴', type: 'soon',
     desc: 'Gemini Flash · Google AI Studio',
@@ -79,6 +84,11 @@ const MODEL_OPTIONS = {
     { value: 'claude-sonnet-4-6',          label: 'Claude Sonnet 4.6 (recomendado)' },
     { value: 'claude-opus-4-8',            label: 'Claude Opus 4.8 (más capaz)' },
     { value: 'claude-haiku-4-5-20251001',  label: 'Claude Haiku 4.5 (económico)' },
+  ],
+  nvidia: [
+    { value: 'nvidia/llama-3.1-nemotron-70b-instruct', label: 'Nemotron-70B (recomendado · alta calidad)' },
+    { value: 'meta/llama-3.1-8b-instruct',             label: 'Llama 3.1 8B (rápido · económico)' },
+    { value: 'mistralai/mixtral-8x7b-instruct-v0.1',   label: 'Mixtral 8x7B (equilibrado)' },
   ],
 }
 

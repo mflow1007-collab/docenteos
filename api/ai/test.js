@@ -26,6 +26,12 @@ const PROVIDER_CONFIG = {
     type: "anthropic",
     envVar: "ANTHROPIC_API_KEY",
   },
+  nvidia: {
+    model: "nvidia/llama-3.1-nemotron-70b-instruct",
+    baseURL: "https://integrate.api.nvidia.com/v1",
+    type: "openai",
+    envVar: "NVIDIA_API_KEY",
+  },
 };
 
 /** Convierte errores técnicos en mensajes amigables para el administrador */

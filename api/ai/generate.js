@@ -9,6 +9,7 @@
  *   ANTHROPIC_API_KEY
  *   OPENAI_API_KEY
  *   ABACUS_API_KEY
+ *   NVIDIA_API_KEY
  *
  * Variables de autenticación:
  *   FIREBASE_PROJECT_ID  — ID del proyecto Firebase (requerido para verificar tokens)
@@ -106,17 +107,19 @@ async function verifyFirebaseToken(token) {
 
 // ─── Configuración por defecto ────────────────────────────────────────────────
 
-const DEFAULT_ORDER = ["openai", "abacus", "anthropic"];
+const DEFAULT_ORDER = ["openai", "abacus", "anthropic", "nvidia"];
 
 const DEFAULT_MODELS = {
   openai:    "gpt-4o",
   abacus:    "route-llm",
   anthropic: "claude-sonnet-4-6",
+  nvidia:    "nvidia/llama-3.1-nemotron-70b-instruct",
 };
 
 const PROVIDER_BASE_URLS = {
-  openai: "https://api.openai.com/v1",
-  abacus: "https://routellm.abacus.ai/v1",
+  openai:  "https://api.openai.com/v1",
+  abacus:  "https://routellm.abacus.ai/v1",
+  nvidia:  "https://integrate.api.nvidia.com/v1",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -126,6 +129,7 @@ function getApiKey(provider) {
     case "openai":    return process.env.OPENAI_API_KEY    || null;
     case "anthropic": return process.env.ANTHROPIC_API_KEY || null;
     case "abacus":    return process.env.ABACUS_API_KEY    || null;
+    case "nvidia":    return process.env.NVIDIA_API_KEY    || null;
     default:          return null;
   }
 }
@@ -330,7 +334,7 @@ export default async function handler(request) {
   const queue = getProviderQueue(preferredProvider, providerOrder);
 
   if (queue.length === 0) {
-    console.error("[AI Gateway] No hay proveedores configurados (OPENAI_API_KEY / ABACUS_API_KEY / ANTHROPIC_API_KEY)");
+    console.error("[AI Gateway] No hay proveedores configurados (OPENAI_API_KEY / ABACUS_API_KEY / ANTHROPIC_API_KEY / NVIDIA_API_KEY)");
     return new Response(
       JSON.stringify({
         error: "No hay ningún servicio de Inteligencia Artificial disponible en este momento. Verifica la configuración del administrador o intenta nuevamente más tarde.",

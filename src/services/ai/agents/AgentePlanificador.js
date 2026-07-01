@@ -11,6 +11,7 @@
  */
 
 import { AIService } from "../AIService.js";
+import { getReferenciaAdecuacionesCurriculares } from "../../../data/adecuacionesCurriculares.js";
 
 const SYSTEM = `Eres el Agente Planificador de DocenteOS, experto en diseño didáctico para escuelas dominicanas (currículo MINERD).
 
@@ -128,13 +129,16 @@ export async function adaptarNEAE(contenido, tiposNEAE = []) {
     const neaeLista = tiposNEAE.length
       ? tiposNEAE.join(", ")
       : "necesidades educativas especiales generales";
+    const referenciaAdecuaciones = getReferenciaAdecuacionesCurriculares();
 
     AIService.generate({
       module: "planificacion-ia",
       system: SYSTEM,
       prompt: `Incorpora adecuaciones curriculares para estudiantes con ${neaeLista} en esta planificación.
 
-Para cada actividad, agrega una versión adaptada. Usa estrategias de educación inclusiva apropiadas para el contexto dominicano.
+Usa como referente la ${referenciaAdecuaciones}
+
+Para cada actividad, agrega una versión adaptada. Incluye adecuaciones de acceso, metodológicas y de evaluación apropiadas para el contexto dominicano.
 
 PLANIFICACIÓN:
 ${JSON.stringify(contenido, null, 2).slice(0, 2000)}

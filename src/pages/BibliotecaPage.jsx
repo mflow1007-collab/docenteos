@@ -28,6 +28,13 @@ function gradoVisible(material) {
   return `${ordinales[grado] || grado} ${nivel}`;
 }
 
+function actualizadoVisible(material) {
+  if (material?.actualizadoEtiqueta) return `Actualizado ${material.actualizadoEtiqueta}`;
+  const fecha = material?.actualizadoEnFuente || material?.fuenteActualizadaEn;
+  const year = fecha ? new Date(fecha).getFullYear() : 0;
+  return year ? `Actualizado ${year}` : "";
+}
+
 function opcionesUnicas(materiales, campo) {
   return [
     FILTRO_TODOS,
@@ -77,13 +84,24 @@ function getReaderUrl(material) {
   if ((material?.fuenteId === "minerd-libro-abierto" || bookId) && bookId) {
     return `/api/materiales/libro-abierto-pdf?id=${encodeURIComponent(bookId)}&stream=1`;
   }
+  if (material?.lectorUrl) {
+    return material.lectorUrl;
+  }
   if (esPdfDirecto(material?.archivoUrl)) {
     return material.archivoUrl;
   }
   return material?.archivoUrl || material?.origen || "";
 }
 
-export default function BibliotecaPage({ onIrA = () => {} }) {
+export default function BibliotecaPage({
+  onIrA = () => {},
+  fuenteId = "",
+  titulo = "Recursos oficiales listos para usar",
+  kicker = "Biblioteca MINERD",
+  descripcion = "Busca libros y documentos importados por metadatos. DocenteOS guarda fichas ligeras y abre el material desde su fuente oficial.",
+  emptyTitle = "No hay materiales con esos filtros",
+  emptyDescription = "Importa recursos desde el Monitor MINERD o cambia los filtros.",
+}) {
   const [materiales, setMateriales] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [mensaje, setMensaje] = useState(null);
@@ -105,7 +123,9 @@ export default function BibliotecaPage({ onIrA = () => {} }) {
     let activo = true;
     listarMaterialesBiblioteca()
       .then((data) => {
-        if (activo) setMateriales(data);
+        if (activo) {
+          setMateriales(fuenteId ? data.filter((material) => material.fuenteId === fuenteId) : data);
+        }
       })
       .catch((error) => {
         console.error("[BibliotecaPage] cargar materiales:", error);
@@ -118,7 +138,7 @@ export default function BibliotecaPage({ onIrA = () => {} }) {
     return () => {
       activo = false;
     };
-  }, []);
+  }, [fuenteId]);
 
   const niveles = useMemo(() => opcionesUnicas(materiales, "nivel"), [materiales]);
   const grados = useMemo(() => opcionesUnicas(materiales, "grado"), [materiales]);
@@ -178,11 +198,9 @@ export default function BibliotecaPage({ onIrA = () => {} }) {
     <div className="biblioteca-page">
       <section className="biblioteca-header">
         <div>
-          <p className="biblioteca-kicker">Biblioteca MINERD</p>
-          <h1>Recursos oficiales listos para usar</h1>
-          <p>
-            Busca libros importados por metadatos. DocenteOS guarda fichas ligeras y abre el material desde su fuente oficial.
-          </p>
+          <p className="biblioteca-kicker">{kicker}</p>
+          <h1>{titulo}</h1>
+          <p>{descripcion}</p>
         </div>
         <div className="biblioteca-kpis">
           <div>
@@ -234,8 +252,8 @@ export default function BibliotecaPage({ onIrA = () => {} }) {
         <div className="biblioteca-empty">Cargando biblioteca...</div>
       ) : filtrados.length === 0 ? (
         <div className="biblioteca-empty">
-          <h2>No hay materiales con esos filtros</h2>
-          <p>Importa libros desde el Monitor MINERD o cambia los filtros.</p>
+          <h2>{emptyTitle}</h2>
+          <p>{emptyDescription}</p>
         </div>
       ) : (
         <section className="biblioteca-grid">
@@ -278,6 +296,9 @@ export default function BibliotecaPage({ onIrA = () => {} }) {
                   <p className="biblioteca-meta">
                     {[material.nivel, gradoVisible(material), material.asignatura].filter(Boolean).join(" · ") || "Sin clasificar"}
                   </p>
+                  {actualizadoVisible(material) && (
+                    <p className="biblioteca-fuente">{actualizadoVisible(material)}</p>
+                  )}
                 </div>
                 <div className="biblioteca-actions">
                   <button

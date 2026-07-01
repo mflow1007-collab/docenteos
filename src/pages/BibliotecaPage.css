@@ -134,8 +134,8 @@
 
 .biblioteca-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 18px;
 }
 
 .biblioteca-card {
@@ -151,24 +151,24 @@
   position: relative;
   display: grid;
   place-items: center;
-  height: 230px;
-  padding: 14px 12px;
-  background: #f8fafc;
+  height: 312px;
+  padding: 10px;
+  background: #eef4ff;
   border-bottom: 1px solid #e2e8f0;
 }
 
 .biblioteca-cover img {
-  width: min(100%, 170px);
-  height: 100%;
+  width: min(100%, 244px);
+  max-height: 290px;
   object-fit: contain;
   object-position: center;
-  filter: drop-shadow(0 8px 14px rgba(15, 23, 42, 0.12));
+  filter: drop-shadow(0 14px 22px rgba(15, 23, 42, 0.18));
 }
 
 .biblioteca-cover-generated {
   display: grid;
   align-content: space-between;
-  width: min(170px, 100%);
+  width: min(238px, 100%);
   height: 100%;
   padding: 18px;
   border-radius: 6px;
@@ -268,7 +268,7 @@
 
 .biblioteca-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 46px;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
   gap: 8px;
   padding: 8px 14px 14px;
 }
@@ -297,6 +297,12 @@
   border-color: #2563eb;
   background: #2563eb;
   color: #ffffff;
+}
+
+.biblioteca-btn.danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #be123c;
 }
 
 .biblioteca-empty {
@@ -451,5 +457,17 @@
   .biblioteca-reader-actions a,
   .biblioteca-reader-actions button {
     flex: 1;
+  }
+
+  .biblioteca-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .biblioteca-cover {
+    height: 264px;
+  }
+
+  .biblioteca-cover img {
+    max-height: 240px;
   }
 }
