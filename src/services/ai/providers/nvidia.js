@@ -2,7 +2,7 @@
 export const nvidia = {
   name: "nvidia",
   displayName: "NVIDIA NIM",
-  model: "nvidia/llama-3.1-nemotron-70b-instruct",
+  model: "nvidia/nemotron-3-ultra-550b-a55b",
   baseURL: "https://integrate.api.nvidia.com/v1",
   serverEnvVar: "NVIDIA_API_KEY",
   supportsStreaming: true,

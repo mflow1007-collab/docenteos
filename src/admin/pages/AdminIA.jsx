@@ -31,9 +31,9 @@ const PROVIDER_CATALOG = [
     desc: 'Claude Sonnet 4.6 · API nativa',
   },
   {
-    id: 'nvidia',     name: 'NVIDIA NIM',        model: 'nvidia/llama-3.1-nemotron-70b-instruct',
+    id: 'nvidia',     name: 'NVIDIA NIM',        model: 'nvidia/nemotron-3-ultra-550b-a55b',
     envVar: 'NVIDIA_API_KEY',    logo: '🟩', type: 'active',
-    desc: 'Nemotron-70B · Compatible OpenAI · build.nvidia.com',
+    desc: 'Nemotron 3 Ultra 550B · build.nvidia.com · Free Endpoint',
   },
   {
     id: 'gemini',     name: 'Google Gemini',     model: 'gemini-2.0-flash',
@@ -86,9 +86,12 @@ const MODEL_OPTIONS = {
     { value: 'claude-haiku-4-5-20251001',  label: 'Claude Haiku 4.5 (económico)' },
   ],
   nvidia: [
-    { value: 'nvidia/llama-3.1-nemotron-70b-instruct', label: 'Nemotron-70B (recomendado · alta calidad)' },
-    { value: 'meta/llama-3.1-8b-instruct',             label: 'Llama 3.1 8B (rápido · económico)' },
-    { value: 'mistralai/mixtral-8x7b-instruct-v0.1',   label: 'Mixtral 8x7B (equilibrado)' },
+    { value: 'nvidia/nemotron-3-ultra-550b-a55b', label: 'Nemotron 3 Ultra 550B (flagship · recomendado)' },
+    { value: 'moonshotai/kimi-k2.6',              label: 'Kimi K2.6 · Moonshot AI (1T params · agentic)' },
+    { value: 'deepseek-ai/deepseek-v4-pro',       label: 'DeepSeek V4 Pro (1M contexto · razonamiento)' },
+    { value: 'z-ai/glm5.1',                       label: 'GLM-5.1 · Z.ai (coding · agentic)' },
+    { value: 'meta/llama-3.3-70b-instruct',       label: 'Llama 3.3 70B (rápido · eficiente)' },
+    { value: 'meta/llama-3.1-8b-instruct',        label: 'Llama 3.1 8B (ligero · económico)' },
   ],
 }
 

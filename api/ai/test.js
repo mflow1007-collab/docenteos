@@ -27,7 +27,7 @@ const PROVIDER_CONFIG = {
     envVar: "ANTHROPIC_API_KEY",
   },
   nvidia: {
-    model: "nvidia/llama-3.1-nemotron-70b-instruct",
+    model: "nvidia/nemotron-3-ultra-550b-a55b",
     baseURL: "https://integrate.api.nvidia.com/v1",
     type: "openai",
     envVar: "NVIDIA_API_KEY",

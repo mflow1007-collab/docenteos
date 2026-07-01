@@ -14,10 +14,13 @@ const COST_RATES = {
   "claude-sonnet-4-6":                       { in: 3.0,  out: 15.0 },
   "gpt-4o":                                  { in: 2.5,  out: 10.0 },
   "route-llm":                               { in: 1.0,  out: 3.0  },
-  // NVIDIA NIM — https://build.nvidia.com/pricing
-  "nvidia/llama-3.1-nemotron-70b-instruct":  { in: 1.25, out: 5.0  },
-  "meta/llama-3.1-8b-instruct":              { in: 0.20, out: 0.20 },
-  "mistralai/mixtral-8x7b-instruct-v0.1":   { in: 0.60, out: 0.60 },
+  // NVIDIA NIM — Free Endpoint disponible en build.nvidia.com (dentro del free tier: $0)
+  "nvidia/nemotron-3-ultra-550b-a55b": { in: 2.0,  out: 8.0  },
+  "moonshotai/kimi-k2.6":              { in: 2.0,  out: 6.0  },
+  "deepseek-ai/deepseek-v4-pro":       { in: 1.5,  out: 6.0  },
+  "z-ai/glm5.1":                       { in: 1.0,  out: 4.0  },
+  "meta/llama-3.3-70b-instruct":       { in: 0.80, out: 0.80 },
+  "meta/llama-3.1-8b-instruct":        { in: 0.20, out: 0.20 },
 };
 
 function estimateCost(model, tokensIn, tokensOut) {

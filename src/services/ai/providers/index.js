@@ -18,7 +18,7 @@ export const PROVIDER_META = {
   openai:    { displayName: "OpenAI",      model: "gpt-4o",                                  icon: "🟢" },
   abacus:    { displayName: "Abacus AI",   model: "route-llm",                               icon: "🔵" },
   anthropic: { displayName: "Anthropic",   model: "claude-sonnet-4-6",                       icon: "🟠" },
-  nvidia:    { displayName: "NVIDIA NIM",  model: "nvidia/llama-3.1-nemotron-70b-instruct",  icon: "🟩" },
+  nvidia:    { displayName: "NVIDIA NIM",  model: "nvidia/nemotron-3-ultra-550b-a55b",        icon: "🟩" },
 };
 
 /** Proveedores futuros — agregar aquí cuando se implementen en el servidor */

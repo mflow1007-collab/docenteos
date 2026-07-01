@@ -113,7 +113,7 @@ const DEFAULT_MODELS = {
   openai:    "gpt-4o",
   abacus:    "route-llm",
   anthropic: "claude-sonnet-4-6",
-  nvidia:    "nvidia/llama-3.1-nemotron-70b-instruct",
+  nvidia:    "nvidia/nemotron-3-ultra-550b-a55b",
 };
 
 const PROVIDER_BASE_URLS = {
