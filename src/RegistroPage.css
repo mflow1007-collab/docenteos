@@ -1640,4 +1640,103 @@
   font-size: 12px;
   font-weight: 800;
 }
+
+.registro-distribucion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.registro-distribucion.ok {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.registro-distribucion.warn {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.registro-distribucion.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.registro-distribucion small {
+  margin-left: auto;
+  font-weight: 800;
+}
+
+.registro-aspectos-editor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+
+.registro-aspecto-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.registro-aspecto-card span {
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.registro-aspecto-card input,
+.registro-aspecto-card select,
+.registro-nota-aspecto input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 8px;
+  font-weight: 800;
+}
+
+.registro-aspecto-card label {
+  display: grid;
+  gap: 5px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.registro-instrumentos-table th {
+  min-width: 150px;
+}
+
+.registro-nota-aspecto {
+  display: grid;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.registro-nota-aspecto button {
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
 @keyframes ia-blink { 0%,100%{opacity:1} 50%{opacity:0} }

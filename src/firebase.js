@@ -779,6 +779,250 @@ export const eliminarInstrumentoFirestore = async (id) => {
   }
 };
 
+// ─── Aspectos, notas y evidencias del Registro por curso ─────────────────────
+
+const REGISTRO_ASPECTOS_PREFIX = "docenteos_registro_aspectos_v1";
+const REGISTRO_NOTAS_PREFIX = "docenteos_registro_notas_v1";
+const EVIDENCIAS_CURSO_PREFIX = "docenteos_evidencias_curso_v1";
+
+const normalizarTextoClave = (texto = "") =>
+  String(texto || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+const leerMapaLocal = (clave) => {
+  try {
+    return JSON.parse(localStorage.getItem(clave) || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const guardarMapaLocal = (clave, mapa) => {
+  try {
+    localStorage.setItem(clave, JSON.stringify(mapa));
+  } catch {
+    // localStorage es respaldo, no debe bloquear la app.
+  }
+};
+
+const registroAspectosKey = (cursoId) => `${REGISTRO_ASPECTOS_PREFIX}:${cursoId}`;
+const registroNotasKey = (cursoId) => `${REGISTRO_NOTAS_PREFIX}:${cursoId}`;
+const evidenciasCursoKey = (cursoId) => `${EVIDENCIAS_CURSO_PREFIX}:${cursoId}`;
+
+export const crearAspectoIdDesdeInstrumento = (instrumento = {}) =>
+  String(instrumento.aspectoId || instrumento.instrumentoId || instrumento.id || normalizarTextoClave(instrumento.nombre || instrumento.tipo || Date.now()));
+
+export const guardarRegistroAspecto = async (aspecto) => {
+  if (!aspecto?.cursoId) throw new Error("cursoId es obligatorio");
+  const aspectoId = String(aspecto.aspectoId || aspecto.id || normalizarTextoClave(aspecto.nombre || Date.now()));
+  const ahora = new Date().toISOString();
+  const payload = {
+    ...aspecto,
+    aspectoId,
+    id: aspectoId,
+    estado: aspecto.estado || "activo",
+    origen: aspecto.origen || "manual",
+    editable: aspecto.editable ?? true,
+    modificadoManual: Boolean(aspecto.modificadoManual),
+    fechaCreacion: aspecto.fechaCreacion || ahora,
+    fechaActualizacion: ahora,
+  };
+
+  const localKey = registroAspectosKey(payload.cursoId);
+  const locales = leerMapaLocal(localKey);
+  guardarMapaLocal(localKey, { ...locales, [aspectoId]: payload });
+
+  if (isFirebaseConfigured && auth && db && auth.currentUser) {
+    const uid = auth.currentUser.uid;
+    const ref = doc(db, "usuarios", uid, "cursos", String(payload.cursoId), "registroAspectos", aspectoId);
+    await setDoc(
+      ref,
+      {
+        ...payload,
+        uid,
+        actualizadoEn: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return { success: true, mode: "firebase", data: payload };
+  }
+
+  return { success: true, mode: "local", data: payload };
+};
+
+export const guardarRegistroAspectoDesdeInstrumento = async (instrumento) => {
+  const cursoId = instrumento?.cursoId || instrumento?.vinculacion?.cursoId;
+  if (!cursoId) throw new Error("cursoId es obligatorio");
+  const aspectoId = crearAspectoIdDesdeInstrumento(instrumento);
+  return guardarRegistroAspecto({
+    aspectoId,
+    cursoId,
+    planificacionId: instrumento.planificacionId || instrumento.vinculacion?.planificacionId || "",
+    instrumentoId: instrumento.id || instrumento.instrumentoId || aspectoId,
+    nombre: instrumento.nombre || instrumento.tipo || "Instrumento",
+    tipoInstrumento: instrumento.tipo || "",
+    puntajeMaximo: Number(instrumento.puntajeMaximo || instrumento.valorMaximo) || 100,
+    pesoPorcentaje: instrumento.pesoPorcentaje || null,
+    origen: "instrumento",
+    indicadores: instrumento.indicadores || instrumento.vinculacion?.indicadoresLogro || [instrumento.indicador].filter(Boolean),
+    estado: instrumento.estado === "Inactivo" ? "inactivo" : "activo",
+    editable: true,
+    modificadoManual: false,
+    orden: Number(instrumento.orden) || 0,
+    competencia: instrumento.competencia || instrumento.vinculacion?.competenciaEspecifica || "",
+    periodo: instrumento.periodo || instrumento.vinculacion?.periodo || "",
+  });
+};
+
+export const obtenerRegistroAspectos = async (cursoId) => {
+  if (!cursoId) return { success: true, mode: "local", data: [] };
+  const locales = Object.values(leerMapaLocal(registroAspectosKey(cursoId)));
+  try {
+    if (isFirebaseConfigured && auth && db && auth.currentUser) {
+      const uid = auth.currentUser.uid;
+      const snap = await getDocs(collection(db, "usuarios", uid, "cursos", String(cursoId), "registroAspectos"));
+      const data = snap.docs.map((d) => ({ ...d.data(), id: d.id, aspectoId: d.id }));
+      return { success: true, mode: "firebase", data: data.length ? data : locales };
+    }
+    return { success: true, mode: "local", data: locales };
+  } catch (error) {
+    console.error("Error al obtener aspectos del registro:", error);
+    return { success: false, mode: "local", data: locales };
+  }
+};
+
+export const guardarRegistroNota = async (nota) => {
+  if (!nota?.cursoId) throw new Error("cursoId es obligatorio");
+  if (!nota?.estudianteId) throw new Error("estudianteId es obligatorio");
+  if (!nota?.aspectoId) throw new Error("aspectoId es obligatorio");
+  const notaId = String(nota.notaId || `${nota.estudianteId}_${nota.aspectoId}`);
+  const puntajeMaximo = Number(nota.puntajeMaximo) || 0;
+  const valorObtenido = nota.valorObtenido === "" || nota.valorObtenido === null || nota.valorObtenido === undefined
+    ? ""
+    : Number(nota.valorObtenido);
+  const porcentaje = puntajeMaximo > 0 && valorObtenido !== "" ? Math.round((Number(valorObtenido) / puntajeMaximo) * 100) : null;
+  const payload = {
+    ...nota,
+    notaId,
+    id: notaId,
+    valorObtenido,
+    puntajeMaximo,
+    porcentaje,
+    fechaActualizacion: new Date().toISOString(),
+  };
+
+  const localKey = registroNotasKey(payload.cursoId);
+  const locales = leerMapaLocal(localKey);
+  guardarMapaLocal(localKey, { ...locales, [notaId]: payload });
+
+  if (isFirebaseConfigured && auth && db && auth.currentUser) {
+    const uid = auth.currentUser.uid;
+    const ref = doc(db, "usuarios", uid, "cursos", String(payload.cursoId), "registroNotas", notaId);
+    await setDoc(
+      ref,
+      {
+        ...payload,
+        uid,
+        actualizadoPor: uid,
+        actualizadoEn: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return { success: true, mode: "firebase", data: payload };
+  }
+
+  return { success: true, mode: "local", data: payload };
+};
+
+export const obtenerRegistroNotas = async (cursoId) => {
+  if (!cursoId) return { success: true, mode: "local", data: [] };
+  const locales = Object.values(leerMapaLocal(registroNotasKey(cursoId)));
+  try {
+    if (isFirebaseConfigured && auth && db && auth.currentUser) {
+      const uid = auth.currentUser.uid;
+      const snap = await getDocs(collection(db, "usuarios", uid, "cursos", String(cursoId), "registroNotas"));
+      const data = snap.docs.map((d) => ({ ...d.data(), id: d.id, notaId: d.id }));
+      return { success: true, mode: "firebase", data: data.length ? data : locales };
+    }
+    return { success: true, mode: "local", data: locales };
+  } catch (error) {
+    console.error("Error al obtener notas por aspecto:", error);
+    return { success: false, mode: "local", data: locales };
+  }
+};
+
+export const guardarEvidenciaEstudiante = async (evidencia) => {
+  if (!evidencia?.cursoId) throw new Error("cursoId es obligatorio");
+  if (!evidencia?.estudianteId) throw new Error("estudianteId es obligatorio");
+  const evidenciaId = String(evidencia.evidenciaId || evidencia.id || normalizarTextoClave([
+    evidencia.estudianteId,
+    evidencia.instrumentoId,
+    evidencia.aspectoId,
+    evidencia.fecha || Date.now(),
+  ].filter(Boolean).join("-")));
+  const ahora = new Date().toISOString();
+  const payload = {
+    ...evidencia,
+    evidenciaId,
+    id: evidenciaId,
+    origen: evidencia.origen || "manual",
+    creadoEn: evidencia.creadoEn || ahora,
+    actualizadoEn: ahora,
+  };
+
+  const localKey = evidenciasCursoKey(payload.cursoId);
+  const locales = leerMapaLocal(localKey);
+  guardarMapaLocal(localKey, { ...locales, [evidenciaId]: payload });
+
+  if (isFirebaseConfigured && auth && db && auth.currentUser) {
+    const uid = auth.currentUser.uid;
+    const refs = [
+      doc(db, "usuarios", uid, "cursos", String(payload.cursoId), "estudiantes", String(payload.estudianteId), "evidencias", evidenciaId),
+      doc(db, "usuarios", uid, "evidenciasPedagogicas", evidenciaId),
+    ];
+    await Promise.all(refs.map((ref) => setDoc(
+      ref,
+      {
+        ...payload,
+        creadoPor: payload.creadoPor || uid,
+        uid,
+        actualizadoEn: serverTimestamp(),
+      },
+      { merge: true }
+    )));
+    return { success: true, mode: "firebase", data: payload };
+  }
+
+  return { success: true, mode: "local", data: payload };
+};
+
+export const obtenerEvidenciasCurso = async (cursoId) => {
+  if (!cursoId) return { success: true, mode: "local", data: [] };
+  const locales = Object.values(leerMapaLocal(evidenciasCursoKey(cursoId)));
+  try {
+    if (isFirebaseConfigured && auth && db && auth.currentUser) {
+      const uid = auth.currentUser.uid;
+      const snap = await getDocs(query(
+        collection(db, "usuarios", uid, "evidenciasPedagogicas"),
+        where("cursoId", "==", String(cursoId)),
+        limit(500)
+      ));
+      const data = snap.docs.map((d) => ({ ...d.data(), id: d.id, evidenciaId: d.id }));
+      return { success: true, mode: "firebase", data: data.length ? data : locales };
+    }
+    return { success: true, mode: "local", data: locales };
+  } catch (error) {
+    console.error("Error al obtener evidencias del curso:", error);
+    return { success: false, mode: "local", data: locales };
+  }
+};
+
 // ─── Persistencia definitiva por usuario (preferencias/estado IA/auditoría) ─
 
 const PREFERENCIAS_KEY = "docenteos_preferencias_v1";

@@ -1,5 +1,14 @@
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { auth, db, guardarRegistroCalificaciones, obtenerRegistroCalificaciones } from "../firebase";
+import {
+  auth,
+  db,
+  crearAspectoIdDesdeInstrumento,
+  guardarEvidenciaEstudiante,
+  guardarRegistroAspectoDesdeInstrumento,
+  guardarRegistroCalificaciones,
+  guardarRegistroNota,
+  obtenerRegistroCalificaciones,
+} from "../firebase";
 import { estudianteDocId } from "./expedienteEstudianteService";
 
 const VALOR_INSTRUMENTO = {
@@ -63,6 +72,7 @@ export const crearReferenciasPedagogicas = ({ instrumento, aplicacion, cursoIdRe
   const evaluacionId = crearEvaluacionIdPedagogica(instrumento);
   return {
     evaluacionId,
+    aspectoId: instrumento.aspectoId || crearAspectoIdDesdeInstrumento(instrumento),
     planificacionId: instrumento.planificacionId || instrumento.curriculoId || "",
     estrategiaId: instrumento.estrategiaId || instrumento.vinculacion?.estrategiaId || "",
     actividadId: instrumento.actividadId || instrumento.vinculacion?.actividadId || "",
@@ -81,20 +91,41 @@ const crearEvidenciaDesdeEvaluacion = ({ instrumento, aplicacion, cursoIdRegistr
     referencias.estudianteId,
   ].filter(Boolean).join("_");
 
+  const valorMaximo = Number(aplicacion.valorMaximo) || Number(instrumento.valorMaximo) || VALOR_INSTRUMENTO[instrumento.tipo] || 100;
+  const valorObtenido = Number(aplicacion.puntosObtenidos) || 0;
+
   return {
     id: evidenciaId,
-    tipo: "evaluacion-instrumento",
+    evidenciaId,
+    estudianteId: aplicacion.estudianteId,
+    cursoId: cursoIdRegistro,
+    planificacionId: referencias.planificacionId,
+    instrumentoId: referencias.instrumentoId,
+    aspectoId: referencias.aspectoId,
+    titulo: instrumento.nombre || instrumento.tipo || "Evidencia evaluada",
+    descripcion: aplicacion.observacion || `Evidencia generada desde ${instrumento.nombre || instrumento.tipo || "instrumento"}.`,
+    tipo: "otro",
     fuente: "planificacion",
+    origen: "instrumento",
     referencias,
     estudiante: {
       id: aplicacion.estudianteId,
       nombre: aplicacion.estudiante,
     },
     calificacion: {
-      obtenida: Number(aplicacion.puntosObtenidos) || 0,
-      valorMaximo: Number(aplicacion.valorMaximo) || Number(instrumento.valorMaximo) || VALOR_INSTRUMENTO[instrumento.tipo] || 100,
+      obtenida: valorObtenido,
+      valorObtenido,
+      valorMaximo,
+      puntajeMaximo: valorMaximo,
       porcentaje: Number(aplicacion.porcentajeObtenido) || 0,
     },
+    puntajeMaximo: valorMaximo,
+    indicadores: instrumento.indicadores || instrumento.vinculacion?.indicadoresLogro || [instrumento.indicador].filter(Boolean),
+    competencia: instrumento.competencia || instrumento.vinculacion?.competenciaEspecifica || "",
+    periodo: instrumento.periodo || aplicacion.periodo || "",
+    unidad: instrumento.unidad || "",
+    tema: instrumento.actividad || instrumento.nombre || "",
+    observacionDocente: aplicacion.observacion || aplicacion.retroalimentacion || "",
     retroalimentacion: aplicacion.observacion || aplicacion.retroalimentacion || "",
     adjuntos: aplicacion.adjuntos || [],
     detalleAplicacion: aplicacion.detalle || {},
@@ -113,6 +144,7 @@ const crearEvidenciaDesdeEvaluacion = ({ instrumento, aplicacion, cursoIdRegistr
       ],
     },
     fecha: aplicacion.fecha || new Date().toISOString(),
+    creadoEn: aplicacion.fecha || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 };
@@ -221,6 +253,7 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
   const evaluacionId = crearEvaluacionIdPedagogica(instrumento);
   const referencias = crearReferenciasPedagogicas({ instrumento, aplicacion, cursoIdRegistro });
   const evidencia = crearEvidenciaDesdeEvaluacion({ instrumento, aplicacion, cursoIdRegistro });
+  const aspectoId = evidencia.aspectoId;
 
   const evaluacionBase = evaluacionesActuales[evaluacionId] || {
     id: evaluacionId,
@@ -279,10 +312,11 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
         nombre: aplicacion.estudiante,
         instrumentos: {
           ...(estudiantePrevio.instrumentos || {}),
-          [instrumento.id]: {
-            ...aplicacion,
-            evidenciaId: evidencia.id,
-            referencias,
+        [instrumento.id]: {
+          ...aplicacion,
+          aspectoId,
+          evidenciaId: evidencia.id,
+          referencias,
           },
         },
       },
@@ -362,6 +396,21 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
   });
 
   guardarEvidenciaLocal(cursoIdRegistro, evidencia);
+  await Promise.allSettled([
+    guardarRegistroAspectoDesdeInstrumento({ ...instrumento, aspectoId }),
+    guardarRegistroNota({
+      cursoId: cursoIdRegistro,
+      estudianteId: aplicacion.estudianteId,
+      aspectoId,
+      instrumentoId: instrumento.id,
+      valorObtenido: aplicacion.puntosObtenidos,
+      puntajeMaximo: Number(aplicacion.valorMaximo) || Number(instrumento.valorMaximo) || VALOR_INSTRUMENTO[instrumento.tipo] || 100,
+      porcentaje: aplicacion.porcentajeObtenido,
+      observacion: aplicacion.observacion || "",
+      fechaActualizacion: aplicacion.fecha || new Date().toISOString(),
+    }),
+    guardarEvidenciaEstudiante(evidencia),
+  ]);
   await Promise.allSettled([
     guardarEvidenciaFirestore(evidencia),
     actualizarExpedienteConEvidencia({

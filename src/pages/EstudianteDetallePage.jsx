@@ -10,7 +10,7 @@ const EVALUACIONES_BASE_DETALLE = [];
 const PLAN_APOYO_BASE_DETALLE = [];
 
 function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "Resumen", onTabChange = () => {} }) {
-  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Asistencia", "Intervenciones", "Informe IA"];
+  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Evidencias", "Asistencia", "Intervenciones", "Informe IA"];
   const [tabActiva, setTabActiva] = useState(initialTab);
   const [periodoActual, setPeriodoActual] = useState(2);
   const [estadoPlan, setEstadoPlan] = useState("Pendiente de iniciar");
@@ -85,6 +85,16 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   const informeIaBase = "El estudiante presenta una combinacion de fortalezas en Ciencias y oportunidades de mejora en Matematica. Se recomienda andamiaje por objetivos semanales y acompanamiento familiar continuo.";
   // Usar evaluaciones del expediente Firestore si existen, si no el estado local vacío
   const evaluacionesExpediente = expediente?.evaluaciones ?? [];
+  const evidenciasExpediente = useMemo(() => expediente?.evidencias ?? [], [expediente?.evidencias]);
+  const indicadoresEvidencias = useMemo(() => {
+    const conteo = new Map();
+    evidenciasExpediente.forEach((evidencia) => {
+      (evidencia.indicadores || evidencia.contexto?.indicadores || []).forEach((indicador) => {
+        conteo.set(indicador, (conteo.get(indicador) || 0) + 1);
+      });
+    });
+    return Array.from(conteo.entries()).sort((a, b) => b[1] - a[1]);
+  }, [evidenciasExpediente]);
   const [evaluacionesLocales, setEvaluacionesLocales] = useState(EVALUACIONES_BASE_DETALLE);
   const evaluaciones = evaluacionesExpediente.length > 0 ? evaluacionesExpediente : evaluacionesLocales;
   const setEvaluaciones = setEvaluacionesLocales;
@@ -333,6 +343,30 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
               <p key={idx}>{ev.fecha} · {ev.actividad} · {ev.calificacion}</p>
             ))
         }
+      </div>
+    ),
+    "Evidencias": (
+      <div className="detalle-tab-lista">
+        <p><strong>Total de evidencias:</strong> {evidenciasExpediente.length}</p>
+        {evidenciasExpediente.length === 0 ? (
+          <p className="detalle-sin-datos">Sin evidencias registradas todavía. Al calificar instrumentos, DocenteOS creará evidencias automáticamente.</p>
+        ) : (
+          evidenciasExpediente.slice(0, 8).map((evidencia) => (
+            <p key={evidencia.id || evidencia.evidenciaId}>
+              {new Date(evidencia.fecha || evidencia.creadoEn || "2026-01-01").toLocaleDateString("es-DO")} ·
+              {" "}{evidencia.actividad || evidencia.titulo || evidencia.instrumento || "Evidencia"} ·
+              {" "}{evidencia.calificacion?.obtenida ?? evidencia.calificacion ?? "—"}/{evidencia.calificacion?.valorMaximo ?? evidencia.puntajeMaximo ?? "—"}
+            </p>
+          ))
+        )}
+        {indicadoresEvidencias.length > 0 && (
+          <div>
+            <h4>Indicadores más trabajados</h4>
+            {indicadoresEvidencias.slice(0, 5).map(([indicador, total]) => (
+              <p key={indicador}>{indicador} · {total} evidencia(s)</p>
+            ))}
+          </div>
+        )}
       </div>
     ),
     "Asistencia": (

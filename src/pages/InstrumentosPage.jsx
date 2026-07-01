@@ -4,6 +4,7 @@ import {
   guardarInstrumentoFirestore,
   obtenerInstrumentosFirestore,
   eliminarInstrumentoFirestore,
+  guardarRegistroAspectoDesdeInstrumento,
 } from "../firebase";
 import { sincronizarEvaluacionPedagogica } from "../services/nucleoPedagogicoService.js";
 import { AIService } from "../services/ai/AIService";
@@ -648,6 +649,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
       return existe ? prev.map((item) => (item.id === instrumento.id ? instrumento : item)) : [instrumento, ...prev];
     });
     guardarInstrumentoFirestore(instrumento).catch((err) => console.error("[Instrumentos] Error al guardar:", err));
+    guardarRegistroAspectoDesdeInstrumento(instrumento).catch((err) => console.error("[Instrumentos] Error al crear aspecto:", err));
     EventTracker.track(LEARNING_EVENTS.INSTRUMENTO_ACEPTADO, {
       agentId: AGENT_IDS.GENERADOR_INSTRUMENTOS,
       area:       instrumento.area ?? null,
@@ -657,7 +659,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
       metadata:   { tipoInstrumento: instrumento.tipo }
     });
     setModal(null);
-    setMensaje({ tipo: "success", texto: "Instrumento guardado y listo para usar." });
+    setMensaje({ tipo: "success", texto: "Instrumento guardado y conectado al Registro." });
     setTimeout(() => setMensaje(null), 2000);
   };
 

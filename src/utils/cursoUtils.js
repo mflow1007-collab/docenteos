@@ -100,4 +100,36 @@ function enriquecerCursoInicial(curso, indice = 0) {
   };
 }
 
-export { NOMBRES_DEMO, generarNombreEstudiante, generarEstudiantesDetalle, enriquecerCursoInicial };
+function aplicarRegistroACurso(curso, registro) {
+  if (!registro) return curso;
+  const estudiantesDetalle = (curso.estudiantesDetalle?.length ? curso.estudiantesDetalle : generarEstudiantesDetalle(curso)).map((estudiante) => {
+    const notas = registro.notasEstudiantes?.[estudiante.id];
+    if (!notas?.competencias) return estudiante;
+    const finales = notas.competencias.flatMap((comp) =>
+      (comp.periodos || []).map((periodo) => {
+        const p = Number(periodo.p) || 0;
+        const rp = Number(periodo.rp) || 0;
+        return p >= 70 ? p : rp > 0 ? rp : p;
+      })
+    ).filter((valor) => valor > 0);
+    if (!finales.length) return estudiante;
+    return {
+      ...estudiante,
+      promedio: Math.round(finales.reduce((total, valor) => total + valor, 0) / finales.length),
+    };
+  });
+  const promedios = estudiantesDetalle.map((est) => est.promedio).filter((valor) => typeof valor === "number" && !Number.isNaN(valor));
+  const promedio = promedios.length
+    ? Math.round(promedios.reduce((total, valor) => total + valor, 0) / promedios.length)
+    : curso.promedio;
+
+  return enriquecerCursoInicial({
+    ...curso,
+    estudiantesDetalle,
+    estudiantes: estudiantesDetalle.length || curso.estudiantes,
+    promedio,
+    resumenRegistro: registro.resumenEvaluacionesInstrumentos || null,
+  });
+}
+
+export { NOMBRES_DEMO, generarNombreEstudiante, generarEstudiantesDetalle, enriquecerCursoInicial, aplicarRegistroACurso };

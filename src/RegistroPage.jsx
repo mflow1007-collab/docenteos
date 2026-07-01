@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { guardarRegistroCalificaciones, obtenerRegistroCalificaciones } from "./firebase";
+import {
+  guardarEvidenciaEstudiante,
+  guardarRegistroAspecto,
+  guardarRegistroCalificaciones,
+  guardarRegistroNota,
+  obtenerEvidenciasCurso,
+  obtenerRegistroAspectos,
+  obtenerRegistroCalificaciones,
+  obtenerRegistroNotas,
+} from "./firebase";
 import { escribirExpedienteDesdeRegistro } from "./services/expedienteEstudianteService.js";
 import { useAuth } from "./context/AuthContext.jsx";
 import { AIService } from "./services/ai/AIService.js";
@@ -294,6 +303,11 @@ function RegistroPage({
   const [observaciones, setObservaciones] = useState({});
   const [notasEstudiantes, setNotasEstudiantes] = useState({});
   const [evaluacionesInstrumentos, setEvaluacionesInstrumentos] = useState({});
+  const [registroAspectos, setRegistroAspectos] = useState([]);
+  const [registroNotas, setRegistroNotas] = useState({});
+  const [evidenciasCurso, setEvidenciasCurso] = useState([]);
+  const [estadoNotasAspectos, setEstadoNotasAspectos] = useState("idle");
+  const notasPendientesRef = useRef({});
   const [guardando, setGuardando] = useState(false);
   const [mensajeGuardado, setMensajeGuardado] = useState(null);
 
@@ -388,6 +402,56 @@ function RegistroPage({
         registroCargadoRef.current = true;
       });
   }, [cursoId, draftKey]);
+
+  useEffect(() => {
+    if (!cursoId) return;
+    let activo = true;
+
+    Promise.all([
+      obtenerRegistroAspectos(cursoId),
+      obtenerRegistroNotas(cursoId),
+      obtenerEvidenciasCurso(cursoId),
+    ]).then(([aspectosRes, notasRes, evidenciasRes]) => {
+      if (!activo) return;
+      const aspectos = (aspectosRes.data || []).sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
+      const notas = Object.fromEntries((notasRes.data || []).map((nota) => [nota.notaId || `${nota.estudianteId}_${nota.aspectoId}`, nota]));
+      setRegistroAspectos(aspectos);
+      setRegistroNotas(notas);
+      setEvidenciasCurso(evidenciasRes.data || []);
+    }).catch(() => {
+      if (activo) {
+        setRegistroAspectos([]);
+        setRegistroNotas({});
+        setEvidenciasCurso([]);
+      }
+    });
+
+    return () => {
+      activo = false;
+    };
+  }, [cursoId]);
+
+  useEffect(() => {
+    const pendientes = Object.values(notasPendientesRef.current);
+    if (!pendientes.length) return undefined;
+
+    setEstadoNotasAspectos("saving");
+    const timer = setTimeout(async () => {
+      const lote = Object.values(notasPendientesRef.current);
+      notasPendientesRef.current = {};
+      try {
+        await Promise.all(lote.map((nota) => guardarRegistroNota(nota)));
+        setEstadoNotasAspectos("saved");
+      } catch {
+        lote.forEach((nota) => {
+          notasPendientesRef.current[nota.notaId] = nota;
+        });
+        setEstadoNotasAspectos("error");
+      }
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, [registroNotas]);
 
   useEffect(() => {
     if (!cursoId || !registroCargadoRef.current) return;
@@ -506,6 +570,130 @@ function RegistroPage({
       ...prev,
       [estudianteId]: texto,
     }));
+  };
+
+  const aspectosActivos = useMemo(
+    () => registroAspectos.filter((aspecto) => (aspecto.estado || "activo") === "activo"),
+    [registroAspectos]
+  );
+
+  const totalAspectosActivos = useMemo(
+    () => aspectosActivos.reduce((total, aspecto) => total + (Number(aspecto.puntajeMaximo) || 0), 0),
+    [aspectosActivos]
+  );
+
+  const mensajeDistribucionAspectos = useMemo(() => {
+    if (totalAspectosActivos === 100) return { tipo: "ok", texto: "Distribución completa: 100 puntos" };
+    if (totalAspectosActivos < 100) return { tipo: "warn", texto: `Faltan ${100 - totalAspectosActivos} puntos para completar 100` };
+    return { tipo: "error", texto: "La suma de instrumentos supera los 100 puntos. Ajusta los valores." };
+  }, [totalAspectosActivos]);
+
+  const obtenerNotaAspecto = (estudianteId, aspectoId) =>
+    registroNotas[`${estudianteId}_${aspectoId}`] || null;
+
+  const calcularTotalInstrumental = (estudianteId) => {
+    const notas = aspectosActivos.map((aspecto) => obtenerNotaAspecto(estudianteId, aspecto.aspectoId));
+    const notasValidas = notas.filter((nota) => nota && nota.valorObtenido !== "" && nota.valorObtenido !== null && nota.valorObtenido !== undefined);
+    const pendientes = aspectosActivos.length - notasValidas.length;
+    const totalObtenido = notasValidas.reduce((total, nota) => total + (Number(nota.valorObtenido) || 0), 0);
+    const totalMaximo = aspectosActivos.reduce((total, aspecto) => total + (Number(aspecto.puntajeMaximo) || 0), 0);
+    const porcentaje = totalMaximo > 0 ? Math.round((totalObtenido / totalMaximo) * 100) : 0;
+    return { totalObtenido, totalMaximo, porcentaje, pendientes };
+  };
+
+  const actualizarNotaAspecto = (estudiante, aspecto, valor) => {
+    const notaId = `${estudiante.id}_${aspecto.aspectoId}`;
+    const valorObtenido = valor === "" ? "" : Math.min(Number(aspecto.puntajeMaximo) || 0, Math.max(0, Number(valor) || 0));
+    const nota = {
+      notaId,
+      cursoId,
+      estudianteId: estudiante.id,
+      aspectoId: aspecto.aspectoId,
+      instrumentoId: aspecto.instrumentoId || "",
+      valorObtenido,
+      puntajeMaximo: Number(aspecto.puntajeMaximo) || 0,
+      porcentaje: valorObtenido === "" || !Number(aspecto.puntajeMaximo) ? null : Math.round((Number(valorObtenido) / Number(aspecto.puntajeMaximo)) * 100),
+      observacion: registroNotas[notaId]?.observacion || "",
+      fechaActualizacion: new Date().toISOString(),
+    };
+    notasPendientesRef.current[notaId] = nota;
+    setRegistroNotas((prev) => ({ ...prev, [notaId]: nota }));
+  };
+
+  const actualizarAspecto = (aspectoId, campo, valor) => {
+    const siguiente = registroAspectos.map((aspecto) => (
+      aspecto.aspectoId !== aspectoId
+        ? aspecto
+        : {
+            ...aspecto,
+            [campo]: campo === "puntajeMaximo" || campo === "orden" ? Number(valor) || 0 : valor,
+            modificadoManual: true,
+            fechaActualizacion: new Date().toISOString(),
+          }
+    ));
+    setRegistroAspectos(siguiente);
+    const aspecto = siguiente.find((item) => item.aspectoId === aspectoId);
+    if (aspecto) guardarRegistroAspecto(aspecto).catch(() => {});
+  };
+
+  const crearAspectoManual = () => {
+    const aspectoId = `manual-${Date.now()}`;
+    const aspecto = {
+      aspectoId,
+      cursoId,
+      planificacionId: "",
+      instrumentoId: "",
+      nombre: "Nuevo aspecto manual",
+      tipoInstrumento: "manual",
+      puntajeMaximo: 10,
+      origen: "manual",
+      indicadores: [],
+      estado: "activo",
+      editable: true,
+      modificadoManual: true,
+      orden: registroAspectos.length + 1,
+      fechaCreacion: new Date().toISOString(),
+      fechaActualizacion: new Date().toISOString(),
+    };
+    setRegistroAspectos((prev) => [...prev, aspecto]);
+    guardarRegistroAspecto(aspecto).catch(() => {});
+  };
+
+  const crearEvidenciaDesdeNota = (estudiante, aspecto) => {
+    const nota = obtenerNotaAspecto(estudiante.id, aspecto.aspectoId);
+    if (!nota || nota.valorObtenido === "" || nota.valorObtenido === null || nota.valorObtenido === undefined) {
+      setMensajeGuardado({ tipo: "error", texto: "Primero registra una calificación para crear la evidencia." });
+      setTimeout(() => setMensajeGuardado(null), 3500);
+      return;
+    }
+    const evidencia = {
+      evidenciaId: `${cursoId}_${estudiante.id}_${aspecto.aspectoId}`,
+      estudianteId: estudiante.id,
+      cursoId,
+      planificacionId: aspecto.planificacionId || "",
+      instrumentoId: aspecto.instrumentoId || "",
+      aspectoId: aspecto.aspectoId,
+      titulo: aspecto.nombre,
+      descripcion: `${estudiante.nombre} obtuvo ${nota.valorObtenido}/${aspecto.puntajeMaximo} en ${aspecto.nombre}.`,
+      tipo: "otro",
+      fecha: new Date().toISOString(),
+      periodo: aspecto.periodo || periodo || "",
+      unidad: "",
+      tema: aspecto.nombre,
+      indicadores: aspecto.indicadores || [],
+      competencia: aspecto.competencia || "",
+      calificacion: nota.valorObtenido,
+      puntajeMaximo: aspecto.puntajeMaximo,
+      observacionDocente: nota.observacion || "",
+      origen: aspecto.origen === "instrumento" ? "instrumento" : "manual",
+    };
+    guardarEvidenciaEstudiante(evidencia)
+      .then(({ data }) => {
+        setEvidenciasCurso((prev) => [data, ...prev.filter((item) => item.evidenciaId !== data.evidenciaId)]);
+        setMensajeGuardado({ tipo: "ok", texto: "Evidencia creada en el banco anual del estudiante." });
+      })
+      .catch(() => setMensajeGuardado({ tipo: "error", texto: "No fue posible crear la evidencia." }))
+      .finally(() => setTimeout(() => setMensajeGuardado(null), 3500));
   };
 
   const renderBold = (text) => {
@@ -851,7 +1039,7 @@ function RegistroPage({
       </section>
 
       <section className="registro-tabs">
-        {["Asistencia", "Competencias", "Indicadores", "Aspectos", "Evaluaciones", "Calificaciones", "Resumen"].map((tab) => (
+        {["Asistencia", "Competencias", "Indicadores", "Aspectos", "Instrumentos", "Evaluaciones", "Calificaciones", "Resumen"].map((tab) => (
           <button
             key={tab}
             type="button"
@@ -1302,6 +1490,116 @@ function RegistroPage({
             📌 El MINERD indica: <em>"Los aspectos esenciales de la planificación, su ejecución y evaluación
             ofrecen los insumos que se utilizarán para las precisiones curriculares."</em>
           </p>
+        </section>
+      )}
+
+      {tabActiva === "Instrumentos" && (
+        <section className="registro-panel">
+          <div className="registro-section-head">
+            <h2>Instrumentos y aspectos evaluables</h2>
+            <p>Columnas automáticas creadas desde instrumentos, con edición manual y autoguardado de notas.</p>
+          </div>
+
+          <div className={`registro-distribucion ${mensajeDistribucionAspectos.tipo}`}>
+            <strong>{mensajeDistribucionAspectos.texto}</strong>
+            <span>Total activo: {totalAspectosActivos}/100 puntos</span>
+            <span>Banco anual: {evidenciasCurso.length} evidencia(s)</span>
+            <button type="button" className="mini-btn" onClick={crearAspectoManual}>Agregar aspecto manual</button>
+            <small>
+              {estadoNotasAspectos === "saving" && "Guardando..."}
+              {estadoNotasAspectos === "saved" && "Guardado"}
+              {estadoNotasAspectos === "error" && "Error al guardar"}
+            </small>
+          </div>
+
+          {registroAspectos.length === 0 ? (
+            <div className="registro-empty-state">
+              <strong>No hay aspectos evaluables todavía.</strong>
+              <p>Crea un instrumento desde Instrumentos o agrega un aspecto manual para iniciar el registro.</p>
+            </div>
+          ) : (
+            <>
+              <div className="registro-aspectos-editor">
+                {registroAspectos.map((aspecto) => (
+                  <article key={aspecto.aspectoId} className="registro-aspecto-card">
+                    <span>{aspecto.origen === "instrumento" ? "Instrumento" : "Manual"}</span>
+                    <input
+                      value={aspecto.nombre || ""}
+                      onChange={(e) => actualizarAspecto(aspecto.aspectoId, "nombre", e.target.value)}
+                      aria-label="Nombre del aspecto"
+                    />
+                    <label>
+                      Puntos
+                      <input
+                        type="number"
+                        min="0"
+                        value={aspecto.puntajeMaximo || 0}
+                        onChange={(e) => actualizarAspecto(aspecto.aspectoId, "puntajeMaximo", e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Estado
+                      <select value={aspecto.estado || "activo"} onChange={(e) => actualizarAspecto(aspecto.aspectoId, "estado", e.target.value)}>
+                        <option value="activo">Activo</option>
+                        <option value="inactivo">Inactivo</option>
+                      </select>
+                    </label>
+                  </article>
+                ))}
+              </div>
+
+              <div className="registro-table-scroll">
+                <table className="registro-table registro-instrumentos-table">
+                  <thead>
+                    <tr>
+                      <th className="sticky-name">Estudiante</th>
+                      {aspectosActivos.map((aspecto) => (
+                        <th key={aspecto.aspectoId}>
+                          {aspecto.nombre}
+                          <br />
+                          <small>{aspecto.puntajeMaximo} pts</small>
+                        </th>
+                      ))}
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {estudiantes.map((estudiante) => {
+                      const total = calcularTotalInstrumental(estudiante.id);
+                      return (
+                        <tr key={estudiante.id}>
+                          <td className="sticky-name">{estudiante.nombre}</td>
+                          {aspectosActivos.map((aspecto) => {
+                            const nota = obtenerNotaAspecto(estudiante.id, aspecto.aspectoId);
+                            return (
+                              <td key={aspecto.aspectoId}>
+                                <div className="registro-nota-aspecto">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={aspecto.puntajeMaximo || 0}
+                                    value={nota?.valorObtenido ?? ""}
+                                    placeholder="Pendiente"
+                                    onChange={(e) => actualizarNotaAspecto(estudiante, aspecto, e.target.value)}
+                                  />
+                                  <button type="button" onClick={() => crearEvidenciaDesdeNota(estudiante, aspecto)}>Evidencia</button>
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td className={total.porcentaje >= 70 ? "rs-nota-ok" : total.porcentaje > 0 ? "rs-nota-risk" : ""}>
+                            <strong>{total.totalObtenido}/{total.totalMaximo}</strong>
+                            <br />
+                            <small>{total.pendientes > 0 ? `${total.pendientes} pendiente(s)` : `${total.porcentaje}%`}</small>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </section>
       )}
 
