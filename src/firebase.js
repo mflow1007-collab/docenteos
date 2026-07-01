@@ -178,27 +178,14 @@ export const guardarHorarioCurso = async ({ cursoId, horario }) => {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const user = auth.currentUser;
       const ref = doc(db, "horariosCursos", `${user.uid}_${cursoId}`);
-      const previo = await getDoc(ref);
-      const payload = {
+      await setDoc(ref, {
         cursoId,
         usuario: user.uid,
         horario,
+        ...buildMetaBase(user.uid),
         updatedAt: serverTimestamp(),
-        actualizadoEn: serverTimestamp(),
-      };
-      if (previo.exists()) {
-        await updateDoc(ref, payload);
-      } else {
-        await setDoc(
-          ref,
-          {
-            ...payload,
-            ...buildMetaBase(user.uid),
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
+        createdAt: serverTimestamp(),
+      }, { merge: true });
       return { success: true, mode: "firebase" };
     }
 
@@ -249,7 +236,7 @@ export const guardarPlanificacionDetallada = async (planificacion) => {
         curso,
         area,
         periodo: meta.periodo || "Período no definido",
-        tema: meta.tema || "Tema no definido",
+        tema: meta.tema || meta.titulo || "Tema no definido",
         competencia: meta.competenciaSeleccionada || "Competencia no definida",
         contenido: planificacion,
         usuario: user.uid,
@@ -302,9 +289,8 @@ export const obtenerPlanificacionesDetalladas = async () => {
         planificaciones.push({ id: registro.id, ...registro.data() });
       });
 
-      planificaciones.sort((a, b) =>
-        String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
-      );
+      const toMs = (ts) => ts?.toMillis?.() ?? new Date(ts || 0).getTime();
+      planificaciones.sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
 
       return { success: true, mode: "firebase", data: planificaciones };
     }
@@ -481,27 +467,14 @@ export const guardarRegistroCalificaciones = async ({
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const user = auth.currentUser;
       const ref = doc(db, "registrosCalificaciones", `${user.uid}_${cursoId}`);
-      const previo = await getDoc(ref);
-      const dataParcial = {
+      await setDoc(ref, {
         ...payloadFirestore,
         usuario: user.uid,
         usuarioEmail: user.email,
+        ...buildMetaBase(user.uid),
         updatedAt: serverTimestamp(),
-        actualizadoEn: serverTimestamp(),
-      };
-      if (previo.exists()) {
-        await updateDoc(ref, dataParcial);
-      } else {
-        await setDoc(
-          ref,
-          {
-            ...dataParcial,
-            ...buildMetaBase(user.uid),
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
+        createdAt: serverTimestamp(),
+      }, { merge: true });
       return { success: true, mode: "firebase" };
     }
 
@@ -611,25 +584,13 @@ export const guardarCurso = async (curso) => {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const uid = auth.currentUser.uid;
       const ref = doc(db, "usuarios", uid, "cursos", String(curso.id));
-      const previo = await getDoc(ref);
-      const dataParcial = {
+      await setDoc(ref, {
         ...curso,
         uid,
+        ...buildMetaBase(uid),
         updatedAt: serverTimestamp(),
-      };
-      if (previo.exists()) {
-        await updateDoc(ref, dataParcial);
-      } else {
-        await setDoc(
-          ref,
-          {
-            ...dataParcial,
-            ...buildMetaBase(uid),
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
+        createdAt: serverTimestamp(),
+      }, { merge: true });
       return { success: true, mode: "firebase" };
     }
     const locales = obtenerCursosLocales();
@@ -726,25 +687,13 @@ export const guardarInstrumentoFirestore = async (instrumento) => {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const uid = auth.currentUser.uid;
       const ref = doc(db, "usuarios", uid, "instrumentos", String(instrumento.id));
-      const previo = await getDoc(ref);
-      const dataParcial = {
+      await setDoc(ref, {
         ...instrumento,
         uid,
+        ...buildMetaBase(uid),
         updatedAt: serverTimestamp(),
-      };
-      if (previo.exists()) {
-        await updateDoc(ref, dataParcial);
-      } else {
-        await setDoc(
-          ref,
-          {
-            ...dataParcial,
-            ...buildMetaBase(uid),
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
+        createdAt: serverTimestamp(),
+      }, { merge: true });
       return { success: true, mode: "firebase" };
     }
     const locales = obtenerInstrumentosLocales();
@@ -1063,26 +1012,13 @@ export const guardarPreferenciaUsuario = async ({ clave, valor }) => {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const uid = auth.currentUser.uid;
       const ref = doc(db, "usuarios", uid, "preferencias", String(clave));
-      const previo = await getDoc(ref);
-      const dataParcial = {
+      await setDoc(ref, {
         clave,
         valor,
+        ...buildMetaBase(uid),
         updatedAt: serverTimestamp(),
-        actualizadoEn: serverTimestamp(),
-      };
-      if (previo.exists()) {
-        await updateDoc(ref, dataParcial);
-      } else {
-        await setDoc(
-          ref,
-          {
-            ...dataParcial,
-            ...buildMetaBase(uid),
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
+        createdAt: serverTimestamp(),
+      }, { merge: true });
       return { success: true, mode: "firebase" };
     }
 
@@ -1125,26 +1061,13 @@ export const guardarEstadoDetalleEstudiante = async ({ estudianteId, payload }) 
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const uid = auth.currentUser.uid;
       const ref = doc(db, "usuarios", uid, "detalleEstudiantes", String(estudianteId));
-      const previo = await getDoc(ref);
-      const dataParcial = {
+      await setDoc(ref, {
         estudianteId,
         estado: payload,
+        ...buildMetaBase(uid),
         updatedAt: serverTimestamp(),
-        actualizadoEn: serverTimestamp(),
-      };
-      if (previo.exists()) {
-        await updateDoc(ref, dataParcial);
-      } else {
-        await setDoc(
-          ref,
-          {
-            ...dataParcial,
-            ...buildMetaBase(uid),
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      }
+        createdAt: serverTimestamp(),
+      }, { merge: true });
       return { success: true, mode: "firebase" };
     }
 
