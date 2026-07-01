@@ -25,6 +25,8 @@ import { usePerfilInstitucional } from "../hooks/usePerfilInstitucional.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { esUsuarioDocenteOS } from "../utils/permisos.js";
 import ModalConfirmacion from "../components/ModalConfirmacion.jsx";
+import { usePlanDiario } from "../hooks/usePlanDiario.js";
+import { useUnidadAprendizaje } from "../hooks/useUnidadAprendizaje.js";
 import FormularioPlanificacion from "../components/FormularioPlanificacion";
 import ResultadoPlanificacion from "../components/ResultadoPlanificacion";
 import FormularioPlanDiario from "../components/FormularioPlanDiario";
@@ -38,16 +40,6 @@ import {
 import { obtenerCompetencias, consultarCurriculo } from "../services/curriculumService.js";
 import { getAreas, getAsignaturaAutomatica } from "../planning/areaAsignaturaMap.js";
 import { analizarCombinacionTematica } from "../services/curriculumCombinacionService.js";
-import {
-  generarPlanDiario,
-  formatearPlanDiarioHTML,
-} from "../services/planDiarioService";
-import {
-  generarUnidadAprendizaje,
-  formatearUnidadHTML,
-} from "../services/unidadAprendizajeService";
-import { precargarBP } from "../services/bpCache.js";
-import { applyAuditAction } from "../services/auditAcciones.js";
 import {
   eliminarPlanificacionDetallada,
   guardarPlanificacionDetallada,
@@ -105,20 +97,24 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
   const [confirmMensaje, setConfirmMensaje] = useState(null);
   const confirmResolveRef = useRef(null);
 
-  // ── Plan Diario ──
-  const [planDiarioDatos, setPlanDiarioDatos] = useState({
-    grado: "", seccion: "", area: "", asignatura: "",
-    fecha: hoyISO, duracion: "50 min", tema: "",
-    nombreDocente: "", regional: "", distrito: "",
-    centro: "", codigoCentro: "",
-    nivel: "", ciclo: "", modalidad: "", jornada: "",
-    indicadoresTexto: "", competenciaEspecificaTexto: "", situacionAprendizajeTexto: "",
-    competenciasFundamentalesSeleccionadas: [],
-  });
-  const [planDiario, setPlanDiario] = useState(null);
-  const [cargandoDiario, setCargandoDiario] = useState(false);
-  const [guardandoDiario, setGuardandoDiario] = useState(false);
-  const [mensajeDiario, setMensajeDiario] = useState(null);
+  // ── Plan Diario y Unidad (custom hooks) ──
+  const planDiarioHook = usePlanDiario();
+  const {
+    planDiarioDatos, setPlanDiarioDatos,
+    planDiario, cargandoDiario, guardandoDiario, mensajeDiario,
+    manejarGenerarDiario, manejarGenerarDiarioForzado,
+    manejarGuardarDiario, manejarDescargarDiario, manejarNuevoDiario,
+  } = planDiarioHook;
+
+  const unidadHook = useUnidadAprendizaje();
+  const {
+    unidadDatos, setUnidadDatos,
+    unidad, setUnidad,
+    cargandoUnidad, guardandoUnidad, mensajeUnidad,
+    manejarGenerarUnidad, manejarGenerarUnidadForzado,
+    manejarGuardarUnidad, manejarDescargarUnidad,
+    manejarVerUnidad, manejarNuevaUnidad, manejarAplicarAcciones,
+  } = unidadHook;
 
   // ── IA sobre planificación generada ───────────────────────────────────────
   const [iaAccion, setIaAccion] = useState(null);
@@ -165,129 +161,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     setMaterialPlanificacion(null);
   };
 
-  const ejecutarGenerarDiario = () => {
-    const indicadoresCustom = planDiarioDatos.indicadoresTexto
-      ? planDiarioDatos.indicadoresTexto.split("\n").map((l) => l.trim()).filter(Boolean)
-      : [];
-    const resultado = generarPlanDiario({
-      ...planDiarioDatos,
-      indicadoresCustom,
-      competenciaEspecificaCustom: planDiarioDatos.competenciaEspecificaTexto || "",
-      situacionCustom: planDiarioDatos.situacionAprendizajeTexto || "",
-    });
-    setPlanDiario(resultado);
-    setTimeout(() => {
-      document.querySelector(".pd-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
-  };
 
-  const manejarGenerarDiario = async () => {
-    const temaDiario = planDiarioDatos.tema?.trim();
-    if (temaDiario) {
-      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaDiario });
-      if (!verificacion?.permitido) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "diario",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaDiario,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-            },
-          },
-        });
-        return;
-      }
-      if (verificacion?.requiereCredito) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "diario",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaDiario,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-            },
-          },
-        });
-        return;
-      }
-      await registrarUsoTemaPlanificacion({ tituloTema: temaDiario, forzarNuevoTema: false, contexto: "generacion" });
-    }
-    setCargandoDiario(true);
-    setMensajeDiario(null);
-    try {
-      ejecutarGenerarDiario();
-    } catch (error) {
-      setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
-    } finally {
-      setCargandoDiario(false);
-    }
-  };
-
-  const manejarGuardarDiario = async () => {
-    if (!planDiario) return;
-    setGuardandoDiario(true);
-    try {
-      await guardarPlanificacionDetallada(planDiario);
-      EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
-        agentId: AGENT_IDS.PLANIFICADOR,
-        area:       planDiarioDatos.area ?? null,
-        asignatura: planDiarioDatos.asignatura ?? null,
-        grado:      planDiarioDatos.grado ?? null,
-        tema:       planDiarioDatos.tema ?? null,
-        metadata:   { tipo: 'diario' }
-      });
-      await cargarHistorial({ mostrarMensajeRecuperacion: false });
-      setMensajeDiario({ tipo: "success", texto: "✅ Plan diario guardado" });
-    } catch (error) {
-      setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
-    } finally {
-      setGuardandoDiario(false);
-      setTimeout(() => setMensajeDiario(null), 3000);
-    }
-  };
-
-  const manejarDescargarDiario = () => {
-    if (!planDiario) return;
-    try {
-      const html = formatearPlanDiarioHTML(planDiario);
-      const win = window.open("", "_blank", "noopener,noreferrer");
-      if (!win) { throw new Error("Habilita ventanas emergentes para exportar a PDF"); }
-      win.document.open();
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-    } catch (error) {
-      setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
-    }
-  };
-
-  const manejarNuevoDiario = () => {
-    setPlanDiario(null);
-    setMensajeDiario(null);
-    document.querySelector(".pd-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  // ── Unidad de Aprendizaje ──
-  const [unidadDatos, setUnidadDatos] = useState({
-    grado: "", seccion: "", area: "", asignatura: "",
-    titulo: "", numSemanas: 4, diasPorSemana: 5,
-    estrategiaTexto: "", situacionTexto: "", productoFinalTexto: "",
-    asignaturasVinculadasTexto: "",
-    nombreDocente: "", regional: "", distrito: "",
-    centro: "", codigoCentro: "",
-    nivel: "", ciclo: "", modalidad: "", jornada: "",
-    periodo: "", fechaInicio: hoyISO,
-    competenciasFundamentalesSeleccionadas: [],
-  });
-  const [unidad, setUnidad] = useState(null);
-  const [cargandoUnidad, setCargandoUnidad] = useState(false);
-  const [guardandoUnidad, setGuardandoUnidad] = useState(false);
-  const [mensajeUnidad, setMensajeUnidad] = useState(null);
 
   const perfilNombreDocente = perfilForm?.nombreDocente || "";
   const perfilRegional = perfilForm?.regional || "";
@@ -321,174 +195,6 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
       periodo: perfilPeriodo || prev.periodo,
     }));
   }, [perfilNombreDocente, perfilRegional, perfilDistrito, perfilCentro, perfilCodigoCentro, perfilNivel, perfilModalidad, perfilCiclo, perfilJornada, perfilPeriodo]);
-
-  const manejarGenerarUnidad = async () => {
-    const temaUnidad = (unidadDatos.tema || unidadDatos.titulo)?.trim();
-    if (temaUnidad) {
-      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaUnidad });
-      if (!verificacion?.permitido) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "unidad",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaUnidad,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-            },
-          },
-        });
-        return;
-      }
-      if (verificacion?.requiereCredito) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "unidad",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaUnidad,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-            },
-          },
-        });
-        return;
-      }
-      await registrarUsoTemaPlanificacion({ tituloTema: temaUnidad, forzarNuevoTema: false, contexto: "generacion" });
-    }
-    setCargandoUnidad(true);
-    setMensajeUnidad(null);
-    try {
-      await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
-      const resultado = generarUnidadAprendizaje(unidadDatos);
-      setUnidad(resultado);
-      setTimeout(() => {
-        document.querySelector(".ua-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-    } catch (error) {
-      setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
-    } finally {
-      setCargandoUnidad(false);
-    }
-  };
-
-  const manejarGuardarUnidad = async () => {
-    if (!unidad) return;
-    setGuardandoUnidad(true);
-    try {
-      const payload = {
-        ...unidad,
-        metadatos: { ...unidad.metadatos, tema: unidad.metadatos?.titulo },
-      };
-      await guardarPlanificacionDetallada(payload);
-      EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
-        agentId: AGENT_IDS.PLANIFICADOR,
-        area:       unidadDatos.area ?? null,
-        asignatura: unidadDatos.asignatura ?? null,
-        grado:      unidadDatos.grado ?? null,
-        tema:       unidad.metadatos?.titulo ?? unidadDatos.tema ?? null,
-        metadata:   { tipo: 'unidad' }
-      });
-      await cargarHistorial({ mostrarMensajeRecuperacion: false });
-      setMensajeUnidad({ tipo: "success", texto: "✅ Unidad de aprendizaje guardada" });
-    } catch (error) {
-      setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
-    } finally {
-      setGuardandoUnidad(false);
-      setTimeout(() => setMensajeUnidad(null), 3000);
-    }
-  };
-
-  const manejarDescargarUnidad = () => {
-    if (!unidad) return;
-    try {
-      const logoUrl = `${window.location.origin}/logo-minerd.svg`;
-      const html = formatearUnidadHTML(unidad, logoUrl);
-      const iframe = document.createElement("iframe");
-      iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;border:0;visibility:hidden";
-      document.body.appendChild(iframe);
-      const doc = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!doc) throw new Error("No se pudo preparar el documento");
-      doc.open();
-      doc.write(html);
-      doc.close();
-      iframe.contentWindow.focus();
-      const dispararImpresion = () => {
-        iframe.contentWindow?.print();
-        setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 10000);
-      };
-      const imgs = Array.from(doc.querySelectorAll("img"));
-      if (imgs.length === 0) {
-        setTimeout(dispararImpresion, 300);
-      } else {
-        let pendientes = imgs.length;
-        const onDone = () => { if (--pendientes === 0) dispararImpresion(); };
-        imgs.forEach((img) => { img.onload = onDone; img.onerror = onDone; });
-        setTimeout(dispararImpresion, 1800); // fallback máximo
-      }
-      setMensajeUnidad({
-        tipo: "info",
-        texto: "🖨️ Se abrirá el diálogo de impresión → en 'Destino' elige 'Guardar como PDF' → clic en Guardar.",
-      });
-      setTimeout(() => setMensajeUnidad(null), 12000);
-    } catch (error) {
-      setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
-    }
-  };
-
-  const manejarVerUnidad = () => {
-    if (!unidad) return;
-    try {
-      const logoUrl = `${window.location.origin}/logo-minerd.svg`;
-      const html = formatearUnidadHTML(unidad, logoUrl);
-      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      if (!win) {
-        setMensajeUnidad({ tipo: "error", texto: "❌ Bloqueado por el navegador. Permite ventanas emergentes para ver el PDF." });
-      }
-    } catch (error) {
-      setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
-    }
-  };
-
-  const manejarNuevaUnidad = () => {
-    setUnidad(null);
-    setMensajeUnidad(null);
-    document.querySelector(".pd-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  // Aplica una o varias acciones de la Auditoría IA sobre la unidad en memoria.
-  // No llama a la IA (0 tokens). El docente luego guarda con el flujo normal.
-  const manejarAplicarAcciones = (accionesAplicar) => {
-    if (!unidad || !Array.isArray(accionesAplicar) || accionesAplicar.length === 0) {
-      return { ok: false, error: "No hay acciones para aplicar." };
-    }
-    let actual = unidad;
-    let aplicadas = 0;
-    let ultimoError = null;
-    for (const accion of accionesAplicar) {
-      const res = applyAuditAction(actual, accion);
-      if (res.ok) {
-        actual = res.unidad;
-        aplicadas += 1;
-      } else {
-        ultimoError = res.error;
-      }
-    }
-    if (aplicadas === 0) {
-      return { ok: false, error: ultimoError || "No se pudo aplicar la acción." };
-    }
-    setUnidad(actual);
-    setMensajeUnidad({
-      tipo: "success",
-      texto: `✅ ${aplicadas} mejora${aplicadas > 1 ? "s" : ""} aplicada${aplicadas > 1 ? "s" : ""}. Recuerda guardar la unidad.`,
-    });
-    return { ok: true, aplicadas, error: ultimoError };
-  };
 
   // ── Estado de generación (planificación general) ──
   const [cargando, setCargando] = useState(false);
@@ -553,6 +259,10 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
       return { lista: [], mode: "local" };
     }
   };
+
+  // Sync latest deps into hooks on every render (avoids stale closures via depsRef pattern)
+  planDiarioHook.syncDeps({ estadoTemas, setDialogoTema, cargarHistorial });
+  unidadHook.syncDeps({ estadoTemas, setDialogoTema, cargarHistorial });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -1292,31 +1002,12 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
 
     // Para diario/unidad: registrar crédito y generar sin el flujo de planificación semanal
     if (contextoDialogo === "diario") {
-      setCargandoDiario(true);
-      try {
-        await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
-        ejecutarGenerarDiario();
-      } catch (error) {
-        setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
-      } finally {
-        setCargandoDiario(false);
-      }
+      await manejarGenerarDiarioForzado(temaIngresado);
       return;
     }
 
     if (contextoDialogo === "unidad") {
-      setCargandoUnidad(true);
-      try {
-        await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
-        await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
-        const resultado = generarUnidadAprendizaje(unidadDatos);
-        setUnidad(resultado);
-        setTimeout(() => document.querySelector(".ua-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
-      } catch (error) {
-        setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
-      } finally {
-        setCargandoUnidad(false);
-      }
+      await manejarGenerarUnidadForzado(temaIngresado);
       return;
     }
 
