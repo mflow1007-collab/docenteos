@@ -1,7 +1,4 @@
-import { useAdmin } from '../context/AdminContext.jsx'
-
-export default function AdminBar({ onIrAdmin }) {
-  const { esAdmin } = useAdmin()
+export default function AdminBar({ onIrAdmin, esAdmin = false }) {
   if (!esAdmin) return null
 
   return (

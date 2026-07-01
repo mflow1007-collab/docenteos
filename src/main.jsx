@@ -16,7 +16,7 @@ function DocenteOSRouter() {
 
   if (cargando) return <PantallaCarga />
 
-  const destino = !user ? '/login' : perfilCompleto ? '/dashboard' : '/bienvenida'
+  const destino = !user ? '/login' : perfilCompleto ? '/' : '/bienvenida'
 
   return (
     <Suspense fallback={<PantallaCarga />}>
@@ -32,18 +32,9 @@ function DocenteOSRouter() {
         <Route
           path="/bienvenida"
           element={
-            !user          ? <Navigate to="/login"     replace /> :
-            perfilCompleto ? <Navigate to="/dashboard" replace /> :
-            // onPerfilGuardado es no-op: AuthContext detecta el cambio vía onSnapshot
+            !user          ? <Navigate to="/login" replace /> :
+            perfilCompleto ? <Navigate to="/"      replace /> :
             <BienvenidaPage onPerfilGuardado={() => {}} />
-          }
-        />
-        <Route
-          path="/dashboard/*"
-          element={
-            !user          ? <Navigate to="/login"      replace /> :
-            !perfilCompleto ? <Navigate to="/bienvenida" replace /> :
-            <App />
           }
         />
         <Route
@@ -54,7 +45,14 @@ function DocenteOSRouter() {
             <Admin />
           }
         />
-        <Route path="*" element={<Navigate to={destino} replace />} />
+        <Route
+          path="/*"
+          element={
+            !user          ? <Navigate to="/login"      replace /> :
+            !perfilCompleto ? <Navigate to="/bienvenida" replace /> :
+            <App />
+          }
+        />
       </Routes>
     </Suspense>
   )

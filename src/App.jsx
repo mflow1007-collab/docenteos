@@ -42,8 +42,8 @@ function AppInner() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   // Derive current page from URL — no state needed
-  const pagina = pathname.replace(/^\/dashboard\/?/, '') || 'inicio'
-  const navegar = (id) => navigate('/dashboard/' + (id === 'inicio' ? '' : id))
+  const pagina = pathname.replace(/^\//, '') || 'inicio'
+  const navegar = (id) => navigate('/' + (id === 'inicio' ? '' : id))
 
   const esDocenteOS = esUsuarioDocenteOS(user?.email)
   const esAdmin = esDocenteOS
@@ -181,8 +181,8 @@ function AppInner() {
 
         const restaurarPagina = (datos) => {
           if (!datos?.pagina || datos.pagina === 'inicio') return;
-          // Only redirect if on dashboard root — deep links take priority
-          if (pathname === '/dashboard' || pathname === '/dashboard/') {
+          // Only redirect if on root — deep links take priority
+          if (pathname === '/' || pathname === '') {
             navegar(datos.pagina);
           }
         };
@@ -350,7 +350,7 @@ function AppInner() {
   return (
     <div className={`app${esAdmin ? ' has-adminbar' : ''}`}>
       {/* Barra de administración (solo @docenteos.com) */}
-      <AdminBar onIrAdmin={irAdmin} />
+      <AdminBar onIrAdmin={irAdmin} esAdmin={esAdmin} />
 
       {/* Overlay mobile */}
       {menuAbierto && (
