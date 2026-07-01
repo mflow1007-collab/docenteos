@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { obtenerCompetencias } from "./services/curriculumService.js";
 import {
   guardarEvidenciaEstudiante,
   guardarRegistroAspecto,
@@ -299,7 +300,19 @@ function RegistroPage({
   const [asistencia, setAsistencia] = useState(
     crearAsistenciaParaEstudiantes(estudiantes)
   );
-  const competencias = competenciasFallback;
+  const [competencias, setCompetencias] = useState(competenciasFallback);
+
+  useEffect(() => {
+    const nivel = curso?.nivel;
+    const grado = curso?.grado || curso?.nombre?.split(" ").slice(0, 2).join(" ");
+    const areaRaw = curso?.area || curso?.asignatura;
+    if (!nivel || !grado || !areaRaw) return;
+    obtenerCompetencias(nivel, grado, areaRaw).then((comps) => {
+      if (comps?.length) {
+        setCompetencias(comps.map((c) => ({ nombre: c.descripcion || c.id })));
+      }
+    });
+  }, [curso?.id]);
   const [observaciones, setObservaciones] = useState({});
   const [notasEstudiantes, setNotasEstudiantes] = useState({});
   const [evaluacionesInstrumentos, setEvaluacionesInstrumentos] = useState({});

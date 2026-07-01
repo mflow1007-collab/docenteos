@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { obtenerCompetencias } from "../services/curriculumService.js";
 import {
   obtenerPlanificacionesDetalladas,
   guardarInstrumentoFirestore,
@@ -322,6 +323,17 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
   const [mensaje, setMensaje] = useState(null);
   const busquedaRef = useRef(null);
   const statsRef = useRef(null);
+  const [competenciasCurso, setCompetenciasCurso] = useState([]);
+
+  useEffect(() => {
+    const nivel = cursoActivo?.nivel;
+    const grado = cursoActivo?.grado || cursoActivo?.nombre?.split(" ").slice(0, 2).join(" ");
+    const area = cursoActivo?.area || cursoActivo?.asignatura;
+    if (!nivel || !grado || !area) { setCompetenciasCurso([]); return; }
+    obtenerCompetencias(nivel, grado, area).then((comps) => {
+      setCompetenciasCurso(comps?.length ? comps : []);
+    });
+  }, [cursoActivo?.id]);
   const bancoRef = useRef(null);
 
   useEffect(() => {
@@ -1212,10 +1224,14 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
                     value={draft.competenciaIndex ?? 0}
                     onChange={(e) => setDraft((prev) => ({ ...prev, competenciaIndex: Number(e.target.value) }))}
                   >
-                    <option value={0}>Competencia 1</option>
-                    <option value={1}>Competencia 2</option>
-                    <option value={2}>Competencia 3</option>
-                    <option value={3}>Competencia 4</option>
+                    {competenciasCurso.length > 0
+                      ? competenciasCurso.map((c, i) => (
+                          <option key={i} value={i}>{`C${i + 1} — ${c.descripcion || c.id || `Competencia ${i + 1}`}`}</option>
+                        ))
+                      : [0, 1, 2, 3].map((i) => (
+                          <option key={i} value={i}>{`Competencia ${i + 1}`}</option>
+                        ))
+                    }
                   </select>
                 </label>
 
