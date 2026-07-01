@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { obtenerCompetencias } from "../services/curriculumService.js";
+import { normalizarAreaCurricular } from "../services/bancoCurricularLocal.js";
 import {
   guardarEvidenciaEstudiante,
   guardarRegistroAspecto,
@@ -173,23 +174,112 @@ function badgeClase(valor) {
   return "vacio";
 }
 
+// Códigos CE oficiales MINERD por asignatura — Nivel Secundario
 const COMP_CODIGOS = {
-  "Matemática": ["CM-1","CM-2","CM-3","CM-4"],
-  "Lengua Española": ["CE-LEI1","CE-LEI2","CE-LEI3","CE-LEI4"],
-  "Ciencias Naturales": ["CCN-1","CCN-2","CCN-3","CCN-4"],
-  "Ciencias Sociales": ["CCS-1","CCS-2","CCS-3","CCS-4"],
-  "Educación Física": ["CEF-1","CEF-2","CEF-3","CEF-4"],
-  "Inglés": ["CI-1","CI-2","CI-3","CI-4"],
-  "Formación Humana": ["CFH-1","CFH-2","CFH-3","CFH-4"],
+  // Lenguas y comunicación
+  "Lengua Española":         ["CLE-1","CLE-2","CLE-3","CLE-4","CLE-5"],
+  "Inglés":                  ["CE-LEI1","CE-LEI2","CE-LEI3","CE-LEI4","CE-LEI5","CE-LEI6","CE-LEI7"],
+  "Lenguas Extranjeras":     ["CE-LEI1","CE-LEI2","CE-LEI3","CE-LEI4","CE-LEI5","CE-LEI6","CE-LEI7"],
+  "Francés":                 ["CE-LEF1","CE-LEF2","CE-LEF3","CE-LEF4","CE-LEF5"],
+  // Matemáticas y ciencias exactas
+  "Matemática":              ["CM-1","CM-2","CM-3","CM-4","CM-5"],
+  "Matemáticas":             ["CM-1","CM-2","CM-3","CM-4","CM-5"],
+  // Ciencias
+  "Ciencias Naturales":      ["CCN-1","CCN-2","CCN-3","CCN-4","CCN-5"],
+  "Ciencias de la Naturaleza":["CCN-1","CCN-2","CCN-3","CCN-4","CCN-5"],
+  "Biología":                ["CBio-1","CBio-2","CBio-3","CBio-4"],
+  "Química":                 ["CQui-1","CQui-2","CQui-3","CQui-4"],
+  "Física":                  ["CFis-1","CFis-2","CFis-3","CFis-4"],
+  // Sociales
+  "Ciencias Sociales":       ["CCS-1","CCS-2","CCS-3","CCS-4","CCS-5"],
+  "Historia":                ["CHis-1","CHis-2","CHis-3","CHis-4"],
+  "Geografía":               ["CGeo-1","CGeo-2","CGeo-3","CGeo-4"],
+  // Humanidades
+  "Formación Humana":        ["CFH-1","CFH-2","CFH-3","CFH-4"],
+  "Formación Humana y Religiosa": ["CFH-1","CFH-2","CFH-3","CFH-4"],
+  "Filosofía":               ["CFil-1","CFil-2","CFil-3","CFil-4"],
+  // Arte y cultura
+  "Educación Artística":     ["CEA-1","CEA-2","CEA-3","CEA-4"],
+  "Artes":                   ["CEA-1","CEA-2","CEA-3","CEA-4"],
+  "Música":                  ["CMus-1","CMus-2","CMus-3","CMus-4"],
+  // Tecnología
+  "Tecnología":              ["CTAC-1","CTAC-2","CTAC-3","CTAC-4"],
+  "Informática":             ["CTAC-1","CTAC-2","CTAC-3","CTAC-4"],
+  "TAC":                     ["CTAC-1","CTAC-2","CTAC-3","CTAC-4"],
+  // Educación física
+  "Educación Física":        ["CEF-1","CEF-2","CEF-3","CEF-4"],
+  // Técnico-vocacional
+  "Emprendimiento":          ["CEmp-1","CEmp-2","CEmp-3","CEmp-4"],
 };
 
-function crearNotasVacias() {
+// Descripciones oficiales MINERD de competencias por código
+// Fuente: Diseño Curricular Nivel Secundario — educando.edu.do
+const COMP_DESCRIPCIONES = {
+  // Inglés / Lenguas Extranjeras
+  "CE-LEI1": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicación orales y escritas relativas a necesidades concretas y temas cotidianos, utilizando el idioma inglés de forma breve y sencilla para compartir información propia y de otras personas, describir sus actividades cotidianas, el entorno inmediato, y sus puntos de vista.",
+  "CE-LEI2": "Interactúa en el idioma inglés, empleando estrategias de desempeño, el razonamiento lógico-verbal y la expresión creativa y crítica con el propósito de comunicarse de forma clara y efectiva en distintas situaciones concretas de comunicación oral y escrita.",
+  "CE-LEI3": "Se comunica en inglés oral y escrito de forma básica, pero comprensible, compartiendo información que permite identificar, describir y abordar problemas y situaciones comunes de su entorno inmediato.",
+  "CE-LEI4": "Se comunica en intercambios breves y sencillos, participando en un plano de respeto y colaboración, e identificando algunas de las diferencias individuales y la identidad social y cultural propia y de otros países.",
+  "CE-LEI5": "Interactúa en el idioma inglés compartiendo información, ideas y opiniones sobre aspectos científicos y tecnológicos de su entorno inmediato en distintas situaciones cotidianas de comunicación.",
+  "CE-LEI6": "Muestra preferencias por actividades cotidianas y opciones que impactan de forma positiva la salud y el medioambiente en distintas situaciones de comunicación.",
+  "CE-LEI7": "Se comunica en el idioma inglés, con cortesía, asertividad, actitud de respeto, honestidad y aceptación al expresarse sobre sí mismo y las demás personas en cuanto a preferencias, experiencias, características personales y actividades cotidianas.",
+  // Lengua Española
+  "CLE-1": "Comprende y produce textos orales y escritos de diferente tipo, propósito y registro, adaptando su comunicación a distintas situaciones sociales.",
+  "CLE-2": "Usa el lenguaje para reflexionar, construir conocimiento y participar activamente en prácticas comunicativas de la vida cotidiana, académica y ciudadana.",
+  "CLE-3": "Valora y disfruta la literatura como manifestación cultural, estética y expresión de la identidad.",
+  "CLE-4": "Emplea las tecnologías de la información y la comunicación de forma crítica para leer, producir y difundir textos en distintos contextos.",
+  "CLE-5": "Reflexiona sobre el funcionamiento de la lengua y usa sus conocimientos lingüísticos para comprender y producir textos con mayor eficacia.",
+  // Matemática
+  "CM-1": "Resuelve problemas mediante el uso de conceptos, procedimientos y estrategias matemáticas en contextos de la vida cotidiana y del entorno natural y social.",
+  "CM-2": "Razona matemáticamente para formular conjeturas, elaborar argumentos y verificar resultados usando el pensamiento lógico y el rigor deductivo.",
+  "CM-3": "Modela situaciones del mundo real utilizando representaciones matemáticas (algebraicas, gráficas, numéricas y verbales) para interpretar y predecir fenómenos.",
+  "CM-4": "Comunica ideas y procesos matemáticos de manera precisa, usando el lenguaje matemático formal e informal en distintos contextos.",
+  "CM-5": "Usa herramientas tecnológicas para explorar, visualizar y resolver problemas matemáticos con sentido crítico y actitud investigativa.",
+  // Ciencias Naturales
+  "CCN-1": "Comprende los procesos y fenómenos naturales a través de la observación, la experimentación y el análisis, aplicando los principios del método científico.",
+  "CCN-2": "Relaciona los procesos biológicos, físicos y químicos con situaciones de la vida cotidiana para entender el funcionamiento de los sistemas naturales.",
+  "CCN-3": "Valora la importancia del equilibrio medioambiental y propone soluciones para la conservación del entorno natural desde una perspectiva sostenible.",
+  "CCN-4": "Usa la tecnología y los avances científicos de forma crítica y responsable para mejorar la calidad de vida y resolver problemas del entorno.",
+  "CCN-5": "Participa activamente en proyectos de investigación científica sencillos, comunicando resultados con precisión y rigor.",
+  // Ciencias Sociales
+  "CCS-1": "Analiza los procesos históricos, geográficos, económicos y culturales de la sociedad dominicana y del mundo desde una perspectiva crítica y reflexiva.",
+  "CCS-2": "Comprende la dinámica de las relaciones entre el ser humano, el territorio y el ambiente en distintas escalas espaciales y temporales.",
+  "CCS-3": "Participa responsablemente como ciudadano en la vida democrática, respetando los derechos humanos y los valores cívicos.",
+  "CCS-4": "Valora la diversidad cultural, étnica y social como riqueza humana para la convivencia y el desarrollo sostenible.",
+  "CCS-5": "Usa fuentes históricas, cartográficas y estadísticas para construir conocimiento social de manera crítica y argumentada.",
+  // Formación Humana
+  "CFH-1": "Desarrolla su identidad personal desde valores éticos, espirituales y ciudadanos que le permiten vivir en armonía consigo mismo y con los demás.",
+  "CFH-2": "Practica estilos de vida saludables, tomando decisiones responsables en su vida personal, familiar y social.",
+  "CFH-3": "Valora la dimensión espiritual de la persona humana como fuente de sentido, esperanza y compromiso con el bien común.",
+  "CFH-4": "Participa activamente en la construcción de una sociedad más justa, solidaria y democrática, desde los valores del Evangelio y la doctrina social.",
+  // Educación Física
+  "CEF-1": "Practica actividades físicas y deportivas con regularidad, desarrollando capacidades motrices, hábitos saludables y trabajo en equipo.",
+  "CEF-2": "Comprende la relación entre actividad física, salud y bienestar, adoptando estilos de vida activos y saludables.",
+  "CEF-3": "Respeta las normas, reglas y valores del juego limpio, expresando actitudes de cooperación, respeto y fair play.",
+  "CEF-4": "Crea y disfruta de expresiones corporales, rítmicas y creativas como formas de comunicación y bienestar personal.",
+};
+
+function crearNotasVacias(cantidadCompetencias = 4) {
   return {
-    competencias: Array.from({ length: 4 }, () => ({
+    competencias: Array.from({ length: Math.max(1, cantidadCompetencias) }, () => ({
       periodos: Array.from({ length: 4 }, () => ({ p: "", rp: "" })),
     })),
     ceCompletiva: "",
     ceExtraordinaria: "",
+  };
+}
+
+function normalizarNotasCompetencias(notas, cantidadCompetencias = 4) {
+  const base = notas || crearNotasVacias(cantidadCompetencias);
+  return {
+    ...base,
+    competencias: Array.from({ length: Math.max(1, cantidadCompetencias) }, (_, ci) => {
+      const comp = base.competencias?.[ci] || {};
+      return {
+        ...comp,
+        periodos: Array.from({ length: 4 }, (_, pi) => comp.periodos?.[pi] || { p: "", rp: "" }),
+      };
+    }),
   };
 }
 
@@ -280,6 +370,7 @@ function RegistroPage({
   const grado = curso?.grado || "";
   const seccion = curso?.seccion || "";
   const area = curso?.area || "";
+  const areaCurricular = normalizarAreaCurricular(curso?.asignatura || curso?.area || "");
   const docente = curso?.docente || formulario.nombreDocente || "Pendiente de completar";
   const mes = curso?.mes || new Date().toLocaleDateString("es-DO", { month: "long" });
   const periodo = curso?.periodo || "";
@@ -308,13 +399,34 @@ function RegistroPage({
     const nivel = curso?.nivel;
     const grado = curso?.grado || curso?.nombre?.split(" ").slice(0, 2).join(" ");
     const areaRaw = curso?.area || curso?.asignatura;
-    if (!nivel || !grado || !areaRaw) return;
-    obtenerCompetencias(nivel, grado, areaRaw).then((comps) => {
+    if (!areaRaw) return;
+
+    // Primero aplicar fallback estático desde COMP_CODIGOS + COMP_DESCRIPCIONES
+    // para que el docente vea los códigos oficiales MINERD inmediatamente.
+    const areaCanonica = normalizarAreaCurricular(areaRaw);
+    const codigosFallback = COMP_CODIGOS[areaCanonica] || COMP_CODIGOS[areaRaw] || COMP_CODIGOS[areaRaw?.trim()] || [];
+    if (codigosFallback.length) {
+      setCompetencias(codigosFallback.map((cod) => ({
+        id: cod,
+        nombre: COMP_DESCRIPCIONES[cod] || cod,
+        indicadoresLogro: [],
+        contenidos: {},
+      })));
+    }
+
+    // Luego actualizar desde Firestore si hay datos del currículo importado
+    if (!nivel || !grado) return;
+    obtenerCompetencias(nivel, grado, areaCanonica).then((comps) => {
       if (comps?.length) {
-        setCompetencias(comps.map((c) => ({ nombre: c.descripcion || c.id })));
+        setCompetencias(comps.map((c) => ({
+          id: c.id,
+          nombre: c.descripcion || COMP_DESCRIPCIONES[c.id] || c.id,
+          indicadoresLogro: c.indicadoresLogro || [],
+          contenidos: c.contenidos || {},
+        })));
       }
     });
-  }, [curso?.id]);
+  }, [curso?.id, curso?.nivel, curso?.grado, curso?.area, curso?.asignatura, curso?.nombre]);
   const [observaciones, setObservaciones] = useState({});
   const [notasEstudiantes, setNotasEstudiantes] = useState({});
   const [evaluacionesInstrumentos, setEvaluacionesInstrumentos] = useState({});
@@ -499,18 +611,24 @@ function RegistroPage({
     };
   }, [cursoId, registroCargadoRef, guardarBorradorLocal]);
 
-  const codigosComp = COMP_CODIGOS[area] || ["CE-1","CE-2","CE-3","CE-4"];
+  const codigosComp = useMemo(() => {
+    const desdeCompetencias = competencias.map((comp) => comp.id).filter(Boolean);
+    return desdeCompetencias.length > 0
+      ? desdeCompetencias
+      : (COMP_CODIGOS[areaCurricular] || COMP_CODIGOS[area] || ["CE-1","CE-2","CE-3","CE-4"]);
+  }, [competencias, areaCurricular, area]);
+  const cantidadCompetencias = codigosComp.length;
   const calendarioMesActivo = useMemo(
     () => crearCalendarioMes(mesActivo, anioEscolar),
     [mesActivo, anioEscolar]
   );
 
-  const getNotasEstudiante = (id) => notasEstudiantes[id] ?? crearNotasVacias();
+  const getNotasEstudiante = (id) => normalizarNotasCompetencias(notasEstudiantes[id], cantidadCompetencias);
 
   const actualizarNotaEstudiante = (estId, compIdx, periodoIdx, campo, valor) => {
     estudiantesModificadosRef.current.add(estId);
     setNotasEstudiantes((prev) => {
-      const actual = prev[estId] ?? crearNotasVacias();
+      const actual = normalizarNotasCompetencias(prev[estId], cantidadCompetencias);
       return {
         ...prev,
         [estId]: {
@@ -531,7 +649,7 @@ function RegistroPage({
   const actualizarExtraEstudiante = (estId, campo, valor) => {
     estudiantesModificadosRef.current.add(estId);
     setNotasEstudiantes((prev) => {
-      const actual = prev[estId] ?? crearNotasVacias();
+      const actual = normalizarNotasCompetencias(prev[estId], cantidadCompetencias);
       return { ...prev, [estId]: { ...actual, [campo]: valor } };
     });
   };
@@ -548,7 +666,7 @@ function RegistroPage({
     );
 
     const cfs = estudiantes.map((est) => {
-      const notas = notasEstudiantes[est.id] ?? crearNotasVacias();
+      const notas = getNotasEstudiante(est.id);
       return calcularResumenEstudiante(notas).cf;
     }).filter((cf) => cf > 0);
 
@@ -727,7 +845,7 @@ function RegistroPage({
     // Construir lista de estudiantes en riesgo (solo ellos — no todos)
     const estudiantesEnRiesgo = estudiantes
       .map((est) => {
-        const notas = notasEstudiantes[est.id] ?? crearNotasVacias();
+        const notas = getNotasEstudiante(est.id);
         const r = calcularResumenEstudiante(notas);
         if (r.cf <= 0) return null;
 
@@ -824,7 +942,7 @@ function RegistroPage({
       }).catch(() => {});
       if (curso && typeof onActualizarCurso === "function") {
         const estudiantesDetalle = estudiantes.map((est) => {
-          const notas = notasEstudiantes[est.id] ?? crearNotasVacias();
+          const notas = getNotasEstudiante(est.id);
           const resumenEst = calcularResumenEstudiante(notas);
           const asistenciaEst = calcularAsistenciaAcumulada(asistencia.find((item) => item.id === est.id));
           return {
@@ -874,7 +992,7 @@ function RegistroPage({
     const periodoLabels = codigosComp.flatMap((cod) =>
       ["P1","RP1","P2","RP2","P3","RP3","P4","RP4"].map((p) => `${cod}·${p}`)
     );
-    rows.push(["N°", "Estudiante", ...periodoLabels, "PC1","PC2","PC3","PC4","C.F.","Situación"]);
+    rows.push(["N°", "Estudiante", ...periodoLabels, ...codigosComp.map((_, idx) => `PC${idx + 1}`), "C.F.","Situación"]);
     estudiantes.forEach((est, idx) => {
       const notas = getNotasEstudiante(est.id);
       const { compAvgs, cfExacto, situacion } = calcularResumenEstudiante(notas);
@@ -904,7 +1022,14 @@ function RegistroPage({
 
   const exportarPDF = () => {
     const compHeaders = codigosComp
-      .map((cod, ci) => `<th colspan="8" class="comp-h c${ci + 1}-h">C${ci + 1} · ${cod}</th>`)
+      .map((cod, ci) => {
+        const desc = competencias[ci]?.nombre || COMP_DESCRIPCIONES[cod] || cod
+        const descCorta = desc.length > 80 ? desc.slice(0, 78) + "…" : desc
+        return `<th colspan="8" class="comp-h c${ci + 1}-h">
+          <div class="comp-cod">${cod}</div>
+          <div class="comp-desc">${descCorta}</div>
+        </th>`
+      })
       .join("");
     const subHeaders = codigosComp
       .flatMap(() => ["P1","RP1","P2","RP2","P3","RP3","P4","RP4"].map((p) =>
@@ -942,22 +1067,28 @@ function RegistroPage({
 
     const css = `
       *{box-sizing:border-box}
-      body{font-family:Arial,sans-serif;font-size:8.5px;margin:14px;color:#111}
-      h1{font-size:13px;margin:0 0 3px;color:#1d4ed8}
+      body{font-family:Arial,sans-serif;font-size:8.5px;margin:12px;color:#111}
+      h1{font-size:13px;margin:0 0 2px;color:#1d4ed8;font-weight:900}
       h2{font-size:10px;margin:0 0 2px;color:#374151;font-weight:400}
-      .meta{display:flex;gap:18px;margin:6px 0 10px;font-size:9px;color:#64748b}
+      .meta{display:flex;gap:18px;margin:5px 0 8px;font-size:8.5px;color:#64748b;flex-wrap:wrap}
+      .asignatura-badge{display:inline-block;background:#1d4ed8;color:#fff;border-radius:4px;padding:2px 8px;font-size:9px;font-weight:700;margin-bottom:6px}
       table{border-collapse:collapse;width:100%}
-      th,td{border:1px solid #cbd5e1;padding:2px 3px}
-      th{background:#1d4ed8;color:#fff;font-size:7.5px;text-align:center}
+      th,td{border:1px solid #9ca3af;padding:2px 3px}
+      th{background:#1d4ed8;color:#fff;font-size:7.5px;text-align:center;vertical-align:middle}
+      .comp-h{vertical-align:top;padding:4px 3px}
+      .comp-cod{font-size:9px;font-weight:900;margin-bottom:2px}
+      .comp-desc{font-size:6.5px;font-weight:400;line-height:1.3;text-align:left;opacity:.92}
       .c1-h{background:#1d4ed8}.c2-h{background:#7c3aed}
       .c3-h{background:#059669}.c4-h{background:#d97706}
+      .c5-h{background:#b91c1c}.c6-h{background:#0891b2}.c7-h{background:#92400e}
       .tc{text-align:center}
       .tnombre{min-width:110px;font-weight:600;font-size:8px}
-      .num{width:20px}
+      .num{width:20px;text-align:center}
       .rp-cell{background:#fefce8}
       .p{background:#eff6ff}.rp{background:#fef9c3}
       .p1avg{color:#1d4ed8;font-weight:700}.p2avg{color:#7c3aed;font-weight:700}
       .p3avg{color:#059669;font-weight:700}.p4avg{color:#d97706;font-weight:700}
+      .p5avg{color:#b91c1c;font-weight:700}.p6avg{color:#0891b2;font-weight:700}.p7avg{color:#92400e;font-weight:700}
       .cf-cell{background:#e0f2fe;text-align:center}
       .cf-d{display:block;font-size:6.5px;color:#64748b}
       .cf-e{display:block;font-size:10px;font-weight:900}
@@ -971,25 +1102,33 @@ function RegistroPage({
     const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
       <title>Registro · ${area} · ${cursoNombre}</title>
       <style>${css}</style></head><body>
-      <h1>Registro de Calificaciones — ${area}</h1>
+      <div class="asignatura-badge">${area.toUpperCase()}</div>
+      <h1>Registro de Calificaciones — ${grado} ${seccion}</h1>
       <h2>${centro}</h2>
       <div class="meta">
+        <span><b>Asignatura:</b> ${area}</span>
         <span><b>Grado / Sección:</b> ${grado} ${seccion}</span>
         <span><b>Docente:</b> ${docente}</span>
         <span><b>Año escolar:</b> ${anioEscolar}</span>
+        <span><b>Generado:</b> ${new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'})}</span>
       </div>
       <table><thead>
         <tr>
-          <th rowspan="2">N°</th>
-          <th rowspan="2" style="min-width:110px">ESTUDIANTE</th>
+          <th rowspan="3" style="min-width:20px">N°</th>
+          <th rowspan="3" style="min-width:120px">ESTUDIANTE</th>
           ${compHeaders}
-          <th colspan="4" style="background:#0369a1">PROMEDIOS</th>
-          <th rowspan="2" style="background:#0369a1">C.F.</th>
-          <th rowspan="2" style="background:#374151">SITUACIÓN</th>
+          <th colspan="${codigosComp.length}" style="background:#0369a1">PROMEDIOS</th>
+          <th rowspan="3" style="background:#0369a1">C.F.</th>
+          <th rowspan="3" style="background:#374151">SITUACIÓN</th>
         </tr>
         <tr>${subHeaders}
-          <th class="tc p1avg">PC1</th><th class="tc p2avg">PC2</th>
-          <th class="tc p3avg">PC3</th><th class="tc p4avg">PC4</th>
+          ${codigosComp.map((_, idx) => `<th class="tc p${idx + 1}avg">PC${idx + 1}</th>`).join("")}
+        </tr>
+        <tr>
+          ${codigosComp.flatMap(() => ["P1","RP1","P2","RP2","P3","RP3","P4","RP4"]
+            .map(p => `<th class="tc ${p.startsWith("R") ? "rp" : "p"}" style="font-size:7px">${p}</th>`)
+          ).join("")}
+          ${codigosComp.map(() => `<th style="font-size:6px;background:#0369a1"> </th>`).join("")}
         </tr>
       </thead><tbody>${bodyHTML}</tbody></table>
       <script>window.onload=()=>window.print()</script>
@@ -1172,10 +1311,7 @@ function RegistroPage({
                   <th className="sticky-col">N.º</th>
                   <th className="sticky-name">Estudiante</th>
                   {onAbrirPerfil && <th style={{ width: 36 }} />}
-                  <th>PC1</th>
-                  <th>PC2</th>
-                  <th>PC3</th>
-                  <th>PC4</th>
+                  {codigosComp.map((_, ci) => <th key={`res-pc-${ci}`}>PC{ci + 1}</th>)}
                   <th>C.F.</th>
                   <th>Situación</th>
                   <th>Observación</th>
@@ -1183,7 +1319,7 @@ function RegistroPage({
               </thead>
               <tbody>
                 {estudiantes.map((est, idx) => {
-                  const notas = notasEstudiantes[est.id] ?? crearNotasVacias();
+                  const notas = getNotasEstudiante(est.id);
                   const r = calcularResumenEstudiante(notas);
                   const estadoKey = r.situacion.toLowerCase().replace(/\s/g, "-");
                   return (
@@ -1360,12 +1496,11 @@ function RegistroPage({
                 </tr>
               </thead>
               <tbody>
-                {[0, 1, 2, 3].map((ci) => {
-                  const codigo = codigosComp[ci] || `CE-${ci + 1}`;
+                {codigosComp.map((codigo, ci) => {
                   // Promedio del grupo por período para esta competencia
                   const promsPorPeriodo = [0, 1, 2, 3].map((pi) => {
                     const vals = estudiantes.map((est) => {
-                      const notas = notasEstudiantes[est.id] ?? crearNotasVacias();
+                      const notas = getNotasEstudiante(est.id);
                       const per = notas.competencias[ci]?.periodos[pi];
                       if (!per) return 0;
                       const p  = Number(per.p)  || 0;
@@ -1409,7 +1544,7 @@ function RegistroPage({
 
       {tabActiva === "Indicadores" && (() => {
         const filas = estudiantes.map((est) => {
-          const notas = notasEstudiantes[est.id] ?? crearNotasVacias();
+          const notas = getNotasEstudiante(est.id);
           return { est, ...calcularResumenEstudiante(notas) };
         });
         const conNotas   = filas.filter((f) => f.cf > 0);
@@ -1498,16 +1633,47 @@ function RegistroPage({
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td className="curriculo-td-ce" />
-                    <td className="curriculo-td-il">
-                      <p className="curriculo-vacio">
-                        Los indicadores se completarán automáticamente cuando registres planificaciones
-                        con códigos CE e IL para este período.
-                      </p>
-                    </td>
-                    <td className="curriculo-td-cont" />
-                  </tr>
+                  {competencias.some((comp) => comp.nombre || comp.indicadoresLogro?.length) ? (
+                    competencias.map((comp, ci) => (
+                      <tr key={`${per}-${comp.id || ci}`}>
+                        <td className="curriculo-td-ce">
+                          <strong>{codigosComp[ci] || comp.id || `CE-${ci + 1}`}</strong>
+                        </td>
+                        <td className="curriculo-td-il">
+                          <strong>{comp.nombre || `Competencia ${ci + 1}`}</strong>
+                          {comp.indicadoresLogro?.length > 0 ? (
+                            <ul>
+                              {comp.indicadoresLogro.map((indicador, idxIl) => (
+                                <li key={`${per}-${ci}-${idxIl}`}>{indicador}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="curriculo-vacio">Sin indicadores cargados para esta competencia.</p>
+                          )}
+                        </td>
+                        <td className="curriculo-td-cont">
+                          {[
+                            ...(comp.contenidos?.conceptuales || []),
+                            ...(comp.contenidos?.procedimentales || []),
+                            ...(comp.contenidos?.actitudinales || []),
+                          ].slice(0, 5).map((contenido, idxCont) => (
+                            <span key={`${per}-${ci}-cont-${idxCont}`}>{contenido}</span>
+                          ))}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="curriculo-td-ce" />
+                      <td className="curriculo-td-il">
+                        <p className="curriculo-vacio">
+                          Los indicadores se completarán automáticamente cuando registres planificaciones
+                          con códigos CE e IL para este período.
+                        </p>
+                      </td>
+                      <td className="curriculo-td-cont" />
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1754,8 +1920,8 @@ function RegistroPage({
           <tr>
             <th rowSpan={3} className="rg-th rg-th-fixed rg-th-num">N.º</th>
             <th rowSpan={3} className="rg-th rg-th-fixed rg-th-nombre">ESTUDIANTE</th>
-            <th colSpan={32} className="rg-th rg-th-section rg-section-comp">COMPETENCIAS ESPECÍFICAS</th>
-            <th colSpan={5}  className="rg-th rg-th-section rg-section-prom">PROMEDIO DE COMPETENCIAS ESPECÍFICAS</th>
+            <th colSpan={cantidadCompetencias * 8} className="rg-th rg-th-section rg-section-comp">COMPETENCIAS ESPECÍFICAS</th>
+            <th colSpan={cantidadCompetencias + 1}  className="rg-th rg-th-section rg-section-prom">PROMEDIO DE COMPETENCIAS ESPECÍFICAS</th>
             <th colSpan={4}  className="rg-th rg-th-section rg-section-completiva">CALIFICACIÓN COMPLETIVA</th>
             <th colSpan={4}  className="rg-th rg-th-section rg-section-extra">CALIFICACIÓN EXTRAORDINARIA</th>
             <th colSpan={2}  className="rg-th rg-th-section rg-section-especial">CALIFICACIONES ESPECIALES</th>
@@ -1769,10 +1935,9 @@ function RegistroPage({
                 <span className="rg-comp-name">{competencias[ci]?.nombre || `Competencia ${ci + 1}`}</span>
               </th>
             ))}
-            <th className="rg-th rg-th-prom">C1</th>
-            <th className="rg-th rg-th-prom">C2</th>
-            <th className="rg-th rg-th-prom">C3</th>
-            <th className="rg-th rg-th-prom">C4</th>
+            {codigosComp.map((_, ci) => (
+              <th key={`prom-head-${ci}`} className="rg-th rg-th-prom">C{ci + 1}</th>
+            ))}
             <th className="rg-th rg-th-prom rg-th-cf-col">C.F.</th>
             <th className="rg-th rg-th-completiva">50% C.F.</th>
             <th className="rg-th rg-th-completiva">C.E.C.</th>
@@ -1789,7 +1954,7 @@ function RegistroPage({
             <th className="rg-th rg-th-situacion">Estado</th>
           </tr>
           <tr>
-            {[0,1,2,3].flatMap((ci) =>
+            {codigosComp.flatMap((_, ci) =>
               ["P1","RP1","P2","RP2","P3","RP3","P4","RP4"].map((p) => (
                 <th key={`ph-${ci}-${p}`} className={`rg-th rg-th-periodo ${p.startsWith("RP") ? "rg-th-rp" : "rg-th-p"}`}>{p}</th>
               ))
