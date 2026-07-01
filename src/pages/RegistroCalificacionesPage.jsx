@@ -258,12 +258,8 @@ const COMP_DESCRIPCIONES = {
   "CEF-4": "Crea y disfruta de expresiones corporales, rítmicas y creativas como formas de comunicación y bienestar personal.",
 };
 
-// Agrupación visual de competencias en el encabezado de la tabla (4 bloques Canva 2do Sec)
-// Cada sub-array contiene los ÍNDICES dentro de codigosComp para ese bloque
-const COMP_GRUPOS_MAP = {
-  "Inglés":              [[0], [1,2], [3,4], [5,6]],
-  "Lenguas Extranjeras": [[0], [1,2], [3,4], [5,6]],
-};
+// Sin agrupación especial — cada CE tiene su propio bloque individual
+const COMP_GRUPOS_MAP = {};
 
 function crearNotasVacias(cantidadCompetencias = 4) {
   return {
