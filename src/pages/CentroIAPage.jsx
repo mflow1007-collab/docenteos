@@ -9,7 +9,10 @@ import { EventTracker } from '../services/ai/learning/EventTracker.js'
 import { LEARNING_EVENTS, AGENT_IDS, MEMORY_TYPES, MEMORY_SOURCES, STATES, COLLECTIONS } from '../services/ai/knowledge/KnowledgeTypes.js'
 import { crearMemoria } from '../services/ai/memory/AgentMemoryService.js'
 import { esUsuarioDocenteOS } from '../utils/permisos.js'
+import { getReferenciaAdecuacionesCurriculares } from '../data/adecuacionesCurriculares.js'
 import './CentroIAPage.css'
+
+const REFERENCIA_ADECUACIONES = getReferenciaAdecuacionesCurriculares()
 
 // ── Prompt Bank Data ──────────────────────────────────────────────────────────
 const BANCO = [
@@ -164,7 +167,7 @@ const BANCO = [
       {
         id: 'n1', titulo: 'Adecuaciones Curriculares',
         desc: 'Adaptaciones para estudiantes con necesidades especiales',
-        texto: 'Sugiere adecuaciones curriculares para un estudiante con [TIPO DE NECESIDAD: Discapacidad visual / auditiva / intelectual / motora / autismo / TDAH / dislexia / superdotación] en [GRADO] de [ÁREA]. Incluye adecuaciones en tres dimensiones:\n1. Acceso: adaptaciones físicas, comunicativas y de presentación\n2. Metodológicas: estrategias, tiempos, agrupamientos, recursos alternativos\n3. Evaluación: formatos alternativos, criterios ajustados, tiempo adicional\nBasado en el enfoque inclusivo del MINERD y la Orden 02-2011.',
+        texto: `Sugiere adecuaciones curriculares para un estudiante con [TIPO DE NECESIDAD: Discapacidad visual / auditiva / intelectual / motora / autismo / TDAH / dislexia / superdotación] en [GRADO] de [ÁREA]. Incluye adecuaciones en tres dimensiones:\n1. Acceso: adaptaciones físicas, comunicativas y de presentación\n2. Metodológicas: estrategias, tiempos, agrupamientos, recursos alternativos\n3. Evaluación: formatos alternativos, criterios ajustados, tiempo adicional\nBasado en el enfoque inclusivo del MINERD, el DUA y la referencia oficial actualizada: ${REFERENCIA_ADECUACIONES}.`,
       },
       {
         id: 'n2', titulo: 'Actividades Diferenciadas',
@@ -231,6 +234,9 @@ export default function CentroIAPage({ seccion = 'bienvenida' }) {
   const [seccionInterna,    setSeccionInterna]    = useState(seccion)
   const [promptPreCargado,  setPromptPreCargado]  = useState('')
 
+  // Una única lectura de Firestore para todo el árbol de secciones (ID-09)
+  const { contexto, datosCurriculares } = useContextoDocente()
+
   // Sincroniza cuando el sidebar cambia la sección externamente
   useEffect(() => { setSeccionInterna(seccion) }, [seccion])
 
@@ -245,13 +251,13 @@ export default function CentroIAPage({ seccion = 'bienvenida' }) {
       {seccionInterna === 'rol'          && <SecRol />}
       {seccionInterna === 'planificar'   && <SecPlanificar />}
       {seccionInterna === 'experiencias' && <SecExperiencias />}
-      {seccionInterna === 'prompts'      && <SecPrompts onEjecutar={irALaboratorio} />}
-      {seccionInterna === 'materiales'   && <SecMateriales onEjecutar={irALaboratorio} />}
-      {seccionInterna === 'evaluaciones' && <SecEvaluaciones onEjecutar={irALaboratorio} />}
+      {seccionInterna === 'prompts'      && <SecPrompts onEjecutar={irALaboratorio} datosCurriculares={datosCurriculares} />}
+      {seccionInterna === 'materiales'   && <SecMateriales onEjecutar={irALaboratorio} datosCurriculares={datosCurriculares} />}
+      {seccionInterna === 'evaluaciones' && <SecEvaluaciones onEjecutar={irALaboratorio} datosCurriculares={datosCurriculares} />}
       {seccionInterna === 'ev-autentica' && <SecEvAutentica />}
       {seccionInterna === 'personal'     && <SecPersonal />}
       {seccionInterna === 'etica'        && <SecEtica />}
-      {seccionInterna === 'laboratorio'  && <SecLaboratorio initialPrompt={promptPreCargado} />}
+      {seccionInterna === 'laboratorio'  && <SecLaboratorio initialPrompt={promptPreCargado} contexto={contexto} datosCurriculares={datosCurriculares} />}
       {seccionInterna === 'academia'     && <SecAcademia onIrALab={irALaboratorio} />}
       {seccionInterna === 'mi-ia'        && <SecMiIA />}
     </div>
@@ -573,12 +579,10 @@ function SecExperiencias() {
 // ════════════════════════════════════════════════════════════════════════════
 // SECTION 5 · Banco de Prompts
 // ════════════════════════════════════════════════════════════════════════════
-function SecPrompts({ onEjecutar }) {
+function SecPrompts({ onEjecutar, datosCurriculares = null }) {
   const [cat,     setCat]     = useState('planif')
   const [copiado, setCopiado] = useState(null)
   const catActual = BANCO.find(c => c.id === cat) || BANCO[0]
-
-  const { datosCurriculares } = useContextoDocente()
 
   // Reemplaza placeholders con datos reales del docente cuando están disponibles
   const rellenar = useCallback((texto) => {
@@ -696,9 +700,8 @@ const MATS = [
   { icon: '🔬', label: 'Guía de Experimento',desc: 'Procedimiento científico' },
 ]
 
-function SecMateriales({ onEjecutar }) {
+function SecMateriales({ onEjecutar, datosCurriculares = null }) {
   const [sel, setSel] = useState(null)
-  const { datosCurriculares } = useContextoDocente()
 
   const promptMat = sel != null ? (() => {
     const grado = datosCurriculares?.grado || '[GRADO]'
@@ -787,10 +790,9 @@ const TIPOS_EVAL = [
   { icon: '📈', label: 'Escala de Estimación',  desc: 'Frecuencia de actitudes', prompt: 'Crea una escala de estimación de 4 niveles con 10 ítems para evaluar [ACTITUD/PROCESO] en estudiantes de [GRADO] de [ÁREA].' },
 ]
 
-function SecEvaluaciones({ onEjecutar }) {
+function SecEvaluaciones({ onEjecutar, datosCurriculares = null }) {
   const [sel, setSel] = useState(null)
   const [copiado, setCopiado] = useState(false)
-  const { datosCurriculares } = useContextoDocente()
 
   const getPrompt = useCallback((idx) => {
     if (idx == null) return ''
@@ -972,7 +974,7 @@ function SecPersonal() {
         },
         {
           titulo: 'Adecuaciones curriculares',
-          texto: 'Sugiere adecuaciones curriculares para un estudiante con [NECESIDAD ESPECIAL: TDAH / dislexia / discapacidad visual / autismo / etc.] en [GRADO] de [ÁREA]. Incluye adecuaciones de acceso, metodológicas y de evaluación. Basado en el enfoque inclusivo del MINERD y el DUA (Diseño Universal para el Aprendizaje).',
+          texto: `Sugiere adecuaciones curriculares para un estudiante con [NECESIDAD ESPECIAL: TDAH / dislexia / discapacidad visual / autismo / etc.] en [GRADO] de [ÁREA]. Incluye adecuaciones de acceso, metodológicas y de evaluación. Basado en el enfoque inclusivo del MINERD, el DUA y la referencia oficial actualizada: ${REFERENCIA_ADECUACIONES}.`,
         },
         {
           titulo: 'Estrategias para superdotación',
@@ -1044,7 +1046,7 @@ function SecEtica() {
 // ════════════════════════════════════════════════════════════════════════════
 // SECTION 11 · Laboratorio IA — Chat multi-turno
 // ════════════════════════════════════════════════════════════════════════════
-function SecLaboratorio({ initialPrompt = '' }) {
+function SecLaboratorio({ initialPrompt = '', contexto = null, datosCurriculares = null }) {
   const [mensajes, setMensajesState] = useState([])
   const [texto,    setTexto]         = useState('')
   const [gen,      setGenState]      = useState(false)
@@ -1055,8 +1057,6 @@ function SecLaboratorio({ initialPrompt = '' }) {
   const streamingRef   = useRef('')
   const messagesEndRef = useRef(null)
   const lastInitRef    = useRef('')
-
-  const { contexto, datosCurriculares } = useContextoDocente()
   const { user, perfil }               = useAuth()
   const esAdmin = esUsuarioDocenteOS(user?.email)
 

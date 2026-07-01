@@ -12,9 +12,6 @@ export const register = (email, pass) =>
 export const login = (email, pass) =>
   signInWithEmailAndPassword(auth, email, pass);
 
-export const logout = () =>
-  signOut(auth);
-
 export const cerrarSesion = () => {
   // Limpiar datos del docente antes de cerrar sesión (dispositivos compartidos)
   Object.keys(localStorage)

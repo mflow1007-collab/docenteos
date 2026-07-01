@@ -17,6 +17,7 @@ import {
   onSnapshot,
   documentId,
   limit,
+  orderBy,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -230,6 +231,7 @@ export const obtenerPlanificacionesDetalladas = async () => {
       const q = query(
         collection(db, "planificaciones"),
         where("usuario", "==", user.uid),
+        orderBy("createdAt", "desc"),
         limit(200)
       );
       const querySnapshot = await getDocs(q);

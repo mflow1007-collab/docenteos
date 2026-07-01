@@ -599,6 +599,11 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
   };
 
   const guardarInstrumento = () => {
+    if (!draft.nombre?.trim()) {
+      setMensaje({ tipo: "error", texto: "El instrumento debe tener un nombre antes de guardar." });
+      setTimeout(() => setMensaje(null), 3000);
+      return;
+    }
     const tipo = draft.tipo || "Rúbrica";
     const cursoRelacionado = obtenerCursoRelacionado(curriculoActivo);
     const planificacionId = curriculoActivo?.planificacionId || curriculoActivo?.id || "";
@@ -986,7 +991,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
             <div className="panel-head-actions">
               <span className="banco-count-pill">{cantidadInstrumentos}</span>
               <button className="mini-btn mini-btn-accent" onClick={() => onIrA("planificacion")}>Ir a Planificación</button>
-              <button className="mini-btn" onClick={() => onIrA("registro")}>Ir a Registro</button>
+              <button className="mini-btn" onClick={() => onIrA("mi-registro")}>Ir a Mi Registro</button>
             </div>
           </div>
 
@@ -1168,7 +1173,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
       <section className="instrumentos-panel panel-soft integracion-panel">
         <div className="panel-head-inline">
           <div>
-            <h2>Preparado para Registro</h2>
+                <h2>Preparado para Mi Registro</h2>
             <p>La estructura ya guarda competencia, indicador, calificación, fecha y período para conectar con Registro luego.</p>
           </div>
         </div>

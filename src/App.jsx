@@ -522,7 +522,7 @@ function AppInner() {
         )}
         <section className="content">
           <Suspense fallback={<div className="card">Cargando módulo...</div>}>
-          {pagina === "inicio" && (
+          {pagina === "inicio" && navegacionLista && (
             <Inicio
               cursos={cursos}
               onNuevaPlanificacion={() => { setPlanificacionPreCargada(null); navegar("planificacion"); }}
