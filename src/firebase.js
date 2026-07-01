@@ -84,56 +84,6 @@ const getCurrentUserOrThrow = () => {
   return user;
 };
 
-// Función para guardar planificación en Firestore
-export const guardarPlanificacion = async (planificacion) => {
-  try {
-    const user = getCurrentUserOrThrow();
-
-    const docRef = await addDoc(collection(db, "planificaciones"), {
-      curso: planificacion.curso,
-      periodo: planificacion.periodo,
-      tema: planificacion.tema,
-      competencia: planificacion.competencia,
-      resultado: planificacion.resultado,
-      usuario: user.uid,
-      usuarioEmail: user.email,
-      ...buildMetaBase(user.uid),
-      fecha: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    console.log("Planificación guardada con ID:", docRef.id);
-    return { id: docRef.id, success: true };
-  } catch (error) {
-    console.error("Error al guardar planificación:", error);
-    throw error;
-  }
-};
-
-// Función para obtener planificaciones del usuario
-export const obtenerPlanificaciones = async () => {
-  try {
-    const user = getCurrentUserOrThrow();
-
-    const planificaciones = [];
-    const q = query(
-      collection(db, "planificaciones"),
-      where("usuario", "==", user.uid)
-    );
-    const querySnapshot = await getDocs(q);
-
-    querySnapshot.forEach((doc) => {
-      planificaciones.push({ id: doc.id, ...doc.data() });
-    });
-
-    return planificaciones;
-  } catch (error) {
-    console.error("Error al obtener planificaciones:", error);
-    throw error;
-  }
-};
-
 const HORARIOS_KEY = "docenteos_horarios_cursos";
 const PLANIFICACIONES_KEY = "docenteos_planificaciones_guardadas";
 

@@ -22,8 +22,11 @@ import DetalleCurso from "./components/DetalleCurso.jsx";
 
 const PlanificacionPage       = lazy(() => import("./pages/PlanificacionPage"));
 const InstrumentosPage        = lazy(() => import("./pages/InstrumentosPage"));
-const RegistroPage            = lazy(() => import("./RegistroPage"));
+const RegistroPage            = lazy(() => import("./pages/RegistroCalificacionesPage"));
 const BibliotecaPage          = lazy(() => import("./pages/BibliotecaPage"));
+const LibroAbiertoPage        = lazy(() => import("./pages/LibroAbiertoPage"));
+const CurricularPage          = lazy(() => import("./pages/CurricularPage"));
+const RegistrosEducandoPage   = lazy(() => import("./pages/RegistrosEducandoPage"));
 const CurriculumImportPage    = lazy(() => import("./pages/CurriculumImportPage"));
 const CentroIAPage            = lazy(() => import("./pages/CentroIAPage"));
 const SubscriptionPage        = lazy(() => import("./pages/SubscriptionPage"));
@@ -276,7 +279,7 @@ function AppInner() {
 
   const [seccionIA,        setSeccionIA]        = useState("bienvenida");
   const [grupoExpandido,   setGrupoExpandido]   = useState(() => {
-    if (["cursos","detalle-curso","planificacion","instrumentos","registro","biblioteca","reportes"].includes(pagina)) return "docencia";
+    if (["cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(pagina)) return "docencia";
     if (["estudiantes","detalle-estudiante"].includes(pagina)) return "estudiantes";
     if (pagina === "ia" || pagina === "curriculo") return "inteligencia";
     if (["suscripcion","configuracion","asistente-personal"].includes(pagina)) return "configuracion";
@@ -289,7 +292,7 @@ function AppInner() {
   // Determina qué grupo sidebar debe estar abierto según la página activa
   const grupoDePageID = (id) => {
     if (id === "inicio")                                        return "inicio";
-    if (["cursos","detalle-curso","planificacion","instrumentos","registro","biblioteca","reportes"].includes(id)) return "docencia";
+    if (["cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(id)) return "docencia";
     if (["estudiantes","detalle-estudiante"].includes(id))      return "estudiantes";
     if (id === "ia" || id === "curriculo")                      return "inteligencia";
     if (id === "suscripcion" || id === "configuracion")         return "configuracion";
@@ -388,8 +391,11 @@ function AppInner() {
             {cargoTieneModulo(rol, "cursos")       && <SidebarItem id="cursos"        label="📘 Cursos"            pagina={pagina} onClick={() => irA("cursos")} />}
             <SidebarItem id="planificacion"          label="📝 Planificación"     pagina={pagina} onClick={() => irA("planificacion")} />
             {cargoTieneModulo(rol, "instrumentos") && <SidebarItem id="instrumentos"  label="📋 Instrumentos"      pagina={pagina} onClick={() => irA("instrumentos")} />}
-            <SidebarItem id="registro"               label="📓 Registro"          pagina={pagina} onClick={() => irA("registro")} />
-            <SidebarItem id="biblioteca"             label="📚 Biblioteca MINERD" pagina={pagina} onClick={() => irA("biblioteca")} />
+            <SidebarItem id="mi-registro"            label="📓 Mi Registro"       pagina={pagina} onClick={() => irA("mi-registro")} />
+            <SidebarItem id="libro-abierto"          label="📚 Libro Abierto"     pagina={pagina} onClick={() => irA("libro-abierto")} />
+            <SidebarItem id="curricular"             label="📖 Diseño Curricular" pagina={pagina} onClick={() => irA("curricular")} />
+            <SidebarItem id="formatos-minerd"        label="📒 Registro del MINERD" pagina={pagina} onClick={() => irA("formatos-minerd")} />
+            <SidebarItem id="biblioteca"             label="🗂️ Biblioteca General" pagina={pagina} onClick={() => irA("biblioteca")} />
             <SidebarItem id="reportes"               label="📊 Reportes"          pagina={pagina} onClick={() => irA("reportes")} />
           </SidebarGrupo>
 
@@ -584,8 +590,10 @@ function AppInner() {
               onIrA={(destino) => navegar(destino)}
             />
           )}
+          {pagina === "curricular" && <CurricularPage onIrA={(destino) => navegar(destino)} />}
+          {pagina === "libro-abierto" && <LibroAbiertoPage onIrA={(destino) => navegar(destino)} />}
           {pagina === "biblioteca" && <BibliotecaPage onIrA={(destino) => navegar(destino)} />}
-          {pagina === "registro" && (
+          {(pagina === "mi-registro" || pagina === "registro") && (
             <RegistroPage
               onVolver={() => navegar("inicio")}
               curso={cursoRegistro}
@@ -594,6 +602,9 @@ function AppInner() {
               onAbrirPerfil={abrirDetalleEstudiante}
               onActualizarCurso={actualizarCurso}
             />
+          )}
+          {(pagina === "formatos-minerd" || pagina === "registros-minerd") && (
+            <RegistrosEducandoPage onIrA={(destino) => navegar(destino)} />
           )}
           {pagina === "reportes" && <ReportesPage cursos={cursos} />}
           {pagina === "ia"       && esDocenteOS && <CentroIAPage seccion={seccionIA} />}
@@ -612,4 +623,3 @@ function AppInner() {
     </div>
   );
 }
-

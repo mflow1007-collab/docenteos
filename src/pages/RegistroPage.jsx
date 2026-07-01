@@ -109,8 +109,7 @@ export default function RegistroPage() {
         }
       }
 
-      // Redirigir al dashboard (el router detecta el auth state)
-      navigate('/dashboard', { replace: true })
+      navigate('/', { replace: true })
     } catch (err) {
       setError(getError(err.code))
     } finally {

@@ -41,7 +41,7 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
 
   const [pagina, setPagina] = useState(seccionInicial)
 
-  const volverApp = () => navigate('/dashboard', { replace: true })
+  const volverApp = () => navigate('/', { replace: true })
 
   return (
     <div className="admin-shell">

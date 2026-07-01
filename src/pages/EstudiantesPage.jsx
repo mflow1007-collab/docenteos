@@ -13,7 +13,7 @@ function capitalizarNombre(str) {
     .join(" ");
 }
 
-function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onActualizarCurso = () => {}, onCrearCurso = () => {} }) {
+function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso = () => {}, onActualizarCurso = () => {}, onCrearCurso = () => {} }) {
   const [vistaEstudiantes, setVistaEstudiantes] = useState("Por Período");
   const [busqueda, setBusqueda] = useState("");
   const [fGrado, setFGrado] = useState("Todos");
@@ -553,6 +553,9 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onActualizarCu
           </div>
           <div className="est-banner-btns">
             <button type="button" className="secundario" onClick={() => onAbrirPerfil(seleccionado)}>👁 Ver perfil</button>
+            {seleccionado.cursoId && (
+              <button type="button" className="secundario" onClick={() => onAbrirCurso(seleccionado.cursoId)}>📋 Ver curso</button>
+            )}
             <button
               type="button"
               className="secundario"

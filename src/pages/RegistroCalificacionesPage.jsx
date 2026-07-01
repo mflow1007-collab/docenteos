@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { obtenerCompetencias } from "./services/curriculumService.js";
+import { obtenerCompetencias } from "../services/curriculumService.js";
 import {
   guardarEvidenciaEstudiante,
   guardarRegistroAspecto,
@@ -9,14 +9,14 @@ import {
   obtenerRegistroAspectos,
   obtenerRegistroCalificaciones,
   obtenerRegistroNotas,
-} from "./firebase";
-import { escribirExpedienteDesdeRegistro } from "./services/expedienteEstudianteService.js";
-import { useAuth } from "./context/AuthContext.jsx";
-import { AIService } from "./services/ai/AIService.js";
-import { buildAIContext } from "./services/ai/ContextBuilder.js";
-import { EventTracker } from "./services/ai/learning/EventTracker.js";
-import { LEARNING_EVENTS, AGENT_IDS } from "./services/ai/knowledge/KnowledgeTypes.js";
-import "./RegistroPage.css";
+} from "../firebase";
+import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
+import { useAuth } from "../context/AuthContext.jsx";
+import { AIService } from "../services/ai/AIService.js";
+import { buildAIContext } from "../services/ai/ContextBuilder.js";
+import { EventTracker } from "../services/ai/learning/EventTracker.js";
+import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
+import "../RegistroPage.css";
 
 const DIAS = ["L", "M", "I", "J", "V"];
 const ESTADOS_ASISTENCIA = ["", "P", "A", "T", "E"];
@@ -269,6 +269,7 @@ function RegistroPage({
   onVolver,
   curso,
   estudiantesCurso = [],
+  estudiante = null,
   onAbrirPerfil = null,
   onActualizarCurso = null,
 }) {
