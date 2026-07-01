@@ -13,7 +13,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 import AdminBar from "./components/AdminBar.jsx";
 import SubscriptionBanner from "./components/SubscriptionBanner.jsx";
 import { esUsuarioDocenteOS, cargoTieneModulo } from "./utils/permisos.js";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { enriquecerCursoInicial, aplicarRegistroACurso } from "./utils/cursoUtils.js";
 import { SidebarGrupo, SidebarItem } from "./components/AppSidebar.jsx";
 import Inicio from "./components/Inicio.jsx";
@@ -40,6 +40,10 @@ export default function App() {
 function AppInner() {
   const { formulario, user, rol } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  // Derive current page from URL — no state needed
+  const pagina = pathname.replace(/^\/dashboard\/?/, '') || 'inicio'
+  const navegar = (id) => navigate('/dashboard/' + (id === 'inicio' ? '' : id))
 
   const esDocenteOS = esUsuarioDocenteOS(user?.email)
   const esAdmin = esDocenteOS
@@ -65,7 +69,6 @@ function AppInner() {
     ? nombreDocente.trim().split(/\s+/).slice(0, 2).map(p => p[0].toUpperCase()).join('')
     : 'DO'
 
-  const [pagina, setPagina] = useState("inicio");
   const [planificacionPreCargada, setPlanificacionPreCargada] = useState(null);
   const [cursosLoaded, setCursosLoaded] = useState(false);
   const [cursos, setCursos] = useState(() => {
@@ -94,12 +97,12 @@ function AppInner() {
     setCursos((prev) => prev.map((item) => (item.id === curso.id ? { ...item, ultimoAcceso: fechaAcceso } : item)));
     setCursoSeleccionadoId(curso.id);
     setTabDetalleInicial("Resumen");
-    setPagina("detalle-curso");
+    navegar("detalle-curso");
   };
 
   const solicitarEdicionCurso = (curso) => {
     setCursoAEditar(curso);
-    setPagina("cursos");
+    navegar("cursos");
   };
 
   const crearCurso = (nuevoCurso) => {
@@ -110,7 +113,7 @@ function AppInner() {
   const abrirHorarioCurso = (cursoId) => {
     setCursoSeleccionadoId(cursoId);
     setTabDetalleInicial("Horario");
-    setPagina("detalle-curso");
+    navegar("detalle-curso");
   };
 
   const actualizarCurso = (cursoActualizado) => {
@@ -124,7 +127,7 @@ function AppInner() {
   const eliminarCurso = (idCurso) => {
     setCursos((prev) => prev.filter((curso) => curso.id !== idCurso));
     if (cursoSeleccionadoId === idCurso) {
-      setPagina("cursos");
+      navegar("cursos");
       setCursoSeleccionadoId(null);
     }
     eliminarCursoFS(idCurso).catch((err) => console.error("[App] Error al eliminar curso:", err));
@@ -133,11 +136,11 @@ function AppInner() {
   const abrirDetalleEstudiante = (estudiante) => {
     if (!estudiante) return;
     setEstudianteDetalle(estudiante);
-    setPagina("detalle-estudiante");
+    navegar("detalle-estudiante");
   };
 
   const volverAEstudiantes = () => {
-    setPagina("estudiantes");
+    navegar("estudiantes");
   };
 
   const cursoSeleccionado =
@@ -176,9 +179,16 @@ function AppInner() {
           };
         };
 
+        const restaurarPagina = (datos) => {
+          if (!datos?.pagina || datos.pagina === 'inicio') return;
+          // Only redirect if on dashboard root — deep links take priority
+          if (pathname === '/dashboard' || pathname === '/dashboard/') {
+            navegar(datos.pagina);
+          }
+        };
         const remoto = parsearNavegacion(preferencia?.data);
         if (remoto) {
-          setPagina(remoto.pagina);
+          restaurarPagina(remoto);
           setDetalleEstudianteTab(remoto.detalleEstudianteTab);
           setEstudianteDetalle(remoto.estudianteDetalle);
         } else {
@@ -186,7 +196,7 @@ function AppInner() {
             const guardada = localStorage.getItem("docenteos_navegacion");
             const local = guardada ? parsearNavegacion(JSON.parse(guardada)) : null;
             if (local) {
-              setPagina(local.pagina);
+              restaurarPagina(local);
               setDetalleEstudianteTab(local.detalleEstudianteTab);
               setEstudianteDetalle(local.estudianteDetalle);
             }
@@ -246,7 +256,7 @@ function AppInner() {
 
   useEffect(() => {
     if (pagina === "detalle-estudiante" && !estudianteDetalle) {
-      setPagina("estudiantes");
+      navegar("estudiantes");
     }
   }, [pagina, estudianteDetalle]);
 
@@ -265,7 +275,13 @@ function AppInner() {
   }, [pagina, estudianteDetalle, detalleEstudianteTab, navegacionLista]);
 
   const [seccionIA,        setSeccionIA]        = useState("bienvenida");
-  const [grupoExpandido,   setGrupoExpandido]   = useState("inicio");
+  const [grupoExpandido,   setGrupoExpandido]   = useState(() => {
+    if (["cursos","detalle-curso","planificacion","instrumentos","registro","biblioteca","reportes"].includes(pagina)) return "docencia";
+    if (["estudiantes","detalle-estudiante"].includes(pagina)) return "estudiantes";
+    if (pagina === "ia" || pagina === "curriculo") return "inteligencia";
+    if (["suscripcion","configuracion","asistente-personal"].includes(pagina)) return "configuracion";
+    return "inicio";
+  });
   const [menuAbierto,      setMenuAbierto]       = useState(false);
 
   const cerrarMenu = () => setMenuAbierto(false);
@@ -303,14 +319,14 @@ function AppInner() {
     if (["inicio", "cursos", "estudiantes"].includes(id)) {
       refrescarCursosDesdeRegistros();
     }
-    setPagina(id);
+    navegar(id);
     setGrupoExpandido(grupoDePageID(id));
     cerrarMenu();
   };
 
   const irASeccionIA = (seccionId) => {
     setSeccionIA(seccionId);
-    setPagina("ia");
+    navegar("ia");
     setGrupoExpandido("inteligencia");
     cerrarMenu();
   };
@@ -321,13 +337,13 @@ function AppInner() {
 
   const abrirPlanificacionDesdeHistorial = (item) => {
     setPlanificacionPreCargada({ contenido: item.contenido, accion: "abrir" });
-    setPagina("planificacion");
+    navegar("planificacion");
     cerrarMenu();
   };
 
   const duplicarPlanificacionDesdeHistorial = (item) => {
     setPlanificacionPreCargada({ contenido: item.contenido, accion: "duplicar" });
-    setPagina("planificacion");
+    navegar("planificacion");
     cerrarMenu();
   };
 
@@ -503,8 +519,8 @@ function AppInner() {
           {pagina === "inicio" && (
             <Inicio
               cursos={cursos}
-              onNuevaPlanificacion={() => { setPlanificacionPreCargada(null); setPagina("planificacion"); }}
-              onIrA={(destino) => setPagina(destino)}
+              onNuevaPlanificacion={() => { setPlanificacionPreCargada(null); navegar("planificacion"); }}
+              onIrA={(destino) => navegar(destino)}
               onIrASeccionIA={irASeccionIA}
               onAbrirCurso={(cursoId) => {
                 const curso = cursos.find((item) => item.id === cursoId);
@@ -536,12 +552,12 @@ function AppInner() {
             <DetalleCurso
               key={`${cursoSeleccionado?.id || "curso"}-${tabDetalleInicial}`}
               curso={cursoSeleccionado}
-              onVolver={() => setPagina("cursos")}
+              onVolver={() => navegar("cursos")}
               onEditarCurso={solicitarEdicionCurso}
               onActualizarCurso={actualizarCurso}
               onEliminarCurso={eliminarCurso}
               initialTab={tabDetalleInicial}
-              onIrA={(destino) => setPagina(destino)}
+              onIrA={(destino) => navegar(destino)}
             />
           )}
           {pagina === "estudiantes" && (
@@ -565,13 +581,13 @@ function AppInner() {
             <InstrumentosPage
               cursos={cursos}
               cursoActivo={cursoRegistro}
-              onIrA={(destino) => setPagina(destino)}
+              onIrA={(destino) => navegar(destino)}
             />
           )}
-          {pagina === "biblioteca" && <BibliotecaPage onIrA={(destino) => setPagina(destino)} />}
+          {pagina === "biblioteca" && <BibliotecaPage onIrA={(destino) => navegar(destino)} />}
           {pagina === "registro" && (
             <RegistroPage
-              onVolver={() => setPagina("inicio")}
+              onVolver={() => navegar("inicio")}
               curso={cursoRegistro}
               estudiante={estudianteDetalle}
               estudiantesCurso={cursoRegistro?.estudiantesDetalle || []}
