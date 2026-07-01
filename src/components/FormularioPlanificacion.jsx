@@ -36,6 +36,7 @@ export default function FormularioPlanificacion({
   indicadoresOficiales,
   setIndicadoresOficiales,
   imagenTematicaNombre,
+  imagenSubiendo = false,
   onSeleccionarImagenTematica,
   onLimpiarImagenTematica,
   onGenerar,
@@ -500,9 +501,10 @@ export default function FormularioPlanificacion({
                 type="file"
                 accept="image/*"
                 onChange={(e) => onSeleccionarImagenTematica?.(e.target.files?.[0] || null)}
-                disabled={cargando}
+                disabled={cargando || imagenSubiendo}
               />
-              {imagenTematicaNombre && (
+              {imagenSubiendo && <span className="form-file-help">Subiendo imagen…</span>}
+              {!imagenSubiendo && imagenTematicaNombre && (
                 <div className="form-file-help">
                   <span>Seleccionada: {imagenTematicaNombre}</span>
                   <button type="button" onClick={() => onLimpiarImagenTematica?.()}>

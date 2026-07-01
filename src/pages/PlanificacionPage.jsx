@@ -56,6 +56,7 @@ import {
   registrarUsoTemaPlanificacion,
   registrarUsoPDFTema,
   suscribirseEstadoTemasPlanificacion,
+  subirImagenPlanificacion,
 } from "../firebase";
 
 export default function PlanificacionPage({ planificacionPreCargada = null, onConsumirPreCargada = () => {} }) {
@@ -92,6 +93,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
   const [indicadoresOficiales, setIndicadoresOficiales] = useState("");
   const [imagenTematicaSrc, setImagenTematicaSrc] = useState("");
   const [imagenTematicaNombre, setImagenTematicaNombre] = useState("");
+  const [imagenSubiendo, setImagenSubiendo] = useState(false);
   const [ejesTematicos, setEjesTematicos] = useState([]);
   const [asignaturasVinculadas, setAsignaturasVinculadas] = useState("");
   const [situacionAprendizaje, setSituacionAprendizaje] = useState("");
@@ -1429,19 +1431,38 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     }
   };
 
-  const manejarSeleccionImagenTematica = (archivo) => {
+  const manejarSeleccionImagenTematica = async (archivo) => {
     if (!archivo) {
       setImagenTematicaSrc("");
       setImagenTematicaNombre("");
       return;
     }
-
-    const lector = new FileReader();
-    lector.onload = () => {
-      setImagenTematicaSrc(typeof lector.result === "string" ? lector.result : "");
+    setImagenSubiendo(true);
+    try {
+      const uid = user?.uid;
+      const url = uid ? await subirImagenPlanificacion(uid, archivo) : null;
+      if (url) {
+        setImagenTematicaSrc(url);
+      } else {
+        // Fallback local si Storage no está disponible
+        const lector = new FileReader();
+        lector.onload = () => {
+          setImagenTematicaSrc(typeof lector.result === "string" ? lector.result : "");
+        };
+        lector.readAsDataURL(archivo);
+      }
       setImagenTematicaNombre(archivo.name || "imagen-tematica");
-    };
-    lector.readAsDataURL(archivo);
+    } catch {
+      // Fallback a base64 si falla la subida
+      const lector = new FileReader();
+      lector.onload = () => {
+        setImagenTematicaSrc(typeof lector.result === "string" ? lector.result : "");
+      };
+      lector.readAsDataURL(archivo);
+      setImagenTematicaNombre(archivo.name || "imagen-tematica");
+    } finally {
+      setImagenSubiendo(false);
+    }
   };
 
   const limpiarImagenTematica = () => {
@@ -1989,6 +2010,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             indicadoresOficiales={indicadoresOficiales}
             setIndicadoresOficiales={setIndicadoresOficiales}
             imagenTematicaNombre={imagenTematicaNombre}
+            imagenSubiendo={imagenSubiendo}
             onSeleccionarImagenTematica={manejarSeleccionImagenTematica}
             onLimpiarImagenTematica={limpiarImagenTematica}
             onGenerar={manejarGenerar}

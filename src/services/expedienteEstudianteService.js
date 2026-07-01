@@ -134,11 +134,20 @@ export async function escribirExpedienteDesdeRegistro({
   cursoNombre,
   area,
   grado,
+  estudiantesModificados = null,
 }) {
   if (!auth?.currentUser || !db) return;
   const uid = auth.currentUser.uid;
 
-  const writes = estudiantes.map(async (est) => {
+  // Si se pasa una lista de IDs modificados, solo actualizar esos estudiantes
+  const filtro = estudiantesModificados ? new Set(estudiantesModificados) : null;
+  const estudiantesAActualizar = filtro
+    ? estudiantes.filter((est) => filtro.has(est.id))
+    : estudiantes;
+
+  if (estudiantesAActualizar.length === 0) return;
+
+  const writes = estudiantesAActualizar.map(async (est) => {
     const docId = estudianteDocId(cursoId, est.id);
     const notas = notasEstudiantes?.[est.id] ?? null;
     const promedio = calcularPromedioDesdeNotas(notas) ?? est.promedio ?? null;

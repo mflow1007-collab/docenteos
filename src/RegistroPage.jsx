@@ -321,6 +321,7 @@ function RegistroPage({
   const [evidenciasCurso, setEvidenciasCurso] = useState([]);
   const [estadoNotasAspectos, setEstadoNotasAspectos] = useState("idle");
   const notasPendientesRef = useRef({});
+  const estudiantesModificadosRef = useRef(new Set());
   const [guardando, setGuardando] = useState(false);
   const [mensajeGuardado, setMensajeGuardado] = useState(null);
 
@@ -505,6 +506,7 @@ function RegistroPage({
   const getNotasEstudiante = (id) => notasEstudiantes[id] ?? crearNotasVacias();
 
   const actualizarNotaEstudiante = (estId, compIdx, periodoIdx, campo, valor) => {
+    estudiantesModificadosRef.current.add(estId);
     setNotasEstudiantes((prev) => {
       const actual = prev[estId] ?? crearNotasVacias();
       return {
@@ -525,6 +527,7 @@ function RegistroPage({
   };
 
   const actualizarExtraEstudiante = (estId, campo, valor) => {
+    estudiantesModificadosRef.current.add(estId);
     setNotasEstudiantes((prev) => {
       const actual = prev[estId] ?? crearNotasVacias();
       return { ...prev, [estId]: { ...actual, [campo]: valor } };
@@ -803,7 +806,9 @@ function RegistroPage({
         evaluacionesInstrumentos,
       });
       guardarBorradorLocal();
-      // Escritura silenciosa al expediente de cada estudiante (no bloquea el guardado)
+      // Escritura silenciosa al expediente — solo estudiantes con notas modificadas
+      const modificados = [...estudiantesModificadosRef.current];
+      estudiantesModificadosRef.current = new Set();
       escribirExpedienteDesdeRegistro({
         estudiantes,
         notasEstudiantes,
@@ -813,6 +818,7 @@ function RegistroPage({
         cursoNombre,
         area,
         grado,
+        estudiantesModificados: modificados.length > 0 ? modificados : null,
       }).catch(() => {});
       if (curso && typeof onActualizarCurso === "function") {
         const estudiantesDetalle = estudiantes.map((est) => {

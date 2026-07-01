@@ -19,6 +19,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { esUsuarioDocenteOS } from "./utils/permisos.js";
 
 const firebaseConfig = {
@@ -40,11 +41,13 @@ const isFirebaseConfigured =
 
 let db = null;
 let auth = null;
+let storage = null;
 
 if (isFirebaseConfigured) {
   const app = initializeApp(firebaseConfig);
   db = getFirestore(app);
   auth = getAuth(app);
+  storage = getStorage(app);
 } else {
   console.warn("[DocenteOS] Firebase no configurado. Variables recibidas:", {
     apiKey:            Boolean(firebaseConfig.apiKey),
@@ -57,6 +60,15 @@ if (isFirebaseConfigured) {
 }
 
 export { db, auth };
+
+export const subirImagenPlanificacion = async (uid, archivo) => {
+  if (!storage || !uid || !archivo) return null;
+  const ext = archivo.name.split(".").pop() || "jpg";
+  const path = `planificaciones/${uid}/${Date.now()}_${archivo.name.replace(/[^a-z0-9._-]/gi, "_")}`;
+  const ref = storageRef(storage, path);
+  await uploadBytes(ref, archivo);
+  return await getDownloadURL(ref);
+};
 
 const buildMetaBase = (uid) => ({
   ownerUid: uid,
