@@ -39,6 +39,18 @@ service cloud.firestore {
       match /evidenciasPedagogicas/{docId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+
+      // ID-01: subcollections del Registro (notas, aspectos, evidencias por estudiante)
+      match /cursos/{cursoId}/registroAspectos/{aspId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /cursos/{cursoId}/registroNotas/{notaId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /cursos/{cursoId}/estudiantes/{estId}/evidencias/{evId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+
       match /paymentHistory/{docId} {
         allow read: if isOwner(userId) || isAdmin();
         allow write: if isAdmin();
@@ -86,13 +98,21 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // ── Diseño Curricular MINERD ──────────────────────────────────────────────
+    // ID-02: colección leída por curriculumService — sin regla causaba fallo silencioso
+    match /diseñoCurricular/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
     // ── Centros educativos (multi-centro) ─────────────────────────────────────
     // Lectura: cualquier docente autenticado (para pre-cargar info de su centro)
-    // Escritura: docentes pueden crear/actualizar su propio centro al completar perfil
+    // Escritura: docentes pueden crear su propio centro al completar perfil
+    // ID-15: update restringido a isAdmin() para evitar que docentes editen centros ajenos
     match /centros/{centroId} {
       allow read: if isAuth();
       allow create: if isAuth();
-      allow update: if isAuth();
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 

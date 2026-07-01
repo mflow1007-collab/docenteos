@@ -15,5 +15,10 @@ export const login = (email, pass) =>
 export const logout = () =>
   signOut(auth);
 
-export const cerrarSesion = () =>
-  signOut(auth);
+export const cerrarSesion = () => {
+  // Limpiar datos del docente antes de cerrar sesión (dispositivos compartidos)
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith("docenteos_"))
+    .forEach((k) => localStorage.removeItem(k));
+  return signOut(auth);
+};

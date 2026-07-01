@@ -38,18 +38,13 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       .catch(() => {});
   }, [estudiante?.cursoId, estudiante?.id]);
 
-  const nombreBase = estudiante?.nombre || "Juan Perez Rodriguez";
-  const nombre = nombreBase === "Ana Belén Reyes" ? "Katherin Romero" : nombreBase;
-  const estado = estudiante?.estado?.label || "En riesgo";
-  const curso = estudiante?.cursoNombre || "2do Secundaria A";
-  const edad = estudiante?.edad || 15;
-  const fechaNacimiento = estudiante?.fechaNacimiento || "03/04/2011";
-  const tutorBase = estudiante?.tutor || "Katherin Romero";
-  const tutor = tutorBase
-    .replaceAll("Ana Belén Reyes", "Katherin Romero")
-    .replaceAll("Ana Rodriguez", "Katherin Romero")
-    .replaceAll("Tutor de Ana", "Tutor de Katherin");
-  const telefono = estudiante?.telefono || "829-123-4567";
+  const nombre = estudiante?.nombre || "—";
+  const estado = estudiante?.estado?.label || "Sin estado";
+  const curso = estudiante?.cursoNombre || "—";
+  const edad = estudiante?.edad || null;
+  const fechaNacimiento = estudiante?.fechaNacimiento || null;
+  const tutor = estudiante?.tutor || "—";
+  const telefono = estudiante?.telefono || "—";
   const promedio = estudiante?.promedio ?? null;
   const sinNotas = promedio === null || promedio === undefined;
   const promedioNum = sinNotas ? 0 : promedio;
