@@ -177,8 +177,8 @@ function badgeClase(valor) {
 const COMP_CODIGOS = {
   // Lenguas y comunicación
   "Lengua Española":         ["CLE-1","CLE-2","CLE-3","CLE-4","CLE-5"],
-  "Inglés":                  ["CE-LEI1","CE-LEI2","CE-LEI3","CE-LEI4","CE-LEI7","CE-LEI5","CE-LEI6"],
-  "Lenguas Extranjeras":     ["CE-LEI1","CE-LEI2","CE-LEI3","CE-LEI4","CE-LEI7","CE-LEI5","CE-LEI6"],
+  "Inglés":                  ["CE-LEI1","CE-LEI2","CE-LEI4","CE-LEI5"],
+  "Lenguas Extranjeras":     ["CE-LEI1","CE-LEI2","CE-LEI4","CE-LEI5"],
   "Francés":                 ["CE-LEF1","CE-LEF2","CE-LEF3","CE-LEF4","CE-LEF5"],
   // Matemáticas y ciencias exactas
   "Matemática":              ["CM-1","CM-2","CM-3","CM-4","CM-5"],
@@ -258,8 +258,14 @@ const COMP_DESCRIPCIONES = {
   "CEF-4": "Crea y disfruta de expresiones corporales, rítmicas y creativas como formas de comunicación y bienestar personal.",
 };
 
-// Sin agrupación especial — cada CE tiene su propio bloque individual
-const COMP_GRUPOS_MAP = {};
+// Bloques del encabezado: código principal → lista de CEs que se muestran en ese bloque
+// Bloque 1 (CE-LEI1) muestra solo 1 CE; bloques 2-4 muestran 2 CEs en el encabezado
+// pero comparten UN SOLO set de columnas P1/RP1-P4/RP4 como unidad de calificación
+const COMP_BLOQUES_MAP = {
+  "CE-LEI2": ["CE-LEI2", "CE-LEI3"],
+  "CE-LEI4": ["CE-LEI4", "CE-LEI7"],
+  "CE-LEI5": ["CE-LEI5", "CE-LEI6"],
+};
 
 function crearNotasVacias(cantidadCompetencias = 4) {
   return {
@@ -618,14 +624,6 @@ function RegistroPage({
       : (COMP_CODIGOS[area] || ["CE-1","CE-2","CE-3","CE-4"]);
   }, [competencias, area]);
   const cantidadCompetencias = codigosComp.length;
-
-  // Bloques de encabezado: agrupa competencias por pares (o según COMP_GRUPOS_MAP)
-  const grupos = useMemo(() => {
-    const areaKey = area || curso?.asignatura || "";
-    const template = COMP_GRUPOS_MAP[areaKey];
-    if (!template) return codigosComp.map((_, ci) => [ci]);
-    return template.filter(g => g.every(ci => ci < codigosComp.length));
-  }, [area, codigosComp, curso]);
   const calendarioMesActivo = useMemo(
     () => crearCalendarioMes(mesActivo, anioEscolar),
     [mesActivo, anioEscolar]
@@ -1936,16 +1934,19 @@ function RegistroPage({
             <th colSpan={3}  className="rg-th rg-th-section rg-section-situacion">SITUACIÓN FINAL EN LA ASIGNATURA</th>
           </tr>
           <tr>
-            {grupos.map((indices, gi) => (
-              <th key={`gh-${gi}`} colSpan={indices.length * 8} className={`rg-th rg-th-comp rg-comp-${indices[0] + 1}`}>
-                {indices.map(ci => (
-                  <div key={ci} className="rg-grupo-item">
-                    <span className="rg-comp-code">{codigosComp[ci]}- </span>
-                    <span className="rg-comp-name">{competencias[ci]?.nombre || `Competencia ${ci + 1}`}</span>
-                  </div>
-                ))}
-              </th>
-            ))}
+            {codigosComp.map((codigo, ci) => {
+              const bloqueCodigos = COMP_BLOQUES_MAP[codigo] || [codigo];
+              return (
+                <th key={`ch-${ci}`} colSpan={8} className={`rg-th rg-th-comp rg-comp-${ci + 1}`}>
+                  {bloqueCodigos.map((cod) => (
+                    <div key={cod} className="rg-grupo-item">
+                      <span className="rg-comp-code">{cod}- </span>
+                      <span className="rg-comp-name">{COMP_DESCRIPCIONES[cod] || cod}</span>
+                    </div>
+                  ))}
+                </th>
+              );
+            })}
             {codigosComp.map((_, ci) => (
               <th key={`prom-head-${ci}`} className="rg-th rg-th-prom">C{ci + 1}</th>
             ))}
