@@ -70,9 +70,8 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
       return base.map((estudiante, indice) => {
         const promedio = (estudiante.promedio !== null && estudiante.promedio !== undefined) ? Number(estudiante.promedio) : null;
         const estado = estadoPorPromedio(promedio);
-        const asistencia = promedio !== null ? Math.max(76, Math.min(99, Math.round(88 + (promedio - 70) * 0.25))) : null;
+        const asistencia = estudiante.asistencia ?? null;
         const nivelRiesgo = promedio === null ? "—" : promedio < 60 ? "Alto" : promedio < 70 ? "Medio" : "Bajo";
-        const dia = String((indice % 28) + 1).padStart(2, "0");
         return {
           id: `${curso.id}-${indice}-${estudiante.nombre}`,
           nombre: estudiante.nombre,
@@ -81,16 +80,17 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
           asistencia,
           estado,
           nivelRiesgo,
+          esDemo: !curso.estudiantesDetalle?.length,
           cursoId: curso.id,
           cursoNombre: curso.nombre,
           area: curso.area || "General",
           grado: curso.grado || curso.nombre.split(" ").slice(0, 2).join(" "),
           seccion: curso.seccion || (curso.nombre.match(/[A-Z]$/)?.[0] || "A"),
-          edad: 11 + ((indice + 2) % 7),
-          fechaNacimiento: `${dia}/0${(indice % 8) + 1}/201${indice % 7}`,
-          tutor: ["María García","Rosa Martínez","Carmen Reyes","Juan Pérez","Ana Rodríguez","Luis Santos","Isabel López","Pedro Díaz"][indice % 8],
-          telefono: `809-55${(indice % 9) + 1}-1${String(100 + indice).slice(-3)}`,
-          ultimaEvaluacion: `${dia} junio 2026`,
+          edad: estudiante.edad ?? null,
+          fechaNacimiento: estudiante.fechaNacimiento ?? null,
+          tutor: estudiante.tutor ?? null,
+          telefono: estudiante.telefono ?? null,
+          ultimaEvaluacion: estudiante.ultimaEvaluacion ?? null,
           tendencia: promedio === null ? "—" : promedio >= 88 ? "Mejorando" : promedio >= 70 ? "Estables" : "Bajando",
           tendenciaValor: promedio === null ? null : promedio >= 88 ? 4 : promedio >= 70 ? 1 : -3,
         };
@@ -134,7 +134,10 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
     const enRiesgo = filtrados.filter((e) => e.estado.key === "riesgo").length;
     const excelentes = filtrados.filter((e) => e.estado.key === "excelente").length;
     const promGeneral = Math.round(filtrados.reduce((a, e) => a + e.promedio, 0) / total);
-    const asistenciaProm = Math.round(filtrados.reduce((a, e) => a + e.asistencia, 0) / total);
+    const conAsistencia = filtrados.filter((e) => e.asistencia !== null);
+    const asistenciaProm = conAsistencia.length
+      ? Math.round(conAsistencia.reduce((a, e) => a + e.asistencia, 0) / conAsistencia.length)
+      : null;
     const mejorando = filtrados.filter((e) => e.tendencia === "Mejorando").length;
     const estables = filtrados.filter((e) => e.tendencia === "Estables").length;
     const bajando = filtrados.filter((e) => e.tendencia === "Bajando").length;
@@ -430,8 +433,21 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
     },
   ];
 
+  const cursosSinEstudiantes = cursos.filter((c) => !c.estudiantesDetalle?.length);
+
   return (
     <div className="estudiantes-page">
+      {cursosSinEstudiantes.length > 0 && (
+        <div style={{ background: "#FEF3C7", borderLeft: "4px solid #D97706", padding: "10px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <span>⚠️</span>
+          <span>
+            {cursosSinEstudiantes.length === 1
+              ? <><strong>{cursosSinEstudiantes[0].nombre}</strong> muestra datos de ejemplo. </>
+              : <>{cursosSinEstudiantes.length} cursos muestran datos de ejemplo. </>}
+            Agrega estudiantes reales desde el botón <strong>Agregar estudiante</strong>.
+          </span>
+        </div>
+      )}
       <section className="estudiantes-card estudiantes-header-card">
         <div className="estudiantes-card-head">
           <div><h2>🎓 Gestión de Estudiantes</h2><p>Centro de inteligencia estudiantil</p></div>

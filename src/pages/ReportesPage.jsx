@@ -33,16 +33,18 @@ export default function ReportesPage({ cursos = [] }) {
   );
 
   const globalEnRiesgo = useMemo(
-    () => cursosFiltrados.reduce((acc, c) => acc + (c.enRiesgo?.length ?? 0), 0),
+    () => cursosFiltrados.reduce(
+      (acc, c) => acc + (c.estudiantesDetalle ?? []).filter((e) => (e.promedio ?? 100) < 70).length,
+      0
+    ),
     [cursosFiltrados]
   );
 
   const globalDestacados = useMemo(
-    () =>
-      cursosFiltrados.reduce(
-        (acc, c) => acc + (c.destacados?.filter((e) => (e.promedio ?? 0) >= 90).length ?? 0),
-        0
-      ),
+    () => cursosFiltrados.reduce(
+      (acc, c) => acc + (c.estudiantesDetalle ?? []).filter((e) => (e.promedio ?? 0) >= 90).length,
+      0
+    ),
     [cursosFiltrados]
   );
 
@@ -131,15 +133,17 @@ export default function ReportesPage({ cursos = [] }) {
           <h2>Estudiantes en riesgo</h2>
           <div className="rep-riesgo-grid">
             {cursosFiltrados.flatMap((c) =>
-              (c.enRiesgo ?? []).map((est, i) => (
-                <div key={`${c.id}-${i}`} className="rep-riesgo-card">
-                  <strong>{est.nombre ?? "Estudiante"}</strong>
-                  <span>{c.nombre}</span>
-                  {est.promedio != null && (
-                    <span className="rep-badge nivel-riesgo">{est.promedio}</span>
-                  )}
-                </div>
-              ))
+              (c.estudiantesDetalle ?? [])
+                .filter((e) => (e.promedio ?? 100) < 70)
+                .map((est, i) => (
+                  <div key={`${c.id}-${i}`} className="rep-riesgo-card">
+                    <strong>{est.nombre ?? "Estudiante"}</strong>
+                    <span>{c.nombre}</span>
+                    {est.promedio != null && (
+                      <span className="rep-badge nivel-riesgo">{est.promedio}</span>
+                    )}
+                  </div>
+                ))
             )}
           </div>
         </section>
@@ -151,7 +155,7 @@ export default function ReportesPage({ cursos = [] }) {
           <h2>Estudiantes destacados</h2>
           <div className="rep-dest-grid">
             {cursosFiltrados.flatMap((c) =>
-              (c.destacados ?? [])
+              (c.estudiantesDetalle ?? [])
                 .filter((e) => (e.promedio ?? 0) >= 90)
                 .map((est, i) => (
                   <div key={`${c.id}-${i}`} className="rep-dest-card">

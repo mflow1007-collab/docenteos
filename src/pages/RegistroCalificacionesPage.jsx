@@ -270,6 +270,7 @@ function RegistroPage({
   curso,
   estudiantesCurso = [],
   estudiante = null,
+  cursoAutomatico = false,
   onAbrirPerfil = null,
   onActualizarCurso = null,
 }) {
@@ -1002,6 +1003,12 @@ function RegistroPage({
 
   return (
     <div className="registro-page">
+      {cursoAutomatico && (
+        <div style={{ background: "#FEF3C7", borderLeft: "4px solid #D97706", padding: "10px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>⚠️</span>
+          <span>Estás registrando en <strong>{cursoNombre}</strong> (primer curso). Para cambiar de curso, selecciónalo desde la sección <strong>Cursos</strong>.</span>
+        </div>
+      )}
       <section className="registro-hero">
         <div className="registro-hero-copy">
           <p className="registro-kicker">📋 Trabajando en este curso</p>

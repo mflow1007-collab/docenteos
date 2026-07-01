@@ -599,6 +599,7 @@ function AppInner() {
               curso={cursoRegistro}
               estudiante={estudianteDetalle}
               estudiantesCurso={cursoRegistro?.estudiantesDetalle || []}
+              cursoAutomatico={!cursoSeleccionado && cursos.length > 1}
               onAbrirPerfil={abrirDetalleEstudiante}
               onActualizarCurso={actualizarCurso}
             />
