@@ -1608,11 +1608,13 @@ export const obtenerSesionesPlan = async (planId = null) => {
   try {
     if (isFirebaseConfigured && auth?.currentUser && db) {
       const user = auth.currentUser;
-      const constraints = [where("usuario", "==", user.uid), orderBy("createdAt", "desc"), limit(200)];
-      if (planId) constraints.splice(1, 0, where("planId", "==", planId));
+      // Sin orderBy para evitar requerir índice compuesto en colección nueva
+      const constraints = [where("usuario", "==", user.uid), limit(200)];
+      if (planId) constraints.push(where("planId", "==", planId));
       const q = query(collection(db, "sesiones-aula"), ...constraints);
       const snap = await getDocs(q);
-      return { success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) };
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return { success: true, data };
     }
     const KEY = "docenteos_sesiones_aula";
     const local = JSON.parse(localStorage.getItem(KEY) || "[]");

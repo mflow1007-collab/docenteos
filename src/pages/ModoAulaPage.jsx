@@ -1,7 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { obtenerPlanificacionesDetalladas } from '../firebase.js'
-import { guardarSesionAula, obtenerSesionesPlan } from '../firebase.js'
+import { obtenerPlanificacionesDetalladas, guardarSesionAula, obtenerSesionesPlan } from '../firebase.js'
 import { useAuth } from '../context/AuthContext.jsx'
+
+// Pre-carga sincrónica desde localStorage (igual que Inicio.jsx) para no depender de Firestore en el render inicial
+function cargarPlanesLocales() {
+  try {
+    const raw = localStorage.getItem('docenteos_planificaciones_guardadas')
+    const arr = JSON.parse(raw || '[]')
+    return Array.isArray(arr) ? arr : []
+  } catch { return [] }
+}
+
+function cargarSesionesLocales() {
+  try {
+    return JSON.parse(localStorage.getItem('docenteos_sesiones_aula') || '[]')
+  } catch { return [] }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -124,9 +138,9 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
 
   // ── Fases: 'seleccion' | 'clase' | 'cierre'
   const [fase, setFase]                         = useState('seleccion')
-  const [planes, setPlanes]                     = useState([])
-  const [cargando, setCargando]                 = useState(true)
-  const [sesiones, setSesiones]                 = useState([])
+  const [planes, setPlanes]                     = useState(() => cargarPlanesLocales())
+  const [cargando, setCargando]                 = useState(false)
+  const [sesiones, setSesiones]                 = useState(() => cargarSesionesLocales())
   const [planSeleccionado, setPlanSeleccionado] = useState(null)
   const [diaActual, setDiaActual]               = useState(1)
 
@@ -141,19 +155,20 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
   const [guardadoOk, setGuardadoOk]             = useState(false)
   const intervalRef                             = useRef(null)
 
-  // ── Cargar planes y sesiones
+  // ── Cargar planes y sesiones (actualiza sobre el estado local inicial)
   useEffect(() => {
-    setCargando(true)
+    // Los planes locales ya están en el estado; aquí actualizamos con Firestore si está disponible
     obtenerPlanificacionesDetalladas()
       .then(res => {
-        if (res.success) setPlanes(res.data || [])
+        if (res.success && Array.isArray(res.data) && res.data.length > 0)
+          setPlanes(res.data)
       })
       .catch(() => {})
       .finally(() => setCargando(false))
 
     obtenerSesionesPlan()
-      .then(res => { if (res.success) setSesiones(res.data || []) })
-      .catch(() => {})
+      .then(res => { if (res.success && Array.isArray(res.data)) setSesiones(res.data) })
+      .catch(() => setCargando(false))
   }, [])
 
   // ── Timer
