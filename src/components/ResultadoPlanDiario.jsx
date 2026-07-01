@@ -1,6 +1,130 @@
 /**
  * ResultadoPlanDiario — Visualización MINERD del plan diario
  */
+import { useState, useEffect, useRef } from 'react'
+
+// ─── Timer de clase ───────────────────────────────────────────────────────────
+function TimerClase({ momentos = [] }) {
+  const [activo, setActivo] = useState(false)
+  const [segundos, setSegundos] = useState(0)
+  const [momentoIdx, setMomentoIdx] = useState(0)
+  const interval = useRef(null)
+
+  useEffect(() => {
+    if (activo) {
+      interval.current = setInterval(() => setSegundos(s => s + 1), 1000)
+    } else {
+      clearInterval(interval.current)
+    }
+    return () => clearInterval(interval.current)
+  }, [activo])
+
+  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+
+  const totalMomento = momentos[momentoIdx]?.min * 60 || 0
+  const pct = totalMomento > 0 ? Math.min((segundos / totalMomento) * 100, 100) : 0
+  const sobre = totalMomento > 0 && segundos > totalMomento
+
+  const handleAvanzar = () => {
+    if (momentoIdx < momentos.length - 1) {
+      setMomentoIdx(i => i + 1)
+      setSegundos(0)
+    }
+  }
+  const handleReset = () => { setActivo(false); setSegundos(0); setMomentoIdx(0) }
+
+  return (
+    <div style={{
+      display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'stretch',
+      margin: '0 0 16px', padding: '14px 16px',
+      background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
+      boxShadow: '0 2px 8px rgba(0,0,0,.06)',
+    }}>
+      {/* ── Reloj ── */}
+      <div style={{ minWidth: 140, flex: '0 0 auto', textAlign: 'center' }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '.4px', color: '#8a96ab', marginBottom: 4,
+        }}>⏱ Timer de Clase</div>
+        <div style={{
+          fontSize: 34, fontWeight: 800, letterSpacing: '-1px',
+          color: sobre ? '#ef4444' : '#1e293b', fontVariantNumeric: 'tabular-nums',
+        }}>{fmt(segundos)}</div>
+        <div style={{
+          fontSize: 11, color: sobre ? '#ef4444' : '#64748b', marginBottom: 8,
+        }}>
+          {momentos[momentoIdx]?.nombre || 'Clase'}
+          {totalMomento > 0 && ` · ${momentos[momentoIdx]?.min} min`}
+        </div>
+        {/* Barra de progreso */}
+        {totalMomento > 0 && (
+          <div style={{
+            height: 5, borderRadius: 3,
+            background: '#e2e8f0', overflow: 'hidden', marginBottom: 8,
+          }}>
+            <div style={{
+              height: '100%', width: `${pct}%`,
+              background: sobre ? '#ef4444' : '#7c3aed',
+              transition: 'width .5s linear',
+            }} />
+          </div>
+        )}
+        {/* Controles */}
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+          <button onClick={() => setActivo(v => !v)} style={{
+            background: activo ? '#fef2f2' : '#f0fdf4',
+            border: `1px solid ${activo ? '#fca5a5' : '#86efac'}`,
+            color: activo ? '#dc2626' : '#16a34a',
+            borderRadius: 7, padding: '4px 10px',
+            fontSize: 12, fontWeight: 700, cursor: 'pointer',
+          }}>{activo ? '⏸ Pausar' : '▶ Iniciar'}</button>
+          {momentoIdx < momentos.length - 1 && (
+            <button onClick={handleAvanzar} style={{
+              background: '#eff6ff', border: '1px solid #93c5fd',
+              color: '#2563eb', borderRadius: 7, padding: '4px 10px',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}>→</button>
+          )}
+          <button onClick={handleReset} style={{
+            background: '#f8fafc', border: '1px solid #e2e8f0',
+            color: '#64748b', borderRadius: 7, padding: '4px 8px',
+            fontSize: 12, cursor: 'pointer',
+          }}>↺</button>
+        </div>
+      </div>
+
+      {/* ── Tarjeta ASIST ── */}
+      <div style={{ flex: 1, minWidth: 220, borderLeft: '1px solid #e2e8f0', paddingLeft: 14 }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+          letterSpacing: '.4px', color: '#8a96ab', marginBottom: 8,
+        }}>📋 Guía Rápida — ASIST</div>
+        {momentos.filter(mt => mt.guia).map((mt, i) => (
+          <div key={i} style={{
+            display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6,
+          }}>
+            <div style={{
+              flexShrink: 0, width: 20, height: 20,
+              background: momentoIdx === i ? '#7c3aed' : '#e2e8f0',
+              color: momentoIdx === i ? '#fff' : '#64748b',
+              borderRadius: 5, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontSize: 10, fontWeight: 800,
+            }}>{mt.icono}</div>
+            <div>
+              <div style={{
+                fontSize: 10.5, fontWeight: 700, color: '#374151',
+                textDecoration: momentoIdx > i ? 'line-through' : 'none',
+              }}>{mt.nombre} · {mt.min} min</div>
+              <div style={{ fontSize: 11.5, color: '#6b7280', lineHeight: 1.45 }}>
+                {mt.guia}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function ResultadoPlanDiario({ plan, onGuardar, onDescargar, onNueva, guardando, mensaje }) {
   if (!plan) return null;
@@ -23,6 +147,28 @@ export default function ResultadoPlanDiario({ plan, onGuardar, onDescargar, onNu
         <button className="export-btn" onClick={onDescargar}>📥 PDF</button>
         <button className="reset-btn" onClick={onNueva}>↻ Nuevo</button>
       </div>
+
+      {/* ── Timer de clase + guía ASIST ── */}
+      <TimerClase momentos={[
+        {
+          nombre: 'Inicio',
+          icono: '🚀',
+          min: parseInt(dc?.inicio?.tiempo) || 10,
+          guia: ip?.intencionDelDia || '',
+        },
+        {
+          nombre: 'Desarrollo',
+          icono: '📚',
+          min: parseInt(dc?.desarrollo?.tiempo) || 30,
+          guia: ip?.estrategia || '',
+        },
+        {
+          nombre: 'Cierre',
+          icono: '✅',
+          min: parseInt(dc?.cierre?.tiempo) || 10,
+          guia: dc?.cierre?.evaluacion?.instrumento || (Array.isArray(ci?.indicadoresLogro) ? ci.indicadoresLogro[0] : '') || '',
+        },
+      ]} />
 
       {/* ════════════════════════════════════════
           ENCABEZADO

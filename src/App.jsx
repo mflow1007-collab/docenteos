@@ -19,6 +19,7 @@ import { SidebarGrupo, SidebarItem } from "./components/AppSidebar.jsx";
 import Inicio from "./components/Inicio.jsx";
 import Cursos from "./components/Cursos.jsx";
 import DetalleCurso from "./components/DetalleCurso.jsx";
+import CoachIA from "./components/CoachIA.jsx";
 
 const PlanificacionPage       = lazy(() => import("./pages/PlanificacionPage"));
 const InstrumentosPage        = lazy(() => import("./pages/InstrumentosPage"));
@@ -621,6 +622,7 @@ function AppInner() {
           </Suspense>
         </section>
       </main>
+      <CoachIA pagina={pagina} formulario={formulario} />
     </div>
   );
 }

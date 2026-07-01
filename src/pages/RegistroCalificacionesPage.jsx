@@ -1707,6 +1707,47 @@ function RegistroPage({
       <h2>Calificaciones por Competencias</h2>
       <p>Registro Oficial MINERD — {area} · {cursoNombre}</p>
     </div>
+
+    {/* ── Panel live de evaluación ── */}
+    {resumen.conNotas > 0 && (
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center',
+        padding: '10px 14px', marginBottom: 14,
+        background: '#f8faff', border: '1px solid #e2e8f0', borderRadius: 10,
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#8a96ab', marginRight: 4 }}>
+          LIVE · {resumen.conNotas}/{estudiantes.length} con notas
+        </div>
+        {[
+          { label: 'Logrado',    color: '#16a34a', bg: '#dcfce7', count: resumen.aprobados },
+          { label: 'En proceso', color: '#d97706', bg: '#fef9c3', count: resumen.enRiesgo  },
+          { label: 'Sin notas',  color: '#94a3b8', bg: '#f1f5f9', count: estudiantes.length - resumen.conNotas },
+        ].map(({ label, color, bg, count }) => (
+          <div key={label} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: bg, borderRadius: 20,
+            padding: '3px 10px', fontSize: 12,
+          }}>
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: color, display: 'inline-block',
+            }} />
+            <span style={{ fontWeight: 700, color }}>{count}</span>
+            <span style={{ color: '#475569' }}>{label}</span>
+          </div>
+        ))}
+        {resumen.promedioCompetencias > 0 && (
+          <div style={{
+            marginLeft: 'auto', fontSize: 12, color: '#475569',
+          }}>
+            Promedio: <strong style={{
+              color: resumen.promedioCompetencias >= 70 ? '#16a34a' : '#dc2626',
+            }}>{resumen.promedioCompetencias}</strong>
+          </div>
+        )}
+      </div>
+    )}
+
     <div className="rg-scroll-wrapper">
       <table className="rg-table">
         <thead>
