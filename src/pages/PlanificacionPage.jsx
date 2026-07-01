@@ -23,6 +23,8 @@ import { extractStyle } from "../services/ai/style/StyleEngine.js";
 import { crearCasoExito } from "../services/ai/CasosExitoService.js";
 import { usePerfilInstitucional } from "../hooks/usePerfilInstitucional.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { esUsuarioDocenteOS } from "../utils/permisos.js";
+import ModalConfirmacion from "../components/ModalConfirmacion.jsx";
 import FormularioPlanificacion from "../components/FormularioPlanificacion";
 import ResultadoPlanificacion from "../components/ResultadoPlanificacion";
 import FormularioPlanDiario from "../components/FormularioPlanDiario";
@@ -66,7 +68,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
   // ── Perfil institucional global ───────────────────────────────────────────
   const { formulario: perfilForm } = usePerfilInstitucional();
   const { user } = useAuth();
-  const puedeVerCentroDecisiones = user?.email?.trim().toLowerCase() === "admin@docenteos.com";
+  const puedeVerCentroDecisiones = esUsuarioDocenteOS(user?.email);
 
   // ── Estado curricular oficial (Firestore) ─────────────────────────────────
   const [competenciasCurriculares, setCompetenciasCurriculares] = useState([]);
@@ -100,12 +102,13 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
   const [minutosHoraClase, setMinutosHoraClase] = useState(45);
   const [periodosClasePorDia, setPeriodosClasePorDia] = useState({});
   const [materialPlanificacion, setMaterialPlanificacion] = useState(null);
+  const [confirmMensaje, setConfirmMensaje] = useState(null);
+  const confirmResolveRef = useRef(null);
 
   // ── Plan Diario ──
-  const hoyISO2 = new Date().toISOString().slice(0, 10);
   const [planDiarioDatos, setPlanDiarioDatos] = useState({
     grado: "", seccion: "", area: "", asignatura: "",
-    fecha: hoyISO2, duracion: "50 min", tema: "",
+    fecha: hoyISO, duracion: "50 min", tema: "",
     nombreDocente: "", regional: "", distrito: "",
     centro: "", codigoCentro: "",
     nivel: "", ciclo: "", modalidad: "", jornada: "",
@@ -1196,7 +1199,10 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     const areaActual = meta.area || encontrado?.area || "Área";
     const etiqueta = `${gradoSeccion} - ${areaActual}`;
 
-    const confirmar = window.confirm(`¿Deseas eliminar esta planificación del historial?\n\n${etiqueta}`);
+    const confirmar = await new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmMensaje(`¿Deseas eliminar esta planificación del historial?\n\n${etiqueta}`);
+    });
     if (!confirmar) return;
 
     setEliminando(true);
@@ -2214,6 +2220,14 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
           />
         )}
       </div>
+
+      {confirmMensaje && (
+        <ModalConfirmacion
+          mensaje={confirmMensaje}
+          onConfirmar={() => { setConfirmMensaje(null); confirmResolveRef.current?.(true); }}
+          onCancelar={() => { setConfirmMensaje(null); confirmResolveRef.current?.(false); }}
+        />
+      )}
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ModalConfirmacion from "../components/ModalConfirmacion.jsx";
 import { obtenerCompetencias } from "../services/curriculumService.js";
 import {
   obtenerPlanificacionesDetalladas,
@@ -324,6 +325,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
   const busquedaRef = useRef(null);
   const statsRef = useRef(null);
   const [competenciasCurso, setCompetenciasCurso] = useState([]);
+  const [confirmEliminar, setConfirmEliminar] = useState(null); // { id, mensaje }
 
   useEffect(() => {
     const nivel = cursoActivo?.nivel;
@@ -692,9 +694,14 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
   const eliminarInstrumento = (id) => {
     const instrumento = instrumentos.find((item) => item.id === id);
     const aplicaciones = instrumento?.aplicaciones?.length || instrumento?.usos || 0;
-    if (aplicaciones > 0 && !window.confirm("Este instrumento tiene aplicaciones registradas. ¿Deseas eliminarlo de todos modos?")) {
+    if (aplicaciones > 0) {
+      setConfirmEliminar({ id, mensaje: "Este instrumento tiene aplicaciones registradas. ¿Deseas eliminarlo de todos modos?" });
       return;
     }
+    ejecutarEliminarInstrumento(id);
+  };
+
+  const ejecutarEliminarInstrumento = (id) => {
     setInstrumentos((prev) => prev.filter((item) => item.id !== id));
     eliminarInstrumentoFirestore(id).catch((err) => console.error("[Instrumentos] Error al eliminar:", err));
   };
@@ -1527,6 +1534,14 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
             </div>
           </div>
         </div>
+      )}
+
+      {confirmEliminar && (
+        <ModalConfirmacion
+          mensaje={confirmEliminar.mensaje}
+          onConfirmar={() => { ejecutarEliminarInstrumento(confirmEliminar.id); setConfirmEliminar(null); }}
+          onCancelar={() => setConfirmEliminar(null)}
+        />
       )}
     </div>
   );

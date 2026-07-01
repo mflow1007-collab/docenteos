@@ -22,6 +22,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user,           setUser]           = useState(undefined)
   const [perfil,         setPerfil]         = useState(null)
+  const [rol,            setRol]            = useState('docente')
   const [usuarioMeta,    setUsuarioMeta]    = useState({
     suscripcion: 'Pendiente de completar',
     temaActivo:  'Pendiente de completar',
@@ -49,6 +50,7 @@ export function AuthProvider({ children }) {
 
       if (!firebaseUser) {
         setPerfil(null)
+        setRol('docente')
         setSuscripcion(null)
         setUsuarioMeta({
           suscripcion: 'Pendiente de completar',
@@ -70,6 +72,7 @@ export function AuthProvider({ children }) {
           const datos = snap.data() || {}
 
           setPerfil(datos?.perfilInstitucional ?? null)
+          setRol(datos?.rol ?? 'docente')
           setUsuarioMeta({
             suscripcion: datos?.suscripcion ?? 'Pendiente de completar',
             temaActivo:  datos?.temaActivo  ?? 'Pendiente de completar',
@@ -115,6 +118,7 @@ export function AuthProvider({ children }) {
   const valor = {
     user,
     perfil,
+    rol,
     usuarioMeta,
     suscripcion,
     formulario:    normalizarPerfilParaFormulario(perfil),

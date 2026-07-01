@@ -10,11 +10,9 @@ import {
 } from "./firebase";
 import { cerrarSesion } from "./auth";
 import { useAuth } from "./context/AuthContext.jsx";
-import { AdminProvider } from "./context/AdminContext.jsx";
-import { useAdmin } from "./context/AdminContext.jsx";
 import AdminBar from "./components/AdminBar.jsx";
 import SubscriptionBanner from "./components/SubscriptionBanner.jsx";
-import { esUsuarioDocenteOS } from "./utils/permisos.js";
+import { esUsuarioDocenteOS, cargoTieneModulo } from "./utils/permisos.js";
 import { useNavigate } from "react-router-dom";
 import { enriquecerCursoInicial, aplicarRegistroACurso } from "./utils/cursoUtils.js";
 import { SidebarGrupo, SidebarItem } from "./components/AppSidebar.jsx";
@@ -36,19 +34,15 @@ const EstudiantesPage         = lazy(() => import("./pages/EstudiantesPage"));
 const EstudianteDetallePage   = lazy(() => import("./pages/EstudianteDetallePage"));
 
 export default function App() {
-  return (
-    <AdminProvider>
-      <AppInner />
-    </AdminProvider>
-  )
+  return <AppInner />
 }
 
 function AppInner() {
-  const { formulario, user } = useAuth()
-  const { esAdmin } = useAdmin()
+  const { formulario, user, rol } = useAuth()
   const navigate = useNavigate()
 
   const esDocenteOS = esUsuarioDocenteOS(user?.email)
+  const esAdmin = esDocenteOS
 
   const [cerrando,    setCerrando]    = useState(false)
   const [errorCierre, setErrorCierre] = useState('')
@@ -375,12 +369,12 @@ function AppInner() {
             onToggle={() => setGrupoExpandido(g => g === "docencia" ? "inicio" : "docencia")}
             activo={grupoDePageID(pagina) === "docencia"}
           >
-            <SidebarItem id="cursos"        label="📘 Cursos"        pagina={pagina} onClick={() => irA("cursos")} />
-            <SidebarItem id="planificacion" label="📝 Planificación" pagina={pagina} onClick={() => irA("planificacion")} />
-            <SidebarItem id="instrumentos"  label="📋 Instrumentos"  pagina={pagina} onClick={() => irA("instrumentos")} />
-            <SidebarItem id="registro"      label="📓 Registro"      pagina={pagina} onClick={() => irA("registro")} />
-            <SidebarItem id="biblioteca"    label="📚 Biblioteca MINERD" pagina={pagina} onClick={() => irA("biblioteca")} />
-            <SidebarItem id="reportes"      label="📊 Reportes"      pagina={pagina} onClick={() => irA("reportes")} />
+            {cargoTieneModulo(rol, "cursos")       && <SidebarItem id="cursos"        label="📘 Cursos"            pagina={pagina} onClick={() => irA("cursos")} />}
+            <SidebarItem id="planificacion"          label="📝 Planificación"     pagina={pagina} onClick={() => irA("planificacion")} />
+            {cargoTieneModulo(rol, "instrumentos") && <SidebarItem id="instrumentos"  label="📋 Instrumentos"      pagina={pagina} onClick={() => irA("instrumentos")} />}
+            <SidebarItem id="registro"               label="📓 Registro"          pagina={pagina} onClick={() => irA("registro")} />
+            <SidebarItem id="biblioteca"             label="📚 Biblioteca MINERD" pagina={pagina} onClick={() => irA("biblioteca")} />
+            <SidebarItem id="reportes"               label="📊 Reportes"          pagina={pagina} onClick={() => irA("reportes")} />
           </SidebarGrupo>
 
           {/* ── 3. ESTUDIANTES ────────────────────────────────────── */}
