@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
-  collection, getDocs, query, orderBy, where, doc, updateDoc, serverTimestamp,
+  collection, getDocs, query, orderBy, doc, updateDoc, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../../firebase.js'
 import { COLLECTIONS, STATES, AGENT_IDS, MEMORY_TYPES } from '../../services/ai/knowledge/KnowledgeTypes.js'

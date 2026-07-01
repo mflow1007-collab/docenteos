@@ -1,15 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
-function AdminPlaceholder({ titulo, descripcion }) {
-  return (
-    <div style={{ padding: "2rem" }}>
-      <h2>{titulo}</h2>
-      <p style={{ color: "#666", marginTop: "0.5rem" }}>{descripcion}</p>
-      <p style={{ color: "#aaa", marginTop: "1rem", fontSize: "0.9rem" }}>Módulo en construcción.</p>
-    </div>
-  )
-}
 
 const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','monitor-fuentes','banco-pedagogico','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-docente','asistente-personal','uso-ia','costos-ia','agentes','topics','insights']
 import AdminSidebar from './AdminSidebar.jsx'
@@ -35,6 +26,9 @@ import AdminBancoDocente from './pages/AdminBancoDocente.jsx'
 import AdminAsistentePersonal from './pages/AdminAsistentePersonal.jsx'
 import AdminUsoIA from './pages/AdminUsoIA.jsx'
 import AdminCostosIA from './pages/AdminCostosIA.jsx'
+import AdminAgentes from './pages/AdminAgentes.jsx'
+import AdminTopics from './pages/AdminTopics.jsx'
+import AdminInsights from './pages/AdminInsights.jsx'
 import './admin.css'
 
 export default function AdminLayout({ paginaInicial = 'home' }) {
@@ -76,9 +70,9 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
           {pagina === 'asistente-personal' && <AdminAsistentePersonal />}
           {pagina === 'uso-ia'            && <AdminUsoIA            />}
           {pagina === 'costos-ia'         && <AdminCostosIA         />}
-          {pagina === 'agentes'           && <AdminPlaceholder titulo="Agentes IA" descripcion="Gestión y monitoreo de agentes del Knowledge Engine." />}
-          {pagina === 'topics'            && <AdminPlaceholder titulo="Topics" descripcion="Topics pedagógicos usados para enriquecer el contexto de planificación." />}
-          {pagina === 'insights'          && <AdminPlaceholder titulo="Insights" descripcion="Patrones detectados por el Learning Engine para mejorar el sistema." />}
+          {pagina === 'agentes'           && <AdminAgentes  />}
+          {pagina === 'topics'            && <AdminTopics   />}
+          {pagina === 'insights'          && <AdminInsights />}
         </main>
       </div>
     </div>

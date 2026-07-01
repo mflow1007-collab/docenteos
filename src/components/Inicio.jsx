@@ -57,6 +57,44 @@ const generarSugerenciasContextuales = (tema = "", area = "") => {
   return { temaBase: tema || area, sugerencias: bancoArea.default || [] };
 };
 
+const minutosDesdeHora = (hora = "00:00") => {
+  const [horas, minutos] = String(hora).split(":").map(Number);
+  if (!Number.isFinite(horas) || !Number.isFinite(minutos)) return 0;
+  return horas * 60 + minutos;
+};
+
+const calcularProximaClaseFuncional = (cursos = [], ahora = new Date()) => {
+  const minutosActuales = ahora.getHours() * 60 + ahora.getMinutes();
+  const candidatos = cursos.flatMap((curso) => {
+    const bloques = Array.isArray(curso.horario) ? curso.horario : [];
+    return bloques
+      .filter((bloque) => (bloque.tipo || "clase") === "clase")
+      .map((bloque) => ({
+        curso: curso.nombre || curso.name || "Curso",
+        inicio: bloque.inicio || "08:00",
+        minutos: minutosDesdeHora(bloque.inicio || "08:00"),
+      }));
+  }).filter((bloque) => bloque.minutos >= minutosActuales);
+
+  const proxima = candidatos.sort((a, b) => a.minutos - b.minutos)[0];
+  if (proxima) {
+    return {
+      valor: `Hoy ${proxima.inicio}`,
+      curso: proxima.curso,
+    };
+  }
+
+  const primerCurso = cursos[0];
+  const primerBloque = Array.isArray(primerCurso?.horario)
+    ? primerCurso.horario.find((bloque) => (bloque.tipo || "clase") === "clase")
+    : null;
+
+  return {
+    valor: primerBloque?.inicio ? `Mañana ${primerBloque.inicio}` : "Sin horario",
+    curso: primerCurso?.nombre || primerCurso?.name || "Sin curso asignado",
+  };
+};
+
 function Inicio({
   cursos = [],
   onNuevaPlanificacion = () => {},
