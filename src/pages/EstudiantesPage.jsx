@@ -1,7 +1,10 @@
 import { useState, useMemo, useRef } from "react";
 import { AIService } from "../services/ai/AIService.js";
+import { buildAIContext } from "../services/ai/ContextBuilder.js";
+import { EventTracker } from "../services/ai/learning/EventTracker.js";
+import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import { guardarEstudiantesEnSubcoleccion } from "../services/estudiantesService.js";
-import { generarEstudiantesDetalle } from "../utils/cursoUtils.js";
+import { enriquecerCursoInicial, generarEstudiantesDetalle } from "../utils/cursoUtils.js";
 
 function capitalizarNombre(str) {
   return str
