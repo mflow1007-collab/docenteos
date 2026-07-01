@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npx vercel dev --listen 5173",
+    "dev": "vite",
+    "dev:vercel": "npx vercel dev --listen 5173",
     "dev:vite": "vite",
     "build": "vite build",
     "lint": "eslint .",

@@ -125,6 +125,13 @@ export default function AsistentePersonalPage({ userId, planPersonal }) {
   const scrollDown = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   useEffect(() => { scrollDown(); }, [mensajes, streamingTexto]);
 
+  const abrirConversacion = useCallback(async (chatId) => {
+    setChatActivo(chatId);
+    const msgs = await cargarMensajes(userId, chatId);
+    setMensajes(msgs);
+    setErrorMsg('');
+  }, [userId]);
+
   // Cargar conversaciones y uso al montar
   useEffect(() => {
     if (!userId) return;
@@ -137,14 +144,7 @@ export default function AsistentePersonalPage({ userId, planPersonal }) {
       // Abrir la primera conversación si existe
       if (convs.length > 0) abrirConversacion(convs[0].id);
     }).finally(() => setCargandoConvs(false));
-  }, [userId]);
-
-  const abrirConversacion = useCallback(async (chatId) => {
-    setChatActivo(chatId);
-    const msgs = await cargarMensajes(userId, chatId);
-    setMensajes(msgs);
-    setErrorMsg('');
-  }, [userId]);
+  }, [userId, abrirConversacion]);
 
   const nuevaConversacion = async () => {
     const chatId = await crearConversacion(userId);

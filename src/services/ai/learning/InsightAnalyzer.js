@@ -84,7 +84,7 @@ function _tipoInsight(tipoEvento) {
 export async function analyzePatterns({ limite = 200 } = {}) {
   if (!db) return [];
 
-  let eventos = [];
+  let eventos;
   try {
     const q = query(
       collection(db, COLLECTIONS.LE_EVENTOS),
@@ -103,11 +103,37 @@ export async function analyzePatterns({ limite = 200 } = {}) {
   const patrones = _detectarPatrones(eventos);
   const insightIds = [];
 
+  // Cargar insights recientes para evitar duplicados (últimos 7 días)
+  let insightsRecientes = [];
+  try {
+    const hace7dias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const qRecientes = query(
+      collection(db, COLLECTIONS.LE_INSIGHTS),
+      where("creadoEn", ">=", hace7dias),
+      orderBy("creadoEn", "desc"),
+      limit(100)
+    );
+    const snapRecientes = await getDocs(qRecientes);
+    insightsRecientes = snapRecientes.docs.map(d => d.data());
+  } catch {
+    // no-fatal: si falla la dedup, crear igual
+  }
+
   for (const patron of patrones) {
     try {
+      const tipoInsight = _tipoInsight(patron.tipo);
+
+      // Saltar si ya existe un insight del mismo tipo + asignatura + tema reciente
+      const duplicado = insightsRecientes.some(ins =>
+        ins.tipo === tipoInsight &&
+        ins.asignatura === (patron.asignatura ?? null) &&
+        ins.tema === (patron.tema ?? null)
+      );
+      if (duplicado) continue;
+
       const descripcion = await generateInsightText(patron);
       const id = await saveInsight({
-        tipo:            _tipoInsight(patron.tipo),
+        tipo:            tipoInsight,
         descripcion,
         evidencias:      patron.eventIds,
         umbralPct:       patron.pct,

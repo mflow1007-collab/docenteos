@@ -527,7 +527,7 @@
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
 
-.admin-modal-lg { max-width: 740px; }
+.admin-modal-lg { max-width: min(1120px, calc(100vw - 32px)); }
 .admin-modal-sm { max-width: 400px; }
 
 .admin-modal-header {
@@ -559,6 +559,10 @@
 .admin-modal-close:hover { color: var(--adm-text); }
 
 .admin-modal-body { padding: 20px 22px; }
+.admin-modal-lg .admin-modal-body {
+  max-height: calc(90vh - 132px);
+  overflow: auto;
+}
 .admin-modal-footer { padding: 14px 22px 18px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--adm-border); }
 
 /* ── Forms ───────────────────────────────────────────────────────────────────── */
@@ -1528,4 +1532,20 @@
 .aim-select-sm:focus {
   outline: none;
   border-color: var(--adm-accent);
+}
+
+.admin-material-preview {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-material-preview img {
+  width: 44px;
+  height: 58px;
+  border: 1px solid var(--adm-border, #e2e8f0);
+  border-radius: 6px;
+  background: #f8fafc;
+  object-fit: cover;
 }

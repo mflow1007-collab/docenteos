@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { obtenerPlanificacionesDetalladas, guardarInstrumentoFirestore, obtenerInstrumentosFirestore, eliminarInstrumentoFirestore } from "../firebase";
+import {
+  obtenerPlanificacionesDetalladas,
+  guardarInstrumentoFirestore,
+  obtenerInstrumentosFirestore,
+  eliminarInstrumentoFirestore,
+} from "../firebase";
+import { sincronizarEvaluacionPedagogica } from "../services/nucleoPedagogicoService.js";
 import { AIService } from "../services/ai/AIService";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
@@ -55,7 +61,6 @@ const parseInstrumentJSON = (text, prompt, curriculo, crearDraftFn, crearCriteri
     base.descripcion = (data.descripcion || `Instrumento generado para ${prompt}`).slice(0, 300);
 
     if ((tipoEfectivo === "Lista de cotejo" || tipoEfectivo === "Autoevaluación") && Array.isArray(data.indicadores)) {
-      base.tipo = tipoEfectivo === "Autoevaluación" ? "Lista de cotejo" : tipoEfectivo;
       base.estructura = {
         indicadores: data.indicadores.slice(0, 10).map((ind, i) => ({
           id: `ind-${Date.now()}-${i}`,
@@ -109,7 +114,15 @@ const TIPOS_INSTRUMENTO = [
 ];
 
 const ESTADOS = ["Borrador", "Activo", "En uso", "Archivado"];
-const TIPOS_CON_BLOQUE = ["Rúbrica", "Lista de cotejo", "Escala de estimación"];
+const TIPOS_BINARIOS = ["Lista de cotejo", "Autoevaluación"];
+const TIPOS_ESCALA = ["Escala de estimación"];
+const TIPOS_CRITERIOS = ["Rúbrica", "Registro anecdótico", "Prueba escrita", "Coevaluación"];
+const TIPOS_CON_BLOQUE = [...TIPOS_BINARIOS, ...TIPOS_ESCALA, ...TIPOS_CRITERIOS];
+const VALOR_INSTRUMENTO = {
+  "Rúbrica": 50,
+  "Lista de cotejo": 25,
+  "Escala de estimación": 25,
+};
 
 const ESTUDIANTES_FALLBACK = [
   "Juan Pérez",
@@ -152,8 +165,8 @@ const crearEscala = (index = 0) => ({
 });
 
 const crearEstructuraPorTipo = (tipo) => {
-  if (tipo === "Lista de cotejo") return { indicadores: [crearIndicador(0), crearIndicador(1), crearIndicador(2)] };
-  if (tipo === "Escala de estimación") return { indicadores: [crearEscala(0), crearEscala(1), crearEscala(2)] };
+  if (TIPOS_BINARIOS.includes(tipo)) return { indicadores: [crearIndicador(0), crearIndicador(1), crearIndicador(2)] };
+  if (TIPOS_ESCALA.includes(tipo)) return { indicadores: [crearEscala(0), crearEscala(1), crearEscala(2)] };
   return { criterios: [crearCriterio(0), crearCriterio(1), crearCriterio(2)] };
 };
 
@@ -164,6 +177,7 @@ const crearDraft = (tipo = "Rúbrica", curriculo = null) => ({
   descripcion: "",
   estado: "Borrador",
   curriculoId: curriculo?.id || "",
+  competenciaIndex: 0,
   estructura: crearEstructuraPorTipo(tipo),
 });
 
@@ -178,9 +192,31 @@ const cargarLocal = (clave, fallback) => {
   }
 };
 
+const cargarInstrumentosLocales = () => {
+  const v2 = cargarLocal("docenteos_instrumentos_v2", []);
+  if (Array.isArray(v2) && v2.length > 0) return v2;
+  return cargarLocal("docenteos_instrumentos_v1", []);
+};
+
 const normalizarPlanificacion = (item, index) => {
   const meta = item?.metadatos || {};
   const data = item?.datosGenerales || {};
+  const semanas = item?.semanas || item?.fasesSemanales || data?.semanas || [];
+  const primeraFase = semanas[0] || {};
+  const primeraActividad = primeraFase.actividades?.[0] || primeraFase.dias?.[0]?.momentos?.[0]?.actividades?.[0] || "";
+  const productoEsperado = meta.productoEsperado
+    || data.productoEsperado
+    || primeraFase.productoEsperado
+    || primeraActividad?.productoEsperado
+    || primeraActividad?.producto
+    || "";
+  const evidenciasEsperadas = Array.isArray(meta.evidenciasEsperadas)
+    ? meta.evidenciasEsperadas
+    : Array.isArray(data.evidenciasEsperadas)
+      ? data.evidenciasEsperadas
+      : Array.isArray(primeraActividad?.evidencias)
+        ? primeraActividad.evidencias
+        : [];
   const indicadores = Array.isArray(meta.indicadoresOficiales)
     ? meta.indicadoresOficiales
     : Array.isArray(data.indicadoresOficiales)
@@ -197,6 +233,15 @@ const normalizarPlanificacion = (item, index) => {
     competencia: meta.competenciaSeleccionada || data.competencia || item?.competencia || "Competencia específica",
     indicador: indicadores[0] || item?.indicador || "Indicador de logro",
     indicadores,
+    planificacionId: item?.id || `plan-${index}`,
+    cursoId: item?.cursoId || meta.cursoId || data.cursoId || "",
+    seccion: meta.seccion || data.seccion || item?.seccion || "",
+    estrategia: meta.estrategiaTexto || data.estrategiaTexto || data.estrategia || primeraFase.estrategia || "Estrategia no especificada",
+    actividad: typeof primeraActividad === "string"
+      ? primeraActividad
+      : primeraActividad?.titulo || primeraActividad?.nombre || primeraActividad?.descripcion || "Actividad no especificada",
+    productoEsperado,
+    evidenciasEsperadas,
     titulo: `${meta.grado || item?.curso || "Curso"} · ${meta.area || data.area || item?.area || "Área"}`,
   };
 };
@@ -213,11 +258,38 @@ const claseTipoInstrumento = (tipo = "") => {
   return `tipo-${slug || "general"}`;
 };
 
+const nombreEstudiante = (estudiante) => {
+  if (typeof estudiante === "string") return estudiante;
+  return estudiante?.nombre || estudiante?.name || estudiante?.nombreCompleto || "Estudiante";
+};
+
+const normalizarCursoComoCurriculo = (curso, index = 0) => ({
+  id: curso?.id || `curso-${index}`,
+  cursoId: curso?.id || `curso-${index}`,
+  curso: curso?.nombre || curso?.name || `Curso ${index + 1}`,
+  area: curso?.area || "Área",
+  asignatura: curso?.asignatura || curso?.area || "Asignatura",
+  grado: curso?.grado || curso?.nivel || "Grado",
+  seccion: curso?.seccion || "",
+  periodo: curso?.periodo || "Periodo 1",
+  competencia: curso?.temaActual || curso?.competencia || "Competencia específica",
+  indicador: curso?.indicador || curso?.temaActual || "Indicador de logro",
+  indicadores: curso?.indicadores?.length
+    ? curso.indicadores
+    : [curso?.indicador || curso?.temaActual].filter(Boolean),
+  planificacionId: curso?.planificacionId || curso?.id || `curso-${index}`,
+  estrategia: curso?.estrategia || "Estrategia no especificada",
+  actividad: curso?.actividad || curso?.temaActual || "Actividad no especificada",
+  productoEsperado: curso?.productoEsperado || "",
+  evidenciasEsperadas: curso?.evidenciasEsperadas || [],
+  titulo: `${curso?.nombre || curso?.name || `Curso ${index + 1}`} · ${curso?.area || "Área"}`,
+});
+
 const crearValorInicial = (tipo, estructura) => {
-  if (tipo === "Lista de cotejo") {
+  if (TIPOS_BINARIOS.includes(tipo)) {
     return Object.fromEntries((estructura?.indicadores || []).map((item) => [item.id, true]));
   }
-  if (tipo === "Escala de estimación") {
+  if (TIPOS_ESCALA.includes(tipo)) {
     return Object.fromEntries((estructura?.indicadores || []).map((item) => [item.id, "4"]));
   }
   if (TIPOS_CON_BLOQUE.includes(tipo)) {
@@ -226,7 +298,7 @@ const crearValorInicial = (tipo, estructura) => {
   return { calificacion: "", observacion: "" };
 };
 
-function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
+function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} }) {
   const [planificaciones, setPlanificaciones] = useState([]);
   const [cargandoPlanificaciones, setCargandoPlanificaciones] = useState(true);
   const [instrumentosCargados, setInstrumentosCargados] = useState(false);
@@ -239,7 +311,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
   const [draft, setDraft] = useState(() => crearDraft());
   const [curriculoId, setCurriculoId] = useState("");
   const [instrumentoAplicar, setInstrumentoAplicar] = useState(null);
-  const [estudianteAplicar, setEstudianteAplicar] = useState(ESTUDIANTES_FALLBACK[0]);
+  const [estudianteAplicar, setEstudianteAplicar] = useState("fb-1");
   const [evaluacionAplicar, setEvaluacionAplicar] = useState({});
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiTipo, setAiTipo] = useState("Rúbrica");
@@ -274,39 +346,91 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
   }, []);
 
   const curriculosDisponibles = useMemo(() => {
-    if (planificaciones.length) return planificaciones;
+    const curriculoCursoActivo = cursoActivo ? normalizarCursoComoCurriculo(cursoActivo) : null;
 
-    const desdeCursos = (cursos || []).slice(0, 6).map((curso, index) => ({
-      id: curso.id || `curso-${index}`,
-      curso: curso.nombre || curso.name || `Curso ${index + 1}`,
-      area: curso.area || "Área",
-      asignatura: curso.area || "Asignatura",
-      grado: curso.nivel || "Grado",
-      periodo: "Periodo 1",
-      competencia: curso.temaActual || "Competencia específica",
-      indicador: curso.temaActual || "Indicador de logro",
-      titulo: `${curso.nombre || `Curso ${index + 1}`} · ${curso.area || "Área"}`,
-    }));
+    if (planificaciones.length) {
+      if (!curriculoCursoActivo) return planificaciones;
+      const referenciasCurso = [cursoActivo.id, cursoActivo.nombre, cursoActivo.name].filter(Boolean).map(String);
+      const planificacionesDelCurso = planificaciones.filter((planificacion) => {
+        const referenciasPlan = [
+          planificacion.cursoId,
+          planificacion.curso,
+          planificacion.id,
+        ].filter(Boolean).map(String);
+        return referenciasCurso.some((ref) => referenciasPlan.includes(ref));
+      });
+      const idsIncluidos = new Set(planificacionesDelCurso.map((item) => item.id));
+      return [
+        ...(planificacionesDelCurso.length ? planificacionesDelCurso : [curriculoCursoActivo]),
+        ...planificaciones.filter((item) => !idsIncluidos.has(item.id)),
+      ];
+    }
 
-    if (desdeCursos.length) return desdeCursos;
+    const desdeCursos = (cursos || []).slice(0, 6).map(normalizarCursoComoCurriculo);
+
+    if (desdeCursos.length) {
+      if (!curriculoCursoActivo) return desdeCursos;
+      return [
+        curriculoCursoActivo,
+        ...desdeCursos.filter((item) => item.id !== curriculoCursoActivo.id),
+      ];
+    }
 
     return [
       { id: "fb-1", curso: "2do Secundaria A", area: "Matemática", asignatura: "Matemática", grado: "2do Secundaria", periodo: "Periodo 1", competencia: "Resuelve problemas con funciones lineales", indicador: "Modela situaciones usando relaciones lineales", titulo: "2do Secundaria A · Matemática" },
       { id: "fb-2", curso: "1ro Secundaria B", area: "Lengua Española", asignatura: "Lengua Española", grado: "1ro Secundaria", periodo: "Periodo 2", competencia: "Produce textos argumentativos", indicador: "Sustenta ideas con argumentos", titulo: "1ro Secundaria B · Lengua Española" },
       { id: "fb-3", curso: "6to Primaria", area: "Ciencias de la Naturaleza", asignatura: "Ciencias de la Naturaleza", grado: "6to Primaria", periodo: "Periodo 3", competencia: "Explica fenómenos naturales", indicador: "Relaciona causas y efectos", titulo: "6to Primaria · Ciencias de la Naturaleza" },
     ];
-  }, [cursos, planificaciones]);
+  }, [cursoActivo, cursos, planificaciones]);
 
   useEffect(() => {
+    const idCursoActivo = cursoActivo?.id ? String(cursoActivo.id) : "";
+    if (idCursoActivo && curriculosDisponibles.some((item) => String(item.cursoId || item.id) === idCursoActivo)) {
+      const curriculoDelCurso = curriculosDisponibles.find((item) => String(item.cursoId || item.id) === idCursoActivo);
+      if (curriculoDelCurso?.id && curriculoId !== curriculoDelCurso.id) {
+        setCurriculoId(curriculoDelCurso.id);
+      }
+      return;
+    }
     if (!curriculoId && curriculosDisponibles.length) {
       setCurriculoId(curriculosDisponibles[0].id);
     }
-  }, [curriculoId, curriculosDisponibles]);
+  }, [cursoActivo, curriculoId, curriculosDisponibles]);
 
   const curriculoActivo = useMemo(
     () => curriculosDisponibles.find((item) => item.id === curriculoId) || curriculosDisponibles[0] || null,
     [curriculoId, curriculosDisponibles]
   );
+
+  const obtenerCursoRelacionado = (referencia = curriculoActivo) => {
+    if (!referencia) return null;
+    const referencias = [
+      referencia.cursoId,
+      referencia.curriculoId,
+      referencia.id,
+      referencia.curso,
+    ].filter(Boolean).map(String);
+
+    return cursos.find((curso) => {
+      const nombres = [curso.id, curso.nombre, curso.name].filter(Boolean).map(String);
+      return referencias.some((ref) => nombres.includes(ref));
+    }) || null;
+  };
+
+  const obtenerEstudiantesPorInstrumento = (instrumento = null) => {
+    const cursoRelacionado = obtenerCursoRelacionado(instrumento || curriculoActivo);
+
+    const estudiantesCurso = cursoRelacionado?.estudiantesDetalle || cursoRelacionado?.estudiantesLista || cursoRelacionado?.estudiantesNombres || [];
+    const estudiantesNormalizados = estudiantesCurso
+      .map((estudiante, index) => ({
+        id: estudiante?.id || `est-${index}`,
+        nombre: nombreEstudiante(estudiante),
+      }))
+      .filter((estudiante) => estudiante.nombre);
+    return estudiantesNormalizados.length > 0
+      ? estudiantesNormalizados
+      : ESTUDIANTES_FALLBACK.map((nombre, index) => ({ id: `fb-${index + 1}`, nombre }));
+  };
 
   // Cargar instrumentos desde Firestore al montar
   useEffect(() => {
@@ -318,12 +442,12 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
         if (resultado.success && resultado.data.length > 0) {
           setInstrumentos(resultado.data);
         } else {
-          const local = cargarLocal("docenteos_instrumentos_v1", []);
+          const local = cargarInstrumentosLocales();
           if (activo && local.length > 0) setInstrumentos(local);
         }
       } catch {
         if (activo) {
-          const local = cargarLocal("docenteos_instrumentos_v1", []);
+          const local = cargarInstrumentosLocales();
           setInstrumentos(local);
         }
       } finally {
@@ -395,6 +519,9 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
       descripcion: instrumento.descripcion,
       estado: instrumento.estado,
       curriculoId: curriculo?.id || "",
+      evaluacionId: instrumento.evaluacionId,
+      valorMaximo: instrumento.valorMaximo || VALOR_INSTRUMENTO[instrumento.tipo] || 100,
+      competenciaIndex: instrumento.competenciaIndex ?? 0,
       estructura: instrumento.estructura || crearEstructuraPorTipo(instrumento.tipo),
     });
     setModal("editar");
@@ -458,8 +585,14 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
 
   const guardarInstrumento = () => {
     const tipo = draft.tipo || "Rúbrica";
+    const cursoRelacionado = obtenerCursoRelacionado(curriculoActivo);
+    const planificacionId = curriculoActivo?.planificacionId || curriculoActivo?.id || "";
+    const evaluacionId = draft.evaluacionId || `eval-${planificacionId || curriculoActivo?.cursoId || curriculoActivo?.curso || "general"}-${curriculoActivo?.periodo || "periodo-1"}`;
     const instrumento = {
       id: draft.id || `ins-${Date.now()}`,
+      evaluacionId,
+      planificacionId,
+      cursoId: cursoRelacionado?.id || curriculoActivo?.cursoId || curriculoActivo?.id || "registro-general",
       tipo,
       nombre: draft.nombre || `${tipo} - ${curriculoActivo?.competencia || "Nuevo instrumento"}`,
       descripcion: draft.descripcion || "Diseño listo para usar.",
@@ -467,9 +600,17 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
       area: curriculoActivo?.area || "Área",
       asignatura: curriculoActivo?.asignatura || curriculoActivo?.area || "Asignatura",
       grado: curriculoActivo?.grado || "Grado",
+      seccion: curriculoActivo?.seccion || cursoRelacionado?.seccion || "",
       periodo: curriculoActivo?.periodo || "Periodo 1",
       competencia: curriculoActivo?.competencia || "Competencia específica",
       indicador: curriculoActivo?.indicador || "Indicador de logro",
+      indicadores: curriculoActivo?.indicadores?.length ? curriculoActivo.indicadores : [curriculoActivo?.indicador || "Indicador de logro"],
+      estrategia: curriculoActivo?.estrategia || "Estrategia no especificada",
+      actividad: curriculoActivo?.actividad || "Actividad no especificada",
+      productoEsperado: curriculoActivo?.productoEsperado || "",
+      evidenciasEsperadas: curriculoActivo?.evidenciasEsperadas || [],
+      valorMaximo: draft.valorMaximo || VALOR_INSTRUMENTO[tipo] || 100,
+      competenciaIndex: draft.competenciaIndex ?? 0,
       fechaCreacion: draft.fechaCreacion || new Date().toISOString(),
       estado: draft.estado || "Borrador",
       usos: draft.usos || 0,
@@ -479,8 +620,16 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
         asignatura: curriculoActivo?.asignatura || "",
         grado: curriculoActivo?.grado || "",
         curso: curriculoActivo?.curso || "",
+        cursoId: cursoRelacionado?.id || curriculoActivo?.cursoId || "",
+        seccion: curriculoActivo?.seccion || cursoRelacionado?.seccion || "",
+        planificacionId,
         competenciaEspecifica: curriculoActivo?.competencia || "",
         indicadorLogro: curriculoActivo?.indicador || "",
+        indicadoresLogro: curriculoActivo?.indicadores?.length ? curriculoActivo.indicadores : [curriculoActivo?.indicador || ""].filter(Boolean),
+        estrategia: curriculoActivo?.estrategia || "",
+        actividad: curriculoActivo?.actividad || "",
+        productoEsperado: curriculoActivo?.productoEsperado || "",
+        evidenciasEsperadas: curriculoActivo?.evidenciasEsperadas || [],
         periodo: curriculoActivo?.periodo || "",
       },
       estructura: draft.estructura || crearEstructuraPorTipo(tipo),
@@ -527,13 +676,19 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
   };
 
   const eliminarInstrumento = (id) => {
+    const instrumento = instrumentos.find((item) => item.id === id);
+    const aplicaciones = instrumento?.aplicaciones?.length || instrumento?.usos || 0;
+    if (aplicaciones > 0 && !window.confirm("Este instrumento tiene aplicaciones registradas. ¿Deseas eliminarlo de todos modos?")) {
+      return;
+    }
     setInstrumentos((prev) => prev.filter((item) => item.id !== id));
     eliminarInstrumentoFirestore(id).catch((err) => console.error("[Instrumentos] Error al eliminar:", err));
   };
 
   const abrirAplicacion = (instrumento) => {
+    const estudiantesDisponibles = obtenerEstudiantesPorInstrumento(instrumento);
     setInstrumentoAplicar(instrumento);
-    setEstudianteAplicar(ESTUDIANTES_FALLBACK[0]);
+    setEstudianteAplicar(estudiantesDisponibles[0]?.id || "fb-1");
     setEvaluacionAplicar(crearValorInicial(instrumento.tipo, instrumento.estructura));
     setModal("aplicar");
   };
@@ -542,18 +697,18 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
     if (!instrumento) return 0;
     const tipo = leerTipo(instrumento);
 
-    if (tipo === "Lista de cotejo") {
+    if (TIPOS_BINARIOS.includes(tipo)) {
       const indicadores = instrumento.estructura?.indicadores || [];
       const positivos = indicadores.filter((item) => evaluacion[item.id]).length;
       return indicadores.length ? Math.round((positivos / indicadores.length) * 100) : 0;
     }
 
-    if (tipo === "Escala de estimación") {
+    if (TIPOS_ESCALA.includes(tipo)) {
       const valores = Object.values(evaluacion).map(Number).filter((valor) => Number.isFinite(valor));
       return valores.length ? Math.round((valores.reduce((a, b) => a + b, 0) / valores.length) * 25) : 0;
     }
 
-    if (TIPOS_CON_BLOQUE.includes(tipo)) {
+    if (TIPOS_CRITERIOS.includes(tipo)) {
       const valores = Object.values(evaluacion).map(Number).filter((valor) => Number.isFinite(valor));
       return valores.length ? Math.round((valores.reduce((a, b) => a + b, 0) / valores.length) * 25) : 0;
     }
@@ -565,48 +720,67 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
   const guardarAplicacion = () => {
     if (!instrumentoAplicar) return;
 
-    const calificacion = calcularResultado(instrumentoAplicar, evaluacionAplicar);
+    const estudianteSeleccionado = estudiantesAplicacion.find((estudiante) => estudiante.id === estudianteAplicar)
+      || estudiantesAplicacion[0]
+      || { id: estudianteAplicar, nombre: "Estudiante" };
+    const porcentaje = calcularResultado(instrumentoAplicar, evaluacionAplicar);
+    const valorMaximo = Number(instrumentoAplicar.valorMaximo) || VALOR_INSTRUMENTO[instrumentoAplicar.tipo] || 100;
+    const calificacion = Math.round((porcentaje / 100) * valorMaximo);
     const registro = {
-      estudiante: estudianteAplicar,
+      estudianteId: estudianteSeleccionado.id,
+      estudiante: estudianteSeleccionado.nombre,
       fecha: new Date().toISOString(),
       periodo: instrumentoAplicar.periodo,
       competenciaEvaluada: instrumentoAplicar.competencia,
       indicadorEvaluado: instrumentoAplicar.indicador,
+      indicadoresEvaluados: instrumentoAplicar.indicadores || [instrumentoAplicar.indicador].filter(Boolean),
       calificacionObtenida: calificacion,
+      porcentajeObtenido: porcentaje,
+      puntosObtenidos: calificacion,
+      valorMaximo,
+      evaluacionId: instrumentoAplicar.evaluacionId,
+      planificacionId: instrumentoAplicar.planificacionId,
+      estrategia: instrumentoAplicar.estrategia || "",
+      actividad: instrumentoAplicar.actividad || "",
       observacion: evaluacionAplicar.observacion || "",
       detalle: evaluacionAplicar,
     };
 
+    const instrumentoActualizado = {
+      ...instrumentoAplicar,
+      usos: (instrumentoAplicar.usos || 0) + 1,
+      estado: instrumentoAplicar.estado === "Borrador" ? "Activo" : instrumentoAplicar.estado,
+      aplicaciones: [...(instrumentoAplicar.aplicaciones || []).filter((item) => item.estudianteId !== registro.estudianteId), registro],
+      registroIntegracion: {
+        competenciaEvaluada: instrumentoAplicar.competencia,
+        indicadorEvaluado: instrumentoAplicar.indicador,
+        indicadoresEvaluados: instrumentoAplicar.indicadores || [instrumentoAplicar.indicador].filter(Boolean),
+        calificacionObtenida: calificacion,
+        porcentajeObtenido: porcentaje,
+        valorMaximo,
+        fecha: registro.fecha,
+        periodo: instrumentoAplicar.periodo,
+      },
+    };
+
     setInstrumentos((prev) => {
-      const actualizados = prev.map((item) => {
-        if (item.id !== instrumentoAplicar.id) return item;
-        return {
-          ...item,
-          usos: (item.usos || 0) + 1,
-          estado: item.estado === "Borrador" ? "Activo" : item.estado,
-          aplicaciones: [...(item.aplicaciones || []), registro],
-          registroIntegracion: {
-            competenciaEvaluada: item.competencia,
-            indicadorEvaluado: item.indicador,
-            calificacionObtenida: calificacion,
-            fecha: registro.fecha,
-            periodo: item.periodo,
-          },
-        };
-      });
-      const actualizado = actualizados.find((i) => i.id === instrumentoAplicar.id);
-      if (actualizado) guardarInstrumentoFirestore(actualizado).catch((err) => console.error("[Instrumentos] Error al guardar aplicación:", err));
-      return actualizados;
+      return prev.map((item) => (item.id === instrumentoAplicar.id ? instrumentoActualizado : item));
     });
+    guardarInstrumentoFirestore(instrumentoActualizado).catch((err) => console.error("[Instrumentos] Error al guardar aplicación:", err));
+    sincronizarEvaluacionPedagogica({
+      instrumento: instrumentoActualizado,
+      aplicacion: registro,
+      cursoId: instrumentoActualizado.cursoId || obtenerCursoRelacionado(instrumentoActualizado)?.id,
+    }).catch((err) => console.error("[Instrumentos] Error al sincronizar núcleo pedagógico:", err));
 
     setModal(null);
-    setMensaje({ tipo: "success", texto: "Aplicación registrada y preparada para Registro." });
+    setMensaje({ tipo: "success", texto: "Evaluación guardada, evidencia creada y Registro actualizado." });
     setTimeout(() => setMensaje(null), 2500);
   };
 
   const filasConstructor = useMemo(() => {
-    if (draft.tipo === "Lista de cotejo") return draft.estructura?.indicadores || [];
-    if (draft.tipo === "Escala de estimación") return draft.estructura?.indicadores || [];
+    if (TIPOS_BINARIOS.includes(draft.tipo)) return draft.estructura?.indicadores || [];
+    if (TIPOS_ESCALA.includes(draft.tipo)) return draft.estructura?.indicadores || [];
     return draft.estructura?.criterios || [];
   }, [draft]);
 
@@ -619,9 +793,13 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
     abrirNuevo(tipo);
   };
 
+  const estudiantesAplicacion = instrumentoAplicar
+    ? obtenerEstudiantesPorInstrumento(instrumentoAplicar)
+    : ESTUDIANTES_FALLBACK.map((nombre, index) => ({ id: `fb-${index + 1}`, nombre }));
+
   const modificarFila = (index, clave, valor) => {
     setDraft((prev) => {
-      if (prev.tipo === "Lista de cotejo") {
+      if (TIPOS_BINARIOS.includes(prev.tipo)) {
         return {
           ...prev,
           estructura: {
@@ -631,7 +809,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
         };
       }
 
-      if (prev.tipo === "Escala de estimación") {
+      if (TIPOS_ESCALA.includes(prev.tipo)) {
         return {
           ...prev,
           estructura: {
@@ -653,12 +831,12 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
 
   const agregarFila = () => {
     setDraft((prev) => {
-      if (prev.tipo === "Lista de cotejo") {
+      if (TIPOS_BINARIOS.includes(prev.tipo)) {
         const indicadores = prev.estructura?.indicadores || [];
         return { ...prev, estructura: { ...prev.estructura, indicadores: [...indicadores, crearIndicador(indicadores.length)] } };
       }
 
-      if (prev.tipo === "Escala de estimación") {
+      if (TIPOS_ESCALA.includes(prev.tipo)) {
         const indicadores = prev.estructura?.indicadores || [];
         return { ...prev, estructura: { ...prev.estructura, indicadores: [...indicadores, crearEscala(indicadores.length)] } };
       }
@@ -670,7 +848,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
 
   const eliminarFila = (index) => {
     setDraft((prev) => {
-      if (prev.tipo === "Lista de cotejo") {
+      if (TIPOS_BINARIOS.includes(prev.tipo)) {
         return {
           ...prev,
           estructura: {
@@ -680,7 +858,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
         };
       }
 
-      if (prev.tipo === "Escala de estimación") {
+      if (TIPOS_ESCALA.includes(prev.tipo)) {
         return {
           ...prev,
           estructura: {
@@ -700,15 +878,38 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
     });
   };
 
+  const contextoTrabajo = curriculoActivo
+    ? {
+        curso: curriculoActivo.curso || "Curso sin definir",
+        area: curriculoActivo.area || curriculoActivo.asignatura || "Área sin definir",
+        periodo: curriculoActivo.periodo || "Período sin definir",
+        competencia: curriculoActivo.competencia || "Competencia pendiente",
+        actividad: curriculoActivo.actividad || "Actividad pendiente",
+      }
+    : null;
+
   return (
     <div className="instrumentos-page">
       <section className="instrumentos-hero panel-soft">
         <div>
           <p className="instrumentos-kicker">DocenteOS · Instrumentos</p>
-          <h1>📋 Banco de Instrumentos</h1>
-          <p>
-            Sistema profesional de evaluación alineado al currículo por competencias del MINERD, listo para conectar con Planificación, Registro e IA.
-          </p>
+          <h1>{contextoTrabajo ? contextoTrabajo.curso : "Selecciona una planificación"}</h1>
+          {contextoTrabajo ? (
+            <>
+              <div className="instrumentos-contexto-activo">
+                <span>{contextoTrabajo.area}</span>
+                <span>{contextoTrabajo.periodo}</span>
+                <span>{contextoTrabajo.actividad}</span>
+              </div>
+              <p>
+                Instrumentos de evaluación conectados a la planificación activa. Competencia: {contextoTrabajo.competencia}
+              </p>
+            </>
+          ) : (
+            <p>
+              Cargando el curso y la planificación de trabajo para conectar instrumentos, registro y evidencias.
+            </p>
+          )}
         </div>
 
         <div className="instrumentos-hero-actions">
@@ -1004,6 +1205,19 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
                 </label>
 
                 <label>
+                  Competencia del Registro que evalúa
+                  <select
+                    value={draft.competenciaIndex ?? 0}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, competenciaIndex: Number(e.target.value) }))}
+                  >
+                    <option value={0}>Competencia 1</option>
+                    <option value={1}>Competencia 2</option>
+                    <option value={2}>Competencia 3</option>
+                    <option value={3}>Competencia 4</option>
+                  </select>
+                </label>
+
+                <label>
                   Vinculación curricular
                   <select value={curriculoId} onChange={(e) => setCurriculoId(e.target.value)}>
                     {curriculosDisponibles.map((curriculo) => <option key={curriculo.id} value={curriculo.id}>{curriculo.titulo}</option>)}
@@ -1025,7 +1239,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
                   <span>{draft.tipo}</span>
                 </div>
 
-                {draft.tipo === "Rúbrica" && (
+                {TIPOS_CRITERIOS.includes(draft.tipo) && (
                   <table className="builder-table">
                     <thead>
                       <tr>
@@ -1052,7 +1266,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
                   </table>
                 )}
 
-                {draft.tipo === "Lista de cotejo" && (
+                {TIPOS_BINARIOS.includes(draft.tipo) && (
                   <table className="builder-table simple">
                     <thead>
                       <tr>
@@ -1075,7 +1289,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
                   </table>
                 )}
 
-                {draft.tipo === "Escala de estimación" && (
+                {TIPOS_ESCALA.includes(draft.tipo) && (
                   <table className="builder-table simple escala">
                     <thead>
                       <tr>
@@ -1139,9 +1353,9 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
             <div className="aplicar-grid">
               <aside className="estudiantes-panel">
                 <h3>Estudiantes</h3>
-                {ESTUDIANTES_FALLBACK.map((estudiante) => (
-                  <button key={estudiante} className={estudianteAplicar === estudiante ? "estudiante-item active" : "estudiante-item"} onClick={() => setEstudianteAplicar(estudiante)}>
-                    {estudiante}
+                {estudiantesAplicacion.map((estudiante) => (
+                  <button key={estudiante.id} className={estudianteAplicar === estudiante.id ? "estudiante-item active" : "estudiante-item"} onClick={() => setEstudianteAplicar(estudiante.id)}>
+                    {estudiante.nombre}
                   </button>
                 ))}
               </aside>
@@ -1153,9 +1367,9 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
                   <p>{instrumentoAplicar.competencia}</p>
                 </div>
 
-                <h3>{estudianteAplicar}</h3>
+                <h3>{estudiantesAplicacion.find((estudiante) => estudiante.id === estudianteAplicar)?.nombre || "Estudiante"}</h3>
 
-                {leerTipo(instrumentoAplicar) === "Lista de cotejo" && (
+                {TIPOS_BINARIOS.includes(leerTipo(instrumentoAplicar)) && (
                   <div className="aplicar-items">
                     {(instrumentoAplicar.estructura?.indicadores || []).map((item) => (
                       <label key={item.id} className="aplicar-item">
@@ -1169,7 +1383,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
                   </div>
                 )}
 
-                {leerTipo(instrumentoAplicar) === "Escala de estimación" && (
+                {TIPOS_ESCALA.includes(leerTipo(instrumentoAplicar)) && (
                   <div className="aplicar-items">
                     {(instrumentoAplicar.estructura?.indicadores || []).map((item) => (
                       <label key={item.id} className="aplicar-item escala">
@@ -1186,7 +1400,7 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
                   </div>
                 )}
 
-                {leerTipo(instrumentoAplicar) === "Rúbrica" && (
+                {TIPOS_CRITERIOS.includes(leerTipo(instrumentoAplicar)) && (
                   <div className="aplicar-rubrica">
                     {(instrumentoAplicar.estructura?.criterios || []).map((criterio) => (
                       <article key={criterio.id} className="rubrica-row">
@@ -1249,11 +1463,12 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
                 <p>{curriculoActivo?.indicador || "Indicadores generados automáticamente."}</p>
               </article>
               <article>
-                <h3>Criterios</h3>
+                <h3>{TIPOS_BINARIOS.includes(aiDraft.tipo) || TIPOS_ESCALA.includes(aiDraft.tipo) ? "Indicadores" : "Criterios"}</h3>
                 {(aiDraft.estructura?.criterios || []).map((criterio) => <div key={criterio.id}>{criterio.criterio}</div>)}
+                {(aiDraft.estructura?.indicadores || []).map((indicador) => <div key={indicador.id}>{indicador.indicador}</div>)}
               </article>
               <article>
-                <h3>Rúbrica completa</h3>
+                <h3>Estructura completa</h3>
                 {(aiDraft.estructura?.criterios || []).map((criterio) => (
                   <div key={criterio.id} className="ai-rubric-row">
                     <strong>{criterio.criterio}</strong>
@@ -1261,6 +1476,24 @@ function InstrumentosPage({ cursos = [], onIrA = () => {} }) {
                     <span>{criterio.nivel3}</span>
                     <span>{criterio.nivel2}</span>
                     <span>{criterio.nivel1}</span>
+                  </div>
+                ))}
+                {(aiDraft.estructura?.indicadores || []).map((indicador) => (
+                  <div key={indicador.id} className="ai-rubric-row">
+                    <strong>{indicador.indicador}</strong>
+                    {TIPOS_ESCALA.includes(aiDraft.tipo) ? (
+                      <>
+                        <span>{indicador.excelente}</span>
+                        <span>{indicador.bueno}</span>
+                        <span>{indicador.regular}</span>
+                        <span>{indicador.necesitaApoyo}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Sí</span>
+                        <span>No</span>
+                      </>
+                    )}
                   </div>
                 ))}
               </article>

@@ -23,6 +23,7 @@ import { getCached, setCached } from "./cache";
 import { logUsage } from "./usage";
 import { db } from "../../firebase.js";
 import { doc, getDoc } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 // ─── Config cache (Firestore config/ia-gateway) ───────────────────────────────
 // Se carga una vez y se refresca cada 5 minutos.
@@ -73,8 +74,8 @@ export const AIService = {
     const resolvedMaxTokens = maxTokens ?? routerOpts.maxTokens;
     const startTime         = Date.now();
     let accumulated  = "";
-    let usedProvider = "unknown";
-    let usedModel    = "unknown";
+    let usedProvider;
+    let usedModel;
 
     // ── Log de contexto (si no viene del ContextBuilder, estimar aquí) ───────
     if (import.meta.env.DEV && !_contextMeta) {
@@ -112,11 +113,20 @@ export const AIService = {
     }
 
     // ── 3. Llamar al Gateway (servidor) ──────────────────────────────────────
+    let idToken = null;
+    try {
+      const currentUser = getAuth().currentUser;
+      if (currentUser) idToken = await currentUser.getIdToken();
+    } catch { /* no-fatal — el servidor rechazará si no hay token */ }
+
     let response;
     try {
       response = await fetch("/api/ai/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { "Authorization": `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({
           module,
           prompt,

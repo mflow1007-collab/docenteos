@@ -22,6 +22,7 @@ import { generarPlanificacionInteligente } from "../services/ai/PlanificacionInt
 import { extractStyle } from "../services/ai/style/StyleEngine.js";
 import { crearCasoExito } from "../services/ai/CasosExitoService.js";
 import { usePerfilInstitucional } from "../hooks/usePerfilInstitucional.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import FormularioPlanificacion from "../components/FormularioPlanificacion";
 import ResultadoPlanificacion from "../components/ResultadoPlanificacion";
 import FormularioPlanDiario from "../components/FormularioPlanDiario";
@@ -57,12 +58,14 @@ import {
   suscribirseEstadoTemasPlanificacion,
 } from "../firebase";
 
-export default function PlanificacionPage() {
+export default function PlanificacionPage({ planificacionPreCargada = null, onConsumirPreCargada = () => {} }) {
   const hoyISO = new Date().toISOString().slice(0, 10);
   const STORAGE_USO_TIPOS = "docenteos_planificacion_uso_tipos_v1";
 
   // ── Perfil institucional global ───────────────────────────────────────────
   const { formulario: perfilForm } = usePerfilInstitucional();
+  const { user } = useAuth();
+  const puedeVerCentroDecisiones = user?.email?.trim().toLowerCase() === "admin@docenteos.com";
 
   // ── Estado curricular oficial (Firestore) ─────────────────────────────────
   const [competenciasCurriculares, setCompetenciasCurriculares] = useState([]);
@@ -94,6 +97,7 @@ export default function PlanificacionPage() {
   const [situacionAprendizaje, setSituacionAprendizaje] = useState("");
   const [minutosHoraClase, setMinutosHoraClase] = useState(45);
   const [periodosClasePorDia, setPeriodosClasePorDia] = useState({});
+  const [materialPlanificacion, setMaterialPlanificacion] = useState(null);
 
   // ── Plan Diario ──
   const hoyISO2 = new Date().toISOString().slice(0, 10);
@@ -137,6 +141,24 @@ export default function PlanificacionPage() {
     setBannerEntrenar(true);
     localStorage.setItem("doe_entrenar_visto", "1");
   }, []);
+
+  useEffect(() => {
+    try {
+      const guardado = localStorage.getItem("docenteos_material_planificacion_activo");
+      setMaterialPlanificacion(guardado ? JSON.parse(guardado) : null);
+    } catch {
+      setMaterialPlanificacion(null);
+    }
+  }, []);
+
+  const quitarMaterialPlanificacion = () => {
+    try {
+      localStorage.removeItem("docenteos_material_planificacion_activo");
+    } catch {
+      // No bloquea la edición de planificación.
+    }
+    setMaterialPlanificacion(null);
+  };
 
   const ejecutarGenerarDiario = () => {
     const indicadoresCustom = planDiarioDatos.indicadoresTexto
@@ -214,6 +236,7 @@ export default function PlanificacionPage() {
         tema:       planDiarioDatos.tema ?? null,
         metadata:   { tipo: 'diario' }
       });
+      await cargarHistorial({ mostrarMensajeRecuperacion: false });
       setMensajeDiario({ tipo: "success", texto: "✅ Plan diario guardado" });
     } catch (error) {
       setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
@@ -363,6 +386,7 @@ export default function PlanificacionPage() {
         tema:       unidad.metadatos?.titulo ?? unidadDatos.tema ?? null,
         metadata:   { tipo: 'unidad' }
       });
+      await cargarHistorial({ mostrarMensajeRecuperacion: false });
       setMensajeUnidad({ tipo: "success", texto: "✅ Unidad de aprendizaje guardada" });
     } catch (error) {
       setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
@@ -480,7 +504,11 @@ export default function PlanificacionPage() {
 
   const formatearFechaRegistro = (fecha) => {
     if (!fecha) return "Sin fecha";
-    const normalizada = typeof fecha === "string" ? new Date(fecha) : fecha;
+    const normalizada = fecha?.toDate
+      ? fecha.toDate()
+      : typeof fecha === "string"
+        ? new Date(fecha)
+        : fecha;
     if (Number.isNaN(normalizada.getTime())) return "Sin fecha";
     return normalizada.toLocaleString("es-DO", {
       day: "2-digit",
@@ -494,7 +522,10 @@ export default function PlanificacionPage() {
   const cargarHistorial = async ({ mostrarMensajeRecuperacion = false } = {}) => {
     try {
       const resultado = await obtenerPlanificacionesDetalladas();
-      const lista = (resultado.data || []).filter((item) => item?.contenido?.metadatos);
+      const lista = (resultado.data || []).filter((item) => {
+        const contenido = item?.contenido || item;
+        return contenido?.metadatos || item?.tema || item?.area || item?.curso;
+      });
       setHistorialPlanificaciones(lista);
 
       if (!lista.length) {
@@ -525,6 +556,16 @@ export default function PlanificacionPage() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Carga una planificación desde el historial reciente del Dashboard
+  useEffect(() => {
+    if (!planificacionPreCargada?.contenido) return;
+    cargarFormularioDesdeHistorial(planificacionPreCargada.contenido, {
+      duplicar: planificacionPreCargada.accion === "duplicar",
+    });
+    onConsumirPreCargada();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planificacionPreCargada]);
 
   useEffect(() => {
     const unsub = suscribirseEstadoTemasPlanificacion(
@@ -1053,6 +1094,26 @@ export default function PlanificacionPage() {
         tema:       planificacion?.metadatos?.tema ?? tema ?? null,
         metadata:   { tipo: 'semanal' }
       });
+
+      // Indexar en BIC en segundo plano solo si aún no está indexada
+      if (bicFuente !== "indexado") {
+        const meta  = planificacion.metadatos     ?? {};
+        const datos = planificacion.datosGenerales ?? {};
+        const gradoData = grados.find(g => g.grado === (meta.grado || grado));
+        indexarEnBIC("planes", {
+          nivel:       gradoData?.nivel ?? "Primaria",
+          grado:       meta.grado       || grado,
+          area:        meta.area        || area,
+          asignatura,
+          competencia: datos.competencia || competencia,
+          indicadores: datos.indicadoresOficiales || [],
+          tema:        meta.tema        || tema,
+          tipo:        meta.tipoPlanificacion || tipoPlanificacion,
+        }, planificacion).then(id => {
+          if (id) { setBicId(id); setBicFuente("indexado"); }
+        }).catch(() => {});
+      }
+
       await cargarHistorial({ mostrarMensajeRecuperacion: false });
       setMensaje({
         tipo: "success",
@@ -1074,10 +1135,11 @@ export default function PlanificacionPage() {
   const cargarFormularioDesdeHistorial = (contenido, { duplicar = false } = {}) => {
     if (!contenido) return;
 
-    const meta = contenido.metadatos || {};
+    const contenidoNormalizado = contenido.contenido || contenido;
+    const meta = contenidoNormalizado.metadatos || contenido.metadatos || {};
 
     if (!duplicar) {
-      setPlanificacion(contenido);
+      setPlanificacion(contenidoNormalizado);
     } else {
       setPlanificacion(null);
     }
@@ -1112,20 +1174,22 @@ export default function PlanificacionPage() {
 
   const manejarCargarHistorial = (id) => {
     const encontrado = historialPlanificaciones.find((item) => String(item.id) === String(id));
-    if (!encontrado?.contenido) return;
-    cargarFormularioDesdeHistorial(encontrado.contenido, { duplicar: false });
+    const contenido = encontrado?.contenido || encontrado;
+    if (!contenido) return;
+    cargarFormularioDesdeHistorial(contenido, { duplicar: false });
   };
 
   const manejarDuplicarHistorial = (id) => {
     const encontrado = historialPlanificaciones.find((item) => String(item.id) === String(id));
-    if (!encontrado?.contenido) return;
-    cargarFormularioDesdeHistorial(encontrado.contenido, { duplicar: true });
+    const contenido = encontrado?.contenido || encontrado;
+    if (!contenido) return;
+    cargarFormularioDesdeHistorial(contenido, { duplicar: true });
   };
 
   const manejarEliminarHistorial = async (id) => {
     const encontrado = historialPlanificaciones.find((item) => String(item.id) === String(id));
     if (!encontrado) return;
-    const meta = encontrado?.contenido?.metadatos || {};
+    const meta = (encontrado?.contenido || encontrado)?.metadatos || {};
     const gradoSeccion = [meta.grado, meta.seccion].filter(Boolean).join(" ").trim() || encontrado?.curso || "Curso";
     const areaActual = meta.area || encontrado?.area || "Área";
     const etiqueta = `${gradoSeccion} - ${areaActual}`;
@@ -1771,6 +1835,31 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
       )}
 
       <div className="planning-container">
+        {materialPlanificacion && (
+          <section className="planning-resource-card">
+            <div>
+              <span className="planning-resource-label">Recurso activo</span>
+              <h2>{materialPlanificacion.titulo || "Material seleccionado"}</h2>
+              <p>
+                {[materialPlanificacion.nivel, materialPlanificacion.grado, materialPlanificacion.asignatura]
+                  .filter(Boolean)
+                  .join(" · ") || "Libro Abierto MINERD"}
+              </p>
+            </div>
+            <div className="planning-resource-actions">
+              <a
+                href={materialPlanificacion.archivoUrl || materialPlanificacion.origen}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Ver libro
+              </a>
+              <button type="button" onClick={quitarMaterialPlanificacion}>
+                Quitar
+              </button>
+            </div>
+          </section>
+        )}
 
         <section className="planning-type-card">
           <div className="planning-type-head">
@@ -1806,6 +1895,59 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
               );
             })}
           </div>
+        </section>
+
+        <section className="planning-history-card">
+          <h2>Planificaciones guardadas</h2>
+          <p>
+            Recupera tus planificaciones recientes, duplica su configuración o elimina las que ya no necesites.
+          </p>
+
+          {historialPlanificaciones.length > 0 ? (
+            <div className="history-cards">
+              {historialPlanificaciones.slice(0, 6).map((item) => {
+                const contenido = item?.contenido || item;
+                const meta = contenido?.metadatos || {};
+                const titulo = meta.tema || meta.titulo || item.tema || "Planificación sin tema";
+                const cursoResumen = [meta.grado, meta.seccion].filter(Boolean).join(" ").trim() || item.curso || "Curso";
+                const areaResumen = meta.area || item.area || "Área";
+                const tipoResumen = meta.tipoPlanificacion || contenido?.tipoPlanificacion || "Planificación";
+                const fechaResumen = formatearFechaRegistro(item.createdAt || item.fecha || meta.fechaGeneracion);
+
+                return (
+                  <article key={item.id} className="history-item-card">
+                    <div className="history-item-head">
+                      <strong>{titulo}</strong>
+                      <span>{fechaResumen}</span>
+                    </div>
+                    <div className="history-item-meta">
+                      <span>{cursoResumen}</span>
+                      <span>{areaResumen}</span>
+                      <span>{tipoResumen}</span>
+                    </div>
+                    <div className="history-item-actions">
+                      <button type="button" onClick={() => manejarCargarHistorial(item.id)}>
+                        Cargar
+                      </button>
+                      <button type="button" onClick={() => manejarDuplicarHistorial(item.id)}>
+                        Duplicar
+                      </button>
+                      <button
+                        type="button"
+                        className="danger"
+                        onClick={() => manejarEliminarHistorial(item.id)}
+                        disabled={eliminando}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="history-empty">Aún no tienes planificaciones guardadas.</p>
+          )}
         </section>
 
         {tipoPlanificacion === "Planificación Diaria" ? (
@@ -2038,15 +2180,17 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
           </>
         )}
 
-        <CentroDecisionesKE
-          estadoTemas={estadoTemas}
-          historialPlanificaciones={historialPlanificaciones}
-          tieneCurriculoOficial={tieneCurriculoOficial}
-          area={area}
-          asignatura={asignatura}
-          grado={grado}
-          nivel={perfilNivel}
-        />
+        {puedeVerCentroDecisiones && (
+          <CentroDecisionesKE
+            estadoTemas={estadoTemas}
+            historialPlanificaciones={historialPlanificaciones}
+            tieneCurriculoOficial={tieneCurriculoOficial}
+            area={area}
+            asignatura={asignatura}
+            grado={grado}
+            nivel={perfilNivel}
+          />
+        )}
       </div>
     </>
   );

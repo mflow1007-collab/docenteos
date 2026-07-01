@@ -5,6 +5,7 @@ const TITULOS = {
   usuarios:       'Gestión de Usuarios',
   centros:        'Centros Educativos',
   curriculo:      'Currículo MINERD',
+  'monitor-fuentes': 'Monitor MINERD',
   prompts:        'Banco de Prompts IA',
   'historial-ia': 'Historial de IA',
   auditoria:      'Auditoría del Sistema',

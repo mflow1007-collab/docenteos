@@ -543,48 +543,68 @@
 
 .asistencia-select {
   width: 100%;
-  padding: 0.5rem;
+  min-width: 42px;
+  min-height: 38px;
+  padding: 0.35rem 0.45rem;
   border: 1px solid #e5e7eb;
   border-radius: 0.25rem;
   background: white;
+  color: #111827;
   cursor: pointer;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 900;
   text-align: center;
+  text-align-last: center;
+  -webkit-text-fill-color: #111827;
+}
+
+.asistencia-select option {
+  background: #ffffff;
+  color: #111827;
+  -webkit-text-fill-color: #111827;
 }
 
 .asistencia-select.presente {
-  background: #dcfce7;
-  border-color: #15803d;
-  color: #15803d;
+  background: #15803d;
+  border-color: #166534;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
 }
 
 .asistencia-select.ausente {
-  background: #fee2e2;
-  border-color: #b91c1c;
-  color: #b91c1c;
+  background: #b91c1c;
+  border-color: #991b1b;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
 }
 
 .asistencia-select.tardanza {
-  background: #fef3c7;
-  border-color: #b45309;
-  color: #b45309;
+  background: #b45309;
+  border-color: #92400e;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
 }
 
 .asistencia-select.excusa {
-  background: #dbeafe;
-  border-color: #0284c7;
-  color: #0284c7;
+  background: #0369a1;
+  border-color: #075985;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
 }
 
 .dia-header.semana-1 { background: #eff6ff; }
 .dia-header.semana-2 { background: #e0f2fe; }
 .dia-header.semana-3 { background: #dbeafe; }
 .dia-header.semana-4 { background: #c7d2fe; }
+.dia-header.semana-5 { background: #ede9fe; }
+.dia-header.semana-6 { background: #f5f3ff; }
 
 .semana.semana-1 { background: #eff6ff; }
 .semana.semana-2 { background: #e0f2fe; }
 .semana.semana-3 { background: #dbeafe; }
 .semana.semana-4 { background: #c7d2fe; }
+.semana.semana-5 { background: #ede9fe; }
+.semana.semana-6 { background: #f5f3ff; }
 
 /* ========================================
    COMPETENCIAS GRID
@@ -1103,6 +1123,50 @@
 
 .asist-celda select { min-width: 36px; }
 
+.asist-mes-tabla .dia-header {
+  min-width: 44px;
+  padding: 6px 4px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.asist-mes-tabla .dia-header span,
+.asist-mes-tabla .dia-header small {
+  display: block;
+  line-height: 1.05;
+}
+
+.asist-mes-tabla .dia-header span {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.asist-mes-tabla .dia-header small {
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.asist-mes-tabla .dia-header.fuera-mes,
+.asist-mes-tabla .asist-celda.fuera-mes {
+  background: #f8fafc;
+  color: #cbd5e1;
+}
+
+.asist-mes-tabla .dia-header.fuera-mes small {
+  color: #cbd5e1;
+}
+
+.asist-celda.fuera-mes .asistencia-select {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: transparent;
+  cursor: not-allowed;
+  opacity: 0.75;
+  -webkit-text-fill-color: transparent;
+}
+
 /* ══════════════════════════════════════════════════
    RESUMEN TAB
    ══════════════════════════════════════════════════ */
@@ -1512,5 +1576,68 @@
   border-radius: 8px;
   padding: 12px 16px;
   line-height: 1.6;
+}
+
+.registro-empty-state,
+.registro-evaluacion-card {
+  margin-top: 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 16px;
+}
+
+.registro-empty-state strong {
+  display: block;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.registro-empty-state p {
+  margin: 0;
+  color: #64748b;
+}
+
+.registro-section-head.compact {
+  margin-bottom: 10px;
+}
+
+.registro-section-head.compact h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.registro-trazabilidad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.registro-trazabilidad span {
+  border: 1px solid #e9d5ff;
+  border-radius: 999px;
+  background: #faf5ff;
+  color: #6d28d9;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.registro-indicadores-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.registro-indicadores-lista span {
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
 }
 @keyframes ia-blink { 0%,100%{opacity:1} 50%{opacity:0} }

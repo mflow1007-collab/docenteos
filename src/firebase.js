@@ -15,6 +15,8 @@ import {
   runTransaction,
   increment,
   onSnapshot,
+  documentId,
+  limit,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { esUsuarioDocenteOS } from "./utils/permisos.js";
@@ -231,6 +233,7 @@ export const guardarPlanificacionDetallada = async (planificacion) => {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const user = auth.currentUser;
       const docRef = await addDoc(collection(db, "planificaciones"), {
+        tipo: meta.tipoPlanificacion || "Planificación Semanal",
         curso,
         area,
         periodo: meta.periodo || "Período no definido",
@@ -277,7 +280,8 @@ export const obtenerPlanificacionesDetalladas = async () => {
       const user = auth.currentUser;
       const q = query(
         collection(db, "planificaciones"),
-        where("usuario", "==", user.uid)
+        where("usuario", "==", user.uid),
+        limit(200)
       );
       const querySnapshot = await getDocs(q);
       const planificaciones = [];
@@ -338,6 +342,7 @@ export const eliminarPlanificacionDetallada = async (planificacionId) => {
 // ─── Registro de Calificaciones (Secundaria) ────────────────────────────────
 
 const REGISTRO_KEY = "docenteos_registros_calificaciones";
+const REGISTRO_DRAFT_PREFIX = "docenteos_registro_borrador_v1";
 
 const obtenerRegistrosLocales = () => {
   try {
@@ -348,8 +353,79 @@ const obtenerRegistrosLocales = () => {
   }
 };
 
+const obtenerRegistroDraftLocal = (cursoId) => {
+  try {
+    const guardado = localStorage.getItem(`${REGISTRO_DRAFT_PREFIX}:${cursoId}`);
+    return guardado ? JSON.parse(guardado) : null;
+  } catch {
+    return null;
+  }
+};
+
+const fechaRegistroMs = (registro) => {
+  const valor = registro?.updatedAt || registro?.actualizadoEn || registro?.createdAt;
+  if (!valor) return 0;
+  if (typeof valor.toDate === "function") return valor.toDate().getTime();
+  const fecha = Date.parse(valor);
+  return Number.isNaN(fecha) ? 0 : fecha;
+};
+
+const registroMasReciente = (...registros) =>
+  registros
+    .filter(Boolean)
+    .sort((a, b) => fechaRegistroMs(b) - fechaRegistroMs(a))[0] || null;
+
 const guardarRegistrosLocales = (registros) => {
   localStorage.setItem(REGISTRO_KEY, JSON.stringify(registros));
+};
+
+const guardarRegistroLocal = (cursoId, payload) => {
+  const locales = obtenerRegistrosLocales();
+  locales[cursoId] = payload;
+  guardarRegistrosLocales(locales);
+};
+
+const serializarAsistenciaFirestore = (asistencia = []) =>
+  asistencia.map((estudiante) => ({
+    ...estudiante,
+    meses: Object.fromEntries(
+      Object.entries(estudiante.meses || {}).map(([mes, semanas]) => [
+        mes,
+        Object.fromEntries(
+          (semanas || []).map((dias, semanaIdx) => [
+            `semana_${semanaIdx}`,
+            Object.fromEntries((dias || []).map((valor, diaIdx) => [`dia_${diaIdx}`, valor])),
+          ])
+        ),
+      ])
+    ),
+  }));
+
+const normalizarMesAsistencia = (mes) => {
+  if (Array.isArray(mes)) return mes;
+  if (!mes || typeof mes !== "object") return [];
+
+  return Object.entries(mes)
+    .sort(([a], [b]) => Number(a.replace("semana_", "")) - Number(b.replace("semana_", "")))
+    .map(([, dias]) => {
+      if (Array.isArray(dias)) return dias;
+      return Object.entries(dias || {})
+        .sort(([a], [b]) => Number(a.replace("dia_", "")) - Number(b.replace("dia_", "")))
+        .map(([, valor]) => valor);
+    });
+};
+
+const normalizarRegistroCalificaciones = (registro) => {
+  if (!registro) return null;
+  return {
+    ...registro,
+    asistencia: (registro.asistencia || []).map((estudiante) => ({
+      ...estudiante,
+      meses: Object.fromEntries(
+        Object.entries(estudiante.meses || {}).map(([mes, valor]) => [mes, normalizarMesAsistencia(valor)])
+      ),
+    })),
+  };
 };
 
 export const guardarRegistroCalificaciones = async ({
@@ -362,19 +438,40 @@ export const guardarRegistroCalificaciones = async ({
   notasEstudiantes,
   asistencia,
   observaciones,
+  evaluacionesInstrumentos,
+  resumenEvaluacionesInstrumentos,
 }) => {
   if (!cursoId) throw new Error("cursoId es obligatorio");
 
   const updatedAt = new Date().toISOString();
-  const payload = { cursoId, area, grado, seccion, anioEscolar, nivel, notasEstudiantes, asistencia, observaciones, updatedAt };
+  const payload = {
+    cursoId,
+    area,
+    grado,
+    seccion,
+    anioEscolar,
+    nivel,
+    notasEstudiantes,
+    asistencia,
+    observaciones,
+    evaluacionesInstrumentos,
+    resumenEvaluacionesInstrumentos,
+    updatedAt,
+  };
+  const payloadFirestore = {
+    ...payload,
+    asistencia: serializarAsistenciaFirestore(asistencia),
+  };
 
   try {
+    guardarRegistroLocal(cursoId, payload);
+
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const user = auth.currentUser;
       const ref = doc(db, "registrosCalificaciones", `${user.uid}_${cursoId}`);
       const previo = await getDoc(ref);
       const dataParcial = {
-        ...payload,
+        ...payloadFirestore,
         usuario: user.uid,
         usuarioEmail: user.email,
         updatedAt: serverTimestamp(),
@@ -396,9 +493,6 @@ export const guardarRegistroCalificaciones = async ({
       return { success: true, mode: "firebase" };
     }
 
-    const locales = obtenerRegistrosLocales();
-    locales[cursoId] = payload;
-    guardarRegistrosLocales(locales);
     return { success: true, mode: "local" };
   } catch (error) {
     console.error("Error al guardar registro de calificaciones:", error);
@@ -410,16 +504,25 @@ export const obtenerRegistroCalificaciones = async (cursoId) => {
   if (!cursoId) throw new Error("cursoId es obligatorio");
 
   try {
+    const locales = obtenerRegistrosLocales();
+    const local = normalizarRegistroCalificaciones(locales[cursoId] || null);
+    const draft = normalizarRegistroCalificaciones(obtenerRegistroDraftLocal(cursoId));
+
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const user = auth.currentUser;
       const ref = doc(db, "registrosCalificaciones", `${user.uid}_${cursoId}`);
       const snap = await getDoc(ref);
-      if (snap.exists()) return { success: true, mode: "firebase", data: snap.data() };
-      return { success: true, mode: "firebase", data: null };
+      if (snap.exists()) {
+        return {
+          success: true,
+          mode: "firebase",
+          data: registroMasReciente(normalizarRegistroCalificaciones(snap.data()), local, draft),
+        };
+      }
+      return { success: true, mode: "local", data: registroMasReciente(local, draft) };
     }
 
-    const locales = obtenerRegistrosLocales();
-    return { success: true, mode: "local", data: locales[cursoId] || null };
+    return { success: true, mode: "local", data: registroMasReciente(local, draft) };
   } catch (error) {
     console.error("Error al obtener registro de calificaciones:", error);
     throw error;
@@ -500,9 +603,7 @@ export const guardarCurso = async (curso) => {
       const dataParcial = {
         ...curso,
         uid,
-        fechaActualizacion: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        actualizadoEn: serverTimestamp(),
       };
       if (previo.exists()) {
         await updateDoc(ref, dataParcial);
@@ -535,7 +636,7 @@ export const obtenerCursos = async () => {
   try {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const uid = auth.currentUser.uid;
-      const snap = await getDocs(collection(db, "usuarios", uid, "cursos"));
+      const snap = await getDocs(query(collection(db, "usuarios", uid, "cursos"), limit(200)));
       const cursos = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
       return { success: true, mode: "firebase", data: cursos };
     }
@@ -548,10 +649,42 @@ export const obtenerCursos = async () => {
 
 export const eliminarCurso = async (cursoId) => {
   if (!cursoId) throw new Error("cursoId es obligatorio");
+  const idStr = String(cursoId);
   try {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const uid = auth.currentUser.uid;
-      await deleteDoc(doc(db, "usuarios", uid, "cursos", String(cursoId)));
+
+      // Paso 1: eliminar docs de colecciones raíz con clave conocida (en paralelo)
+      await Promise.all([
+        deleteDoc(doc(db, "usuarios", uid, "cursos", idStr)),
+        deleteDoc(doc(db, "horariosCursos", `${uid}_${idStr}`)).catch(() => {}),
+        deleteDoc(doc(db, "registrosCalificaciones", `${uid}_${idStr}`)).catch(() => {}),
+      ]);
+
+      // Paso 2: query de subcollections que apuntan a este curso
+      const [instrSnap, estSnap, expSnap] = await Promise.all([
+        getDocs(query(
+          collection(db, "usuarios", uid, "instrumentos"),
+          where("cursoId", "==", idStr)
+        )).catch(() => ({ docs: [] })),
+        getDocs(query(
+          collection(db, "usuarios", uid, "estudiantes"),
+          where("cursoId", "==", idStr)
+        )).catch(() => ({ docs: [] })),
+        getDocs(query(
+          collection(db, "usuarios", uid, "expedientesEstudiantes"),
+          where(documentId(), ">=", `${idStr}_`),
+          where(documentId(), "<", `${idStr}_￿`)
+        )).catch(() => ({ docs: [] })),
+      ]);
+
+      // Paso 3: borrar todos los docs encontrados en paralelo
+      await Promise.all([
+        ...instrSnap.docs.map(d => deleteDoc(d.ref).catch(() => {})),
+        ...estSnap.docs.map(d => deleteDoc(d.ref).catch(() => {})),
+        ...expSnap.docs.map(d => deleteDoc(d.ref).catch(() => {})),
+      ]);
+
       return { success: true, mode: "firebase" };
     }
     guardarCursosLocales(obtenerCursosLocales().filter((c) => c.id !== cursoId));
@@ -585,9 +718,7 @@ export const guardarInstrumentoFirestore = async (instrumento) => {
       const dataParcial = {
         ...instrumento,
         uid,
-        fechaActualizacion: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        actualizadoEn: serverTimestamp(),
       };
       if (previo.exists()) {
         await updateDoc(ref, dataParcial);
@@ -620,7 +751,7 @@ export const obtenerInstrumentosFirestore = async () => {
   try {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const uid = auth.currentUser.uid;
-      const snap = await getDocs(collection(db, "usuarios", uid, "instrumentos"));
+      const snap = await getDocs(query(collection(db, "usuarios", uid, "instrumentos"), limit(500)));
       const instrumentos = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
       return { success: true, mode: "firebase", data: instrumentos };
     }
@@ -844,8 +975,6 @@ export const registrarEventoAuditoria = async ({ tipo, evento, modulo, detalle =
 
 // ─── Política de temas de planificación (Activo / Secundario) ──────────────
 
-// Compatibilidad histórica — el chequeo real usa esUsuarioDocenteOS (dominio @docenteos.com)
-const ADMIN_SIN_RESTRICCION = "admin@docenteos.com";
 
 export const normalizarTema = (titulo = "") => {
   return String(titulo || "")

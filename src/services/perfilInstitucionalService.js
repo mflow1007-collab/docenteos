@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../firebase.js'
+import { crearOActualizarCentro } from './centroService.js'
 
 /**
  * Lee el perfilInstitucional de un usuario desde Firestore.
@@ -19,12 +20,17 @@ export async function obtenerPerfilInstitucional(uid) {
 /**
  * Guarda o actualiza el perfilInstitucional en Firestore.
  * Usa merge para no pisar otros campos del documento de usuario.
+ * Si el perfil incluye codigoCentro, también actualiza la colección `centros/`
+ * y escribe centroId en el documento raíz del usuario para soporte multi-centro.
  */
 export async function guardarPerfilInstitucional(uid, datos) {
   if (!db || !uid) throw new Error('Sin conexión o usuario no identificado.')
   if (!auth?.currentUser || auth.currentUser.uid !== uid) {
     throw new Error('No autorizado para actualizar este perfil.')
   }
+
+  const centroId = datos.codigoCentro ? String(datos.codigoCentro).trim() : null
+
   await setDoc(
     doc(db, 'usuarios', uid),
     {
@@ -35,9 +41,21 @@ export async function guardarPerfilInstitucional(uid, datos) {
       },
       perfilInstitucionalCompleto: true,
       perfilActualizadoEn: serverTimestamp(),
+      ...(centroId ? { centroId } : {}),
     },
     { merge: true }
   )
+
+  // Sincronizar colección centros/ de forma no-bloqueante
+  if (centroId) {
+    crearOActualizarCentro({
+      centroId,
+      nombre:    datos.centroEducativo,
+      regional:  datos.regional,
+      distrito:  datos.distrito,
+      modalidad: datos.modalidad,
+    }).catch((err) => console.warn('[perfilInstitucional] centroService:', err))
+  }
 }
 
 /**

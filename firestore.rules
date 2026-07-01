@@ -1,0 +1,208 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuth() && request.auth.token.email.matches('.*@docenteos\\.com');
+    }
+
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // ── Perfil de usuario + todas sus subcollections ─────────────────────────
+    match /usuarios/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+
+      match /cursos/{docId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /instrumentos/{docId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /preferencias/{docId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /detalleEstudiantes/{docId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /historialTemas/{docId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /expedientesEstudiantes/{docId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /evidenciasPedagogicas/{docId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      match /paymentHistory/{docId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isAdmin();
+      }
+    }
+
+    // ── Planificaciones ──────────────────────────────────────────────────────
+    // document contiene campo "usuario: uid"
+    match /planificaciones/{docId} {
+      allow read: if isAuth() && (
+        resource == null || resource.data.usuario == request.auth.uid
+      );
+      allow create: if isAuth() && request.resource.data.usuario == request.auth.uid;
+      allow update: if isAuth() && resource.data.usuario == request.auth.uid;
+      allow delete: if isAuth() && resource.data.usuario == request.auth.uid;
+      allow read, write: if isAdmin();
+    }
+
+    // ── Registros de calificaciones ──────────────────────────────────────────
+    // document ID: {uid}_{cursoId}
+    match /registrosCalificaciones/{docId} {
+      allow read, write: if isAuth() && docId.matches(request.auth.uid + '_.*');
+      allow read, write: if isAdmin();
+    }
+
+    // ── Horarios de cursos ───────────────────────────────────────────────────
+    // document ID: {uid}_{cursoId}
+    match /horariosCursos/{docId} {
+      allow read, write: if isAuth() && docId.matches(request.auth.uid + '_.*');
+      allow read, write: if isAdmin();
+    }
+
+    // ── Historial de IA ──────────────────────────────────────────────────────
+    // document contiene campo "usuario: uid"
+    match /historialIA/{docId} {
+      allow read: if isAuth() && resource.data.usuario == request.auth.uid;
+      allow create: if isAuth() && request.resource.data.usuario == request.auth.uid;
+      allow update, delete: if isAuth() && resource.data.usuario == request.auth.uid;
+      allow read, write: if isAdmin();
+    }
+
+    // ── Auditoría ────────────────────────────────────────────────────────────
+    match /auditoria/{docId} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ── Centros educativos (multi-centro) ─────────────────────────────────────
+    // Lectura: cualquier docente autenticado (para pre-cargar info de su centro)
+    // Escritura: docentes pueden crear/actualizar su propio centro al completar perfil
+    match /centros/{centroId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAdmin();
+    }
+
+    // ── Logs de uso de IA ────────────────────────────────────────────────────
+    // uid: campo real guardado por usage.js (era userId — bug corregido aquí)
+    match /aiLogs/{docId} {
+      allow create: if isAuth() && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ── Pagos ────────────────────────────────────────────────────────────────
+    match /payments/{docId} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
+    }
+    match /paymentReports/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── Configuración del sistema ─────────────────────────────────────────────
+    // config/ia-gateway es leído por todos los usuarios para el gateway de IA
+    match /config/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ── Banco Inteligente de Conocimiento (BIC) ───────────────────────────────
+    // Lectura: todos los usuarios autenticados (sugerencias de planificación)
+    // Escritura de nuevos docs: usuarios autenticados (indexar sus planificaciones)
+    // Actualización/eliminación: solo admin (para curar el banco)
+    match /bic_planes/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /bic_versiones/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /bic_actividades/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /bic_instrumentos/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /bic_auditorias/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Knowledge Engine ──────────────────────────────────────────────────────
+    match /ke_topics/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    // Los estilos los crean los docentes al entrenar su IA
+    match /ke_estilos/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /ke_ejemplos/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    // Agentes y sus subcollections de memoria
+    match /ke_agentes/{agentId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+
+      match /ke_memoria/{memId} {
+        allow read: if isAuth();
+        allow write: if isAdmin();
+      }
+      match /ke_versiones/{verId} {
+        allow read, write: if isAdmin();
+      }
+    }
+
+    // ── Learning Engine ────────────────────────────────────────────────────────
+    // le_eventos: docentes escriben sus propios eventos; solo admin puede leer
+    match /le_eventos/{docId} {
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+    // le_insights: solo admin (generados automáticamente, revisados por admin)
+    match /le_insights/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── Fuentes oficiales MINERD ───────────────────────────────────────────────
+    match /fuentesOficiales/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    match /fuentesCambios/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ── Materiales educativos ─────────────────────────────────────────────────
+    match /materiales/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+  }
+}

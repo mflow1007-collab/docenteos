@@ -1,13 +1,24 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
-const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','banco-pedagogico','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-docente','asistente-personal','uso-ia','costos-ia']
+function AdminPlaceholder({ titulo, descripcion }) {
+  return (
+    <div style={{ padding: "2rem" }}>
+      <h2>{titulo}</h2>
+      <p style={{ color: "#666", marginTop: "0.5rem" }}>{descripcion}</p>
+      <p style={{ color: "#aaa", marginTop: "1rem", fontSize: "0.9rem" }}>Módulo en construcción.</p>
+    </div>
+  )
+}
+
+const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','monitor-fuentes','banco-pedagogico','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-docente','asistente-personal','uso-ia','costos-ia','agentes','topics','insights']
 import AdminSidebar from './AdminSidebar.jsx'
 import AdminTopbar from './AdminTopbar.jsx'
 import AdminHome from './pages/AdminHome.jsx'
 import AdminUsuarios from './pages/AdminUsuarios.jsx'
 import AdminCentros from './pages/AdminCentros.jsx'
 import AdminCurriculo from './pages/AdminCurriculo.jsx'
+import AdminMonitorFuentes from './pages/AdminMonitorFuentes.jsx'
 import AdminPrompts from './pages/AdminPrompts.jsx'
 import AdminHistorialIA from './pages/AdminHistorialIA.jsx'
 import AdminAuditoria from './pages/AdminAuditoria.jsx'
@@ -48,6 +59,7 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
           {pagina === 'usuarios'      && <AdminUsuarios      />}
           {pagina === 'centros'       && <AdminCentros       />}
           {pagina === 'curriculo'     && <AdminCurriculo     />}
+          {pagina === 'monitor-fuentes' && <AdminMonitorFuentes />}
           {pagina === 'gateway-ia'    && <AdminIA            />}
           {pagina === 'prompts'       && <AdminPrompts       />}
           {pagina === 'historial-ia'  && <AdminHistorialIA   />}
@@ -64,6 +76,9 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
           {pagina === 'asistente-personal' && <AdminAsistentePersonal />}
           {pagina === 'uso-ia'            && <AdminUsoIA            />}
           {pagina === 'costos-ia'         && <AdminCostosIA         />}
+          {pagina === 'agentes'           && <AdminPlaceholder titulo="Agentes IA" descripcion="Gestión y monitoreo de agentes del Knowledge Engine." />}
+          {pagina === 'topics'            && <AdminPlaceholder titulo="Topics" descripcion="Topics pedagógicos usados para enriquecer el contexto de planificación." />}
+          {pagina === 'insights'          && <AdminPlaceholder titulo="Insights" descripcion="Patrones detectados por el Learning Engine para mejorar el sistema." />}
         </main>
       </div>
     </div>

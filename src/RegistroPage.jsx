@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { guardarRegistroCalificaciones, obtenerRegistroCalificaciones } from "./firebase";
 import { escribirExpedienteDesdeRegistro } from "./services/expedienteEstudianteService.js";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -10,17 +10,83 @@ import "./RegistroPage.css";
 
 const DIAS = ["L", "M", "I", "J", "V"];
 const ESTADOS_ASISTENCIA = ["", "P", "A", "T", "E"];
+const SEMANAS_ASISTENCIA = 6;
 
 const MESES_ESCOLAR = [
   "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
 ];
 
-// 5 semanas × 5 días por mes
-const crearMesVacio = () => Array.from({ length: 5 }, () => Array(5).fill(""));
+const MESES_NUMERO = {
+  Enero: 0,
+  Febrero: 1,
+  Marzo: 2,
+  Abril: 3,
+  Mayo: 4,
+  Junio: 5,
+  Agosto: 7,
+  Septiembre: 8,
+  Octubre: 9,
+  Noviembre: 10,
+  Diciembre: 11,
+};
 
-const calcAsistenciaMes = (semanas) => {
-  const flat = semanas.flat();
+const REGISTRO_DRAFT_PREFIX = "docenteos_registro_borrador_v1";
+
+// 6 semanas × 5 días laborables para cubrir todos los meses del calendario.
+const crearMesVacio = () => Array.from({ length: SEMANAS_ASISTENCIA }, () => Array(5).fill(""));
+
+const normalizarSemanasAsistencia = (semanas = []) =>
+  Array.from({ length: SEMANAS_ASISTENCIA }, (_, semanaIdx) =>
+    Array.from({ length: 5 }, (_, diaIdx) => semanas?.[semanaIdx]?.[diaIdx] ?? "")
+  );
+
+function obtenerAniosEscolares(anioEscolar) {
+  const anios = String(anioEscolar || "").match(/\d{4}/g)?.map(Number) || [];
+  const actual = new Date().getFullYear();
+  if (anios.length >= 2) return [anios[0], anios[1]];
+  if (anios.length === 1) return [anios[0], anios[0] + 1];
+  return [actual, actual + 1];
+}
+
+function crearAnioEscolarPorDefecto() {
+  const inicio = new Date().getFullYear();
+  return `${inicio}-${inicio + 1}`;
+}
+
+function obtenerAnioParaMes(mes, anioEscolar) {
+  const [inicio, fin] = obtenerAniosEscolares(anioEscolar);
+  return ["Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"].includes(mes) ? inicio : fin;
+}
+
+function crearCalendarioMes(mes, anioEscolar) {
+  const mesNumero = MESES_NUMERO[mes];
+  if (mesNumero === undefined) return crearMesVacio().map((semana) => semana.map(() => null));
+
+  const anio = obtenerAnioParaMes(mes, anioEscolar);
+  const primerDia = new Date(anio, mesNumero, 1);
+  const ultimoDia = new Date(anio, mesNumero + 1, 0).getDate();
+  const desplazamientoLunes = (primerDia.getDay() + 6) % 7;
+
+  return Array.from({ length: SEMANAS_ASISTENCIA }, (_, semanaIdx) =>
+    DIAS.map((_, diaIdx) => {
+      const diaMes = 1 - desplazamientoLunes + semanaIdx * 7 + diaIdx;
+      return diaMes >= 1 && diaMes <= ultimoDia ? diaMes : null;
+    })
+  );
+}
+
+const crearAsistenciaParaEstudiantes = (estudiantes) =>
+  estudiantes.map((est) => ({
+    id: est.id,
+    nombre: est.nombre,
+    meses: Object.fromEntries(MESES_ESCOLAR.map((m) => [m, crearMesVacio()])),
+  }));
+
+const calcAsistenciaMes = (semanas, calendario = null) => {
+  const flat = normalizarSemanasAsistencia(semanas).flatMap((semana, semanaIdx) =>
+    semana.filter((_, diaIdx) => calendario?.[semanaIdx]?.[diaIdx] !== null)
+  );
   const total    = flat.filter((x) => x !== "").length;
   const excusas  = flat.filter((x) => x === "E").length;
   // 2 excusas = 1 P
@@ -158,14 +224,46 @@ function calcularResumenEstudiante(notas) {
   return { compAvgs, cfExacto, cf, ccf, cexf, necesitaComp, necesitaExtra, situacion, aprobado, reprobado };
 }
 
+function slugEstudiante(nombre, indice) {
+  return `est-${String(nombre || "sin-nombre")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "sin-nombre"}-${indice}`;
+}
+
+function normalizarEstudiantesRegistro(estudiantes = []) {
+  return estudiantes.map((est, indice) => ({
+    ...est,
+    id: est.id ?? slugEstudiante(est.nombre, indice),
+  }));
+}
+
+function calcularAsistenciaAcumulada(registro) {
+  if (!registro?.meses) return null;
+  const marcas = MESES_ESCOLAR.flatMap((m) => (registro.meses?.[m] ?? crearMesVacio()).flat());
+  const total = marcas.filter((x) => x !== "").length;
+  if (!total) return null;
+  const excusas = marcas.filter((x) => x === "E").length;
+  const presentes = marcas.filter((x) => x === "P").length + Math.floor(excusas / 2);
+  return Math.round((presentes / total) * 100);
+}
+
+function getDraftKey(cursoId) {
+  return `${REGISTRO_DRAFT_PREFIX}:${cursoId}`;
+}
+
 function RegistroPage({
   onVolver,
   curso,
   estudiantesCurso = [],
   onAbrirPerfil = null,
+  onActualizarCurso = null,
 }) {
   const { formulario } = useAuth();
-  const cursoNombre = curso?.nombre || "Curso";
+  const cursoNombre = curso?.nombre || "Curso sin seleccionar";
   const centro = curso?.centro || formulario.centro || "Pendiente de completar";
   const grado = curso?.grado || "";
   const seccion = curso?.seccion || "";
@@ -173,28 +271,29 @@ function RegistroPage({
   const docente = curso?.docente || formulario.nombreDocente || "Pendiente de completar";
   const mes = curso?.mes || new Date().toLocaleDateString("es-DO", { month: "long" });
   const periodo = curso?.periodo || "";
-  const anioEscolar = curso?.anioEscolar || formulario.periodo || "Pendiente de completar";
+  const anioEscolar = curso?.anioEscolar || formulario.periodo || crearAnioEscolarPorDefecto();
 
   const estudiantes = useMemo(() => {
-    if (estudiantesCurso.length > 0) return estudiantesCurso;
-    if (curso?.estudiantesDetalle?.length) return curso.estudiantesDetalle;
-    if (curso?.estudiantes?.length) return curso.estudiantes;
-    return estudiantesFallback;
+    const base = estudiantesCurso.length > 0
+      ? estudiantesCurso
+      : curso?.estudiantesDetalle?.length
+        ? curso.estudiantesDetalle
+        : curso?.estudiantes?.length
+          ? curso.estudiantes
+          : estudiantesFallback;
+    return normalizarEstudiantesRegistro(base);
   }, [curso, estudiantesCurso]);
 
   const [tabActiva, setTabActiva] = useState("Resumen");
   const [periodoActivo] = useState("Periodo 1");
   const [mesActivo, setMesActivo] = useState("Agosto");
   const [asistencia, setAsistencia] = useState(
-    estudiantes.map((est) => ({
-      id: est.id,
-      nombre: est.nombre,
-      meses: Object.fromEntries(MESES_ESCOLAR.map((m) => [m, crearMesVacio()])),
-    }))
+    crearAsistenciaParaEstudiantes(estudiantes)
   );
   const competencias = competenciasFallback;
   const [observaciones, setObservaciones] = useState({});
   const [notasEstudiantes, setNotasEstudiantes] = useState({});
+  const [evaluacionesInstrumentos, setEvaluacionesInstrumentos] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [mensajeGuardado, setMensajeGuardado] = useState(null);
 
@@ -203,23 +302,128 @@ function RegistroPage({
   const [iaGenerando, setIaGenerando] = useState(false);
   const [iaError, setIaError] = useState(null);
   const iaRef = useRef(null);
+  const registroCargadoRef = useRef(false);
 
-  const cursoId = curso?.id || "sin-id";
+  const cursoId = curso?.id || "registro-general";
+  const draftKey = getDraftKey(cursoId);
+
+  const aplicarRegistroGuardado = (data) => {
+    if (!data) return;
+    if (data.notasEstudiantes) setNotasEstudiantes(data.notasEstudiantes);
+    if (data.asistencia) {
+      setAsistencia(
+        data.asistencia.map((est) => ({
+          ...est,
+          meses: Object.fromEntries(
+            MESES_ESCOLAR.map((mes) => [mes, normalizarSemanasAsistencia(est.meses?.[mes])])
+          ),
+        }))
+      );
+    }
+    if (data.observaciones)    setObservaciones(data.observaciones);
+    if (data.evaluacionesInstrumentos) setEvaluacionesInstrumentos(data.evaluacionesInstrumentos);
+  };
+
+  const crearPayloadRegistro = useCallback(() => ({
+    cursoId,
+    area,
+    grado,
+    seccion,
+    anioEscolar,
+    nivel: "secundaria",
+    notasEstudiantes,
+    asistencia,
+    observaciones,
+    evaluacionesInstrumentos,
+    updatedAt: new Date().toISOString(),
+  }), [cursoId, area, grado, seccion, anioEscolar, notasEstudiantes, asistencia, observaciones, evaluacionesInstrumentos]);
+
+  const guardarBorradorLocal = useCallback(() => {
+    if (!cursoId) return;
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(crearPayloadRegistro()));
+    } catch {
+      // Si localStorage falla, el botón Guardar sigue intentando persistir.
+    }
+  }, [cursoId, draftKey, crearPayloadRegistro]);
+
+  useEffect(() => {
+    setAsistencia((prev) => {
+      const prevPorId = new Map(prev.map((item) => [item.id, item]));
+      return estudiantes.map((est) => ({
+        ...(prevPorId.get(est.id) || {
+          id: est.id,
+          meses: Object.fromEntries(MESES_ESCOLAR.map((m) => [m, crearMesVacio()])),
+        }),
+        id: est.id,
+        nombre: est.nombre,
+        meses: Object.fromEntries(
+          MESES_ESCOLAR.map((mes) => [
+            mes,
+            normalizarSemanasAsistencia(prevPorId.get(est.id)?.meses?.[mes]),
+          ])
+        ),
+      }));
+    });
+  }, [estudiantes]);
 
   // Cargar registro guardado al abrir
   useEffect(() => {
-    if (!cursoId || cursoId === "sin-id") return;
+    if (!cursoId) return;
+    registroCargadoRef.current = false;
+
+    try {
+      const borrador = localStorage.getItem(draftKey);
+      if (borrador) aplicarRegistroGuardado(JSON.parse(borrador));
+    } catch {
+      // El borrador local no debe bloquear el registro.
+    }
+
     obtenerRegistroCalificaciones(cursoId)
       .then(({ data }) => {
-        if (!data) return;
-        if (data.notasEstudiantes) setNotasEstudiantes(data.notasEstudiantes);
-        if (data.asistencia)       setAsistencia(data.asistencia);
-        if (data.observaciones)    setObservaciones(data.observaciones);
+        if (data) aplicarRegistroGuardado(data);
       })
-      .catch(() => {});
-  }, [cursoId]);
+      .catch(() => {})
+      .finally(() => {
+        registroCargadoRef.current = true;
+      });
+  }, [cursoId, draftKey]);
+
+  useEffect(() => {
+    if (!cursoId || !registroCargadoRef.current) return;
+
+    const timer = setTimeout(() => {
+      const payload = crearPayloadRegistro();
+      guardarBorradorLocal();
+      guardarRegistroCalificaciones(payload).catch(() => {
+        // El borrador local ya quedó protegido; el guardado remoto se reintentará con el siguiente cambio.
+      });
+    }, 700);
+
+    return () => clearTimeout(timer);
+  }, [cursoId, registroCargadoRef, crearPayloadRegistro, guardarBorradorLocal]);
+
+  useEffect(() => {
+    if (!cursoId || !registroCargadoRef.current) return;
+
+    const flush = () => guardarBorradorLocal();
+    window.addEventListener("beforeunload", flush);
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", flush);
+
+    return () => {
+      flush();
+      window.removeEventListener("beforeunload", flush);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", flush);
+    };
+  }, [cursoId, registroCargadoRef, guardarBorradorLocal]);
 
   const codigosComp = COMP_CODIGOS[area] || ["CE-1","CE-2","CE-3","CE-4"];
+  const calendarioMesActivo = useMemo(
+    () => crearCalendarioMes(mesActivo, anioEscolar),
+    [mesActivo, anioEscolar]
+  );
 
   const getNotasEstudiante = (id) => notasEstudiantes[id] ?? crearNotasVacias();
 
@@ -395,7 +599,9 @@ function RegistroPage({
         notasEstudiantes,
         asistencia,
         observaciones,
+        evaluacionesInstrumentos,
       });
+      guardarBorradorLocal();
       // Escritura silenciosa al expediente de cada estudiante (no bloquea el guardado)
       escribirExpedienteDesdeRegistro({
         estudiantes,
@@ -407,6 +613,34 @@ function RegistroPage({
         area,
         grado,
       }).catch(() => {});
+      if (curso && typeof onActualizarCurso === "function") {
+        const estudiantesDetalle = estudiantes.map((est) => {
+          const notas = notasEstudiantes[est.id] ?? crearNotasVacias();
+          const resumenEst = calcularResumenEstudiante(notas);
+          const asistenciaEst = calcularAsistenciaAcumulada(asistencia.find((item) => item.id === est.id));
+          return {
+            ...est,
+            promedio: resumenEst.cf > 0 ? resumenEst.cf : est.promedio ?? null,
+            asistencia: asistenciaEst ?? est.asistencia ?? null,
+            ultimaEvaluacion: new Date().toLocaleDateString("es-DO", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }),
+          };
+        });
+        const promediosValidos = estudiantesDetalle
+          .map((est) => est.promedio)
+          .filter((valor) => typeof valor === "number" && !Number.isNaN(valor));
+        onActualizarCurso({
+          ...curso,
+          estudiantesDetalle,
+          estudiantes: estudiantesDetalle.length,
+          promedio: promediosValidos.length
+            ? Math.round(promediosValidos.reduce((a, b) => a + b, 0) / promediosValidos.length)
+            : curso.promedio,
+        });
+      }
       setMensajeGuardado({ tipo: "ok", texto: "✅ Registro guardado correctamente." });
     } catch {
       setMensajeGuardado({ tipo: "error", texto: "❌ Error al guardar. Intenta de nuevo." });
@@ -415,6 +649,13 @@ function RegistroPage({
       setTimeout(() => setMensajeGuardado(null), 4000);
     }
   };
+
+  const evaluacionesConsolidadas = useMemo(() =>
+    Object.values(evaluacionesInstrumentos || {}).map((evaluacion) => ({
+      ...evaluacion,
+      instrumentosLista: Object.values(evaluacion.instrumentos || {}),
+      estudiantesLista: Object.values(evaluacion.estudiantes || {}),
+    })), [evaluacionesInstrumentos]);
 
   const exportarExcel = () => {
     const rows = [];
@@ -555,8 +796,8 @@ function RegistroPage({
     <div className="registro-page">
       <section className="registro-hero">
         <div className="registro-hero-copy">
-          <p className="registro-kicker">📋 DocenteOS · Registro de Grado</p>
-          <h1>{cursoNombre}</h1>
+          <p className="registro-kicker">📋 Trabajando en este curso</p>
+          <h1>Registro de {cursoNombre}</h1>
           <p className="registro-subtitle">
             {area} · {grado} {seccion} · {anioEscolar}
           </p>
@@ -610,7 +851,7 @@ function RegistroPage({
       </section>
 
       <section className="registro-tabs">
-        {["Asistencia", "Competencias", "Indicadores", "Aspectos", "Calificaciones", "Resumen"].map((tab) => (
+        {["Asistencia", "Competencias", "Indicadores", "Aspectos", "Evaluaciones", "Calificaciones", "Resumen"].map((tab) => (
           <button
             key={tab}
             type="button"
@@ -783,8 +1024,9 @@ function RegistroPage({
           {/* ── Selector de mes ── */}
           <div className="asist-meses-tabs">
             {MESES_ESCOLAR.map((mes) => {
+              const calendarioMes = crearCalendarioMes(mes, anioEscolar);
               const totals = asistencia.map((e) =>
-                calcAsistenciaMes(e.meses?.[mes] ?? crearMesVacio())
+                calcAsistenciaMes(e.meses?.[mes] ?? crearMesVacio(), calendarioMes)
               );
               const hayDatos = totals.some((t) => t.total > 0);
               return (
@@ -807,7 +1049,7 @@ function RegistroPage({
                 <tr>
                   <th rowSpan={2} className="sticky-col">N.º</th>
                   <th rowSpan={2} className="sticky-name">Alumno/a</th>
-                  {Array.from({ length: 5 }, (_, si) => (
+                  {Array.from({ length: SEMANAS_ASISTENCIA }, (_, si) => (
                     <th key={si} colSpan={5} className={`semana semana-${si + 1}`}>
                       Semana {si + 1}
                     </th>
@@ -816,35 +1058,51 @@ function RegistroPage({
                   <th rowSpan={2} className="asist-th-pct">%</th>
                 </tr>
                 <tr>
-                  {Array.from({ length: 5 }, (_, si) =>
-                    DIAS.map((dia) => (
-                      <th key={`${si}-${dia}`} className={`dia-header semana-${si + 1}`}>{dia}</th>
-                    ))
+                  {Array.from({ length: SEMANAS_ASISTENCIA }, (_, si) =>
+                    DIAS.map((dia, di) => {
+                      const diaMes = calendarioMesActivo[si]?.[di] || null;
+                      return (
+                        <th
+                          key={`${si}-${dia}`}
+                          className={`dia-header semana-${si + 1}${diaMes ? "" : " fuera-mes"}`}
+                        >
+                          <span>{dia}</span>
+                          <small>{diaMes || ""}</small>
+                        </th>
+                      );
+                    })
                   )}
                 </tr>
               </thead>
               <tbody>
                 {asistencia.map((est, idx) => {
-                  const semanas = est.meses?.[mesActivo] ?? crearMesVacio();
-                  const { presentes, total, pct } = calcAsistenciaMes(semanas);
+                  const semanas = normalizarSemanasAsistencia(est.meses?.[mesActivo] ?? crearMesVacio());
+                  const { presentes, total, pct } = calcAsistenciaMes(semanas, calendarioMesActivo);
                   return (
                     <tr key={est.id}>
                       <td className="sticky-col">{idx + 1}</td>
                       <td className="sticky-name">{est.nombre}</td>
                       {semanas.map((sem, si) =>
-                        sem.map((val, di) => (
-                          <td key={`${est.id}-${si}-${di}`} className={`asist-celda semana-${si + 1}`}>
-                            <select
-                              className={`asistencia-select ${badgeClase(val)}`}
-                              value={val}
-                              onChange={(e) => actualizarAsistencia(est.id, mesActivo, si, di, e.target.value)}
+                        sem.map((val, di) => {
+                          const diaMes = calendarioMesActivo[si]?.[di] || null;
+                          return (
+                            <td
+                              key={`${est.id}-${si}-${di}`}
+                              className={`asist-celda semana-${si + 1}${diaMes ? "" : " fuera-mes"}`}
                             >
-                              {ESTADOS_ASISTENCIA.map((s) => (
-                                <option key={s} value={s}>{s}</option>
-                              ))}
-                            </select>
-                          </td>
-                        ))
+                              <select
+                                className={`asistencia-select ${badgeClase(diaMes ? val : "")}`}
+                                value={diaMes ? val : ""}
+                                disabled={!diaMes}
+                                onChange={(e) => actualizarAsistencia(est.id, mesActivo, si, di, e.target.value)}
+                              >
+                                {ESTADOS_ASISTENCIA.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            </td>
+                          );
+                        })
                       )}
                       <td className="asist-td-total">{total > 0 ? presentes : "—"}</td>
                       <td className={`asist-td-pct${pct !== null ? (pct >= 85 ? " pct-ok" : pct >= 70 ? " pct-warn" : " pct-risk") : ""}`}>
@@ -1044,6 +1302,77 @@ function RegistroPage({
             📌 El MINERD indica: <em>"Los aspectos esenciales de la planificación, su ejecución y evaluación
             ofrecen los insumos que se utilizarán para las precisiones curriculares."</em>
           </p>
+        </section>
+      )}
+
+      {tabActiva === "Evaluaciones" && (
+        <section className="registro-panel">
+          <div className="registro-section-head">
+            <h2>Evaluaciones desde instrumentos</h2>
+            <p>Consolidado automático desde rúbricas, listas de cotejo, escalas y otros instrumentos aplicados.</p>
+          </div>
+
+          {evaluacionesConsolidadas.length === 0 ? (
+            <div className="registro-empty-state">
+              <strong>Aún no hay evaluaciones sincronizadas.</strong>
+              <p>Aplica un instrumento desde el módulo Instrumentos y esta tabla se actualizará automáticamente.</p>
+            </div>
+          ) : (
+            evaluacionesConsolidadas.map((evaluacion) => (
+              <div key={evaluacion.id} className="registro-evaluacion-card">
+                <div className="registro-section-head compact">
+                  <h3>{evaluacion.actividad || "Evaluación vinculada"}</h3>
+                  <p>
+                    {evaluacion.competencia || "Competencia"} · {evaluacion.periodo || "Período"} ·
+                    Estrategia: {evaluacion.estrategia || "No especificada"}
+                  </p>
+                </div>
+                <div className="registro-trazabilidad">
+                  <span>Fuente: Planificación</span>
+                  <span>Planificación: {evaluacion.referencias?.planificacionId || evaluacion.planificacionId || "sin referencia"}</span>
+                  <span>{Object.keys(evaluacion.evidencias || {}).length} evidencias</span>
+                </div>
+                <div className="registro-indicadores-lista">
+                  {(evaluacion.indicadores || []).map((indicador, index) => (
+                    <span key={`${evaluacion.id}-ind-${index}`}>{indicador}</span>
+                  ))}
+                </div>
+                <div className="registro-table-scroll">
+                  <table className="registro-table">
+                    <thead>
+                      <tr>
+                        <th className="sticky-name">Estudiante</th>
+                        {evaluacion.instrumentosLista.map((instrumento) => (
+                          <th key={instrumento.id}>{instrumento.tipo}<br /><small>{instrumento.valorMaximo} pts</small></th>
+                        ))}
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {evaluacion.estudiantesLista.map((estudiante) => (
+                        <tr key={estudiante.id}>
+                          <td className="sticky-name">{estudiante.nombre}</td>
+                          {evaluacion.instrumentosLista.map((instrumento) => {
+                            const aplicacion = estudiante.instrumentos?.[instrumento.id];
+                            return (
+                              <td key={instrumento.id} className={aplicacion ? "rs-nota-ok" : ""}>
+                                {aplicacion ? `${aplicacion.puntosObtenidos}/${aplicacion.valorMaximo}` : "—"}
+                              </td>
+                            );
+                          })}
+                          <td className={estudiante.porcentaje >= 70 ? "rs-nota-ok" : estudiante.porcentaje > 0 ? "rs-nota-risk" : ""}>
+                            <strong>{estudiante.totalObtenido || 0}/{estudiante.totalMaximo || evaluacion.valorTotal || 0}</strong>
+                            <br />
+                            <small>{estudiante.porcentaje || 0}%</small>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))
+          )}
         </section>
       )}
 

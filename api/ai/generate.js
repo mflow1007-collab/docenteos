@@ -10,6 +10,9 @@
  *   OPENAI_API_KEY
  *   ABACUS_API_KEY
  *
+ * Variables de autenticación:
+ *   FIREBASE_PROJECT_ID  — ID del proyecto Firebase (requerido para verificar tokens)
+ *
  * Body acepta:
  *   module           string
  *   prompt           string  (requerido)
@@ -21,11 +24,85 @@
  */
 
 export const config = { runtime: "edge" };
-console.log("=== VARIABLES ===");
-console.log("OPENAI:", !!process.env.OPENAI_API_KEY);
-console.log("ABACUS:", !!process.env.ABACUS_API_KEY);
-console.log("ANTHROPIC:", !!process.env.ANTHROPIC_API_KEY);
-console.log("=================");
+
+// ─── Verificación de Firebase ID Token ───────────────────────────────────────
+// Implementada con Web Crypto API (disponible en Edge Runtime).
+// Firebase publica sus claves públicas en formato JWK, lo que permite importarlas
+// directamente sin parsear certificados X.509.
+
+let _jwkCache = null;
+let _jwkCacheTime = 0;
+const JWK_CACHE_MS = 6 * 60 * 60 * 1000; // 6 horas
+
+async function getFirebasePublicKeys() {
+  const now = Date.now();
+  if (_jwkCache && now - _jwkCacheTime < JWK_CACHE_MS) return _jwkCache;
+
+  const res = await fetch(
+    "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"
+  );
+  const { keys } = await res.json();
+
+  const keyMap = {};
+  for (const key of keys) {
+    keyMap[key.kid] = await crypto.subtle.importKey(
+      "jwk",
+      key,
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+  }
+
+  _jwkCache = keyMap;
+  _jwkCacheTime = now;
+  return keyMap;
+}
+
+function b64urlToBytes(str) {
+  const base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+}
+
+/**
+ * Verifica un Firebase ID Token.
+ * @returns {{ uid: string, email: string } | null}
+ */
+async function verifyFirebaseToken(token) {
+  try {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    if (!projectId) return null;
+
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+
+    const decoder = new TextDecoder();
+    const header  = JSON.parse(decoder.decode(b64urlToBytes(parts[0])));
+    const payload = JSON.parse(decoder.decode(b64urlToBytes(parts[1])));
+
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp < now) return null;
+    if (payload.iat > now + 300) return null;
+    if (payload.iss !== `https://securetoken.google.com/${projectId}`) return null;
+    if (payload.aud !== projectId) return null;
+    if (!payload.sub) return null;
+
+    const keys = await getFirebasePublicKeys();
+    const key  = keys[header.kid];
+    if (!key) return null;
+
+    const signingInput = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
+    const signature    = b64urlToBytes(parts[2]);
+
+    const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, signingInput);
+    if (!valid) return null;
+
+    return { uid: payload.sub, email: payload.email || "" };
+  } catch {
+    return null;
+  }
+}
 
 // ─── Configuración por defecto ────────────────────────────────────────────────
 
@@ -200,6 +277,25 @@ function buildNormalizedStream(providerResponse, provider, model) {
 export default async function handler(request) {
   if (request.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
+  }
+
+  // ─── Autenticación ────────────────────────────────────────────────────────
+  const authHeader = request.headers.get("Authorization");
+  const idToken    = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (!idToken) {
+    return new Response(JSON.stringify({ error: "No autorizado" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const authedUser = await verifyFirebaseToken(idToken);
+  if (!authedUser) {
+    return new Response(JSON.stringify({ error: "Token inválido o expirado" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   let body;

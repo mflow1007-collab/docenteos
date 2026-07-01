@@ -1072,13 +1072,6 @@ function SecLaboratorio({ initialPrompt = '' }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [mensajes])
 
-  useEffect(() => {
-    if (initialPrompt && initialPrompt !== lastInitRef.current) {
-      lastInitRef.current = initialPrompt
-      ejecutar(initialPrompt)
-    }
-  }, [initialPrompt])  // eslint-disable-line react-hooks/exhaustive-deps
-
   const ejecutar = async (textoEnviado) => {
     if (!textoEnviado?.trim() || genRef.current) return
     const pregunta       = textoEnviado.trim()
@@ -1147,6 +1140,13 @@ function SecLaboratorio({ initialPrompt = '' }) {
       setGen(false)
     }
   }
+
+  useEffect(() => {
+    if (initialPrompt && initialPrompt !== lastInitRef.current) {
+      lastInitRef.current = initialPrompt
+      ejecutar(initialPrompt)
+    }
+  }, [initialPrompt])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const enviar       = () => { if (!genRef.current && texto.trim()) ejecutar(texto) }
   const usarSug      = (s) => setTexto(s.replace(/^[^\s]+ /, ''))

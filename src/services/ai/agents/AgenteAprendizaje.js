@@ -30,7 +30,7 @@ Eres analítico, empático con los docentes y orientado a mejora continua.`;
  * @param {{ onChunk, onFinish, onError }} callbacks
  */
 export async function analizarPatrones(limite = 100, { onChunk, onFinish, onError }) {
-  let versiones = [];
+  let versiones;
   try {
     versiones = await obtenerVersionesRecientes(limite);
   } catch {
@@ -122,7 +122,7 @@ Responde en JSON:
  * @param {{ onChunk, onFinish, onError }} callbacks
  */
 export async function reporteTendencias({ periodo = "mes" } = {}, { onChunk, onFinish, onError }) {
-  let versiones = [];
+  let versiones;
   const limites = { semana: 50, mes: 200, trimestre: 500 };
 
   try {
