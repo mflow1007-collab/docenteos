@@ -987,7 +987,7 @@
 .rg-section-situacion  { background: #be123c; color: #fff; border-color: #9f1239; }
 
 /* Competency sub-headers — Row 2 */
-.rg-th-comp { vertical-align: top; padding: 8px 8px; line-height: 1.4; border-width: 2px; text-align: left; }
+.rg-th-comp { vertical-align: top; padding: 8px 8px; line-height: 1.4; border-width: 2px; text-align: left; white-space: normal !important; max-width: 0; }
 .rg-comp-1 { background: #dbeafe; color: #1e40af; border-color: #1e40af; }
 .rg-comp-2 { background: #d1fae5; color: #065f46; border-color: #065f46; }
 .rg-comp-3 { background: #fef3c7; color: #92400e; border-color: #92400e; }
@@ -997,10 +997,11 @@
 .rg-comp-7 { background: #dcfce7; color: #166534; border-color: #166534; }
 
 /* Bloque de competencias agrupadas en encabezado */
-.rg-grupo-item { display: block; margin-bottom: 6px; line-height: 1.35; }
-.rg-grupo-item:last-child { margin-bottom: 0; }
-.rg-comp-code { display: inline; font-size: 0.65rem; font-weight: 800; letter-spacing: .01em; }
-.rg-comp-name { display: inline; font-size: 0.58rem; font-weight: 500; white-space: normal; line-height: 1.35; opacity: .92; }
+.rg-grupo-item { display: block; margin-bottom: 8px; line-height: 1.4; white-space: normal; word-break: break-word; }
+.rg-grupo-item:last-child { margin-bottom: 0; border-top: 1px dashed rgba(0,0,0,.15); padding-top: 6px; }
+.rg-grupo-item:only-child { border-top: none; padding-top: 0; }
+.rg-comp-code { display: inline; font-size: 0.68rem; font-weight: 800; letter-spacing: .01em; }
+.rg-comp-name { display: inline; font-size: 0.6rem; font-weight: 500; white-space: normal !important; line-height: 1.4; opacity: .92; }
 
 /* Calc column headers — Row 2 */
 .rg-th-prom       { background: #e0f2fe; color: #0369a1; font-size: .67rem; }
