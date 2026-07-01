@@ -35,6 +35,7 @@ const AsistentePersonalPage   = lazy(() => import("./pages/AsistentePersonalPage
 const ReportesPage            = lazy(() => import("./pages/ReportesPage"));
 const ConfiguracionPage       = lazy(() => import("./pages/ConfiguracionPage"));
 const EstudiantesPage         = lazy(() => import("./pages/EstudiantesPage"));
+const ModoAulaPage            = lazy(() => import("./pages/ModoAulaPage"));
 const EstudianteDetallePage   = lazy(() => import("./pages/EstudianteDetallePage"));
 
 export default function App() {
@@ -293,7 +294,7 @@ function AppInner() {
   // Determina qué grupo sidebar debe estar abierto según la página activa
   const grupoDePageID = (id) => {
     if (id === "inicio")                                        return "inicio";
-    if (["cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(id)) return "docencia";
+    if (["modo-aula","cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(id)) return "docencia";
     if (["estudiantes","detalle-estudiante"].includes(id))      return "estudiantes";
     if (id === "ia" || id === "curriculo")                      return "inteligencia";
     if (id === "suscripcion" || id === "configuracion")         return "configuracion";
@@ -389,6 +390,7 @@ function AppInner() {
             onToggle={() => setGrupoExpandido(g => g === "docencia" ? "inicio" : "docencia")}
             activo={grupoDePageID(pagina) === "docencia"}
           >
+            <SidebarItem id="modo-aula"              label="🏫 Modo Aula"          pagina={pagina} onClick={() => irA("modo-aula")} />
             {cargoTieneModulo(rol, "cursos")       && <SidebarItem id="cursos"        label="📘 Cursos"            pagina={pagina} onClick={() => irA("cursos")} />}
             <SidebarItem id="planificacion"          label="📝 Planificación"     pagina={pagina} onClick={() => irA("planificacion")} />
             {cargoTieneModulo(rol, "instrumentos") && <SidebarItem id="instrumentos"  label="📋 Instrumentos"      pagina={pagina} onClick={() => irA("instrumentos")} />}
@@ -535,6 +537,12 @@ function AppInner() {
               }}
               onAbrirHistorial={abrirPlanificacionDesdeHistorial}
               onDuplicarHistorial={duplicarPlanificacionDesdeHistorial}
+            />
+          )}
+          {pagina === "modo-aula" && (
+            <ModoAulaPage
+              cursos={cursos}
+              onIrA={(destino) => navegar(destino)}
             />
           )}
           {pagina === "planificacion" && (

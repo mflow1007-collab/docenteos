@@ -1576,3 +1576,49 @@ export const registrarUsoInstrumentoTema = async ({ tituloTema }) => {
     return { success: false };
   }
 };
+
+// ─── Modo Aula — sesiones ─────────────────────────────────────────────────────
+
+export const guardarSesionAula = async (sesion) => {
+  try {
+    const user = auth?.currentUser;
+    if (isFirebaseConfigured && user && db) {
+      await addDoc(collection(db, "sesiones-aula"), {
+        ...sesion,
+        usuario: user.uid,
+        usuarioEmail: user.email,
+        fecha: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      });
+      return { success: true, mode: "firebase" };
+    }
+    // Fallback local
+    const KEY = "docenteos_sesiones_aula";
+    const existentes = JSON.parse(localStorage.getItem(KEY) || "[]");
+    const nueva = { ...sesion, id: `local_${Date.now()}`, fecha: new Date().toISOString() };
+    localStorage.setItem(KEY, JSON.stringify([nueva, ...existentes].slice(0, 100)));
+    return { success: true, mode: "local" };
+  } catch (error) {
+    console.error("Error al guardar sesión de aula:", error);
+    return { success: false };
+  }
+};
+
+export const obtenerSesionesPlan = async (planId = null) => {
+  try {
+    if (isFirebaseConfigured && auth?.currentUser && db) {
+      const user = auth.currentUser;
+      const constraints = [where("usuario", "==", user.uid), orderBy("createdAt", "desc"), limit(200)];
+      if (planId) constraints.splice(1, 0, where("planId", "==", planId));
+      const q = query(collection(db, "sesiones-aula"), ...constraints);
+      const snap = await getDocs(q);
+      return { success: true, data: snap.docs.map(d => ({ id: d.id, ...d.data() })) };
+    }
+    const KEY = "docenteos_sesiones_aula";
+    const local = JSON.parse(localStorage.getItem(KEY) || "[]");
+    return { success: true, data: planId ? local.filter(s => s.planId === planId) : local };
+  } catch (error) {
+    console.error("Error al obtener sesiones de aula:", error);
+    return { success: false, data: [] };
+  }
+};
