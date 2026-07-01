@@ -177,8 +177,8 @@ function badgeClase(valor) {
 const COMP_CODIGOS = {
   // Lenguas y comunicación
   "Lengua Española":         ["CLE-1","CLE-2","CLE-3","CLE-4","CLE-5"],
-  "Inglés":                  ["CE-LEI1","CE-LEI2","CE-LEI3","CE-LEI4","CE-LEI5","CE-LEI6","CE-LEI7"],
-  "Lenguas Extranjeras":     ["CE-LEI1","CE-LEI2","CE-LEI3","CE-LEI4","CE-LEI5","CE-LEI6","CE-LEI7"],
+  "Inglés":                  ["CE-LEI1","CE-LEI2","CE-LEI3","CE-LEI4","CE-LEI7","CE-LEI5","CE-LEI6"],
+  "Lenguas Extranjeras":     ["CE-LEI1","CE-LEI2","CE-LEI3","CE-LEI4","CE-LEI7","CE-LEI5","CE-LEI6"],
   "Francés":                 ["CE-LEF1","CE-LEF2","CE-LEF3","CE-LEF4","CE-LEF5"],
   // Matemáticas y ciencias exactas
   "Matemática":              ["CM-1","CM-2","CM-3","CM-4","CM-5"],
@@ -256,6 +256,13 @@ const COMP_DESCRIPCIONES = {
   "CEF-2": "Comprende la relación entre actividad física, salud y bienestar, adoptando estilos de vida activos y saludables.",
   "CEF-3": "Respeta las normas, reglas y valores del juego limpio, expresando actitudes de cooperación, respeto y fair play.",
   "CEF-4": "Crea y disfruta de expresiones corporales, rítmicas y creativas como formas de comunicación y bienestar personal.",
+};
+
+// Agrupación visual de competencias en el encabezado de la tabla (4 bloques Canva 2do Sec)
+// Cada sub-array contiene los ÍNDICES dentro de codigosComp para ese bloque
+const COMP_GRUPOS_MAP = {
+  "Inglés":              [[0], [1,2], [3,4], [5,6]],
+  "Lenguas Extranjeras": [[0], [1,2], [3,4], [5,6]],
 };
 
 function crearNotasVacias(cantidadCompetencias = 4) {
@@ -615,6 +622,14 @@ function RegistroPage({
       : (COMP_CODIGOS[area] || ["CE-1","CE-2","CE-3","CE-4"]);
   }, [competencias, area]);
   const cantidadCompetencias = codigosComp.length;
+
+  // Bloques de encabezado: agrupa competencias por pares (o según COMP_GRUPOS_MAP)
+  const grupos = useMemo(() => {
+    const areaKey = area || curso?.asignatura || "";
+    const template = COMP_GRUPOS_MAP[areaKey];
+    if (!template) return codigosComp.map((_, ci) => [ci]);
+    return template.filter(g => g.every(ci => ci < codigosComp.length));
+  }, [area, codigosComp, curso]);
   const calendarioMesActivo = useMemo(
     () => crearCalendarioMes(mesActivo, anioEscolar),
     [mesActivo, anioEscolar]
@@ -1925,11 +1940,14 @@ function RegistroPage({
             <th colSpan={3}  className="rg-th rg-th-section rg-section-situacion">SITUACIÓN FINAL EN LA ASIGNATURA</th>
           </tr>
           <tr>
-            {codigosComp.map((codigo, ci) => (
-              <th key={`ch-${ci}`} colSpan={8} className={`rg-th rg-th-comp rg-comp-${ci + 1}`}>
-                <span className="rg-comp-num">C{ci + 1}</span>
-                <span className="rg-comp-code">{codigo}</span>
-                <span className="rg-comp-name">{competencias[ci]?.nombre || `Competencia ${ci + 1}`}</span>
+            {grupos.map((indices, gi) => (
+              <th key={`gh-${gi}`} colSpan={indices.length * 8} className={`rg-th rg-th-comp rg-comp-${indices[0] + 1}`}>
+                {indices.map(ci => (
+                  <div key={ci} className="rg-grupo-item">
+                    <span className="rg-comp-code">{codigosComp[ci]}- </span>
+                    <span className="rg-comp-name">{competencias[ci]?.nombre || `Competencia ${ci + 1}`}</span>
+                  </div>
+                ))}
               </th>
             ))}
             {codigosComp.map((_, ci) => (

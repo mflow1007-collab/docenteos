@@ -987,7 +987,7 @@
 .rg-section-situacion  { background: #be123c; color: #fff; border-color: #9f1239; }
 
 /* Competency sub-headers — Row 2 */
-.rg-th-comp { vertical-align: top; padding: 7px 6px; line-height: 1.4; border-width: 2px; }
+.rg-th-comp { vertical-align: top; padding: 8px 8px; line-height: 1.4; border-width: 2px; text-align: left; }
 .rg-comp-1 { background: #dbeafe; color: #1e40af; border-color: #1e40af; }
 .rg-comp-2 { background: #d1fae5; color: #065f46; border-color: #065f46; }
 .rg-comp-3 { background: #fef3c7; color: #92400e; border-color: #92400e; }
@@ -996,9 +996,11 @@
 .rg-comp-6 { background: #ffedd5; color: #c2410c; border-color: #c2410c; }
 .rg-comp-7 { background: #dcfce7; color: #166534; border-color: #166534; }
 
-.rg-comp-num  { display: block; font-size: 0.85rem; font-weight: 800; }
-.rg-comp-code { display: block; font-size: 0.65rem; font-weight: 700; opacity: .9; letter-spacing: .01em; }
-.rg-comp-name { display: block; font-size: 0.58rem; font-weight: 500; white-space: normal; max-width: none; margin: 3px 0 0; color: inherit; line-height: 1.35; opacity: .88; }
+/* Bloque de competencias agrupadas en encabezado */
+.rg-grupo-item { display: block; margin-bottom: 6px; line-height: 1.35; }
+.rg-grupo-item:last-child { margin-bottom: 0; }
+.rg-comp-code { display: inline; font-size: 0.65rem; font-weight: 800; letter-spacing: .01em; }
+.rg-comp-name { display: inline; font-size: 0.58rem; font-weight: 500; white-space: normal; line-height: 1.35; opacity: .92; }
 
 /* Calc column headers — Row 2 */
 .rg-th-prom       { background: #e0f2fe; color: #0369a1; font-size: .67rem; }
