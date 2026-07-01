@@ -598,8 +598,7 @@ export const eliminarCurso = async (cursoId) => {
         )).catch(() => ({ docs: [] })),
         getDocs(query(
           collection(db, "usuarios", uid, "expedientesEstudiantes"),
-          where(documentId(), ">=", `${idStr}_`),
-          where(documentId(), "<", `${idStr}_￿`)
+          where("cursoId", "==", idStr)
         )).catch(() => ({ docs: [] })),
       ]);
 
@@ -1463,27 +1462,32 @@ export const registrarUsoTemaPlanificacion = async ({
     };
   });
 
-  // Historial fuera de transacción para mantener compatibilidad con incrementos.
-  await upsertHistorialTema({
-    uid: user.uid,
-    titulo,
-    estado: "activo",
-    activo: true,
-    incrementarEdiciones: contexto === "edicion" || contexto === "generacion",
-  });
-
-  if (resultado?.reemplazo && resultado?.temaReemplazado) {
-    await desactivarTemaEnHistorial({ uid: user.uid, titulo: resultado.temaReemplazado, estado: "historial" });
-  }
-
-  if (resultado?.reemplazo && resultado?.temaMovidoSecundario) {
+  // Historial fuera de transacción (fire-and-forget). try-catch para que un
+  // fallo de red no revierta el débito de créditos ya completado.
+  try {
     await upsertHistorialTema({
       uid: user.uid,
-      titulo: resultado.temaMovidoSecundario,
-      estado: "secundario",
+      titulo,
+      estado: "activo",
       activo: true,
-      incrementarEdiciones: false,
+      incrementarEdiciones: contexto === "edicion" || contexto === "generacion",
     });
+
+    if (resultado?.reemplazo && resultado?.temaReemplazado) {
+      await desactivarTemaEnHistorial({ uid: user.uid, titulo: resultado.temaReemplazado, estado: "historial" });
+    }
+
+    if (resultado?.reemplazo && resultado?.temaMovidoSecundario) {
+      await upsertHistorialTema({
+        uid: user.uid,
+        titulo: resultado.temaMovidoSecundario,
+        estado: "secundario",
+        activo: true,
+        incrementarEdiciones: false,
+      });
+    }
+  } catch (err) {
+    console.warn("[registrarUsoTemaPlanificacion] Error actualizando historial (no crítico):", err?.message);
   }
 
   await registrarEventoAuditoria({

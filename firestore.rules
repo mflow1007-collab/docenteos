@@ -7,6 +7,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
+      // ID-20: Para añadir whitelist de UIDs, agregar el UID en la colección
+      // admins/{uid} vía Firebase Console y cambiar la condición a:
+      //   exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       return isAuth() && request.auth.token.email.matches('.*@docenteos\\.com');
     }
 
@@ -222,6 +225,14 @@ service cloud.firestore {
     // ── Materiales educativos ─────────────────────────────────────────────────
     match /materiales/{docId} {
       allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ── Whitelist de admins (ID-20) ───────────────────────────────────────────
+    // Los UIDs de administradores se agregan manualmente desde Firebase Console.
+    // Para activar la whitelist, cambiar isAdmin() a verificar existence aquí.
+    match /admins/{uid} {
+      allow read: if isAuth() && request.auth.uid == uid;
       allow write: if isAdmin();
     }
   }

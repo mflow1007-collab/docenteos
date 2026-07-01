@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import {
   Brain, BarChart3, BookOpen, ClipboardList,
@@ -100,6 +100,7 @@ export default function LoginPage() {
 
     setCargando(true)
     try {
+      await setPersistence(auth, recordarme ? browserLocalPersistence : browserSessionPersistence)
       const { user } = await signInWithEmailAndPassword(auth, correo.trim(), contrasena)
 
       let rol = 'docente'
@@ -338,7 +339,7 @@ export default function LoginPage() {
               <div className="lp-divider" aria-hidden="true"><span>o</span></div>
 
               {/* Botón secundario */}
-              <Link to="/registro" className="lp-btn-secondary" tabIndex={6}>
+              <Link to="/mi-registro" className="lp-btn-secondary" tabIndex={6}>
                 <UserPlus size={17} aria-hidden="true" />
                 Crear cuenta
               </Link>

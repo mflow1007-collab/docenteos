@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db, guardarCurso } from '../firebase.js'
@@ -88,6 +89,7 @@ const PERIODOS = ['2024-2025', '2025-2026', '2026-2027']
 
 export default function BienvenidaPage({ onPerfilGuardado }) {
   const user = auth?.currentUser
+  const navigate = useNavigate()
 
   const [nombre,          setNombre]          = useState('')
   const [regional,        setRegional]        = useState('')
@@ -259,6 +261,8 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
       }
 
       onPerfilGuardado()
+      // Si AuthContext no navega en 5s (snapshot no llega), forzar redirect
+      setTimeout(() => navigate('/', { replace: true }), 5000)
     } catch (err) {
       console.error('[BienvenidaPage] Error guardando perfil:', err)
       setError('No fue posible guardar la información. Intente nuevamente.')
