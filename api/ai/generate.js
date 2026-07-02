@@ -221,7 +221,7 @@ async function callAnthropic(apiKey, { system, prompt, maxTokens, model, imageBa
   });
 }
 
-async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens, model }) {
+async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens, model, jsonMode }) {
   return fetch(`${baseURL}/chat/completions`, {
     method: "POST",
     headers: {
@@ -232,6 +232,10 @@ async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens
       model,
       max_tokens: maxTokens || 4096,
       stream: true,
+      // response_format JSON solo para api.openai.com — evita errores en Abacus/NVIDIA
+      ...(jsonMode && baseURL === "https://api.openai.com/v1"
+        ? { response_format: { type: "json_object" } }
+        : {}),
       messages: [
         ...(system ? [{ role: "system", content: system }] : []),
         { role: "user", content: prompt },
@@ -373,6 +377,9 @@ export default async function handler(request) {
 
   let lastError = null;
 
+  // Activa JSON mode nativo (response_format) cuando el módulo es de planificación
+  const jsonMode = typeof mod === "string" && mod.startsWith("planificacion");
+
   for (const provider of queue) {
     const apiKey = getApiKey(provider);
     const model  = getModel(provider, modelOverrides);
@@ -385,7 +392,7 @@ export default async function handler(request) {
       } else {
         const baseURL = PROVIDER_BASE_URLS[provider];
         providerResponse = await callOpenAICompatible(apiKey, baseURL, {
-          system, prompt, maxTokens, model,
+          system, prompt, maxTokens, model, jsonMode,
         });
       }
 
