@@ -7,7 +7,7 @@
 import { useState } from "react";
 import AuditoriaModal from "./AuditoriaModal.jsx";
 
-export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onNueva, onAplicarAcciones, guardando, mensaje }) {
+export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onNueva, onAplicarAcciones, guardando, mensaje, onIrAModoAula }) {
   const [mostrarAuditoria, setMostrarAuditoria] = useState(false);
 
   if (!unidad) return null;
@@ -28,6 +28,11 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
         <button className="export-btn ua-ver-btn" onClick={onVer}>👁️ Ver PDF</button>
         <button className="audit-trigger-btn" onClick={() => setMostrarAuditoria(true)}>🔍 Auditar con IA</button>
         <button className="reset-btn" onClick={onNueva}>↻ Nuevo</button>
+        {onIrAModoAula && (
+          <button type="button" onClick={onIrAModoAula} style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', color:'#fff', border:0, borderRadius:8, padding:'8px 16px', fontSize:13.5, fontWeight:700, cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:6 }}>
+            🏫 Ir a Modo Aula
+          </button>
+        )}
       </div>
 
       {mostrarAuditoria && (
@@ -309,6 +314,11 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
         <button className="export-btn ua-ver-btn" onClick={onVer}>👁️ Ver PDF</button>
         <button className="audit-trigger-btn" onClick={() => setMostrarAuditoria(true)}>🔍 Auditar con IA</button>
         <button className="reset-btn" onClick={onNueva}>↻ Nueva unidad</button>
+        {onIrAModoAula && (
+          <button type="button" onClick={onIrAModoAula} style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', color:'#fff', border:0, borderRadius:8, padding:'8px 16px', fontSize:13.5, fontWeight:700, cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:6 }}>
+            🏫 Ir a Modo Aula
+          </button>
+        )}
       </div>
     </div>
   );
