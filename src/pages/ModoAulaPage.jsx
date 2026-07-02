@@ -553,7 +553,7 @@ function TimerCircle({ segundos, total, on, onToggle, onReset, nombre }) {
 // SECCIÓN 4 — COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA }) {
+export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, onVerPlanCompleto }) {
   const { formulario } = useAuth()
 
   // ── Estado global
@@ -1472,7 +1472,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA })
                 <div style={{ fontSize:13, fontWeight:900, color:'#0f172a', textTransform:'uppercase', letterSpacing:'.25px' }}>Plan de clase</div>
               </div>
             </div>
-            <button onClick={() => onIrA?.('planificacion')} style={{
+            <button onClick={() => onVerPlanCompleto ? onVerPlanCompleto(planActivo) : onIrA?.('planificacion')} style={{
               background:'#fff', border:'1px solid #cbd5e1', color:'#4f46e5',
               borderRadius:8, padding:'8px 13px', fontSize:12, fontWeight:900, cursor:'pointer',
             }}>↔ Ver planificación completa</button>

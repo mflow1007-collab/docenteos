@@ -576,6 +576,10 @@ function AppInner() {
               cursos={cursos}
               cursoActivo={cursoRegistro}
               onIrA={(destino) => navegar(destino)}
+              onVerPlanCompleto={(plan) => {
+                abrirPlanificacionDesdeHistorial(plan);
+                navegar("planificacion");
+              }}
             />
           )}
           {pagina === "planificacion" && (
