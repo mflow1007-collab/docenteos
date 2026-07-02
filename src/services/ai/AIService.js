@@ -116,7 +116,7 @@ export const AIService = {
     let idToken = null;
     try {
       const currentUser = getAuth().currentUser;
-      if (currentUser) idToken = await currentUser.getIdToken();
+      if (currentUser) idToken = await currentUser.getIdToken(true);
     } catch { /* no-fatal — el servidor rechazará si no hay token */ }
 
     let response;

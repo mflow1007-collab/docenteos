@@ -73,34 +73,62 @@ function b64urlToBytes(str) {
 async function verifyFirebaseToken(token) {
   try {
     const projectId = process.env.FIREBASE_PROJECT_ID;
-    if (!projectId) return null;
+    if (!projectId) {
+      console.error("[Auth] FIREBASE_PROJECT_ID no está configurado en las variables de entorno del servidor");
+      return null;
+    }
 
     const parts = token.split(".");
-    if (parts.length !== 3) return null;
+    if (parts.length !== 3) {
+      console.error("[Auth] Token JWT malformado — no tiene 3 partes");
+      return null;
+    }
 
     const decoder = new TextDecoder();
     const header  = JSON.parse(decoder.decode(b64urlToBytes(parts[0])));
     const payload = JSON.parse(decoder.decode(b64urlToBytes(parts[1])));
 
     const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) return null;
-    if (payload.iat > now + 300) return null;
-    if (payload.iss !== `https://securetoken.google.com/${projectId}`) return null;
-    if (payload.aud !== projectId) return null;
-    if (!payload.sub) return null;
+    if (payload.exp < now) {
+      console.error("[Auth] Token expirado — exp:", payload.exp, "now:", now);
+      return null;
+    }
+    if (payload.iat > now + 300) {
+      console.error("[Auth] Token iat en el futuro — iat:", payload.iat, "now:", now);
+      return null;
+    }
+    if (payload.iss !== `https://securetoken.google.com/${projectId}`) {
+      console.error("[Auth] iss no coincide — iss del token:", payload.iss, "| esperado:", `https://securetoken.google.com/${projectId}`);
+      return null;
+    }
+    if (payload.aud !== projectId) {
+      console.error("[Auth] aud no coincide — aud del token:", payload.aud, "| esperado:", projectId);
+      return null;
+    }
+    if (!payload.sub) {
+      console.error("[Auth] Token sin sub (uid)");
+      return null;
+    }
 
     const keys = await getFirebasePublicKeys();
     const key  = keys[header.kid];
-    if (!key) return null;
+    if (!key) {
+      console.error("[Auth] kid del token no encontrado en JWK — kid:", header.kid, "| kids disponibles:", Object.keys(keys));
+      return null;
+    }
 
     const signingInput = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
     const signature    = b64urlToBytes(parts[2]);
 
     const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, signingInput);
-    if (!valid) return null;
+    if (!valid) {
+      console.error("[Auth] Firma del token inválida");
+      return null;
+    }
 
     return { uid: payload.sub, email: payload.email || "" };
-  } catch {
+  } catch (err) {
+    console.error("[Auth] Excepción en verifyFirebaseToken:", err?.message || err);
     return null;
   }
 }
