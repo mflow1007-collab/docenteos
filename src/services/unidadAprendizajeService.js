@@ -7,6 +7,7 @@ import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.j
 import { inyectarExpresiones } from "../planning/bancoExpresionesIdiomas.js";
 import { obtenerBPActs } from "./bpCache.js";
 import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
+import { buildEspecificacionCurricular, generateWeekPlan } from "./phaseAService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -1683,7 +1684,7 @@ const _getTituloEspecificoDia = (area, tema, faseIdx, numDia) => {
 
 // ─── Generador principal de días y fases ─────────────────────────────────────
 
-const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal = "", mc = {}) => {
+const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal = "", mc = {}, durMin = 45) => {
   // Título e intención según fase y posición del día
   const titulosF = TITULOS_FASE[faseIdx] || TITULOS_FASE[1];
   const tituloGenerico = titulosF[Math.min(numDia - 1, titulosF.length - 1)];
@@ -1712,6 +1713,12 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
     Cierre:    "Metacognición y evaluación:\n• Autoevalúa su desempeño con criterio y honestidad.\n• Coevalúa las producciones de sus compañeros de manera constructiva.\n• Reflexiona sobre el proceso y los logros alcanzados en la unidad.",
   };
 
+  // R7: tiempos proporcionales a la duración real de clase
+  // 45 min → 10/30/5 · 60 min → 10/40/10 · 90 min → 15/65/10
+  const tInicio     = durMin <= 50 ? 10 : 15;
+  const tCierre     = durMin <= 50 ? 5  : 10;
+  const tDesarrollo = durMin - tInicio - tCierre;
+
   const mkMomento = (nombre, tiempo, acts) => ({
     nombre,
     tiempo,
@@ -1734,9 +1741,9 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
     aporteProducto,
     intencionPedagogica,
     momentos: [
-      mkMomento("Inicio",     "10 min", actsInicio),
-      mkMomento("Desarrollo", "35 min", actsDesarrollo),
-      mkMomento("Cierre",     "15 min", actsCierre),
+      mkMomento("Inicio",     `${tInicio} min`,     actsInicio),
+      mkMomento("Desarrollo", `${tDesarrollo} min`, actsDesarrollo),
+      mkMomento("Cierre",     `${tCierre} min`,     actsCierre),
     ],
     adaptacionesNEAE: {
       acceso: "Ubicar a los estudiantes con NEAE cerca del docente y la pizarra. Proveer materiales con letra ampliada si aplica.",
@@ -1782,7 +1789,7 @@ const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFina
     indicadoresAvance: getIndicadoresAvance(area, faseIdx, tema),
     posiblesDificultades: getPosiblesDificultades(area, faseIdx),
     dias: Array.from({ length: numHoras }, (_, d) =>
-      generarDia(d + 1, area, tema, faseIdx, numHoras, productoFinal, mallaContenidos)
+      generarDia(d + 1, area, tema, faseIdx, numHoras, productoFinal, mallaContenidos, duracionHoraClase)
     ),
   }));
 
@@ -1918,30 +1925,67 @@ const _extraerContenidosMallaCorpus = (mallaPayload) => {
   const c = mallaPayload?.contenidos?.conceptos    || {};
   const p = mallaPayload?.contenidos?.procedimientos || {};
 
-  // vocabulario: [{categoria, ejemplos[]}] → string[]
+  // v1.3 grade-level paths
   const vocabRaw  = Array.isArray(c.vocabulario) ? c.vocabulario : [];
-  const vocabulario = vocabRaw.flatMap(v =>
+  let vocabulario = vocabRaw.flatMap(v =>
     Array.isArray(v.ejemplos) ? v.ejemplos : (typeof v === 'string' ? [v] : [])
   );
-
-  // gramática: [{estructura, ejemplos[]}] → estructura strings
   const gramRaw = Array.isArray(c.gramatica) ? c.gramatica : [];
-  const gramatica = gramRaw.map(g => g.estructura || (typeof g === 'string' ? g : '')).filter(Boolean);
-
-  // expresiones: [{funcion, ejemplos[]}] → strings
+  let gramatica = gramRaw.map(g => g.estructura || (typeof g === 'string' ? g : '')).filter(Boolean);
   const exprRaw   = Array.isArray(c.expresiones) ? c.expresiones : [];
   const expresiones = exprRaw.flatMap(e =>
     Array.isArray(e.ejemplos) ? e.ejemplos : (typeof e === 'string' ? [e] : [])
   );
+  let funcionales = Array.isArray(p.funcionales) ? p.funcionales : [];
 
-  // funcionales: string[]
-  const funcionales = Array.isArray(p.funcionales) ? p.funcionales : [];
+  // v1.1 fallback: per-tema arrays (vocabulario/gramatica/funcionales at temas[i] level)
+  if (!vocabulario.length && Array.isArray(mallaPayload.temas)) {
+    const temaObj = mallaPayload.temas.find(t => typeof t === 'object' && t !== null);
+    if (temaObj) {
+      vocabulario = Array.isArray(temaObj.vocabulario) ? temaObj.vocabulario : [];
+      if (!gramatica.length) gramatica = Array.isArray(temaObj.gramatica) ? temaObj.gramatica : [];
+      if (!funcionales.length) funcionales = Array.isArray(temaObj.funcionales) ? temaObj.funcionales : [];
+    }
+  }
 
-  // Secciones para la tabla CONTENIDOS del documento
   const conceptuales    = [...vocabulario.slice(0, 6), ...gramatica.slice(0, 3)].filter(Boolean);
   const procedimentales = funcionales.slice(0, 6).filter(Boolean);
 
   return { vocabulario, gramatica, expresiones, funcionales, conceptuales, procedimentales };
+};
+
+// ─── Phase A: genera fases con IA y reemplaza momentos JS ────────────────────
+//
+// Llama generarFases() para obtener estructura + calendario, luego para cada
+// semana llama la IA (1 llamada → N clases) y sobreescribe los momentos.
+// SIN FALLBACK: si la IA falla tras los reintentos, la excepción sube al caller.
+
+const _generarFasesConIA = async (
+  numSemanas, schedule, area, tema, estrategia, productoFinal,
+  contexto, mallaContenidos,
+  mallaPayload, allInds, allComps, durMin, grado,
+) => {
+  const fases = generarFases(numSemanas, schedule, area, tema, estrategia, productoFinal, contexto, mallaContenidos);
+
+  const spec = buildEspecificacionCurricular({
+    mallaPayload, titulo: tema, allInds, allComps, mallaContenidos, area, grado,
+  });
+
+  for (const fase of fases) {
+    const numClases = fase.dias.length;
+    const weekPlan = await generateWeekPlan(spec, fase.numero, durMin, numClases, numSemanas);
+
+    weekPlan.clases.slice(0, numClases).forEach((aiClase, i) => {
+      const dia = fase.dias[i];
+      if (!dia) return;
+      // Preserva metadata de calendario (semana, diaCalendario, hora, numeroGlobal, duracionMin)
+      // Solo reemplaza los momentos pedagógicos con output de la IA
+      dia.momentos = aiClase.momentos;
+      if (aiClase.titulo) dia.tituloIA = aiClase.titulo;
+    });
+  }
+
+  return fases;
 };
 
 // ─── Exportación principal ────────────────────────────────────────────────────
@@ -2054,7 +2098,14 @@ export const generarUnidadAprendizaje = async (datos) => {
       };
     })(),
     contenidos,
-    fasesSemanales: generarFases(numSemanas, schedule, claveContenido, titulo, estrategiaEf, producto, { grado, nivel }, mallaContenidos),
+    fasesSemanales: await _generarFasesConIA(
+      numSemanas, schedule, claveContenido, titulo, estrategiaEf, producto,
+      { grado, nivel }, mallaContenidos,
+      mallaPayload, allInds, allComps, durMinEf, grado,
+    ),
+    especificacionCurricular: buildEspecificacionCurricular({
+      mallaPayload, titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
+    }),
   };
 };
 
