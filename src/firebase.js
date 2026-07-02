@@ -22,6 +22,7 @@ import {
 import { getAuth } from "firebase/auth";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { esUsuarioDocenteOS } from "./utils/permisos.js";
+import { COMP_CODIGOS, resolverCI, resolverPI } from "./constants/registroCodigos.js";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -1622,4 +1623,174 @@ export const obtenerSesionesPlan = async (planId = null) => {
     console.error("Error al obtener sesiones de aula:", error);
     return { success: false, data: [] };
   }
+};
+
+// ─── Bridge 2: Instrumento → Registro de Calificaciones ──────────────────────
+// Escribe la nota de un estudiante en la celda correcta del registro
+// cuando el docente guarda una evaluación desde InstrumentosPage.
+export const enviarNotaAlRegistro = async ({ cursoId, area, estId, estNombre, competencia, periodoStr, nota }) => {
+  if (!cursoId || !estId || nota === undefined || nota === null) return;
+
+  const ci = resolverCI(area, competencia);
+  const pi = resolverPI(periodoStr);
+  if (ci < 0 || pi < 0) {
+    console.warn("[Bridge2] No se pudo resolver ci/pi:", { area, competencia, periodoStr });
+    return;
+  }
+
+  const notaNum = Number(nota);
+  if (!Number.isFinite(notaNum)) return;
+
+  try {
+    if (isFirebaseConfigured && auth && db && auth.currentUser) {
+      const user = auth.currentUser;
+      const ref = doc(db, "registrosCalificaciones", `${user.uid}_${cursoId}`);
+      const snap = await getDoc(ref);
+      const actual = snap.exists() ? (snap.data().notasEstudiantes || {}) : {};
+
+      const estActual = actual[estId] || {};
+      const comps = Array.isArray(estActual.competencias)
+        ? estActual.competencias.map(c => ({ ...c, periodos: [...(c.periodos || [])] }))
+        : [];
+
+      const totalCodigos = (COMP_CODIGOS[area] || []).length;
+      while (comps.length < Math.max(totalCodigos, ci + 1)) {
+        comps.push({ periodos: [{ p: "", rp: "" }, { p: "", rp: "" }, { p: "", rp: "" }, { p: "", rp: "" }] });
+      }
+      if (!comps[ci]) comps[ci] = { periodos: [] };
+      const periodos = comps[ci].periodos || [];
+      while (periodos.length < 4) periodos.push({ p: "", rp: "" });
+      periodos[pi] = { ...periodos[pi], p: notaNum };
+      comps[ci] = { ...comps[ci], periodos };
+
+      await setDoc(ref, {
+        notasEstudiantes: {
+          ...actual,
+          [estId]: { ...estActual, nombre: estNombre || estActual.nombre || "", competencias: comps },
+        },
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      return { success: true, mode: "firebase", ci, pi };
+    }
+
+    // Fallback local
+    const locales = obtenerRegistrosLocales();
+    const local = locales[cursoId];
+    if (local?.notasEstudiantes?.[estId]) {
+      const est = local.notasEstudiantes[estId];
+      if (!Array.isArray(est.competencias)) est.competencias = [];
+      while (est.competencias.length < ci + 1) {
+        est.competencias.push({ periodos: [{ p: "", rp: "" }, { p: "", rp: "" }, { p: "", rp: "" }, { p: "", rp: "" }] });
+      }
+      const per = est.competencias[ci].periodos || [];
+      while (per.length < 4) per.push({ p: "", rp: "" });
+      per[pi] = { ...per[pi], p: notaNum };
+      est.competencias[ci].periodos = per;
+      locales[cursoId] = local;
+      guardarRegistroLocal(cursoId, local);
+    }
+    return { success: true, mode: "local", ci, pi };
+  } catch (error) {
+    console.error("[Bridge2] Error al enviar nota al registro:", error);
+  }
+};
+
+// ─── Bridge 1: Plan → Instrumentos auto-creación ─────────────────────────────
+// Crea instrumentos esqueleto al guardar una planificación, con los datos
+// de competencia, indicadores y periodo del plan.
+export const crearInstrumentosDesdePlan = async (planId, planificacion) => {
+  if (!planId || !planificacion) return;
+  if (!isFirebaseConfigured || !auth?.currentUser || !db) return;
+
+  const meta  = planificacion.metadatos     || {};
+  const datos = planificacion.datosGenerales || {};
+  const area       = meta.area        || datos.area        || "";
+  const grado      = meta.grado       || "";
+  const seccion    = meta.seccion     || "";
+  const periodo    = meta.periodo     || "Periodo 1";
+  const competencia = datos.competencia || meta.competenciaSeleccionada || "";
+  const indicadores = Array.isArray(datos.indicadoresOficiales)
+    ? datos.indicadoresOficiales
+    : [];
+
+  // Recolectar tipos de instrumento desde los momentos de la planificación
+  const tiposEncontrados = new Set();
+
+  // Plan Diario
+  const dc = planificacion.desarrolloClase || {};
+  for (const momento of ["inicio", "desarrollo", "cierre"]) {
+    const ev = dc[momento]?.evaluacion || {};
+    const tipo = ev.instrumento || ev.tipo;
+    if (tipo && typeof tipo === "string") tiposEncontrados.add(tipo.trim());
+  }
+
+  // Plan Semanal
+  for (const semana of planificacion.desarrolloSemanal || []) {
+    for (const dia of semana.dias || []) {
+      for (const mom of dia.momentos || []) {
+        const tipo = mom.instrumento || mom.evaluacion?.instrumento;
+        if (tipo && typeof tipo === "string") tiposEncontrados.add(tipo.trim());
+      }
+    }
+  }
+
+  // Fallback: si no hay instrumentos en momentos, usar un genérico
+  if (!tiposEncontrados.size) tiposEncontrados.add("Lista de cotejo");
+
+  const uid = auth.currentUser.uid;
+  const curso = [grado, seccion].filter(Boolean).join(" ").trim();
+  const created = [];
+
+  for (const tipo of tiposEncontrados) {
+    const id = `ins-plan-${planId}-${tipo.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}`;
+    const instrumento = {
+      id,
+      planificacionId: planId,
+      evaluacionId: `eval-${planId}-${tipo.replace(/\s+/g, "-").toLowerCase()}`,
+      cursoId: meta.cursoId || "registro-general",
+      tipo,
+      nombre: `${tipo} — ${meta.tema || "Clase"}`,
+      descripcion: `Instrumento generado desde planificación: ${meta.tema || ""}`,
+      area,
+      asignatura: area,
+      grado,
+      seccion,
+      curso,
+      periodo,
+      competencia,
+      indicadores,
+      indicador: indicadores[0] || "",
+      estrategia: "",
+      actividad: meta.tema || "",
+      productoEsperado: "",
+      evidenciasEsperadas: [],
+      valorMaximo: 100,
+      competenciaIndex: 0,
+      fechaCreacion: new Date().toISOString(),
+      estado: "Borrador",
+      usos: 0,
+      curriculoId: "",
+      vinculacion: {
+        area,
+        grado,
+        seccion,
+        curso,
+        cursoId: meta.cursoId || "",
+        planificacionId: planId,
+        competenciaEspecifica: competencia,
+        indicadorLogro: indicadores[0] || "",
+        indicadoresLogro: indicadores,
+        periodo,
+      },
+      estructura: { criterios: [], indicadores: [] },
+      registroIntegracion: { competenciaEvaluada: competencia, indicadorEvaluado: indicadores[0] || "", calificacionObtenida: null, fecha: null, periodo },
+      aplicaciones: [],
+    };
+
+    const ref = doc(db, "usuarios", uid, "instrumentos", id);
+    await setDoc(ref, { ...instrumento, uid, updatedAt: serverTimestamp(), createdAt: serverTimestamp() }, { merge: true });
+    created.push(id);
+  }
+
+  return { success: true, created };
 };

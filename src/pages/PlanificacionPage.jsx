@@ -44,6 +44,7 @@ import { getReferenciaAdecuacionesCurriculares } from "../data/adecuacionesCurri
 import {
   eliminarPlanificacionDetallada,
   guardarPlanificacionDetallada,
+  crearInstrumentosDesdePlan,
   obtenerPlanificacionesDetalladas,
   guardarPreferenciaUsuario,
   obtenerPreferenciaUsuario,
@@ -802,6 +803,11 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
         });
       }
       const resultado = await guardarPlanificacionDetallada(planificacion);
+      if (resultado?.id) {
+        crearInstrumentosDesdePlan(resultado.id, planificacion).catch((err) =>
+          console.warn("[Bridge1] No se pudieron crear instrumentos:", err)
+        );
+      }
       EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
         agentId: AGENT_IDS.PLANIFICADOR,
         area:       planificacion?.metadatos?.area ?? area ?? null,

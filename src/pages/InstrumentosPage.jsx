@@ -7,6 +7,7 @@ import {
   obtenerInstrumentosFirestore,
   eliminarInstrumentoFirestore,
   guardarRegistroAspectoDesdeInstrumento,
+  enviarNotaAlRegistro,
 } from "../firebase";
 import { sincronizarEvaluacionPedagogica } from "../services/nucleoPedagogicoService.js";
 import { AIService } from "../services/ai/AIService";
@@ -793,6 +794,15 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
       return prev.map((item) => (item.id === instrumentoAplicar.id ? instrumentoActualizado : item));
     });
     guardarInstrumentoFirestore(instrumentoActualizado).catch((err) => console.error("[Instrumentos] Error al guardar aplicación:", err));
+    enviarNotaAlRegistro({
+      cursoId:     instrumentoActualizado.cursoId || instrumentoActualizado.vinculacion?.cursoId || "",
+      area:        instrumentoActualizado.area    || instrumentoActualizado.vinculacion?.area    || "",
+      estId:       registro.estudianteId,
+      estNombre:   registro.estudiante,
+      competencia: instrumentoActualizado.competencia || instrumentoActualizado.vinculacion?.competenciaEspecifica || "",
+      periodoStr:  instrumentoActualizado.periodo,
+      nota:        registro.calificacionObtenida,
+    }).catch((err) => console.warn("[Bridge2] Error al enviar nota al registro:", err));
     sincronizarEvaluacionPedagogica({
       instrumento: instrumentoActualizado,
       aplicacion: registro,
