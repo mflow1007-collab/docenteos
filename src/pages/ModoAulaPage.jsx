@@ -11,6 +11,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { sincronizarEvaluacionPedagogica } from '../services/nucleoPedagogicoService.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECCIÓN 1 — ADAPTADORES Y UTILIDADES DE DATOS
@@ -107,25 +108,187 @@ function normalizarClase(contenido) {
   }
 }
 
-function extraerInstrumentos(dia) {
+const TIPO_INSTRUMENTO_VALOR = {
+  'Rúbrica': 100,
+  'Lista de cotejo': 100,
+  'Escala de estimación': 100,
+}
+
+function nombreEstudiante(estudiante = {}) {
+  if (typeof estudiante === 'string') return estudiante
+  return estudiante.nombre || estudiante.nombreCompleto || estudiante.name || estudiante.fullName || estudiante.apellidos || ''
+}
+
+function normalizarTipoInstrumento(valor = '') {
+  const texto = String(valor).toLowerCase()
+  if (texto.includes('rúbrica') || texto.includes('rubrica')) return 'Rúbrica'
+  if (texto.includes('cotejo')) return 'Lista de cotejo'
+  if (texto.includes('escala')) return 'Escala de estimación'
+  return valor || 'Instrumento'
+}
+
+function valorInstrumento(tipo) {
+  return TIPO_INSTRUMENTO_VALOR[normalizarTipoInstrumento(tipo)] || 100
+}
+
+function normalizarPeriodoRegistro(valor = '') {
+  const numero = String(valor || '').match(/[1-4]/)?.[0]
+  return `Periodo ${numero || 1}`
+}
+
+function normalizarClave(valor = '') {
+  return String(valor || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function gradoCompatible(curso, gradoPlan = '') {
+  const cursoTxt = normalizarClave([curso?.grado, curso?.nombre, curso?.name].filter(Boolean).join(' '))
+  const planTxt = normalizarClave(gradoPlan)
+  if (!cursoTxt || !planTxt) return false
+  const numeroCurso = cursoTxt.match(/\b[1-6]\b|\b[1-6](ro|do|to)\b/)?.[0]?.match(/[1-6]/)?.[0]
+  const numeroPlan = planTxt.match(/\b[1-6]\b|\b[1-6](ro|do|to)\b/)?.[0]?.match(/[1-6]/)?.[0]
+  const nivelOk = !planTxt.includes('secundaria') || cursoTxt.includes('secundaria')
+  return Boolean(numeroCurso && numeroPlan && numeroCurso === numeroPlan && nivelOk)
+}
+
+function areaCompatible(curso, areaPlan = '') {
+  const planTxt = normalizarClave(areaPlan)
+  if (!planTxt) return false
+  const cursoTxt = normalizarClave([curso?.area, curso?.asignatura, curso?.materia, curso?.nombre, curso?.name].filter(Boolean).join(' '))
+  if (!cursoTxt) return false
+  return cursoTxt.includes(planTxt) || planTxt.includes(cursoTxt)
+}
+
+function resolverCursoParaPlan(cursos = [], cursoActivo = null, claseNorm = null) {
+  const gradoPlan = claseNorm?.grado || ''
+  const areaPlan = claseNorm?.area || ''
+  const candidatos = cursos.map((curso) => {
+    let puntaje = 0
+    if (cursoActivo?.id && curso.id === cursoActivo.id) puntaje += 1
+    if (gradoCompatible(curso, gradoPlan)) puntaje += 4
+    if (areaCompatible(curso, areaPlan)) puntaje += 5
+    return { curso, puntaje }
+  }).sort((a, b) => b.puntaje - a.puntaje)
+
+  return candidatos[0]?.puntaje >= 5 ? candidatos[0].curso : (cursoActivo || cursos[0] || null)
+}
+
+function textoCriterio(criterio, fallback) {
+  if (!criterio) return fallback
+  if (typeof criterio === 'string') return criterio
+  return criterio.criterio || criterio.indicador || criterio.descripcion || criterio.nombre || fallback
+}
+
+function crearInstrumentosDesdeRaw(raw = {}, contexto = {}) {
+  const base = {
+    planificacionId: contexto.planId || '',
+    cursoId: contexto.cursoId || '',
+    curso: contexto.curso || '',
+    grado: contexto.grado || '',
+    seccion: contexto.seccion || '',
+    area: contexto.area || '',
+    periodo: contexto.periodo || 'Periodo 1',
+    competencia: contexto.competencia || '',
+    actividad: contexto.tema || '',
+    unidad: contexto.unidad || contexto.tema || '',
+  }
+  const instrumentos = []
+  const listas = [
+    {
+      key: 'criteriosCotejo',
+      tipo: 'Lista de cotejo',
+      nombre: 'Lista de cotejo - Actividades',
+      momento: 'Desarrollo',
+      estructuraKey: 'indicadores',
+    },
+    {
+      key: 'criteriosRubrica',
+      tipo: 'Rúbrica',
+      nombre: `Rúbrica analítica - ${contexto.tema || 'Desempeño'}`,
+      momento: 'Desarrollo',
+      estructuraKey: 'criterios',
+    },
+    {
+      key: 'criteriosEscala',
+      tipo: 'Escala de estimación',
+      nombre: 'Escala de valoración - Desempeño',
+      momento: 'Cierre',
+      estructuraKey: 'indicadores',
+    },
+  ]
+
+  listas.forEach((def) => {
+    const criterios = Array.isArray(raw?.[def.key]) ? raw[def.key] : []
+    if (!criterios.length) return
+    const indicadores = criterios.map((criterio, index) => textoCriterio(criterio, `Criterio ${index + 1}`)).filter(Boolean)
+    const valorMaximo = Number(raw?.puntajes?.[def.key])
+      || Number(raw?.distribucion?.find((item) => item.key === def.key)?.puntajeMaximo)
+      || valorInstrumento(def.tipo)
+    const distribucion = raw?.distribucion?.find((item) => item.key === def.key)
+    instrumentos.push({
+      ...base,
+      id: `${base.planificacionId || 'plan'}-${def.key}`,
+      tipo: def.tipo,
+      nombre: distribucion?.nombre ? `${distribucion.nombre}${def.tipo === 'Rúbrica' && contexto.tema ? ` - ${contexto.tema}` : ''}` : def.nombre,
+      momento: def.momento,
+      puntos: valorMaximo,
+      valorMaximo,
+      orden: distribucion?.orden || instrumentos.length + 1,
+      importancia: distribucion?.importancia || '',
+      indicadores,
+      estructura: {
+        [def.estructuraKey]: criterios.map((criterio, index) => ({
+          id: `${def.key}-${index + 1}`,
+          indicador: textoCriterio(criterio, `Criterio ${index + 1}`),
+          ...((typeof criterio === 'object' && criterio) ? criterio : {}),
+        })),
+      },
+    })
+  })
+
+  return instrumentos
+}
+
+function extraerInstrumentos(dia, contexto = {}) {
   if (!dia) return []
   const seen = new Map()
   ;(dia.momentos || []).forEach(mom => {
     const ev = mom.evaluacion
-    if (ev?.instrumento && !seen.has(ev.instrumento)) {
-      seen.set(ev.instrumento, {
+    const tipo = normalizarTipoInstrumento(ev?.instrumento || ev?.tecnica)
+    if (ev?.instrumento && !seen.has(`${tipo}-${ev.instrumento}`)) {
+      const valorMaximo = valorInstrumento(tipo)
+      seen.set(`${tipo}-${ev.instrumento}`, {
+        planificacionId: contexto.planId || '',
+        cursoId: contexto.cursoId || '',
+        curso: contexto.curso || '',
+        grado: contexto.grado || '',
+        seccion: contexto.seccion || '',
+        area: contexto.area || '',
+        periodo: contexto.periodo || 'Periodo 1',
+        competencia: contexto.competencia || '',
+        actividad: contexto.tema || '',
+        unidad: contexto.unidad || contexto.tema || '',
+        id: `${contexto.planId || 'plan'}-${tipo}-${ev.instrumento}`.replace(/\s+/g, '-').toLowerCase(),
         nombre: ev.instrumento,
-        tipo:   ev.tecnica || 'Evaluación',
+        tipo,
         agente: ev.agente || 'Docente',
         momento: mom.nombre,
+        puntos: valorMaximo,
+        valorMaximo,
+        indicadores: mom.evidencias || [],
       })
     }
   })
-  const arr = [...seen.values()]
-  const pts = arr.length === 0 ? [] : arr.length === 1 ? [100]
-    : arr.length === 2 ? [60, 40] : arr.length === 3 ? [50, 30, 20]
-    : arr.map(() => Math.floor(100 / arr.length))
-  return arr.map((inst, i) => ({ ...inst, puntos: pts[i] || 0 }))
+  crearInstrumentosDesdeRaw(contexto.instrumentosRaw, contexto).forEach((inst) => {
+    const key = `${inst.tipo}-${inst.nombre}`
+    if (!seen.has(key)) seen.set(key, inst)
+  })
+  return [...seen.values()]
+    .sort((a, b) => (Number(a.orden) || 99) - (Number(b.orden) || 99))
 }
 
 function extraerRecursos(dia) {
@@ -211,9 +374,9 @@ function guardarEvidenciasLocal(planId, diaNum, arr) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const C_MOM = {
-  Inicio:     { bg:'#eff6ff', borde:'#3b82f6', txt:'#1d4ed8', badge:'#3b82f6', icon:'🚀', light:'#dbeafe' },
-  Desarrollo: { bg:'#f5f3ff', borde:'#7c3aed', txt:'#5b21b6', badge:'#7c3aed', icon:'📚', light:'#ede9fe' },
-  Cierre:     { bg:'#f0fdf4', borde:'#16a34a', txt:'#15803d', badge:'#16a34a', icon:'✅', light:'#dcfce7' },
+  Inicio:     { bg:'#f5f3ff', borde:'#4f46e5', txt:'#4338ca', badge:'#4f46e5', icon:'▶', light:'#ede9fe' },
+  Desarrollo: { bg:'#f0fdf4', borde:'#16a34a', txt:'#15803d', badge:'#16a34a', icon:'♻', light:'#dcfce7' },
+  Cierre:     { bg:'#fff7ed', borde:'#f97316', txt:'#ea580c', badge:'#f97316', icon:'⌂', light:'#ffedd5' },
 }
 const C_DEF = { bg:'#f8fafc', borde:'#94a3b8', txt:'#475569', badge:'#64748b', icon:'📌', light:'#f1f5f9' }
 const cm = n => C_MOM[n] || C_DEF
@@ -272,32 +435,50 @@ function InstrCard({ inst, onAplicar }) {
   const c = colores[inst.tipo] || colores[inst.nombre] || { bg:'#f8fafc', borde:'#cbd5e1', txt:'#475569' }
   return (
     <div style={{
-      background:c.bg, border:`1.5px solid ${c.borde}`, borderRadius:12, padding:'12px 14px', marginBottom:8,
+      background:c.bg,
+      border:`1px solid ${c.borde}77`,
+      borderRadius:10,
+      padding:'14px 14px',
+      marginBottom:12,
     }}>
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontWeight:800, fontSize:13.5, color:c.txt, lineHeight:1.3, marginBottom:3 }}>
+          <div style={{ fontWeight:900, fontSize:14, color:c.txt, lineHeight:1.3, marginBottom:8 }}>
             {inst.nombre}
           </div>
-          <div style={{ fontSize:11.5, color:'#6b7280' }}>
-            {inst.tipo} · {inst.agente} · {inst.momento}
+          <div style={{ fontSize:12, color:'#0f172a', marginBottom:6 }}>
+            Evalúa la actividad en el momento {inst.momento}.
+          </div>
+          <div style={{ fontSize:12, color:'#475569', lineHeight:1.6 }}>
+            <div>Tipo: {inst.tipo}</div>
+            <div>Puntaje máx.: {inst.puntos}</div>
           </div>
         </div>
         <div style={{
-          flexShrink:0, width:44, height:44, borderRadius:10,
-          background:c.borde, color:'#fff',
+          flexShrink:0,
+          borderRadius:8,
+          border:`1px solid ${c.borde}`,
+          background:'#fff',
+          color:c.txt,
+          padding:'5px 9px',
           display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:14, fontWeight:900,
-        }}>{inst.puntos}pt</div>
+          fontSize:12, fontWeight:900,
+        }}>{inst.puntos} pts</div>
       </div>
-      <div style={{ display:'flex', gap:6, marginTop:10 }}>
+      <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:10 }}>
         <button onClick={onAplicar} style={{
-          flex:1, background:c.borde, color:'#fff', border:0, borderRadius:7,
-          padding:'6px 0', fontSize:12, fontWeight:700, cursor:'pointer',
+          background:'#fff',
+          color:c.txt,
+          border:`1px solid ${c.borde}`,
+          borderRadius:8,
+          padding:'7px 12px',
+          fontSize:12,
+          fontWeight:900,
+          cursor:'pointer',
         }}>Aplicar</button>
         <button style={{
-          background:'#fff', color:c.txt, border:`1px solid ${c.borde}`, borderRadius:7,
-          padding:'6px 12px', fontSize:12, fontWeight:700, cursor:'pointer',
+          background:'#fff', color:c.txt, border:`1px solid ${c.borde}`, borderRadius:8,
+          padding:'7px 12px', fontSize:12, fontWeight:900, cursor:'pointer',
         }}>Ver</button>
       </div>
     </div>
@@ -308,13 +489,24 @@ function RecursoItem({ tipo, item }) {
   return (
     <div style={{
       display:'flex', alignItems:'center', gap:8,
-      padding:'7px 10px', background:'#f8fafc', borderRadius:8,
-      border:'1px solid #e2e8f0', marginBottom:5,
+      padding:'10px 12px', background:'#fff', borderRadius:8,
+      border:'1px solid #e5e7eb', marginBottom:0,
+      boxShadow:'0 1px 0 rgba(15,23,42,.02)',
     }}>
-      <span style={{ fontSize:15, flexShrink:0 }}>{tipo.slice(0,2)}</span>
+      <span style={{
+        width:28,
+        height:28,
+        borderRadius:6,
+        display:'grid',
+        placeItems:'center',
+        background:'#eff6ff',
+        color:'#2563eb',
+        fontSize:15,
+        flexShrink:0,
+      }}>{tipo.slice(0,2)}</span>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:10.5, color:'#94a3b8', fontWeight:700 }}>{tipo.replace(/^..\s/, '')}</div>
-        <div style={{ fontSize:12.5, color:'#374151', fontWeight:600, lineHeight:1.2 }}>{item}</div>
+        <div style={{ fontSize:13, color:'#0f172a', fontWeight:900, lineHeight:1.2 }}>{item}</div>
+        <div style={{ fontSize:11, color:'#64748b', fontWeight:600, marginTop:2 }}>{tipo.replace(/^..\s/, '')}</div>
       </div>
     </div>
   )
@@ -361,7 +553,7 @@ function TimerCircle({ segundos, total, on, onToggle, onReset, nombre }) {
 // SECCIÓN 4 — COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export default function ModoAulaPage({ cursos = [], onIrA }) {
+export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA }) {
   const { formulario } = useAuth()
 
   // ── Estado global
@@ -397,6 +589,14 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
   const [notasDocente, setNotasDocente] = useState('')
   const [guardandoFin, setGuardandoFin] = useState(false)
   const [finOk,        setFinOk]        = useState(false)
+
+  // ── Aplicación de instrumentos
+  const [instrumentoModal, setInstrumentoModal] = useState(null)
+  const [notasInstrumento, setNotasInstrumento] = useState({})
+  const [puntajeInstrumento, setPuntajeInstrumento] = useState(100)
+  const [obsInstrumento,   setObsInstrumento]   = useState('')
+  const [guardandoInstrumento, setGuardandoInstrumento] = useState(false)
+  const [mensajeInstrumento,   setMensajeInstrumento]   = useState(null)
 
   // ─── Cargar desde Firestore (actualiza sobre localStorage)
   useEffect(() => {
@@ -543,7 +743,36 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
   }
 
   // ═══ DATOS DERIVADOS
-  const instrumentos = useMemo(() => extraerInstrumentos(diaActivo), [diaActivo])
+  const cursoParaAula = useMemo(
+    () => resolverCursoParaPlan(cursos, cursoActivo, claseNorm),
+    [cursos, cursoActivo, claseNorm]
+  )
+  const periodoRegistro = normalizarPeriodoRegistro(cursoParaAula?.periodo || cursoParaAula?.periodoActivo || 'Periodo 1')
+  const estudiantesAula = useMemo(() => {
+    const fuente = cursoParaAula?.estudiantesDetalle || cursoParaAula?.estudiantesLista || cursoParaAula?.estudiantesNombres || []
+    return fuente
+      .map((estudiante, index) => ({
+        id: estudiante?.id || estudiante?.matricula || `est-${index + 1}`,
+        nombre: nombreEstudiante(estudiante) || `Estudiante ${index + 1}`,
+      }))
+      .filter((estudiante) => estudiante.nombre)
+  }, [cursoParaAula])
+  const instrumentos = useMemo(() => extraerInstrumentos(diaActivo, {
+    planId: planActivo?.id,
+    cursoId: cursoParaAula?.id,
+    curso: cursoParaAula?.nombre || cursoParaAula?.name || cursoParaAula?.grado || '',
+    grado: claseNorm?.grado || cursoParaAula?.grado || '',
+    seccion: cursoParaAula?.seccion || '',
+    area: claseNorm?.area,
+    tema: diaActivo?.titulo || claseNorm?.tituloUnidad,
+    unidad: claseNorm?.tituloUnidad,
+    periodo: periodoRegistro,
+    competencia: planActivo?.contenido?.competenciasEIndicadores?.competenciaEspecifica
+      || planActivo?.contenido?.competenciaEspecifica
+      || '',
+    instrumentosRaw: claseNorm?.instrumentosRaw,
+    maximoInstrumentosPorDia: claseNorm?.resumenEval?.maximoInstrumentosPorDia || claseNorm?.instrumentosRaw?.maximoInstrumentosPorDia || 3,
+  }), [diaActivo, planActivo, claseNorm, cursoParaAula, periodoRegistro])
   const recursos     = useMemo(() => extraerRecursos(diaActivo), [diaActivo])
   const momentos     = diaActivo?.momentos || []
   const totalActs    = momentos.reduce((s, m) => s + (m.actividades?.length || 0), 0)
@@ -552,6 +781,109 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
   const momActual    = momentos[momentoOpen] || {}
   const checksActual = actChecks[momActual.nombre] || new Set()
   const primerNombre = (formulario?.nombreDocente || '').split(' ')[0] || 'Docente'
+
+  const abrirInstrumento = (inst) => {
+    const baseNotas = Object.fromEntries(estudiantesAula.map((estudiante) => [estudiante.id, '']))
+    setNotasInstrumento(baseNotas)
+    setPuntajeInstrumento(Math.min(100, Math.max(1, Number(inst.valorMaximo || inst.puntos || 100))))
+    setObsInstrumento('')
+    setMensajeInstrumento(null)
+    setInstrumentoModal(inst)
+  }
+
+  const actualizarPuntajeInstrumento = (valor) => {
+    const numero = Math.min(100, Math.max(1, Number(valor) || 1))
+    setPuntajeInstrumento(numero)
+    setNotasInstrumento(prev => Object.fromEntries(
+      Object.entries(prev).map(([id, nota]) => {
+        if (nota === '' || nota == null) return [id, nota]
+        return [id, String(Math.min(numero, Math.max(0, Number(nota) || 0)))]
+      })
+    ))
+  }
+
+  const actualizarNotaInstrumento = (estudianteId, valor) => {
+    const max = Number(puntajeInstrumento || instrumentoModal?.valorMaximo || instrumentoModal?.puntos || 100)
+    const limpio = String(valor)
+    if (limpio === '') {
+      setNotasInstrumento(prev => ({ ...prev, [estudianteId]: '' }))
+      return
+    }
+    const numero = Math.min(max, Math.max(0, Number(limpio)))
+    setNotasInstrumento(prev => ({ ...prev, [estudianteId]: Number.isFinite(numero) ? String(numero) : '' }))
+  }
+
+  const guardarNotasInstrumento = async () => {
+    if (!instrumentoModal || guardandoInstrumento) return
+    const aplicaciones = estudiantesAula
+      .map((estudiante) => {
+        const raw = notasInstrumento[estudiante.id]
+        if (raw === '' || raw == null) return null
+        const valorMaximo = Number(puntajeInstrumento || instrumentoModal.valorMaximo || instrumentoModal.puntos || 100)
+        const puntos = Math.min(valorMaximo, Math.max(0, Number(raw)))
+        if (!Number.isFinite(puntos)) return null
+        return { estudiante, puntos, valorMaximo }
+      })
+      .filter(Boolean)
+
+    if (!aplicaciones.length) {
+      setMensajeInstrumento({ tipo:'error', texto:'Coloca al menos una nota para guardar el instrumento.' })
+      return
+    }
+
+    setGuardandoInstrumento(true)
+    setMensajeInstrumento(null)
+    const fecha = new Date().toISOString()
+    try {
+      await Promise.all(aplicaciones.map(({ estudiante, puntos, valorMaximo }) => sincronizarEvaluacionPedagogica({
+        instrumento: {
+          ...instrumentoModal,
+          cursoId: cursoParaAula?.id || instrumentoModal.cursoId,
+          curso: cursoParaAula?.nombre || cursoParaAula?.name || instrumentoModal.curso || '',
+          valorMaximo,
+          puntos: valorMaximo,
+        },
+        cursoId: cursoParaAula?.id || instrumentoModal.cursoId,
+        aplicacion: {
+          estudianteId: estudiante.id,
+          estudiante: estudiante.nombre,
+          fecha,
+          periodo: instrumentoModal.periodo || periodoRegistro,
+          competenciaEvaluada: instrumentoModal.competencia || '',
+          indicadorEvaluado: instrumentoModal.indicadores?.[0] || '',
+          indicadoresEvaluados: instrumentoModal.indicadores || [],
+          calificacionObtenida: puntos,
+          puntosObtenidos: puntos,
+          valorMaximo,
+          porcentajeObtenido: valorMaximo > 0 ? Math.round((puntos / valorMaximo) * 100) : 0,
+          observacion: obsInstrumento,
+          detalle: {
+            fuente: 'modo-aula',
+            momento: instrumentoModal.momento,
+            actividad: diaActivo?.titulo || '',
+          },
+        },
+      })))
+
+      const ev = {
+        id: Date.now(),
+        texto: `${instrumentoModal.nombre}: ${aplicaciones.length} estudiante(s) evaluado(s).`,
+        categoria: instrumentoModal.tipo || 'Instrumento aplicado',
+        hora: new Date().toLocaleTimeString('es-DO', { hour:'2-digit', minute:'2-digit' }),
+        momento: instrumentoModal.momento || momActual.nombre || '',
+      }
+      if (planActivo?.id && diaActivo?.diaNum != null) {
+        const arr = [ev, ...evidencias]
+        setEvidencias(arr)
+        guardarEvidenciasLocal(planActivo.id, diaActivo.diaNum, arr)
+      }
+      setMensajeInstrumento({ tipo:'ok', texto:'Instrumento guardado y enviado al registro.' })
+    } catch (error) {
+      setMensajeInstrumento({ tipo:'error', texto:'No se pudo guardar ahora. Revisa la conexión e intenta otra vez.' })
+    } finally {
+      setGuardandoInstrumento(false)
+    }
+  }
 
   const estadoBadge = {
     pendiente:  { bg:'rgba(148,163,184,.15)', txt:'#94a3b8', dot:'#64748b', label:'Pendiente' },
@@ -630,75 +962,417 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
     </div>
   )
 
+  const InstrumentoModal = instrumentoModal && (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position:'fixed', inset:0, background:'rgba(15,23,42,.56)', zIndex:260,
+        display:'flex', alignItems:'center', justifyContent:'center', padding:18,
+      }}
+      onClick={() => !guardandoInstrumento && setInstrumentoModal(null)}
+    >
+      <div
+        style={{
+          background:'#fff',
+          width:'100%',
+          maxWidth:880,
+          maxHeight:'88vh',
+          overflow:'hidden',
+          borderRadius:18,
+          boxShadow:'0 28px 80px rgba(15,23,42,.32)',
+          border:'1px solid #e5e7eb',
+          display:'flex',
+          flexDirection:'column',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{
+          padding:'18px 20px',
+          borderBottom:'1px solid #e5e7eb',
+          display:'flex',
+          alignItems:'flex-start',
+          justifyContent:'space-between',
+          gap:14,
+          background:'#fbfcff',
+        }}>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontSize:11, fontWeight:900, color:'#4f46e5', textTransform:'uppercase', letterSpacing:'.35px', marginBottom:5 }}>
+              Aplicar instrumento
+            </div>
+            <h3 style={{ margin:0, color:'#0f172a', fontSize:19, lineHeight:1.25, fontWeight:900 }}>
+              {instrumentoModal.nombre}
+            </h3>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:10 }}>
+              <Pill color="#4f46e5" bg="#eef2ff">{instrumentoModal.tipo}</Pill>
+              <Pill color="#15803d" bg="#ecfdf5">{instrumentoModal.momento || 'Momento del día'}</Pill>
+              <Pill color="#b45309" bg="#fffbeb">Máx. {puntajeInstrumento} pts</Pill>
+            </div>
+          </div>
+          <button
+            onClick={() => setInstrumentoModal(null)}
+            disabled={guardandoInstrumento}
+            aria-label="Cerrar instrumento"
+            style={{
+              width:36, height:36, borderRadius:10, border:'1px solid #e2e8f0',
+              background:'#fff', color:'#64748b', cursor:guardandoInstrumento ? 'default' : 'pointer',
+              fontSize:22, lineHeight:1, display:'grid', placeItems:'center', flexShrink:0,
+            }}
+          >×</button>
+        </div>
+
+        <div style={{ padding:'16px 20px', overflow:'auto' }}>
+          <div style={{
+            display:'grid',
+            gridTemplateColumns:'minmax(0,1fr) 160px',
+            alignItems:'end',
+            gap:14,
+            background:'#fff7ed',
+            border:'1px solid #fed7aa',
+            borderRadius:12,
+            padding:'12px 14px',
+            marginBottom:14,
+          }}>
+            <div>
+              <div style={{ fontSize:12.5, fontWeight:900, color:'#9a3412', marginBottom:3 }}>
+                Puntuación definida por el docente
+              </div>
+              <div style={{ fontSize:12, color:'#7c2d12', lineHeight:1.45 }}>
+                Puedes usar este instrumento solo o combinarlo con otros. El máximo de cada instrumento lo decides según la complejidad del tema.
+              </div>
+            </div>
+            <label style={{ display:'block' }}>
+              <span style={{ display:'block', fontSize:10.5, color:'#9a3412', fontWeight:900, textTransform:'uppercase', marginBottom:5 }}>
+                Puntaje máximo
+              </span>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={puntajeInstrumento}
+                onChange={e => actualizarPuntajeInstrumento(e.target.value)}
+                style={{
+                  width:'100%',
+                  border:'1px solid #fdba74',
+                  borderRadius:8,
+                  padding:'9px 10px',
+                  fontSize:14,
+                  fontWeight:900,
+                  color:'#0f172a',
+                  outline:'none',
+                  boxSizing:'border-box',
+                  background:'#fff',
+                }}
+              />
+            </label>
+          </div>
+
+          {instrumentoModal.indicadores?.length > 0 && (
+            <div style={{
+              background:'#f8fafc',
+              border:'1px solid #e2e8f0',
+              borderRadius:12,
+              padding:'12px 14px',
+              marginBottom:14,
+            }}>
+              <div style={{ fontSize:11, fontWeight:900, color:'#334155', textTransform:'uppercase', marginBottom:8 }}>
+                Criterios del instrumento
+              </div>
+              <div style={{ display:'grid', gap:5 }}>
+                {instrumentoModal.indicadores.slice(0, 6).map((indicador, index) => (
+                  <div key={index} style={{ display:'flex', gap:8, fontSize:12.5, color:'#475569', lineHeight:1.45 }}>
+                    <span style={{ color:'#4f46e5', fontWeight:900 }}>{index + 1}.</span>
+                    <span>{indicador}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {estudiantesAula.length === 0 ? (
+            <div style={{
+              textAlign:'center',
+              padding:'28px 18px',
+              border:'1px dashed #cbd5e1',
+              borderRadius:12,
+              background:'#f8fafc',
+              color:'#64748b',
+              fontSize:13,
+            }}>
+              Este curso no tiene estudiantes cargados todavía. Agrega estudiantes al curso para aplicar el instrumento.
+            </div>
+          ) : (
+            <div style={{ display:'grid', gap:9 }}>
+              {estudiantesAula.map((estudiante, index) => {
+                const max = Number(puntajeInstrumento || instrumentoModal.valorMaximo || instrumentoModal.puntos || 100)
+                return (
+                  <div key={estudiante.id} style={{
+                    display:'grid',
+                    gridTemplateColumns:'minmax(0,1fr) 126px auto',
+                    gap:10,
+                    alignItems:'center',
+                    padding:'10px 12px',
+                    border:'1px solid #e5e7eb',
+                    borderRadius:10,
+                    background:'#fff',
+                  }}>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:13.5, fontWeight:900, color:'#0f172a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {index + 1}. {estudiante.nombre}
+                      </div>
+                      <div style={{ fontSize:11.5, color:'#64748b', marginTop:2 }}>Puntaje obtenido</div>
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      max={max}
+                      value={notasInstrumento[estudiante.id] ?? ''}
+                      onChange={e => actualizarNotaInstrumento(estudiante.id, e.target.value)}
+                      placeholder={`0-${max}`}
+                      style={{
+                        width:'100%',
+                        border:'1px solid #cbd5e1',
+                        borderRadius:8,
+                        padding:'9px 10px',
+                        fontSize:13,
+                        fontWeight:800,
+                        color:'#0f172a',
+                        outline:'none',
+                        boxSizing:'border-box',
+                      }}
+                    />
+                    <div style={{ display:'flex', gap:5, justifyContent:'flex-end' }}>
+                      {[0, Math.round(max / 2), max].map((valor) => (
+                        <button
+                          key={valor}
+                          onClick={() => actualizarNotaInstrumento(estudiante.id, valor)}
+                          style={{
+                            minWidth:34,
+                            border:'1px solid #e2e8f0',
+                            background:'#f8fafc',
+                            color:'#334155',
+                            borderRadius:7,
+                            padding:'7px 8px',
+                            fontSize:11,
+                            fontWeight:900,
+                            cursor:'pointer',
+                          }}
+                        >
+                          {valor}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <label style={{ display:'block', marginTop:14 }}>
+            <span style={{ display:'block', fontSize:11, fontWeight:900, color:'#334155', textTransform:'uppercase', marginBottom:6 }}>
+              Observación general
+            </span>
+            <textarea
+              value={obsInstrumento}
+              onChange={e => setObsInstrumento(e.target.value)}
+              rows={3}
+              placeholder="Comentario breve para acompañar esta aplicación..."
+              style={{
+                width:'100%',
+                border:'1px solid #cbd5e1',
+                borderRadius:10,
+                padding:'10px 12px',
+                resize:'vertical',
+                boxSizing:'border-box',
+                fontFamily:'inherit',
+                fontSize:13,
+                lineHeight:1.5,
+                color:'#0f172a',
+                outline:'none',
+              }}
+            />
+          </label>
+
+          {mensajeInstrumento && (
+            <div style={{
+              marginTop:12,
+              padding:'10px 12px',
+              borderRadius:10,
+              border:`1px solid ${mensajeInstrumento.tipo === 'ok' ? '#86efac' : '#fecaca'}`,
+              background: mensajeInstrumento.tipo === 'ok' ? '#f0fdf4' : '#fef2f2',
+              color: mensajeInstrumento.tipo === 'ok' ? '#15803d' : '#b91c1c',
+              fontSize:12.5,
+              fontWeight:800,
+            }}>
+              {mensajeInstrumento.texto}
+            </div>
+          )}
+        </div>
+
+        <div style={{
+          padding:'14px 20px',
+          borderTop:'1px solid #e5e7eb',
+          background:'#fff',
+          display:'flex',
+          justifyContent:'space-between',
+          alignItems:'center',
+          gap:12,
+        }}>
+          <div style={{ fontSize:12, color:'#64748b', fontWeight:700 }}>
+            {estudiantesAula.length} estudiante(s) disponibles
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button
+              onClick={() => setInstrumentoModal(null)}
+              disabled={guardandoInstrumento}
+              style={{
+                background:'#fff',
+                color:'#334155',
+                border:'1px solid #cbd5e1',
+                borderRadius:9,
+                padding:'10px 14px',
+                fontSize:13,
+                fontWeight:900,
+                cursor:guardandoInstrumento ? 'default' : 'pointer',
+              }}
+            >
+              Cerrar
+            </button>
+            <button
+              onClick={guardarNotasInstrumento}
+              disabled={guardandoInstrumento || estudiantesAula.length === 0}
+              style={{
+                background: guardandoInstrumento || estudiantesAula.length === 0 ? '#cbd5e1' : 'linear-gradient(135deg,#4f46e5,#7c3aed)',
+                color:'#fff',
+                border:0,
+                borderRadius:9,
+                padding:'10px 16px',
+                fontSize:13,
+                fontWeight:900,
+                cursor: guardandoInstrumento || estudiantesAula.length === 0 ? 'default' : 'pointer',
+                boxShadow: guardandoInstrumento || estudiantesAula.length === 0 ? 'none' : '0 10px 22px rgba(79,70,229,.25)',
+              }}
+            >
+              {guardandoInstrumento ? 'Guardando...' : 'Guardar en registro'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   // ══════════════════════════════════════════════════════════════════════════
   // WORKSPACE PRINCIPAL
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'calc(100vh - 0px)', overflow:'hidden' }}>
+    <div style={{
+      display:'flex',
+      flexDirection:'column',
+      minHeight:'calc(100vh - 92px)',
+      overflow:'auto',
+      background:'#f7f8fc',
+      color:'#0f172a',
+    }}>
       {SelectorModal}
+      {InstrumentoModal}
 
-      {/* ══ ENCABEZADO OSCURO ══ */}
+      {/* ══ RESUMEN DE LA CLASE ══ */}
       <div style={{
-        background:'#0f172a', padding:'9px 16px',
-        display:'flex', alignItems:'center', gap:8, flexWrap:'wrap',
-        boxShadow:'0 2px 16px rgba(0,0,0,.3)', zIndex:50, flexShrink:0,
+        background:'#fff',
+        margin:'16px 24px 0',
+        padding:'20px 22px',
+        display:'grid',
+        gridTemplateColumns:'repeat(4, minmax(0, 1fr)) auto',
+        alignItems:'center',
+        gap:18,
+        border:'1px solid #e5e7eb',
+        borderRadius:'18px 18px 0 0',
+        borderBottom:0,
+        boxShadow:'0 12px 30px rgba(15,23,42,.07)',
+        zIndex:50,
+        flexShrink:0,
       }}>
-        <span style={{ fontSize:18 }}>🏫</span>
+        {[
+          { icon:'📚', label:'Asignatura', value:claseNorm?.area || '—', color:'#4f46e5', bg:'#eef2ff' },
+          { icon:'🗂️', label:'Tema de la unidad', value:claseNorm?.tituloUnidad || '—', color:'#059669', bg:'#ecfdf5' },
+          { icon:'📅', label:'Semana y día', value:`${diaActivo?.semana ? `Semana ${diaActivo.semana} · ` : ''}Día ${diaActivo?.diaNum || '—'}`, color:'#2563eb', bg:'#eff6ff' },
+          { icon:'📌', label:'Título del día', value:diaActivo?.titulo || '—', color:'#b45309', bg:'#fffbeb' },
+        ].map((item) => (
+          <div key={item.label} style={{ display:'flex', alignItems:'center', gap:12, minWidth:0 }}>
+            <div style={{
+              width:38,
+              height:38,
+              display:'grid',
+              placeItems:'center',
+              borderRadius:'50%',
+              background:item.bg,
+              color:item.color,
+              fontSize:18,
+              flexShrink:0,
+            }}>{item.icon}</div>
+            <div style={{ minWidth:0 }}>
+              <div style={{
+                color:'#334155',
+                fontSize:10,
+                fontWeight:900,
+                textTransform:'uppercase',
+                letterSpacing:'.35px',
+                marginBottom:4,
+              }}>{item.label}</div>
+              <div style={{
+                color:'#0f172a',
+                fontSize:14,
+                fontWeight:900,
+                lineHeight:1.25,
+                overflow:'hidden',
+                textOverflow:'ellipsis',
+                whiteSpace:'nowrap',
+              }}>{item.value}</div>
+            </div>
+          </div>
+        ))}
 
-        {claseNorm?.area && (
-          <Pill color="#a78bfa" bg="rgba(167,139,250,.12)" icon="📚">{claseNorm.area}</Pill>
-        )}
-        {claseNorm?.tituloUnidad && (
-          <Pill color="#67e8f9" bg="rgba(103,232,249,.08)" icon="🗂️">
-            <span style={{ maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'block' }}>
-              {claseNorm.tituloUnidad}
-            </span>
-          </Pill>
-        )}
-        {(diaActivo?.semana || diaActivo?.diaNum) && (
-          <Pill color="#86efac" bg="rgba(134,239,172,.1)" icon="📅">
-            {diaActivo.semana ? `Sem. ${diaActivo.semana} · ` : ''}Día {diaActivo.diaNum}
-          </Pill>
-        )}
-        {diaActivo?.titulo && (
-          <Pill color="#fcd34d" bg="rgba(252,211,77,.1)" icon="📌">
-            <span style={{ maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'block' }}>
-              {diaActivo.titulo}
-            </span>
-          </Pill>
-        )}
-
-        <div style={{ flex:1 }} />
-
-        {/* Estado */}
         <div style={{
           display:'flex', alignItems:'center', gap:5,
-          background:estadoBadge.bg, color:estadoBadge.txt,
-          borderRadius:20, padding:'4px 12px', fontSize:12, fontWeight:700,
+          background:'#f8fafc',
+          color:'#334155',
+          border:'1px solid #e2e8f0',
+          borderRadius:12,
+          padding:'9px 13px',
+          fontSize:12,
+          fontWeight:800,
         }}>
           <div style={{ width:7, height:7, borderRadius:'50%', background:estadoBadge.dot }} />
           {estadoBadge.label}
         </div>
-
-        {claseNorm?.grado && (
-          <div style={{
-            background:'rgba(255,255,255,.1)', color:'#cbd5e1', borderRadius:8,
-            padding:'5px 12px', fontSize:12, fontWeight:700,
-          }}>{claseNorm.grado}</div>
-        )}
-
         <button onClick={() => setMostrarSelector(true)} style={{
-          background:'rgba(255,255,255,.07)', color:'#94a3b8',
-          border:'1px solid rgba(255,255,255,.1)', borderRadius:8,
-          padding:'5px 10px', fontSize:12, cursor:'pointer',
-        }}>⇄ Cambiar</button>
+          gridColumn:'1 / -1',
+          justifySelf:'end',
+          marginTop:-8,
+          background:'#fff',
+          color:'#4f46e5',
+          border:'1px solid #c7d2fe',
+          borderRadius:10,
+          padding:'8px 12px',
+          fontSize:12,
+          fontWeight:900,
+          cursor:'pointer',
+        }}>⇄ Cambiar planificación</button>
       </div>
 
       {/* ══ TIMELINE MOMENTOS ══ */}
       <div style={{
-        background:'#fff', borderBottom:'1px solid #e2e8f0',
-        padding:'8px 16px', display:'flex', alignItems:'center',
-        flexShrink:0, overflowX:'auto', gap:0,
+        background:'#fff',
+        border:'1px solid #e5e7eb',
+        borderRadius:'0 0 18px 18px',
+        margin:'0 24px 14px',
+        padding:'16px 18px 18px',
+        display:'flex',
+        alignItems:'center',
+        flexShrink:0,
+        overflowX:'auto',
+        gap:0,
+        boxShadow:'0 14px 30px rgba(15,23,42,.07)',
       }}>
         {momentos.map((mom, i) => {
           const c = cm(mom.nombre)
@@ -710,71 +1384,113 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
             <div key={mom.nombre} style={{ display:'flex', alignItems:'center', flexShrink:0 }}>
               <button onClick={() => setMomentoOpen(i)} style={{
                 display:'flex', flexDirection:'column', alignItems:'center',
-                padding:'6px 14px', borderRadius:10, border:0, cursor:'pointer',
-                background: activo ? c.light : 'transparent', transition:'all .15s',
+                minWidth:210,
+                padding:'13px 24px',
+                borderRadius:999,
+                border:`1px solid ${activo ? c.borde : '#e5e7eb'}`,
+                cursor:'pointer',
+                background: activo ? `linear-gradient(135deg,${c.borde},${c.txt})` : '#fff',
+                boxShadow: activo ? `0 14px 24px ${c.borde}30` : 'inset 0 0 0 1px rgba(15,23,42,.02)',
+                transition:'all .15s',
               }}>
                 <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                  <span style={{ fontSize:15 }}>{c.icon}</span>
                   <span style={{
-                    fontSize:13, fontWeight: activo ? 800 : 600,
-                    color: activo ? c.txt : pasado ? '#94a3b8' : '#475569',
+                    width:34,
+                    height:34,
+                    borderRadius:'50%',
+                    display:'grid',
+                    placeItems:'center',
+                    background: activo ? 'rgba(255,255,255,.22)' : c.light,
+                    color: activo ? '#fff' : c.txt,
+                    fontSize:15,
+                  }}>{c.icon}</span>
+                  <span style={{
+                    fontSize:13, fontWeight: activo ? 900 : 700,
+                    color: activo ? '#fff' : pasado ? '#94a3b8' : '#0f172a',
                   }}>{mom.nombre}</span>
-                  <span style={{ fontSize:11, color:'#94a3b8' }}>{mom.tiempo}</span>
+                  <span style={{ fontSize:11, color: activo ? 'rgba(255,255,255,.86)' : '#64748b' }}>{mom.tiempo}</span>
                 </div>
                 {mom.actividades.length > 0 && (
-                  <div style={{ marginTop:4, width:72, height:3, background:'#e2e8f0', borderRadius:2, overflow:'hidden' }}>
-                    <div style={{ width:`${pct}%`, height:'100%', background:c.badge, transition:'width .3s' }} />
+                  <div style={{ marginTop:7, width:118, height:4, background: activo ? 'rgba(255,255,255,.24)' : '#e2e8f0', borderRadius:2, overflow:'hidden' }}>
+                    <div style={{ width:`${pct}%`, height:'100%', background: activo ? '#fff' : c.badge, transition:'width .3s' }} />
                   </div>
                 )}
               </button>
               {i < momentos.length - 1 && (
-                <div style={{ width:24, height:2, background: pasado ? '#7c3aed' : '#e2e8f0', borderRadius:1, flexShrink:0 }} />
+                <div style={{ width:54, height:2, background: pasado ? '#4f46e5' : '#cbd5e1', borderRadius:1, flexShrink:0 }} />
               )}
             </div>
           )
         })}
-        <div style={{ width:24, height:2, background:'#e2e8f0', flexShrink:0 }} />
-        <div style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px', color:'#94a3b8', fontSize:12, fontWeight:600 }}>
+        <div style={{ width:54, height:2, background:'#cbd5e1', flexShrink:0 }} />
+        <div style={{
+          display:'flex',
+          alignItems:'center',
+          gap:8,
+          padding:'13px 22px',
+          color:'#4f46e5',
+          border:'1px solid #e5e7eb',
+          borderRadius:999,
+          background:'#fafaff',
+          fontSize:12,
+          fontWeight:800,
+          minWidth:180,
+          justifyContent:'center',
+        }}>
           🏁 Finalizar
         </div>
       </div>
 
       {/* ══ WORKSPACE 3 COLUMNAS ══ */}
       <div style={{
-        flex:1, overflow:'hidden',
-        display:'grid', gridTemplateColumns:'1fr 290px 270px', gap:0, minHeight:0,
+        flex:1,
+        overflow:'visible',
+        display:'grid',
+        gridTemplateColumns:'minmax(0,1.25fr) minmax(300px,.85fr) minmax(280px,.7fr)',
+        gap:16,
+        minHeight:0,
+        padding:'0 24px 18px',
       }}>
 
         {/* ╔═══════════════════════╗
             ║   PLAN DE CLASE       ║
             ╚═══════════════════════╝ */}
-        <div style={{ overflow:'auto', padding:'14px 16px', borderRight:'1px solid #e2e8f0' }}>
+        <div style={{
+          overflow:'auto',
+          padding:'18px 18px 16px',
+          background:'#fff',
+          border:'1px solid #e5e7eb',
+          borderRadius:12,
+          boxShadow:'0 10px 24px rgba(15,23,42,.06)',
+        }}>
 
           {/* Cabecera */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{ width:28, height:28, borderRadius:7, background:'#f5f3ff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>📋</div>
+              <div style={{ width:24, height:24, borderRadius:5, background:'#eef2ff', color:'#2563eb', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}>▣</div>
               <div>
-                <div style={{ fontSize:10, fontWeight:800, color:'#7c3aed', textTransform:'uppercase', letterSpacing:'.4px' }}>Plan de clase</div>
-                <div style={{ fontSize:13, fontWeight:700, color:'#0f172a' }}>{diaActivo?.titulo || '—'}</div>
+                <div style={{ fontSize:13, fontWeight:900, color:'#0f172a', textTransform:'uppercase', letterSpacing:'.25px' }}>Plan de clase</div>
               </div>
             </div>
             <button onClick={() => onIrA?.('planificacion')} style={{
-              background:'#f5f3ff', border:'1px solid #ede9fe', color:'#7c3aed',
-              borderRadius:8, padding:'5px 10px', fontSize:11, fontWeight:700, cursor:'pointer',
-            }}>Ver planificación ↗</button>
+              background:'#fff', border:'1px solid #cbd5e1', color:'#4f46e5',
+              borderRadius:8, padding:'8px 13px', fontSize:12, fontWeight:900, cursor:'pointer',
+            }}>↔ Ver planificación completa</button>
           </div>
 
           {/* Intención pedagógica */}
           {diaActivo?.intencionPedagogica && (
             <div style={{
-              background:'linear-gradient(135deg,#faf9ff,#f5f3ff)',
-              border:'1px solid #ddd6fe', borderRadius:12, padding:'12px 16px', marginBottom:14,
+              background:'#fff',
+              border:'0',
+              borderRadius:0,
+              padding:'0 4px',
+              marginBottom:16,
             }}>
-              <div style={{ fontSize:10, fontWeight:800, color:'#7c3aed', textTransform:'uppercase', letterSpacing:'.3px', marginBottom:6 }}>
-                🎯 Intención pedagógica
+              <div style={{ fontSize:14, fontWeight:900, color:'#0f172a', marginBottom:8 }}>
+                Intención pedagógica del día
               </div>
-              <div style={{ fontSize:13.5, color:'#374151', lineHeight:1.7 }}>
+              <div style={{ fontSize:13.5, color:'#0f172a', lineHeight:1.65 }}>
                 {diaActivo.intencionPedagogica}
               </div>
             </div>
@@ -789,27 +1505,36 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
             const totalM  = mom.actividades.length
             return (
               <div key={mom.nombre} style={{
-                border:`2px solid ${abierto ? c.borde : '#e2e8f0'}`,
-                borderRadius:12, marginBottom:10, overflow:'hidden',
-                background: abierto ? c.bg : '#fff', transition:'border-color .15s',
+                border:`1px solid ${abierto ? `${c.borde}55` : '#e5e7eb'}`,
+                borderRadius:9,
+                marginBottom:12,
+                overflow:'hidden',
+                background: abierto ? c.bg : '#fff',
+                transition:'border-color .15s',
               }}>
                 <button
                   onClick={() => setMomentoOpen(i)}
                   style={{
                     width:'100%', display:'flex', alignItems:'center', gap:10,
-                    padding:'12px 16px', background:'transparent', border:0,
+                    padding:'12px 14px',
+                    background: abierto ? c.bg : '#fff',
+                    border:0,
                     cursor:'pointer', textAlign:'left',
                   }}
                 >
                   <span style={{
-                    width:30, height:30, borderRadius:8, background:c.badge, color:'#fff',
+                    width:22, height:22, borderRadius:6, background:abierto ? c.light : '#f8fafc', color:c.txt,
                     display:'flex', alignItems:'center', justifyContent:'center',
-                    fontSize:15, flexShrink:0,
+                    fontSize:13, flexShrink:0,
                   }}>{c.icon}</span>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <span style={{ fontSize:14, fontWeight:800, color:c.txt }}>{mom.nombre}</span>
-                      <span style={{ fontSize:11, color:'#94a3b8', fontWeight:600 }}>{mom.tiempo}</span>
+                      <span style={{
+                        fontSize:13,
+                        fontWeight:900,
+                        color:c.txt,
+                        textTransform:'uppercase',
+                      }}>{mom.nombre} - {String(mom.tiempo || '').toUpperCase()}</span>
                     </div>
                     {totalM > 0 && (
                       <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
@@ -820,11 +1545,11 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
                       </div>
                     )}
                   </div>
-                  <span style={{ color:'#94a3b8', fontSize:13, transform: abierto ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>▼</span>
+                  <span style={{ color:c.txt, fontSize:13, transform: abierto ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>⌄</span>
                 </button>
 
                 {abierto && (
-                  <div style={{ padding:'0 16px 16px' }}>
+                  <div style={{ padding:'10px 14px 16px', background:'#fff' }}>
 
                     {/* Mini timer inline */}
                     {estadoClase === 'iniciada' && (
@@ -849,33 +1574,40 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
                     {/* Actividades checklist */}
                     {mom.actividades.length > 0 && (
                       <div style={{ marginBottom:12 }}>
-                        <div style={{ fontSize:10, fontWeight:800, color:c.txt, textTransform:'uppercase', letterSpacing:'.3px', marginBottom:8 }}>
-                          📋 Actividades
-                        </div>
                         {mom.actividades.map((act, idx) => {
                           const done = checks.has(idx)
                           return (
                             <button key={idx} onClick={() => toggleAct(mom.nombre, idx)} style={{
                               display:'flex', alignItems:'flex-start', gap:10, width:'100%',
                               textAlign:'left', cursor:'pointer',
-                              padding:'8px 10px', marginBottom:4, borderRadius:9,
-                              background: done ? '#fff' : 'transparent',
-                              border:`1px solid ${done ? c.borde : 'transparent'}`,
+                              padding:'6px 8px',
+                              marginBottom:4,
+                              borderRadius:9,
+                              background: done ? c.bg : '#fff',
+                              border:'0',
                               transition:'all .12s',
                             }}>
                               <span style={{
-                                flexShrink:0, width:20, height:20, borderRadius:5,
-                                border:`2px solid ${c.badge}`,
-                                background: done ? c.badge : 'transparent',
+                                flexShrink:0,
+                                width:22,
+                                height:22,
+                                borderRadius:'50%',
+                                border:'0',
+                                background:c.badge,
                                 display:'flex', alignItems:'center', justifyContent:'center',
-                                color:'#fff', fontSize:11, marginTop:1, transition:'all .1s',
-                              }}>{done ? '✓' : ''}</span>
+                                color:'#fff',
+                                fontSize:12,
+                                fontWeight:900,
+                                marginTop:0,
+                                transition:'all .1s',
+                              }}>{done ? '✓' : idx + 1}</span>
                               <span style={{
-                                fontSize:13.5, lineHeight:1.55,
-                                color: done ? '#9ca3af' : '#374151',
-                                textDecoration: done ? 'line-through' : 'none',
+                                fontSize:13.5,
+                                lineHeight:1.55,
+                                color:'#0f172a',
+                                textDecoration:'none',
                               }}>
-                                <strong style={{ color: done ? '#9ca3af' : c.txt }}>{idx + 1}.</strong> {act}
+                                {act}
                               </span>
                             </button>
                           )
@@ -928,13 +1660,55 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
 
           {/* CTA */}
           {estadoClase === 'pendiente' && (
-            <button onClick={iniciarClase} style={{
-              width:'100%', marginTop:8,
-              background:'linear-gradient(135deg,#7c3aed,#6d28d9)', color:'#fff',
-              border:0, borderRadius:12, padding:'14px',
-              fontSize:15, fontWeight:800, cursor:'pointer',
-              boxShadow:'0 8px 24px rgba(124,58,237,.4)',
-            }}>▶ Iniciar clase</button>
+            <div style={{
+              display:'grid',
+              gridTemplateColumns:'1fr 1fr 1fr',
+              gap:10,
+              marginTop:14,
+            }}>
+              <div style={{
+                minHeight:50,
+                border:'1px solid #e5e7eb',
+                borderRadius:8,
+                background:'#fff',
+                display:'flex',
+                alignItems:'center',
+                gap:10,
+                padding:'0 12px',
+              }}>
+                <span style={{ width:28, height:28, borderRadius:'50%', background:'#eef2ff', color:'#4f46e5', display:'grid', placeItems:'center' }}>⏱</span>
+                <div>
+                  <div style={{ fontSize:18, fontWeight:900, color:'#0f172a', lineHeight:1 }}>00:00</div>
+                  <div style={{ fontSize:11, color:'#64748b' }}>Tiempo de clase</div>
+                </div>
+              </div>
+              <button onClick={iniciarClase} style={{
+                minHeight:50,
+                background:'linear-gradient(135deg,#4f46e5,#7c3aed)',
+                color:'#fff',
+                border:0,
+                borderRadius:8,
+                padding:'0 14px',
+                fontSize:14,
+                fontWeight:900,
+                cursor:'pointer',
+                boxShadow:'0 10px 24px rgba(79,70,229,.28)',
+              }}>▶ Iniciar clase</button>
+              <button onClick={() => {
+                const nextIdx = (momActual.actividades || []).findIndex((_, idx) => !checksActual.has(idx))
+                if (nextIdx >= 0) toggleAct(momActual.nombre, nextIdx)
+              }} style={{
+                minHeight:50,
+                background:'#fff',
+                color:'#2563eb',
+                border:'1px solid #cbd5e1',
+                borderRadius:8,
+                padding:'0 14px',
+                fontSize:13,
+                fontWeight:900,
+                cursor:'pointer',
+              }}>✓ Marcar actividad</button>
+            </div>
           )}
 
           {estadoClase === 'iniciada' && (
@@ -985,7 +1759,17 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
         {/* ╔═══════════════════════════╗
             ║  INSTRUMENTOS + COACH IA  ║
             ╚═══════════════════════════╝ */}
-        <div style={{ overflow:'auto', padding:'14px', borderRight:'1px solid #e2e8f0', display:'flex', flexDirection:'column', gap:14 }}>
+        <div style={{
+          overflow:'auto',
+          padding:'18px',
+          background:'#fff',
+          border:'1px solid #e5e7eb',
+          borderRadius:12,
+          boxShadow:'0 10px 28px rgba(15,23,42,.06)',
+          display:'flex',
+          flexDirection:'column',
+          gap:14,
+        }}>
 
           {/* Instrumentos */}
           <div>
@@ -1009,7 +1793,7 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
               </div>
             ) : (
               instrumentos.map((inst, i) => (
-                <InstrCard key={i} inst={inst} onAplicar={() => onIrA?.('registro')} />
+                <InstrCard key={inst.id || i} inst={inst} onAplicar={() => abrirInstrumento(inst)} />
               ))
             )}
 
@@ -1018,9 +1802,9 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
                 display:'flex', alignItems:'center', justifyContent:'space-between',
                 background:'#f0fdf4', border:'1px solid #86efac', borderRadius:10, padding:'10px 14px',
               }}>
-                <span style={{ fontSize:13, fontWeight:700, color:'#15803d' }}>Total evaluación</span>
-                <span style={{ fontSize:18, fontWeight:900, color:'#15803d' }}>
-                  {instrumentos.reduce((s, i) => s + (i.puntos || 0), 0)} pts
+                <span style={{ fontSize:13, fontWeight:700, color:'#15803d' }}>Puntuación</span>
+                <span style={{ fontSize:12, fontWeight:900, color:'#15803d', textAlign:'right' }}>
+                  El docente la define al aplicar
                 </span>
               </div>
             )}
@@ -1095,10 +1879,26 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
         {/* ╔═══════════════════════════╗
             ║  RECURSOS + EVIDENCIAS    ║
             ╚═══════════════════════════╝ */}
-        <div style={{ overflow:'auto', padding:'14px', display:'flex', flexDirection:'column', gap:14 }}>
+        <div style={{
+          overflow:'auto',
+          padding:0,
+          background:'transparent',
+          border:0,
+          borderRadius:0,
+          boxShadow:'none',
+          display:'flex',
+          flexDirection:'column',
+          gap:16,
+        }}>
 
           {/* Recursos */}
-          <div>
+          <div style={{
+            background:'#fff',
+            border:'1px solid #e5e7eb',
+            borderRadius:12,
+            padding:16,
+            boxShadow:'0 10px 24px rgba(15,23,42,.06)',
+          }}>
             <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:10 }}>
               <div style={{ width:28, height:28, borderRadius:7, background:'#f0fdf4', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>🎒</div>
               <div>
@@ -1109,12 +1909,21 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
             {recursos.length === 0 ? (
               <div style={{ textAlign:'center', padding:'14px 0', color:'#94a3b8', fontSize:11.5 }}>Sin recursos definidos</div>
             ) : (
-              recursos.map((r, i) => <RecursoItem key={i} tipo={r.tipo} item={r.item} />)
+              <div style={{ display:'grid', gap:8 }}>
+                {recursos.map((r, i) => <RecursoItem key={i} tipo={r.tipo} item={r.item} />)}
+              </div>
             )}
           </div>
 
           {/* Banco de Evidencias */}
-          <div style={{ flex:1 }}>
+          <div style={{
+            flex:1,
+            background:'#fff',
+            border:'1px solid #e5e7eb',
+            borderRadius:12,
+            padding:16,
+            boxShadow:'0 10px 24px rgba(15,23,42,.06)',
+          }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
               <div style={{ display:'flex', alignItems:'center', gap:7 }}>
                 <div style={{ width:28, height:28, borderRadius:7, background:'#fff7ed', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>📸</div>
@@ -1204,9 +2013,17 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
 
       {/* ══ BARRA INFERIOR ══ */}
       <div style={{
-        background:'#0f172a', padding:'7px 16px',
-        display:'flex', alignItems:'center', gap:14, flexShrink:0,
-        flexWrap:'wrap', boxShadow:'0 -2px 16px rgba(0,0,0,.2)',
+        background:'#fff',
+        margin:'0 24px 18px',
+        border:'1px solid #e5e7eb',
+        borderRadius:18,
+        padding:'12px 18px',
+        display:'flex',
+        alignItems:'center',
+        gap:18,
+        flexShrink:0,
+        flexWrap:'wrap',
+        boxShadow:'0 10px 28px rgba(15,23,42,.06)',
       }}>
         {[
           { label:'Actividades', val:`${hechas}/${totalActs}`, icon:'✅', color:'#86efac' },
@@ -1226,17 +2043,17 @@ export default function ModoAulaPage({ cursos = [], onIrA }) {
 
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:11, color:'#64748b', fontWeight:600 }}>Progreso</span>
-          <div style={{ width:100, height:5, background:'rgba(255,255,255,.08)', borderRadius:3, overflow:'hidden' }}>
+          <div style={{ width:120, height:6, background:'#e5e7eb', borderRadius:3, overflow:'hidden' }}>
             <div style={{
               width:`${pctClase}%`, height:'100%',
-              background:'linear-gradient(90deg,#7c3aed,#a78bfa)',
+              background:'linear-gradient(90deg,#4f46e5,#7c3aed)',
               transition:'width .5s', borderRadius:3,
             }} />
           </div>
-          <span style={{ fontSize:13, fontWeight:800, color:'#a78bfa', minWidth:30 }}>{pctClase}%</span>
+          <span style={{ fontSize:13, fontWeight:800, color:'#4f46e5', minWidth:30 }}>{pctClase}%</span>
         </div>
 
-        <div style={{ fontSize:13, color:'#475569', fontWeight:700 }}>⏱ {formatTime(timerSeg)}</div>
+        <div style={{ fontSize:13, color:'#0f172a', fontWeight:800 }}>⏱ {formatTime(timerSeg)}</div>
       </div>
     </div>
   )

@@ -5848,14 +5848,14 @@
 }
 
 .sidebar nav button:hover {
-  background: rgba(37, 99, 235, 0.2);
+  background: rgba(99, 102, 241, 0.18);
   color: #ffffff;
 }
 
 .sidebar nav button.active {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 12px 28px rgba(79, 70, 229, 0.35);
 }
 
 .profile {
@@ -5922,6 +5922,90 @@
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+.topbar-modo-aula {
+  height: 82px;
+  min-height: 82px;
+  padding: 0 30px;
+  border-bottom: 1px solid #e6ebf3;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+}
+
+.modo-aula-top-title,
+.modo-aula-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.modo-aula-top-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(79, 70, 229, 0.28);
+}
+
+.modo-aula-top-title h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.modo-aula-top-title p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.modo-aula-course-chip,
+.modo-aula-bell,
+.modo-aula-exit {
+  min-height: 40px;
+  border: 1px solid #d7deea;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.modo-aula-bell {
+  position: relative;
+  width: 46px;
+  padding: 0;
+}
+
+.modo-aula-bell span {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.modo-aula-exit {
+  color: #dc2626;
+  border-color: #d7deea;
 }
 
 .topbar input {
@@ -6014,6 +6098,11 @@
   min-height: 0;
   overflow-y: auto;
   padding: 30px;
+}
+
+.content-modo-aula {
+  padding: 0;
+  background: #f7f8fc;
 }
 
 /* ── Admin Bar (siempre disponible en App.css) ───────────────────────────── */

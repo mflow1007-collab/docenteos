@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(curl -s http://localhost:5173)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(git commit -m ' *)",
+      "Bash(npx --yes vite build --mode development)"
     ]
   }
 }

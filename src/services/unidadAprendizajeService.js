@@ -1322,11 +1322,12 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
     },
     resumenEvaluacion: {
       tecnicas: faseIdx === 3
-        ? ["Exposición oral", "Revisión de producciones", "Autoevaluación", "Coevaluación"]
+        ? ["Exposición oral", "Revisión de producciones", "Autoevaluación / Coevaluación"]
         : ["Observación directa", "Revisión del cuaderno", "Interrogatorio oral"],
       instrumentos: faseIdx === 3
-        ? ["Rúbrica analítica", "Lista de cotejo", "Instrumento de autoevaluación", "Instrumento de coevaluación"]
+        ? ["Rúbrica analítica", "Lista de cotejo", "Autoevaluación / coevaluación"]
         : ["Lista de cotejo", "Rúbrica analítica", "Escala de valoración"],
+      criterioPuntuacion: "El docente selecciona los instrumentos que aplicará ese día y define la puntuación según la complejidad del tema.",
       observaciones: faseIdx === 3
         ? "Registrar los logros del producto final, el nivel de participación en la exposición y el desempeño en la auto y coevaluación."
         : "Registrar el desempeño general del grupo e identificar estudiantes que requieren atención diferenciada o refuerzo.",

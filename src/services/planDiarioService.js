@@ -441,7 +441,17 @@ const generarInstrumentos = (area, tema) => {
     { criterio: "Participa en la reflexión y metacognición final", tipo: "siempre_aveces_nunca" },
   ];
 
-  return { criteriosCotejo, criteriosRubrica, criteriosEscala };
+  return {
+    criterioPuntuacion: "El docente define el puntaje máximo de cada instrumento al aplicarlo, según la complejidad del tema y la cantidad de instrumentos usados en el día.",
+    instrumentosSugeridos: [
+      { key: "criteriosRubrica", tipo: "Rúbrica", nombre: "Rúbrica analítica", orden: 1, uso: "Desempeño principal o producto del día" },
+      { key: "criteriosCotejo", tipo: "Lista de cotejo", nombre: "Lista de cotejo", orden: 2, uso: "Verificación rápida de procesos o participación" },
+      { key: "criteriosEscala", tipo: "Escala de estimación", nombre: "Escala de valoración", orden: 3, uso: "Cierre, reflexión o desempeño actitudinal" },
+    ],
+    criteriosCotejo,
+    criteriosRubrica,
+    criteriosEscala,
+  };
 };
 
 // ─── Constructor principal ───────────────────────────────────────────────────
@@ -490,6 +500,8 @@ export const generarPlanDiario = (datos) => {
   const indicadores = indicadoresCustom.length > 0
     ? indicadoresCustom
     : generarIndicadoresLogro(claveArea, tema, grado);
+  const competenciaEspecifica = competenciaEspecificaCustom
+    || generarCompetenciaEspecifica(claveArea, grado);
 
   return {
     metadatos: {
@@ -517,7 +529,11 @@ export const generarPlanDiario = (datos) => {
         seleccionada: compFund.includes(c),
       })),
       indicadoresLogro: indicadores,
-      competenciaEspecifica: competenciaEspecificaCustom || generarCompetenciaEspecifica(claveArea, grado),
+      competenciaEspecifica,
+      referenciaCurricular: {
+        fuente: referenciaCurricular.fuente,
+        nivelDominio: referenciaCurricular.nivelDominio || "",
+      },
       situacionAprendizaje: situacionCustom || generarSituacionAprendizaje(claveArea, grado, tema, centro),
     },
     intencionPedagogica: {
@@ -533,7 +549,8 @@ export const generarPlanDiario = (datos) => {
     adaptacionesNEAE: generarAdaptacionesNEAE(claveArea),
     resumenEvaluacion: {
       tecnicas:     ["Observación directa", "Análisis de producciones", "Pregunta y respuesta"],
-      instrumentos: ["Lista de cotejo", "Rúbrica analítica", "Escala de valoración"],
+      instrumentos: instrumentos.instrumentosSugeridos.map((inst) => inst.nombre),
+      criterioPuntuacion: instrumentos.criterioPuntuacion,
       observaciones: [
         "Nivel de participación de los estudiantes",
         `Dificultades en la aplicación del contenido (${tema})`,

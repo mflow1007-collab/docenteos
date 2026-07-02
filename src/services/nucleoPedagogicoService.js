@@ -12,17 +12,17 @@ import {
 import { estudianteDocId } from "./expedienteEstudianteService";
 
 const VALOR_INSTRUMENTO = {
-  "Rúbrica": 50,
-  "Lista de cotejo": 25,
-  "Escala de estimación": 25,
+  "Rúbrica": 100,
+  "Lista de cotejo": 100,
+  "Escala de estimación": 100,
 };
 
 const EVIDENCIAS_KEY_PREFIX = "docenteos_evidencias_";
 
 const normalizarId = (valor, fallback) => String(valor || fallback || "sin-id").trim();
 
-const crearNotasRegistroVacias = () => ({
-  competencias: Array.from({ length: 4 }, () => ({
+const crearNotasRegistroVacias = (cantidadCompetencias = 4) => ({
+  competencias: Array.from({ length: Math.max(1, cantidadCompetencias) }, () => ({
     periodos: Array.from({ length: 4 }, () => ({ p: "", rp: "" })),
   })),
   ceCompletiva: "",
@@ -335,10 +335,17 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
 
   const estudianteConsolidado = evaluacionConAplicacion.estudiantes[aplicacion.estudianteId];
   const notasEstudiantes = { ...(registroActual.notasEstudiantes || {}) };
-  const notasPrevias = notasEstudiantes[aplicacion.estudianteId] || crearNotasRegistroVacias();
   const periodoIdx     = indicePeriodoRegistro(instrumento.periodo);
-  const competenciaIdx = Math.min(3, Math.max(0, Number(instrumento.competenciaIndex ?? 0)));
-  const competencias = Array.from({ length: 4 }, (_, ci) => {
+  const competenciaIdx = Math.max(0, Number(instrumento.competenciaIndex ?? 0));
+  const cantidadCompetencias = Math.max(
+    4,
+    competenciaIdx + 1,
+    Number(instrumento.totalCompetencias || 0),
+    registroActual.competenciasCantidad || 0,
+    registroActual.codigosCompetencias?.length || 0
+  );
+  const notasPrevias = notasEstudiantes[aplicacion.estudianteId] || crearNotasRegistroVacias(cantidadCompetencias);
+  const competencias = Array.from({ length: cantidadCompetencias }, (_, ci) => {
     const comp = notasPrevias.competencias?.[ci] || { periodos: [] };
     return {
       ...comp,

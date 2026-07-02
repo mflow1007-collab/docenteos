@@ -502,18 +502,50 @@ function AppInner() {
       </aside>
 
       <main className="main">
-        <header className="topbar">
-          <button
-            className="hamburger"
-            onClick={() => setMenuAbierto((v) => !v)}
-            aria-label="Abrir menú"
-          >
-            ☰
-          </button>
-          <div className="user">
-            <div className="avatar small">{inicialesAvatar}</div>
-            <strong>{primerNombre}</strong>
-          </div>
+        <header className={`topbar${pagina === "modo-aula" ? " topbar-modo-aula" : ""}`}>
+          {pagina === "modo-aula" ? (
+            <>
+              <div className="modo-aula-top-title">
+                <button
+                  className="hamburger"
+                  onClick={() => setMenuAbierto((v) => !v)}
+                  aria-label="Abrir menú"
+                >
+                  ☰
+                </button>
+                <div className="modo-aula-top-icon">🏫</div>
+                <div>
+                  <h1>Modo Aula</h1>
+                  <p>Todo lo que necesitas para tu clase, en un solo lugar</p>
+                </div>
+              </div>
+              <div className="modo-aula-top-actions">
+                <button type="button" className="modo-aula-course-chip">
+                  🎓 {cursoRegistro?.grado || formulario?.nivel || "Curso activo"}
+                </button>
+                <button type="button" className="modo-aula-bell" aria-label="Notificaciones">
+                  🔔 <span>3</span>
+                </button>
+                <button type="button" className="modo-aula-exit" onClick={() => irA("inicio")}>
+                  Salir del aula
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                className="hamburger"
+                onClick={() => setMenuAbierto((v) => !v)}
+                aria-label="Abrir menú"
+              >
+                ☰
+              </button>
+              <div className="user">
+                <div className="avatar small">{inicialesAvatar}</div>
+                <strong>{primerNombre}</strong>
+              </div>
+            </>
+          )}
         </header>
 
         <SubscriptionBanner />
@@ -523,7 +555,7 @@ function AppInner() {
             <button type="button" onClick={() => setErrorCarga(null)}>×</button>
           </div>
         )}
-        <section className="content">
+        <section className={`content${pagina === "modo-aula" ? " content-modo-aula" : ""}`}>
           <Suspense fallback={<div className="card">Cargando módulo...</div>}>
           {pagina === "inicio" && navegacionLista && (
             <Inicio
@@ -542,6 +574,7 @@ function AppInner() {
           {pagina === "modo-aula" && (
             <ModoAulaPage
               cursos={cursos}
+              cursoActivo={cursoRegistro}
               onIrA={(destino) => navegar(destino)}
             />
           )}
