@@ -1995,9 +1995,29 @@ const _generarFasesConIA = async (
     weekPlan.clases.slice(0, numClases).forEach((aiClase, i) => {
       const dia = fase.dias[i];
       if (!dia) return;
-      // Preserva metadata de calendario; solo reemplaza momentos pedagógicos
-      dia.momentos = aiClase.momentos;
+
       if (aiClase.titulo) dia.tituloIA = aiClase.titulo;
+
+      // MERGE: reemplazar solo actividades/tiempo dentro de cada momento existente.
+      // Preserva evaluacion, evidencias, recursos, metacognicion de generarDia.
+      aiClase.momentos.slice(0, 3).forEach((aiMom, mi) => {
+        const orig = dia.momentos?.[mi];
+        if (!orig || !Array.isArray(aiMom.actividades) || !aiMom.actividades.length) return;
+        orig.actividades = aiMom.actividades;
+        if (aiMom.tiempo) orig.tiempo = aiMom.tiempo;
+      });
+
+      // R3: contrato — todos los campos del render deben estar presentes post-merge
+      for (const mom of dia.momentos || []) {
+        if (!mom.evaluacion?.tipo)
+          throw new Error(`R3: "${mom.nombre}" falta evaluacion.tipo — revisar generarDia`);
+        if (!mom.evidencias)
+          throw new Error(`R3: "${mom.nombre}" falta evidencias — revisar generarDia`);
+        if (!mom.recursos)
+          throw new Error(`R3: "${mom.nombre}" falta recursos — revisar generarDia`);
+        if (!Array.isArray(mom.metacognicion))
+          throw new Error(`R3: "${mom.nombre}" falta metacognicion — revisar generarDia`);
+      }
     });
 
     globalOffset += numClases;
@@ -2046,7 +2066,15 @@ export const generarUnidadAprendizaje = async (datos) => {
     : compFundBase;
 
   // Motor Especializado v1: bloquear generación sin malla curricular oficial
-  const curricularDoc = await getCurricularContentForUnit(claveContenido, grado);
+  // Caso (a) doc no existe → null → error "No hay malla"
+  // Caso (b) permission-denied → getCurricularContentForUnit lanza → re-throw aquí
+  // Caso (c) payload incompleto → error "Malla incompleta"
+  let curricularDoc;
+  try {
+    curricularDoc = await getCurricularContentForUnit(claveContenido, grado);
+  } catch (permErr) {
+    throw new Error(`Sin acceso al contenido curricular — ${permErr.message}`);
+  }
   if (!curricularDoc) {
     throw new Error(
       `No hay malla curricular cargada para ${claveContenido} — ${grado}. ` +
@@ -2054,6 +2082,21 @@ export const generarUnidadAprendizaje = async (datos) => {
     );
   }
   const mallaPayload    = curricularDoc.payload || {};
+
+  // Índices planos del corpus (payload level) — deben existir antes de chequeo (c)
+  const allComps = Array.isArray(mallaPayload.competencias) ? mallaPayload.competencias : [];
+  const allInds  = Array.isArray(mallaPayload.indicadoresLogro)
+    ? mallaPayload.indicadoresLogro
+    : Array.isArray(mallaPayload.indicadores) ? mallaPayload.indicadores : [];
+
+  if (!allComps.length && !allInds.length) {
+    throw new Error(
+      `Malla curricular incompleta para ${claveContenido} — ${grado}: ` +
+      `falta competencias e indicadoresLogro en el payload. ` +
+      `Re-importa el JSON curricular desde el Banco de Conocimiento.`
+    );
+  }
+
   // Corpus: payload.temas es string[] con los temas oficiales del grado
   const temasOficiales  = Array.isArray(mallaPayload.temas)
     ? mallaPayload.temas
@@ -2065,19 +2108,28 @@ export const generarUnidadAprendizaje = async (datos) => {
 
   // Extrae vocabulario, gramática y funcionales del nivel-grado (corpus)
   const mallaContenidos = _extraerContenidosMallaCorpus(mallaPayload);
-  const contenidos = {
-    ...contenidosBase,
-    ...(mallaContenidos.conceptuales.length    ? { conceptuales:    mallaContenidos.conceptuales    } : {}),
-    ...(mallaContenidos.procedimentales.length ? { procedimentales: mallaContenidos.procedimentales } : {}),
-  };
 
-  // Índices planos del corpus (payload level)
-  const allComps = Array.isArray(mallaPayload.competencias) ? mallaPayload.competencias : [];
-  const allInds  = Array.isArray(mallaPayload.indicadoresLogro)
-    ? mallaPayload.indicadoresLogro
-    : Array.isArray(mallaPayload.indicadores) ? mallaPayload.indicadores : [];
+  // Contenidos ÚNICAMENTE desde el corpus — eliminar strings placeholder legacy
+  const contenidos = (() => {
+    const vocab = mallaContenidos.vocabulario.slice(0, 12);
+    const gram  = mallaContenidos.gramatica.slice(0, 6);
+    const exprs = (mallaContenidos.expresiones || []).slice(0, 4);
+    const funcs = mallaContenidos.funcionales.slice(0, 8);
+    return {
+      conceptuales:    [...vocab, ...gram, ...exprs].filter(Boolean),
+      procedimentales: funcs.length
+        ? funcs
+        : [`Uso de los contenidos de "${titulo}" en situaciones comunicativas`, "Trabajo colaborativo e individual", "Producción oral y escrita"],
+      actitudinales: [
+        "Disposición activa para participar en las actividades de aprendizaje",
+        "Respeto y valoración de las producciones de los compañeros",
+        "Perseverancia ante los desafíos del aprendizaje",
+        "Responsabilidad en el cumplimiento de las tareas asignadas",
+      ],
+    };
+  })();
 
-  return {
+  const unidadResult = {
     tipoPlanificacion: "Unidad de Aprendizaje",
     curricularContentId: curricularDoc?.id || null,
     // IDs de todos los indicadores de la malla (base curricular de la unidad)
@@ -2099,19 +2151,20 @@ export const generarUnidadAprendizaje = async (datos) => {
     ambienteAprendizaje: ambiente,
     competencias: (() => {
       // ÚNICA FUENTE: malla oficial en curricularContent (ya garantizada arriba).
-      // Corpus: indicadoresLogro[].descripcion (campo real); fallback .texto
-      const c01 = allComps[0] || {};
-      const fundamentales = allComps.map(c => c.fundamental).filter(Boolean);
-      // Tomar los primeros 3 indicadores por competencia (estándar MINERD: 3 por competencia)
-      // Como el corpus no tiene competenciaId en cada indicador, derivamos por posición
-      const INDS_PER_COMP = 3;
+      // fundamentales: nombres de CFs del área — COMPETENCIAS_FUND_POR_AREA siempre tiene valores
+      // específica: especificaGrado (v1.3) o especifica (v1.1) de cada competencia del corpus
+      // indicadores: indicadoresLogro[].descripcion (v1.3) o indicadores[].texto (v1.1)
+      const fundamentales = compFundEf; // ya garantizado no vacío por COMPETENCIAS_FUND_POR_AREA
+      const especificas = allComps
+        .map(c => c.especificaGrado || c.especifica || c.descripcion || '')
+        .filter(Boolean);
       const indicadores = allInds
-        .slice(0, INDS_PER_COMP)
-        .map(i => i.descripcion || i.texto || String(i))
+        .slice(0, 9)
+        .map(i => i.descripcion || i.texto || '')
         .filter(Boolean);
       return {
-        fundamentales: fundamentales.length ? fundamentales : compFundEf,
-        especifica: c01.especificaGrado || c01.especifica || '',
+        fundamentales,
+        especifica: especificas.slice(0, 2).join(' | ') || '',
         nivelMCERL: mallaPayload.nivelMCERL || null,
         indicadores,
       };
@@ -2127,6 +2180,26 @@ export const generarUnidadAprendizaje = async (datos) => {
       mallaPayload, titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
     }),
   };
+
+  // R1 sobre la unidad renderizada completa — atrapar placeholders legacy que entren por código
+  const PLACEHOLDERS_PROHIBIDOS = [
+    'Vocabulario clave relacionado con',
+    'Estructuras gramaticales básicas',
+    'diversidad cultural anglosajona',
+    'Conceptos fundamentales de ',
+    'Definiciones de ',
+  ];
+  const unidadStr = JSON.stringify(unidadResult);
+  for (const p of PLACEHOLDERS_PROHIBIDOS) {
+    if (unidadStr.includes(p)) {
+      throw new Error(
+        `R1: placeholder legacy detectado en unidad renderizada: "${p}". ` +
+        `Revisar getContenidos() o las cadenas legadas en el generador.`
+      );
+    }
+  }
+
+  return unidadResult;
 };
 
 // ─── Formateador HTML para PDF ────────────────────────────────────────────────

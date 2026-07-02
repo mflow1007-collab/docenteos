@@ -199,6 +199,18 @@ function formatearMemoria(memoria) {
   return `\nACTIVIDADES YA PROGRAMADAS EN ESTA UNIDAD (no repetir las mismas):\n${lines.join('\n')}\n`;
 }
 
+// ─── Plan gramatical pre-repartido ────────────────────────────────────────────
+// Sem 1: solo vocabulario / intro (sin estructuras complejas)
+// Sem 2+: estructuras gramaticales asignadas por rango proporcional
+
+function getFocoGramatical(gramaticaArray, semanaNum, numSemanas) {
+  if (!gramaticaArray?.length) return [];
+  if (semanaNum === 1) return gramaticaArray.slice(0, 1); // sem 1 solo intro
+  const perWeek = Math.ceil(gramaticaArray.length / Math.max(numSemanas, 1));
+  const start   = (semanaNum - 1) * perWeek;
+  return gramaticaArray.slice(start, start + perWeek);
+}
+
 // ─── Prompt de lote ───────────────────────────────────────────────────────────
 
 function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
@@ -206,13 +218,14 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const tCierre     = durMin <= 50 ? 5  : 10;
   const tDesarrollo = durMin - tInicio - tCierre;
 
-  const vocab   = spec.contenidosClaves?.vocabulario?.slice(0, 16).join(', ') || '';
-  const gram    = spec.contenidosClaves?.gramatica?.slice(0, 4).join('; ')    || '';
-  const funcs   = spec.contenidosClaves?.funcionales?.slice(0, 3).join('; ')  || '';
-  const indText = (spec.indicadores || []).slice(0, 3)
+  const vocab      = spec.contenidosClaves?.vocabulario?.slice(0, 16).join(', ') || '';
+  const funcs      = spec.contenidosClaves?.funcionales?.slice(0, 3).join('; ')  || '';
+  const indText    = (spec.indicadores || []).slice(0, 3)
     .map(i => i.descripcion || i.texto || '').filter(Boolean).join(' | ');
-  const ceText  = (spec.ces || []).slice(0, 2)
+  const ceText     = (spec.ces || []).slice(0, 2)
     .map(c => c.descripcion || '').filter(Boolean).join(' | ');
+  const focoGram   = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas);
+  const focoGramTx = focoGram.length ? focoGram.join('; ') : 'vocabulario y expresiones del tema';
 
   const endDia  = startDia + count - 1;
   const rango   = count === 1 ? `Clase ${startDia}` : `Clases ${startDia}-${endDia}`;
@@ -225,12 +238,13 @@ TEMA: "${spec.temaOficial}"
 ESPECIFICACIÓN CURRICULAR:
 - Competencias: ${ceText || '(ver indicadores)'}
 - Indicadores: ${indText}
-- Vocabulario: ${vocab}
-- Gramática: ${gram}
-- Funciones: ${funcs}
+- Vocabulario disponible: ${vocab}
+- FOCO GRAMATICAL ESTA SEMANA (usar en Desarrollo): ${focoGramTx}
+- Funciones comunicativas: ${funcs}
 ${formatearMemoria(memoria)}
 TAREA: Genera exactamente ${count} clase(s) — ${rango} de la Semana ${semanaNum}.
 Clases con PROGRESIÓN PEDAGÓGICA, DISTINTAS de las ya programadas.
+El foco gramatical asignado debe trabajarse explícitamente en el Desarrollo.
 
 REGLAS:
 1. Solo JSON puro, sin texto ni markdown.

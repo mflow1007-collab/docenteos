@@ -272,14 +272,14 @@ export const getCurricularContentForUnit = async (subject, grade) => {
     return candidates.find(d => normGrade(d.grade) === ng) || candidates[0];
   } catch (err) {
     if (err?.code === 'permission-denied') {
-      console.error(
-        '[curricularContent] Permiso denegado — publica las reglas de Firestore: ' +
+      // Re-throw: el caller debe mostrar este mensaje exacto, no degradar a "malla vacía"
+      throw new Error(
+        'Sin acceso al contenido curricular — verifica las reglas de Firestore ' +
+        '(curricularContent: allow read: if request.auth != null;). ' +
         'Firebase Console → Firestore → Rules → pega firestore.rules → Publish.',
-        err,
       );
-    } else {
-      console.error('[curricularContent] getCurricularContentForUnit:', err);
     }
+    console.error('[curricularContent] getCurricularContentForUnit:', err);
     return null;
   }
 };
