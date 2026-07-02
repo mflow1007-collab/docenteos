@@ -231,7 +231,6 @@ export const obtenerPlanificacionesDetalladas = async () => {
       const q = query(
         collection(db, "planificaciones"),
         where("usuario", "==", user.uid),
-        orderBy("createdAt", "desc"),
         limit(200)
       );
       const querySnapshot = await getDocs(q);
