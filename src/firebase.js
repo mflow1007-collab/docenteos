@@ -61,7 +61,7 @@ if (isFirebaseConfigured) {
   });
 }
 
-export { db, auth };
+export { db, auth, storage };
 
 export const subirImagenPlanificacion = async (uid, archivo) => {
   if (!storage || !uid || !archivo) return null;

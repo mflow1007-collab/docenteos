@@ -212,6 +212,16 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // ── Banco de Conocimiento (admin) ────────────────────────────────────────
+    match /knowledgeSources/{docId} {
+      allow read, write: if isAdmin();
+    }
+    // Contenido curricular estructurado — docentes leen para generar planificaciones
+    match /curricularContent/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
     // ── Fuentes oficiales MINERD ───────────────────────────────────────────────
     match /fuentesOficiales/{docId} {
       allow read: if isAuth();

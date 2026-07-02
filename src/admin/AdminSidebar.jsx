@@ -19,6 +19,7 @@ const MENU = [
     grupo: 'Centro de Inteligencia',
     items: [
       { id: 'curriculo',           icon: '📚', label: 'Banco Curricular' },
+      { id: 'banco-conocimiento',  icon: '🗂️', label: 'Banco de Conocimiento' },
       { id: 'monitor-fuentes',     icon: '🌐', label: 'Monitor MINERD' },
       { id: 'banco-pedagogico',    icon: '🏦', label: 'Banco Pedagógico' },
       { id: 'prompts',             icon: '✨', label: 'Banco IA (Prompts)' },

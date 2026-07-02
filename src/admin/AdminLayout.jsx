@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 
-const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','monitor-fuentes','banco-pedagogico','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-docente','asistente-personal','uso-ia','costos-ia','agentes','topics','insights']
+const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','banco-conocimiento','monitor-fuentes','banco-pedagogico','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-docente','asistente-personal','uso-ia','costos-ia','agentes','topics','insights']
 import AdminSidebar from './AdminSidebar.jsx'
 import AdminTopbar from './AdminTopbar.jsx'
 import AdminHome from './pages/AdminHome.jsx'
 import AdminUsuarios from './pages/AdminUsuarios.jsx'
 import AdminCentros from './pages/AdminCentros.jsx'
 import AdminCurriculo from './pages/AdminCurriculo.jsx'
+import AdminBancoConocimiento from './pages/AdminBancoConocimiento.jsx'
 import AdminMonitorFuentes from './pages/AdminMonitorFuentes.jsx'
 import AdminPrompts from './pages/AdminPrompts.jsx'
 import AdminHistorialIA from './pages/AdminHistorialIA.jsx'
@@ -53,6 +54,7 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
           {pagina === 'usuarios'      && <AdminUsuarios      />}
           {pagina === 'centros'       && <AdminCentros       />}
           {pagina === 'curriculo'     && <AdminCurriculo     />}
+          {pagina === 'banco-conocimiento' && <AdminBancoConocimiento />}
           {pagina === 'monitor-fuentes' && <AdminMonitorFuentes />}
           {pagina === 'gateway-ia'    && <AdminIA            />}
           {pagina === 'prompts'       && <AdminPrompts       />}

@@ -325,14 +325,14 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 }
 
 /**
-/** Convierte _texto en cursiva_ dentro de una cadena en nodos React */
-function parseItalics(text) {
-  const parts = text.split(/(_[^_]+_)/g);
-  return parts.map((p, i) =>
-    p.startsWith("_") && p.endsWith("_")
-      ? <em key={i}>{p.slice(1, -1)}</em>
-      : p
-  );
+/** Convierte **negrita** y _cursiva_ dentro de una cadena en nodos React */
+function parseFormatting(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*|_[^_]+_)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith("**") && p.endsWith("**")) return <strong key={i}>{p.slice(2, -2)}</strong>;
+    if (p.startsWith("_") && p.endsWith("_")) return <em key={i}>{p.slice(1, -1)}</em>;
+    return p;
+  });
 }
 
 /**
@@ -353,12 +353,12 @@ function MomentoRows({ mom }) {
         <td className="ua-td-acts" rowSpan={2}>
           {(mom.actividades || []).map((act, i) => (
             <p key={i} className="ua-act-item">
-              <strong>{i + 1}{")"}</strong> {parseItalics(act)}
+              <strong>{i + 1}{")"}</strong> {parseFormatting(act)}
             </p>
           ))}
         </td>
         <td className="ua-td-evid" style={{ whiteSpace: "pre-line" }}>
-          {mom.evidencias}
+          {parseFormatting(mom.evidencias || "")}
         </td>
         <td className="ua-td-eval">
           <p><strong>Tipo:</strong> {ev.tipo}.</p>

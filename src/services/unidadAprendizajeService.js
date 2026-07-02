@@ -6,8 +6,7 @@ import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.js";
 import { inyectarExpresiones } from "../planning/bancoExpresionesIdiomas.js";
 import { obtenerBPActs } from "./bpCache.js";
-import { getCompetenciasIdiomas } from "../data/indicadoresIdiomas.js";
-import { getCompetenciasArea } from "../data/indicadoresAreasMINERD.js";
+import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -309,124 +308,100 @@ const _getBancoTemaIngles = (tema) => {
   return null;
 };
 
-const _getActsInicioIngles = (tema, fasePos, diaNum) => {
-  const banco = _getBancoTemaIngles(tema);
-  const varIdx = Math.min(fasePos, 3);
+const _getActsInicioIngles = (tema, fasePos, diaNum, mc = {}) => {
+  const vSlice = (n) => mc.vocabulario?.slice(n, n + 4).join(', ') || `vocabulario de "${tema}"`;
 
-  // Primera clase de la unidad — diagnóstico sin retroalimentación previa
   if (fasePos === 0 && diaNum === 0) {
-    const vocabInicio = banco ? banco.vocabulario[0] : `palabras conocidas en inglés relacionadas con "${tema}"`;
-    const temaHoy0   = banco ? banco.temaHoy[0]    : `el vocabulario básico de "${tema}"`;
     return [
-      `El docente da la bienvenida a los estudiantes. "Good morning, everyone! How are you today? Are you ready to start our new unit?" Los estudiantes responden usando expresiones básicas en inglés.`,
-      `Observan imágenes relacionadas con "${tema}" y expresan en inglés palabras o frases que ya conocen. El docente organiza el vocabulario aportado en la pizarra como banco inicial de la unidad.`,
-      `Exploración diagnóstica de saberes previos: mencionando palabras conocidas en inglés relacionadas con ${temaHoy0}. Vocabulario esperado: ${vocabInicio}.`,
-      `El docente presenta la intención pedagógica de la unidad, el producto final esperado y el propósito de aprender sobre "${tema}".`,
+      `**Responden** al saludo e indicaciones iniciales. _("Good morning, everyone! How are you today? Are you ready to start our new unit?")_`,
+      `**Observan** imágenes o recursos relacionados con "${tema}" y **expresan** en inglés palabras o frases que ya **conocen**. **Organizan** el vocabulario en la pizarra como banco inicial de la unidad.`,
+      `**Recuperan** saberes previos: _¿qué palabras en inglés conocen relacionadas con "${tema}"?_ Vocabulario esperado: _${vSlice(0)}_.`,
+      `**Escuchan** la intención pedagógica de la unidad, el producto final y el propósito de aprender sobre "${tema}".`,
     ];
   }
 
-  // Retroalimentación mira UN paso atrás; recuperación apunta a HOY
-  const retroIdx = Math.max(0, varIdx - (fasePos > 0 ? 1 : 0));
-
-  const pregsFase = banco
-    ? banco.preguntas[Math.min(retroIdx, banco.preguntas.length - 1)]
-    : [`What did we learn about "${tema}" last time?`, `Can you remember 3 words we studied about "${tema}"?`];
-  const preguntasStr = (pregsFase || []).join(" ");
-
-  const temaAnteriorStr = banco
-    ? banco.temaAnterior[Math.min(retroIdx, banco.temaAnterior.length - 1)]
-    : `el contenido trabajado en la clase anterior sobre "${tema}"`;
-
-  const vocabHoy = banco
-    ? banco.vocabulario[Math.min(varIdx, banco.vocabulario.length - 1)]
-    : `vocabulario y expresiones relacionadas con "${tema}"`;
-
-  const temaHoyStr = banco
-    ? banco.temaHoy[Math.min(varIdx, banco.temaHoy.length - 1)]
-    : `el contenido de hoy sobre "${tema}"`;
-
   return [
-    `El docente saluda a los estudiantes en inglés. "Good morning! How are you today? Are you ready for today's class?" Los estudiantes responden usando las expresiones trabajadas.`,
-    `Retroalimentación de experiencias relacionadas con ${temaAnteriorStr} mediante preguntas orales. (${preguntasStr})`,
-    `Recuperación o exploración de saberes previos: mencionando palabras conocidas en inglés relacionadas con ${temaHoyStr}. Vocabulario esperado: ${vocabHoy}.`,
-    `El docente presenta la intención pedagógica y el propósito de la clase de hoy.`,
+    `**Responden** al saludo e indicaciones iniciales en inglés. _("Good morning! How are you today?")_`,
+    `**Retroalimentan** la sesión anterior sobre "${tema}" respondiendo preguntas orales breves: _¿qué palabras o estructuras recuerdan?_`,
+    `**Recuperan** saberes previos activando vocabulario relacionado con "${tema}". Vocabulario de activación: _${vSlice(fasePos * 4)}_.`,
+    `**Escuchan** la intención pedagógica y el propósito de la clase de hoy.`,
   ];
 };
 
-const getActsInicio = (area, tema, fasePos, diaNum) => {
-  if (area === "Inglés") return _getActsInicioIngles(tema, fasePos, diaNum);
+const getActsInicio = (area, tema, fasePos, diaNum, mc = {}) => {
+  if (area === "Inglés") return _getActsInicioIngles(tema, fasePos, diaNum, mc);
 
   const variantes = {
     "Inglés": [
       // Variante 0 — Fase 1 (Presentación): LISTENING + SPEAKING diagnóstico
       [
-        `Responden al saludo e indicaciones iniciales del docente en inglés. _({expr_saludo})_`,
-        `Escuchan un audio corto o diálogo del docente sobre "${tema}". Identifican el tema general, palabras que reconocen y expresiones claves. _({expr_comprension_listening})_`,
-        `Recuperan saberes previos oralmente: responden libremente las preguntas del docente sobre "${tema}". _(What do you already know about ${tema}? Have you seen or used this before?)_`,
-        `Expresan en inglés qué saben y qué quisieran aprender sobre "${tema}" usando palabras simples, frases o gestos. _(I know... / I think... / I want to learn...)_`,
-        `Escuchan el objetivo comunicativo de la sesión y el tipo de producción que realizarán al finalizar.`,
+        `**Responden** al saludo e indicaciones iniciales en inglés. _({expr_saludo})_`,
+        `**Escuchan** un audio corto o diálogo sobre "${tema}". **Identifican** el tema general, palabras que **reconocen** y expresiones claves. _({expr_comprension_listening})_`,
+        `**Recuperan** saberes previos oralmente: **responden** libremente las preguntas sobre "${tema}". _(What do you already know about ${tema}? Have you seen or used this before?)_`,
+        `**Expresan** en inglés qué **saben** y qué **quisieran** aprender sobre "${tema}" usando palabras simples, frases o gestos. _(I know... / I think... / I want to learn...)_`,
+        `**Escuchan** el objetivo comunicativo de la sesión y el tipo de producción que **realizarán** al finalizar.`,
       ],
       // Variante 1 — Fase 2 (Desarrollo): READING + GRAMMAR awareness
       [
-        `Responden al saludo e indicaciones del docente en inglés y retroalimentan la sesión anterior sobre "${tema}". _({expr_saludo})_`,
-        `Leen un texto corto relacionado con "${tema}" en la pizarra, tarjeta o proyección. Identifican: palabras conocidas, palabras nuevas, e idea principal. _({expr_comprension_reading})_`,
-        `Analizan las estructuras gramaticales presentes en el texto de "${tema}". _({expr_gramatica})_`,
-        `Relacionan las estructuras del texto con situaciones reales del entorno. Formulan 1–2 oraciones propias usando el patrón identificado sobre "${tema}".`,
-        `Escuchan el objetivo gramatical-comunicativo del día y se preparan para la práctica de la sesión.`,
+        `**Responden** al saludo e indicaciones iniciales en inglés y **retroalimentan** la sesión anterior sobre "${tema}". _({expr_saludo})_`,
+        `**Leen** un texto corto relacionado con "${tema}". **Identifican**: _palabras conocidas, palabras nuevas e idea principal_. _({expr_comprension_reading})_`,
+        `**Analizan** las estructuras gramaticales presentes en el texto de "${tema}". _({expr_gramatica})_`,
+        `**Relacionan** las estructuras del texto con situaciones reales del entorno. **Formulan** 1–2 oraciones propias usando el patrón identificado sobre "${tema}".`,
+        `**Escuchan** el objetivo gramatical-comunicativo del día y se **preparan** para la práctica de la sesión.`,
       ],
       // Variante 2 — Fase 3 (Profundización): WRITING + VOCABULARY + Speaking
       [
-        `Responden al saludo e indicaciones del docente en inglés. _({expr_saludo})_`,
-        `Demuestran vocabulario de "${tema}" en un reto de activación rápida. _({expr_vocabulario})_`,
-        `Revisan y amplían el vocabulario de "${tema}": el docente presenta palabras nuevas con definición en contexto. Los estudiantes las usan en oraciones propias orales y escritas.`,
-        `Escriben individualmente 3–5 oraciones o un párrafo corto sobre "${tema}" aplicando estructuras y vocabulario trabajados. Utilizan modelos del docente como referencia.`,
-        `Comparten su producción con un compañero para revisión rápida y preparan la actividad de escritura o producción oral principal de la sesión. _({expr_parejas})_`,
+        `**Responden** al saludo e indicaciones iniciales en inglés. _({expr_saludo})_`,
+        `**Demuestran** vocabulario de "${tema}" en un reto de activación rápida. _({expr_vocabulario})_`,
+        `**Revisan** y **amplían** el vocabulario de "${tema}": **registran** palabras nuevas con definición en contexto y las **usan** en oraciones propias orales y escritas.`,
+        `**Escriben** individualmente 3–5 oraciones o un párrafo corto sobre "${tema}" **aplicando** estructuras y vocabulario trabajados. **Utilizan** modelos como referencia.`,
+        `**Comparten** su producción con un compañero para revisión rápida y se **preparan** para la actividad de escritura o producción oral principal de la sesión. _({expr_parejas})_`,
       ],
     ],
     "Matemática": [
       [
-        `Responden al saludo e indicaciones iniciales del docente.`,
-        `Retroalimentan la clase anterior compartiendo en parejas las respuestas de la tarea asignada.`,
-        `Recuperan o exploran saberes previos: resuelven 2–3 ejercicios rápidos de cálculo mental vinculados a "${tema}".`,
-        `Observan un problema de la vida real relacionado con "${tema}" presentado por el docente y expresan sus ideas iniciales oralmente.`,
-        `Escuchan la intención pedagógica y el propósito de la sesión.`,
+        `**Responden** al saludo e indicaciones iniciales.`,
+        `**Retroalimentan** la clase anterior **compartiendo** en parejas las respuestas de la tarea asignada.`,
+        `**Recuperan** o **exploran** saberes previos: **resuelven** 2–3 ejercicios rápidos de cálculo mental vinculados a "${tema}".`,
+        `**Observan** un problema de la vida real relacionado con "${tema}" y **expresan** sus ideas iniciales oralmente.`,
+        `**Escuchan** la intención pedagógica y el propósito de la sesión.`,
       ],
       [
-        `Responden al saludo e indicaciones del docente y revisan brevemente la tarea anterior.`,
-        `Retroalimentan los aprendizajes previos respondiendo preguntas del docente: _¿Qué recuerdan de ${tema}? ¿Dónde lo han visto en la vida cotidiana?_`,
-        `Recuperan saberes previos participando en una dinámica de activación: reto matemático, adivinanza numérica o situación gráfica vinculada a "${tema}".`,
-        `Expresan sus observaciones e hipótesis iniciales sobre el contenido del día de manera oral.`,
-        `Escuchan el objetivo del día y la relevancia de "${tema}" en situaciones cotidianas.`,
+        `**Responden** al saludo e indicaciones iniciales y **revisan** brevemente la tarea anterior.`,
+        `**Retroalimentan** los aprendizajes previos **respondiendo** preguntas: _¿Qué recuerdan de ${tema}? ¿Dónde lo han visto en la vida cotidiana?_`,
+        `**Recuperan** saberes previos **participando** en una dinámica de activación: _reto matemático, adivinanza numérica o situación gráfica vinculada a "${tema}"_.`,
+        `**Expresan** sus observaciones e hipótesis iniciales sobre el contenido del día de manera oral.`,
+        `**Escuchan** el objetivo del día y la relevancia de "${tema}" en situaciones cotidianas.`,
       ],
       [
-        `Responden al saludo e indicaciones iniciales.`,
-        `Retroalimentan la clase anterior: tres voluntarios comparten algo aprendido sobre el tema trabajado previamente.`,
-        `Recuperan saberes previos explorando una situación desafiante presentada por el docente. _¿Qué sabemos sobre ${tema}? ¿Cómo lo podemos aplicar?_`,
-        `Expresan sus ideas, razonamientos y estrategias previas ante el problema o situación planteada.`,
-        `Registran el objetivo del día en su cuaderno y escuchan la intención pedagógica de la sesión.`,
+        `**Responden** al saludo e indicaciones iniciales.`,
+        `**Retroalimentan** la clase anterior: tres voluntarios **comparten** algo aprendido sobre el tema trabajado previamente.`,
+        `**Recuperan** saberes previos **explorando** una situación desafiante. _¿Qué sabemos sobre ${tema}? ¿Cómo lo podemos aplicar?_`,
+        `**Expresan** sus ideas, razonamientos y estrategias previas ante el problema o situación planteada.`,
+        `**Registran** el objetivo del día en su cuaderno y **escuchan** la intención pedagógica de la sesión.`,
       ],
     ],
     "Lengua Española": [
       [
-        `Responden al saludo e indicaciones iniciales del docente.`,
-        `Retroalimentan la clase anterior compartiendo ideas o producciones relacionadas con "${tema}".`,
-        `Recuperan o exploran saberes previos: observan un texto, imagen o situación comunicativa y expresan lo que saben sobre "${tema}".`,
-        `Expresan oralmente sus experiencias e ideas relacionando el contenido con situaciones de su entorno cotidiano.`,
-        `Escuchan la intención pedagógica y el propósito de la clase.`,
+        `**Responden** al saludo e indicaciones iniciales.`,
+        `**Retroalimentan** la clase anterior **compartiendo** ideas o producciones relacionadas con "${tema}".`,
+        `**Recuperan** o **exploran** saberes previos: **observan** un texto, imagen o situación comunicativa y **expresan** lo que **saben** sobre "${tema}".`,
+        `**Expresan** oralmente sus experiencias e ideas **relacionando** el contenido con situaciones de su entorno cotidiano.`,
+        `**Escuchan** la intención pedagógica y el propósito de la clase.`,
       ],
       [
-        `Responden al saludo e indicaciones del docente y revisan brevemente la tarea anterior.`,
-        `Retroalimentan los aprendizajes previos respondiendo preguntas del docente sobre "${tema}".`,
-        `Recuperan saberes previos participando en una dinámica de activación: lluvia de ideas, asociación de palabras o lectura de una oración motivadora.`,
-        `Expresan sus ideas y predicciones sobre el contenido del día de manera oral y/o escrita.`,
-        `Escuchan el objetivo de la sesión y registran la intención pedagógica en su cuaderno.`,
+        `**Responden** al saludo e indicaciones iniciales y **revisan** brevemente la tarea anterior.`,
+        `**Retroalimentan** los aprendizajes previos **respondiendo** preguntas sobre "${tema}".`,
+        `**Recuperan** saberes previos **participando** en una dinámica de activación: _lluvia de ideas, asociación de palabras o lectura de una oración motivadora_.`,
+        `**Expresan** sus ideas y predicciones sobre el contenido del día de manera oral y/o escrita.`,
+        `**Escuchan** el objetivo de la sesión y **registran** la intención pedagógica en su cuaderno.`,
       ],
       [
-        `Responden al saludo e indicaciones iniciales.`,
-        `Retroalimentan la clase anterior: voluntarios comparten algo que aprendieron o produjeron relacionado con "${tema}".`,
-        `Recuperan saberes previos explorando un recurso textual o visual presentado por el docente y expresan sus observaciones.`,
-        `Expresan con sus propias palabras qué saben sobre "${tema}" y formulan preguntas sobre lo que desean aprender.`,
-        `Escuchan la intención pedagógica y el propósito de la sesión.`,
+        `**Responden** al saludo e indicaciones iniciales.`,
+        `**Retroalimentan** la clase anterior: voluntarios **comparten** algo que **aprendieron** o **produjeron** relacionado con "${tema}".`,
+        `**Recuperan** saberes previos **explorando** un recurso textual o visual y **expresan** sus observaciones.`,
+        `**Expresan** con sus propias palabras qué **saben** sobre "${tema}" y **formulan** preguntas sobre lo que **desean** aprender.`,
+        `**Escuchan** la intención pedagógica y el propósito de la sesión.`,
       ],
     ],
   };
@@ -450,131 +425,131 @@ const getActsInicio = (area, tema, fasePos, diaNum) => {
   // Fallback genérico
   const generic = [
     [
-      `Responden al saludo e indicaciones iniciales del docente.`,
-      `Recuperan saberes previos: el docente presenta una situación o pregunta diagnóstica sobre "${tema}" para explorar lo que saben y lo que necesitan aprender.`,
-      `Expresan y clasifican sus conocimientos previos sobre "${tema}": _¿Qué sé? / ¿Qué creo? / ¿Qué no sé?_`,
-      `Formulan preguntas o hipótesis iniciales que guiarán su aprendizaje durante la sesión.`,
-      `Escuchan la intención pedagógica y el propósito de aprendizaje de la sesión.`,
+      `**Responden** al saludo e indicaciones iniciales.`,
+      `**Recuperan** saberes previos **explorando** una situación o pregunta diagnóstica sobre "${tema}" para **identificar** lo que **saben** y lo que necesitan aprender.`,
+      `**Expresan** y **clasifican** sus conocimientos previos sobre "${tema}": _¿Qué sé? / ¿Qué creo? / ¿Qué no sé?_`,
+      `**Formulan** preguntas o hipótesis iniciales que **guiarán** su aprendizaje durante la sesión.`,
+      `**Escuchan** la intención pedagógica y el propósito de aprendizaje de la sesión.`,
     ],
     [
-      `Responden al saludo e indicaciones del docente.`,
-      `Retroalimentan los aprendizajes construidos en la sesión anterior sobre "${tema}" y los conectan con el nuevo contenido del día.`,
-      `Participan en una dinámica de activación que prepara el pensamiento para la construcción de nuevos conocimientos sobre "${tema}".`,
-      `Formulan hipótesis o predicciones sobre el contenido del día y se preparan para verificarlas durante el desarrollo.`,
-      `Escuchan el objetivo del día y la conexión con la situación de aprendizaje de la unidad.`,
+      `**Responden** al saludo e indicaciones iniciales.`,
+      `**Retroalimentan** los aprendizajes **construidos** en la sesión anterior sobre "${tema}" y los **conectan** con el nuevo contenido del día.`,
+      `**Participan** en una dinámica de activación y se **preparan** para la construcción de nuevos conocimientos sobre "${tema}".`,
+      `**Formulan** hipótesis o predicciones sobre el contenido del día y se **preparan** para verificarlas durante el desarrollo.`,
+      `**Escuchan** el objetivo del día y la conexión con la situación de aprendizaje de la unidad.`,
     ],
     [
-      `Responden al saludo e indicaciones iniciales.`,
-      `Demuestran sus aprendizajes sobre "${tema}" respondiendo preguntas de nivel aplicado: _¿Cómo usarías esto? ¿Dónde lo ves en la vida real?_`,
-      `Relacionan lo aprendido en fases anteriores con el desafío de aplicación que abordarán hoy en "${tema}".`,
-      `Establecen sus metas de desempeño para la sesión: _¿Qué quiero lograr hoy? ¿Cómo sabré que lo logré?_`,
-      `Escuchan y registran la intención pedagógica y el propósito de la sesión.`,
+      `**Responden** al saludo e indicaciones iniciales.`,
+      `**Demuestran** sus aprendizajes sobre "${tema}" **respondiendo** preguntas de nivel aplicado: _¿Cómo usarías esto? ¿Dónde lo ves en la vida real?_`,
+      `**Relacionan** lo aprendido en fases anteriores con el desafío de aplicación que **abordarán** hoy en "${tema}".`,
+      `**Establecen** sus metas de desempeño para la sesión: _¿Qué quiero lograr hoy? ¿Cómo sabré que lo logré?_`,
+      `**Escuchan** y **registran** la intención pedagógica y el propósito de la sesión.`,
     ],
   ];
   return generic[fasePos % generic.length];
 };
 
-const _getActsDesarrolloIngles = (tema, fasePos, diaNum) => {
-  const banco = _getBancoTemaIngles(tema);
-  const varIdx = Math.min(fasePos, 2);
+const _getActsDesarrolloIngles = (tema, fasePos, diaNum, mc = {}) => {
+  const vSlice = (n, k = 4) => mc.vocabulario?.slice(n, n + k).join(', ') || `vocabulario de "${tema}"`;
+  const gram0  = mc.gramatica?.[0] || `estructuras gramaticales de "${tema}"`;
 
-  // Fase 0 — Presentación / Diagnóstico: vocabulario + speaking oral
+  // Fase 0 — Presentación: vocabulario + speaking oral
   if (fasePos === 0) {
-    const vocab = banco ? banco.vocabulario[0] : `vocabulario esencial de "${tema}"`;
+    const v0 = vSlice(0);
     return [
-      `Presentan vocabulario clave de "${tema}" con imágenes de personas realizando las actividades. Los estudiantes repiten cada palabra en coro y luego individualmente, cuidando la pronunciación.`,
-      `Practican en parejas usando las imágenes: "Look at the picture. What is she/he doing?" Los compañeros responden con oraciones completas: "She/He is waking up / having breakfast / going to school."`,
-      `Realizan actividad de asociación: relacionan el vocabulario de "${tema}" con las imágenes o descripciones correspondientes. Verifican respuestas con el compañero y corrigen juntos los errores.`,
-      `El docente modela oraciones completas sobre "${tema}" usando el vocabulario presentado. Vocabulario trabajado: ${vocab}. Los estudiantes construyen sus propias oraciones siguiendo el modelo dado.`,
+      `**Observan** vocabulario clave de "${tema}" con imágenes o recursos visuales. **Repiten** cada palabra en coro y luego individualmente, cuidando pronunciación.`,
+      `**Practican** en parejas señalando y describiendo en inglés lo que ven: _Point and say what you see. Describe it in English._ Vocabulario: _${v0}_.`,
+      `**Realizan** actividad de asociación: _relacionan el vocabulario de "${tema}" con imágenes o descripciones_. **Verifican** con el compañero y **corrigen** errores juntos.`,
+      `**Elaboran** 3–5 oraciones completas sobre "${tema}" siguiendo el modelo presentado. Vocabulario trabajado: _${v0}_.`,
     ];
   }
 
   // Fase 1 — Desarrollo: lectura + gramática en contexto
   if (fasePos === 1) {
-    const vocab = banco ? banco.vocabulario[1] : `estructuras y vocabulario de "${tema}"`;
+    const v1 = vSlice(4);
     return [
-      `Leen un texto corto sobre "${tema}" y responden preguntas de comprensión en tres niveles: literal (¿qué dice?), inferencial (¿qué significa?) e interpretativo (¿qué opinas?).`,
-      `Analizan la estructura gramatical del texto: identifican el patrón, lo nombran y explican su función. El docente presenta la regla en la pizarra con ejemplos del contexto de "${tema}".`,
-      `Practican la estructura en ejercicios contextualizados: completan oraciones, transforman ejemplos y construyen 3–5 oraciones propias sobre "${tema}". Vocabulario de apoyo: ${vocab}.`,
-      `Comparten sus respuestas en parejas. El docente retroalimenta la precisión gramatical y corrige errores comunes frente a toda la clase de manera positiva y motivadora.`,
+      `**Leen** un texto corto sobre "${tema}" y **responden** preguntas de comprensión: _literal, inferencial e interpretativo_.`,
+      `**Analizan** la estructura gramatical del texto relacionado con "${tema}": _identifican el patrón, lo nombran y explican su función_. Estructura trabajada: _${gram0}_.`,
+      `**Practican** en ejercicios contextualizados: _completan oraciones, transforman ejemplos y construyen 3–5 oraciones propias sobre "${tema}"_. Vocabulario de apoyo: _${v1}_.`,
+      `**Comparten** respuestas en parejas. **Reciben** retroalimentación sobre precisión gramatical de manera positiva y formativa.`,
     ];
   }
 
   // Fase 2 — Profundización: escritura + revisión por pares
-  const vocab2 = banco ? banco.vocabulario[2] : `vocabulario avanzado de "${tema}"`;
+  const v2 = vSlice(8);
   return [
-    `Amplían el vocabulario de "${tema}" con nuevas expresiones y colocaciones. Los estudiantes las registran en su glosario personal con definición y oración de ejemplo propia. Vocabulario: ${vocab2}.`,
-    `Redactan un párrafo o diálogo sobre "${tema}" usando el vocabulario y las estructuras trabajadas. Utilizan el organizador gráfico de la unidad como guía de escritura.`,
-    `Intercambian su producción para revisión por pares (peer editing): verifican vocabulario, gramática y claridad. Anotan dos aspectos positivos y una sugerencia concreta de mejora.`,
-    `Incorporan las correcciones del peer editing y comparten oralmente un fragmento de su producción ante el grupo. El docente retroalimenta la expresión oral y escrita de manera formativa.`,
+    `**Amplían** el vocabulario de "${tema}": _expresiones nuevas y colocaciones_. **Registran** en glosario personal: _definición en inglés + oración de ejemplo_. Vocabulario: _${v2}_.`,
+    `**Redactan** un párrafo o diálogo sobre "${tema}" usando el vocabulario y las estructuras trabajadas.`,
+    `**Intercambian** su producción para revisión por pares _(peer editing)_: _vocabulario, gramática y claridad_. **Anotan** dos aspectos positivos y una sugerencia de mejora.`,
+    `**Comparten** oralmente un fragmento de su producción sobre "${tema}". **Reciben** retroalimentación formativa.`,
   ];
 };
 
-const getActsDesarrollo = (area, tema, fasePos, diaNum) => {
-  if (area === "Inglés") return _getActsDesarrolloIngles(tema, fasePos, diaNum);
+const getActsDesarrollo = (area, tema, fasePos, diaNum, mc = {}) => {
+  if (area === "Inglés") return _getActsDesarrolloIngles(tema, fasePos, diaNum, mc);
 
   const variantes = {
     "Inglés": [
       // Variante 0 — Fase 1 (Presentación): LISTENING + SPEAKING
       [
-        `Realizan comprensión auditiva con propósito definido: _{expr_listening_nombre}_ sobre "${tema}". _({expr_listening_tarea})_ Progresión de tres escuchas: (1) tema general, (2) palabras clave, (3) detalles específicos.`,
-        `Responden preguntas orales de comprensión auditiva sobre "${tema}". Usan oraciones completas y el vocabulario escuchado. _({expr_comprension_listening})_`,
-        `Practican la pronunciación del vocabulario clave de "${tema}": el docente modela con énfasis en entonación y acento; los estudiantes repiten en coro y luego individualmente. _({expr_pronunciacion})_`,
-        `Realizan speaking en parejas: un estudiante pregunta usando vocabulario del audio, el otro responde. _({expr_parejas})_ Reciben retroalimentación del docente sobre pronunciación y fluidez.`,
+        `**Realizan** comprensión auditiva con propósito definido: _{expr_listening_nombre}_ sobre "${tema}". _({expr_listening_tarea})_ Progresión de tres escuchas: _(1) tema general, (2) palabras clave, (3) detalles específicos)_.`,
+        `**Responden** preguntas orales de comprensión auditiva sobre "${tema}". **Usan** oraciones completas y el vocabulario escuchado. _({expr_comprension_listening})_`,
+        `**Practican** la pronunciación del vocabulario clave de "${tema}": **repiten** en coro y luego individualmente, cuidando entonación y acento. _({expr_pronunciacion})_`,
+        `**Realizan** speaking en parejas: un estudiante **pregunta** usando vocabulario del audio, el otro **responde**. _({expr_parejas})_ **Reciben** retroalimentación sobre pronunciación y fluidez.`,
       ],
       // Variante 1 — Fase 2 (Desarrollo): READING + GRAMMAR in context
       [
-        `Leen un texto de "${tema}" y realizan comprensión lectora en tres niveles: literal _(¿qué dice?)_, inferencial _(¿qué significa?)_ e interpretativo _(¿qué opinas?)_. _({expr_comprension_reading})_`,
-        `Analizan las estructuras gramaticales del texto de "${tema}": identifican el patrón, lo nombran y explican su función. _({expr_gramatica})_`,
-        `Practican la gramática de "${tema}" en ejercicios contextualizados: completan diálogos, transforman oraciones y construyen ejemplos propios. _({expr_instruccion})_`,
-        `Comparten sus respuestas con el grupo. El docente retroalimenta precisión gramatical y comprensión lectora. _({expr_retroalimentacion})_`,
+        `**Leen** un texto de "${tema}" y **realizan** comprensión lectora en tres niveles: _literal (¿qué dice?), inferencial (¿qué significa?) e interpretativo (¿qué opinas?)_. _({expr_comprension_reading})_`,
+        `**Analizan** las estructuras gramaticales del texto de "${tema}": **identifican** el patrón, lo **nombran** y **explican** su función. _({expr_gramatica})_`,
+        `**Practican** la gramática de "${tema}" en ejercicios contextualizados: **completan** diálogos, **transforman** oraciones y **construyen** ejemplos propios. _({expr_instruccion})_`,
+        `**Comparten** sus respuestas con el grupo. **Reciben** retroalimentación sobre precisión gramatical y comprensión lectora. _({expr_retroalimentacion})_`,
       ],
       // Variante 2 — Fase 3 (Profundización): WRITING + VOCABULARY + Speaking
       [
-        `Amplían el vocabulario de "${tema}": sinónimos, expresiones idiomáticas y colocaciones. Registran en su glosario: definición en inglés + oración de ejemplo. _({expr_vocabulario})_`,
-        `Redactan sobre "${tema}": párrafo, diálogo, historia o email usando vocabulario y estructuras aprendidas. Aplican reglas ortográficas del inglés. _({expr_writing})_`,
-        `Intercambian su producción para revisión por pares _(peer editing)_: verifican vocabulario, gramática, coherencia y claridad. Devuelven con 2 elogios y 1 sugerencia de mejora. _({expr_parejas})_`,
-        `Comparten oralmente un fragmento de su producción ante el grupo. El docente retroalimenta la expresión escrita y oral. _({expr_retroalimentacion})_`,
+        `**Amplían** el vocabulario de "${tema}": _sinónimos, expresiones idiomáticas y colocaciones_. **Registran** en su glosario: _definición en inglés + oración de ejemplo_. _({expr_vocabulario})_`,
+        `**Redactan** sobre "${tema}": _párrafo, diálogo, historia o email_ usando vocabulario y estructuras aprendidas. **Aplican** reglas ortográficas del inglés. _({expr_writing})_`,
+        `**Intercambian** su producción para revisión por pares _(peer editing)_: **verifican** vocabulario, gramática, coherencia y claridad. **Devuelven** con 2 elogios y 1 sugerencia de mejora. _({expr_parejas})_`,
+        `**Comparten** oralmente un fragmento de su producción ante el grupo. **Reciben** retroalimentación sobre la expresión escrita y oral. _({expr_retroalimentacion})_`,
       ],
     ],
     "Matemática": [
       [
-        `Observan la explicación del docente sobre "${tema}" con ejemplos paso a paso en la pizarra. Analizan el procedimiento e identifican los pasos esenciales.`,
-        `Resuelven ejercicios guiados individualmente. El docente circula, verifica la comprensión y brinda retroalimentación inmediata.`,
-        `Trabajan en parejas resolviendo 3–4 problemas aplicados sobre "${tema}". Explican oralmente su procedimiento al compañero (think-aloud).`,
-        `Socializan las respuestas con el grupo. El docente aclara errores comunes y refuerza el procedimiento correcto. Registran en su cuaderno el proceso y los ejemplos claves.`,
+        `**Observan** ejemplos paso a paso de "${tema}" y **analizan** el procedimiento e **identifican** los pasos esenciales.`,
+        `**Resuelven** ejercicios guiados individualmente. **Reciben** retroalimentación inmediata sobre su comprensión.`,
+        `**Trabajan** en parejas **resolviendo** 3–4 problemas aplicados sobre "${tema}". **Explican** oralmente su procedimiento al compañero _(think-aloud)_.`,
+        `**Socializan** las respuestas con el grupo. **Aclaran** errores comunes y **refuerzan** el procedimiento correcto. **Registran** en su cuaderno el proceso y los ejemplos claves.`,
       ],
       [
-        `Analizan el nuevo concepto de "${tema}" mediante material concreto, representación gráfica o situación real presentada por el docente. Identifican sus características y propiedades.`,
-        `Exploran y practican en estaciones de aprendizaje donde aplican diferentes aspectos de "${tema}". Argumentan oralmente sus estrategias ante sus compañeros.`,
-        `Resuelven en grupos un problema desafiante sobre "${tema}" eligiendo la estrategia más adecuada. Representan el proceso de manera gráfica y/o numérica.`,
-        `Ponen en común los resultados. El docente sistematiza los aprendizajes en la pizarra. Registran el procedimiento, propiedades y ejemplos del día en el cuaderno.`,
+        `**Analizan** el nuevo concepto de "${tema}" mediante material concreto, representación gráfica o situación real. **Identifican** sus características y propiedades.`,
+        `**Exploran** y **practican** en estaciones de aprendizaje donde **aplican** diferentes aspectos de "${tema}". **Argumentan** oralmente sus estrategias ante sus compañeros.`,
+        `**Resuelven** en grupos un problema desafiante sobre "${tema}" **eligiendo** la estrategia más adecuada. **Representan** el proceso de manera gráfica y/o numérica.`,
+        `**Ponen** en común los resultados. **Sistematizan** los aprendizajes y **registran** el procedimiento, propiedades y ejemplos del día en el cuaderno.`,
       ],
       [
-        `Observan situaciones problemáticas con diferentes niveles de complejidad sobre "${tema}" y seleccionan la estrategia más adecuada para resolverlas.`,
-        `Resuelven individualmente y luego comparan sus respuestas y estrategias en pequeños grupos. Identifican semejanzas y diferencias entre los procedimientos utilizados.`,
-        `Representan el mismo problema de dos maneras diferentes: gráfica, numérica o concreta. Analizan y comparan las estrategias de sus compañeros.`,
-        `Identifican y registran la propiedad o regla matemática aplicada en "${tema}". El docente consolida los aprendizajes destacando los procedimientos más eficientes.`,
+        `**Observan** situaciones problemáticas con diferentes niveles de complejidad sobre "${tema}" y **seleccionan** la estrategia más adecuada para **resolverlas**.`,
+        `**Resuelven** individualmente y luego **comparan** sus respuestas y estrategias en pequeños grupos. **Identifican** semejanzas y diferencias entre los procedimientos utilizados.`,
+        `**Representan** el mismo problema de dos maneras diferentes: _gráfica, numérica o concreta_. **Analizan** y **comparan** las estrategias de sus compañeros.`,
+        `**Identifican** y **registran** la propiedad o regla matemática aplicada en "${tema}". **Consolidan** los aprendizajes **destacando** los procedimientos más eficientes.`,
       ],
     ],
     "Lengua Española": [
       [
-        `Observan y leen el texto o recurso principal relacionado con "${tema}" presentado por el docente. Identifican sus características, estructura y elementos lingüísticos claves.`,
-        `Analizan los elementos gramaticales, ortográficos y textuales relacionados con "${tema}" mediante ejemplos concretos. Diferencian usos y aplican reglas en contexto.`,
-        `Describen oralmente y producen un texto escrito relacionado con "${tema}" siguiendo el modelo y las orientaciones del docente. Realizan trabajo colaborativo en parejas o grupos.`,
-        `Socializan sus producciones con el grupo. Reciben retroalimentación del docente y los compañeros. Revisan y corrigen aspectos de coherencia, cohesión y ortografía.`,
+        `**Observan** y **leen** el texto o recurso principal relacionado con "${tema}". **Identifican** sus características, estructura y elementos lingüísticos claves.`,
+        `**Analizan** los elementos gramaticales, ortográficos y textuales relacionados con "${tema}" mediante ejemplos concretos. **Diferencian** usos y **aplican** reglas en contexto.`,
+        `**Describen** oralmente y **producen** un texto escrito relacionado con "${tema}" siguiendo el modelo. **Realizan** trabajo colaborativo en parejas o grupos.`,
+        `**Socializan** sus producciones con el grupo. **Reciben** retroalimentación de sus compañeros. **Revisan** y **corrigen** aspectos de coherencia, cohesión y ortografía.`,
       ],
       [
-        `Observan un texto modelo relacionado con "${tema}" y analizan su estructura, propósito comunicativo y características lingüísticas. Relacionan el contenido con situaciones de la vida real.`,
-        `Analizan y practican los elementos gramaticales u ortográficos vinculados a "${tema}" mediante ejercicios guiados y ejemplos del contexto cotidiano.`,
-        `Producen un texto oral y/o escrito sobre "${tema}" aplicando los elementos trabajados. Utilizan organizadores gráficos, esquemas o borradores como apoyo al proceso de escritura.`,
-        `Comparten sus producciones con el grupo. Interactúan dando y recibiendo retroalimentación constructiva. Revisan y mejoran sus textos incorporando las sugerencias recibidas.`,
+        `**Observan** un texto modelo relacionado con "${tema}" y **analizan** su estructura, propósito comunicativo y características lingüísticas. **Relacionan** el contenido con situaciones de la vida real.`,
+        `**Analizan** y **practican** los elementos gramaticales u ortográficos vinculados a "${tema}" mediante ejercicios guiados y ejemplos del contexto cotidiano.`,
+        `**Producen** un texto oral y/o escrito sobre "${tema}" **aplicando** los elementos trabajados. **Utilizan** organizadores gráficos, esquemas o borradores como apoyo al proceso de escritura.`,
+        `**Comparten** sus producciones con el grupo. **Interactúan** dando y recibiendo retroalimentación constructiva. **Revisan** y **mejoran** sus textos **incorporando** las sugerencias recibidas.`,
       ],
       [
-        `Leen y analizan un texto relacionado con "${tema}" respondiendo preguntas de comprensión literal, inferencial y crítica. Identifican vocabulario nuevo y lo registran en su cuaderno.`,
-        `Analizan y aplican las normas gramaticales u ortográficas relacionadas con "${tema}" mediante situaciones comunicativas reales y ejemplos del entorno.`,
-        `Producen textos orales y escritos relacionados con "${tema}" en parejas o grupos. Aplican el vocabulario y las normas trabajadas durante la sesión.`,
-        `Presentan y socializan sus producciones. Integran la retroalimentación recibida para corregir y mejorar sus textos. El docente sistematiza los aprendizajes claves.`,
+        `**Leen** y **analizan** un texto relacionado con "${tema}" **respondiendo** preguntas de comprensión: _literal, inferencial y crítica_. **Identifican** vocabulario nuevo y lo **registran** en su cuaderno.`,
+        `**Analizan** y **aplican** las normas gramaticales u ortográficas relacionadas con "${tema}" mediante situaciones comunicativas reales y ejemplos del entorno.`,
+        `**Producen** textos orales y escritos relacionados con "${tema}" en parejas o grupos. **Aplican** el vocabulario y las normas trabajadas durante la sesión.`,
+        `**Presentan** y **socializan** sus producciones. **Integran** la retroalimentación recibida para corregir y mejorar sus textos. **Sistematizan** los aprendizajes claves.`,
       ],
     ],
   };
@@ -597,128 +572,128 @@ const getActsDesarrollo = (area, tema, fasePos, diaNum) => {
   // Fallback genérico
   const generic = [
     [
-      `Observan el recurso principal de "${tema}" e identifican sus características. Expresan sus primeras observaciones e hipótesis sobre el contenido.`,
-      `Exploran el contenido de "${tema}" mediante actividades guiadas: el docente modela, los estudiantes practican. Preguntas de verificación en cada paso.`,
-      `Construyen en grupos una representación o explicación inicial de "${tema}": mapa, esquema, modelo o descripción con sus propias palabras.`,
-      `Socializan sus representaciones. El docente sistematiza los aprendizajes y corrige concepciones erróneas. Registran en el cuaderno.`,
+      `**Observan** el recurso principal de "${tema}" e **identifican** sus características. **Expresan** sus primeras observaciones e hipótesis sobre el contenido.`,
+      `**Exploran** el contenido de "${tema}" mediante actividades guiadas: **practican** el modelo presentado y **responden** preguntas de verificación en cada paso.`,
+      `**Construyen** en grupos una representación o explicación inicial de "${tema}": _mapa, esquema, modelo o descripción con sus propias palabras_.`,
+      `**Socializan** sus representaciones. **Sistematizan** los aprendizajes y **corrigen** concepciones erróneas. **Registran** en el cuaderno.`,
     ],
     [
-      `Analizan el contenido de "${tema}" con mayor profundidad: causas, relaciones, propiedades, procedimientos o estructuras. Diferencian conceptos claves.`,
-      `Practican en parejas o grupos aplicando lo analizado sobre "${tema}" en ejercicios o situaciones guiadas. El docente circula y provee retroalimentación.`,
-      `Trabajan colaborativamente resolviendo una situación más compleja de "${tema}". Argumentan sus decisiones y estrategias de forma oral y escrita.`,
-      `Ponen en común resultados. El docente consolida los aprendizajes esenciales, aclara dudas y conecta con el objetivo de la sesión.`,
+      `**Analizan** el contenido de "${tema}" con mayor profundidad: _causas, relaciones, propiedades, procedimientos o estructuras_. **Diferencian** conceptos claves.`,
+      `**Practican** en parejas o grupos **aplicando** lo analizado sobre "${tema}" en ejercicios o situaciones guiadas. **Reciben** retroalimentación de manera continua.`,
+      `**Trabajan** colaborativamente **resolviendo** una situación más compleja de "${tema}". **Argumentan** sus decisiones y estrategias de forma oral y escrita.`,
+      `**Ponen** en común resultados. **Consolidan** los aprendizajes esenciales, **aclaran** dudas y **conectan** con el objetivo de la sesión.`,
     ],
     [
-      `Aplican los conocimientos construidos sobre "${tema}" en situaciones de mayor complejidad o en contextos diferentes al de la explicación inicial.`,
-      `Producen de forma autónoma o en grupos una solución, texto, representación o argumento relacionado con "${tema}" aplicando criterios de calidad.`,
-      `Evalúan críticamente su producción o la de un compañero: _¿Cumple los criterios? ¿Es correcto? ¿Qué mejoraría?_`,
-      `El docente retroalimenta las producciones destacando logros y señalando aspectos de mejora. Integran las sugerencias en una versión final.`,
+      `**Aplican** los conocimientos **construidos** sobre "${tema}" en situaciones de mayor complejidad o en contextos diferentes.`,
+      `**Producen** de forma autónoma o en grupos una solución, texto, representación o argumento relacionado con "${tema}" **aplicando** criterios de calidad.`,
+      `**Evalúan** críticamente su producción o la de un compañero: _¿Cumple los criterios? ¿Es correcto? ¿Qué mejoraría?_`,
+      `**Reciben** retroalimentación sobre sus producciones **destacando** logros y aspectos de mejora. **Integran** las sugerencias en una versión final.`,
     ],
   ];
   return generic[fasePos % generic.length];
 };
 
-const _getActsCierreIngles = (tema, fasePos, diaNum) => {
-  const banco = _getBancoTemaIngles(tema);
+const _getActsCierreIngles = (tema, fasePos, diaNum, mc = {}) => {
+  const vSlice = (n) => mc.vocabulario?.slice(n, n + 4).join(', ') || `vocabulario de "${tema}"`;
 
   // Fase 0 — Presentación: síntesis de vocabulario + exit ticket
   if (fasePos === 0) {
-    const vocab = banco ? banco.vocabulario[0] : `palabras de "${tema}"`;
+    const v0 = vSlice(0);
     return [
-      `Nombran en voz alta las palabras de "${tema}" que recuerdan de la sesión usando las imágenes o tarjetas de vocabulario. El docente retroalimenta la pronunciación de manera positiva.`,
-      `Reflexionan oralmente: "Today I learned ___ words about ${tema}. I can say ___ in English now. I still need to practice ___."`,
-      `Completan un exit ticket individual: escriben o dibujan 3 actividades relacionadas con "${tema}" que realizan cada día, indicando la hora aproximada. Vocabulario esperado: ${vocab}.`,
-      `El docente orienta la tarea para el hogar y conecta con la próxima sesión. "For homework, write 5 sentences about your own daily routine. See you next class!"`,
+      `**Nombran** en voz alta las palabras de "${tema}" que **recuerdan** de la sesión. **Reciben** retroalimentación sobre pronunciación de manera positiva.`,
+      `**Reflexionan** sobre lo aprendido. _("What words about ${tema} did you learn today?")_`,
+      `**Completan** un exit ticket individual: _escriben o dibujan 3 elementos de "${tema}" que aprendieron hoy_. Vocabulario: _${v0}_.`,
+      `**Escuchan** la tarea para el hogar relacionada con "${tema}" y la conexión con la próxima sesión.`,
     ];
   }
 
   // Fase 1 — Desarrollo: word wall + síntesis gramatical + tarea
   if (fasePos === 1) {
-    const vocab = banco ? banco.vocabulario[1] : `vocabulario y estructuras de "${tema}"`;
+    const v1 = vSlice(4);
     return [
-      `Construyen colectivamente en la pizarra un Word Wall con vocabulario, expresiones de tiempo y estructuras gramaticales de "${tema}" aprendidas durante la sesión.`,
-      `Reflexionan sobre lo aprendido: "What grammar structure did we practice today? When do we use it? Can you give me one example about ${tema}?"`,
-      `Completan un exit ticket: escriben 3 oraciones sobre "${tema}" usando la estructura gramatical trabajada. Vocabulario de apoyo: ${vocab}.`,
-      `El docente orienta la tarea relacionada con "${tema}" y anuncia el contenido de la próxima sesión. "Excellent work today! See you next class!"`,
+      `**Construyen** colectivamente un _Word Wall_ con vocabulario, expresiones y estructuras de "${tema}" trabajadas en la sesión.`,
+      `**Reflexionan** sobre lo aprendido. _("What grammar structure did we practice? Can you give an example about ${tema}?")_`,
+      `**Completan** un exit ticket: _3 oraciones sobre "${tema}" usando la estructura trabajada_. Vocabulario de apoyo: _${v1}_.`,
+      `**Escuchan** la orientación de la tarea relacionada con "${tema}" y la próxima sesión.`,
     ];
   }
 
   // Fase 2 — Profundización: compartir producción + autoevaluación + portafolio
   return [
-    `Leen en voz alta un fragmento de su producción escrita sobre "${tema}" ante el grupo o en parejas. Los compañeros escuchan y ofrecen retroalimentación positiva y constructiva.`,
-    `Autoevalúan su producción respondiendo: "Is my vocabulary appropriate for ${tema}? Are my sentences correct? Is my paragraph clear and well-organized?"`,
-    `Incorporan las correcciones finales en su producción y la archivan en su portafolio de la unidad como evidencia de avance hacia el producto final.`,
-    `El docente cierra la sesión con reconocimiento al grupo: "Excellent work today! You're making great progress with ${tema}. See you next class!"`,
+    `**Leen** en voz alta un fragmento de su producción sobre "${tema}" ante el grupo o en parejas. **Reciben** retroalimentación positiva y constructiva.`,
+    `**Autoevalúan** su producción. _("Is my vocabulary appropriate for ${tema}? Are my sentences correct and clear?")_`,
+    `**Incorporan** correcciones finales y **archivan** en su portafolio como evidencia de avance en "${tema}".`,
+    `**Celebran** el progreso. _("Excellent work today! You're making great progress with ${tema}. See you next class!")_`,
   ];
 };
 
-const getActsCierre = (area, tema, fasePos, diaNum) => {
-  if (area === "Inglés") return _getActsCierreIngles(tema, fasePos, diaNum);
+const getActsCierre = (area, tema, fasePos, diaNum, mc = {}) => {
+  if (area === "Inglés") return _getActsCierreIngles(tema, fasePos, diaNum, mc);
 
   const variantes = {
     "Inglés": [
       // Variante 0 — Fase 1 (Presentación): reflexión LISTENING + primer vocabulario
       [
-        `Comparten oralmente 3 palabras o expresiones de "${tema}" que recuerdan del audio o diálogo de la sesión. _(What words did you catch? What was the main topic?)_`,
-        `Reflexionan sobre su comprensión auditiva: _(Was it easy or hard to understand? What helped you? What will you practice at home?)_`,
-        `Reciben retroalimentación del docente sobre pronunciación y vocabulario. Anotan 3–5 palabras clave de "${tema}" con su significado en el cuaderno.`,
-        `Completan un exit ticket individual antes de cerrar: _{({expr_exit_ticket})}_`,
-        `Despiden la sesión motivacionalmente en inglés. _({expr_despedida})_`,
+        `**Comparten** oralmente 3 palabras o expresiones de "${tema}" que **recuerdan** del audio o diálogo de la sesión. _(What words did you catch? What was the main topic?)_`,
+        `**Reflexionan** sobre su comprensión auditiva: _(Was it easy or hard to understand? What helped you? What will you practice at home?)_`,
+        `**Reciben** retroalimentación sobre pronunciación y vocabulario. **Anotan** 3–5 palabras clave de "${tema}" con su significado en el cuaderno.`,
+        `**Completan** un exit ticket individual antes de cerrar: _{({expr_exit_ticket})}_`,
+        `**Despiden** la sesión motivacionalmente en inglés. _({expr_despedida})_`,
       ],
       // Variante 1 — Fase 2 (Desarrollo): síntesis READING + GRAMMAR
       [
-        `Construyen colectivamente en la pizarra un "Word Wall" con palabras, expresiones y estructuras clave de "${tema}" aprendidas en la sesión.`,
-        `Completan un exit ticket individual sobre lectura y gramática del día: _{({expr_exit_ticket})}_`,
-        `Reflexionan sobre su proceso de lectura y gramática: _({expr_comprension_reading})_`,
-        `Reciben orientación sobre la tarea relacionada con reading o grammar de "${tema}". El docente conecta con la próxima sesión. _({expr_despedida})_`,
+        `**Construyen** colectivamente en la pizarra un _Word Wall_ con palabras, expresiones y estructuras clave de "${tema}" aprendidas en la sesión.`,
+        `**Completan** un exit ticket individual sobre lectura y gramática del día: _{({expr_exit_ticket})}_`,
+        `**Reflexionan** sobre su proceso de lectura y gramática: _({expr_comprension_reading})_`,
+        `**Reciben** orientación sobre la tarea relacionada con reading o grammar de "${tema}". **Escuchan** la conexión con la próxima sesión. _({expr_despedida})_`,
       ],
       // Variante 2 — Fase 3 (Profundización): síntesis WRITING + producción
       [
-        `Leen en voz alta un fragmento de su producción escrita sobre "${tema}" ante el grupo o en parejas. Practican pronunciación, entonación y confianza oral.`,
-        `Autoevalúan su producción escrita: _(Is the vocabulary appropriate? Are the structures correct? Is it clear and well-organized?)_`,
-        `Completan un exit ticket sobre su proceso de escritura: _{({expr_exit_ticket})}_`,
-        `Integran las correcciones del peer editing y del docente en una versión mejorada de su texto sobre "${tema}".`,
-        `Despiden la sesión celebrando el progreso en escritura en inglés. _({expr_despedida})_`,
+        `**Leen** en voz alta un fragmento de su producción escrita sobre "${tema}" ante el grupo o en parejas. **Practican** pronunciación, entonación y confianza oral.`,
+        `**Autoevalúan** su producción escrita: _(Is the vocabulary appropriate? Are the structures correct? Is it clear and well-organized?)_`,
+        `**Completan** un exit ticket sobre su proceso de escritura: _{({expr_exit_ticket})}_`,
+        `**Integran** las correcciones del peer editing en una versión mejorada de su texto sobre "${tema}".`,
+        `**Despiden** la sesión **celebrando** el progreso en escritura en inglés. _({expr_despedida})_`,
       ],
     ],
     "Matemática": [
       [
-        `Resuelven individualmente 1–2 ejercicios de síntesis sobre "${tema}" como ticket de salida para verificar la comprensión.`,
-        `Comparten y verifican sus respuestas con el grupo. Identifican errores y los corrigen con apoyo del docente.`,
-        `Reflexionan sobre el aprendizaje del día respondiendo: _¿Qué aprendí? ¿Qué me resultó difícil? ¿Dónde puedo aplicar esto en mi vida cotidiana?_`,
-        `Reciben orientación sobre la tarea para el hogar y el docente anuncia el próximo contenido de la unidad.`,
+        `**Resuelven** individualmente 1–2 ejercicios de síntesis sobre "${tema}" como ticket de salida para verificar la comprensión.`,
+        `**Comparten** y **verifican** sus respuestas con el grupo. **Identifican** errores y los **corrigen** de manera colaborativa.`,
+        `**Reflexionan** sobre el aprendizaje del día **respondiendo**: _¿Qué aprendí? ¿Qué me resultó difícil? ¿Dónde puedo aplicar esto en mi vida cotidiana?_`,
+        `**Reciben** orientación sobre la tarea para el hogar y **escuchan** el próximo contenido de la unidad.`,
       ],
       [
-        `Responden preguntas de verificación oral sobre "${tema}" planteadas por el docente.`,
-        `Expresan con sus propias palabras el procedimiento o concepto aprendido. Tres voluntarios explican a sus compañeros cómo resolver un ejercicio de "${tema}".`,
-        `Integran la retroalimentación recibida durante la sesión y corrigen los errores identificados en sus producciones.`,
-        `Reciben y anotan la tarea para el hogar. El docente anuncia y conecta el próximo contenido con lo aprendido hoy.`,
+        `**Responden** preguntas de verificación oral sobre "${tema}".`,
+        `**Expresan** con sus propias palabras el procedimiento o concepto aprendido. Tres voluntarios **explican** a sus compañeros cómo **resolver** un ejercicio de "${tema}".`,
+        `**Integran** la retroalimentación recibida durante la sesión y **corrigen** los errores identificados en sus producciones.`,
+        `**Reciben** y **anotan** la tarea para el hogar. **Escuchan** la conexión del próximo contenido con lo aprendido hoy.`,
       ],
       [
-        `Sintetizan oralmente los aprendizajes claves de la sesión sobre "${tema}": propiedades, procedimientos y ejemplos.`,
-        `Completan en el cuaderno un resumen o esquema de "${tema}" con los conceptos más importantes aprendidos.`,
-        `Reflexionan sobre su desempeño y establecen metas personales de mejora para la próxima sesión.`,
-        `Reciben orientación sobre la tarea, expresan sus dudas finales y el docente anuncia el próximo contenido de la unidad.`,
+        `**Sintetizan** oralmente los aprendizajes claves de la sesión sobre "${tema}": _propiedades, procedimientos y ejemplos_.`,
+        `**Completan** en el cuaderno un resumen o esquema de "${tema}" con los conceptos más importantes aprendidos.`,
+        `**Reflexionan** sobre su desempeño y **establecen** metas personales de mejora para la próxima sesión.`,
+        `**Reciben** orientación sobre la tarea, **expresan** sus dudas finales y **escuchan** el próximo contenido de la unidad.`,
       ],
     ],
     "Lengua Española": [
       [
-        `Comparten información sobre "${tema}" y responden preguntas de reflexión sobre los textos o contenidos trabajados.`,
-        `Expresan opiniones breves sobre la utilidad del contenido aprendido y reconocen cómo aplicarlo en situaciones comunicativas reales de su entorno.`,
-        `Integran la retroalimentación recibida sobre sus producciones orales y escritas para corregir aspectos de coherencia, cohesión y ortografía.`,
-        `Reciben orientación sobre la tarea para el hogar y el docente anuncia el próximo contenido de la unidad.`,
+        `**Comparten** información sobre "${tema}" y **responden** preguntas de reflexión sobre los textos o contenidos trabajados.`,
+        `**Expresan** opiniones breves sobre la utilidad del contenido aprendido y **reconocen** cómo **aplicarlo** en situaciones comunicativas reales de su entorno.`,
+        `**Integran** la retroalimentación recibida sobre sus producciones orales y escritas para **corregir** aspectos de coherencia, cohesión y ortografía.`,
+        `**Reciben** orientación sobre la tarea para el hogar y **escuchan** el próximo contenido de la unidad.`,
       ],
       [
-        `Leen en voz alta sus producciones finales del día y comparten con el grupo lo aprendido sobre "${tema}".`,
-        `Reflexionan sobre el proceso de aprendizaje: _¿Qué aprendí hoy? ¿Qué me resultó difícil? ¿Cómo puedo mejorar mi expresión oral y escrita?_`,
-        `Integran la retroalimentación recibida y realizan correcciones finales en sus producciones escritas.`,
-        `Reciben la orientación de la tarea para el hogar y el docente anuncia el próximo contenido de la unidad.`,
+        `**Leen** en voz alta sus producciones finales del día y **comparten** con el grupo lo aprendido sobre "${tema}".`,
+        `**Reflexionan** sobre el proceso de aprendizaje: _¿Qué aprendí hoy? ¿Qué me resultó difícil? ¿Cómo puedo mejorar mi expresión oral y escrita?_`,
+        `**Integran** la retroalimentación recibida y **realizan** correcciones finales en sus producciones escritas.`,
+        `**Reciben** la orientación de la tarea para el hogar y **escuchan** el próximo contenido de la unidad.`,
       ],
       [
-        `Sintetizan oralmente los aprendizajes claves de la sesión sobre "${tema}" destacando vocabulario, normas y elementos textuales trabajados.`,
-        `Expresan en voz alta su producción final del día y reciben comentarios positivos del grupo y el docente.`,
-        `Reflexionan sobre su desempeño comunicativo y establecen compromisos personales de mejora.`,
-        `Reciben orientación sobre la tarea para el hogar y el docente anuncia y conecta el próximo contenido con lo aprendido hoy.`,
+        `**Sintetizan** oralmente los aprendizajes claves de la sesión sobre "${tema}" **destacando** vocabulario, normas y elementos textuales trabajados.`,
+        `**Expresan** en voz alta su producción final del día y **reciben** comentarios positivos del grupo.`,
+        `**Reflexionan** sobre su desempeño comunicativo y **establecen** compromisos personales de mejora.`,
+        `**Reciben** orientación sobre la tarea para el hogar y **escuchan** la conexión del próximo contenido con lo aprendido hoy.`,
       ],
     ],
   };
@@ -741,46 +716,49 @@ const getActsCierre = (area, tema, fasePos, diaNum) => {
   // Fallback genérico
   const generic = [
     [
-      `Completan el organizador "Antes pensaba... Ahora sé que..." sobre "${tema}". Comparan sus hipótesis iniciales con lo que descubrieron.`,
-      `Reflexionan en voz alta: _¿Confirmé mis hipótesis iniciales sobre {tema}? ¿Qué me sorprendió? ¿Qué nueva pregunta me genera?_`,
-      `Integran la retroalimentación del docente y corrigen concepciones erróneas que surgieron durante la exploración.`,
-      `Reciben orientación sobre la tarea para el hogar y el docente anuncia el próximo contenido de la unidad.`,
+      `**Completan** el organizador _"Antes pensaba... Ahora sé que..."_ sobre "${tema}". **Comparan** sus hipótesis iniciales con lo que **descubrieron**.`,
+      `**Reflexionan** en voz alta: _¿Confirmé mis hipótesis iniciales sobre ${tema}? ¿Qué me sorprendió? ¿Qué nueva pregunta me genera?_`,
+      `**Integran** la retroalimentación recibida y **corrigen** concepciones erróneas que surgieron durante la exploración.`,
+      `**Reciben** orientación sobre la tarea para el hogar y **escuchan** el próximo contenido de la unidad.`,
     ],
     [
-      `Sintetizan los aprendizajes del día elaborando con sus propias palabras una explicación de "${tema}": concepto, proceso, regla o estructura.`,
-      `Reflexionan sobre su proceso: _¿Qué estrategia me funcionó mejor para aprender {tema}? ¿Qué cambiaría para la próxima vez?_`,
-      `Tres voluntarios comparten su síntesis o una producción del día. El docente retroalimenta y el grupo complementa.`,
-      `Reciben la orientación de la tarea, la anotan en el cuaderno y el docente conecta con el próximo contenido.`,
+      `**Sintetizan** los aprendizajes del día **elaborando** con sus propias palabras una explicación de "${tema}": _concepto, proceso, regla o estructura_.`,
+      `**Reflexionan** sobre su proceso: _¿Qué estrategia me funcionó mejor para aprender ${tema}? ¿Qué cambiaría para la próxima vez?_`,
+      `Tres voluntarios **comparten** su síntesis o una producción del día. El grupo **complementa** y **retroalimenta** de manera constructiva.`,
+      `**Reciben** la orientación de la tarea, la **anotan** en el cuaderno y **escuchan** la conexión con el próximo contenido.`,
     ],
     [
-      `Autoevalúan su producción o desempeño del día usando los criterios de calidad establecidos para "${tema}".`,
-      `Reflexionan sobre su nivel de dominio actual: _¿Puedo aplicar {tema} de manera autónoma? ¿Qué necesito seguir practicando?_`,
-      `Establecen un compromiso personal de práctica o profundización relacionado con "${tema}" para el hogar o la próxima sesión.`,
-      `El docente cierra destacando el avance del grupo, orienta la tarea y anuncia el próximo contenido de la unidad.`,
+      `**Autoevalúan** su producción o desempeño del día usando los criterios de calidad establecidos para "${tema}".`,
+      `**Reflexionan** sobre su nivel de dominio actual: _¿Puedo aplicar ${tema} de manera autónoma? ¿Qué necesito seguir practicando?_`,
+      `**Establecen** un compromiso personal de práctica o profundización relacionado con "${tema}" para el hogar o la próxima sesión.`,
+      `**Celebran** el avance del grupo, **reciben** orientación de la tarea y **escuchan** el próximo contenido de la unidad.`,
     ],
   ];
   return generic[fasePos % generic.length];
 };
 
 const getEvidencias = (area, momento, _fasePos) => {
-  const types = {
+  const e = {
+    // Inicio: solo Conocimiento + Desempeño (no hay producto, es activación oral)
     Inicio: {
-      "Inglés": "Conocimientos previos:\n• Identifica palabras y expresiones básicas en inglés.\n• Relaciona el vocabulario con situaciones cotidianas conocidas.",
-      "Matemática": "Conocimientos previos:\n• Recuerda conceptos y procedimientos previos relacionados con el tema.\n• Relaciona el nuevo contenido con aprendizajes anteriores.",
-      default: "Conocimientos previos:\n• Demuestra saberes previos relacionados con el contenido.\n• Expresa ideas y preguntas sobre el tema con claridad.",
+      "Inglés": "**Conocimiento:**\n• Identifica palabras y expresiones básicas en inglés.\n• Relaciona el vocabulario con situaciones cotidianas conocidas.\n**Desempeño:**\n• Participa oralmente respondiendo preguntas de activación en inglés.\n• Expresa ideas con vocabulario conocido.",
+      "Matemática": "**Conocimiento:**\n• Recuerda conceptos y procedimientos previos relacionados con el tema.\n• Relaciona el nuevo contenido con aprendizajes anteriores.\n**Desempeño:**\n• Resuelve ejercicios de activación de manera oral o escrita.\n• Expresa hipótesis e ideas iniciales sobre el contenido del día.",
+      default: "**Conocimiento:**\n• Demuestra saberes previos relacionados con el contenido.\n• Expresa ideas y preguntas sobre el tema con claridad.\n**Desempeño:**\n• Participa en la dinámica de activación de manera activa.\n• Expresa hipótesis o predicciones iniciales de forma oral o escrita.",
     },
+    // Desarrollo: los tres (hay producción concreta en la sesión)
     Desarrollo: {
-      "Inglés": "Desempeños:\n• Usa vocabulario y estructuras gramaticales en contexto.\n• Produce oraciones y diálogos cortos de manera oral y/o escrita.\n• Comprende textos escritos o auditivos sencillos.",
-      "Matemática": "Desempeños:\n• Resuelve ejercicios y problemas aplicando el procedimiento correcto.\n• Explica sus estrategias de resolución de manera clara.\n• Registra el proceso y resultado de forma organizada.",
-      default: "Desempeños:\n• Aplica los conocimientos en actividades prácticas.\n• Participa activamente en las actividades colaborativas.\n• Produce evidencias concretas de los aprendizajes.",
+      "Inglés": "**Conocimiento:**\n• Comprende el vocabulario y las estructuras gramaticales trabajadas.\n• Reconoce el uso de las estructuras en contextos comunicativos.\n**Desempeño:**\n• Usa vocabulario y estructuras gramaticales en contexto oral y escrito.\n• Produce oraciones y diálogos cortos de manera autónoma.\n**Producto:**\n• Oraciones escritas, diálogos o párrafos producidos durante la sesión.",
+      "Matemática": "**Conocimiento:**\n• Comprende el procedimiento o concepto matemático trabajado.\n• Identifica propiedades y relaciones clave del tema.\n**Desempeño:**\n• Resuelve ejercicios y problemas aplicando el procedimiento correcto.\n• Explica sus estrategias de resolución de manera clara.\n**Producto:**\n• Ejercicios resueltos y registrados en el cuaderno con procedimiento completo.",
+      default: "**Conocimiento:**\n• Comprende los conceptos y contenidos trabajados durante la sesión.\n• Establece relaciones entre el nuevo contenido y sus saberes previos.\n**Desempeño:**\n• Aplica los conocimientos en actividades prácticas y colaborativas.\n• Participa activamente en las actividades de construcción del aprendizaje.\n**Producto:**\n• Producciones escritas, representaciones o ejercicios realizados en la sesión.",
     },
+    // Cierre: los tres (exit ticket, tarea o síntesis son productos concretos)
     Cierre: {
-      "Inglés": "Desempeños de cierre:\n• Resume con sus propias palabras lo aprendido en la sesión.\n• Completa la tarea asignada de manera autónoma.\n• Identifica sus avances y áreas de mejora en el idioma.",
-      "Matemática": "Desempeños de cierre:\n• Verifica la corrección de sus respuestas.\n• Expresa lo aprendido y lo que aún necesita reforzar.\n• Aplica el conocimiento en una situación de síntesis.",
-      default: "Desempeños de cierre:\n• Expresa los aprendizajes alcanzados durante la sesión.\n• Refleja sobre su proceso de aprendizaje.\n• Identifica la aplicación del contenido en su contexto.",
+      "Inglés": "**Conocimiento:**\n• Resume lo aprendido con sus propias palabras en inglés.\n• Identifica sus avances y áreas de mejora en el idioma.\n**Desempeño:**\n• Completa el exit ticket de manera autónoma.\n• Reflexiona sobre su proceso de aprendizaje en inglés.\n**Producto:**\n• Exit ticket completado / Tarea para el hogar asignada.",
+      "Matemática": "**Conocimiento:**\n• Expresa con sus propias palabras el concepto o procedimiento aprendido.\n• Identifica dónde puede aplicar el tema en situaciones cotidianas.\n**Desempeño:**\n• Verifica la corrección de sus respuestas y corrige errores identificados.\n• Reflexiona sobre su nivel de comprensión del tema.\n**Producto:**\n• Ticket de salida / Resumen o esquema del tema en el cuaderno.",
+      default: "**Conocimiento:**\n• Expresa los aprendizajes alcanzados durante la sesión.\n• Relaciona el contenido trabajado con situaciones de su contexto real.\n**Desempeño:**\n• Reflexiona sobre su proceso de aprendizaje de manera crítica.\n• Identifica avances personales y aspectos a reforzar.\n**Producto:**\n• Ticket de salida / Tarea para el hogar / Síntesis registrada en el cuaderno.",
     },
   };
-  const byMom = types[momento] || types.Inicio;
+  const byMom = e[momento] || e.Inicio;
   return byMom[area] || byMom.default;
 };
 
@@ -1095,17 +1073,17 @@ const getActsFase4Inicio = (area, tema, diaNum, totalDias) => {
   const esUltimo = diaNum >= totalDias;
   if (esUltimo) {
     return [
-      `Responden al saludo e indicaciones del docente. Revisan brevemente el portafolio o las producciones elaboradas a lo largo de la unidad sobre "${tema}".`,
-      `Retroalimentan el proceso completo de la unidad respondiendo preguntas de reflexión global: _¿Qué aprendí? ¿Cómo crecí? ¿Qué mejoré durante esta unidad?_`,
-      `Observan la rúbrica o los criterios de evaluación final y se preparan para la evaluación sumativa y/o la exposición del producto final.`,
-      `Escuchan la agenda del encuentro de cierre y la intención pedagógica del día.`,
+      `**Responden** al saludo e indicaciones iniciales. **Revisan** brevemente el portafolio o las producciones elaboradas a lo largo de la unidad sobre "${tema}".`,
+      `**Retroalimentan** el proceso completo de la unidad **respondiendo** preguntas de reflexión global: _¿Qué aprendí? ¿Cómo crecí? ¿Qué mejoré durante esta unidad?_`,
+      `**Observan** la rúbrica o los criterios de evaluación final y se **preparan** para la evaluación sumativa y/o la exposición del producto final.`,
+      `**Escuchan** la agenda del encuentro de cierre y la intención pedagógica del día.`,
     ];
   }
   return [
-    `Responden al saludo e indicaciones del docente. Revisan brevemente los avances del producto final y los criterios de calidad establecidos.`,
-    `Retroalimentan el trabajo de la sesión anterior: ¿qué quedó pendiente? ¿qué necesitan mejorar o completar hoy?`,
-    `Observan ejemplos de producciones de calidad relacionadas con "${tema}" y los criterios que las caracterizan.`,
-    `Escuchan la intención pedagógica del encuentro y organizan el trabajo del día para optimizar el tiempo disponible.`,
+    `**Responden** al saludo e indicaciones iniciales. **Revisan** brevemente los avances del producto final y los criterios de calidad establecidos.`,
+    `**Retroalimentan** el trabajo de la sesión anterior: _¿qué quedó pendiente? ¿qué necesitan mejorar o completar hoy?_`,
+    `**Observan** ejemplos de producciones de calidad relacionadas con "${tema}" y los criterios que las **caracterizan**.`,
+    `**Escuchan** la intención pedagógica del encuentro y **organizan** el trabajo del día para optimizar el tiempo disponible.`,
   ];
 };
 
@@ -1114,25 +1092,25 @@ const getActsFase4Desarrollo = (area, tema, diaNum, totalDias) => {
   const esPenultimo = diaNum === totalDias - 1;
   if (esUltimo) {
     return [
-      `Presentan su producto final ante el grupo aplicando los criterios de calidad trabajados durante la unidad. Demuestran dominio de los contenidos y competencias desarrolladas sobre "${tema}".`,
-      `Coevalúan las producciones de sus compañeros utilizando la rúbrica o los criterios de evaluación acordados. Ofrecen retroalimentación constructiva y respetuosa.`,
-      `Completan el instrumento de autoevaluación reflexionando honestamente sobre su desempeño, participación y aprendizaje a lo largo de la unidad.`,
-      `Integran la retroalimentación recibida de parte del docente y los compañeros y la registran como aprendizaje para futuras producciones.`,
+      `**Presentan** su producto final ante el grupo **aplicando** los criterios de calidad trabajados durante la unidad. **Demuestran** dominio de los contenidos y competencias desarrolladas sobre "${tema}".`,
+      `**Coevalúan** las producciones de sus compañeros utilizando la rúbrica o los criterios de evaluación acordados. **Ofrecen** retroalimentación constructiva y respetuosa.`,
+      `**Completan** el instrumento de autoevaluación **reflexionando** honestamente sobre su desempeño, participación y aprendizaje a lo largo de la unidad.`,
+      `**Integran** la retroalimentación recibida de sus compañeros y la **registran** como aprendizaje para futuras producciones.`,
     ];
   }
   if (esPenultimo) {
     return [
-      `Refinan y completan el producto final de la unidad sobre "${tema}" incorporando las sugerencias y correcciones recibidas en sesiones anteriores.`,
-      `Ensayan su presentación oral (si aplica) practicando con un compañero o grupo pequeño. Aplican criterios de claridad, fluidez y organización del discurso.`,
-      `Revisan la calidad visual y lingüística del producto final asegurándose de que cumple con los criterios establecidos en la rúbrica.`,
-      `Reciben retroalimentación formativa final del docente y realizan los ajustes necesarios antes de la presentación o entrega definitiva.`,
+      `**Refinan** y **completan** el producto final de la unidad sobre "${tema}" **incorporando** las sugerencias y correcciones recibidas en sesiones anteriores.`,
+      `**Ensayan** su presentación oral (si aplica) **practicando** con un compañero o grupo pequeño. **Aplican** criterios de claridad, fluidez y organización del discurso.`,
+      `**Revisan** la calidad visual y lingüística del producto final **asegurándose** de que cumple con los criterios establecidos en la rúbrica.`,
+      `**Reciben** retroalimentación formativa final y **realizan** los ajustes necesarios antes de la presentación o entrega definitiva.`,
     ];
   }
   return [
-    `Desarrollan el producto final de la unidad sobre "${tema}" trabajando colaborativamente. Aplican los contenidos conceptuales, procedimentales y actitudinales construidos durante las fases anteriores.`,
-    `Organizan, estructuran y producen los elementos del producto final siguiendo los criterios de calidad y el formato establecido.`,
-    `Reciben retroalimentación formativa del docente mientras trabajan y realizan ajustes progresivos en su producción.`,
-    `Avanzan en la preparación de la presentación o exposición del producto, distribuyendo responsabilidades y ensayando si aplica.`,
+    `**Desarrollan** el producto final de la unidad sobre "${tema}" **trabajando** colaborativamente. **Aplican** los contenidos conceptuales, procedimentales y actitudinales **construidos** durante las fases anteriores.`,
+    `**Organizan**, **estructuran** y **producen** los elementos del producto final siguiendo los criterios de calidad y el formato establecido.`,
+    `**Reciben** retroalimentación formativa mientras **trabajan** y **realizan** ajustes progresivos en su producción.`,
+    `**Avanzan** en la preparación de la presentación o exposición del producto, **distribuyendo** responsabilidades y **ensayando** si aplica.`,
   ];
 };
 
@@ -1260,21 +1238,466 @@ const INTENCIONES_FASE = [
   ],
 ];
 
+// ─── Banco de títulos específicos por día — Inglés ───────────────────────────
+//
+// Cada entrada del banco tiene 4 arrays (fase0–fase3) con títulos progresivos
+// que reflejan el contenido real de cada clase: gramática, habilidad y tema.
+// Si el tema no coincide, se usa el título genérico de TITULOS_FASE como fallback.
+
+const _BANCO_TITULOS_DIA = [
+  {
+    test: /rutina|routine|daily life|vida diaria|daily routine|my life|actividades diarias/i,
+    fase0: [
+      "Diagnóstico: saberes previos sobre Daily Routines",
+      "Vocabulario de entrada: Daily Activities y partes del día",
+    ],
+    fase1: [
+      "Vocabulario: Daily Activities — acciones cotidianas en inglés",
+      "Present Simple afirmativo: I wake up / I have breakfast / I go to school",
+      "Expresiones de tiempo: in the morning, at noon, in the evening, at night",
+      "Lectura: A Student's Daily Routine (comprensión literal e inferencial)",
+      "Present Simple negativo: I don't wake up late / I don't have lunch at home",
+      "Escucha activa: My Classmate's Routine — Listening Comprehension",
+      "Preguntas: Do you...? / What time do you...? (Yes/No & Wh-questions)",
+      "Adverbios de frecuencia: always, usually, sometimes, never",
+      "Tercera persona singular: She wakes up / He goes to school (verb + -s)",
+      "Escritura guiada: Describing Someone Else's Daily Routine",
+      "Revisión integrada: gramática, vocabulario y práctica oral",
+    ],
+    fase2: [
+      "Producción oral: Presenting My Daily Routine to the class",
+      "Escritura: My Daily Routine Paragraph — borrador inicial",
+      "Revisión por pares y mejora del párrafo / Peer Editing Session",
+      "Producto final: Daily Routine Infographic / Poster",
+    ],
+    fase3: [
+      "Organización y redacción del producto final",
+      "Refinamiento: correcciones e incorporación de retroalimentación",
+      "Ensayo de presentación oral / Rehearsing the Presentation",
+      "Exposición final y autoevaluación / coevaluación",
+      "Metacognición y cierre de la unidad",
+    ],
+  },
+  {
+    test: /greet|salud|introduc|hello|hi\b|presentation|presentaci/i,
+    fase0: [
+      "Diagnóstico: ¿Qué expresiones de saludo conoces en inglés?",
+      "Vocabulario de entrada: Greetings and Basic Expressions",
+    ],
+    fase1: [
+      "Saludos y expresiones básicas: Hello! / Good morning! / How are you?",
+      "Información personal: My name is... / I'm from... / I'm ___ years old",
+      "Escucha: Introduction Dialogues — Listening Comprehension",
+      "Preguntas personales: What's your name? / Where are you from?",
+      "Descripción personal: I like / I don't like / My favorite is...",
+      "Diálogos formales e informales: Nice to meet you / Pleased to meet you",
+      "Speaking: Pair Introductions — diálogo de presentación en parejas",
+      "Escritura: About Me — párrafo de presentación personal",
+    ],
+    fase2: [
+      "Producción oral: Self-Introduction Presentation",
+      "Escritura: My Personal Profile — borrador y revisión",
+      "Revisión por pares / Peer Editing Session",
+      "Producto final: Identity Card / Personal Poster",
+    ],
+    fase3: [
+      "Organización y redacción del producto final: perfil personal",
+      "Refinamiento y ensayo de la presentación",
+      "Exposición del producto final ante el grupo",
+      "Metacognición y cierre de la unidad",
+    ],
+  },
+  {
+    test: /famil|family|relatives|mi familia/i,
+    fase0: [
+      "Diagnóstico: Family Vocabulary — ¿Qué miembros de la familia conoces?",
+      "Vocabulario de entrada: Family Members y relaciones familiares",
+    ],
+    fase1: [
+      "Vocabulario: Family Members — mother, father, sister, brother, grandparents",
+      "Adjetivos posesivos: my, your, his, her, our, their",
+      "Descripción física: tall, short, young, old, kind, funny, hard-working",
+      "Lectura: My Family (comprensión literal e inferencial)",
+      "Present Simple con familia: My mother works / My father likes...",
+      "Actividades familiares: What do you do together as a family?",
+      "Escucha: A Family Day — Listening Activity",
+      "Escritura: My Family — párrafo descriptivo",
+    ],
+    fase2: [
+      "Producción oral: Presenting My Family to the class",
+      "Escritura: My Family Tree Description — borrador y revisión",
+      "Revisión por pares / Peer Editing Session",
+      "Producto final: Family Album / Family Poster",
+    ],
+    fase3: [
+      "Organización y redacción del producto final: álbum familiar",
+      "Refinamiento y ensayo de la presentación",
+      "Exposición del producto final ante el grupo",
+      "Metacognición y cierre de la unidad",
+    ],
+  },
+  {
+    test: /food|comida|nutrition|nutrici|healthy|saludable|eat|comer|meal|aliment/i,
+    fase0: [
+      "Diagnóstico: Food Vocabulary — ¿Qué alimentos conoces en inglés?",
+      "Vocabulario de entrada: Foods, Meals and Healthy Habits",
+    ],
+    fase1: [
+      "Vocabulario: Foods and Meals — breakfast, lunch, dinner, snack",
+      "Grupos alimenticios: Food Groups and Nutrition Basics",
+      "Expresiones de gusto: I like / I don't like / I love / I hate + food",
+      "Lectura: A Healthy Menu (comprensión lectora)",
+      "Adjetivos descriptivos: delicious, healthy, sweet, salty, fresh, tasty",
+      "Preguntas: What do you eat for breakfast? / Do you like vegetables?",
+      "Escucha: My Favorite Foods — Listening Activity",
+      "Escritura: My Healthy Menu — menú saludable descriptivo",
+    ],
+    fase2: [
+      "Producción oral: Describing My Favorite Meal",
+      "Escritura: A Healthy Menu / Recipe — borrador y revisión",
+      "Revisión por pares / Peer Editing Session",
+      "Producto final: Nutrition Poster / Recipe Book",
+    ],
+    fase3: [
+      "Organización y redacción del producto final: menú o libro de recetas",
+      "Refinamiento y ensayo de la presentación",
+      "Exposición del producto final ante el grupo",
+      "Metacognición y cierre de la unidad",
+    ],
+  },
+  {
+    test: /weather|clima|season|estaci|temperature|temperatura/i,
+    fase0: [
+      "Diagnóstico: Weather Vocabulary — ¿Cómo describes el tiempo en inglés?",
+      "Vocabulario de entrada: Weather Conditions and Seasons",
+    ],
+    fase1: [
+      "Vocabulario del tiempo: sunny, rainy, cloudy, windy, hot, cold, warm",
+      "Las estaciones: spring, summer, autumn/fall, winter y sus actividades",
+      "Gramática: It's + adjective (It's sunny today / It rains a lot in...)",
+      "Lectura: Weather Around the World (comprensión lectora)",
+      "Ropa según el clima: What do you wear when it's cold/rainy/hot?",
+      "Preguntas: What's the weather like? / How's the weather today?",
+      "Escucha: The Weather Forecast — Listening Activity",
+      "Escritura: Weather in My Community — descripción climática",
+    ],
+    fase2: [
+      "Producción oral: My Weather Report Presentation",
+      "Escritura: A Day in My Town — borrador y revisión",
+      "Revisión por pares / Peer Editing Session",
+      "Producto final: Weather Poster / Climate Report",
+    ],
+    fase3: [
+      "Organización y redacción del producto final: reporte climático",
+      "Refinamiento y ensayo de la presentación",
+      "Exposición del producto final ante el grupo",
+      "Metacognición y cierre de la unidad",
+    ],
+  },
+  {
+    test: /body|cuerpo|body parts|partes del cuerpo/i,
+    fase0: [
+      "Diagnóstico: Body Parts Vocabulary — ¿Qué partes del cuerpo conoces?",
+      "Vocabulario de entrada: The Human Body and Health Habits",
+    ],
+    fase1: [
+      "Vocabulario: Body Parts — head, arms, legs, hands, feet, eyes, nose, mouth",
+      "Hábitos saludables: exercise, rest, nutrition, hygiene, sleep",
+      "Imperativo para instrucciones: Touch your head! / Clap your hands!",
+      "Lectura: Healthy Habits (comprensión lectora)",
+      "Adjetivos de salud: healthy, sick, tired, strong, weak, fit",
+      "Preguntas de salud: How do you feel today? / What's the matter?",
+      "Escucha: At the Doctor's Office — Listening Activity",
+      "Escritura: My Healthy Habits — descripción personal",
+    ],
+    fase2: [
+      "Producción oral: My Body and Healthy Habits Presentation",
+      "Escritura: A Health Flyer — borrador y revisión",
+      "Revisión por pares / Peer Editing Session",
+      "Producto final: Health Poster / Body Map",
+    ],
+    fase3: [
+      "Organización y redacción del producto final: póster de salud",
+      "Refinamiento y ensayo de la presentación",
+      "Exposición del producto final ante el grupo",
+      "Metacognición y cierre de la unidad",
+    ],
+  },
+  {
+    test: /school|escuela|community|comunidad|classroom|aula|places|lugares/i,
+    fase0: [
+      "Diagnóstico: School and Community Places — ¿Qué lugares conoces?",
+      "Vocabulario de entrada: School Places and Community Vocabulary",
+    ],
+    fase1: [
+      "Vocabulario escolar: classroom, library, cafeteria, gym, office, hall",
+      "Preposiciones de lugar: in, on, at, next to, behind, in front of",
+      "Lugares de la comunidad: park, market, church, hospital, store, bank",
+      "Lectura: My School and Community (comprensión lectora)",
+      "Gramática: There is / There are — describing places",
+      "Preguntas: Where is the...? / Is there a...? / How do I get to...?",
+      "Escucha: A Tour of the Community — Listening Activity",
+      "Escritura: My Community — descripción del entorno",
+    ],
+    fase2: [
+      "Producción oral: A Tour of My School Presentation",
+      "Escritura: My Community Map — borrador y descripción",
+      "Revisión por pares / Peer Editing Session",
+      "Producto final: Community Map / School Guide",
+    ],
+    fase3: [
+      "Organización y redacción del producto final: mapa o guía",
+      "Refinamiento y ensayo de la presentación",
+      "Exposición del producto final ante el grupo",
+      "Metacognición y cierre de la unidad",
+    ],
+  },
+];
+
+// ─── Títulos específicos por día para otras áreas (no idiomas) ───────────────
+//
+// Progresiones pedagógicas por fase, independientes del tema específico.
+// Más descriptivas que los títulos genéricos de TITULOS_FASE.
+
+const _TITULOS_AREA = {
+  "Matemática": {
+    fase0: [
+      "Diagnóstico: saberes previos y exploración de la situación",
+      "Presentación de la situación de aprendizaje y motivación inicial",
+    ],
+    fase1: [
+      "Introducción de conceptos: definiciones, propiedades y notación",
+      "Representación: modelos concretos, gráficos y simbólicos",
+      "Procedimiento guiado: análisis paso a paso con ejemplos",
+      "Práctica colaborativa: ejercicios en parejas y grupos",
+      "Ejercitación: resolución de problemas con complejidad progresiva",
+      "Aplicación: resolución en situaciones contextualizadas",
+      "Consolidación: conexión con otros conceptos matemáticos",
+    ],
+    fase2: [
+      "Aplicación avanzada: problemas de mayor complejidad",
+      "Producción: construcción del producto matemático",
+      "Revisión por pares y mejora de producciones",
+      "Preparación y refinamiento del producto final",
+    ],
+    fase3: [
+      "Organización y presentación del producto matemático",
+      "Refinamiento: ajustes finales e incorporación de sugerencias",
+      "Exposición del producto ante el grupo",
+      "Autoevaluación, metacognición y cierre de la unidad",
+    ],
+  },
+  "Lengua Española": {
+    fase0: [
+      "Diagnóstico: saberes previos sobre el tipo de texto y el tema",
+      "Exploración: presentación de la situación comunicativa",
+    ],
+    fase1: [
+      "Lectura del texto modelo: estructura, propósito y características",
+      "Gramática en contexto: análisis de los elementos lingüísticos clave",
+      "Vocabulario: palabras y expresiones del área y del tipo de texto",
+      "Práctica oral: participación en situaciones comunicativas",
+      "Comprensión lectora: niveles literal, inferencial y crítico",
+      "Producción escrita guiada: borrador con andamiaje",
+      "Revisión gramatical y ortográfica: corrección y mejora del borrador",
+    ],
+    fase2: [
+      "Producción oral: exposición, debate o presentación",
+      "Escritura con mayor autonomía: segunda versión del texto",
+      "Revisión por pares y mejora con retroalimentación",
+      "Preparación y refinamiento de la producción final",
+    ],
+    fase3: [
+      "Organización y presentación de la producción final",
+      "Refinamiento: correcciones e incorporación de sugerencias",
+      "Exposición oral del texto o producción ante el grupo",
+      "Metacognición y cierre: reflexión sobre el proceso comunicativo",
+    ],
+  },
+  "Ciencias de la Naturaleza": {
+    fase0: [
+      "Diagnóstico: saberes previos y formulación de hipótesis iniciales",
+      "Exploración: presentación del fenómeno o problema científico",
+    ],
+    fase1: [
+      "Observación sistemática: registro de datos y primeras evidencias",
+      "Vocabulario científico: términos y conceptos clave del tema",
+      "Investigación guiada: indagación con metodología científica",
+      "Experimentación: práctica de laboratorio o exploración de campo",
+      "Análisis de datos: interpretación y discusión de resultados",
+      "Conexión: relación con otros fenómenos naturales y el entorno",
+      "Explicación científica: síntesis con evidencia (Afirmación-Evidencia-Razonamiento)",
+    ],
+    fase2: [
+      "Producción: elaboración del informe o producto científico",
+      "Revisión: análisis crítico y mejora de conclusiones",
+      "Preparación del producto científico final",
+      "Presentación y defensa preliminar de hallazgos",
+    ],
+    fase3: [
+      "Organización del informe o proyecto científico final",
+      "Refinamiento: correcciones e incorporación de retroalimentación",
+      "Exposición científica: presentación de hallazgos al grupo",
+      "Metacognición, transferencia y cierre de la unidad",
+    ],
+  },
+  "Ciencias Sociales": {
+    fase0: [
+      "Diagnóstico: saberes previos y exploración de fuentes iniciales",
+      "Presentación del contexto histórico-social y preguntas de investigación",
+    ],
+    fase1: [
+      "Análisis de fuentes primarias y secundarias sobre el tema",
+      "Organización: línea de tiempo, mapa conceptual o cuadro comparativo",
+      "Relaciones de causalidad: causas y consecuencias del proceso",
+      "Perspectivas: análisis desde diferentes actores y contextos",
+      "Argumentación: posición fundamentada en evidencia",
+      "Conexión: relación del tema con el contexto nacional y comunitario",
+      "Síntesis histórico-social: consolidación de los aprendizajes",
+    ],
+    fase2: [
+      "Producción: ensayo argumentativo o proyecto de investigación",
+      "Revisión y enriquecimiento de la producción",
+      "Preparación visual y oral del producto final",
+      "Presentación preliminar y retroalimentación",
+    ],
+    fase3: [
+      "Organización del producto investigativo final",
+      "Refinamiento: correcciones e incorporación de sugerencias",
+      "Exposición ante el grupo: defensa con argumentos y evidencia",
+      "Metacognición ciudadana y cierre de la unidad",
+    ],
+  },
+  "Educación Artística": {
+    fase0: [
+      "Diagnóstico: exploración de saberes previos y apreciación inicial",
+      "Presentación: contextualización del tema artístico y motivación",
+    ],
+    fase1: [
+      "Elementos del lenguaje artístico: conceptos y vocabulario clave",
+      "Apreciación: análisis de obras y producciones de referencia",
+      "Exploración técnica: experimentación con materiales y herramientas",
+      "Práctica guiada: ejercicios de técnica con andamiaje",
+      "Expresión creativa: producción personal con intención artística",
+      "Reflexión estética: análisis de producciones propias y ajenas",
+      "Consolidación técnica y conceptual del lenguaje artístico",
+    ],
+    fase2: [
+      "Producción: desarrollo de la obra o proyecto artístico",
+      "Revisión: crítica constructiva y mejora de la producción",
+      "Preparación de la exposición o presentación final",
+      "Refinamiento y acabado de la obra final",
+    ],
+    fase3: [
+      "Organización y montaje de la exposición o presentación",
+      "Presentación del producto artístico ante el grupo",
+      "Reflexión estética y autoevaluación del proceso creativo",
+      "Metacognición y cierre: ¿qué aprendí como artista?",
+    ],
+  },
+  "Educación Física": {
+    fase0: [
+      "Diagnóstico: evaluación de condición física y saberes previos",
+      "Presentación: exploración de las capacidades motrices del tema",
+    ],
+    fase1: [
+      "Calentamiento específico: activación motriz vinculada al tema",
+      "Aprendizaje técnico: demostración y práctica de habilidades",
+      "Práctica guiada: ejercicios con retroalimentación inmediata",
+      "Trabajo colaborativo: actividades en parejas y grupos",
+      "Aplicación en juego: transferencia a situaciones de juego real",
+      "Táctica y estrategia: comprensión del juego y toma de decisiones",
+      "Consolidación: práctica autónoma y retroalimentación formativa",
+    ],
+    fase2: [
+      "Aplicación en situaciones complejas: mini-torneos o pruebas",
+      "Producción del proyecto de actividad física o reglamento",
+      "Revisión y mejora de habilidades con retroalimentación de pares",
+      "Preparación del evento deportivo o demostración final",
+    ],
+    fase3: [
+      "Demostración de habilidades: práctica final evaluada",
+      "Evento deportivo o exposición del proyecto físico",
+      "Autoevaluación: valoración del progreso físico personal",
+      "Metacognición y cierre: hábitos de vida activa y salud",
+    ],
+  },
+  "Formación Integral Humana y Religiosa": {
+    fase0: [
+      "Diagnóstico: reflexión inicial sobre el tema de vida",
+      "Exploración: presentación del dilema o situación ética",
+    ],
+    fase1: [
+      "Diálogo de saberes: experiencias personales y comunitarias",
+      "Análisis ético: principios, valores y dilemas morales",
+      "Perspectivas religiosas y filosóficas sobre el tema",
+      "Reflexión crítica: implicaciones para la vida cotidiana",
+      "Acción solidaria: propuestas de transformación comunitaria",
+      "Espiritualidad y sentido: dimensión trascendente del tema",
+      "Consolidación: síntesis ética y compromiso personal",
+    ],
+    fase2: [
+      "Producción: proyecto de servicio, reflexión escrita o debate",
+      "Revisión y enriquecimiento de la propuesta ética",
+      "Preparación de la presentación o acción comunitaria",
+      "Ensayo: práctica de la presentación o propuesta final",
+    ],
+    fase3: [
+      "Presentación del proyecto ético o de servicio comunitario",
+      "Reflexión grupal: impacto del aprendizaje en la vida personal",
+      "Celebración y reconocimiento de los compromisos asumidos",
+      "Metacognición y cierre: ¿cómo me transformó este aprendizaje?",
+    ],
+  },
+};
+
+const _getTituloEspecificoDia = (area, tema, faseIdx, numDia) => {
+  const faseKey = ["fase0", "fase1", "fase2", "fase3"][faseIdx];
+
+  // Para Inglés: buscar en banco temático primero
+  if (area === "Inglés") {
+    const banco = _BANCO_TITULOS_DIA.find((b) => b.test.test(tema));
+    if (banco) {
+      const titulos = banco[faseKey];
+      if (titulos?.length > 0) return titulos[Math.min(numDia - 1, titulos.length - 1)];
+    }
+    // Fallback genérico para Inglés sin tema reconocido
+    const genericoIngles = {
+      fase0: ["Diagnóstico: saberes previos en inglés — Prior Knowledge Assessment", "Vocabulario de entrada: palabras clave de la unidad"],
+      fase1: ["Vocabulario: palabras y expresiones clave en inglés", "Gramática en contexto: estructura y uso", "Lectura: comprensión literal e inferencial", "Escucha activa: Listening Comprehension", "Producción oral: Speaking Practice", "Escritura guiada: producción escrita con modelo", "Revisión y consolidación: gramática, vocabulario y habilidades"],
+      fase2: ["Producción oral: presentación en inglés", "Escritura: borrador del producto final", "Revisión por pares / Peer Editing Session", "Producto final: producción comunicativa integrada"],
+      fase3: ["Organización y redacción del producto final", "Refinamiento e incorporación de retroalimentación", "Exposición final en inglés", "Metacognición y cierre de la unidad"],
+    };
+    const tit = genericoIngles[faseKey];
+    if (tit?.length > 0) return tit[Math.min(numDia - 1, tit.length - 1)];
+    return null;
+  }
+
+  // Para otras áreas: usar banco por área
+  const bancoArea = _TITULOS_AREA[area];
+  if (!bancoArea) return null;
+  const titulos = bancoArea[faseKey];
+  if (!titulos?.length) return null;
+  return titulos[Math.min(numDia - 1, titulos.length - 1)];
+};
+
 // ─── Generador principal de días y fases ─────────────────────────────────────
 
-const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal = "") => {
+const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal = "", mc = {}) => {
   // Título e intención según fase y posición del día
   const titulosF = TITULOS_FASE[faseIdx] || TITULOS_FASE[1];
-  const titulo = titulosF[Math.min(numDia - 1, titulosF.length - 1)];
+  const tituloGenerico = titulosF[Math.min(numDia - 1, titulosF.length - 1)];
+  const tituloEspecifico = _getTituloEspecificoDia(area, tema, faseIdx, numDia);
+  const titulo = tituloEspecifico || tituloGenerico;
   const intencionesF = INTENCIONES_FASE[faseIdx] || INTENCIONES_FASE[1];
   const intencionFn = intencionesF[Math.min(numDia - 1, intencionesF.length - 1)];
   const intencionPedagogica = intencionFn(tema);
 
   // Selección de actividades según fase (fase 4 usa generadores propios)
   const diaIdx = numDia - 1;
-  const actsInicio   = faseIdx === 3 ? getActsFase4Inicio(area, tema, numDia, totalDiasFase)     : getActsInicio(area, tema, faseIdx, diaIdx);
-  const actsDesarrollo = faseIdx === 3 ? getActsFase4Desarrollo(area, tema, numDia, totalDiasFase) : getActsDesarrollo(area, tema, faseIdx, diaIdx);
-  const actsCierre   = faseIdx === 3 ? getActsFase4Cierre(area, tema, numDia, totalDiasFase)     : getActsCierre(area, tema, faseIdx, diaIdx);
+  const actsInicio   = faseIdx === 3 ? getActsFase4Inicio(area, tema, numDia, totalDiasFase)     : getActsInicio(area, tema, faseIdx, diaIdx, mc);
+  const actsDesarrollo = faseIdx === 3 ? getActsFase4Desarrollo(area, tema, numDia, totalDiasFase) : getActsDesarrollo(area, tema, faseIdx, diaIdx, mc);
+  const actsCierre   = faseIdx === 3 ? getActsFase4Cierre(area, tema, numDia, totalDiasFase)     : getActsCierre(area, tema, faseIdx, diaIdx, mc);
 
   // Evaluación: última fase último día → sumativa
   const esUltimoDiaFase4 = faseIdx === 3 && numDia >= totalDiasFase;
@@ -1337,7 +1760,7 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
 
 const DIAS_ORDEN = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
-const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFinal = "", contexto = {}) => {
+const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFinal = "", contexto = {}, mallaContenidos = {}) => {
   const { diasClase, horasPorDia, duracionHoraClase } = schedule;
   const horasSemanales = diasClase.length * horasPorDia;
   const totalHorasClase = numSemanas * horasSemanales;
@@ -1359,7 +1782,7 @@ const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFina
     indicadoresAvance: getIndicadoresAvance(area, faseIdx, tema),
     posiblesDificultades: getPosiblesDificultades(area, faseIdx),
     dias: Array.from({ length: numHoras }, (_, d) =>
-      generarDia(d + 1, area, tema, faseIdx, numHoras, productoFinal)
+      generarDia(d + 1, area, tema, faseIdx, numHoras, productoFinal, mallaContenidos)
     ),
   }));
 
@@ -1466,9 +1889,64 @@ export const analizarComplejidad = ({ area = "", grado = "", nivel = "", titulo 
   };
 };
 
+// ─── Motor Especializado v1 — Helpers curriculares ───────────────────────────
+
+// Corpus: payload.temas es array de strings; también acepta array de objetos con .titulo/.nombre
+const _resolverTemaMalla = (tituloDocente, temas) => {
+  if (!Array.isArray(temas) || !temas.length) return null;
+  const getText = (t) => (typeof t === 'string' ? t : (t.titulo || t.nombre || t.topico || ''));
+  const lower   = (tituloDocente || '').toLowerCase();
+  let match = temas.find(t => getText(t).toLowerCase() === lower);
+  if (!match) {
+    match = temas.find(t => lower.includes(getText(t).toLowerCase()) && getText(t))
+         || temas.find(t => getText(t).toLowerCase().includes(lower) && lower.length > 3);
+  }
+  if (!match) {
+    const words = lower.split(/\s+/).filter(w => w.length > 3);
+    let bestScore = 0;
+    for (const t of temas) {
+      const score = words.filter(w => getText(t).toLowerCase().includes(w)).length;
+      if (score > bestScore) { bestScore = score; match = t; }
+    }
+  }
+  // Siempre devuelve el texto del tema (string), no el objeto
+  return match ? getText(match) : getText(temas[0]);
+};
+
+// Lee del payload de nivel-grado del corpus: contenidos.conceptos + contenidos.procedimientos
+const _extraerContenidosMallaCorpus = (mallaPayload) => {
+  const c = mallaPayload?.contenidos?.conceptos    || {};
+  const p = mallaPayload?.contenidos?.procedimientos || {};
+
+  // vocabulario: [{categoria, ejemplos[]}] → string[]
+  const vocabRaw  = Array.isArray(c.vocabulario) ? c.vocabulario : [];
+  const vocabulario = vocabRaw.flatMap(v =>
+    Array.isArray(v.ejemplos) ? v.ejemplos : (typeof v === 'string' ? [v] : [])
+  );
+
+  // gramática: [{estructura, ejemplos[]}] → estructura strings
+  const gramRaw = Array.isArray(c.gramatica) ? c.gramatica : [];
+  const gramatica = gramRaw.map(g => g.estructura || (typeof g === 'string' ? g : '')).filter(Boolean);
+
+  // expresiones: [{funcion, ejemplos[]}] → strings
+  const exprRaw   = Array.isArray(c.expresiones) ? c.expresiones : [];
+  const expresiones = exprRaw.flatMap(e =>
+    Array.isArray(e.ejemplos) ? e.ejemplos : (typeof e === 'string' ? [e] : [])
+  );
+
+  // funcionales: string[]
+  const funcionales = Array.isArray(p.funcionales) ? p.funcionales : [];
+
+  // Secciones para la tabla CONTENIDOS del documento
+  const conceptuales    = [...vocabulario.slice(0, 6), ...gramatica.slice(0, 3)].filter(Boolean);
+  const procedimentales = funcionales.slice(0, 6).filter(Boolean);
+
+  return { vocabulario, gramatica, expresiones, funcionales, conceptuales, procedimentales };
+};
+
 // ─── Exportación principal ────────────────────────────────────────────────────
 
-export const generarUnidadAprendizaje = (datos) => {
+export const generarUnidadAprendizaje = async (datos) => {
   const {
     grado = "", seccion = "", area = "", asignatura = "",
     titulo = "", numSemanas = 4,
@@ -1498,14 +1976,49 @@ export const generarUnidadAprendizaje = (datos) => {
   const ambiente = getAmbiente(claveContenido);
   const producto = productoFinalTexto || `Presentación/producción final sobre "${titulo}" que evidencie el dominio de los aprendizajes de la unidad.`;
   const ejes = getEjesTematicos(claveContenido);
-  const contenidos = getContenidos(claveContenido, titulo);
+  const contenidosBase = getContenidos(claveContenido, titulo);
   const compFundBase = COMPETENCIAS_FUND_POR_AREA[claveContenido] || ["Comunicativa", "Pensamiento Lógico, Creativo y Crítico"];
   const compFundEf = competenciasFundamentalesSeleccionadas.length > 0
     ? competenciasFundamentalesSeleccionadas
     : compFundBase;
 
+  // Motor Especializado v1: bloquear generación sin malla curricular oficial
+  const curricularDoc = await getCurricularContentForUnit(claveContenido, grado);
+  if (!curricularDoc) {
+    throw new Error(
+      `No hay malla curricular cargada para ${claveContenido} — ${grado}. ` +
+      `Ve a Administración → Banco de Conocimiento y sube el JSON de la malla.`
+    );
+  }
+  const mallaPayload    = curricularDoc.payload || {};
+  // Corpus: payload.temas es string[] con los temas oficiales del grado
+  const temasOficiales  = Array.isArray(mallaPayload.temas)
+    ? mallaPayload.temas
+    : Array.isArray(mallaPayload.contenidos?.conceptos?.temas)
+      ? mallaPayload.contenidos.conceptos.temas
+      : [];
+  // Resuelve el título del docente contra los temas oficiales → devuelve string
+  const temaMallaStr   = _resolverTemaMalla(titulo, temasOficiales);
+
+  // Extrae vocabulario, gramática y funcionales del nivel-grado (corpus)
+  const mallaContenidos = _extraerContenidosMallaCorpus(mallaPayload);
+  const contenidos = {
+    ...contenidosBase,
+    ...(mallaContenidos.conceptuales.length    ? { conceptuales:    mallaContenidos.conceptuales    } : {}),
+    ...(mallaContenidos.procedimentales.length ? { procedimentales: mallaContenidos.procedimentales } : {}),
+  };
+
+  // Índices planos del corpus (payload level)
+  const allComps = Array.isArray(mallaPayload.competencias) ? mallaPayload.competencias : [];
+  const allInds  = Array.isArray(mallaPayload.indicadoresLogro)
+    ? mallaPayload.indicadoresLogro
+    : Array.isArray(mallaPayload.indicadores) ? mallaPayload.indicadores : [];
+
   return {
     tipoPlanificacion: "Unidad de Aprendizaje",
+    curricularContentId: curricularDoc?.id || null,
+    // IDs de todos los indicadores de la malla (base curricular de la unidad)
+    curricularRefs: allInds.map(i => i.id).filter(Boolean),
     metadatos: {
       titulo, grado, seccion, area, asignatura: asignaturaEf,
       nivel, ciclo, modalidad, jornada,
@@ -1522,38 +2035,26 @@ export const generarUnidadAprendizaje = (datos) => {
     situacionAprendizaje: situacion,
     ambienteAprendizaje: ambiente,
     competencias: (() => {
-      const esIdioma = claveContenido === "Inglés" || claveContenido === "Francés";
-      if (esIdioma) {
-        const oficial = getCompetenciasIdiomas(claveContenido, grado);
-        return {
-          fundamentales: compFundEf,
-          especifica: oficial.especifica,
-          nivelMCERL: oficial.nivelMCERL,
-          indicadores: oficial.indicadores,
-        };
-      }
-      // Motor Especializado para las demás áreas
-      const oficial = getCompetenciasArea(claveContenido, grado);
-      if (oficial) {
-        return {
-          fundamentales: compFundEf,
-          especifica: oficial.especifica,
-          indicadores: oficial.indicadores,
-        };
-      }
-      // Fallback genérico (áreas sin módulo todavía)
+      // ÚNICA FUENTE: malla oficial en curricularContent (ya garantizada arriba).
+      // Corpus: indicadoresLogro[].descripcion (campo real); fallback .texto
+      const c01 = allComps[0] || {};
+      const fundamentales = allComps.map(c => c.fundamental).filter(Boolean);
+      // Tomar los primeros 3 indicadores por competencia (estándar MINERD: 3 por competencia)
+      // Como el corpus no tiene competenciaId en cada indicador, derivamos por posición
+      const INDS_PER_COMP = 3;
+      const indicadores = allInds
+        .slice(0, INDS_PER_COMP)
+        .map(i => i.descripcion || i.texto || String(i))
+        .filter(Boolean);
       return {
-        fundamentales: compFundEf,
-        especifica: `Desarrollar competencias en ${area} relacionadas con "${titulo}", mediante el uso de estrategias activas que promuevan la comprensión, aplicación y reflexión crítica de los contenidos.`,
-        indicadores: [
-          `Demuestra comprensión del contenido "${titulo}" a través de producciones orales y escritas.`,
-          `Aplica los procedimientos y estrategias propios de ${area} en situaciones prácticas relacionadas con el tema.`,
-          `Valora la importancia de los aprendizajes adquiridos y los relaciona con situaciones de su entorno cotidiano.`,
-        ],
+        fundamentales: fundamentales.length ? fundamentales : compFundEf,
+        especifica: c01.especificaGrado || c01.especifica || '',
+        nivelMCERL: mallaPayload.nivelMCERL || null,
+        indicadores,
       };
     })(),
     contenidos,
-    fasesSemanales: generarFases(numSemanas, schedule, claveContenido, titulo, estrategiaEf, producto, { grado, nivel }),
+    fasesSemanales: generarFases(numSemanas, schedule, claveContenido, titulo, estrategiaEf, producto, { grado, nivel }, mallaContenidos),
   };
 };
 
@@ -1618,7 +2119,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     const diasHtml = (fase.dias || []).map((dia) => {
       const momentosHtml = (dia.momentos || []).map((mom) => {
         const actsHtml = (mom.actividades || []).map((a, i) => {
-          const html = a.replace(/_([^_]+)_/g, "<em>$1</em>");
+          const html = a
+            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+            .replace(/_([^_]+)_/g, "<em>$1</em>");
           return `<p style="margin:2px 0"><strong>${i + 1})</strong> ${html}</p>`;
         }).join("");
         const evalHtml = `<strong>Tipo:</strong> ${mom.evaluacion?.tipo}.<br><strong>Agente:</strong> ${mom.evaluacion?.agente}.<br><strong>Técnica:</strong> ${mom.evaluacion?.tecnica}.<br><strong>Instrumento:</strong> ${mom.evaluacion?.instrumento}.`;
@@ -1630,7 +2133,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
             <td class="td-momento" rowspan="2">${mom.nombre}</td>
             <td class="td-tiempo" rowspan="2">${mom.tiempo}</td>
             <td rowspan="2">${actsHtml}</td>
-            <td style="white-space:pre-line">${mom.evidencias || ""}</td>
+            <td style="white-space:pre-line">${(mom.evidencias || "").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/_([^_]+)_/g, "<em>$1</em>")}</td>
             <td>${evalHtml}</td>
             <td rowspan="2">${recursosHtml}</td>
           </tr>
@@ -1721,6 +2224,28 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   <div class="texto-seccion">${unidad.situacionAprendizaje}</div>
   <div class="section-head">AMBIENTE DE APRENDIZAJE</div>
   <div class="texto-seccion">${unidad.ambienteAprendizaje}</div>
+
+  <div class="section-head">COMPONENTE CURRICULAR — Asignatura: ${m.asignatura}</div>
+  ${(() => {
+    const comp = unidad.competencias || {};
+    const funds = Array.isArray(comp.fundamentales) ? comp.fundamentales : [];
+    const especifica = comp.especifica || '';
+    const indicadores = Array.isArray(comp.indicadores) ? comp.indicadores : [];
+    const nivelMCERL = comp.nivelMCERL ? `<br><em>Nivel MCERL: ${comp.nivelMCERL}</em>` : '';
+    if (!funds.length && !especifica) return '';
+    const rowspan = funds.length || 1;
+    const fundRows = funds.map((f, i) => i === 0
+      ? `<tr>
+          <td class="lbl" style="vertical-align:middle">${f}</td>
+          <td rowspan="${rowspan}" style="padding:6px 10px;vertical-align:top">
+            ${especifica ? `<strong>Competencia Específica:</strong> ${especifica}${nivelMCERL}<br><br>` : ''}
+            ${indicadores.length ? `<strong>Indicadores de Logro:</strong><ul style="margin:4px 0 0 18px;padding:0">${indicadores.map(ind => `<li style="margin-bottom:3px">${ind}</li>`).join('')}</ul>` : ''}
+          </td>
+        </tr>`
+      : `<tr><td class="lbl" style="vertical-align:middle">${f}</td></tr>`
+    ).join('');
+    return `<table class="datos-table" style="margin-bottom:12px">${fundRows}</table>`;
+  })()}
 
   <div class="section-head">CONTENIDOS</div>
   <div class="contenidos">

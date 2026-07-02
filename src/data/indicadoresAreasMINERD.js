@@ -1,14 +1,17 @@
 /**
- * Motor Especializado — MINERD
- * Competencias específicas e indicadores de logro por área y grado.
- * Nivel Secundario: 1ro a 6to.
- * Fuente: Diseño Curricular del Nivel Secundario, MINERD.
+ * ⚠️  ARCHIVO NO OFICIAL — NO USAR COMO FUENTE CURRICULAR
  *
- * Estructura por área:
- *   competenciaEspecifica — texto oficial de la competencia
- *   indicadoresPorDimension.conceptual   — comprensión / identifica / explica
- *   indicadoresPorDimension.procedimental — aplica / resuelve / produce
- *   indicadoresPorDimension.actitudinal  — valora / muestra / demuestra
+ * Los textos de este archivo NO provienen del Diseño Curricular MINERD.
+ * Son aproximaciones redactadas para uso interno de formato/estructura.
+ *
+ * Para competencias e indicadores OFICIALES, usa únicamente la malla
+ * cargada en Firestore (curricularContent) a través de
+ * getCurricularContentForUnit() en bancoConocimientoService.js.
+ *
+ * Este archivo puede usarse para:
+ *   - Contenido de MUESTRA en vistas de desarrollo/preview
+ *   - Pruebas unitarias de formato HTML/PDF
+ * NUNCA para documentos pedagógicos reales.
  */
 
 // ─── MATEMÁTICA ───────────────────────────────────────────────────────────────

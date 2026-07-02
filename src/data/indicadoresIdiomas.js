@@ -1,10 +1,17 @@
 /**
- * Indicadores de Logro Oficiales — MINERD
- * Diseño Curricular Lenguas Extranjeras: Inglés y Francés
- * Nivel Secundario · Primer Ciclo (A2) y Segundo Ciclo (B1/A2)
+ * ⚠️  ARCHIVO NO OFICIAL — NO USAR COMO FUENTE CURRICULAR
  *
- * Organización: asignatura → grado → habilidad (listening/speaking/reading/writing)
- * Cada grado incluye: nivel MCERL, competencia específica, indicadores por habilidad.
+ * Los textos de este archivo NO provienen del Diseño Curricular MINERD.
+ * Son aproximaciones redactadas para uso interno de formato/estructura.
+ *
+ * Para competencias e indicadores OFICIALES, usa únicamente la malla
+ * cargada en Firestore (curricularContent) a través de
+ * getCurricularContentForUnit() en bancoConocimientoService.js.
+ *
+ * Este archivo puede usarse para:
+ *   - Contenido de MUESTRA en vistas de desarrollo/preview
+ *   - Pruebas unitarias de formato HTML/PDF
+ * NUNCA para documentos pedagógicos reales.
  */
 
 // ─── INGLÉS ───────────────────────────────────────────────────────────────────

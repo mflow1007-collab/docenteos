@@ -57,7 +57,7 @@ export function useUnidadAprendizaje() {
     setMensajeUnidad(null);
     try {
       await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
-      const resultado = generarUnidadAprendizaje(unidadDatos);
+      const resultado = await generarUnidadAprendizaje(unidadDatos);
       setUnidad(resultado);
       setTimeout(() => {
         document.querySelector(".ua-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -162,7 +162,7 @@ export function useUnidadAprendizaje() {
     try {
       await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
       await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
-      const resultado = generarUnidadAprendizaje(unidadDatos);
+      const resultado = await generarUnidadAprendizaje(unidadDatos);
       setUnidad(resultado);
       setTimeout(() => document.querySelector(".ua-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch (error) {
