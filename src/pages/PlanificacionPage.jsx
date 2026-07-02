@@ -55,7 +55,7 @@ import {
   subirImagenPlanificacion,
 } from "../firebase";
 
-export default function PlanificacionPage({ planificacionPreCargada = null, onConsumirPreCargada = () => {} }) {
+export default function PlanificacionPage({ planificacionPreCargada = null, onConsumirPreCargada = () => {}, onIrA }) {
   const hoyISO = new Date().toISOString().slice(0, 10);
   const STORAGE_USO_TIPOS = "docenteos_planificacion_uso_tipos_v1";
 
@@ -1771,6 +1771,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             onNueva={manejarNuevoDiario}
             guardando={guardandoDiario}
             mensaje={mensajeDiario}
+            onIrAModoAula={() => onIrA?.('modo-aula')}
           />
         ) : ES_TIPO_UNIDAD(tipoPlanificacion) ? (
           <>
@@ -1908,6 +1909,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             guardandoEstilo={guardandoEstilo}
             guardandoCasoExito={guardandoCasoExito}
             mensajeEntrenar={mensajeEntrenar}
+            onIrAModoAula={() => onIrA?.('modo-aula')}
           />
           </>
         )}

@@ -45,6 +45,7 @@ export default function ResultadoPlanificacion({
   guardandoEstilo,
   guardandoCasoExito,
   mensajeEntrenar,
+  onIrAModoAula,
 }) {
   if (!planificacion) return null;
 
@@ -121,6 +122,26 @@ export default function ResultadoPlanificacion({
 
       {onAccionIA && iaError && (
         <div className="plan-ia-error">⚠️ {iaError}</div>
+      )}
+
+      {/* ── Ir a Modo Aula ── */}
+      {onIrAModoAula && (
+        <div style={{ margin: '8px 0' }}>
+          <button
+            type="button"
+            onClick={onIrAModoAula}
+            style={{
+              background: 'linear-gradient(135deg,#0f172a,#1e3a5f)',
+              color: '#fff', border: 0, borderRadius: 10,
+              padding: '10px 20px', fontSize: 14, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              boxShadow: '0 4px 12px rgba(15,23,42,.25)',
+            }}
+          >
+            🏫 Ir a Modo Aula
+          </button>
+        </div>
       )}
 
       {/* ── Barra: Entrenar IA ── */}

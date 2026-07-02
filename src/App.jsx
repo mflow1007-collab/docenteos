@@ -586,6 +586,7 @@ function AppInner() {
             <PlanificacionPage
               planificacionPreCargada={planificacionPreCargada}
               onConsumirPreCargada={() => setPlanificacionPreCargada(null)}
+              onIrA={navegar}
             />
           )}
           {pagina === "cursos" && (

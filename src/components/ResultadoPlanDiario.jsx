@@ -126,7 +126,7 @@ function TimerClase({ momentos = [] }) {
   )
 }
 
-export default function ResultadoPlanDiario({ plan, onGuardar, onDescargar, onNueva, guardando, mensaje }) {
+export default function ResultadoPlanDiario({ plan, onGuardar, onDescargar, onNueva, guardando, mensaje, onIrAModoAula }) {
   if (!plan) return null;
 
   const { metadatos: m, competenciasEIndicadores: ci, intencionPedagogica: ip,
@@ -146,6 +146,21 @@ export default function ResultadoPlanDiario({ plan, onGuardar, onDescargar, onNu
         </button>
         <button className="export-btn" onClick={onDescargar}>📥 PDF</button>
         <button className="reset-btn" onClick={onNueva}>↻ Nuevo</button>
+        {onIrAModoAula && (
+          <button
+            type="button"
+            onClick={onIrAModoAula}
+            style={{
+              background: 'linear-gradient(135deg,#0f172a,#1e3a5f)',
+              color: '#fff', border: 0, borderRadius: 8,
+              padding: '8px 16px', fontSize: 13.5, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'inherit',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            🏫 Ir a Modo Aula
+          </button>
+        )}
       </div>
 
       {/* ── Timer de clase + guía ASIST ── */}
