@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { AIService } from '../services/ai/AIService'
 
 // ─── Tips por sección ─────────────────────────────────────────────────────────
 const TIPS = {
@@ -54,10 +54,6 @@ const TIPS = {
     { color: '#16a34a', tag: 'Currículo',       msg: 'Aquí están las competencias y estándares oficiales del MINERD.' },
     { color: '#2563eb', tag: 'Tip',             msg: 'Consulta los indicadores de logro antes de planificar para mayor precisión.' },
   ],
-  'asistente-personal': [
-    { color: '#7c3aed', tag: 'Asistente',       msg: 'Tu asistente personal recuerda el contexto de conversaciones anteriores.' },
-    { color: '#2563eb', tag: 'Tip',             msg: 'Puedes preguntarle sobre el currículo, estrategias, estudiantes difíciles y más.' },
-  ],
 }
 
 const TIPS_DEFAULT = [
@@ -65,7 +61,12 @@ const TIPS_DEFAULT = [
   { color: '#2563eb', tag: 'Tip',               msg: 'Usa la Planificación IA para generar planes alineados al currículo MINERD.' },
 ]
 
-// ─── Estilos inline compartidos ───────────────────────────────────────────────
+const SYSTEM_COACH = `Eres DocenteOS Coach, un asistente pedagógico rápido integrado en la plataforma DocenteOS para docentes dominicanos.
+Respondes preguntas pedagógicas breves y concretas: estrategias de enseñanza, currículo MINERD, evaluación, manejo de aula, recursos.
+Tus respuestas son cortas (máximo 4 oraciones), directas y accionables. Nunca uses listas largas ni subtítulos.
+Cuando no sabes algo, dilo honestamente en una oración.`
+
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 const S = {
   fab: {
     position: 'fixed', right: 24, bottom: 24, zIndex: 40,
@@ -101,19 +102,88 @@ const S = {
     borderRadius: 11, padding: '12px 14px', marginBottom: 10,
     background: '#faf9ff',
   }),
+  msgUser: {
+    alignSelf: 'flex-end',
+    background: '#7c3aed', color: '#fff',
+    borderRadius: '14px 14px 4px 14px',
+    padding: '9px 13px', fontSize: 13.5, lineHeight: 1.5,
+    maxWidth: '88%', wordBreak: 'break-word',
+  },
+  msgCoach: {
+    alignSelf: 'flex-start',
+    background: '#f1ebfe', color: '#3b0764',
+    borderRadius: '14px 14px 14px 4px',
+    padding: '9px 13px', fontSize: 13.5, lineHeight: 1.55,
+    maxWidth: '88%', wordBreak: 'break-word',
+  },
+  msgError: {
+    alignSelf: 'flex-start',
+    background: '#fef2f2', color: '#991b1b',
+    borderRadius: '14px 14px 14px 4px',
+    padding: '9px 13px', fontSize: 13, lineHeight: 1.5,
+    maxWidth: '88%',
+  },
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function CoachIA({ pagina = 'inicio', formulario = {} }) {
-  const [abierto, setAbierto] = useState(false)
-  const navigate = useNavigate()
+  const [abierto, setAbierto]   = useState(false)
+  const [mensajes, setMensajes] = useState([])
+  const [input, setInput]       = useState('')
+  const [cargando, setCargando] = useState(false)
+  const [verChat, setVerChat]   = useState(false)
+  const scrollRef = useRef(null)
 
   const primerNombre = (formulario.nombreDocente || 'Docente').split(' ')[0]
   const tips = TIPS[pagina] || TIPS_DEFAULT
 
-  const irAAsistente = () => {
-    setAbierto(false)
-    navigate('/centro-ia')
+  // Auto-scroll al nuevo mensaje
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [mensajes, cargando])
+
+  const enviar = () => {
+    const texto = input.trim()
+    if (!texto || cargando) return
+
+    const nuevoUser = { rol: 'user', texto }
+    setMensajes(prev => [...prev, nuevoUser])
+    setInput('')
+    setCargando(true)
+
+    let respuesta = ''
+    const contextoPagina = pagina !== 'inicio' ? ` El docente está en la sección "${pagina.replace(/-/g, ' ')}" de DocenteOS.` : ''
+
+    AIService.generate({
+      module: 'coach-ia',
+      prompt: texto,
+      system: SYSTEM_COACH + contextoPagina,
+      maxTokens: 300,
+      onChunk: (chunk) => {
+        respuesta += chunk
+        setMensajes(prev => {
+          const copia = [...prev]
+          const ultimo = copia[copia.length - 1]
+          if (ultimo?.rol === 'coach') {
+            copia[copia.length - 1] = { rol: 'coach', texto: respuesta }
+          } else {
+            copia.push({ rol: 'coach', texto: respuesta })
+          }
+          return copia
+        })
+      },
+      onError: (err) => {
+        setMensajes(prev => [...prev, { rol: 'error', texto: err }])
+        setCargando(false)
+      },
+      onDone: () => setCargando(false),
+    })
+  }
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() }
   }
 
   return (
@@ -128,7 +198,7 @@ export default function CoachIA({ pagina = 'inicio', formulario = {} }) {
         ✦ Coach
       </button>
 
-      {/* ── Overlay (click fuera cierra) ─────────────────────────────────── */}
+      {/* ── Overlay ──────────────────────────────────────────────────────── */}
       {abierto && (
         <div style={S.overlay} onClick={() => setAbierto(false)} />
       )}
@@ -150,6 +220,21 @@ export default function CoachIA({ pagina = 'inicio', formulario = {} }) {
               Hola, {primerNombre}
             </div>
           </div>
+
+          {/* Toggle tips / chat */}
+          <button
+            onClick={() => setVerChat(v => !v)}
+            style={{
+              background: 'rgba(255,255,255,.15)', border: 0, color: '#fff',
+              borderRadius: 8, padding: '5px 10px', fontSize: 12,
+              fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+              marginRight: 6,
+            }}
+            title={verChat ? 'Ver tips' : 'Consulta rápida'}
+          >
+            {verChat ? '💡 Tips' : '💬 Chat'}
+          </button>
+
           <button
             onClick={() => setAbierto(false)}
             style={{
@@ -160,65 +245,122 @@ export default function CoachIA({ pagina = 'inicio', formulario = {} }) {
           >×</button>
         </div>
 
-        {/* Cuerpo */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-
-          {/* Etiqueta de sección */}
-          <div style={{
-            fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
-            letterSpacing: '.5px', color: '#8a96ab', marginBottom: 12,
-          }}>
-            Sugerencias · {pagina.replace(/-/g, ' ')}
-          </div>
-
-          {/* Tarjetas de tips */}
-          {tips.map((tip, i) => (
-            <div key={i} style={S.tipCard(tip.color)}>
-              <div style={{
-                fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase',
-                letterSpacing: '.3px', color: tip.color, marginBottom: 5,
-              }}>{tip.tag}</div>
-              <div style={{ fontSize: 13.5, color: '#475569', lineHeight: 1.55 }}>
-                {tip.msg}
-              </div>
-            </div>
-          ))}
-
-          {/* CTA: Asistente personal */}
-          <div style={{
-            marginTop: 8, padding: '14px 15px',
-            background: '#f1ebfe', borderRadius: 11,
-          }}>
+        {/* ── Vista Tips ────────────────────────────────────────────────── */}
+        {!verChat && (
+          <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
             <div style={{
-              fontSize: 12, fontWeight: 700, color: '#6d28d9', marginBottom: 5,
-            }}>¿Tienes una pregunta pedagógica?</div>
-            <div style={{
-              fontSize: 12.5, color: '#5b21b6', lineHeight: 1.5, marginBottom: 11,
+              fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase',
+              letterSpacing: '.5px', color: '#8a96ab', marginBottom: 12,
             }}>
-              Conversa con DocenteOS AI PRO — estrategias pedagógicas, currículo MINERD, planificación y más.
+              Sugerencias · {pagina.replace(/-/g, ' ')}
             </div>
+
+            {tips.map((tip, i) => (
+              <div key={i} style={S.tipCard(tip.color)}>
+                <div style={{
+                  fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase',
+                  letterSpacing: '.3px', color: tip.color, marginBottom: 5,
+                }}>{tip.tag}</div>
+                <div style={{ fontSize: 13.5, color: '#475569', lineHeight: 1.55 }}>
+                  {tip.msg}
+                </div>
+              </div>
+            ))}
+
             <button
-              onClick={irAAsistente}
+              onClick={() => setVerChat(true)}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 7,
-                background: '#7c3aed', color: '#fff', border: 0,
-                borderRadius: 9, padding: '8px 14px',
-                fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                fontFamily: 'inherit',
+                width: '100%', marginTop: 6,
+                background: 'linear-gradient(135deg,#7c3aed,#6d28d9)',
+                color: '#fff', border: 0, borderRadius: 11,
+                padding: '12px 16px', fontSize: 14, fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
-              ✦ Ir al Asistente IA
+              💬 Hacer una consulta rápida
             </button>
-          </div>
 
-          {/* Footer */}
-          <div style={{
-            marginTop: 14, fontSize: 11, color: '#94a3b8',
-            textAlign: 'center', lineHeight: 1.6,
-          }}>
-            DocenteOS · Plataforma pedagógica MINERD
+            <div style={{
+              marginTop: 14, fontSize: 11, color: '#94a3b8',
+              textAlign: 'center', lineHeight: 1.6,
+            }}>
+              DocenteOS · Plataforma pedagógica MINERD
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ── Vista Chat ────────────────────────────────────────────────── */}
+        {verChat && (
+          <>
+            {/* Mensajes */}
+            <div
+              ref={scrollRef}
+              style={{
+                flex: 1, overflowY: 'auto', padding: '14px 14px 8px',
+                display: 'flex', flexDirection: 'column', gap: 10,
+              }}
+            >
+              {mensajes.length === 0 && (
+                <div style={{
+                  textAlign: 'center', color: '#94a3b8',
+                  fontSize: 13, marginTop: 24, lineHeight: 1.6,
+                }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>✦</div>
+                  Hazme una pregunta pedagógica rápida.<br />
+                  Estrategias, currículo MINERD, evaluación…
+                </div>
+              )}
+
+              {mensajes.map((m, i) => (
+                <div
+                  key={i}
+                  style={m.rol === 'user' ? S.msgUser : m.rol === 'error' ? S.msgError : S.msgCoach}
+                >
+                  {m.texto}
+                </div>
+              ))}
+
+              {cargando && mensajes[mensajes.length - 1]?.rol !== 'coach' && (
+                <div style={{ ...S.msgCoach, color: '#9333ea', fontStyle: 'italic' }}>
+                  Pensando…
+                </div>
+              )}
+            </div>
+
+            {/* Input */}
+            <div style={{
+              borderTop: '1px solid #e5e7eb', padding: '10px 12px',
+              display: 'flex', gap: 8, flexShrink: 0,
+              background: '#fff',
+            }}>
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKey}
+                placeholder="Escribe tu consulta… (Enter para enviar)"
+                rows={2}
+                style={{
+                  flex: 1, resize: 'none', border: '1.5px solid #d1d5db',
+                  borderRadius: 10, padding: '8px 11px', fontSize: 13.5,
+                  fontFamily: 'inherit', outline: 'none', lineHeight: 1.5,
+                  color: '#1e293b',
+                }}
+              />
+              <button
+                onClick={enviar}
+                disabled={!input.trim() || cargando}
+                style={{
+                  background: cargando || !input.trim() ? '#d1d5db' : '#7c3aed',
+                  color: '#fff', border: 0, borderRadius: 10,
+                  width: 42, flexShrink: 0, cursor: cargando ? 'wait' : 'pointer',
+                  fontSize: 18, transition: 'background .15s',
+                }}
+                aria-label="Enviar"
+              >↑</button>
+            </div>
+          </>
+        )}
       </aside>
     </>
   )
