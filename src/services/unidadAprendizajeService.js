@@ -1964,6 +1964,7 @@ const _generarFasesConIA = async (
   numSemanas, schedule, area, tema, estrategia, productoFinal,
   contexto, mallaContenidos,
   mallaPayload, allInds, allComps, durMin, grado,
+  onProgress = null,
 ) => {
   const fases = generarFases(numSemanas, schedule, area, tema, estrategia, productoFinal, contexto, mallaContenidos);
 
@@ -1971,18 +1972,35 @@ const _generarFasesConIA = async (
     mallaPayload, titulo: tema, allInds, allComps, mallaContenidos, area, grado,
   });
 
+  const memoriaAcumulada = [];
+  const totalClases = fases.reduce((sum, f) => sum + f.dias.length, 0);
+  let globalOffset = 0;
+
   for (const fase of fases) {
     const numClases = fase.dias.length;
-    const weekPlan = await generateWeekPlan(spec, fase.numero, durMin, numClases, numSemanas);
+
+    const progressWrapper = onProgress
+      ? (startDia, endDia) => {
+          const globalStart = globalOffset + startDia;
+          const globalEnd   = globalOffset + endDia;
+          onProgress(`Componiendo clases ${globalStart}–${globalEnd} de ${totalClases}...`);
+        }
+      : null;
+
+    const weekPlan = await generateWeekPlan(
+      spec, fase.numero, durMin, numClases, numSemanas,
+      memoriaAcumulada, progressWrapper,
+    );
 
     weekPlan.clases.slice(0, numClases).forEach((aiClase, i) => {
       const dia = fase.dias[i];
       if (!dia) return;
-      // Preserva metadata de calendario (semana, diaCalendario, hora, numeroGlobal, duracionMin)
-      // Solo reemplaza los momentos pedagógicos con output de la IA
+      // Preserva metadata de calendario; solo reemplaza momentos pedagógicos
       dia.momentos = aiClase.momentos;
       if (aiClase.titulo) dia.tituloIA = aiClase.titulo;
     });
+
+    globalOffset += numClases;
   }
 
   return fases;
@@ -2002,6 +2020,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     asignaturasVinculadasTexto = "",
     jornada = "Extendida",
     competenciasFundamentalesSeleccionadas = [],
+    onProgress = null,
   } = datos;
 
   // Normalizar horario
@@ -2102,6 +2121,7 @@ export const generarUnidadAprendizaje = async (datos) => {
       numSemanas, schedule, claveContenido, titulo, estrategiaEf, producto,
       { grado, nivel }, mallaContenidos,
       mallaPayload, allInds, allComps, durMinEf, grado,
+      onProgress,
     ),
     especificacionCurricular: buildEspecificacionCurricular({
       mallaPayload, titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,

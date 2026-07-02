@@ -1,24 +1,23 @@
 /**
- * Phase A — AI Gateway para generación de clases
+ * Phase A — Generación de clases por lotes de 2
  *
- * Una llamada por semana → N clases con Inicio/Desarrollo/Cierre.
- *
- * Estrategia de reintento (3 intentos máximo):
- *   Intento 1 : prompt normal, maxTokens=8000
- *   Intento 2 : adaptado según motivo del fallo
- *     - truncado      → maxTokens=12000
- *     - texto sin JSON → añade recordatorio al prompt
- *   Intento 3 : si sigue truncado → split en 2 mitades; si otro error → stop
+ * La semana se genera en LOTES DE 2 CLASES por llamada:
+ *   - 4 clases/semana = 2 lotes; 5 clases = 3 lotes (2+2+1)
+ *   - ~3-4K tokens de salida por lote → TTFT <10s incluso con NVIDIA
+ *   - Cada lote lleva MEMORIA de todo lo generado para anti-duplicación
+ *   - Reintentos: 2 intentos POR LOTE (lotes buenos no se descartan)
+ *   - R1+R7 se validan por lote; R2 se valida sobre la semana fusionada
  *
  * PROHIBIDO: fallback a templates JS.
- * Fallo persistido en aiLogs/ con etiqueta "fase_a_parse_error".
  */
 
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
 import { db }                                   from '../firebase.js';
 
-const MODULE_NAME = 'planificacion';   // activa response_format en gateway OpenAI
+const MODULE_NAME  = 'planificacion';
+const BATCH_SIZE   = 2;
+const MAX_TOKENS   = 5000;   // por lote; escala a 8000 si hay truncamiento
 
 const SYSTEM_PROMPT =
   'Eres un planificador curricular experto. ' +
@@ -29,7 +28,7 @@ const JSON_REMINDER =
 
 // ─── Registro de errores de parseo en aiLogs/ ─────────────────────────────────
 
-async function logParseError({ semanaNum, attempt, motivo, raw, provider, model }) {
+async function logParseError({ contexto, attempt, motivo, raw, provider, model }) {
   try {
     const uid = getAuth().currentUser?.uid || null;
     await addDoc(collection(db, 'aiLogs'), {
@@ -39,7 +38,7 @@ async function logParseError({ semanaNum, attempt, motivo, raw, provider, model 
       proveedor:       provider || 'desconocido',
       modelo:          model    || 'desconocido',
       etiqueta:        'fase_a_parse_error',
-      semana:          semanaNum,
+      contexto,
       intento:         attempt,
       motivo,
       rawInicio:       (raw || '').slice(0, 500),
@@ -51,14 +50,12 @@ async function logParseError({ semanaNum, attempt, motivo, raw, provider, model 
       cache:           false,
       error:           motivo,
     });
-  } catch {
-    // no-fatal
-  }
+  } catch { /* no-fatal */ }
 }
 
 // ─── SSE collector ────────────────────────────────────────────────────────────
 
-async function callGatewayCollect(prompt, system, maxTokens = 8000) {
+async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS) {
   const user = getAuth().currentUser;
   if (!user) throw new Error('Usuario no autenticado');
 
@@ -111,25 +108,18 @@ async function callGatewayCollect(prompt, system, maxTokens = 8000) {
 // ─── Extractor robusto de JSON ────────────────────────────────────────────────
 
 function extraerJSON(raw) {
-  if (!raw || !raw.trim()) {
-    return { ok: false, motivo: 'respuesta vacía', raw };
-  }
+  if (!raw || !raw.trim()) return { ok: false, motivo: 'respuesta vacía', raw };
   let s = raw.trim();
 
-  // (a) quitar cercas markdown si existen
   s = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
-
-  // (b) intento directo
   try { return { ok: true, data: JSON.parse(s) }; } catch {}
 
-  // (c) extraer desde el primer { hasta el último }
   const i = s.indexOf('{');
   const j = s.lastIndexOf('}');
   if (i !== -1 && j > i) {
     try { return { ok: true, data: JSON.parse(s.slice(i, j + 1)) }; } catch {}
   }
 
-  // (d) diagnóstico específico
   const abre   = (s.match(/{/g)  || []).length;
   const cierra = (s.match(/}/g)  || []).length;
   const motivo = (i === -1)
@@ -141,7 +131,7 @@ function extraerJSON(raw) {
   return { ok: false, motivo, raw };
 }
 
-// ─── Validaciones R1 / R2 / R7 ───────────────────────────────────────────────
+// ─── Jaccard para R2 ──────────────────────────────────────────────────────────
 
 function jaccardSimilarity(a, b) {
   if (!a || !b) return 0;
@@ -151,58 +141,67 @@ function jaccardSimilarity(a, b) {
   return inter / Math.max(setA.size, setB.size, 1);
 }
 
-function validateWeekPlan(data, durMin, numClases) {
+// ─── Validación por lote (R1 + R7, sin R2) ───────────────────────────────────
+
+function validateBatch(data, durMin, count) {
   if (!data?.clases || !Array.isArray(data.clases)) throw new Error('R1: falta clases[]');
-  if (data.clases.length < numClases) {
-    throw new Error(`R1: se esperaban ${numClases} clases, llegaron ${data.clases.length}`);
-  }
+  if (data.clases.length < count) throw new Error(`R1: se esperaban ${count} clases, llegaron ${data.clases.length}`);
 
   const tInicio     = durMin <= 50 ? 10 : 15;
   const tCierre     = durMin <= 50 ? 5  : 10;
   const tDesarrollo = durMin - tInicio - tCierre;
-  const tiemposEsperados = { Inicio: tInicio, Desarrollo: tDesarrollo, Cierre: tCierre };
+  const tiempos = { Inicio: tInicio, Desarrollo: tDesarrollo, Cierre: tCierre };
 
-  const desarrollos = [];
-
-  for (let idx = 0; idx < numClases; idx++) {
+  for (let idx = 0; idx < count; idx++) {
     const clase = data.clases[idx];
     if (!Array.isArray(clase?.momentos) || clase.momentos.length !== 3) {
-      throw new Error(`R1: clase ${idx + 1} debe tener exactamente 3 momentos`);
+      throw new Error(`R1: clase ${idx + 1} debe tener 3 momentos`);
     }
-
     let totalMin = 0;
     for (const m of clase.momentos) {
       if (!Array.isArray(m.actividades) || m.actividades.length === 0) {
         throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin actividades`);
       }
-      const esperado = tiemposEsperados[m.nombre];
-      if (esperado !== undefined) {
-        m.tiempo = `${esperado} min`;
-        totalMin += esperado;
-      } else {
-        totalMin += parseInt(m.tiempo) || 0;
-      }
-      if (m.nombre === 'Desarrollo') desarrollos.push(m.actividades.join(' '));
+      const esp = tiempos[m.nombre];
+      if (esp !== undefined) { m.tiempo = `${esp} min`; totalMin += esp; }
+      else totalMin += parseInt(m.tiempo) || 0;
     }
-
-    if (totalMin !== durMin) {
-      throw new Error(`R7: clase ${idx + 1} suma ${totalMin} min ≠ ${durMin} min`);
-    }
-  }
-
-  for (let idx = 0; idx < desarrollos.length - 1; idx++) {
-    const sim = jaccardSimilarity(desarrollos[idx], desarrollos[idx + 1]);
-    if (sim > 0.6) {
-      throw new Error(
-        `R2: Desarrollo clase ${idx + 1} y ${idx + 2} demasiado similares (${(sim * 100).toFixed(0)}%)`,
-      );
-    }
+    if (totalMin !== durMin) throw new Error(`R7: clase ${idx + 1} suma ${totalMin} min ≠ ${durMin} min`);
   }
 }
 
-// ─── Prompt builder ───────────────────────────────────────────────────────────
+// ─── Validación semana completa (R1 + R7 + R2) ───────────────────────────────
 
-function buildWeekPrompt(spec, semanaNum, numClases, durMin, numSemanas, startDia = 1) {
+function validateWeekPlan(data, durMin, numClases) {
+  if (!data?.clases || data.clases.length < numClases) {
+    throw new Error(`R1: semana incompleta (${data?.clases?.length ?? 0}/${numClases} clases)`);
+  }
+  const desarrollos = [];
+  for (let idx = 0; idx < numClases; idx++) {
+    const clase = data.clases[idx];
+    for (const m of clase.momentos || []) {
+      if (m.nombre === 'Desarrollo') desarrollos.push(m.actividades?.join(' ') || '');
+    }
+  }
+  for (let idx = 0; idx < desarrollos.length - 1; idx++) {
+    const sim = jaccardSimilarity(desarrollos[idx], desarrollos[idx + 1]);
+    if (sim > 0.6) throw new Error(`R2: Desarrollo C${idx + 1} y C${idx + 2} demasiado similares (${(sim * 100).toFixed(0)}%)`);
+  }
+}
+
+// ─── Memoria para anti-duplicación ───────────────────────────────────────────
+
+function formatearMemoria(memoria) {
+  if (!memoria.length) return '';
+  const lines = memoria.map(e =>
+    `- [S${e.semana}/C${e.dia} "${e.titulo}"]: ${e.desarrolloResumen}`,
+  );
+  return `\nACTIVIDADES YA PROGRAMADAS EN ESTA UNIDAD (no repetir las mismas):\n${lines.join('\n')}\n`;
+}
+
+// ─── Prompt de lote ───────────────────────────────────────────────────────────
+
+function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
   const tInicio     = durMin <= 50 ? 10 : 15;
   const tCierre     = durMin <= 50 ? 5  : 10;
   const tDesarrollo = durMin - tInicio - tCierre;
@@ -215,138 +214,125 @@ function buildWeekPrompt(spec, semanaNum, numClases, durMin, numSemanas, startDi
   const ceText  = (spec.ces || []).slice(0, 2)
     .map(c => c.descripcion || '').filter(Boolean).join(' | ');
 
-  const rangoClases = numClases === 1
-    ? `Clase ${startDia}`
-    : `Clases ${startDia} a ${startDia + numClases - 1}`;
+  const endDia  = startDia + count - 1;
+  const rango   = count === 1 ? `Clase ${startDia}` : `Clases ${startDia}-${endDia}`;
 
   return `Eres un planificador curricular experto del sistema educativo dominicano (MINERD).
 
 TEMA: "${spec.temaOficial}"
-ÁREA: ${spec.area} | GRADO: ${spec.grado} | SEMANA: ${semanaNum} de ${numSemanas} (${rangoClases})
+ÁREA: ${spec.area} | GRADO: ${spec.grado} | SEMANA: ${semanaNum} de ${numSemanas} (${rango})
 
-ESPECIFICACIÓN CURRICULAR OFICIAL:
+ESPECIFICACIÓN CURRICULAR:
 - Competencias: ${ceText || '(ver indicadores)'}
 - Indicadores: ${indText}
 - Vocabulario: ${vocab}
 - Gramática: ${gram}
 - Funciones: ${funcs}
-
-TAREA: Genera exactamente ${numClases} clases con PROGRESIÓN PEDAGÓGICA.
+${formatearMemoria(memoria)}
+TAREA: Genera exactamente ${count} clase(s) — ${rango} de la Semana ${semanaNum}.
+Clases con PROGRESIÓN PEDAGÓGICA, DISTINTAS de las ya programadas.
 
 REGLAS:
-1. Devuelve SOLO JSON puro — sin texto, sin cercas markdown.
-2. Desarrollos DISTINTOS entre clases (contenido diferente, no reformulaciones).
+1. Solo JSON puro, sin texto ni markdown.
+2. Desarrollos distintos entre sí y distintos a los ya listados arriba.
 3. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
 4. Mínimo 2 actividades concretas por momento.
 
-JSON EXACTO (sin nada más):
 {"outputSchemaVersion":"1.0","semana":${semanaNum},"clases":[{"dia":${startDia},"titulo":"...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","actividades":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","..."]}]}]}`;
 }
 
-// ─── Generación en modo split (2 mitades) ─────────────────────────────────────
+// ─── Generación de un lote (2 intentos por lote) ─────────────────────────────
 
-async function generateWeekPlanSplit(spec, semanaNum, durMin, numClases, numSemanas, maxTokens) {
-  const half1 = Math.ceil(numClases / 2);
-  const half2 = numClases - half1;
-
-  const makeHalf = async (count, startDia) => {
-    const prompt = buildWeekPrompt(spec, semanaNum, count, durMin, numSemanas, startDia);
-    const { text: raw, provider, model } = await callGatewayCollect(prompt, SYSTEM_PROMPT, maxTokens);
-    const result = extraerJSON(raw);
-    if (!result.ok) throw new Error(`Split día ${startDia}: ${result.motivo}`);
-    return result.data;
-  };
-
-  const d1 = await makeHalf(half1, 1);
-  const d2 = await makeHalf(half2, half1 + 1);
-
-  // Renumerar dias de la segunda mitad y fusionar
-  const clasesD2 = (d2.clases || []).slice(0, half2).map((c, i) => ({
-    ...c, dia: half1 + 1 + i,
-  }));
-
-  const merged = { ...d1, clases: [...(d1.clases || []).slice(0, half1), ...clasesD2] };
-  validateWeekPlan(merged, durMin, numClases);
-  return merged;
-}
-
-// ─── generateWeekPlan — exportación principal ─────────────────────────────────
-
-export const generateWeekPlan = async (spec, semanaNum, durMin, numClases, numSemanas = 4) => {
-  let maxTokens  = 8000;
-  let prefix     = '';
-  let splitMode  = false;
-  let lastError  = null;
+async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, contextoLog) {
+  let maxTokens = MAX_TOKENS;
+  let prefix    = '';
+  let lastError = null;
   let lastProvider = 'desconocido';
   let lastModel    = 'desconocido';
   let lastRaw      = '';
 
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      // ── Modo split: dos llamadas con la mitad de clases cada una ──────────
-      if (splitMode) {
-        return await generateWeekPlanSplit(spec, semanaNum, durMin, numClases, numSemanas, maxTokens);
-      }
-
-      const { text: raw, provider, model } = await callGatewayCollect(
-        prefix + buildWeekPrompt(spec, semanaNum, numClases, durMin, numSemanas),
-        SYSTEM_PROMPT,
-        maxTokens,
-      );
+      const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria);
+      const { text: raw, provider, model } = await callGatewayCollect(prompt, SYSTEM_PROMPT, maxTokens);
       lastProvider = provider;
       lastModel    = model;
       lastRaw      = raw;
 
       const result = extraerJSON(raw);
-
       if (!result.ok) {
-        // Log permanente del fallo
-        await logParseError({ semanaNum, attempt, motivo: result.motivo, raw, provider, model });
-        console.error(
-          `[FaseA] intento ${attempt} — ${result.motivo}`,
-          { inicio: raw.slice(0, 300), fin: raw.slice(-300) },
-        );
-
+        await logParseError({ contexto: contextoLog, attempt, motivo: result.motivo, raw, provider, model });
+        console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${result.motivo}`,
+          { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
         lastError = new Error(result.motivo);
-
-        // Adaptar estrategia para el siguiente intento
-        if (result.motivo.includes('TRUNCADO')) {
-          if (attempt === 1) {
-            maxTokens = 12000;                     // intento 2: más tokens
-          } else {
-            splitMode = true;                      // intento 3: partir en mitades
-          }
-        } else {
-          // texto sin JSON o malformado → añadir recordatorio
-          prefix = JSON_REMINDER;
-        }
+        if (result.motivo.includes('TRUNCADO')) maxTokens = 8000;
+        else prefix = JSON_REMINDER;
         continue;
       }
 
-      validateWeekPlan(result.data, durMin, numClases);
+      validateBatch(result.data, durMin, count);
       return result.data;
 
     } catch (err) {
-      lastError    = err;
-      lastRaw      = lastRaw || '';
-      console.error(`[FaseA] intento ${attempt} (${lastProvider}/${lastModel}):`, err.message);
+      lastError = err;
+      console.error(`[FaseA] ${contextoLog} intento ${attempt} (${lastProvider}/${lastModel}):`, err.message);
       await logParseError({
-        semanaNum, attempt,
-        motivo:   err.message,
-        raw:      lastRaw,
-        provider: lastProvider,
-        model:    lastModel,
+        contexto: contextoLog, attempt, motivo: err.message,
+        raw: lastRaw, provider: lastProvider, model: lastModel,
       });
     }
   }
 
-  // Error final con diagnóstico completo
   throw new Error(
-    `Error generando Semana ${semanaNum} tras 3 intentos ` +
-    `[${lastProvider} / ${lastModel}]. ` +
+    `${contextoLog} falló tras 2 intentos [${lastProvider}/${lastModel}]. ` +
     `Motivo: ${lastError?.message}. ` +
     `Raw inicio: "${lastRaw.slice(0, 200)}" … fin: "${lastRaw.slice(-200)}"`,
   );
+}
+
+// ─── generateWeekPlan — exportación principal ─────────────────────────────────
+
+export const generateWeekPlan = async (
+  spec, semanaNum, durMin, numClases, numSemanas = 4,
+  memoriaAcumulada = [], onProgress = null,
+) => {
+  const batches    = Math.ceil(numClases / BATCH_SIZE);
+  const allClases  = [];
+
+  for (let b = 0; b < batches; b++) {
+    const startDia   = b * BATCH_SIZE + 1;
+    const count      = Math.min(BATCH_SIZE, numClases - b * BATCH_SIZE);
+    const endDia     = startDia + count - 1;
+    const contextoLog = `S${semanaNum}/C${startDia}-${endDia}`;
+
+    onProgress?.(startDia, endDia);
+
+    const batchData = await generateWeekBatch(
+      spec, semanaNum, startDia, count, durMin, numSemanas, memoriaAcumulada, contextoLog,
+    );
+
+    // Renumerar dias y agregar a la semana
+    const nuevasClases = batchData.clases.slice(0, count).map((c, i) => ({
+      ...c, dia: startDia + i,
+    }));
+    allClases.push(...nuevasClases);
+
+    // Actualizar memoria para los lotes siguientes
+    nuevasClases.forEach(c => {
+      const desarrolloResumen =
+        c.momentos?.find(m => m.nombre === 'Desarrollo')?.actividades?.[0] || '';
+      memoriaAcumulada.push({
+        semana: semanaNum,
+        dia:    c.dia,
+        titulo: c.titulo || `Clase ${c.dia}`,
+        desarrolloResumen,
+      });
+    });
+  }
+
+  const combined = { outputSchemaVersion: '1.0', semana: semanaNum, clases: allClases };
+  validateWeekPlan(combined, durMin, numClases);
+  return combined;
 };
 
 // ─── buildEspecificacionCurricular — exportada para uso externo ───────────────
