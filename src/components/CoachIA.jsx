@@ -113,7 +113,7 @@ export default function CoachIA({ pagina = 'inicio', formulario = {} }) {
 
   const irAAsistente = () => {
     setAbierto(false)
-    navigate('/asistente-personal')
+    navigate('/centro-ia')
   }
 
   return (
@@ -195,7 +195,7 @@ export default function CoachIA({ pagina = 'inicio', formulario = {} }) {
             <div style={{
               fontSize: 12.5, color: '#5b21b6', lineHeight: 1.5, marginBottom: 11,
             }}>
-              Tu asistente personal IA puede ayudarte con estrategias, el currículo MINERD, estudiantes difíciles y más.
+              Conversa con DocenteOS AI PRO — estrategias pedagógicas, currículo MINERD, planificación y más.
             </div>
             <button
               onClick={irAAsistente}
@@ -207,7 +207,7 @@ export default function CoachIA({ pagina = 'inicio', formulario = {} }) {
                 fontFamily: 'inherit',
               }}
             >
-              🤖 Asistente Personal
+              ✦ Ir al Asistente IA
             </button>
           </div>
 
