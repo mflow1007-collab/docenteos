@@ -1,10 +1,13 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import process from 'node:process'
+import { Buffer } from 'node:buffer'
+import { Readable } from 'node:stream'
 import fuenteCheckHandler from './api/fuentes/check.js'
 import educandoHandler from './api/materiales/educando.js'
 import libroAbiertoHandler from './api/materiales/libro-abierto.js'
 import libroAbiertoPdfHandler from './api/materiales/libro-abierto-pdf.js'
+import aiGenerateHandler from './api/ai/generate.js'
 
 const API_HANDLERS = {
   '/api/fuentes/check': fuenteCheckHandler,
@@ -12,6 +15,20 @@ const API_HANDLERS = {
   '/api/materiales/libro-abierto': libroAbiertoHandler,
   '/api/materiales/libro-abierto-pdf': libroAbiertoPdfHandler,
 }
+
+const EDGE_API_HANDLERS = {
+  '/api/ai/generate': aiGenerateHandler,
+}
+
+const readRawBody = (req) =>
+  new Promise((resolve, reject) => {
+    const chunks = []
+    req.on('data', (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    })
+    req.on('end', () => resolve(Buffer.concat(chunks)))
+    req.on('error', reject)
+  })
 
 const readBody = (req) =>
   new Promise((resolve, reject) => {
@@ -52,6 +69,40 @@ function docenteosApiDevPlugin() {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url?.split('?')[0]
+        const edgeHandler = EDGE_API_HANDLERS[url]
+        if (edgeHandler) {
+          try {
+            const body = req.method === 'GET' || req.method === 'HEAD'
+              ? undefined
+              : await readRawBody(req)
+            const reqUrl = new URL(req.url || '/', 'http://localhost')
+            const request = new Request(reqUrl.toString(), {
+              method: req.method,
+              headers: req.headers,
+              body,
+              duplex: body ? 'half' : undefined,
+            })
+            const response = await edgeHandler(request)
+            res.statusCode = response.status
+            response.headers.forEach((value, key) => {
+              res.setHeader(key, value)
+            })
+            if (!response.body) {
+              res.end()
+              return
+            }
+            Readable.fromWeb(response.body).pipe(res)
+          } catch (error) {
+            res.statusCode = 500
+            res.setHeader('Content-Type', 'application/json; charset=utf-8')
+            res.end(JSON.stringify({
+              error: 'Error ejecutando API local de IA',
+              detail: error?.message || String(error),
+            }))
+          }
+          return
+        }
+
         const handler = API_HANDLERS[url]
         if (!handler) {
           next()

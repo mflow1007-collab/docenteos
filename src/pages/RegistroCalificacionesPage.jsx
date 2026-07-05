@@ -7,11 +7,14 @@ import {
   guardarRegistroCalificaciones,
   guardarRegistroNota,
   obtenerEvidenciasCurso,
+  obtenerInstrumentosFirestore,
   obtenerRegistroAspectos,
   obtenerRegistroCalificaciones,
   obtenerRegistroNotas,
 } from "../firebase";
+import { validarPonderacion } from "../services/hiloPedagogico.js";
 import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
+import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
@@ -348,6 +351,9 @@ function RegistroPage({
   const [registroAspectos, setRegistroAspectos] = useState([]);
   const [registroNotas, setRegistroNotas] = useState({});
   const [evidenciasCurso, setEvidenciasCurso] = useState([]);
+  const [instrumentosCurso, setInstrumentosCurso] = useState([]);
+  const [filtroEvidenciaEst, setFiltroEvidenciaEst] = useState("Todos");
+  const [filtroEvidenciaTipo, setFiltroEvidenciaTipo] = useState("Todos");
   const [estadoNotasAspectos, setEstadoNotasAspectos] = useState("idle");
   const notasPendientesRef = useRef({});
   const estudiantesModificadosRef = useRef(new Set());
@@ -454,18 +460,23 @@ function RegistroPage({
       obtenerRegistroAspectos(cursoId),
       obtenerRegistroNotas(cursoId),
       obtenerEvidenciasCurso(cursoId),
-    ]).then(([aspectosRes, notasRes, evidenciasRes]) => {
+      obtenerInstrumentosFirestore().catch(() => ({ data: [] })),
+    ]).then(([aspectosRes, notasRes, evidenciasRes, instrumentosRes]) => {
       if (!activo) return;
       const aspectos = (aspectosRes.data || []).sort((a, b) => (Number(a.orden) || 0) - (Number(b.orden) || 0));
       const notas = Object.fromEntries((notasRes.data || []).map((nota) => [nota.notaId || `${nota.estudianteId}_${nota.aspectoId}`, nota]));
       setRegistroAspectos(aspectos);
       setRegistroNotas(notas);
       setEvidenciasCurso(evidenciasRes.data || []);
+      setInstrumentosCurso((instrumentosRes.data || []).filter(
+        (ins) => String(ins.cursoId || ins.vinculacion?.cursoId || "") === String(cursoId)
+      ));
     }).catch(() => {
       if (activo) {
         setRegistroAspectos([]);
         setRegistroNotas({});
         setEvidenciasCurso([]);
+        setInstrumentosCurso([]);
       }
     });
 
@@ -639,6 +650,25 @@ function RegistroPage({
     return { tipo: "error", texto: "La suma de instrumentos supera los 100 puntos. Ajusta los valores." };
   }, [totalAspectosActivos]);
 
+  // Regla 10 (hilo pedagógico): la ponderación REAL de los instrumentos de
+  // cada período debe sumar 100. Solo se validan los que tienen ponderación
+  // explícita (los esqueletos sin ponderar no generan ruido).
+  const advertenciasPonderacion = useMemo(() => {
+    const conPonderacion = instrumentosCurso.filter(
+      (ins) => ins.ponderacion !== null && ins.ponderacion !== undefined && ins.ponderacion !== ""
+    );
+    if (!conPonderacion.length) return [];
+    const porPeriodo = new Map();
+    for (const ins of conPonderacion) {
+      const clave = ins.periodo || "Sin período";
+      if (!porPeriodo.has(clave)) porPeriodo.set(clave, []);
+      porPeriodo.get(clave).push(ins);
+    }
+    return [...porPeriodo.entries()]
+      .map(([per, lista]) => ({ periodo: per, ...validarPonderacion(lista) }))
+      .filter((v) => !v.esCompleta);
+  }, [instrumentosCurso]);
+
   const obtenerNotaAspecto = (estudianteId, aspectoId) =>
     registroNotas[`${estudianteId}_${aspectoId}`] || null;
 
@@ -654,21 +684,56 @@ function RegistroPage({
 
   const actualizarNotaAspecto = (estudiante, aspecto, valor) => {
     const notaId = `${estudiante.id}_${aspecto.aspectoId}`;
+    const previa = registroNotas[notaId] || {};
     const valorObtenido = valor === "" ? "" : Math.min(Number(aspecto.puntajeMaximo) || 0, Math.max(0, Number(valor) || 0));
+    // Regla 12: escribir a mano es un AJUSTE MANUAL — la automatización lo
+    // respetará (solo actualizará valorCalculado y marcará desactualizado).
     const nota = {
+      ...previa,
       notaId,
       cursoId,
       estudianteId: estudiante.id,
       aspectoId: aspecto.aspectoId,
-      instrumentoId: aspecto.instrumentoId || "",
+      instrumentoId: previa.instrumentoId || aspecto.instrumentoId || "",
       valorObtenido,
       puntajeMaximo: Number(aspecto.puntajeMaximo) || 0,
       porcentaje: valorObtenido === "" || !Number(aspecto.puntajeMaximo) ? null : Math.round((Number(valorObtenido) / Number(aspecto.puntajeMaximo)) * 100),
-      observacion: registroNotas[notaId]?.observacion || "",
+      observacion: previa.observacion || "",
+      ajusteManual: valorObtenido !== "",
+      motivoAjuste: previa.motivoAjuste || "Ajuste manual desde Mi Registro",
+      desactualizado: false,
+      origen: previa.origen || "manual",
       fechaActualizacion: new Date().toISOString(),
     };
     notasPendientesRef.current[notaId] = nota;
     setRegistroNotas((prev) => ({ ...prev, [notaId]: nota }));
+  };
+
+  const aceptarCalculoNota = async (estudiante, aspecto) => {
+    const notaId = `${estudiante.id}_${aspecto.aspectoId}`;
+    try {
+      const { valorObtenido } = await aceptarCalculoAutomatico({
+        cursoId,
+        estudianteId: estudiante.id,
+        aspectoId: aspecto.aspectoId,
+      });
+      setRegistroNotas((prev) => ({
+        ...prev,
+        [notaId]: {
+          ...prev[notaId],
+          valorObtenido,
+          ajusteManual: false,
+          motivoAjuste: "",
+          desactualizado: false,
+          origen: "instrumento",
+        },
+      }));
+      setMensajeGuardado({ tipo: "ok", texto: "Cálculo automático aceptado." });
+    } catch {
+      setMensajeGuardado({ tipo: "error", texto: "No se pudo aceptar el cálculo. Intenta de nuevo." });
+    } finally {
+      setTimeout(() => setMensajeGuardado(null), 3000);
+    }
   };
 
   const actualizarAspecto = (aspectoId, campo, valor) => {
@@ -1620,6 +1685,17 @@ function RegistroPage({
             </small>
           </div>
 
+          {/* Regla 10: ponderación real de los instrumentos por período */}
+          {advertenciasPonderacion.map((adv) => (
+            <div key={adv.periodo} className="registro-distribucion warn" style={{ marginTop: 8 }}>
+              <strong>⚠️ {adv.periodo}: {adv.advertencia}</strong>
+              <span>
+                Se normalizará proporcionalmente al calcular (factor ×{adv.factorNormalizacion.toFixed(2)}),
+                pero revisa la ponderación de tus instrumentos.
+              </span>
+            </div>
+          ))}
+
           {registroAspectos.length === 0 ? (
             <div className="registro-empty-state">
               <strong>No hay aspectos evaluables todavía.</strong>
@@ -1692,6 +1768,29 @@ function RegistroPage({
                                   />
                                   <button type="button" onClick={() => crearEvidenciaDesdeNota(estudiante, aspecto)}>Evidencia</button>
                                 </div>
+                                {/* Origen de la nota (hilo pedagógico) */}
+                                {nota?.desactualizado ? (
+                                  <small style={{ display: "block", color: "#b45309", fontWeight: 700 }}>
+                                    ⚠️ Nuevo cálculo: {nota.valorCalculado}
+                                    <button
+                                      type="button"
+                                      className="mini-btn"
+                                      style={{ marginLeft: 4 }}
+                                      title="Reemplazar tu ajuste manual por el cálculo automático"
+                                      onClick={() => aceptarCalculoNota(estudiante, aspecto)}
+                                    >
+                                      Aceptar
+                                    </button>
+                                  </small>
+                                ) : nota?.ajusteManual ? (
+                                  <small style={{ display: "block", color: "#6d28d9" }} title={nota.motivoAjuste || "Ajuste manual"}>
+                                    ✏️ Editada{nota.valorCalculado !== undefined && nota.valorCalculado !== null ? ` (auto: ${nota.valorCalculado})` : ""}
+                                  </small>
+                                ) : nota?.origen === "instrumento" ? (
+                                  <small style={{ display: "block", color: "#047857" }}>
+                                    🤖 Automática{nota.esParcial ? " · parcial" : ""}
+                                  </small>
+                                ) : null}
                               </td>
                             );
                           })}
@@ -1717,6 +1816,59 @@ function RegistroPage({
             <h2>Evaluaciones desde instrumentos</h2>
             <p>Consolidado automático desde rúbricas, listas de cotejo, escalas y otros instrumentos aplicados.</p>
           </div>
+
+          {/* Fase 12: Banco de evidencias del curso, filtrable */}
+          {evidenciasCurso.length > 0 && (() => {
+            const nombrePorId = new Map(estudiantes.map((est) => [String(est.id), est.nombre]));
+            const tiposEvidencia = [...new Set(evidenciasCurso.map((e) => e.tipo).filter(Boolean))];
+            const filtradas = evidenciasCurso.filter((e) =>
+              (filtroEvidenciaEst === "Todos" || String(e.estudianteId) === filtroEvidenciaEst) &&
+              (filtroEvidenciaTipo === "Todos" || e.tipo === filtroEvidenciaTipo)
+            );
+            return (
+              <div className="registro-evaluacion-card" style={{ marginBottom: 16 }}>
+                <div className="registro-section-head compact">
+                  <h3>Banco de evidencias del curso ({filtradas.length}/{evidenciasCurso.length})</h3>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <select
+                      value={filtroEvidenciaEst}
+                      onChange={(e) => setFiltroEvidenciaEst(e.target.value)}
+                      aria-label="Filtrar evidencias por estudiante"
+                    >
+                      <option value="Todos">Estudiante: Todos</option>
+                      {estudiantes.map((est) => (
+                        <option key={est.id} value={String(est.id)}>{est.nombre}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={filtroEvidenciaTipo}
+                      onChange={(e) => setFiltroEvidenciaTipo(e.target.value)}
+                      aria-label="Filtrar evidencias por tipo"
+                    >
+                      <option value="Todos">Tipo: Todos</option>
+                      {tiposEvidencia.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gap: 4, maxHeight: 260, overflowY: "auto", fontSize: 13 }}>
+                  {filtradas.slice(0, 60).map((evidencia) => (
+                    <div key={evidencia.evidenciaId || evidencia.id} style={{ display: "flex", gap: 8, flexWrap: "wrap", borderBottom: "1px solid #f1f5f9", padding: "3px 0" }}>
+                      <span>{new Date(evidencia.fecha || evidencia.creadoEn || Date.now()).toLocaleDateString("es-DO")}</span>
+                      <strong>{nombrePorId.get(String(evidencia.estudianteId)) || evidencia.estudianteId}</strong>
+                      <span>{evidencia.titulo || evidencia.tema || "Evidencia"}</span>
+                      <span style={{ color: "#64748b" }}>
+                        {evidencia.calificacionAsociada ?? evidencia.calificacion ?? "—"}
+                        {evidencia.puntajeMaximo ? `/${evidencia.puntajeMaximo}` : ""}
+                        {evidencia.nivelLogro ? ` · ${evidencia.nivelLogro}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {evaluacionesConsolidadas.length === 0 ? (
             <div className="registro-empty-state">

@@ -57,6 +57,93 @@ const validarDatosPlanificacion = (datos) => {
   return true;
 };
 
+const asArray = (value) => Array.isArray(value) ? value : [];
+
+const uniq = (items = []) => {
+  const seen = new Set();
+  return asArray(items).filter(Boolean).filter((item) => {
+    const key = String(typeof item === "string" ? item : JSON.stringify(item)).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const textoItem = (item) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  return item.descripcion || item.texto || item.nombre || item.especificaGrado || item.especifica || "";
+};
+
+const normalizarContenidosCurriculares = (curriculo = {}) => {
+  const generales = curriculo.contenidosGenerales || {};
+  const contenidos = curriculo.contenidos || {};
+  const conceptos = contenidos.conceptos || {};
+  const procedimientos = contenidos.procedimientos || {};
+  return {
+    conceptuales: uniq([
+      ...asArray(generales.conceptuales),
+      ...asArray(conceptos.temas),
+      ...asArray(conceptos.frases),
+      ...asArray(conceptos.vocabulario),
+      ...asArray(conceptos.gramatica),
+      ...asArray(conceptos.items),
+    ]).map(textoItem).filter(Boolean),
+    procedimentales: uniq([
+      ...asArray(generales.procedimentales),
+      ...asArray(procedimientos.funcionales),
+      ...asArray(procedimientos.items),
+    ]).map(textoItem).filter(Boolean),
+    actitudinales: uniq([
+      ...asArray(generales.actitudinales),
+      ...asArray(contenidos.actitudinales),
+      ...asArray(contenidos.actitudes),
+    ]).map(textoItem).filter(Boolean),
+  };
+};
+
+const construirCurriculoPlanificacion = ({ datos, curriculoOficial = {}, contenidosFinal, ejesFinal, indicadoresProcesados }) => {
+  const competencias = uniq([
+    ...asArray(datos.competenciasCurriculares),
+    ...asArray(curriculoOficial.competencias),
+  ]).map((comp, index) => {
+    const descripcion = textoItem(comp);
+    const indicadores = asArray(comp?.indicadoresLogro || comp?.indicadores)
+      .map(textoItem)
+      .filter(Boolean);
+    return {
+      id: comp?.id || `CE-${index + 1}`,
+      competenciaFundamental: comp?.competenciaFundamental || comp?.fundamental || "",
+      descripcion,
+      indicadoresLogro: indicadores,
+    };
+  }).filter(comp => comp.descripcion || comp.indicadoresLogro.length);
+
+  const indicadoresDesdeCompetencias = competencias.flatMap(comp => comp.indicadoresLogro);
+  const contenidosCurriculares = normalizarContenidosCurriculares(curriculoOficial);
+  const tieneContenidosCurriculares =
+    contenidosCurriculares.conceptuales.length ||
+    contenidosCurriculares.procedimentales.length ||
+    contenidosCurriculares.actitudinales.length;
+
+  return {
+    fuente: curriculoOficial?.id ? "Banco curricular oficial" : "Formulario DocenteOS",
+    ejeTematicoTransversal: uniq([
+      ...asArray(curriculoOficial.ejeTematicoTransversal),
+      ...asArray(curriculoOficial.ejeTemáticoTransversal),
+      ...asArray(curriculoOficial.ejesTransversales),
+      ...asArray(ejesFinal),
+    ]).map(textoItem).filter(Boolean),
+    competencias,
+    indicadoresLogro: uniq([
+      ...asArray(indicadoresProcesados),
+      ...asArray(curriculoOficial.indicadoresLogro || curriculoOficial.indicadores).map(textoItem),
+      ...indicadoresDesdeCompetencias,
+    ]).map(textoItem).filter(Boolean),
+    contenidos: tieneContenidosCurriculares ? contenidosCurriculares : contenidosFinal,
+  };
+};
+
 // ─── Auto-generación de contexto curricular ─────────────────────────────────
 
 const generarSituacionAprendizaje = (area, grado, tema, competencia) => {
@@ -434,6 +521,176 @@ const METACOGNICION_POR_MOMENTO = {
 
 const FASE_A_IDX = { diagnostica: 0, inicial: 0, desarrollo: 1, profundizacion: 1, final: 2 };
 
+const EVAL_MOMENTO = {
+  diagnostica: {
+    Inicio:     { agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Lista de cotejo" },
+    Desarrollo: { agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Lista de cotejo" },
+    Cierre:     { agente: "Autoevaluación",   tecnica: "Preguntas reflexivas", instrumento: "Registro anecdótico" },
+  },
+  formativa: {
+    Inicio:     { agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Lista de cotejo" },
+    Desarrollo: { agente: "Heteroevaluación y coevaluación", tecnica: "Observación directa y revisión de producciones", instrumento: "Lista de cotejo" },
+    Cierre:     { agente: "Autoevaluación", tecnica: "Preguntas reflexivas", instrumento: "Registro anecdótico" },
+  },
+  sumativa: {
+    Inicio:     { agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Lista de cotejo" },
+    Desarrollo: { agente: "Heteroevaluación y coevaluación", tecnica: "Producción y socialización del producto", instrumento: "Rúbrica analítica" },
+    Cierre:     { agente: "Autoevaluación", tecnica: "Preguntas reflexivas", instrumento: "Registro anecdótico y rúbrica del producto final" },
+  },
+};
+
+const generarEvidenciasMomento = (tipo, tema, fase) => {
+  const base = {
+    Inicio: {
+      conocimientos: [
+        `Saberes previos sobre "${tema}".`,
+        "Vocabulario, ideas o experiencias relacionadas con el contenido.",
+      ],
+      desempeno: [
+        "Participa en la activación de saberes previos.",
+        "Responde preguntas orales o escritas de exploración.",
+      ],
+      producto: [
+        "Respuestas iniciales registradas oralmente o en el cuaderno.",
+      ],
+    },
+    Desarrollo: {
+      conocimientos: [
+        `Conceptos, procedimientos y vocabulario trabajados sobre "${tema}".`,
+        "Relación entre el contenido nuevo y experiencias previas.",
+      ],
+      desempeno: [
+        "Aplica el contenido en actividades guiadas y colaborativas.",
+        "Produce, analiza o socializa evidencias durante la clase.",
+      ],
+      producto: [
+        `Producción parcial relacionada con "${tema}".`,
+        "Actividad del cuaderno, borrador, organizador o práctica completada.",
+      ],
+    },
+    Cierre: {
+      conocimientos: [
+        `Ideas clave aprendidas sobre "${tema}".`,
+        "Estrategias usadas para comprender el contenido.",
+      ],
+      desempeno: [
+        "Sintetiza lo aprendido y participa en la reflexión final.",
+        "Autoevalúa su participación y reconoce próximos pasos.",
+      ],
+      producto: [
+        "Reflexión oral o escrita de cierre.",
+        "Compromiso, tarea o evidencia organizada en el portafolio.",
+      ],
+    },
+  };
+
+  if (fase === "final" && tipo === "Desarrollo") {
+    return {
+      conocimientos: [
+        `Aprendizajes integrados de la unidad sobre "${tema}".`,
+        "Criterios de calidad del producto final.",
+      ],
+      desempeno: [
+        "Presenta o socializa el producto final demostrando dominio progresivo.",
+        "Responde preguntas y utiliza retroalimentación de pares y docente.",
+      ],
+      producto: [
+        `Producto final o evidencia integradora sobre "${tema}".`,
+        "Rúbrica, coevaluación o autoevaluación vinculada al producto.",
+      ],
+    };
+  }
+
+  return base[tipo] || base.Desarrollo;
+};
+
+const generarRecursosMomento = (tipo, area, fase) => {
+  const base = {
+    humanos: "Docente y estudiantes.",
+    didacticos: "Pizarra, cuadernos, marcadores y materiales de apoyo.",
+    tecnologicos: "TV, proyector o recurso digital disponible.",
+  };
+  const porArea = {
+    "Inglés": {
+      Inicio: "Flashcards, imágenes, banco de vocabulario y cuadernos.",
+      Desarrollo: "Tarjetas de vocabulario, audios, fichas comunicativas y portafolio.",
+      Cierre: "Cuadernos, portafolio y lista breve de reflexión.",
+    },
+    "Lengua Española": {
+      Inicio: "Texto breve, pizarra y cuadernos.",
+      Desarrollo: "Textos impresos, fichas de lectura/escritura y diccionario.",
+      Cierre: "Cuadernos, producciones y registro de reflexión.",
+    },
+    "Matemática": {
+      Inicio: "Situación problema, pizarra y material manipulativo.",
+      Desarrollo: "Fichas de ejercicios, material concreto, regla o calculadora si aplica.",
+      Cierre: "Cuadernos, ejercicios resueltos y lista de verificación.",
+    },
+    "Ciencias de la Naturaleza": {
+      Inicio: "Imagen, fenómeno, muestra u objeto de observación.",
+      Desarrollo: "Materiales de experimento, fichas de observación y cuaderno científico.",
+      Cierre: "Cuaderno científico, conclusiones y registro de hallazgos.",
+    },
+    "Ciencias Sociales": {
+      Inicio: "Imagen, mapa, línea de tiempo o noticia breve.",
+      Desarrollo: "Fuentes, mapas, textos históricos y organizadores gráficos.",
+      Cierre: "Cuadernos, conclusiones y evidencias de análisis.",
+    },
+  };
+  const didacticos = porArea[area]?.[tipo] || base.didacticos;
+  return {
+    humanos: base.humanos,
+    didacticos: fase === "final" && tipo === "Desarrollo"
+      ? `${didacticos} Producto final, rúbrica y portafolio.`
+      : didacticos,
+    tecnologicos: tipo === "Cierre" ? "No aplica o recurso digital disponible." : base.tecnologicos,
+  };
+};
+
+// ─── A5.2 — Evaluación MINERD por momento ────────────────────────────────────
+
+// Tipo por POSICIÓN del momento (no por semana): Inicio explora saberes,
+// Desarrollo forma, Cierre solo es sumativo cuando el instrumento de la
+// semana es ponderado (semana sumativa: rúbrica del producto / portafolio).
+const derivarTipoEvalMomento = (momento, tipoEvalSemana) => {
+  if (momento === "Inicio") return "diagnostica";
+  if (momento === "Desarrollo") return "formativa";
+  return tipoEvalSemana === "sumativa" ? "sumativa" : "formativa";
+};
+
+// Agente según lo que realmente pasa en el momento: coevaluación si las
+// actividades son grupales/entre pares; autoevaluación si el momento incluye
+// metacognición del estudiante; heteroevaluación como base.
+const derivarAgenteEvaluacion = (actividades = [], metacognicion = [], base = "Heteroevaluación") => {
+  const texto = actividades.join(" ").toLowerCase();
+  const esGrupal = /parejas|grupos?|entre pares|coevalua|equipo|colaborativ|mutuamente/.test(texto);
+  const hayMetacognicion = metacognicion.length > 0 || /autoevalua|reflexionan/.test(texto);
+  if (esGrupal && hayMetacognicion) return "Heteroevaluación, coevaluación y autoevaluación";
+  if (esGrupal) return base.toLowerCase().includes("coevalua") ? base : "Heteroevaluación y coevaluación";
+  if (hayMetacognicion) return base.toLowerCase().includes("autoevalua") ? base : "Heteroevaluación y autoevaluación";
+  return base;
+};
+
+// Técnica derivada del tipo de actividad, usando el catálogo de técnicas por
+// tipo de evaluación (ver generarEvaluacionSemana). El fallback es la técnica
+// del catálogo EVAL_MOMENTO, nunca un string genérico hardcodeado.
+const TECNICAS_POR_ACTIVIDAD = [
+  { patron: /lluvia de ideas/, tecnica: "Lluvia de ideas" },
+  { patron: /preguntas (diagnosticas|diagnósticas|de sondeo|exploratorias)|activaci[oó]n de saberes/, tecnica: "Preguntas exploratorias" },
+  { patron: /coevalua/, tecnica: "Coevaluación" },
+  { patron: /autoevalua/, tecnica: "Autoevaluación" },
+  { patron: /presentan|exposici[oó]n|producto final|socializan/, tecnica: "Presentación del producto final" },
+  { patron: /producen|construyen|elaboran|completan|escriben|resuelven|practican/, tecnica: "Trabajo práctico" },
+  { patron: /observan|analizan|leen/, tecnica: "Observación directa" },
+  { patron: /participan|comparten|discuten|responden/, tecnica: "Participación activa" },
+];
+
+const derivarTecnicaEvaluacion = (actividades = [], fallback = "Observación directa") => {
+  const texto = actividades.join(" ").toLowerCase();
+  const match = TECNICAS_POR_ACTIVIDAD.find(({ patron }) => patron.test(texto));
+  return match ? match.tecnica : fallback;
+};
+
 const construirMomento = (tipo, semana, dia, tema, tipoEval, totalMin = 45, area = "", fase = "desarrollo") => {
   const tiempos = calcularTiemposMomento(totalMin);
   const instrumentosMapa = {
@@ -472,13 +729,30 @@ const construirMomento = (tipo, semana, dia, tema, tipoEval, totalMin = 45, area
       ]
     : [metaVariantes[((semana - 1) * 5 + (dia - 1)) % metaVariantes.length]];
 
+  const evalConfig = EVAL_MOMENTO[tipoEval]?.[tipo] || {
+    agente: "Heteroevaluación",
+    tecnica: "Observación directa",
+    instrumento,
+  };
+  const evidenciasDetalle = generarEvidenciasMomento(tipo, tema, fase);
+
   return {
     tipo,
     tiempo: tiempos[tipo],
     actividades,
     instrumento,
-    evaluacion: { tipo: tipoEval, tecnica: "Observación sistemática", instrumento },
+    evidenciasDetalle,
+    evidencias: evidenciasDetalle.producto,
+    // A5.2: evaluación MINERD completa por momento — tipo por posición,
+    // agente y técnica derivados de las actividades reales del momento.
+    evaluacion: {
+      tipo: derivarTipoEvalMomento(tipo, tipoEval),
+      agente: derivarAgenteEvaluacion(actividades, metacognicion, evalConfig.agente),
+      tecnica: derivarTecnicaEvaluacion(actividades, evalConfig.tecnica),
+      instrumento: evalConfig.instrumento || instrumento,
+    },
     metacognicion,
+    recursos: generarRecursosMomento(tipo, area, fase),
   };
 };
 
@@ -772,6 +1046,7 @@ const generarPlanificacion = async (datos) => {
     situacionAprendizaje = "",
     minutosHoraClase = 45,
     periodosClasePorDia = {},
+    curriculoOficial = null,
   } = datos;
 
   // Para lookups de contenido usa la asignatura si existe en el diccionario; si no, usa el área
@@ -800,6 +1075,13 @@ const generarPlanificacion = async (datos) => {
     ? asignaturasVinculadas.split(",").map(a => a.trim()).filter(Boolean)
     : (ASIGNATURAS_VINCULADAS_DEFAULT[claveArea] || ["Lengua Española"]);
   const contenidosFinal  = generarContenidosClasificados(claveArea, tema);
+  const curriculoPlanificacion = construirCurriculoPlanificacion({
+    datos,
+    curriculoOficial: curriculoOficial || {},
+    contenidosFinal,
+    ejesFinal,
+    indicadoresProcesados,
+  });
 
   const desarrollo = generarDesarrolloSemanal({ semanas: duracionSemanas, tema, area: claveArea, competencia, diasNombres: diasClase, minutosHoraClase, periodosClasePorDia, temasDistribuidos });
 
@@ -834,6 +1116,8 @@ const generarPlanificacion = async (datos) => {
       temasDistribuidos,
       // Contexto enriquecido
       ejesTematicos: ejesFinal,
+      ejeTematicoTransversal: curriculoPlanificacion.ejeTematicoTransversal,
+      curriculoPlanificacion,
       asignaturasVinculadas: asignaturasFinal,
       situacionAprendizaje: situacionFinal,
       ambienteAprendizaje: ambienteFinal,
@@ -850,6 +1134,8 @@ const generarPlanificacion = async (datos) => {
       imagenTematica: imagenTematicaSrc,
       imagenTematicaNombre,
       contenidos: contenidosFinal,
+      curriculoPlanificacion,
+      ejeTematicoTransversal: curriculoPlanificacion.ejeTematicoTransversal,
       ejesTematicos: ejesFinal,
       asignaturasVinculadas: asignaturasFinal,
       situacionAprendizaje: situacionFinal,
@@ -866,9 +1152,23 @@ const formatearParaPDF = (plan) => {
   let t = "";
   const meta = plan.metadatos || {};
   const datos = plan.datosGenerales || {};
+  const curriculo = datos.curriculoPlanificacion || meta.curriculoPlanificacion || {};
   t += "PLANIFICACIÓN DIDÁCTICA MINERD\n";
   t += "=".repeat(60) + "\n\n";
   t += `Tema: ${meta.tema}\nGrado: ${meta.grado} ${meta.seccion}\nÁrea: ${meta.area}\nPeríodo: ${meta.periodo}\nDuración: ${meta.duracion}\n\n`;
+  if (Array.isArray(curriculo.ejeTematicoTransversal) && curriculo.ejeTematicoTransversal.length) {
+    t += "EJE TEMÁTICO TRANSVERSAL\n";
+    curriculo.ejeTematicoTransversal.forEach((eje, i) => { t += `${i + 1}. ${textoItem(eje)}\n`; });
+    t += "\n";
+  }
+  if (Array.isArray(curriculo.competencias) && curriculo.competencias.length) {
+    t += "COMPETENCIAS FUNDAMENTALES Y ESPECÍFICAS\n";
+    curriculo.competencias.forEach((comp, i) => {
+      t += `${i + 1}. ${[comp.competenciaFundamental, comp.descripcion].filter(Boolean).join(": ")}\n`;
+      (comp.indicadoresLogro || []).forEach((ind) => { t += `   - ${textoItem(ind)}\n`; });
+    });
+    t += "\n";
+  }
   if (datos.situacionAprendizaje) t += `SITUACIÓN DE APRENDIZAJE\n${datos.situacionAprendizaje}\n\n`;
   if (Array.isArray(datos.indicadoresOficiales)) {
     t += "INDICADORES DE LOGRO\n";
@@ -891,12 +1191,109 @@ const formatearParaPDF = (plan) => {
   return t;
 };
 
+const escapeHtml = (value) => String(value ?? "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#39;");
+
+const TIPO_EVAL_PRINT = {
+  diagnostica: "Diagnóstica",
+  formativa: "Formativa",
+  sumativa: "Sumativa",
+};
+
+const listHtml = (items = []) =>
+  (items || []).filter(Boolean).map((x) => `<li>${escapeHtml(x)}</li>`).join("");
+
+const evidenciasMomentoHtml = (m) => {
+  const ev = m.evidenciasDetalle || {};
+  const conocimientos = ev.conocimientos || [];
+  const desempeno = ev.desempeno || [];
+  const producto = ev.producto || m.evidencias || [];
+  return `
+    <p><strong>Conocimientos:</strong></p><ul>${listHtml(conocimientos)}</ul>
+    <p><strong>Desempeño:</strong></p><ul>${listHtml(desempeno)}</ul>
+    <p><strong>Producto:</strong></p><ul>${listHtml(producto)}</ul>
+  `;
+};
+
+const evaluacionMomentoHtml = (m) => {
+  const ev = m.evaluacion || {};
+  return `
+    <p><strong>Tipo:</strong> ${escapeHtml(TIPO_EVAL_PRINT[ev.tipo] || ev.tipo || "Formativa")}.</p>
+    <p><strong>Agente:</strong> ${escapeHtml(ev.agente || "Heteroevaluación")}.</p>
+    <p><strong>Técnica:</strong> ${escapeHtml(ev.tecnica || "Observación directa")}.</p>
+    <p><strong>Instrumento:</strong> ${escapeHtml(ev.instrumento || m.instrumento || "Lista de cotejo")}.</p>
+  `;
+};
+
+const recursosMomentoHtml = (m) => {
+  const r = m.recursos || {};
+  return `
+    <p><strong>Humanos:</strong> ${escapeHtml(r.humanos || "Docente y estudiantes.")}</p>
+    <p><strong>Didácticos:</strong> ${escapeHtml(r.didacticos || "Cuadernos, pizarra y materiales de apoyo.")}</p>
+    <p><strong>Tecnológicos:</strong> ${escapeHtml(r.tecnologicos || "No aplica o recurso disponible.")}</p>
+  `;
+};
+
+const textoCurricularHtml = (item) => escapeHtml(textoItem(item) || "—");
+
+const tablaEjeTransversalHtml = (ejes = []) => {
+  if (!asArray(ejes).length) return "";
+  return `<h2>Eje Temático Transversal</h2>
+    <table class="curricular-table">
+      <thead><tr><th>Eje / Tema transversal</th></tr></thead>
+      <tbody>${asArray(ejes).map(eje => `<tr><td>${textoCurricularHtml(eje)}</td></tr>`).join("")}</tbody>
+    </table>`;
+};
+
+const tablaCompetenciasIndicadoresHtml = (curriculo = {}, competencia = "", indicadores = []) => {
+  const competencias = asArray(curriculo.competencias);
+  const indicadoresBase = asArray(curriculo.indicadoresLogro).length ? curriculo.indicadoresLogro : indicadores;
+  if (!competencias.length && !asArray(indicadoresBase).length && !competencia) return "";
+
+  const rows = competencias.length
+    ? competencias.map((comp) => {
+      const inds = asArray(comp.indicadoresLogro).length ? comp.indicadoresLogro : indicadoresBase;
+      const compText = [
+        comp.competenciaFundamental ? `<strong>${escapeHtml(comp.competenciaFundamental)}:</strong>` : "",
+        textoCurricularHtml(comp.descripcion || comp.especificaGrado || comp.especifica || comp.textoOficial || comp),
+      ].filter(Boolean).join(" ");
+      return `<tr><td>${compText}</td><td><ul>${listHtml(inds.map(textoItem))}</ul></td></tr>`;
+    }).join("")
+    : `<tr><td>${escapeHtml(competencia || "—")}</td><td><ul>${listHtml(asArray(indicadoresBase).map(textoItem))}</ul></td></tr>`;
+
+  return `<h2>Componente Curricular / Asignatura</h2>
+    <table class="curricular-table">
+      <thead><tr><th>Competencias fundamentales y específicas</th><th>Indicadores de logro</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+};
+
+const tablaContenidosCurricularesHtml = (contenidos = {}) => {
+  if (!contenidos?.conceptuales && !contenidos?.procedimentales && !contenidos?.actitudinales) return "";
+  return `<h2>Contenidos</h2>
+    <table class="curricular-table contenidos-table">
+      <thead><tr><th>Conceptos</th><th>Procedimientos</th><th>Actitudes y valores</th></tr></thead>
+      <tbody><tr>
+        <td><ul>${listHtml(asArray(contenidos.conceptuales).map(textoItem))}</ul></td>
+        <td><ul>${listHtml(asArray(contenidos.procedimentales).map(textoItem))}</ul></td>
+        <td><ul>${listHtml(asArray(contenidos.actitudinales).map(textoItem))}</ul></td>
+      </tr></tbody>
+    </table>`;
+};
+
 // ─── PDF HTML ────────────────────────────────────────────────────────────────
 
 const formatearParaPDFHtml = (plan) => {
   const meta  = plan.metadatos    || {};
   const datos = plan.datosGenerales || {};
   const semanas = plan.desarrolloSemanal || [];
+  const curriculo = datos.curriculoPlanificacion || meta.curriculoPlanificacion || {};
+  const ejeTransversal = curriculo.ejeTematicoTransversal || datos.ejeTematicoTransversal || meta.ejeTematicoTransversal || [];
+  const contenidosCurriculares = curriculo.contenidos || datos.contenidos || {};
 
   const css = `
     *{box-sizing:border-box}
@@ -914,6 +1311,13 @@ const formatearParaPDFHtml = (plan) => {
     .eje-0{background:#7c3aed} .eje-1{background:#0284c7} .eje-2{background:#059669} .eje-3{background:#d97706}
     .situacion{background:#fffbeb;border:1px solid #fde68a;padding:8px 10px;border-radius:8px;font-style:normal;font-weight:normal;line-height:1.3;font-size:12pt;text-align:justify;height:auto;min-height:40px}
     .contenidos-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .curricular-table{width:100%;border-collapse:collapse;margin:6px 0 12px;table-layout:fixed}
+    .curricular-table th{background:#1d4ed8;color:#fff;border:1px solid #1e40af;padding:6px 7px;font-size:10.5pt;text-align:left}
+    .curricular-table td{border:1px solid #93c5fd;padding:6px 7px;vertical-align:top;font-size:10.5pt;line-height:1.2}
+    .curricular-table ul{margin:0 0 0 14px;padding:0}
+    .contenidos-table th:nth-child(1){background:#2563eb}
+    .contenidos-table th:nth-child(2){background:#059669}
+    .contenidos-table th:nth-child(3){background:#d97706}
     .col-c{background:#eff6ff;border-top:3px solid #2563eb;padding:10px;border-radius:6px}
     .col-p{background:#f0fdf4;border-top:3px solid #059669;padding:10px;border-radius:6px}
     .col-a{background:#fef3c7;border-top:3px solid #d97706;padding:10px;border-radius:6px}
@@ -925,12 +1329,30 @@ const formatearParaPDFHtml = (plan) => {
     .dias-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1px;background:#e2e8f0}
     .dia-col{background:#fff;padding:10px}
     .dia-nombre{font-weight:bold;font-size:12pt;color:#1d4ed8;margin-bottom:6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+    .dia-titulo{font-size:11pt;font-weight:bold;color:#334155;margin:0 0 4pt}
+    .dia-intencion{background:#eff6ff;border:1px solid #bfdbfe;padding:5px 7px;font-size:10.5pt;margin:0 0 6pt;text-align:justify}
     .momento-blk{margin:6px 0}
     .momento-tag{font-size:11pt;font-weight:bold;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:3pt}
     .m-inicio{background:#dbeafe;color:#1d4ed8} .m-desarrollo{background:#dcfce7;color:#15803d} .m-cierre{background:#fef3c7;color:#92400e}
     .momento-blk ul{margin:2px 0 2px 12px;padding:0} .momento-blk li{font-size:11pt;margin:0 0 2pt}
+    .momento-table{width:100%;border-collapse:collapse;margin:5px 0 10px}
+    .momento-table th{background:#1d4ed8;color:#fff;border:1px solid #1e40af;padding:4px 5px;font-size:10pt;text-align:left}
+    .momento-table td{border:1px solid #93c5fd;padding:4px 5px;vertical-align:top;font-size:10.5pt;line-height:1.15}
+    .momento-table p{margin:0 0 2pt}
+    .momento-table ul{margin:0 0 3pt 13px;padding:0}
+    .td-momento{background:#f0f9ff;font-weight:bold;text-align:center;width:68px}
+    .td-tiempo{text-align:center;width:54px}
+    .td-meta{background:#d1fae5;font-style:italic}
+    .meta-lbl{font-weight:bold;font-style:normal;color:#065f46}
+    .sem-eval{padding:10px 16px;background:#eff6ff;border-top:1px solid #e2e8f0;font-size:11pt}
+    .sem-eval-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
     .evidencias{padding:10px 16px;background:#f0fdf4;border-top:1px solid #e2e8f0;font-size:12pt}
     .neae-box{padding:10px 16px;background:#faf5ff;border-top:1px solid #e2e8f0;font-size:10pt}
+    .neae-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .anexos{break-before:page;page-break-before:always}
+    .rubrica{width:100%;border-collapse:collapse;margin-top:6px}
+    .rubrica th,.rubrica td{border:1px solid #94a3b8;padding:5px;font-size:10pt;vertical-align:top}
+    .rubrica th{background:#1d4ed8;color:#fff}
     @page{size:A4 portrait;margin:15mm 12mm}
     @media print{
       body{background:white;padding:0}
@@ -945,6 +1367,7 @@ const formatearParaPDFHtml = (plan) => {
       .dia-col{border:1px solid #e2e8f0;border-top:none;break-inside:auto;page-break-inside:auto;padding:8px 12px}
       .dia-nombre{background:#eff6ff;padding:5px 8px;border-radius:0;break-after:avoid;page-break-after:avoid}
       .momento-blk{break-inside:avoid;page-break-inside:avoid}
+      .momento-table thead{display:table-header-group}
       .evidencias{break-inside:avoid;page-break-inside:avoid}
       .neae-box{break-inside:avoid;page-break-inside:avoid}
     }
@@ -971,6 +1394,8 @@ const formatearParaPDFHtml = (plan) => {
     html += `</div>`;
   }
 
+  html += tablaEjeTransversalHtml(ejeTransversal);
+
   if (datos.situacionAprendizaje) {
     html += `<h2>Situación de Aprendizaje</h2><p class="situacion">${datos.situacionAprendizaje}</p>`;
   }
@@ -979,50 +1404,95 @@ const formatearParaPDFHtml = (plan) => {
     html += `<h2>Ambiente de Aprendizaje</h2><p class="situacion">${datos.ambienteAprendizaje}</p>`;
   }
 
-  html += `<h2>Competencia e Indicadores de Logro</h2>`;
-  html += `<p><strong>Competencia:</strong> ${datos.competencia || "—"}</p>`;
-  if (Array.isArray(datos.indicadoresOficiales) && datos.indicadoresOficiales.length) {
-    html += `<ul>`;
-    datos.indicadoresOficiales.forEach(ind => { html += `<li>${ind}</li>`; });
-    html += `</ul>`;
-  }
-
-  if (datos.contenidos) {
-    const c = datos.contenidos;
-    html += `<h2>Contenidos</h2><div class="contenidos-3">`;
-    html += `<div class="col-c"><h4>Conceptuales</h4><ul>${(c.conceptuales||[]).map(x=>`<li>${x}</li>`).join("")}</ul></div>`;
-    html += `<div class="col-p"><h4>Procedimentales</h4><ul>${(c.procedimentales||[]).map(x=>`<li>${x}</li>`).join("")}</ul></div>`;
-    html += `<div class="col-a"><h4>Actitudinales</h4><ul>${(c.actitudinales||[]).map(x=>`<li>${x}</li>`).join("")}</ul></div>`;
-    html += `</div>`;
-  }
+  html += tablaCompetenciasIndicadoresHtml(curriculo, datos.competencia, datos.indicadoresOficiales);
+  html += tablaContenidosCurricularesHtml(contenidosCurriculares);
 
   html += `<h2>Desarrollo Semanal</h2>`;
   semanas.forEach(sem => {
     html += `<div class="semana-box">`;
     html += `<div class="semana-head"><h3>${sem.titulo}</h3><p>${sem.proposito}</p></div>`;
-    html += `<div class="dias-wrap">`;
     (sem.dias || []).forEach(dia => {
-      html += `<div class="dia-col"><div class="dia-nombre">${dia.nombre || `Día ${dia.n}`}</div>`;
+      html += `<div class="dia-col">`;
+      html += `<div class="dia-nombre">${escapeHtml(dia.nombre || `Día ${dia.n}`)}${dia.totalMin ? ` · ${escapeHtml(dia.totalMin)} min` : ""}</div>`;
+      if (dia.tituloDia) html += `<p class="dia-titulo">${escapeHtml(dia.tituloDia)}</p>`;
+      if (dia.intencionPedagogica) {
+        html += `<div class="dia-intencion"><strong>Intención pedagógica del día:</strong> ${escapeHtml(dia.intencionPedagogica)}</div>`;
+      }
+      html += `<table class="momento-table">
+        <thead>
+          <tr>
+            <th>Momento</th>
+            <th>Tiempo</th>
+            <th>Actividades</th>
+            <th>Evidencias</th>
+            <th>Evaluación</th>
+            <th>Recursos</th>
+          </tr>
+        </thead>
+        <tbody>`;
       (dia.momentos || []).forEach(m => {
-        const cls = `m-${m.tipo.toLowerCase()}`;
-        html += `<div class="momento-blk"><span class="momento-tag ${cls}">${m.tipo} ${m.tiempo}</span><ul>`;
-        (m.actividades || []).forEach(a => { html += `<li>${a}</li>`; });
-        html += `</ul></div>`;
+        const acts = (m.actividades || []).map((a, i) => `<p><strong>${i + 1})</strong> ${escapeHtml(a)}</p>`).join("");
+        const meta = (m.metacognicion || []).map(escapeHtml).join(" · ");
+        html += `<tr>
+          <td class="td-momento" rowspan="2">${escapeHtml(m.tipo)}</td>
+          <td class="td-tiempo" rowspan="2">${escapeHtml(m.tiempo)}</td>
+          <td rowspan="2">${acts}</td>
+          <td>${evidenciasMomentoHtml(m)}</td>
+          <td>${evaluacionMomentoHtml(m)}</td>
+          <td rowspan="2">${recursosMomentoHtml(m)}</td>
+        </tr>
+        <tr>
+          <td colspan="2" class="td-meta"><span class="meta-lbl">Metacognición:</span> ${meta}</td>
+        </tr>`;
       });
+      html += `</tbody></table>`;
       html += `</div>`;
     });
-    html += `</div>`;
-    if (sem.evidenciasSemana?.length) {
-      html += `<div class="evidencias"><strong>Evidencias:</strong><ul>`;
-      sem.evidenciasSemana.forEach(e => { html += `<li>${e}</li>`; });
-      html += `</ul></div>`;
+    if (sem.evidenciasSemana) {
+      html += `<div class="evidencias"><strong>Evidencias de aprendizaje de la semana</strong><div class="neae-grid">`;
+      html += `<div><p><strong>Conocimientos</strong></p><ul>${listHtml(sem.evidenciasSemana.conocimientosPrevios || [])}</ul></div>`;
+      html += `<div><p><strong>Desempeño</strong></p><ul>${listHtml(sem.evidenciasSemana.desempenoEsperado || [])}</ul></div>`;
+      html += `<div><p><strong>Producto</strong></p><ul>${listHtml(sem.evidenciasSemana.productoElaborar || [])}</ul></div>`;
+      html += `</div></div>`;
     }
     if (sem.adecuacionesNEAE) {
       const n = sem.adecuacionesNEAE;
-      html += `<div class="neae-box"><strong>NEAE — Acceso:</strong> ${(n.acceso||[]).join(" · ")} <strong>Curricular:</strong> ${(n.curricular||[]).join(" · ")}</div>`;
+      html += `<div class="neae-box"><strong>SEMANA ${escapeHtml(sem.n)} — ADAPTACIONES (Para estudiantes con NEAE — si aplica)</strong><div class="neae-grid">`;
+      html += `<div><p><strong>De acceso</strong></p><ul>${listHtml(n.acceso || [])}</ul></div>`;
+      html += `<div><p><strong>Metodológicas</strong></p><ul>${listHtml(n.curricular || [])}</ul></div>`;
+      html += `<div><p><strong>De evaluación</strong></p><ul>${listHtml(n.evaluacion || [])}</ul></div>`;
+      html += `</div></div>`;
+    }
+    if (sem.evaluacionSemana) {
+      const ev = sem.evaluacionSemana;
+      html += `<div class="sem-eval"><strong>SEMANA ${escapeHtml(sem.n)} — RESUMEN DE EVALUACIÓN Y OBSERVACIONES</strong><div class="sem-eval-grid">`;
+      html += `<div><p><strong>Técnicas</strong></p><ul>${listHtml(ev.tecnicas || [])}</ul></div>`;
+      html += `<div><p><strong>Instrumentos</strong></p><ul>${listHtml(ev.instrumentos || [])}</ul></div>`;
+      html += `<div><p><strong>Observaciones</strong></p><ul>${listHtml(ev.criterios || [])}</ul></div>`;
+      html += `</div></div>`;
     }
     html += `</div>`;
   });
+
+  html += `<section class="anexos"><h2>ANEXOS</h2>`;
+  html += `<h3>ANEXO A — Rúbrica analítica del producto final</h3>
+    <table class="rubrica">
+      <thead><tr><th>Criterio</th><th>Nivel 4 — Excelente</th><th>Nivel 3 — Satisfactorio</th><th>Nivel 2 — En proceso</th><th>Nivel 1 — Inicial</th></tr></thead>
+      <tbody>
+        <tr><td>Contenido</td><td>Presenta ideas completas, claras y bien organizadas sobre el tema.</td><td>Presenta la mayoría de las ideas requeridas.</td><td>Presenta ideas parciales o poco desarrolladas.</td><td>Presenta información mínima o desorganizada.</td></tr>
+        <tr><td>Uso del lenguaje</td><td>Usa vocabulario y estructuras del contenido con precisión.</td><td>Usa vocabulario adecuado con errores menores.</td><td>Usa vocabulario básico con errores frecuentes.</td><td>Presenta uso muy limitado del lenguaje trabajado.</td></tr>
+        <tr><td>Presentación</td><td>Comunica con seguridad, orden y apoyo visual pertinente.</td><td>Comunica con claridad y apoyo ocasional.</td><td>Comunica con pausas frecuentes y apoyo constante.</td><td>Requiere mucha ayuda para comunicar sus ideas.</td></tr>
+      </tbody>
+    </table>`;
+  html += `<h3>ANEXO B — Lista de cotejo</h3><ul>
+    <li>Participa en las actividades de inicio, desarrollo y cierre.</li>
+    <li>Produce evidencias de conocimiento, desempeño y producto.</li>
+    <li>Usa los recursos y materiales de forma responsable.</li>
+    <li>Reflexiona sobre su proceso de aprendizaje.</li>
+  </ul>`;
+  html += `<h3>ANEXO C — Registro anecdótico</h3><p>Registrar fecha, estudiante, situación observada, interpretación pedagógica y acción de mejora.</p>`;
+  html += `<h3>ANEXO D — Autoevaluación y coevaluación</h3><p>Usar preguntas reflexivas y retroalimentación entre pares según los criterios de la unidad.</p>`;
+  html += `<h3>ANEXO E — Plan B tecnológico</h3><p>Si falla la tecnología, usar imágenes impresas, pizarra, lectura en voz alta, tarjetas, papelógrafos y presentación oral en vivo.</p></section>`;
 
   html += `</div>
 <script>window.onload = () => { window.focus(); window.print(); }</script>

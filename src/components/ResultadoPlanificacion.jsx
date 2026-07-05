@@ -22,6 +22,12 @@ function renderBold(text) {
   return parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part);
 }
 
+function textoCurricular(item) {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  return item.descripcion || item.texto || item.nombre || item.especificaGrado || item.especifica || JSON.stringify(item);
+}
+
 export default function ResultadoPlanificacion({
   planificacion,
   onGuardar,
@@ -62,6 +68,11 @@ export default function ResultadoPlanificacion({
   const situacion         = datos.situacionAprendizaje   || meta.situacionAprendizaje   || "";
   const ambiente          = datos.ambienteAprendizaje    || meta.ambienteAprendizaje    || "";
   const contenidos        = datos.contenidos || {};
+  const curriculo         = datos.curriculoPlanificacion || meta.curriculoPlanificacion || {};
+  const ejeTransversal    = curriculo.ejeTematicoTransversal || datos.ejeTematicoTransversal || meta.ejeTematicoTransversal || [];
+  const competenciasTabla = curriculo.competencias || [];
+  const indicadoresTabla  = curriculo.indicadoresLogro || indicadores;
+  const contenidosTabla   = curriculo.contenidos || contenidos;
   const imagen            = datos.imagenTematica;
 
   const botonGuardar = guardando
@@ -250,6 +261,61 @@ export default function ResultadoPlanificacion({
         </section>
       )}
 
+      {ejeTransversal.length > 0 && (
+        <section className="minerd-seccion">
+          <h3 className="minerd-sec-titulo">🧭 Eje Temático Transversal</h3>
+          <div className="minerd-tabla-wrap">
+            <table className="minerd-tabla-curricular">
+              <thead>
+                <tr><th>Eje / Tema transversal</th></tr>
+              </thead>
+              <tbody>
+                {ejeTransversal.map((eje, i) => (
+                  <tr key={i}><td>{textoCurricular(eje)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {(competenciasTabla.length > 0 || indicadoresTabla.length > 0) && (
+        <section className="minerd-seccion">
+          <h3 className="minerd-sec-titulo">📌 Componente Curricular / Asignatura</h3>
+          <div className="minerd-tabla-wrap">
+            <table className="minerd-tabla-curricular">
+              <thead>
+                <tr>
+                  <th>Competencias fundamentales y específicas</th>
+                  <th>Indicadores de logro</th>
+                </tr>
+              </thead>
+              <tbody>
+                {competenciasTabla.length > 0 ? competenciasTabla.map((comp, i) => {
+                  const inds = comp.indicadoresLogro?.length ? comp.indicadoresLogro : indicadoresTabla;
+                  return (
+                    <tr key={comp.id || i}>
+                      <td>
+                        {comp.competenciaFundamental && <strong>{comp.competenciaFundamental}: </strong>}
+                        {comp.descripcion || comp.especificaGrado || comp.especifica || comp.textoOficial}
+                      </td>
+                      <td>
+                        <ul>{inds.map((ind, j) => <li key={j}>{textoCurricular(ind)}</li>)}</ul>
+                      </td>
+                    </tr>
+                  );
+                }) : (
+                  <tr>
+                    <td>{competencia || "—"}</td>
+                    <td><ul>{indicadoresTabla.map((ind, i) => <li key={i}>{textoCurricular(ind)}</li>)}</ul></td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       {/* ══════════════════════════════════════════════════════════════
           SITUACIÓN DE APRENDIZAJE
       ══════════════════════════════════════════════════════════════ */}
@@ -273,6 +339,7 @@ export default function ResultadoPlanificacion({
       {/* ══════════════════════════════════════════════════════════════
           COMPETENCIA E INDICADORES
       ══════════════════════════════════════════════════════════════ */}
+      {!(competenciasTabla.length > 0 || indicadoresTabla.length > 0) && (
       <section className="minerd-seccion">
         <h3 className="minerd-sec-titulo">🎯 Competencia e Indicadores de Logro</h3>
         {competencia && (
@@ -292,26 +359,31 @@ export default function ResultadoPlanificacion({
           </div>
         )}
       </section>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
           CONTENIDOS
       ══════════════════════════════════════════════════════════════ */}
-      {(contenidos.conceptuales || contenidos.procedimentales || contenidos.actitudinales) && (
+      {(contenidosTabla.conceptuales || contenidosTabla.procedimentales || contenidosTabla.actitudinales) && (
         <section className="minerd-seccion">
           <h3 className="minerd-sec-titulo">📚 Contenidos</h3>
-          <div className="minerd-contenidos-3">
-            <div className="minerd-cont-col conceptuales">
-              <h4>Conceptuales</h4>
-              <ul>{(contenidos.conceptuales || []).map((c, i) => <li key={i}>{c}</li>)}</ul>
-            </div>
-            <div className="minerd-cont-col procedimentales">
-              <h4>Procedimentales</h4>
-              <ul>{(contenidos.procedimentales || []).map((c, i) => <li key={i}>{c}</li>)}</ul>
-            </div>
-            <div className="minerd-cont-col actitudinales">
-              <h4>Actitudinales</h4>
-              <ul>{(contenidos.actitudinales || []).map((c, i) => <li key={i}>{c}</li>)}</ul>
-            </div>
+          <div className="minerd-tabla-wrap">
+            <table className="minerd-tabla-curricular minerd-tabla-contenidos">
+              <thead>
+                <tr>
+                  <th>Conceptos</th>
+                  <th>Procedimientos</th>
+                  <th>Actitudes y valores</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><ul>{(contenidosTabla.conceptuales || []).map((c, i) => <li key={i}>{textoCurricular(c)}</li>)}</ul></td>
+                  <td><ul>{(contenidosTabla.procedimentales || []).map((c, i) => <li key={i}>{textoCurricular(c)}</li>)}</ul></td>
+                  <td><ul>{(contenidosTabla.actitudinales || []).map((c, i) => <li key={i}>{textoCurricular(c)}</li>)}</ul></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
       )}
@@ -367,10 +439,37 @@ export default function ResultadoPlanificacion({
                             <li key={ai}>{act}</li>
                           ))}
                         </ul>
+                        {m.evidenciasDetalle && (
+                          <div className="minerd-m-detalle">
+                            <strong>Evidencias</strong>
+                            <p><span>Conocimientos:</span> {(m.evidenciasDetalle.conocimientos || []).join(" · ")}</p>
+                            <p><span>Desempeño:</span> {(m.evidenciasDetalle.desempeno || []).join(" · ")}</p>
+                            <p><span>Producto:</span> {(m.evidenciasDetalle.producto || []).join(" · ")}</p>
+                          </div>
+                        )}
+                        {m.evaluacion && (
+                          <div className="minerd-m-detalle">
+                            <strong>Evaluación</strong>
+                            <p>
+                              <span>Tipo:</span> {TIPO_EVAL_LABEL[m.evaluacion.tipo] || m.evaluacion.tipo || "Formativa"} ·{" "}
+                              <span>Agente:</span> {m.evaluacion.agente || "Heteroevaluación"} ·{" "}
+                              <span>Técnica:</span> {m.evaluacion.tecnica || "Observación directa"} ·{" "}
+                              <span>Instrumento:</span> {m.evaluacion.instrumento || m.instrumento || "Lista de cotejo"}
+                            </p>
+                          </div>
+                        )}
+                        {m.recursos && (
+                          <div className="minerd-m-detalle">
+                            <strong>Recursos</strong>
+                            <p><span>Humanos:</span> {m.recursos.humanos}</p>
+                            <p><span>Didácticos:</span> {m.recursos.didacticos}</p>
+                            <p><span>Tecnológicos:</span> {m.recursos.tecnologicos}</p>
+                          </div>
+                        )}
                         {m.metacognicion && m.metacognicion.length > 0 && (
                           <div className="minerd-m-meta">
                             <span className="minerd-m-meta-label">💭 Metacognición</span>
-                            {m.metacognicion[0]}
+                            {m.metacognicion.join(" · ")}
                           </div>
                         )}
                       </div>

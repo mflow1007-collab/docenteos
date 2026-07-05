@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { generarUnidadAprendizaje, formatearUnidadHTML } from "../services/unidadAprendizajeService";
-import { guardarPlanificacionDetallada, verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
+import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
+import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
 import { applyAuditAction } from "../services/auditAcciones.js";
 import { precargarBP } from "../services/bpCache.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
@@ -81,7 +82,7 @@ export function useUnidadAprendizaje() {
         ...unidad,
         metadatos: { ...unidad.metadatos, tema: unidad.metadatos?.titulo },
       };
-      await guardarPlanificacionDetallada(payload);
+      const resultadoGuardado = await guardarPlanificacionConHilo(payload);
       EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
         agentId: AGENT_IDS.PLANIFICADOR,
         area:       unidadDatos.area ?? null,
@@ -91,12 +92,15 @@ export function useUnidadAprendizaje() {
         metadata:   { tipo: "unidad" },
       });
       await cargarHistorial({ mostrarMensajeRecuperacion: false });
-      setMensajeUnidad({ tipo: "success", texto: "✅ Unidad de aprendizaje guardada" });
+      const advertenciaUnidad = resultadoGuardado?.advertencias?.[0];
+      setMensajeUnidad(advertenciaUnidad
+        ? { tipo: "warning", texto: `✅ Unidad guardada · ⚠️ ${advertenciaUnidad}` }
+        : { tipo: "success", texto: "✅ Unidad de aprendizaje guardada" });
     } catch (error) {
       setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
     } finally {
       setGuardandoUnidad(false);
-      setTimeout(() => setMensajeUnidad(null), 3000);
+      setTimeout(() => setMensajeUnidad(null), 5000);
     }
   };
 
@@ -203,7 +207,7 @@ export function useUnidadAprendizaje() {
     syncDeps,
     unidadDatos, setUnidadDatos,
     unidad, setUnidad,
-    cargandoUnidad, guardandoUnidad, mensajeUnidad,
+    cargandoUnidad, guardandoUnidad, mensajeUnidad, setMensajeUnidad,
     manejarGenerarUnidad, manejarGenerarUnidadForzado,
     manejarGuardarUnidad, manejarDescargarUnidad,
     manejarVerUnidad, manejarNuevaUnidad, manejarAplicarAcciones,

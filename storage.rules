@@ -1,0 +1,49 @@
+rules_version = '2';
+
+// Reglas de Firebase Storage — DocenteOS
+// Fix auditoría 2026-07-04: estas reglas no existían en el repo (solo en la
+// consola, estado desconocido). Desplegar con:
+//   firebase deploy --only storage
+//
+// Rutas usadas por la app:
+//   bancoConocimiento/pdfs/**     ← uploadKnowledgePDF (admin, PDFs oficiales)
+//   planificaciones/{uid}/**      ← subirImagenPlanificacion (imagen temática)
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Igual criterio que firestore.rules: la cuenta principal por email
+    // exacto; el resto del dominio requiere correo verificado
+    function isAdmin() {
+      return isAuth() && (
+        request.auth.token.email == 'admin@docenteos.com'
+        || (request.auth.token.email.matches('.*@docenteos\\.com')
+          && request.auth.token.email_verified == true)
+      );
+    }
+
+    // PDFs oficiales del Banco de Conocimiento: solo admins escriben;
+    // lectura autenticada (los docentes pueden consultar la fuente).
+    match /bancoConocimiento/{allPaths=**} {
+      allow read: if isAuth();
+      allow write: if isAdmin()
+        && request.resource.size < 30 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+
+    // Imágenes temáticas de planificaciones: cada docente solo en su carpeta.
+    match /planificaciones/{userId}/{allPaths=**} {
+      allow read: if isAuth();
+      allow write: if isAuth() && request.auth.uid == userId
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Todo lo demás: denegado (regla explícita para que el default sea visible)
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

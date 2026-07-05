@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { generarPlanDiario, formatearPlanDiarioHTML } from "../services/planDiarioService";
-import { guardarPlanificacionDetallada, verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
+import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
+import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 
@@ -82,7 +83,7 @@ export function usePlanDiario() {
     if (!planDiario) return;
     setGuardandoDiario(true);
     try {
-      await guardarPlanificacionDetallada(planDiario);
+      const resultadoGuardado = await guardarPlanificacionConHilo(planDiario);
       EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
         agentId: AGENT_IDS.PLANIFICADOR,
         area:       planDiarioDatos.area ?? null,
@@ -92,12 +93,15 @@ export function usePlanDiario() {
         metadata:   { tipo: "diario" },
       });
       await cargarHistorial({ mostrarMensajeRecuperacion: false });
-      setMensajeDiario({ tipo: "success", texto: "✅ Plan diario guardado" });
+      const advertenciaDiario = resultadoGuardado?.advertencias?.[0];
+      setMensajeDiario(advertenciaDiario
+        ? { tipo: "warning", texto: `✅ Plan diario guardado · ⚠️ ${advertenciaDiario}` }
+        : { tipo: "success", texto: "✅ Plan diario guardado" });
     } catch (error) {
       setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
     } finally {
       setGuardandoDiario(false);
-      setTimeout(() => setMensajeDiario(null), 3000);
+      setTimeout(() => setMensajeDiario(null), 5000);
     }
   };
 

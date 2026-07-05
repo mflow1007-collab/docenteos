@@ -10,6 +10,7 @@
  *   OPENAI_API_KEY
  *   ABACUS_API_KEY
  *   NVIDIA_API_KEY
+ *   GEMINI_API_KEY   (Google AI Studio — endpoint OpenAI-compatible)
  *
  * Variables de autenticación:
  *   FIREBASE_PROJECT_ID  — ID del proyecto Firebase (requerido para verificar tokens)
@@ -126,28 +127,53 @@ async function verifyFirebaseToken(token) {
       return null;
     }
 
-    return { uid: payload.sub, email: payload.email || "" };
+    return {
+      uid: payload.sub,
+      email: payload.email || "",
+      emailVerified: payload.email_verified === true,
+    };
   } catch (err) {
     console.error("[Auth] Excepción en verifyFirebaseToken:", err?.message || err);
     return null;
   }
 }
 
+// ─── Fix auditoría 2026-07-04: control de módulos y tokens en el servidor ────
+// La restricción "solo admin" del convertidor PDF→JSON era solo de UI:
+// cualquier usuario autenticado podía invocar el módulo con 12K tokens.
+const ADMIN_ONLY_MODULES = new Set(["planificacion.curriculo_pdf_json"]);
+const MAX_TOKENS_CAP = 16000;
+
+// Cuenta administradora principal: acceso completo por email EXACTO, sin
+// exigir verificación (la cuenta ya existe en Firebase Auth — nadie más puede
+// registrar ese correo). El requisito email_verified aplica solo al resto
+// del dominio, que es donde estaba el hueco de la auditoría.
+const ADMIN_EMAILS = new Set(["admin@docenteos.com"]);
+
+function isAdminUser(authedUser) {
+  const email = (authedUser?.email || "").toLowerCase();
+  if (ADMIN_EMAILS.has(email)) return true;
+  return /@docenteos\.com$/.test(email) && authedUser?.emailVerified === true;
+}
+
 // ─── Configuración por defecto ────────────────────────────────────────────────
 
-const DEFAULT_ORDER = ["openai", "abacus", "anthropic", "nvidia"];
+const DEFAULT_ORDER = ["openai", "abacus", "anthropic", "nvidia", "gemini"];
 
 const DEFAULT_MODELS = {
   openai:    "gpt-4o",
   abacus:    "route-llm",
   anthropic: "claude-sonnet-4-6",
   nvidia:    "nvidia/nemotron-3-ultra-550b-a55b",
+  gemini:    "gemini-2.5-flash",
 };
 
 const PROVIDER_BASE_URLS = {
   openai:  "https://api.openai.com/v1",
   abacus:  "https://routellm.abacus.ai/v1",
   nvidia:  "https://integrate.api.nvidia.com/v1",
+  // Endpoint OpenAI-compatible oficial de Google AI Studio
+  gemini:  "https://generativelanguage.googleapis.com/v1beta/openai",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -158,6 +184,7 @@ function getApiKey(provider) {
     case "anthropic": return process.env.ANTHROPIC_API_KEY || null;
     case "abacus":    return process.env.ABACUS_API_KEY    || null;
     case "nvidia":    return process.env.NVIDIA_API_KEY    || null;
+    case "gemini":    return process.env.GEMINI_API_KEY    || process.env.GOOGLE_API_KEY || null;
     default:          return null;
   }
 }
@@ -363,6 +390,17 @@ export default async function handler(request) {
     });
   }
 
+  // Módulos administrativos: verificados en servidor, no solo en la UI
+  if (ADMIN_ONLY_MODULES.has(mod) && !isAdminUser(authedUser)) {
+    return new Response(
+      JSON.stringify({ error: "Este módulo es exclusivo de administradores." }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Tope de tokens de salida: el cliente no decide costos ilimitados
+  const tokensSalida = Math.min(Math.max(parseInt(maxTokens, 10) || 4096, 1), MAX_TOKENS_CAP);
+
   const queue = getProviderQueue(preferredProvider, providerOrder);
 
   if (queue.length === 0) {
@@ -388,11 +426,11 @@ export default async function handler(request) {
       let providerResponse;
 
       if (provider === "anthropic") {
-        providerResponse = await callAnthropic(apiKey, { system, prompt, maxTokens, model, imageBase64, imageMediaType });
+        providerResponse = await callAnthropic(apiKey, { system, prompt, maxTokens: tokensSalida, model, imageBase64, imageMediaType });
       } else {
         const baseURL = PROVIDER_BASE_URLS[provider];
         providerResponse = await callOpenAICompatible(apiKey, baseURL, {
-          system, prompt, maxTokens, model, jsonMode,
+          system, prompt, maxTokens: tokensSalida, model, jsonMode,
         });
       }
 

@@ -43,8 +43,6 @@ import { analizarCombinacionTematica } from "../services/curriculumCombinacionSe
 import { getReferenciaAdecuacionesCurriculares } from "../data/adecuacionesCurriculares.js";
 import {
   eliminarPlanificacionDetallada,
-  guardarPlanificacionDetallada,
-  crearInstrumentosDesdePlan,
   obtenerPlanificacionesDetalladas,
   guardarPreferenciaUsuario,
   obtenerPreferenciaUsuario,
@@ -54,6 +52,7 @@ import {
   suscribirseEstadoTemasPlanificacion,
   subirImagenPlanificacion,
 } from "../firebase";
+import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
 
 export default function PlanificacionPage({ planificacionPreCargada = null, onConsumirPreCargada = () => {}, onIrA }) {
   const hoyISO = new Date().toISOString().slice(0, 10);
@@ -112,7 +111,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
   const {
     unidadDatos, setUnidadDatos,
     unidad, setUnidad,
-    cargandoUnidad, guardandoUnidad, mensajeUnidad,
+    cargandoUnidad, guardandoUnidad, mensajeUnidad, setMensajeUnidad,
     manejarGenerarUnidad, manejarGenerarUnidadForzado,
     manejarGuardarUnidad, manejarDescargarUnidad,
     manejarVerUnidad, manejarNuevaUnidad, manejarAplicarAcciones,
@@ -702,6 +701,8 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
         minutosHoraClase,
         periodosClasePorDia,
         temasIntegrados,
+        curriculoOficial: curriculoCompleto,
+        competenciasCurriculares,
         nivelEducativo: gradoData?.nivel || "Primaria",
         jornadaTipo: gradoData?.nivel === "Secundaria" ? "Secundaria" : "Primaria",
         resumenHorario: {
@@ -802,12 +803,10 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
           contexto: "edicion",
         });
       }
-      const resultado = await guardarPlanificacionDetallada(planificacion);
-      if (resultado?.id) {
-        crearInstrumentosDesdePlan(resultado.id, planificacion).catch((err) =>
-          console.warn("[Bridge1] No se pudieron crear instrumentos:", err)
-        );
-      }
+      // Hilo pedagógico: guarda el plan (siempre) + capa curricular + aspectos
+      // del registro + instrumentos planeados (IDs deterministas — reemplaza
+      // al bridge legacy que duplicaba instrumentos en cada guardado).
+      const resultado = await guardarPlanificacionConHilo(planificacion);
       EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
         agentId: AGENT_IDS.PLANIFICADOR,
         area:       planificacion?.metadatos?.area ?? area ?? null,
@@ -837,11 +836,19 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
       }
 
       await cargarHistorial({ mostrarMensajeRecuperacion: false });
+      const aspectosCreados = resultado.aspectos?.creados?.length || 0;
+      const advertencias = resultado.advertencias || [];
+      const textoBase = resultado.mode === "firebase"
+        ? "✅ Planificación guardada en Firebase"
+        : "✅ Planificación guardada localmente";
+      const textoAspectos = aspectosCreados > 0
+        ? ` · ${aspectosCreados} aspecto(s) creados en Mi Registro`
+        : "";
       setMensaje({
-        tipo: "success",
-        texto: resultado.mode === "firebase"
-          ? "✅ Planificación guardada en Firebase"
-          : "✅ Planificación guardada localmente",
+        tipo: advertencias.length ? "warning" : "success",
+        texto: advertencias.length
+          ? `${textoBase}${textoAspectos} · ⚠️ ${advertencias[0]}`
+          : `${textoBase}${textoAspectos}`,
       });
     } catch (error) {
       setMensaje({
@@ -850,7 +857,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
       });
     } finally {
       setGuardando(false);
-      setTimeout(() => setMensaje(null), 3000);
+      setTimeout(() => setMensaje(null), 6000);
     }
   };
 
@@ -1022,10 +1029,14 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
       setGuardando(true);
       try {
         await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "edicion" });
-        const resultado = await guardarPlanificacionDetallada(planificacion);
+        const resultado = await guardarPlanificacionConHilo(planificacion);
         await cargarHistorial({ mostrarMensajeRecuperacion: false });
-        setMensaje({ tipo: "success", texto: resultado.mode === "firebase" ? "✅ Guardado en Firebase" : "✅ Guardado localmente" });
-        setTimeout(() => setMensaje(null), 3000);
+        const advertencia = resultado.advertencias?.[0];
+        setMensaje({
+          tipo: advertencia ? "warning" : "success",
+          texto: `${resultado.mode === "firebase" ? "✅ Guardado en Firebase" : "✅ Guardado localmente"}${advertencia ? ` · ⚠️ ${advertencia}` : ""}`,
+        });
+        setTimeout(() => setMensaje(null), 6000);
       } catch (error) {
         setMensaje({ tipo: "error", texto: `❌ ${error.message}` });
         setTimeout(() => setMensaje(null), 3000);
@@ -1085,6 +1096,8 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
         minutosHoraClase,
         periodosClasePorDia,
         temasIntegrados,
+        curriculoOficial: curriculoCompleto,
+        competenciasCurriculares,
         nivelEducativo: gradoData?.nivel || "Primaria",
         jornadaTipo: gradoData?.nivel === "Secundaria" ? "Secundaria" : "Primaria",
         resumenHorario: {

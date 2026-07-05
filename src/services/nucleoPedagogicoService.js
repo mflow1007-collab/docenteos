@@ -10,6 +10,7 @@ import {
   obtenerRegistroCalificaciones,
 } from "../firebase";
 import { estudianteDocId } from "./expedienteEstudianteService";
+import { aplicarNotaEnCelda } from "./hiloPedagogico.js";
 
 const VALOR_INSTRUMENTO = {
   "Rúbrica": 100,
@@ -352,13 +353,13 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
       periodos: Array.from({ length: 4 }, (_, pi) => comp.periodos?.[pi] || { p: "", rp: "" }),
     };
   });
-  competencias[competenciaIdx].periodos[periodoIdx] = {
-    ...competencias[competenciaIdx].periodos[periodoIdx],
-    p: estudianteConsolidado.porcentaje,
-    fuente: "instrumentos",
-    evaluacionId,
-    evidenciaId: evidencia.id,
-  };
+  // Regla 12: nunca pisar una celda ajustada/manual — solo actualizar el
+  // cálculo y marcarla desactualizada para que el docente decida.
+  competencias[competenciaIdx].periodos[periodoIdx] = aplicarNotaEnCelda(
+    competencias[competenciaIdx].periodos[periodoIdx],
+    estudianteConsolidado.porcentaje,
+    { evaluacionId, evidenciaId: evidencia.id }
+  );
 
   notasEstudiantes[aplicacion.estudianteId] = {
     ...notasPrevias,
@@ -403,19 +404,44 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
   });
 
   guardarEvidenciaLocal(cursoIdRegistro, evidencia);
+
+  // Regla 12 sobre la nota por aspecto: si el docente la ajustó manualmente,
+  // se respeta valorObtenido y solo se actualiza el cálculo + desactualizado.
+  const notaAspecto = {
+    cursoId: cursoIdRegistro,
+    estudianteId: aplicacion.estudianteId,
+    aspectoId,
+    instrumentoId: instrumento.id,
+    valorObtenido: aplicacion.puntosObtenidos,
+    valorCalculado: aplicacion.puntosObtenidos,
+    desactualizado: false,
+    puntajeMaximo: Number(aplicacion.valorMaximo) || Number(instrumento.valorMaximo) || VALOR_INSTRUMENTO[instrumento.tipo] || 100,
+    porcentaje: aplicacion.porcentajeObtenido,
+    observacion: aplicacion.observacion || "",
+    fechaActualizacion: aplicacion.fecha || new Date().toISOString(),
+  };
+  try {
+    if (auth?.currentUser && db) {
+      const notaRef = doc(
+        db, "usuarios", auth.currentUser.uid, "cursos", String(cursoIdRegistro),
+        "registroNotas", `${aplicacion.estudianteId}_${aspectoId}`
+      );
+      const notaSnap = await getDoc(notaRef);
+      if (notaSnap.exists() && notaSnap.data().ajusteManual) {
+        const previa = notaSnap.data();
+        notaAspecto.valorObtenido = previa.valorObtenido;      // ajuste respetado
+        notaAspecto.ajusteManual = true;
+        notaAspecto.motivoAjuste = previa.motivoAjuste || "";
+        notaAspecto.desactualizado = Number(previa.valorObtenido) !== Number(aplicacion.puntosObtenidos);
+      }
+    }
+  } catch {
+    // Si no se puede leer la nota previa, se procede con la escritura estándar.
+  }
+
   await Promise.allSettled([
     guardarRegistroAspectoDesdeInstrumento({ ...instrumento, aspectoId }),
-    guardarRegistroNota({
-      cursoId: cursoIdRegistro,
-      estudianteId: aplicacion.estudianteId,
-      aspectoId,
-      instrumentoId: instrumento.id,
-      valorObtenido: aplicacion.puntosObtenidos,
-      puntajeMaximo: Number(aplicacion.valorMaximo) || Number(instrumento.valorMaximo) || VALOR_INSTRUMENTO[instrumento.tipo] || 100,
-      porcentaje: aplicacion.porcentajeObtenido,
-      observacion: aplicacion.observacion || "",
-      fechaActualizacion: aplicacion.fecha || new Date().toISOString(),
-    }),
+    guardarRegistroNota(notaAspecto),
     guardarEvidenciaEstudiante(evidencia),
   ]);
   await Promise.allSettled([

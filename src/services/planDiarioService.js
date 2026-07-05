@@ -478,6 +478,8 @@ export const generarPlanDiario = (datos) => {
     ciclo = "",
     modalidad = "",
     competenciasFundamentalesSeleccionadas = null,
+    // Fix 2026-07-04: se usaba sin estar definida → ReferenceError al generar
+    referenciaCurricular = null,
   } = datos;
 
   if (!tema.trim()) throw new Error("El tema es obligatorio");
@@ -531,8 +533,8 @@ export const generarPlanDiario = (datos) => {
       indicadoresLogro: indicadores,
       competenciaEspecifica,
       referenciaCurricular: {
-        fuente: referenciaCurricular.fuente,
-        nivelDominio: referenciaCurricular.nivelDominio || "",
+        fuente: referenciaCurricular?.fuente || "Diseño Curricular MINERD",
+        nivelDominio: referenciaCurricular?.nivelDominio || "",
       },
       situacionAprendizaje: situacionCustom || generarSituacionAprendizaje(claveArea, grado, tema, centro),
     },

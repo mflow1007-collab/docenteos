@@ -36,9 +36,9 @@ const PROVIDER_CATALOG = [
     desc: 'Nemotron 3 Ultra 550B · build.nvidia.com · Free Endpoint',
   },
   {
-    id: 'gemini',     name: 'Google Gemini',     model: 'gemini-2.0-flash',
-    envVar: 'GEMINI_API_KEY',    logo: '🔴', type: 'soon',
-    desc: 'Gemini Flash · Google AI Studio',
+    id: 'gemini',     name: 'Google Gemini',     model: 'gemini-2.5-flash',
+    envVar: 'GEMINI_API_KEY',    logo: '🔴', type: 'active',
+    desc: 'Gemini 2.5 Flash · Google AI Studio · Endpoint OpenAI-compatible',
   },
   {
     id: 'openrouter', name: 'OpenRouter',        model: 'auto',
@@ -84,6 +84,12 @@ const MODEL_OPTIONS = {
     { value: 'claude-sonnet-4-6',          label: 'Claude Sonnet 4.6 (recomendado)' },
     { value: 'claude-opus-4-8',            label: 'Claude Opus 4.8 (más capaz)' },
     { value: 'claude-haiku-4-5-20251001',  label: 'Claude Haiku 4.5 (económico)' },
+  ],
+  gemini: [
+    { value: 'gemini-2.5-flash',      label: 'Gemini 2.5 Flash (recomendado · rápido)' },
+    { value: 'gemini-2.5-pro',        label: 'Gemini 2.5 Pro (más capaz)' },
+    { value: 'gemini-2.0-flash',      label: 'Gemini 2.0 Flash (económico)' },
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (ligero)' },
   ],
   nvidia: [
     { value: 'nvidia/nemotron-3-ultra-550b-a55b', label: 'Nemotron 3 Ultra 550B (flagship · recomendado)' },
@@ -647,7 +653,7 @@ function TabHistorial({ logs, loading, reload }) {
     return true
   })
 
-  const COLORS = { openai: '#10b981', abacus: '#6366f1', anthropic: '#f97316', cache: '#64748b', unknown: '#475569' }
+  const COLORS = { openai: '#10b981', abacus: '#6366f1', anthropic: '#f97316', nvidia: '#76b900', gemini: '#ef4444', cache: '#64748b', unknown: '#475569' }
 
   return (
     <div className="aim-tab-body">
@@ -728,7 +734,7 @@ function TabEstadisticas({ stats, loading }) {
   const provData = Object.entries(m?.byProv||{}).map(([k,v]) => ({ label: k, value: v })).sort((a,b) => b.value-a.value)
   const modData  = Object.entries(m?.byMod ||{}).map(([k,v]) => ({ label: k, value: v })).sort((a,b) => b.value-a.value).slice(0,6)
 
-  const PROV_COLORS = { openai: '#10b981', abacus: '#6366f1', anthropic: '#f97316', cache: '#64748b' }
+  const PROV_COLORS = { openai: '#10b981', abacus: '#6366f1', anthropic: '#f97316', nvidia: '#76b900', gemini: '#ef4444', cache: '#64748b' }
   const MOD_COLORS  = ['#6366f1','#10b981','#f59e0b','#3b82f6','#ec4899','#8b5cf6']
 
   const cacheHitPct = t?.total > 0 ? Math.round((t.hits / t.total) * 100) : 0

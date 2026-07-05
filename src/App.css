@@ -6265,6 +6265,12 @@
   border: 1px solid #fca5a5;
 }
 
+.mensaje.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
 /* ACCIONES RESULTADO */
 .acciones-resultado {
   display: grid;
@@ -8659,6 +8665,44 @@
   line-height: 1.5;
 }
 
+.minerd-tabla-wrap {
+  overflow-x: auto;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+}
+.minerd-tabla-curricular {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  table-layout: fixed;
+}
+.minerd-tabla-curricular th {
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid #1e40af;
+}
+.minerd-tabla-curricular td {
+  vertical-align: top;
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  color: #1e293b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.minerd-tabla-curricular ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+.minerd-tabla-contenidos th:nth-child(1) { background: #2563eb; }
+.minerd-tabla-contenidos th:nth-child(2) { background: #059669; }
+.minerd-tabla-contenidos th:nth-child(3) { background: #d97706; }
+
 /* ── Contenidos 3 columnas ── */
 .minerd-contenidos-3 {
   display: grid;
@@ -8798,6 +8842,29 @@
   gap: 4px;
 }
 .minerd-m-acts li { font-size: 12px; line-height: 1.45; color: #334155; }
+.minerd-m-detalle {
+  margin: 0 10px 6px;
+  padding: 7px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  display: grid;
+  gap: 3px;
+}
+.minerd-m-detalle strong {
+  font-size: 11px;
+  color: #0f172a;
+}
+.minerd-m-detalle p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #475569;
+}
+.minerd-m-detalle span {
+  color: #1e293b;
+  font-weight: 700;
+}
 .minerd-m-meta {
   font-size: 11px;
   font-style: italic;

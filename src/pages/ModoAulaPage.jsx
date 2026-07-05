@@ -11,7 +11,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { sincronizarEvaluacionPedagogica } from '../services/nucleoPedagogicoService.js'
+import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula } from '../services/modoAulaService.js'
+import { obtenerClaseDeHoy, crearAspectoId } from '../services/hiloPedagogico.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECCIÓN 1 — ADAPTADORES Y UTILIDADES DE DATOS
@@ -598,6 +599,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const [guardandoInstrumento, setGuardandoInstrumento] = useState(false)
   const [mensajeInstrumento,   setMensajeInstrumento]   = useState(null)
 
+  // ── Hilo pedagógico: clase de hoy / próxima desde la capa curricular
+  const [avisoClase, setAvisoClase] = useState(null)
+
   // ─── Cargar desde Firestore (actualiza sobre localStorage)
   useEffect(() => {
     obtenerPlanificacionesDetalladas()
@@ -606,26 +610,81 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       .finally(() => setCargando(false))
   }, [])
 
-  // ─── Auto-detección del plan del día
+  // ─── Auto-detección del plan del día.
+  // Fase 10: el camino PRINCIPAL es obtenerContextoModoAula (planificación
+  // activa + capa curricular + clase de hoy/próxima). La detección propia
+  // legacy (detectarPlanHoy) queda solo como fallback para planes sin capa.
   useEffect(() => {
     if (!planes.length) { setCargando(false); return }
-    const det = detectarPlanHoy(planes)
-    if (!det) return
-    setPlanActivo(det.plan)
-    setClaseNorm(det.norm)
-    setDiaActivo(det.dia)
-
-    if (det.plan?.id && det.dia?.diaNum != null) {
-      const prev = leerProgresoLocal(det.plan.id, det.dia.diaNum)
-      if (prev) {
-        setActChecks(Object.fromEntries(Object.entries(prev.actChecks || {}).map(([k,v]) => [k, new Set(v)])))
-        setEstadoClase(prev.estadoClase || 'pendiente')
-        setMomentoOpen(prev.momentoOpen || 0)
-        setNotasDocente(prev.notas || '')
+    let vigente = true
+    ;(async () => {
+      let det = null
+      try {
+        const ctx = await obtenerContextoModoAula(cursoActivo?.id || '', undefined, { planes })
+        if (ctx?.plan && ctx?.clase && ctx.plan.capaCurricular) {
+          const norm = normalizarClase(ctx.plan.contenido)
+          const dia = norm?.dias.find(d => d.diaNum === ctx.clase.numeroClase) || norm?.dias[0]
+          det = { plan: ctx.plan, norm, dia }
+          setAvisoClase(ctx.esHoy ? null : {
+            motivo: ctx.motivo,
+            fecha: ctx.clase.fechaSugerida || '',
+            titulo: ctx.clase.titulo || `Clase ${ctx.clase.numeroClase}`,
+          })
+        }
+      } catch (error) {
+        console.warn('[ModoAula] Contexto del hilo no disponible, usando detección legacy:', error)
       }
-      setEvidencias(leerEvidenciasLocal(det.plan.id, det.dia.diaNum))
-    }
+      if (!det) det = detectarPlanHoy(planes)
+      if (!vigente || !det) return
+      setPlanActivo(det.plan)
+      setClaseNorm(det.norm)
+      setDiaActivo(det.dia)
+
+      if (det.plan?.id && det.dia?.diaNum != null) {
+        const prev = leerProgresoLocal(det.plan.id, det.dia.diaNum)
+        if (prev) {
+          setActChecks(Object.fromEntries(Object.entries(prev.actChecks || {}).map(([k,v]) => [k, new Set(v)])))
+          setEstadoClase(prev.estadoClase || 'pendiente')
+          setMomentoOpen(prev.momentoOpen || 0)
+          setNotasDocente(prev.notas || '')
+        }
+        setEvidencias(leerEvidenciasLocal(det.plan.id, det.dia.diaNum))
+      }
+    })()
+    return () => { vigente = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planes])
+
+  // ─── Hilo pedagógico: backfill lazy de la capa curricular + clase de hoy.
+  // Si hoy no hay clase planificada se muestra la PRÓXIMA pendiente con aviso
+  // (caso borde Fase 6: nunca pantalla vacía).
+  useEffect(() => {
+    let vigente = true
+    const plan = planActivo
+    if (!plan?.id || String(plan.id).startsWith('local_')) return
+    ;(async () => {
+      const conCapa = plan.capaCurricular ? plan : await asegurarCapaCurricular(plan)
+      if (!vigente) return
+      const capa = conCapa?.capaCurricular
+      if (!capa) { setAvisoClase(null); return }
+      if (!plan.capaCurricular) setPlanActivo(conCapa)
+
+      const { clase, esHoy, motivo } = obtenerClaseDeHoy(capa)
+      if (!clase) { setAvisoClase(null); return }
+      setAvisoClase(esHoy ? null : {
+        motivo,
+        fecha: clase.fechaSugerida || '',
+        titulo: clase.titulo || `Clase ${clase.numeroClase}`,
+      })
+      // Alinear el día mostrado con la clase de hoy / próxima (si difiere)
+      if (claseNorm?.dias?.length && diaActivo?.diaNum !== clase.numeroClase) {
+        const diaObjetivo = claseNorm.dias.find(d => d.diaNum === clase.numeroClase)
+        if (diaObjetivo) setDiaActivo(diaObjetivo)
+      }
+    })()
+    return () => { vigente = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planActivo?.id])
 
   // ─── Timer interval
   useEffect(() => {
@@ -833,37 +892,51 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
 
     setGuardandoInstrumento(true)
     setMensajeInstrumento(null)
-    const fecha = new Date().toISOString()
     try {
-      await Promise.all(aplicaciones.map(({ estudiante, puntos, valorMaximo }) => sincronizarEvaluacionPedagogica({
-        instrumento: {
-          ...instrumentoModal,
-          cursoId: cursoParaAula?.id || instrumentoModal.cursoId,
-          curso: cursoParaAula?.nombre || cursoParaAula?.name || instrumentoModal.curso || '',
-          valorMaximo,
-          puntos: valorMaximo,
-        },
+      // Enriquecer el instrumento del día con el vínculo curricular del plan
+      // (indicadores y aspectos del registro) para el hilo pedagógico completo.
+      const capa = planActivo?.capaCurricular || null
+      const claseCapa = capa?.clases?.find(c => c.numeroClase === diaActivo?.diaNum) || null
+      const indicadorIds = claseCapa?.indicadoresTrabajados
+        || (capa?.indicadoresSeleccionados || []).map(ind => ind.id)
+      const valorMaximoModal = Number(puntajeInstrumento || instrumentoModal.valorMaximo || instrumentoModal.puntos || 100)
+      const instrumentoHilo = {
+        ...instrumentoModal,
         cursoId: cursoParaAula?.id || instrumentoModal.cursoId,
-        aplicacion: {
+        curso: cursoParaAula?.nombre || cursoParaAula?.name || instrumentoModal.curso || '',
+        planificacionId: planActivo?.id || instrumentoModal.planificacionId || '',
+        claseId: claseCapa?.claseId || '',
+        periodo: instrumentoModal.periodo || periodoRegistro,
+        valorMaximo: valorMaximoModal,
+        indicadorIds,
+        aspectoRegistroIds: planActivo?.id
+          ? indicadorIds.map(id => crearAspectoId(planActivo.id, id))
+          : [],
+        indicadores: instrumentoModal.indicadores?.length
+          ? instrumentoModal.indicadores
+          : (capa?.indicadoresSeleccionados || []).map(ind => ind.descripcion),
+      }
+
+      const { exitosos, errores } = await evaluarYRegistrar({
+        instrumento: instrumentoHilo,
+        claseTitulo: diaActivo?.titulo || '',
+        aplicaciones: aplicaciones.map(({ estudiante, puntos }) => ({
           estudianteId: estudiante.id,
-          estudiante: estudiante.nombre,
-          fecha,
-          periodo: instrumentoModal.periodo || periodoRegistro,
-          competenciaEvaluada: instrumentoModal.competencia || '',
-          indicadorEvaluado: instrumentoModal.indicadores?.[0] || '',
-          indicadoresEvaluados: instrumentoModal.indicadores || [],
-          calificacionObtenida: puntos,
-          puntosObtenidos: puntos,
-          valorMaximo,
-          porcentajeObtenido: valorMaximo > 0 ? Math.round((puntos / valorMaximo) * 100) : 0,
-          observacion: obsInstrumento,
-          detalle: {
-            fuente: 'modo-aula',
-            momento: instrumentoModal.momento,
-            actividad: diaActivo?.titulo || '',
-          },
-        },
-      })))
+          estudianteNombre: estudiante.nombre,
+          puntajeObtenido: puntos,
+          estado: 'evaluado',
+          observacionDocente: obsInstrumento,
+        })),
+      })
+
+      if (errores.length) {
+        setMensajeInstrumento({
+          tipo: 'error',
+          texto: `${exitosos.length} guardado(s), ${errores.length} con error: ${errores[0].mensaje}`,
+        })
+        setGuardandoInstrumento(false)
+        return
+      }
 
       const ev = {
         id: Date.now(),
@@ -877,9 +950,10 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         setEvidencias(arr)
         guardarEvidenciasLocal(planActivo.id, diaActivo.diaNum, arr)
       }
-      setMensajeInstrumento({ tipo:'ok', texto:'Instrumento guardado y enviado al registro.' })
+      setMensajeInstrumento({ tipo:'ok', texto:'Evaluación registrada: resultado guardado, Mi Registro actualizado y evidencias creadas.' })
     } catch (error) {
-      setMensajeInstrumento({ tipo:'error', texto:'No se pudo guardar ahora. Revisa la conexión e intenta otra vez.' })
+      console.error('[ModoAula] Error en evaluar y registrar:', error)
+      setMensajeInstrumento({ tipo:'error', texto:`No se pudo guardar: ${error.message || 'revisa la conexión e intenta otra vez.'}` })
     } finally {
       setGuardandoInstrumento(false)
     }
@@ -1275,6 +1349,30 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     }}>
       {SelectorModal}
       {InstrumentoModal}
+
+      {/* ══ AVISO: hoy no hay clase planificada → se muestra la próxima ══ */}
+      {avisoClase && (
+        <div style={{
+          margin:'16px 24px 0',
+          padding:'10px 18px',
+          background:'#fffbeb',
+          border:'1px solid #fcd34d',
+          borderRadius:12,
+          color:'#92400e',
+          fontSize:13,
+          fontWeight:700,
+          display:'flex',
+          alignItems:'center',
+          gap:8,
+        }}>
+          <span>📅</span>
+          <span>
+            {avisoClase.motivo === 'proxima' && `Hoy no hay clase planificada en este plan. Mostrando la próxima clase pendiente: "${avisoClase.titulo}"${avisoClase.fecha ? ` (${avisoClase.fecha})` : ''}.`}
+            {avisoClase.motivo === 'ultima' && `Este plan ya no tiene clases pendientes. Mostrando la última clase: "${avisoClase.titulo}"${avisoClase.fecha ? ` (${avisoClase.fecha})` : ''}.`}
+            {avisoClase.motivo === 'sin-fechas' && `El plan no tiene fechas asignadas. Mostrando la primera clase: "${avisoClase.titulo}".`}
+          </span>
+        </div>
+      )}
 
       {/* ══ RESUMEN DE LA CLASE ══ */}
       <div style={{

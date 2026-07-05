@@ -23,6 +23,7 @@ import { getAuth } from "firebase/auth";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { esUsuarioDocenteOS } from "./utils/permisos.js";
 import { COMP_CODIGOS, resolverCI, resolverPI } from "./constants/registroCodigos.js";
+import { aplicarNotaEnCelda } from "./services/hiloPedagogico.js";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -172,13 +173,18 @@ export const obtenerHorarioCurso = async (cursoId) => {
   }
 };
 
-export const guardarPlanificacionDetallada = async (planificacion) => {
+export const guardarPlanificacionDetallada = async (planificacion, opciones = {}) => {
   if (!planificacion) throw new Error("La planificación es obligatoria");
 
   const createdAt = new Date().toISOString();
   const meta = planificacion.metadatos || {};
   const curso = [meta.grado, meta.seccion].filter(Boolean).join(" ").trim() || meta.curso || "Curso no definido";
   const area = meta.area || planificacion?.datosGenerales?.area || "Área no definida";
+  // Hilo pedagógico (Fase 1): capa curricular normalizada a nivel de documento
+  // para poder consultar por cursoId/estado sin cargar el contenido completo.
+  const camposHilo = {};
+  if (opciones.capaCurricular) camposHilo.capaCurricular = opciones.capaCurricular;
+  if (opciones.cursoId) camposHilo.cursoId = String(opciones.cursoId);
 
   try {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
@@ -191,6 +197,7 @@ export const guardarPlanificacionDetallada = async (planificacion) => {
         tema: meta.tema || meta.titulo || "Tema no definido",
         competencia: meta.competenciaSeleccionada || "Competencia no definida",
         contenido: planificacion,
+        ...camposHilo,
         usuario: user.uid,
         usuarioEmail: user.email,
         ...buildMetaBase(user.uid),
@@ -214,6 +221,7 @@ export const guardarPlanificacionDetallada = async (planificacion) => {
       tema: meta.tema || "Tema no definido",
       competencia: meta.competenciaSeleccionada || "Competencia no definida",
       contenido: planificacion,
+      ...camposHilo,
       createdAt,
     };
 
@@ -1660,7 +1668,9 @@ export const enviarNotaAlRegistro = async ({ cursoId, area, estId, estNombre, co
       if (!comps[ci]) comps[ci] = { periodos: [] };
       const periodos = comps[ci].periodos || [];
       while (periodos.length < 4) periodos.push({ p: "", rp: "" });
-      periodos[pi] = { ...periodos[pi], p: notaNum };
+      // Regla 12: una celda con valor manual/ajustado nunca se pisa; solo se
+      // actualiza valorCalculado y se marca desactualizado.
+      periodos[pi] = aplicarNotaEnCelda(periodos[pi], notaNum);
       comps[ci] = { ...comps[ci], periodos };
 
       await setDoc(ref, {
@@ -1684,7 +1694,7 @@ export const enviarNotaAlRegistro = async ({ cursoId, area, estId, estNombre, co
       }
       const per = est.competencias[ci].periodos || [];
       while (per.length < 4) per.push({ p: "", rp: "" });
-      per[pi] = { ...per[pi], p: notaNum };
+      per[pi] = aplicarNotaEnCelda(per[pi], notaNum);
       est.competencias[ci].periodos = per;
       locales[cursoId] = local;
       guardarRegistroLocal(cursoId, local);
@@ -1696,8 +1706,11 @@ export const enviarNotaAlRegistro = async ({ cursoId, area, estId, estNombre, co
 };
 
 // ─── Bridge 1: Plan → Instrumentos auto-creación ─────────────────────────────
-// Crea instrumentos esqueleto al guardar una planificación, con los datos
-// de competencia, indicadores y periodo del plan.
+// DEPRECADO (Fase 10, 2026-07-04): sin llamadores. Reemplazado por
+// instrumentosService.crearInstrumentosPlaneadosDesdePlan (IDs deterministas;
+// este bridge usaba Date.now() y duplicaba instrumentos en cada guardado).
+// Se conserva exportado solo por compatibilidad; los instrumentos creados
+// con el formato viejo siguen siendo legibles por todas las vistas.
 export const crearInstrumentosDesdePlan = async (planId, planificacion) => {
   if (!planId || !planificacion) return;
   if (!isFirebaseConfigured || !auth?.currentUser || !db) return;

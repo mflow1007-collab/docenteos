@@ -4,6 +4,7 @@ import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
+import { obtenerEvidenciasPorEstudiante } from "../services/evidenciasService.js";
 
 const EVALUACIONES_BASE_DETALLE = [];
 
@@ -27,6 +28,12 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   });
   const [expediente, setExpediente] = useState(null);
 
+  // Banco de Evidencias completo (hilo pedagógico) + filtros
+  const [bancoEvidencias, setBancoEvidencias] = useState(null); // null = aún no cargado
+  const [filtroEvPeriodo, setFiltroEvPeriodo] = useState("Todos");
+  const [filtroEvTipo, setFiltroEvTipo] = useState("Todos");
+  const [filtroEvIndicador, setFiltroEvIndicador] = useState("Todos");
+
   // Cargar expediente real desde Firestore si existe
   useEffect(() => {
     const cursoId = estudiante?.cursoId;
@@ -37,6 +44,16 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       .then((data) => { if (data) setExpediente(data); })
       .catch(() => {});
   }, [estudiante?.cursoId, estudiante?.id]);
+
+  // Cargar el banco de evidencias al abrir la pestaña (lazy)
+  useEffect(() => {
+    if (tabActiva !== "Evidencias" || bancoEvidencias !== null) return;
+    const estId = estudiante?.id;
+    if (!estId) { setBancoEvidencias([]); return; }
+    obtenerEvidenciasPorEstudiante(estId, { cursoId: estudiante?.cursoId || "" })
+      .then((datos) => setBancoEvidencias(datos))
+      .catch(() => setBancoEvidencias([]));
+  }, [tabActiva, bancoEvidencias, estudiante?.id, estudiante?.cursoId]);
 
   const nombre = estudiante?.nombre || "—";
   const estado = estudiante?.estado?.label || "Sin estado";
@@ -340,30 +357,65 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         }
       </div>
     ),
-    "Evidencias": (
-      <div className="detalle-tab-lista">
-        <p><strong>Total de evidencias:</strong> {evidenciasExpediente.length}</p>
-        {evidenciasExpediente.length === 0 ? (
-          <p className="detalle-sin-datos">Sin evidencias registradas todavía. Al calificar instrumentos, DocenteOS creará evidencias automáticamente.</p>
-        ) : (
-          evidenciasExpediente.slice(0, 8).map((evidencia) => (
-            <p key={evidencia.id || evidencia.evidenciaId}>
-              {new Date(evidencia.fecha || evidencia.creadoEn || "2026-01-01").toLocaleDateString("es-DO")} ·
-              {" "}{evidencia.actividad || evidencia.titulo || evidencia.instrumento || "Evidencia"} ·
-              {" "}{evidencia.calificacion?.obtenida ?? evidencia.calificacion ?? "—"}/{evidencia.calificacion?.valorMaximo ?? evidencia.puntajeMaximo ?? "—"}
-            </p>
-          ))
-        )}
-        {indicadoresEvidencias.length > 0 && (
-          <div>
-            <h4>Indicadores más trabajados</h4>
-            {indicadoresEvidencias.slice(0, 5).map(([indicador, total]) => (
-              <p key={indicador}>{indicador} · {total} evidencia(s)</p>
+    "Evidencias": (() => {
+      // Banco completo del hilo pedagógico; el expediente queda como respaldo
+      const banco = (bancoEvidencias?.length ? bancoEvidencias : evidenciasExpediente) || [];
+      const periodos = [...new Set(banco.map((e) => e.periodo || e.periodoId).filter(Boolean))];
+      const tipos = [...new Set(banco.map((e) => e.tipo).filter(Boolean))];
+      const indicadores = [...new Set(banco.flatMap((e) => e.indicadorIds || e.indicadores || []))].filter(Boolean);
+      const filtradas = banco.filter((e) =>
+        (filtroEvPeriodo === "Todos" || (e.periodo || e.periodoId) === filtroEvPeriodo) &&
+        (filtroEvTipo === "Todos" || e.tipo === filtroEvTipo) &&
+        (filtroEvIndicador === "Todos" || (e.indicadorIds || e.indicadores || []).includes(filtroEvIndicador))
+      );
+      return (
+        <div className="detalle-tab-lista">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10, alignItems: "center" }}>
+            <strong>Banco de evidencias: {filtradas.length}/{banco.length}</strong>
+            {bancoEvidencias === null && <small style={{ color: "#94a3b8" }}>Cargando banco…</small>}
+            {[
+              { valor: filtroEvPeriodo, setValor: setFiltroEvPeriodo, opciones: periodos, etiqueta: "Período" },
+              { valor: filtroEvTipo, setValor: setFiltroEvTipo, opciones: tipos, etiqueta: "Tipo" },
+              { valor: filtroEvIndicador, setValor: setFiltroEvIndicador, opciones: indicadores, etiqueta: "Indicador" },
+            ].map(({ valor, setValor, opciones, etiqueta }) => (
+              <select
+                key={etiqueta}
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                style={{ fontSize: "0.78rem", padding: "3px 6px", borderRadius: 6, border: "1px solid #e2e8f0" }}
+                aria-label={`Filtrar por ${etiqueta}`}
+              >
+                <option value="Todos">{etiqueta}: Todos</option>
+                {opciones.map((op) => (
+                  <option key={op} value={op}>{String(op).length > 40 ? `${String(op).slice(0, 38)}…` : op}</option>
+                ))}
+              </select>
             ))}
           </div>
-        )}
-      </div>
-    ),
+          {filtradas.length === 0 ? (
+            <p className="detalle-sin-datos">Sin evidencias registradas todavía. Al calificar instrumentos, DocenteOS creará evidencias automáticamente.</p>
+          ) : (
+            filtradas.slice(0, 30).map((evidencia) => (
+              <p key={evidencia.id || evidencia.evidenciaId}>
+                {new Date(evidencia.fecha || evidencia.creadoEn || "2026-01-01").toLocaleDateString("es-DO")} ·
+                {" "}{evidencia.actividad || evidencia.titulo || evidencia.instrumento || "Evidencia"} ·
+                {" "}{evidencia.calificacion?.obtenida ?? evidencia.calificacionAsociada ?? evidencia.calificacion ?? "—"}/{evidencia.calificacion?.valorMaximo ?? evidencia.puntajeMaximo ?? "—"}
+                {evidencia.nivelLogro ? ` · ${evidencia.nivelLogro}` : ""}
+                {evidencia.indicadorId ? ` · ${evidencia.indicadorId}` : ""}
+              </p>
+            ))
+          )}
+          {indicadoresEvidencias.length > 0 && (
+            <div>
+              <h4>Indicadores más trabajados</h4>
+              {indicadoresEvidencias.slice(0, 5).map(([indicador, total]) => (
+                <p key={indicador}>{indicador} · {total} evidencia(s)</p>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    })(),
     "Asistencia": (
       <div className="detalle-tab-lista">
         {sinAsistencia && !expediente

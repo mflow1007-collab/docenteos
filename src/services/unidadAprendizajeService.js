@@ -49,16 +49,8 @@ const COMPETENCIAS_FUND_POR_AREA = {
 const getEstrategia = (area) =>
   ESTRATEGIAS_POR_AREA[area] || "Aprendizaje Colaborativo e Indagación Dialógica";
 
-const getSituacion = (area, tema) => {
-  const s = {
-    "Inglés": `Los estudiantes interactúan con situaciones comunicativas reales relacionadas con "${tema}", desarrollando sus habilidades de escucha, habla, lectura y escritura en inglés para comunicarse de manera efectiva en contextos cotidianos.`,
-    "Matemática": `Los estudiantes resuelven situaciones problemáticas del entorno relacionadas con "${tema}", aplicando el pensamiento lógico-matemático para encontrar soluciones creativas y justificar sus procedimientos.`,
-    "Lengua Española": `Los estudiantes exploran textos y situaciones comunicativas vinculadas con "${tema}", desarrollando competencias lectoras y escritoras que les permitan expresarse con claridad y creatividad en diferentes contextos.`,
-    "Ciencias de la Naturaleza": `Los estudiantes investigan fenómenos naturales relacionados con "${tema}", formulando hipótesis, realizando observaciones y construyendo explicaciones científicas basadas en evidencia.`,
-    "Ciencias Sociales": `Los estudiantes analizan situaciones sociales e históricas vinculadas con "${tema}", desarrollando el pensamiento crítico y la conciencia ciudadana para comprender y transformar su entorno.`,
-  };
-  return s[area] || `Los estudiantes exploran situaciones del entorno relacionadas con "${tema}", desarrollando competencias clave para comprender y aplicar los saberes en su vida cotidiana y comunitaria.`;
-};
+// getSituacion (plantilla corta legacy) fue reemplazada por
+// construirSituacionNarrativa — situación al estilo del documento modelo.
 
 const getAmbiente = (area) => {
   const a = {
@@ -104,6 +96,215 @@ const getEjesTematicos = (area) => {
     "Lengua Española": ["Alfabetización Imprescindible", "Ciudadanía y Convivencia"],
   };
   return ejes[area] || ["Alfabetización Imprescindible", "Ciudadanía y Convivencia"];
+};
+
+// ─── Template modelo (PDF "My Life and Daily Routines") ──────────────────────
+// Secciones agregadas 2026-07-04 siguiendo el documento modelo del docente:
+// ejes contextualizados, situación de aprendizaje narrativa, nota institucional,
+// checkpoint formativo y anexos A-L. Todo template determinista parametrizado.
+
+const ES_IDIOMA = (area) => area === "Inglés" || area === "Francés";
+const NOMBRE_IDIOMA = (area) => (area === "Francés" ? "francés" : "inglés");
+
+// Descripciones de ejes transversales contextualizadas al tema y al área
+const construirEjesContextualizados = (ejes, { area, tema }) => {
+  const idioma = ES_IDIOMA(area);
+  const medio = idioma ? `en el idioma ${NOMBRE_IDIOMA(area)}` : `desde el área de ${area}`;
+  const plantillas = {
+    "Alfabetización Imprescindible": `Comprensión y expresión, ${medio} de forma oral y escrita, de ideas y saberes relacionados con "${tema}", fortaleciendo las habilidades comunicativas esenciales para aprender a lo largo de toda la vida y desenvolverse en situaciones reales del entorno escolar, familiar y comunitario.`,
+    "Ciudadanía y Convivencia": `Comunicación e interacción ${medio} en intercambios sobre "${tema}" con cortesía, asertividad y respeto, reconociendo las diferencias individuales, asumiendo responsabilidades compartidas y promoviendo una sana convivencia en el hogar, la escuela y la comunidad.`,
+    "Desarrollo Sostenible": `Interacción ${medio} con el propósito de vincular "${tema}" con el uso responsable de los recursos, la organización del tiempo y de los espacios, y decisiones cotidianas que aportan al bienestar propio, de la comunidad y del medio ambiente.`,
+    "Salud y Bienestar": `Comunicación ${medio} con el propósito de relacionar "${tema}" con hábitos que impactan positivamente la salud física y emocional: alimentación balanceada, descanso adecuado, higiene, actividad física y manejo responsable del tiempo, valorando el bienestar como parte esencial de la vida del estudiante.`,
+  };
+  return (ejes || []).map((nombre) => ({
+    nombre,
+    descripcion: plantillas[nombre] || `Desarrollo del eje "${nombre}" a través de las experiencias de aprendizaje de la unidad "${tema}".`,
+  }));
+};
+
+// Situación de aprendizaje narrativa al estilo del documento modelo:
+// contexto del centro/comunidad → realidad observada → necesidad auténtica →
+// estrategia y recorrido → producto final progresivo.
+const construirSituacionNarrativa = ({
+  area, tema, grado, ciclo, nivel, centro, estrategia, producto,
+}) => {
+  // "Centro Hector Francisco Lopez - Hato Nuevo" → comunidad "Hato Nuevo"
+  const comunidad = String(centro || "").includes("-")
+    ? String(centro).split("-").pop().trim()
+    : "";
+  const ubicacion = centro
+    ? ` de ${centro}${comunidad ? `, en la comunidad de ${comunidad},` : ""}`
+    : "";
+  const quienes = `Los estudiantes de ${grado || "este grado"} del ${ciclo || "ciclo"} del Nivel ${nivel || "Secundario"}${ubicacion} viven realidades cotidianas marcadas por jornadas escolares intensas, responsabilidades en el hogar, actividades recreativas y momentos de convivencia familiar y comunitaria.`;
+
+  if (ES_IDIOMA(area)) {
+    const idioma = NOMBRE_IDIOMA(area);
+    return `${quienes} En el aula, sin embargo, se observa que a muchos estudiantes les resulta difícil comprender y expresar en ${idioma} ideas relacionadas con "${tema}", a pesar de que forman parte de su vida diaria. Ante esta realidad, surge la necesidad auténtica de aprender a comunicarse sobre "${tema}" en ${idioma}, tanto para reflexionar sobre su propia experiencia como para compartirla con compañeros, familiares y otras personas. Mediante la estrategia de ${estrategia}, los estudiantes explorarán el vocabulario y las estructuras propias del tema; compararán sus experiencias con las de sus compañeros; y participarán en situaciones comunicativas reales de escucha, habla, lectura y escritura (listening, speaking, reading y writing) centradas en "${tema}". Como producto final, elaborarán de manera progresiva ${producto} A lo largo de la unidad, cada clase aportará una evidencia a ese producto, fortaleciendo su competencia comunicativa en ${idioma}, su autonomía, su responsabilidad personal y su vínculo con la realidad de su comunidad.`;
+  }
+
+  return `${quienes} En el aula, sin embargo, se observa que muchos estudiantes conocen "${tema}" desde la experiencia cotidiana, pero les resulta difícil explicarlo, representarlo y aplicarlo con las herramientas propias de ${area}. Ante esta realidad, surge la necesidad auténtica de comprender "${tema}" para interpretar situaciones del entorno y actuar sobre ellas. Mediante la estrategia de ${estrategia}, los estudiantes explorarán los conceptos centrales del tema, los aplicarán en situaciones concretas de su contexto y socializarán sus hallazgos con el grupo. Como producto final, elaborarán de manera progresiva ${producto} A lo largo de la unidad, cada clase aportará una evidencia a ese producto, fortaleciendo sus competencias, su autonomía y su compromiso con la realidad de su comunidad.`;
+};
+
+// Nota institucional de organización temporal (versión parametrizada del modelo)
+const construirNotaInstitucional = ({ clasesPorSemana, durMin, producto }) => `Conforme al enfoque de atención a la diversidad, evaluación formativa y aprendizaje centrado en el estudiante establecido en el Diseño Curricular del Nivel Secundario del MINERD, la presente unidad organiza su tiempo en torno a un núcleo esencial de ${clasesPorSemana} clase(s) semanal(es) de ${durMin} minutos, complementado por sesiones pedagógicas flexibles que fortalecen la calidad, la pertinencia y la equidad de los aprendizajes. Dichas sesiones no representan una sobreplanificación ni un error en la distribución temporal, sino una decisión metodológica intencional orientada a responder a la diversidad del aula.
+Las sesiones flexibles permiten responder a los hallazgos de la evaluación diagnóstica de inicio, habilitar procesos de recuperación pedagógica, nivelación y ampliación según los ritmos de aprendizaje, dar seguimiento continuo a los indicadores de logro y acompañar la construcción progresiva del producto final (${producto.replace(/\.$/, "")}) antes de su valoración sumativa, además de absorber los ajustes propios del calendario escolar y las dinámicas institucionales sin afectar la secuencia didáctica.
+Nota: ante fallas de electricidad, internet o equipos, las actividades que usan TV, proyector o audio se realizan con las alternativas físicas del Anexo L — Plan B tecnológico (imágenes impresas, flashcards, lectura en voz alta y dramatización).`;
+
+// Checkpoint formativo de mitad de unidad (modelo: Semana 3)
+const construirCheckpointFormativo = ({ tema, producto, numSemanas }) => ({
+  semana: Math.ceil((numSemanas || 4) / 2),
+  indicador: `El estudiante comprende y comunica los aprendizajes centrales de "${tema}" trabajados hasta la mitad de la unidad, de forma oral y escrita.`,
+  evidencia: `Producciones del portafolio de las primeras semanas y primer avance del producto final (${String(producto).replace(/\.$/, "")}).`,
+  accion: "Para quienes aún no logran el indicador: reforzar con frases y ejemplos modelo, práctica guiada en parejas y revisión acompañada del avance del producto antes de la siguiente fase.",
+});
+
+// ─── Anexos A-L (parametrizados según el documento modelo) ───────────────────
+
+const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases = [], numSemanas = 4 }) => {
+  const idioma = ES_IDIOMA(area);
+  const nombreIdioma = NOMBRE_IDIOMA(area);
+  const productoCorto = String(producto).replace(/\.$/, "");
+
+  const rubricaProducto = [
+    { criterio: `Contenido (${tema})`, n4: "Desarrolla el tema de forma completa, con detalles y orden.", n3: "Desarrolla la mayoría de los elementos del tema.", n2: "Desarrolla algunos elementos de forma básica.", n1: "Menciona pocos elementos sin orden." },
+    { criterio: idioma ? `Uso del ${nombreIdioma} (gramática)` : "Uso del lenguaje del área", n4: "Usa las estructuras y el vocabulario trabajados correctamente.", n3: "Usa las estructuras con errores menores.", n2: "Usa las estructuras con errores frecuentes.", n1: "Construcción de ideas muy limitada." },
+    { criterio: "Integración de los contenidos de la unidad", n4: "Integra todos los bloques de la unidad con recomendaciones propias.", n3: "Integra la mayoría de los bloques trabajados.", n2: "Integra los contenidos de forma parcial.", n1: "No integra los contenidos de la unidad." },
+    { criterio: "Diseño y organización", n4: "Producto claro y ordenado, con título, secciones e imágenes.", n3: "Producto ordenado con título y secciones.", n2: "Producto con organización parcial.", n1: "Producto desordenado o incompleto." },
+    { criterio: "Presentación oral", n4: "Presenta con fluidez, volumen y contacto visual.", n3: "Presenta con claridad y pocos titubeos.", n2: "Presenta con apoyo y pausas frecuentes.", n1: "Presenta con mucha dificultad." },
+    { criterio: "Riqueza de vocabulario", n4: "Usa vocabulario variado y preciso de la unidad.", n3: "Usa vocabulario adecuado con alguna repetición.", n2: "Usa vocabulario básico y repetitivo.", n1: "Vocabulario muy limitado." },
+    { criterio: "Claridad comunicativa", n4: "El mensaje se entiende sin esfuerzo; las ideas fluyen con orden.", n3: "El mensaje se entiende con poco esfuerzo.", n2: "El mensaje se entiende con esfuerzo del interlocutor.", n1: "El mensaje es difícil de entender." },
+    { criterio: "Interacción (responde preguntas)", n4: "Responde con seguridad y amplía sus respuestas.", n3: "Responde correctamente las preguntas.", n2: "Responde con apoyo o respuestas muy breves.", n1: "No logra responder." },
+    { criterio: "Creatividad y presentación visual", n4: "Producto original y atractivo; integra imágenes propias y diseño cuidado.", n3: "Producto atractivo con imágenes pertinentes.", n2: "Producto con elementos visuales básicos.", n1: "Producto sin recursos visuales." },
+    ...(idioma ? [{ criterio: "Pronunciación e inteligibilidad", n4: "Pronuncia de forma clara y comprensible durante toda la presentación.", n3: "Pronuncia de forma comprensible con errores menores.", n2: "La pronunciación dificulta a veces la comprensión.", n1: "La pronunciación dificulta mucho la comprensión." }] : []),
+  ];
+
+  const listaCotejoOral = idioma ? [
+    `Saluda y responde preguntas iniciales en ${nombreIdioma}.`,
+    `Describe los contenidos de "${tema}" usando las estructuras trabajadas.`,
+    "Usa el vocabulario y las expresiones de la unidad.",
+    "Formula y responde preguntas sobre el tema.",
+    "Da recomendaciones o sugerencias relacionadas con el tema.",
+    "Interactúa con cortesía y respeto con sus compañeros.",
+  ] : [
+    "Participa activamente en las actividades de la clase.",
+    `Explica con sus palabras los contenidos centrales de "${tema}".`,
+    "Usa el vocabulario técnico del área con propiedad.",
+    "Formula y responde preguntas sobre el tema.",
+    "Relaciona el tema con situaciones de su entorno.",
+    "Interactúa con cortesía y respeto con sus compañeros.",
+  ];
+
+  const registroAnecdotico = {
+    columnas: ["Fecha", "Estudiante", "Situación observada", "Interpretación / Acción de mejora"],
+    ejemplo: [
+      "(ejemplo)",
+      "Estudiante A",
+      `Durante la actividad en parejas explicó el tema con seguridad, pero omitió pasos clave de "${tema}".`,
+      "Comprende la idea general; reforzar con práctica guiada breve y verificar en la próxima clase.",
+    ],
+  };
+
+  const autoevaluacion = idioma ? [
+    `...describe "${tema}" in ${area === "Francés" ? "French" : "English"}.`,
+    "...use the unit vocabulary and structures.",
+    "...ask and answer questions about the topic.",
+    "...give advice or suggestions about the topic.",
+    `...present my ${productoCorto.toLowerCase().includes("poster") ? "poster" : "final product"} to my classmates.`,
+  ] : [
+    `...explicar los conceptos centrales de "${tema}".`,
+    "...usar el vocabulario del área correctamente.",
+    "...aplicar lo aprendido en situaciones de mi entorno.",
+    "...trabajar en equipo y valorar los aportes de mis compañeros.",
+    "...presentar mi producto final al grupo.",
+  ];
+
+  const glosario = (vocabulario || []).slice(0, 16).map((termino) => ({
+    termino: String(termino),
+    traduccion: "",
+  }));
+
+  const sentenceStarters = idioma ? [
+    { funcion: "Describir / Informar", starter: "This is... / It has... / There is / There are..." },
+    { funcion: "Hablar de mi experiencia", starter: "I usually... / In my case... / Every day, I..." },
+    { funcion: "Preguntar", starter: "What...? / When...? / How often...? / Can you...?" },
+    { funcion: "Sugerir", starter: "Let's... / We should... / How about...?" },
+    { funcion: "Ofrecer ayuda", starter: "Can I help you...? / I can... / Let me help you..." },
+    { funcion: "Secuenciar ideas", starter: "First... / Then... / After that... / Finally..." },
+  ] : [
+    { funcion: "Describir / Informar", starter: "Se trata de... / Está formado por... / Observamos que..." },
+    { funcion: "Explicar", starter: "Esto ocurre porque... / La razón es... / Por lo tanto..." },
+    { funcion: "Preguntar", starter: "¿Qué...? / ¿Cuándo...? / ¿Por qué...? / ¿Cómo...?" },
+    { funcion: "Proponer", starter: "Podríamos... / Sugiero que... / Una alternativa es..." },
+    { funcion: "Comparar", starter: "A diferencia de... / Ambos... / Mientras que..." },
+    { funcion: "Concluir", starter: "En resumen... / Aprendimos que... / Lo más importante fue..." },
+  ];
+
+  const rangoSemanas = (fase) => {
+    const semanas = [...new Set((fase.dias || []).map((d) => d.semana).filter(Boolean))];
+    if (!semanas.length) return "";
+    const min = Math.min(...semanas);
+    const max = Math.max(...semanas);
+    return min === max ? `Semana ${min}` : `Semanas ${min}-${max}`;
+  };
+  const checklistProducto = [
+    ...(fases || []).map((fase) => ({
+      paso: `Aporte de la Fase ${fase.numero}: ${fase.nombre}`,
+      semana: rangoSemanas(fase),
+    })),
+    { paso: `Presentación final: ${productoCorto}`, semana: `Semana ${numSemanas}` },
+  ];
+
+  const organizadorProducto = [
+    { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).` },
+    ...(fases || []).map((fase) => ({
+      seccion: `Fase ${fase.numero} — ${fase.nombre}`,
+      incluye: "Las evidencias y oraciones clave elaboradas en esta fase.",
+    })),
+    { seccion: "Cierre", incluye: "Una reflexión o recomendación final relacionada con el tema." },
+  ];
+
+  const diagnostica = idioma ? [
+    { habilidad: "Listening (Escuchar)", tarea: `El docente lee o reproduce oraciones sencillas sobre "${tema}"; el estudiante marca en imágenes lo que escucha.`, criterio: "Identifica 4-5 elementos = listo; 2-3 = en proceso; 0-1 = requiere apoyo intensivo de vocabulario." },
+    { habilidad: "Speaking (Hablar)", tarea: `El estudiante responde oralmente preguntas básicas sobre "${tema}".`, criterio: "Responde con oraciones completas = listo; con palabras sueltas = en proceso; no responde en el idioma = requiere apoyo." },
+    { habilidad: "Reading (Leer)", tarea: `El estudiante lee un texto breve (3-4 oraciones) sobre "${tema}" y responde dos preguntas de comprensión.`, criterio: "Responde ambas correctamente = listo; una = en proceso; ninguna = requiere apoyo lector." },
+    { habilidad: "Writing (Escribir)", tarea: `El estudiante escribe tres oraciones sobre "${tema}" usando las estructuras básicas.`, criterio: "Tres oraciones con estructura clara = listo; una o dos con errores = en proceso; no logra estructurar = requiere apoyo." },
+  ] : [
+    { habilidad: "Comprensión oral", tarea: `El docente presenta una situación breve sobre "${tema}"; el estudiante identifica las ideas principales.`, criterio: "Identifica las ideas centrales = listo; parcialmente = en proceso; no las identifica = requiere apoyo." },
+    { habilidad: "Expresión oral", tarea: `El estudiante explica con sus palabras lo que sabe de "${tema}".`, criterio: "Explica con claridad = listo; con apoyo = en proceso; no logra explicar = requiere apoyo." },
+    { habilidad: "Lectura", tarea: `El estudiante lee un texto breve del área y responde dos preguntas de comprensión.`, criterio: "Responde ambas = listo; una = en proceso; ninguna = requiere apoyo lector." },
+    { habilidad: "Producción escrita", tarea: `El estudiante escribe tres ideas sobre "${tema}".`, criterio: "Tres ideas claras = listo; una o dos = en proceso; ninguna = requiere apoyo." },
+  ];
+
+  const neaePorPerfil = [
+    { perfil: "Ritmo de aprendizaje más lento", acceso: "Dar más tiempo, fragmentar las tareas en pasos cortos, usar frases modelo y apoyos visuales.", evaluacion: "Reducir el número de producciones exigidas, permitir banco de palabras y valorar el avance personal." },
+    { perfil: "Dificultad en la lectura", acceso: "Leer las consignas en voz alta, usar textos breves con imágenes y resaltar palabras clave.", evaluacion: "Permitir respuestas orales o con imágenes; evaluar la comprensión sin penalizar la velocidad lectora." },
+    { perfil: "Dificultad de atención", acceso: "Ubicar cerca del docente, dar instrucciones cortas una a la vez y alternar actividades.", evaluacion: "Evaluar en tramos cortos, verificar comprensión con preguntas directas y permitir pausas." },
+    { perfil: "Dificultad en la expresión oral", acceso: "Practicar con frases modelo y diálogos guiados; permitir ensayo previo en parejas y apoyos visuales.", evaluacion: "Valorar la intención comunicativa más que la perfección; permitir grabaciones." },
+    { perfil: "Estudiantes avanzados", acceso: "Asignar retos adicionales, rol de tutor par y tareas de creación.", evaluacion: "Evaluar con criterios de mayor complejidad: riqueza de vocabulario, creatividad e interacción ampliada." },
+  ];
+
+  const planB = [
+    { recurso: "TV / proyector (imágenes y videos)", alternativa: "Imágenes impresas, flashcards y dibujos en la pizarra." },
+    { recurso: "Audio / bocinas (escucha con propósito)", alternativa: "El docente lee el texto en voz alta; los estudiantes dramatizan o leen diálogos en parejas." },
+    { recurso: "Presentación digital / diapositivas", alternativa: "Carteles, papelógrafos o esquemas en la pizarra preparados con anticipación." },
+    { recurso: "Dispositivos para grabar presentaciones", alternativa: "Presentación en vivo ante el grupo y coevaluación con rúbrica impresa." },
+    { recurso: "Videos modelo", alternativa: "Lectura de un texto modelo impreso o demostración actuada por el docente." },
+  ];
+
+  return {
+    rubricaProducto,
+    listaCotejoOral,
+    registroAnecdotico,
+    twoStars: true,
+    autoevaluacion,
+    glosario,
+    sentenceStarters,
+    checklistProducto,
+    organizadorProducto,
+    diagnostica,
+    neaePorPerfil,
+    planB,
+  };
 };
 
 // ─── Generador de momentos por día ────────────────────────────────────────────
@@ -2055,9 +2256,15 @@ export const generarUnidadAprendizaje = async (datos) => {
   const claveContenido = resolverClave(asignatura, area, ESTRATEGIAS_POR_AREA);
   const asignaturaEf = asignatura || area;
   const estrategiaEf = estrategiaTexto || getEstrategia(claveContenido);
-  const situacion = situacionTexto || getSituacion(claveContenido, titulo);
   const ambiente = getAmbiente(claveContenido);
   const producto = productoFinalTexto || `Presentación/producción final sobre "${titulo}" que evidencie el dominio de los aprendizajes de la unidad.`;
+  // Situación de aprendizaje narrativa (estilo del documento modelo): contexto
+  // del centro → realidad observada → necesidad auténtica → estrategia →
+  // producto final progresivo. El texto del docente siempre tiene prioridad.
+  const situacion = situacionTexto || construirSituacionNarrativa({
+    area: claveContenido, tema: titulo, grado, ciclo, nivel, centro,
+    estrategia: estrategiaEf, producto,
+  });
   const ejes = getEjesTematicos(claveContenido);
   const contenidosBase = getContenidos(claveContenido, titulo);
   const compFundBase = COMPETENCIAS_FUND_POR_AREA[claveContenido] || ["Comunicativa", "Pensamiento Lógico, Creativo y Crítico"];
@@ -2073,7 +2280,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   try {
     curricularDoc = await getCurricularContentForUnit(claveContenido, grado);
   } catch (permErr) {
-    throw new Error(`Sin acceso al contenido curricular — ${permErr.message}`);
+    throw new Error(`Sin acceso al contenido curricular — ${permErr.message}`, { cause: permErr });
   }
   if (!curricularDoc) {
     throw new Error(
@@ -2181,6 +2388,31 @@ export const generarUnidadAprendizaje = async (datos) => {
     }),
   };
 
+  // ── Secciones del documento modelo (2026-07-04) ────────────────────────────
+  // Ejes contextualizados, nota institucional, checkpoint de mitad de unidad y
+  // anexos A-L. Se añaden como campos nuevos: las unidades ya guardadas sin
+  // estos campos siguen renderizando igual (el formateador los trata como
+  // opcionales).
+  unidadResult.ejesTematicosDetalle = construirEjesContextualizados(ejes, {
+    area: claveContenido, tema: titulo,
+  });
+  unidadResult.notaInstitucional = construirNotaInstitucional({
+    clasesPorSemana: diasClaseFinal.length,
+    durMin: durMinEf,
+    producto,
+  });
+  unidadResult.checkpointFormativo = construirCheckpointFormativo({
+    tema: titulo, producto, numSemanas,
+  });
+  unidadResult.anexos = construirAnexosUnidad({
+    area: claveContenido,
+    tema: titulo,
+    producto,
+    vocabulario: mallaContenidos.vocabulario || [],
+    fases: unidadResult.fasesSemanales || [],
+    numSemanas,
+  });
+
   // R1 sobre la unidad renderizada completa — atrapar placeholders legacy que entren por código
   const PLACEHOLDERS_PROHIBIDOS = [
     'Vocabulario clave relacionado con',
@@ -2231,6 +2463,16 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     .dia-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     .dia-table th { background: #1d4ed8; color: white; padding: 5px; font-size: 11pt; font-weight: bold; border: 1px solid #1e40af; text-align: left; }
     .dia-table td { border: 1px solid #93c5fd; padding: 4px 6px; font-size: 12pt; vertical-align: top; }
+    .checkpoint-table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+    .checkpoint-table th { background: #b45309; color: white; padding: 5px; font-size: 11pt; border: 1px solid #92400e; text-align: left; }
+    .checkpoint-table td { border: 1px solid #fcd34d; background: #fffbeb; padding: 4px 6px; font-size: 11pt; vertical-align: top; }
+    .anexos { break-before: page; page-break-before: always; }
+    .anexos h2 { font-size: 15pt; color: #1e3a8a; margin: 14px 0 4pt; }
+    .anexos h3 { font-size: 12pt; color: #1d4ed8; margin: 12px 0 4pt; }
+    .anexos .nota { font-style: italic; font-size: 10.5pt; color: #334155; margin-bottom: 8px; }
+    .rubrica { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    .rubrica th { background: #1d4ed8; color: white; border: 1px solid #1e40af; padding: 4px 5px; font-size: 10pt; text-align: left; }
+    .rubrica td { border: 1px solid #94a3b8; padding: 4px 5px; font-size: 10pt; vertical-align: top; }
     .td-momento { background: #f0f9ff; font-weight: bold; text-align: center; width: 65px; }
     .td-tiempo { text-align: center; width: 55px; }
     .td-meta { background: #d1fae5; font-style: italic; }
@@ -2329,12 +2571,26 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         <div class="neae-col"><div class="neae-head">Observaciones</div><div class="neae-body">${resEv.observaciones}</div></div>
       </div>` : "";
 
+    // Checkpoint formativo de mitad de unidad: se inserta al cerrar la fase
+    // que contiene la semana señalada (documento modelo: Semana 3)
+    const cp = unidad.checkpointFormativo;
+    const semanasFase = (fase.dias || []).map((d) => d.semana).filter(Boolean);
+    const contieneCheckpoint = cp && semanasFase.length
+      && Math.min(...semanasFase) <= cp.semana && cp.semana <= Math.max(...semanasFase);
+    const checkpointHtml = contieneCheckpoint ? `
+      <div class="section-head" style="background:#b45309">SEMANA ${cp.semana} — CHECKPOINT FORMATIVO (Mitad de la unidad)</div>
+      <table class="checkpoint-table">
+        <tr><th style="width:32%">Indicador de avance</th><th style="width:34%">¿Cómo se evidencia?</th><th>Acción de mejora</th></tr>
+        <tr><td>${cp.indicador}</td><td>${cp.evidencia}</td><td>${cp.accion}</td></tr>
+      </table>` : "";
+
     return `
       <div class="fase-band">FASE ${fase.numero} — ${fase.nombre}</div>
       <div class="est-band">Estrategia de enseñanza y de aprendizaje: ${fase.estrategia}</div>
       ${diasHtml}
       ${neaeHtml}
-      ${resumenHtml}`;
+      ${resumenHtml}
+      ${checkpointHtml}`;
   }).join("");
 
   return `<!DOCTYPE html>
@@ -2364,10 +2620,19 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <tr><td class="lbl">Producto final</td><td colspan="3">${m.productoFinal}</td></tr>
   </table>
 
+  ${Array.isArray(unidad.ejesTematicosDetalle) && unidad.ejesTematicosDetalle.length ? `
+  <div class="section-head">EJE TEMÁTICO TRANSVERSAL</div>
+  <table class="datos-table">
+    ${unidad.ejesTematicosDetalle.map((eje) => `<tr><td class="lbl" style="vertical-align:middle">${eje.nombre}</td><td>${eje.descripcion}</td></tr>`).join("")}
+  </table>` : ""}
+
   <div class="section-head">SITUACIÓN DE APRENDIZAJE</div>
   <div class="texto-seccion">${unidad.situacionAprendizaje}</div>
   <div class="section-head">AMBIENTE DE APRENDIZAJE</div>
   <div class="texto-seccion">${unidad.ambienteAprendizaje}</div>
+  ${unidad.notaInstitucional ? `
+  <div class="section-head">NOTA INSTITUCIONAL DE ORGANIZACIÓN TEMPORAL</div>
+  <div class="texto-seccion">${String(unidad.notaInstitucional).split("\n").map((parrafo) => `<p style="margin-bottom:6pt">${parrafo}</p>`).join("")}</div>` : ""}
 
   <div class="section-head">COMPONENTE CURRICULAR — Asignatura: ${m.asignatura}</div>
   ${(() => {
@@ -2399,6 +2664,101 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   </div>
 
   ${fasesHtml}
+
+  ${(() => {
+    const ax = unidad.anexos;
+    if (!ax) return "";
+    const filaVacia = (n, cols) => Array.from({ length: n }, () => `<tr>${"<td>&nbsp;</td>".repeat(cols)}</tr>`).join("");
+    return `
+  <section class="anexos">
+    <h2>ANEXOS</h2>
+    <p class="nota">Instrumentos de evaluación y apoyos para el aprendizaje de la unidad ${m.titulo}.</p>
+
+    <h3>ANEXO A — Rúbrica analítica del producto final</h3>
+    <table class="rubrica">
+      <tr><th>Criterio</th><th>Nivel 4 — Excelente</th><th>Nivel 3 — Satisfactorio</th><th>Nivel 2 — En proceso</th><th>Nivel 1 — Inicial</th></tr>
+      ${(ax.rubricaProducto || []).map((r) => `<tr><td><strong>${r.criterio}</strong></td><td>${r.n4}</td><td>${r.n3}</td><td>${r.n2}</td><td>${r.n1}</td></tr>`).join("")}
+    </table>
+
+    <h3>ANEXO B — Lista de cotejo para la producción oral</h3>
+    <table class="rubrica">
+      <tr><th>Indicador observable</th><th style="width:12%">Sí</th><th style="width:14%">En proceso</th><th style="width:12%">No</th></tr>
+      ${(ax.listaCotejoOral || []).map((i) => `<tr><td>${i}</td><td></td><td></td><td></td></tr>`).join("")}
+    </table>
+
+    <h3>ANEXO C — Registro anecdótico</h3>
+    <table class="rubrica">
+      <tr>${(ax.registroAnecdotico?.columnas || []).map((c) => `<th>${c}</th>`).join("")}</tr>
+      ${ax.registroAnecdotico?.ejemplo ? `<tr>${ax.registroAnecdotico.ejemplo.map((c) => `<td style="font-style:italic">${c}</td>`).join("")}</tr>` : ""}
+      ${filaVacia(3, (ax.registroAnecdotico?.columnas || []).length || 4)}
+    </table>
+
+    <h3>ANEXO D — Ficha de coevaluación: Two Stars and a Wish</h3>
+    <table class="rubrica">
+      <tr><td style="width:55%">Evalúo a mi compañero/a:</td><td>____________________</td></tr>
+      <tr><td>⭐ Star 1 — Algo que hizo muy bien:</td><td>____________________</td></tr>
+      <tr><td>⭐ Star 2 — Otra cosa que hizo muy bien:</td><td>____________________</td></tr>
+      <tr><td>🌠 A Wish — Algo que puede mejorar:</td><td>____________________</td></tr>
+    </table>
+
+    <h3>ANEXO E — Ficha de autoevaluación: My Learning Journey</h3>
+    <table class="rubrica">
+      <tr><th>Now I can...</th><th style="width:10%">Yes</th><th style="width:10%">Almost</th><th style="width:10%">Not yet</th></tr>
+      ${(ax.autoevaluacion || []).map((i) => `<tr><td>${i}</td><td></td><td></td><td></td></tr>`).join("")}
+      <tr><td><strong>My personal goal for next time:</strong></td><td colspan="3"></td></tr>
+    </table>
+
+    ${ax.glosario?.length ? `
+    <h3>ANEXO F — Glosario de la unidad</h3>
+    <p class="nota">La columna Español se completa con los estudiantes durante la unidad.</p>
+    <table class="rubrica">
+      <tr><th>Término</th><th>Español</th><th>Término</th><th>Español</th></tr>
+      ${Array.from({ length: Math.ceil(ax.glosario.length / 2) }, (_, i) => {
+        const a = ax.glosario[i * 2];
+        const b = ax.glosario[i * 2 + 1];
+        return `<tr><td>${a?.termino || ""}</td><td>${a?.traduccion || ""}</td><td>${b?.termino || ""}</td><td>${b?.traduccion || ""}</td></tr>`;
+      }).join("")}
+    </table>` : ""}
+
+    <h3>ANEXO G — Frases de apoyo (Sentence starters)</h3>
+    <table class="rubrica">
+      <tr><th style="width:35%">Función comunicativa</th><th>Frase de apoyo</th></tr>
+      ${(ax.sentenceStarters || []).map((s) => `<tr><td>${s.funcion}</td><td>${s.starter}</td></tr>`).join("")}
+    </table>
+
+    <h3>ANEXO H — Checklist de progreso del producto final</h3>
+    <table class="rubrica">
+      <tr><th>Paso del producto final</th><th style="width:20%">Semana</th><th style="width:8%">✔</th></tr>
+      ${(ax.checklistProducto || []).map((c) => `<tr><td>${c.paso}</td><td>${c.semana}</td><td></td></tr>`).join("")}
+    </table>
+
+    <h3>ANEXO I — Organizador gráfico del producto final</h3>
+    <table class="rubrica">
+      <tr><th style="width:28%">Sección</th><th style="width:42%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
+      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.incluye}</td><td></td></tr>`).join("")}
+    </table>
+
+    <h3>ANEXO J — Evaluación diagnóstica inicial</h3>
+    <p class="nota">Aplicar al inicio de la unidad. No lleva calificación; orienta la planificación y las adaptaciones.</p>
+    <table class="rubrica">
+      <tr><th style="width:22%">Habilidad</th><th>Tarea</th><th>Criterio de interpretación</th></tr>
+      ${(ax.diagnostica || []).map((d) => `<tr><td><strong>${d.habilidad}</strong></td><td>${d.tarea}</td><td>${d.criterio}</td></tr>`).join("")}
+    </table>
+
+    <h3>ANEXO K — Adaptaciones para estudiantes con NEAE, por perfil</h3>
+    <table class="rubrica">
+      <tr><th style="width:25%">Perfil del estudiante</th><th>Adaptaciones de acceso y metodológicas</th><th>Adaptaciones de evaluación</th></tr>
+      ${(ax.neaePorPerfil || []).map((p) => `<tr><td><strong>${p.perfil}</strong></td><td>${p.acceso}</td><td>${p.evaluacion}</td></tr>`).join("")}
+    </table>
+
+    <h3>ANEXO L — Plan B tecnológico (continuidad sin recursos digitales)</h3>
+    <p class="nota">Cuando falle la electricidad, el internet o el equipo, la clase continúa con estas alternativas físicas. Ninguna actividad depende exclusivamente de la tecnología.</p>
+    <table class="rubrica">
+      <tr><th style="width:45%">Recurso tecnológico previsto</th><th>Alternativa física (Plan B)</th></tr>
+      ${(ax.planB || []).map((p) => `<tr><td>${p.recurso}</td><td>${p.alternativa}</td></tr>`).join("")}
+    </table>
+  </section>`;
+  })()}
 </div>
 <div style="position:fixed;bottom:20px;right:20px;z-index:999;display:flex;gap:8px">
   <button onclick="window.print()" style="background:#1d4ed8;color:white;border:none;padding:10px 20px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">🖨️ Guardar como PDF</button>

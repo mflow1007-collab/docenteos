@@ -7,10 +7,18 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // ID-20: Para añadir whitelist de UIDs, agregar el UID en la colección
-      // admins/{uid} vía Firebase Console y cambiar la condición a:
-      //   exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      return isAuth() && request.auth.token.email.matches('.*@docenteos\\.com');
+      // admin@docenteos.com es la cuenta administradora principal: acceso
+      // completo por email EXACTO (la cuenta ya existe — nadie más puede
+      // registrarla). Para el resto del dominio se exige correo verificado
+      // (fix auditoría 2026-07-04: antes cualquier registro sin verificar
+      // con un correo @docenteos.com obtenía admin total).
+      // Escape hatch adicional: admins/{uid} vía Firebase Console (ID-20).
+      return isAuth() && (
+        request.auth.token.email == 'admin@docenteos.com'
+        || (request.auth.token.email.matches('.*@docenteos\\.com')
+          && request.auth.token.email_verified == true)
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
 
     function isOwner(uid) {
@@ -27,6 +35,15 @@ service cloud.firestore {
       match /instrumentos/{docId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+      // Hilo pedagógico (Fase 4): resultados de instrumento por estudiante.
+      // Base de Mi Registro, avance por indicador, evidencias y reportes.
+      // Campos mínimos exigidos al crear: cursoId, estudianteId, instrumentoId, estado.
+      match /instrumentoResultados/{docId} {
+        allow read, update, delete: if isOwner(userId) || isAdmin();
+        allow create: if (isOwner(userId) || isAdmin())
+          && request.resource.data.keys().hasAll(['cursoId', 'estudianteId', 'instrumentoId', 'estado'])
+          && request.resource.data.estado in ['evaluado', 'pendiente', 'no_entrego'];
+      }
       match /preferencias/{docId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
@@ -40,18 +57,35 @@ service cloud.firestore {
         allow read, write: if isOwner(userId) || isAdmin();
       }
       match /evidenciasPedagogicas/{docId} {
-        allow read, write: if isOwner(userId) || isAdmin();
+        allow read, update, delete: if isOwner(userId) || isAdmin();
+        // Fase 11: el índice plano del banco exige el vínculo mínimo
+        allow create: if (isOwner(userId) || isAdmin())
+          && request.resource.data.keys().hasAll(['estudianteId', 'cursoId']);
       }
 
       // ID-01: subcollections del Registro (notas, aspectos, evidencias por estudiante)
       match /cursos/{cursoId}/registroAspectos/{aspId} {
-        allow read, write: if isOwner(userId) || isAdmin();
+        allow read, update, delete: if isOwner(userId) || isAdmin();
+        // Fase 11: campos mínimos del hilo pedagógico al crear un aspecto
+        // string(): tolera IDs legacy numéricos (1 == "1" es false en reglas)
+        allow create: if (isOwner(userId) || isAdmin())
+          && request.resource.data.keys().hasAll(['cursoId', 'nombre'])
+          && string(request.resource.data.cursoId) == cursoId;
       }
       match /cursos/{cursoId}/registroNotas/{notaId} {
-        allow read, write: if isOwner(userId) || isAdmin();
+        allow read, update, delete: if isOwner(userId) || isAdmin();
+        // Fase 11: una nota siempre pertenece a un estudiante y a un aspecto
+        allow create: if (isOwner(userId) || isAdmin())
+          && request.resource.data.keys().hasAll(['cursoId', 'estudianteId', 'aspectoId'])
+          && string(request.resource.data.cursoId) == cursoId;
       }
       match /cursos/{cursoId}/estudiantes/{estId}/evidencias/{evId} {
-        allow read, write: if isOwner(userId) || isAdmin();
+        allow read, update, delete: if isOwner(userId) || isAdmin();
+        // Fase 11: toda evidencia queda vinculada a su estudiante y curso
+        allow create: if (isOwner(userId) || isAdmin())
+          && request.resource.data.keys().hasAll(['estudianteId', 'cursoId'])
+          && string(request.resource.data.estudianteId) == estId
+          && string(request.resource.data.cursoId) == cursoId;
       }
 
       match /paymentHistory/{docId} {

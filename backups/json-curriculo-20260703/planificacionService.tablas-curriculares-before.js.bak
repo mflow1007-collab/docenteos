@@ -1,0 +1,1351 @@
+/* Servicio de Planificación — versión enriquecida MINERD */
+import { distribuirTemasEnSemanas, obtenerTemaSemana } from "./curriculumCombinacionService.js";
+import { resolverClave } from "../planning/areaAsignaturaMap.js";
+import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.js";
+import { precargarBP, obtenerBPActs } from "./bpCache.js";
+
+// ─── Constantes ─────────────────────────────────────────────────────────────
+
+const TIPO_EVAL = {
+  DIAGNOSTICA: "diagnostica",
+  FORMATIVA: "formativa",
+  SUMATIVA: "sumativa",
+};
+
+const EJES_DEFAULT = {
+  "Inglés":                             ["Alfabetización Imprescindible", "Ciudadanía y Convivencia"],
+  "Lengua Española":                    ["Alfabetización Imprescindible", "Ciudadanía y Convivencia"],
+  "Matemática":                         ["Desarrollo Sostenible", "Alfabetización Imprescindible"],
+  "Ciencias de la Naturaleza":          ["Desarrollo Sostenible", "Salud y Bienestar"],
+  "Ciencias Sociales":                  ["Ciudadanía y Convivencia", "Desarrollo Sostenible"],
+  "Educación Artística":                ["Ciudadanía y Convivencia", "Alfabetización Imprescindible"],
+  "Educación Física":                   ["Salud y Bienestar", "Ciudadanía y Convivencia"],
+  "Formación Integral Humana y Religiosa": ["Ciudadanía y Convivencia", "Salud y Bienestar"],
+  "Francés":                            ["Alfabetización Imprescindible", "Ciudadanía y Convivencia"],
+};
+
+const ASIGNATURAS_VINCULADAS_DEFAULT = {
+  "Inglés":                  ["Lengua Española", "Tecnología de la Información"],
+  "Lengua Española":         ["Ciencias Sociales", "Educación Artística", "Inglés"],
+  "Matemática":              ["Ciencias de la Naturaleza", "Tecnología"],
+  "Ciencias de la Naturaleza": ["Matemática", "Ciencias Sociales"],
+  "Ciencias Sociales":       ["Lengua Española", "Ciencias de la Naturaleza"],
+  "Educación Artística":     ["Lengua Española", "Ciencias Sociales"],
+  "Educación Física":        ["Salud", "Ciencias de la Naturaleza"],
+  "Francés":                 ["Lengua Española", "Inglés"],
+};
+
+// ─── Utilidades ─────────────────────────────────────────────────────────────
+
+const normalizarDuracionSemanas = (duracion) => {
+  if (typeof duracion === "number" && Number.isFinite(duracion) && duracion > 0) {
+    return Math.floor(duracion);
+  }
+  const n = parseInt(String(duracion || "").match(/\d+/)?.[0] || "", 10);
+  return Number.isFinite(n) && n > 0 ? n : 4;
+};
+
+const validarDatosPlanificacion = (datos) => {
+  const tipo = datos.tipoPlanificacion || "";
+  const requierePeriodo = tipo !== "Plan Anual";
+  if (!datos.tema?.trim())               throw new Error("El tema es obligatorio");
+  if (!datos.grado?.trim())              throw new Error("El grado es obligatorio");
+  if (!datos.seccion?.trim())            throw new Error("La sección es obligatoria");
+  if (!datos.area?.trim())               throw new Error("El área es obligatoria");
+  if (requierePeriodo && !datos.periodo?.trim()) throw new Error("El período es obligatorio");
+  if (!datos.indicadoresOficiales?.trim()) throw new Error("Los indicadores oficiales son obligatorios");
+  return true;
+};
+
+// ─── Auto-generación de contexto curricular ─────────────────────────────────
+
+const generarSituacionAprendizaje = (area, grado, tema, competencia) => {
+  const mapa = {
+    "Inglés":
+      `En el contexto de nuestra comunidad educativa, los estudiantes de ${grado} exploran el idioma inglés para comunicarse en situaciones de la vida cotidiana relacionadas con "${tema}". A través de actividades auténticas y significativas, los aprendices desarrollan habilidades comunicativas orales y escritas que les permitirán interactuar con confianza en contextos reales e interculturales. Esta unidad conecta con la realidad del estudiante, promoviendo el uso del inglés como herramienta de expresión personal y social.`,
+    "Lengua Española":
+      `Los estudiantes de ${grado} se sumergen en el mundo de la comunicación oral y escrita a través del tema "${tema}", explorando textos, géneros literarios y situaciones comunicativas auténticas de su entorno. Mediante la lectura, la escritura y el diálogo crítico, los aprendices desarrollan la competencia lingüística necesaria para expresarse con efectividad, creatividad y propósito en diferentes contextos de su vida cotidiana.`,
+    "Matemática":
+      `En el aula de ${grado}, los estudiantes enfrentan situaciones problemáticas reales relacionadas con "${tema}" que requieren el uso del pensamiento matemático. A través de la investigación, el razonamiento lógico y la resolución de problemas, los aprendices construyen conceptos matemáticos significativos que pueden aplicar para comprender y transformar su entorno inmediato.`,
+    "Ciencias de la Naturaleza":
+      `Los estudiantes de ${grado} se convierten en exploradores científicos del tema "${tema}", investigando fenómenos naturales de su entorno inmediato. A través de la observación, la experimentación y el análisis crítico, los aprendices desarrollan el pensamiento científico y construyen comprensión profunda sobre cómo funciona el mundo natural que los rodea.`,
+    "Ciencias Sociales":
+      `Los estudiantes de ${grado} exploran el tema "${tema}" desde una perspectiva crítica e histórica, analizando cómo los procesos sociales, culturales y políticos han formado la realidad que conocen. Mediante el estudio, el diálogo y la reflexión, desarrollan conciencia ciudadana y comprensión del mundo social en el que participan activamente.`,
+  };
+  return mapa[area] ||
+    `Los estudiantes de ${grado} exploran "${tema}" a través de experiencias significativas y contextualizadas, desarrollando la competencia de ${competencia} mediante actividades que conectan con su realidad cotidiana y promueven el pensamiento crítico y la creatividad.`;
+};
+
+const generarAmbienteAprendizaje = (area) => {
+  const mapa = {
+    "Inglés":
+      "Aula con disposición flexible en semicírculo o grupos (4-5 estudiantes), espacio para dramatizaciones y role-plays, rincón multimedia con acceso a recursos auditivos. Se usará la biblioteca y/o sala de tecnología según disponibilidad.",
+    "Lengua Española":
+      "Aula organizada en grupos cooperativos, con rincón de lectura, biblioteca de aula y mural de producciones escritas. Espacios para exposición oral y galería de textos.",
+    "Matemática":
+      "Aula con materiales manipulativos disponibles organizados en rincones de trabajo. Espacio en pizarrón para resolución compartida. Acceso a sala de cómputo para uso de software matemático.",
+    "Ciencias de la Naturaleza":
+      "Aula con área de experimentación, laboratorio o espacio natural cercano al centro. Rincón de observación con lupas y materiales del entorno. Patio escolar o jardín para actividades de campo.",
+    "Ciencias Sociales":
+      "Aula con mapas, líneas de tiempo y recursos audiovisuales. Espacio para debates y mesas redondas. Uso de la biblioteca y recursos digitales para investigación.",
+  };
+  return mapa[area] ||
+    "Aula con organización flexible (grupos de 4-5 estudiantes), espacio para exposiciones y trabajo colaborativo. Se habilitarán espacios fuera del aula (biblioteca, patio, sala de tecnología) según las necesidades de cada actividad.";
+};
+
+const generarContenidosClasificados = (area, tema) => {
+  const bases = {
+    "Inglés": {
+      conceptuales: [
+        `Vocabulario esencial de "${tema}"`,
+        "Estructuras gramaticales básicas del tema",
+        "Expresiones y frases comunicativas del contexto",
+        "Reglas de pronunciación y entonación",
+      ],
+      procedimentales: [
+        `Producción oral y escrita sobre "${tema}"`,
+        "Comprensión auditiva de textos del tema",
+        "Lectura e interpretación de materiales auténticos",
+        "Participación en intercambios comunicativos reales",
+      ],
+      actitudinales: [
+        "Valoración del inglés como herramienta comunicativa global",
+        "Disposición para comunicarse con confianza y respeto",
+        "Apreciación de la diversidad cultural e intercultural",
+        "Perseverancia y esfuerzo en la práctica del idioma",
+      ],
+    },
+    "Lengua Española": {
+      conceptuales: [
+        `Características del género textual relacionado con "${tema}"`,
+        "Estructura y propósito comunicativo del texto",
+        "Recursos lingüísticos: cohesión y coherencia",
+        `Vocabulario específico de "${tema}"`,
+      ],
+      procedimentales: [
+        "Planificación, redacción y revisión de textos",
+        "Comprensión e interpretación de lecturas diversas",
+        "Participación efectiva en situaciones de comunicación oral",
+        "Uso correcto de normativa ortográfica y gramatical",
+      ],
+      actitudinales: [
+        "Valoración de la lectura como fuente de conocimiento y placer",
+        "Responsabilidad en la comunicación efectiva",
+        "Respeto por la diversidad lingüística y cultural",
+        "Creatividad en la expresión personal escrita y oral",
+      ],
+    },
+    "Matemática": {
+      conceptuales: [
+        `Conceptos matemáticos de "${tema}"`,
+        "Propiedades y relaciones numéricas del contenido",
+        "Terminología matemática específica",
+        "Algoritmos y procedimientos formales",
+      ],
+      procedimentales: [
+        "Resolución de problemas del entorno cotidiano",
+        "Aplicación de algoritmos y estrategias de cálculo",
+        "Representación gráfica de datos y resultados",
+        "Verificación de resultados usando estimación",
+      ],
+      actitudinales: [
+        "Confianza en las propias capacidades matemáticas",
+        "Perseverancia ante problemas desafiantes",
+        "Valoración de la matemática en la vida cotidiana",
+        "Trabajo colaborativo y respeto por los aportes ajenos",
+      ],
+    },
+    "Ciencias de la Naturaleza": {
+      conceptuales: [
+        `Conceptos científicos de "${tema}"`,
+        "Procesos y fenómenos naturales del contenido",
+        "Terminología científica específica del área",
+        "Teorías y modelos explicativos",
+      ],
+      procedimentales: [
+        "Observación y registro de fenómenos naturales",
+        "Diseño y realización de experimentos sencillos",
+        "Análisis e interpretación de datos científicos",
+        "Elaboración de informes de investigación",
+      ],
+      actitudinales: [
+        "Curiosidad y asombro ante los fenómenos naturales",
+        "Respeto y cuidado del medio ambiente",
+        "Rigor y honestidad en el trabajo científico",
+        "Valoración del método científico como herramienta de conocimiento",
+      ],
+    },
+    "Ciencias Sociales": {
+      conceptuales: [
+        `Conceptos históricos y sociales de "${tema}"`,
+        "Procesos culturales, políticos y económicos del contenido",
+        "Cronología y ubicación espacio-temporal",
+        "Relaciones causa-efecto en los procesos sociales",
+      ],
+      procedimentales: [
+        "Análisis de fuentes primarias y secundarias",
+        "Construcción de líneas de tiempo y mapas históricos",
+        "Debate y argumentación sobre temas sociales",
+        "Elaboración de informes y síntesis históricas",
+      ],
+      actitudinales: [
+        "Valoración del patrimonio cultural y la identidad",
+        "Respeto por la diversidad cultural y social",
+        "Pensamiento crítico ante los hechos históricos",
+        "Compromiso con los valores democráticos y la ciudadanía",
+      ],
+    },
+  };
+  if (bases[area]) return bases[area];
+  return {
+    conceptuales: [
+      `Conceptos esenciales de "${tema}"`,
+      `Principios y definiciones del área de ${area}`,
+      "Vocabulario técnico y especializado del contenido",
+    ],
+    procedimentales: [
+      `Aplicación de conocimientos sobre "${tema}"`,
+      "Producción de trabajos y proyectos del área",
+      "Investigación y organización de información",
+    ],
+    actitudinales: [
+      `Valoración de la importancia de "${tema}" en la vida cotidiana`,
+      "Responsabilidad en el cumplimiento de compromisos académicos",
+      "Respeto y colaboración en actividades grupales",
+    ],
+  };
+};
+
+// ─── Título del día ──────────────────────────────────────────────────────────
+
+const TITULOS_DIA = {
+  diagnostica: [
+    (t) => `Exploración inicial — ¿Qué sé sobre "${t}"?`,
+    (t) => `Reconocimiento de vocabulario y conceptos clave de "${t}"`,
+    (t) => `Activación de saberes previos sobre "${t}"`,
+    (t) => `Contextualización y presentación de la unidad: "${t}"`,
+    (t) => `Presentación de la situación de aprendizaje de "${t}"`,
+  ],
+  inicial: [
+    (t) => `Introducción y presentación de "${t}"`,
+    (t) => `Vocabulario y conceptos fundamentales de "${t}"`,
+    (t) => `Exploración y modelado del tema "${t}"`,
+    (t) => `Práctica inicial guiada sobre "${t}"`,
+    (t) => `Primera producción sobre "${t}"`,
+  ],
+  desarrollo: [
+    (t) => `Profundización en "${t}"`,
+    (t) => `Práctica colaborativa sobre "${t}"`,
+    (t) => `Construcción y aplicación de "${t}"`,
+    (t) => `Producción y socialización sobre "${t}"`,
+    (t) => `Integración de habilidades de "${t}"`,
+  ],
+  profundizacion: [
+    (t) => `Aplicación avanzada de "${t}"`,
+    (t) => `Producción autónoma sobre "${t}"`,
+    (t) => `Avances y retroalimentación de "${t}"`,
+    (t) => `Consolidación de aprendizajes de "${t}"`,
+    (t) => `Preparación del producto final de "${t}"`,
+  ],
+  final: [
+    (t) => `Presentación del producto final — "${t}"`,
+    (t) => `Coevaluación y retroalimentación sobre "${t}"`,
+    (t) => `Síntesis y reflexión final de "${t}"`,
+    (t) => `Celebración de logros y cierre de "${t}"`,
+    (t) => `Evaluación final y metacognición de "${t}"`,
+  ],
+};
+
+const generarTituloDia = (diaNum, fase, tema) => {
+  const variantes = TITULOS_DIA[fase] || TITULOS_DIA.desarrollo;
+  return variantes[(diaNum - 1) % variantes.length](tema);
+};
+
+// ─── Intención pedagógica del día ────────────────────────────────────────────
+
+const INTENCIONES_DIA = {
+  diagnostica: [
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes explorarán sus conocimientos previos sobre "${t}" mediante observación de imágenes, preguntas diagnósticas y actividades de activación, identificando lo que saben y estableciendo la base para el aprendizaje de la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes se familiarizarán con el vocabulario y los conceptos clave de "${t}" mediante lluvia de ideas, observación y clasificación de términos, conectando el contenido con sus experiencias cotidianas.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes activarán sus saberes previos sobre "${t}" mediante diálogo guiado, exploración de materiales y respuesta a preguntas clave, identificando los puntos de partida para su proceso de aprendizaje.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes conocerán la unidad de aprendizaje "${t}" mediante la presentación del contexto, la situación de aprendizaje y los criterios de evaluación que guiarán el proceso durante la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes explorarán la situación de aprendizaje de "${t}" mediante análisis de imágenes, respuesta a preguntas motivadoras y producción oral inicial, estableciendo la intención y el propósito de la unidad.`,
+  ],
+  inicial: [
+    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes se introducirán en "${t}" mediante presentación modelada del docente, trabajo en parejas y práctica guiada, desarrollando una comprensión inicial del tema y la competencia de ${c}.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes explorarán el vocabulario y los conceptos fundamentales de "${t}" mediante observación, análisis de ejemplos y producción oral inicial, construyendo la base conceptual para las próximas sesiones.`,
+    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes trabajarán con los elementos clave de "${t}" mediante modelado, práctica colaborativa y producción guiada, fortaleciendo su comprensión del contenido y la competencia de ${c}.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes practicarán de forma guiada los contenidos de "${t}" mediante ejercicios progresivos, retroalimentación inmediata y producción inicial, consolidando el vocabulario y las estructuras trabajadas.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes realizarán una primera producción sobre "${t}" mediante actividades de aplicación guiada y socialización oral, transfiriendo los aprendizajes iniciales a situaciones concretas.`,
+  ],
+  desarrollo: [
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes profundizarán en "${t}" mediante producción oral, interacción colaborativa y escritura guiada, utilizando los conceptos trabajados para comunicarse en situaciones concretas y significativas.`,
+    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes aplicarán sus conocimientos sobre "${t}" mediante trabajo cooperativo, producción escrita y socialización oral, fortaleciendo la competencia de ${c} a través de actividades contextualizadas.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes construirán conocimientos sobre "${t}" mediante comprensión oral, análisis de ejemplos y producción guiada, desarrollando habilidades que puedan aplicar en contextos reales.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes integrarán habilidades sobre "${t}" mediante actividades de producción, retroalimentación entre pares y reflexión grupal, consolidando los aprendizajes y avanzando hacia el producto final.`,
+    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes trabajarán de forma colaborativa sobre "${t}" mediante resolución de situaciones problema, producción grupal y presentación oral, demostrando avance en la competencia de ${c}.`,
+  ],
+  profundizacion: [
+    (t, c) => `Desde el inicio hasta el final de la clase, los estudiantes aplicarán de forma autónoma sus aprendizajes sobre "${t}" mediante producción escrita, presentación oral y retroalimentación entre pares, demostrando dominio de la competencia de ${c}.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes consolidarán sus aprendizajes sobre "${t}" mediante análisis crítico, producción avanzada y coevaluación, preparándose para la presentación del producto final de la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes presentarán los avances de su producción sobre "${t}" mediante exposición oral, retroalimentación entre pares y ajuste de sus trabajos, acercándose al producto final.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes profundizarán en los aspectos clave de "${t}" mediante discusión crítica, producción escrita y socialización, integrando todos los aprendizajes desarrollados durante la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes prepararán el producto final sobre "${t}" mediante planificación, producción organizada y revisión entre pares, aplicando todos los conocimientos y habilidades desarrollados.`,
+  ],
+  final: [
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes presentarán el producto final de la unidad sobre "${t}" mediante exposición, coevaluación y reflexión metacognitiva, demostrando el logro de las competencias desarrolladas durante la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes evaluarán y reflexionarán sobre sus aprendizajes de "${t}" mediante coevaluación, autoevaluación y retroalimentación del docente, identificando sus logros y áreas de mejora.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes sintetizarán y socializarán sus aprendizajes sobre "${t}" mediante presentación oral, retroalimentación entre pares y reflexión final, cerrando el proceso de aprendizaje de la unidad.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes celebrarán los logros alcanzados en la unidad sobre "${t}" mediante socialización de productos, reconocimiento del esfuerzo colectivo y reflexión metacognitiva sobre el proceso vivido.`,
+    (t, _c) => `Desde el inicio hasta el final de la clase, los estudiantes completarán el proceso de evaluación de "${t}" mediante presentación, coevaluación y metacognición, reconociendo el valor de los aprendizajes en su desarrollo personal y académico.`,
+  ],
+};
+
+const generarIntencionPedagogicaDia = (diaNum, fase, tema, competencia) => {
+  const variantes = INTENCIONES_DIA[fase] || INTENCIONES_DIA.desarrollo;
+  return variantes[(diaNum - 1) % variantes.length](tema, competencia);
+};
+
+// ─── Actividades por momento ─────────────────────────────────────────────────
+
+const VARIACIONES_INICIO = [
+  [
+    "Participan en el saludo e indicaciones iniciales.",
+    "Revisan brevemente los aprendizajes desarrollados en la sesión anterior.",
+    "Responden preguntas diagnósticas para activar sus conocimientos previos sobre el tema.",
+    "Conocen la intención pedagógica y el propósito de aprendizaje del día.",
+  ],
+  [
+    "Participan en el saludo e indicaciones iniciales.",
+    "Observan imágenes o situaciones relacionadas con el tema para contextualizar el contenido.",
+    "Comparten ideas sobre lo que saben del tema mediante una lluvia de ideas colectiva.",
+    "Conocen la intención pedagógica y el propósito de la clase.",
+  ],
+  [
+    "Participan en el saludo e indicaciones iniciales.",
+    "Observan un video corto, imagen o canción relacionada con el tema de la clase.",
+    "Realizan activación o exploración de saberes previos respondiendo preguntas de sondeo.",
+    "Conocen la intención pedagógica y el propósito de aprendizaje de la sesión.",
+  ],
+  [
+    "Participan en el saludo e indicaciones iniciales.",
+    "Revisan la tarea o el producto generado en la sesión anterior.",
+    "Identifican colectivamente lo que ya saben y lo que necesitan aprender sobre el tema.",
+    "Conocen la intención pedagógica y el propósito de aprendizaje de la clase.",
+  ],
+];
+
+const VARIACIONES_DESARROLLO = [
+  [
+    "Observan y analizan el contenido presentado mediante recursos variados (imágenes, textos, videos).",
+    "Trabajan en parejas para discutir y relacionar el material de apoyo.",
+    "Construyen esquemas, mapas conceptuales o líneas de tiempo sobre el tema.",
+    "Practican de forma guiada con retroalimentación inmediata del docente.",
+    "Registran sus aprendizajes de manera organizada en el cuaderno de trabajo.",
+  ],
+  [
+    "Participan en una actividad colaborativa organizada en grupos de 4 a 5 integrantes.",
+    "Investigan y exploran el contenido utilizando materiales de apoyo disponibles en el aula.",
+    "Producen un borrador o primer intento del producto de la sesión.",
+    "Socializan sus avances parciales con los demás grupos del salón.",
+    "Incorporan los ajustes sugeridos a partir de la retroalimentación recibida.",
+  ],
+  [
+    "Leen, observan o experimentan directamente con el tema central de la clase.",
+    "Analizan críticamente ejemplos y contraejemplos relacionados con el contenido.",
+    "Producen de forma individual mientras reciben acompañamiento del docente.",
+    "Intercambian sus producciones entre pares y se retroalimentan mutuamente.",
+    "Incorporan mejoras a su trabajo a partir de los comentarios recibidos.",
+  ],
+  [
+    "Aplican sus conocimientos en situaciones concretas tomadas de su entorno.",
+    "Trabajan en equipo para resolver problemas o desafíos relacionados con el tema.",
+    "Utilizan tecnología disponible o materiales manipulativos para enriquecer su aprendizaje.",
+    "Presentan parcialmente sus resultados y producciones al resto del grupo.",
+    "Documentan el proceso y los aprendizajes generados en el cuaderno de trabajo.",
+  ],
+];
+
+const VARIACIONES_CIERRE = [
+  [
+    "Participan en una síntesis colectiva de los aprendizajes clave de la sesión.",
+    "Socializan los productos o evidencias generadas durante el desarrollo de la clase.",
+    "Ofrecen y reciben retroalimentación constructiva entre pares y con el docente.",
+    "Registran compromisos o tareas relacionadas con el tema para la próxima sesión.",
+  ],
+  [
+    "Reflexionan respondiendo: ¿Qué aprendimos hoy? ¿Cómo lo aprendimos?",
+    "Revisan el logro del propósito planteado al inicio de la sesión.",
+    "Responden preguntas de cierre para consolidar la comprensión del contenido.",
+    "Anticipan los temas y actividades que se desarrollarán en la próxima clase.",
+  ],
+  [
+    "Completan un organizador gráfico de síntesis del contenido trabajado en la sesión.",
+    "Comparten en una frase lo más importante que aprendieron.",
+    "Realizan una breve autoevaluación de su participación y desempeño en la clase.",
+    "Anotan en el cuaderno los próximos pasos de su proceso de aprendizaje.",
+  ],
+  [
+    "Reflexionan sobre lo aprendido: ¿Qué fue lo más interesante? ¿Qué necesitan repasar?",
+    "Reciben retroalimentación oral del docente sobre el desempeño general del grupo.",
+    "Conectan el aprendizaje con situaciones de la vida real: ¿Cómo pueden aplicar lo aprendido?",
+    "Celebran los logros alcanzados y reconocen el esfuerzo colectivo del grupo.",
+  ],
+];
+
+const elegirVariacion = (arreglo, semana, dia) =>
+  arreglo[((semana - 1) * 5 + (dia - 1)) % arreglo.length];
+
+const calcularTiemposMomento = (totalMin) => {
+  if (totalMin >= 80) {
+    // Doble período: más tiempo en todos los momentos
+    const inicio    = 15;
+    const cierre    = 15;
+    const desarrollo = totalMin - inicio - cierre;
+    return { Inicio: `${inicio} min`, Desarrollo: `${desarrollo} min`, Cierre: `${cierre} min` };
+  }
+  // Período simple (45 ó 50 min)
+  const inicio    = 10;
+  const cierre    = totalMin >= 50 ? 8 : 5;
+  const desarrollo = totalMin - inicio - cierre;
+  return { Inicio: `${inicio} min`, Desarrollo: `${desarrollo} min`, Cierre: `${cierre} min` };
+};
+
+const METACOGNICION_POR_MOMENTO = {
+  Inicio: [
+    "¿Qué sé sobre este tema? ¿Qué espero aprender hoy?",
+    "¿Cómo se relaciona este contenido con algo que ya conozco?",
+    "¿Por qué es importante lo que vamos a aprender en esta sesión?",
+    "¿Qué preguntas tengo antes de comenzar la clase de hoy?",
+  ],
+  Desarrollo: [
+    "¿Cómo estoy comprendiendo el tema? ¿Qué parte me resulta más difícil?",
+    "¿Qué estrategia me está ayudando más a aprender este contenido?",
+    "¿Puedo explicar con mis propias palabras lo que aprendí hasta ahora?",
+    "¿Qué conexiones encuentro entre este contenido y mi vida cotidiana?",
+  ],
+  Cierre: [
+    `¿Qué aprendimos hoy sobre ${""} el tema trabajado?`,
+    "¿Qué estrategia me funcionó mejor para comprender el contenido?",
+    "¿En qué situaciones de mi vida puedo aplicar lo que aprendí hoy?",
+    "¿Qué necesito repasar o reforzar para la próxima clase?",
+  ],
+};
+
+const FASE_A_IDX = { diagnostica: 0, inicial: 0, desarrollo: 1, profundizacion: 1, final: 2 };
+
+const EVAL_MOMENTO = {
+  diagnostica: {
+    Inicio:     { agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Lista de cotejo" },
+    Desarrollo: { agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Lista de cotejo" },
+    Cierre:     { agente: "Autoevaluación",   tecnica: "Preguntas reflexivas", instrumento: "Registro anecdótico" },
+  },
+  formativa: {
+    Inicio:     { agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Lista de cotejo" },
+    Desarrollo: { agente: "Heteroevaluación y coevaluación", tecnica: "Observación directa y revisión de producciones", instrumento: "Lista de cotejo" },
+    Cierre:     { agente: "Autoevaluación", tecnica: "Preguntas reflexivas", instrumento: "Registro anecdótico" },
+  },
+  sumativa: {
+    Inicio:     { agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Lista de cotejo" },
+    Desarrollo: { agente: "Heteroevaluación y coevaluación", tecnica: "Producción y socialización del producto", instrumento: "Rúbrica analítica" },
+    Cierre:     { agente: "Autoevaluación", tecnica: "Preguntas reflexivas", instrumento: "Registro anecdótico y rúbrica del producto final" },
+  },
+};
+
+const generarEvidenciasMomento = (tipo, tema, fase) => {
+  const base = {
+    Inicio: {
+      conocimientos: [
+        `Saberes previos sobre "${tema}".`,
+        "Vocabulario, ideas o experiencias relacionadas con el contenido.",
+      ],
+      desempeno: [
+        "Participa en la activación de saberes previos.",
+        "Responde preguntas orales o escritas de exploración.",
+      ],
+      producto: [
+        "Respuestas iniciales registradas oralmente o en el cuaderno.",
+      ],
+    },
+    Desarrollo: {
+      conocimientos: [
+        `Conceptos, procedimientos y vocabulario trabajados sobre "${tema}".`,
+        "Relación entre el contenido nuevo y experiencias previas.",
+      ],
+      desempeno: [
+        "Aplica el contenido en actividades guiadas y colaborativas.",
+        "Produce, analiza o socializa evidencias durante la clase.",
+      ],
+      producto: [
+        `Producción parcial relacionada con "${tema}".`,
+        "Actividad del cuaderno, borrador, organizador o práctica completada.",
+      ],
+    },
+    Cierre: {
+      conocimientos: [
+        `Ideas clave aprendidas sobre "${tema}".`,
+        "Estrategias usadas para comprender el contenido.",
+      ],
+      desempeno: [
+        "Sintetiza lo aprendido y participa en la reflexión final.",
+        "Autoevalúa su participación y reconoce próximos pasos.",
+      ],
+      producto: [
+        "Reflexión oral o escrita de cierre.",
+        "Compromiso, tarea o evidencia organizada en el portafolio.",
+      ],
+    },
+  };
+
+  if (fase === "final" && tipo === "Desarrollo") {
+    return {
+      conocimientos: [
+        `Aprendizajes integrados de la unidad sobre "${tema}".`,
+        "Criterios de calidad del producto final.",
+      ],
+      desempeno: [
+        "Presenta o socializa el producto final demostrando dominio progresivo.",
+        "Responde preguntas y utiliza retroalimentación de pares y docente.",
+      ],
+      producto: [
+        `Producto final o evidencia integradora sobre "${tema}".`,
+        "Rúbrica, coevaluación o autoevaluación vinculada al producto.",
+      ],
+    };
+  }
+
+  return base[tipo] || base.Desarrollo;
+};
+
+const generarRecursosMomento = (tipo, area, fase) => {
+  const base = {
+    humanos: "Docente y estudiantes.",
+    didacticos: "Pizarra, cuadernos, marcadores y materiales de apoyo.",
+    tecnologicos: "TV, proyector o recurso digital disponible.",
+  };
+  const porArea = {
+    "Inglés": {
+      Inicio: "Flashcards, imágenes, banco de vocabulario y cuadernos.",
+      Desarrollo: "Tarjetas de vocabulario, audios, fichas comunicativas y portafolio.",
+      Cierre: "Cuadernos, portafolio y lista breve de reflexión.",
+    },
+    "Lengua Española": {
+      Inicio: "Texto breve, pizarra y cuadernos.",
+      Desarrollo: "Textos impresos, fichas de lectura/escritura y diccionario.",
+      Cierre: "Cuadernos, producciones y registro de reflexión.",
+    },
+    "Matemática": {
+      Inicio: "Situación problema, pizarra y material manipulativo.",
+      Desarrollo: "Fichas de ejercicios, material concreto, regla o calculadora si aplica.",
+      Cierre: "Cuadernos, ejercicios resueltos y lista de verificación.",
+    },
+    "Ciencias de la Naturaleza": {
+      Inicio: "Imagen, fenómeno, muestra u objeto de observación.",
+      Desarrollo: "Materiales de experimento, fichas de observación y cuaderno científico.",
+      Cierre: "Cuaderno científico, conclusiones y registro de hallazgos.",
+    },
+    "Ciencias Sociales": {
+      Inicio: "Imagen, mapa, línea de tiempo o noticia breve.",
+      Desarrollo: "Fuentes, mapas, textos históricos y organizadores gráficos.",
+      Cierre: "Cuadernos, conclusiones y evidencias de análisis.",
+    },
+  };
+  const didacticos = porArea[area]?.[tipo] || base.didacticos;
+  return {
+    humanos: base.humanos,
+    didacticos: fase === "final" && tipo === "Desarrollo"
+      ? `${didacticos} Producto final, rúbrica y portafolio.`
+      : didacticos,
+    tecnologicos: tipo === "Cierre" ? "No aplica o recurso digital disponible." : base.tecnologicos,
+  };
+};
+
+// ─── A5.2 — Evaluación MINERD por momento ────────────────────────────────────
+
+// Tipo por POSICIÓN del momento (no por semana): Inicio explora saberes,
+// Desarrollo forma, Cierre solo es sumativo cuando el instrumento de la
+// semana es ponderado (semana sumativa: rúbrica del producto / portafolio).
+const derivarTipoEvalMomento = (momento, tipoEvalSemana) => {
+  if (momento === "Inicio") return "diagnostica";
+  if (momento === "Desarrollo") return "formativa";
+  return tipoEvalSemana === "sumativa" ? "sumativa" : "formativa";
+};
+
+// Agente según lo que realmente pasa en el momento: coevaluación si las
+// actividades son grupales/entre pares; autoevaluación si el momento incluye
+// metacognición del estudiante; heteroevaluación como base.
+const derivarAgenteEvaluacion = (actividades = [], metacognicion = [], base = "Heteroevaluación") => {
+  const texto = actividades.join(" ").toLowerCase();
+  const esGrupal = /parejas|grupos?|entre pares|coevalua|equipo|colaborativ|mutuamente/.test(texto);
+  const hayMetacognicion = metacognicion.length > 0 || /autoevalua|reflexionan/.test(texto);
+  if (esGrupal && hayMetacognicion) return "Heteroevaluación, coevaluación y autoevaluación";
+  if (esGrupal) return base.toLowerCase().includes("coevalua") ? base : "Heteroevaluación y coevaluación";
+  if (hayMetacognicion) return base.toLowerCase().includes("autoevalua") ? base : "Heteroevaluación y autoevaluación";
+  return base;
+};
+
+// Técnica derivada del tipo de actividad, usando el catálogo de técnicas por
+// tipo de evaluación (ver generarEvaluacionSemana). El fallback es la técnica
+// del catálogo EVAL_MOMENTO, nunca un string genérico hardcodeado.
+const TECNICAS_POR_ACTIVIDAD = [
+  { patron: /lluvia de ideas/, tecnica: "Lluvia de ideas" },
+  { patron: /preguntas (diagnosticas|diagnósticas|de sondeo|exploratorias)|activaci[oó]n de saberes/, tecnica: "Preguntas exploratorias" },
+  { patron: /coevalua/, tecnica: "Coevaluación" },
+  { patron: /autoevalua/, tecnica: "Autoevaluación" },
+  { patron: /presentan|exposici[oó]n|producto final|socializan/, tecnica: "Presentación del producto final" },
+  { patron: /producen|construyen|elaboran|completan|escriben|resuelven|practican/, tecnica: "Trabajo práctico" },
+  { patron: /observan|analizan|leen/, tecnica: "Observación directa" },
+  { patron: /participan|comparten|discuten|responden/, tecnica: "Participación activa" },
+];
+
+const derivarTecnicaEvaluacion = (actividades = [], fallback = "Observación directa") => {
+  const texto = actividades.join(" ").toLowerCase();
+  const match = TECNICAS_POR_ACTIVIDAD.find(({ patron }) => patron.test(texto));
+  return match ? match.tecnica : fallback;
+};
+
+const construirMomento = (tipo, semana, dia, tema, tipoEval, totalMin = 45, area = "", fase = "desarrollo") => {
+  const tiempos = calcularTiemposMomento(totalMin);
+  const instrumentosMapa = {
+    diagnostica: { Inicio: "Prueba diagnóstica", Desarrollo: "Observación sistemática", Cierre: "Lista de participación" },
+    formativa:   { Inicio: "Lista de participación", Desarrollo: "Rúbrica analítica", Cierre: "Registro anecdótico" },
+    sumativa:    { Inicio: "Lista de cotejo", Desarrollo: "Rúbrica sumativa", Cierre: "Portafolio / Presentación" },
+  };
+  const instrumento = instrumentosMapa[tipoEval]?.[tipo] || "Observación";
+
+  // Banco Pedagógico Firestore (oficial) tiene prioridad
+  const bpActs = area ? obtenerBPActs(area, tipo, dia - 1) : null;
+
+  // Banco especializado estático como fallback
+  const faseIdx = FASE_A_IDX[fase] ?? 1;
+  const actividadesBanco = (!bpActs && area) ? obtenerActividadesBanco(area, tipo, faseIdx, dia - 1) : null;
+
+  let actividades;
+  if (bpActs) {
+    actividades = withTema(bpActs, tema);
+  } else if (actividadesBanco) {
+    actividades = withTema(actividadesBanco, tema);
+  } else {
+    let variaciones;
+    if (tipo === "Inicio")          variaciones = VARIACIONES_INICIO;
+    else if (tipo === "Desarrollo") variaciones = VARIACIONES_DESARROLLO;
+    else                            variaciones = VARIACIONES_CIERRE;
+    actividades = elegirVariacion(variaciones, semana, dia);
+  }
+
+  const metaVariantes = METACOGNICION_POR_MOMENTO[tipo] || METACOGNICION_POR_MOMENTO.Cierre;
+  const metacognicion = tipo === "Cierre"
+    ? [
+        `Reflexionan: ¿Qué aprendimos hoy sobre "${tema.substring(0, 40)}"?`,
+        "¿Qué estrategia les funcionó mejor para comprender el contenido?",
+        "¿En qué situaciones de la vida cotidiana pueden aplicar lo aprendido?",
+      ]
+    : [metaVariantes[((semana - 1) * 5 + (dia - 1)) % metaVariantes.length]];
+
+  const evalConfig = EVAL_MOMENTO[tipoEval]?.[tipo] || {
+    agente: "Heteroevaluación",
+    tecnica: "Observación directa",
+    instrumento,
+  };
+  const evidenciasDetalle = generarEvidenciasMomento(tipo, tema, fase);
+
+  return {
+    tipo,
+    tiempo: tiempos[tipo],
+    actividades,
+    instrumento,
+    evidenciasDetalle,
+    evidencias: evidenciasDetalle.producto,
+    // A5.2: evaluación MINERD completa por momento — tipo por posición,
+    // agente y técnica derivados de las actividades reales del momento.
+    evaluacion: {
+      tipo: derivarTipoEvalMomento(tipo, tipoEval),
+      agente: derivarAgenteEvaluacion(actividades, metacognicion, evalConfig.agente),
+      tecnica: derivarTecnicaEvaluacion(actividades, evalConfig.tecnica),
+      instrumento: evalConfig.instrumento || instrumento,
+    },
+    metacognicion,
+    recursos: generarRecursosMomento(tipo, area, fase),
+  };
+};
+
+// ─── NEAE por semana ─────────────────────────────────────────────────────────
+
+const generarNEAESemana = (semana, totalSemanas) => {
+  const fase = semana === 1 ? "inicio" : semana === totalSemanas ? "final" : "desarrollo";
+  const variantes = {
+    inicio: {
+      acceso: [
+        "Proveer instrucciones orales y escritas simultáneamente.",
+        "Ofrecer materiales en formatos alternativos (visual, auditivo).",
+        "Sentar al estudiante en área de menor distracción.",
+      ],
+      curricular: [
+        "Reducir cantidad de indicadores si es necesario.",
+        "Priorizar contenidos esenciales del tema.",
+        "Ofrecer activadores visuales previos a la clase.",
+      ],
+      evaluacion: [
+        "Realizar evaluación diagnóstica diferenciada.",
+        "Aceptar respuestas orales como alternativa a las escritas.",
+        "Ampliar tiempo de la prueba en 25-50%.",
+      ],
+    },
+    desarrollo: {
+      acceso: [
+        "Asignar compañero tutor para apoyo entre pares.",
+        "Proveer organizadores gráficos y guías de apoyo.",
+        "Permitir uso de diccionario u otros recursos autorizados.",
+      ],
+      curricular: [
+        "Adaptar complejidad de las actividades manteniendo significatividad.",
+        "Ofrecer opciones múltiples para demostrar aprendizajes.",
+        "Reducir cantidad de ejercicios manteniendo la esencia del contenido.",
+      ],
+      evaluacion: [
+        "Evaluar el proceso y no solo el producto final.",
+        "Usar listas de cotejo con criterios claros y accesibles.",
+        "Permitir tiempo adicional para completar tareas evaluativas.",
+      ],
+    },
+    final: {
+      acceso: [
+        "Proveer el instrumento de evaluación con antelación.",
+        "Permitir condiciones especiales (espacio tranquilo, tiempo extra).",
+        "Usar formato de evaluación alternativo si es necesario.",
+      ],
+      curricular: [
+        "Evaluar los indicadores mínimos esenciales.",
+        "Ofrecer opción de presentación oral en lugar de escrita.",
+        "Adaptar el producto final según necesidades individuales.",
+      ],
+      evaluacion: [
+        "Coevaluar con el estudiante los criterios de logro.",
+        "Registrar avances cualitativos además de cuantitativos.",
+        "Planificar apoyo adicional para la siguiente unidad si es necesario.",
+      ],
+    },
+  };
+  return variantes[fase] || variantes.desarrollo;
+};
+
+// ─── Evidencias de aprendizaje por semana ────────────────────────────────────
+
+const generarEvidenciasSemana = (area, tema, semana, totalSemanas) => {
+  const fase = semana === 1 ? "diagnostica" : semana === totalSemanas ? "final" : "desarrollo";
+  const mapa = {
+    diagnostica: {
+      conocimientosPrevios: [
+        `Saberes previos relacionados con "${tema}" desde la experiencia cotidiana.`,
+        "Vocabulario y conceptos ya conocidos por los estudiantes sobre el tema.",
+        "Experiencias personales y familiares relacionadas con el contenido.",
+      ],
+      desempenoEsperado: [
+        `Identifica y menciona elementos relacionados con "${tema}".`,
+        "Expresa de forma oral o escrita lo que sabe sobre el contenido.",
+        "Participa activamente en las actividades diagnósticas de la sesión.",
+      ],
+      productoElaborar: [
+        `Registro escrito de conocimientos previos sobre "${tema}".`,
+        "Mapa mental o lluvia de ideas inicial en el cuaderno.",
+        "Diagnóstico inicial documentado por el docente.",
+      ],
+    },
+    desarrollo: {
+      conocimientosPrevios: [
+        `Conceptos y vocabulario presentados en sesiones anteriores sobre "${tema}".`,
+        "Habilidades desarrolladas en la fase inicial de la unidad.",
+        "Comprensión básica de los contenidos conceptuales y procedimentales.",
+      ],
+      desempenoEsperado: [
+        `Aplica los conceptos de "${tema}" en situaciones concretas.`,
+        "Trabaja colaborativamente para construir y socializar evidencias.",
+        "Demuestra comprensión mediante producción oral, escrita o gráfica.",
+      ],
+      productoElaborar: [
+        `Producción escrita o gráfica relacionada con "${tema}".`,
+        "Trabajo cooperativo grupal documentado y socializado.",
+        "Cuaderno de trabajo con actividades completadas y organizadas.",
+      ],
+    },
+    final: {
+      conocimientosPrevios: [
+        `Todos los conceptos y habilidades trabajados sobre "${tema}" en la unidad.`,
+        "Estrategias y técnicas desarrolladas durante el proceso de aprendizaje.",
+        "Producción acumulada y reflexión desarrollada en sesiones anteriores.",
+      ],
+      desempenoEsperado: [
+        `Presenta el producto final demostrando dominio integral de "${tema}".`,
+        "Evalúa crítica y respetuosamente su propio desempeño y el de sus pares.",
+        "Sintetiza y comunica los aprendizajes clave de la unidad.",
+      ],
+      productoElaborar: [
+        `Producto final de la unidad sobre "${tema}" presentado ante el grupo.`,
+        "Portfolio o recopilación de evidencias del proceso completo.",
+        "Autoevaluación y coevaluación documentadas.",
+      ],
+    },
+  };
+  return mapa[fase] || mapa.desarrollo;
+};
+
+// ─── Materiales y recursos por semana ────────────────────────────────────────
+
+const generarMaterialesSemana = (area, fase) => {
+  const basePorArea = {
+    "Inglés":                    ["Flashcards de vocabulario", "Audios y videos auténticos", "Fichas de práctica comunicativa", "Diccionario bilingüe", "Cuaderno de trabajo"],
+    "Lengua Española":           ["Textos impresos variados", "Cuaderno de escritura", "Diccionario RAE", "Fichas de comprensión lectora", "Material de biblioteca"],
+    "Matemática":                ["Material manipulativo (fichas, bloques)", "Hoja cuadriculada", "Calculadora (si aplica)", "Reglas y compás", "Fichas de ejercicios"],
+    "Ciencias de la Naturaleza": ["Materiales de experimento", "Cuaderno científico", "Láminas del entorno", "Lupa y materiales naturales", "Fichas de observación"],
+    "Ciencias Sociales":         ["Mapa mural o impreso", "Línea de tiempo", "Textos históricos", "Fichas de investigación", "Material audiovisual"],
+  };
+  const generales = ["Marcadores de pizarrón", "Papel bond o cartulina", "Lápices de colores", "Tijeras y pegamento", "Cuaderno de trabajo"];
+  return {
+    impresos: basePorArea[area] || generales,
+    digitales: ["Proyector o pizarrón digital", "Presentación en diapositivas", "Videos educativos seleccionados", "Recursos interactivos en línea"],
+    otros: fase === "final"
+      ? ["Espacio preparado para presentaciones", "Sillas organizadas para el público", "Mesa de exposición"]
+      : ["Aula en disposición de grupos cooperativos (4-5 por grupo)", "Materiales disponibles en los rincones de trabajo"],
+  };
+};
+
+// ─── Evaluación por semana ────────────────────────────────────────────────────
+
+const generarEvaluacionSemana = (tipoEval, _fase) => {
+  const tecnicas = {
+    diagnostica: ["Preguntas exploratorias", "Lluvia de ideas", "Observación directa"],
+    formativa:   ["Observación sistemática", "Trabajo práctico", "Participación activa"],
+    sumativa:    ["Presentación del producto final", "Coevaluación", "Autoevaluación"],
+  };
+  const instrumentos = {
+    diagnostica: ["Guía de preguntas diagnósticas", "Lista de cotejo inicial", "Registro anecdótico"],
+    formativa:   ["Lista de cotejo", "Rúbrica analítica", "Registro de participación"],
+    sumativa:    ["Rúbrica holística", "Lista de cotejo final", "Portafolio"],
+  };
+  const criterios = {
+    diagnostica: [
+      "Participa activamente en las actividades diagnósticas.",
+      "Expresa conocimientos previos de forma oral o escrita.",
+      "Muestra disposición y actitud positiva para el aprendizaje.",
+    ],
+    formativa: [
+      "Comprende y aplica los conceptos trabajados en la sesión.",
+      "Trabaja de forma colaborativa con respeto y responsabilidad.",
+      "Produce evidencias de aprendizaje con calidad y organización.",
+    ],
+    sumativa: [
+      "Demuestra dominio del contenido en el producto final presentado.",
+      "Comunica sus aprendizajes con claridad, organización y seguridad.",
+      "Reflexiona críticamente sobre su proceso y valora sus logros.",
+    ],
+  };
+  return {
+    tipo: tipoEval,
+    tecnicas: tecnicas[tipoEval] || tecnicas.formativa,
+    instrumentos: instrumentos[tipoEval] || instrumentos.formativa,
+    criterios: criterios[tipoEval] || criterios.formativa,
+  };
+};
+
+// ─── Fases de semana ─────────────────────────────────────────────────────────
+
+const FASES = {
+  diagnostica:    { titulo: "Exploración y saberes previos",            proposito: "Explorar conocimientos previos y detectar necesidades de aprendizaje" },
+  inicial:        { titulo: "Presentación y motivación",                proposito: "Presentar el tema central y despertar el interés de los estudiantes" },
+  desarrollo:     { titulo: "Construcción activa del conocimiento",     proposito: "Construir conocimientos y desarrollar competencias mediante actividades participativas" },
+  profundizacion: { titulo: "Profundización e integración",             proposito: "Aplicar y profundizar los aprendizajes en situaciones más complejas" },
+  final:          { titulo: "Evaluación, síntesis y cierre",            proposito: "Evaluar el desempeño, sintetizar aprendizajes y reflexionar sobre la trayectoria vivida" },
+};
+
+const determinarFase = (semana, total) => {
+  if (semana === 1)           return "diagnostica";
+  if (semana === 2)           return "inicial";
+  if (semana === total)       return "final";
+  if (semana === total - 1)   return "profundizacion";
+  return "desarrollo";
+};
+
+const determinarTipoEval = (semana, total) => {
+  if (semana === 1)     return TIPO_EVAL.DIAGNOSTICA;
+  if (semana === total) return TIPO_EVAL.SUMATIVA;
+  return TIPO_EVAL.FORMATIVA;
+};
+
+// ─── Generación del desarrollo semanal ───────────────────────────────────────
+
+const generarDesarrolloSemanal = ({
+  semanas,
+  tema,
+  area = "",
+  competencia,
+  diasNombres,
+  minutosHoraClase = 45,
+  periodosClasePorDia = {},
+  temasDistribuidos = [],   // [{ tema, semanaInicio, semanaFin }] — combinación curricular
+}) => {
+  const dias = diasNombres.length > 0
+    ? diasNombres
+    : ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+
+  const esCombinada = Array.isArray(temasDistribuidos) && temasDistribuidos.length > 1;
+
+  return Array.from({ length: semanas }, (_, i) => {
+    const n = i + 1;
+    const fase = determinarFase(n, semanas);
+    const tipoEval = determinarTipoEval(n, semanas);
+    const faseInfo = FASES[fase] || FASES.desarrollo;
+
+    // Tema específico de esta semana (si la unidad es combinada)
+    const temaSemana = esCombinada
+      ? (obtenerTemaSemana(n, temasDistribuidos) || tema)
+      : tema;
+
+    const diasSemana = dias.map((nombre, di) => {
+      const diaNum  = di + 1;
+      const periodos = periodosClasePorDia[nombre] || 1;
+      const totalMin = minutosHoraClase * periodos;
+      return {
+        n: diaNum,
+        nombre,
+        periodos,
+        totalMin,
+        tipoEval,
+        tituloDia: generarTituloDia(diaNum, fase, temaSemana),
+        intencionPedagogica: generarIntencionPedagogicaDia(diaNum, fase, temaSemana, competencia),
+        momentos: [
+          construirMomento("Inicio",     n, diaNum, temaSemana, tipoEval, totalMin, area, fase),
+          construirMomento("Desarrollo", n, diaNum, temaSemana, tipoEval, totalMin, area, fase),
+          construirMomento("Cierre",     n, diaNum, temaSemana, tipoEval, totalMin, area, fase),
+        ],
+      };
+    });
+
+    return {
+      n,
+      fase,
+      tipoEval,
+      temaSemana,  // tema curricular específico de esta semana
+      titulo: esCombinada
+        ? `Semana ${n}: ${faseInfo.titulo} — ${temaSemana}`
+        : `Semana ${n}: ${faseInfo.titulo}`,
+      proposito: `${faseInfo.proposito} sobre "${temaSemana}"`,
+      competenciasTrabajadasSemana: competencia,
+      dias: diasSemana,
+      evidenciasSemana: null,
+      materialesSemana: null,
+      evaluacionSemana: null,
+      adecuacionesNEAE: generarNEAESemana(n, semanas),
+      productoSemanal: `Evidencia de ${faseInfo.titulo.toLowerCase()} — Semana ${n}`,
+    };
+  });
+};
+
+// ─── Función principal ───────────────────────────────────────────────────────
+
+const generarPlanificacion = async (datos) => {
+  validarDatosPlanificacion(datos);
+
+  // Precalentar Banco Pedagógico Firestore antes de generar
+  await precargarBP(datos.area || "", datos.grado || "");
+
+  const {
+    tema, grado, seccion, area, periodo,
+    asignatura = "",
+    indicadoresOficiales,
+    imagenTematicaSrc = "",
+    imagenTematicaNombre = "",
+    ejesTematicos = [],
+    asignaturasVinculadas = "",
+    situacionAprendizaje = "",
+    minutosHoraClase = 45,
+    periodosClasePorDia = {},
+  } = datos;
+
+  // Para lookups de contenido usa la asignatura si existe en el diccionario; si no, usa el área
+  const claveArea = resolverClave(asignatura, area, EJES_DEFAULT);
+
+  const curso            = datos.curso || [grado, seccion].filter(Boolean).join(" ").trim();
+  const duracionSemanas  = normalizarDuracionSemanas(datos.duracion);
+  const competencia      = datos.competencia || "";
+  const diasClase        = Array.isArray(datos.diasClase) && datos.diasClase.length > 0
+    ? datos.diasClase
+    : ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+
+  const indicadoresProcesados = indicadoresOficiales.split("\n").map(i => i.trim()).filter(Boolean);
+
+  // Combinación curricular: distribuir temas integrados en semanas (regla 5+ semanas)
+  const temasIntegrados  = Array.isArray(datos.temasIntegrados) ? datos.temasIntegrados : [];
+  const temasDistribuidos = temasIntegrados.length > 1
+    ? distribuirTemasEnSemanas(temasIntegrados, duracionSemanas)
+    : [];
+
+  // Auto-generación de campos contextuales
+  const situacionFinal   = situacionAprendizaje.trim() || generarSituacionAprendizaje(claveArea, grado, tema, competencia);
+  const ambienteFinal    = generarAmbienteAprendizaje(claveArea);
+  const ejesFinal        = ejesTematicos.length > 0 ? ejesTematicos : (EJES_DEFAULT[claveArea] || ["Ciudadanía y Convivencia"]);
+  const asignaturasFinal = asignaturasVinculadas.trim()
+    ? asignaturasVinculadas.split(",").map(a => a.trim()).filter(Boolean)
+    : (ASIGNATURAS_VINCULADAS_DEFAULT[claveArea] || ["Lengua Española"]);
+  const contenidosFinal  = generarContenidosClasificados(claveArea, tema);
+
+  const desarrollo = generarDesarrolloSemanal({ semanas: duracionSemanas, tema, area: claveArea, competencia, diasNombres: diasClase, minutosHoraClase, periodosClasePorDia, temasDistribuidos });
+
+  desarrollo.forEach(sem => {
+    sem.evidenciasSemana = generarEvidenciasSemana(claveArea, tema, sem.n, duracionSemanas);
+    sem.materialesSemana = generarMaterialesSemana(claveArea, sem.fase);
+    sem.evaluacionSemana = generarEvaluacionSemana(sem.tipoEval || "formativa", sem.fase);
+  });
+
+  return {
+    id: Date.now().toString(),
+    metadatos: {
+      fechaGeneracion: new Date().toISOString(),
+      tema,
+      curso,
+      grado,
+      seccion,
+      area,
+      periodo,
+      duracion: datos.duracion || `${duracionSemanas} semanas`,
+      duracionSemanas,
+      fechaInicio: datos.fechaInicio || "",
+      competenciaSeleccionada: competencia,
+      indicadoresOficiales: indicadoresProcesados,
+      tipoPlanificacion: datos.tipoPlanificacion || "",
+      diasClase,
+      nivelEducativo: datos.nivelEducativo || "",
+      jornadaTipo: datos.jornadaTipo || "",
+      resumenHorario: datos.resumenHorario || null,
+      // Integración curricular (si aplica)
+      temasIntegrados,
+      temasDistribuidos,
+      // Contexto enriquecido
+      ejesTematicos: ejesFinal,
+      asignaturasVinculadas: asignaturasFinal,
+      situacionAprendizaje: situacionFinal,
+      ambienteAprendizaje: ambienteFinal,
+      // Configuración de tiempo
+      minutosHoraClase,
+      periodosClasePorDia,
+    },
+    portadaInstitucional: { titulo: tema, curso, periodo },
+    datosGenerales: {
+      tema,
+      area,
+      competencia,
+      indicadoresOficiales: indicadoresProcesados,
+      imagenTematica: imagenTematicaSrc,
+      imagenTematicaNombre,
+      contenidos: contenidosFinal,
+      ejesTematicos: ejesFinal,
+      asignaturasVinculadas: asignaturasFinal,
+      situacionAprendizaje: situacionFinal,
+      ambienteAprendizaje: ambienteFinal,
+    },
+    desarrolloSemanal: desarrollo,
+    estado: "generada",
+  };
+};
+
+// ─── PDF (texto plano, para impresión) ──────────────────────────────────────
+
+const formatearParaPDF = (plan) => {
+  let t = "";
+  const meta = plan.metadatos || {};
+  const datos = plan.datosGenerales || {};
+  t += "PLANIFICACIÓN DIDÁCTICA MINERD\n";
+  t += "=".repeat(60) + "\n\n";
+  t += `Tema: ${meta.tema}\nGrado: ${meta.grado} ${meta.seccion}\nÁrea: ${meta.area}\nPeríodo: ${meta.periodo}\nDuración: ${meta.duracion}\n\n`;
+  if (datos.situacionAprendizaje) t += `SITUACIÓN DE APRENDIZAJE\n${datos.situacionAprendizaje}\n\n`;
+  if (Array.isArray(datos.indicadoresOficiales)) {
+    t += "INDICADORES DE LOGRO\n";
+    datos.indicadoresOficiales.forEach((ind, i) => { t += `${i + 1}. ${ind}\n`; });
+    t += "\n";
+  }
+  if (plan.desarrolloSemanal) {
+    plan.desarrolloSemanal.forEach(sem => {
+      t += `-`.repeat(40) + `\n${sem.titulo}\n${sem.proposito}\n`;
+      (sem.dias || []).forEach(dia => {
+        t += `  ${dia.nombre || `Día ${dia.n}`}\n`;
+        (dia.momentos || []).forEach(m => {
+          t += `    ${m.tipo} (${m.tiempo})\n`;
+          (m.actividades || []).forEach(a => { t += `      · ${a}\n`; });
+        });
+      });
+      t += "\n";
+    });
+  }
+  return t;
+};
+
+const escapeHtml = (value) => String(value ?? "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#39;");
+
+const TIPO_EVAL_PRINT = {
+  diagnostica: "Diagnóstica",
+  formativa: "Formativa",
+  sumativa: "Sumativa",
+};
+
+const listHtml = (items = []) =>
+  (items || []).filter(Boolean).map((x) => `<li>${escapeHtml(x)}</li>`).join("");
+
+const evidenciasMomentoHtml = (m) => {
+  const ev = m.evidenciasDetalle || {};
+  const conocimientos = ev.conocimientos || [];
+  const desempeno = ev.desempeno || [];
+  const producto = ev.producto || m.evidencias || [];
+  return `
+    <p><strong>Conocimientos:</strong></p><ul>${listHtml(conocimientos)}</ul>
+    <p><strong>Desempeño:</strong></p><ul>${listHtml(desempeno)}</ul>
+    <p><strong>Producto:</strong></p><ul>${listHtml(producto)}</ul>
+  `;
+};
+
+const evaluacionMomentoHtml = (m) => {
+  const ev = m.evaluacion || {};
+  return `
+    <p><strong>Tipo:</strong> ${escapeHtml(TIPO_EVAL_PRINT[ev.tipo] || ev.tipo || "Formativa")}.</p>
+    <p><strong>Agente:</strong> ${escapeHtml(ev.agente || "Heteroevaluación")}.</p>
+    <p><strong>Técnica:</strong> ${escapeHtml(ev.tecnica || "Observación directa")}.</p>
+    <p><strong>Instrumento:</strong> ${escapeHtml(ev.instrumento || m.instrumento || "Lista de cotejo")}.</p>
+  `;
+};
+
+const recursosMomentoHtml = (m) => {
+  const r = m.recursos || {};
+  return `
+    <p><strong>Humanos:</strong> ${escapeHtml(r.humanos || "Docente y estudiantes.")}</p>
+    <p><strong>Didácticos:</strong> ${escapeHtml(r.didacticos || "Cuadernos, pizarra y materiales de apoyo.")}</p>
+    <p><strong>Tecnológicos:</strong> ${escapeHtml(r.tecnologicos || "No aplica o recurso disponible.")}</p>
+  `;
+};
+
+// ─── PDF HTML ────────────────────────────────────────────────────────────────
+
+const formatearParaPDFHtml = (plan) => {
+  const meta  = plan.metadatos    || {};
+  const datos = plan.datosGenerales || {};
+  const semanas = plan.desarrolloSemanal || [];
+
+  const css = `
+    *{box-sizing:border-box}
+    body{font-family:'Book Antiqua',Palatino,'Palatino Linotype',serif;font-size:12pt;line-height:1.15;margin:0;padding:28px;background:#f5f5f5;color:#1a1a2e}
+    p{margin:0 0 3pt}
+    .wrap{max-width:960px;margin:0 auto;background:#fff;padding:36px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.12)}
+    h1{font-size:16pt;font-weight:bold;text-align:center;color:#1d4ed8;border-bottom:3px solid #1d4ed8;padding-bottom:10px;margin:0 0 3pt}
+    h2{font-size:12pt;font-weight:bold;color:#2563eb;background:#eff6ff;padding:8px 14px;border-left:4px solid #2563eb;margin:20px 0 3pt}
+    h3{font-size:12pt;color:#374151;margin:14px 0 3pt}
+    h4{font-size:11pt;font-weight:bold;margin:8px 0 3pt}
+    .meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0;padding:12px;background:#f8fafc;border-radius:8px}
+    .meta-item span{font-size:10pt;color:#64748b;display:block;margin:0 0 2pt}
+    .meta-item strong{font-size:12pt;color:#1e293b}
+    .eje{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11pt;font-weight:700;margin:3px;color:#fff}
+    .eje-0{background:#7c3aed} .eje-1{background:#0284c7} .eje-2{background:#059669} .eje-3{background:#d97706}
+    .situacion{background:#fffbeb;border:1px solid #fde68a;padding:8px 10px;border-radius:8px;font-style:normal;font-weight:normal;line-height:1.3;font-size:12pt;text-align:justify;height:auto;min-height:40px}
+    .contenidos-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .col-c{background:#eff6ff;border-top:3px solid #2563eb;padding:10px;border-radius:6px}
+    .col-p{background:#f0fdf4;border-top:3px solid #059669;padding:10px;border-radius:6px}
+    .col-a{background:#fef3c7;border-top:3px solid #d97706;padding:10px;border-radius:6px}
+    .col-c h4,.col-p h4,.col-a h4{margin:0 0 3pt;font-size:11pt}
+    ul{margin:0;padding-left:16px} li{margin:0 0 3pt;font-size:12pt;line-height:1.15}
+    .semana-box{border:1px solid #e2e8f0;border-radius:10px;margin-bottom:20px}
+    .semana-head{background:#1d4ed8;color:#fff;padding:10px 16px;border-radius:10px 10px 0 0}
+    .semana-head h3{margin:0;font-size:12pt;font-weight:bold;color:#fff} .semana-head p{margin:3pt 0 0;font-size:10pt;opacity:0.85}
+    .dias-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1px;background:#e2e8f0}
+    .dia-col{background:#fff;padding:10px}
+    .dia-nombre{font-weight:bold;font-size:12pt;color:#1d4ed8;margin-bottom:6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+    .dia-titulo{font-size:11pt;font-weight:bold;color:#334155;margin:0 0 4pt}
+    .dia-intencion{background:#eff6ff;border:1px solid #bfdbfe;padding:5px 7px;font-size:10.5pt;margin:0 0 6pt;text-align:justify}
+    .momento-blk{margin:6px 0}
+    .momento-tag{font-size:11pt;font-weight:bold;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:3pt}
+    .m-inicio{background:#dbeafe;color:#1d4ed8} .m-desarrollo{background:#dcfce7;color:#15803d} .m-cierre{background:#fef3c7;color:#92400e}
+    .momento-blk ul{margin:2px 0 2px 12px;padding:0} .momento-blk li{font-size:11pt;margin:0 0 2pt}
+    .momento-table{width:100%;border-collapse:collapse;margin:5px 0 10px}
+    .momento-table th{background:#1d4ed8;color:#fff;border:1px solid #1e40af;padding:4px 5px;font-size:10pt;text-align:left}
+    .momento-table td{border:1px solid #93c5fd;padding:4px 5px;vertical-align:top;font-size:10.5pt;line-height:1.15}
+    .momento-table p{margin:0 0 2pt}
+    .momento-table ul{margin:0 0 3pt 13px;padding:0}
+    .td-momento{background:#f0f9ff;font-weight:bold;text-align:center;width:68px}
+    .td-tiempo{text-align:center;width:54px}
+    .td-meta{background:#d1fae5;font-style:italic}
+    .meta-lbl{font-weight:bold;font-style:normal;color:#065f46}
+    .sem-eval{padding:10px 16px;background:#eff6ff;border-top:1px solid #e2e8f0;font-size:11pt}
+    .sem-eval-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .evidencias{padding:10px 16px;background:#f0fdf4;border-top:1px solid #e2e8f0;font-size:12pt}
+    .neae-box{padding:10px 16px;background:#faf5ff;border-top:1px solid #e2e8f0;font-size:10pt}
+    .neae-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .anexos{break-before:page;page-break-before:always}
+    .rubrica{width:100%;border-collapse:collapse;margin-top:6px}
+    .rubrica th,.rubrica td{border:1px solid #94a3b8;padding:5px;font-size:10pt;vertical-align:top}
+    .rubrica th{background:#1d4ed8;color:#fff}
+    @page{size:A4 portrait;margin:15mm 12mm}
+    @media print{
+      body{background:white;padding:0}
+      .wrap{max-width:100%;box-shadow:none;border-radius:0;padding:0}
+      h2{break-after:avoid;page-break-after:avoid}
+      .meta-grid{grid-template-columns:repeat(3,1fr)}
+      .contenidos-3{display:block}
+      .col-c,.col-p,.col-a{border-radius:0;margin-bottom:6px}
+      .semana-box{border:1px solid #cbd5e1;border-radius:0;margin-bottom:12px;break-inside:auto;page-break-inside:auto}
+      .semana-head{border-radius:0;break-after:avoid;page-break-after:avoid}
+      .dias-wrap{display:block;background:none;gap:0}
+      .dia-col{border:1px solid #e2e8f0;border-top:none;break-inside:auto;page-break-inside:auto;padding:8px 12px}
+      .dia-nombre{background:#eff6ff;padding:5px 8px;border-radius:0;break-after:avoid;page-break-after:avoid}
+      .momento-blk{break-inside:avoid;page-break-inside:avoid}
+      .momento-table thead{display:table-header-group}
+      .evidencias{break-inside:avoid;page-break-inside:avoid}
+      .neae-box{break-inside:avoid;page-break-inside:avoid}
+    }
+  `;
+
+  let html = `<html><head><meta charset="UTF-8"><style>${css}</style></head><body><div class="wrap">`;
+  html += `<h1>${datos.tema || "Planificación Didáctica"}</h1>`;
+  html += `<div class="meta-grid">`;
+  [
+    ["Grado / Sección", `${meta.grado} ${meta.seccion}`],
+    ["Área", meta.area],
+    ["Período", meta.periodo],
+    ["Duración", meta.duracion],
+    ["Fecha inicio", meta.fechaInicio || "—"],
+    ["Tipo", meta.tipoPlanificacion || "—"],
+  ].forEach(([k, v]) => {
+    html += `<div class="meta-item"><span>${k}</span><strong>${v || "—"}</strong></div>`;
+  });
+  html += `</div>`;
+
+  if (Array.isArray(datos.ejesTematicos) && datos.ejesTematicos.length) {
+    html += `<h2>Ejes Temáticos Transversales</h2><div>`;
+    datos.ejesTematicos.forEach((e, i) => { html += `<span class="eje eje-${i % 4}">${e}</span>`; });
+    html += `</div>`;
+  }
+
+  if (datos.situacionAprendizaje) {
+    html += `<h2>Situación de Aprendizaje</h2><p class="situacion">${datos.situacionAprendizaje}</p>`;
+  }
+
+  if (datos.ambienteAprendizaje) {
+    html += `<h2>Ambiente de Aprendizaje</h2><p class="situacion">${datos.ambienteAprendizaje}</p>`;
+  }
+
+  html += `<h2>Competencia e Indicadores de Logro</h2>`;
+  html += `<p><strong>Competencia:</strong> ${datos.competencia || "—"}</p>`;
+  if (Array.isArray(datos.indicadoresOficiales) && datos.indicadoresOficiales.length) {
+    html += `<ul>`;
+    datos.indicadoresOficiales.forEach(ind => { html += `<li>${ind}</li>`; });
+    html += `</ul>`;
+  }
+
+  if (datos.contenidos) {
+    const c = datos.contenidos;
+    html += `<h2>Contenidos</h2><div class="contenidos-3">`;
+    html += `<div class="col-c"><h4>Conceptuales</h4><ul>${(c.conceptuales||[]).map(x=>`<li>${x}</li>`).join("")}</ul></div>`;
+    html += `<div class="col-p"><h4>Procedimentales</h4><ul>${(c.procedimentales||[]).map(x=>`<li>${x}</li>`).join("")}</ul></div>`;
+    html += `<div class="col-a"><h4>Actitudinales</h4><ul>${(c.actitudinales||[]).map(x=>`<li>${x}</li>`).join("")}</ul></div>`;
+    html += `</div>`;
+  }
+
+  html += `<h2>Desarrollo Semanal</h2>`;
+  semanas.forEach(sem => {
+    html += `<div class="semana-box">`;
+    html += `<div class="semana-head"><h3>${sem.titulo}</h3><p>${sem.proposito}</p></div>`;
+    (sem.dias || []).forEach(dia => {
+      html += `<div class="dia-col">`;
+      html += `<div class="dia-nombre">${escapeHtml(dia.nombre || `Día ${dia.n}`)}${dia.totalMin ? ` · ${escapeHtml(dia.totalMin)} min` : ""}</div>`;
+      if (dia.tituloDia) html += `<p class="dia-titulo">${escapeHtml(dia.tituloDia)}</p>`;
+      if (dia.intencionPedagogica) {
+        html += `<div class="dia-intencion"><strong>Intención pedagógica del día:</strong> ${escapeHtml(dia.intencionPedagogica)}</div>`;
+      }
+      html += `<table class="momento-table">
+        <thead>
+          <tr>
+            <th>Momento</th>
+            <th>Tiempo</th>
+            <th>Actividades</th>
+            <th>Evidencias</th>
+            <th>Evaluación</th>
+            <th>Recursos</th>
+          </tr>
+        </thead>
+        <tbody>`;
+      (dia.momentos || []).forEach(m => {
+        const acts = (m.actividades || []).map((a, i) => `<p><strong>${i + 1})</strong> ${escapeHtml(a)}</p>`).join("");
+        const meta = (m.metacognicion || []).map(escapeHtml).join(" · ");
+        html += `<tr>
+          <td class="td-momento" rowspan="2">${escapeHtml(m.tipo)}</td>
+          <td class="td-tiempo" rowspan="2">${escapeHtml(m.tiempo)}</td>
+          <td rowspan="2">${acts}</td>
+          <td>${evidenciasMomentoHtml(m)}</td>
+          <td>${evaluacionMomentoHtml(m)}</td>
+          <td rowspan="2">${recursosMomentoHtml(m)}</td>
+        </tr>
+        <tr>
+          <td colspan="2" class="td-meta"><span class="meta-lbl">Metacognición:</span> ${meta}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+      html += `</div>`;
+    });
+    if (sem.evidenciasSemana) {
+      html += `<div class="evidencias"><strong>Evidencias de aprendizaje de la semana</strong><div class="neae-grid">`;
+      html += `<div><p><strong>Conocimientos</strong></p><ul>${listHtml(sem.evidenciasSemana.conocimientosPrevios || [])}</ul></div>`;
+      html += `<div><p><strong>Desempeño</strong></p><ul>${listHtml(sem.evidenciasSemana.desempenoEsperado || [])}</ul></div>`;
+      html += `<div><p><strong>Producto</strong></p><ul>${listHtml(sem.evidenciasSemana.productoElaborar || [])}</ul></div>`;
+      html += `</div></div>`;
+    }
+    if (sem.adecuacionesNEAE) {
+      const n = sem.adecuacionesNEAE;
+      html += `<div class="neae-box"><strong>SEMANA ${escapeHtml(sem.n)} — ADAPTACIONES (Para estudiantes con NEAE — si aplica)</strong><div class="neae-grid">`;
+      html += `<div><p><strong>De acceso</strong></p><ul>${listHtml(n.acceso || [])}</ul></div>`;
+      html += `<div><p><strong>Metodológicas</strong></p><ul>${listHtml(n.curricular || [])}</ul></div>`;
+      html += `<div><p><strong>De evaluación</strong></p><ul>${listHtml(n.evaluacion || [])}</ul></div>`;
+      html += `</div></div>`;
+    }
+    if (sem.evaluacionSemana) {
+      const ev = sem.evaluacionSemana;
+      html += `<div class="sem-eval"><strong>SEMANA ${escapeHtml(sem.n)} — RESUMEN DE EVALUACIÓN Y OBSERVACIONES</strong><div class="sem-eval-grid">`;
+      html += `<div><p><strong>Técnicas</strong></p><ul>${listHtml(ev.tecnicas || [])}</ul></div>`;
+      html += `<div><p><strong>Instrumentos</strong></p><ul>${listHtml(ev.instrumentos || [])}</ul></div>`;
+      html += `<div><p><strong>Observaciones</strong></p><ul>${listHtml(ev.criterios || [])}</ul></div>`;
+      html += `</div></div>`;
+    }
+    html += `</div>`;
+  });
+
+  html += `<section class="anexos"><h2>ANEXOS</h2>`;
+  html += `<h3>ANEXO A — Rúbrica analítica del producto final</h3>
+    <table class="rubrica">
+      <thead><tr><th>Criterio</th><th>Nivel 4 — Excelente</th><th>Nivel 3 — Satisfactorio</th><th>Nivel 2 — En proceso</th><th>Nivel 1 — Inicial</th></tr></thead>
+      <tbody>
+        <tr><td>Contenido</td><td>Presenta ideas completas, claras y bien organizadas sobre el tema.</td><td>Presenta la mayoría de las ideas requeridas.</td><td>Presenta ideas parciales o poco desarrolladas.</td><td>Presenta información mínima o desorganizada.</td></tr>
+        <tr><td>Uso del lenguaje</td><td>Usa vocabulario y estructuras del contenido con precisión.</td><td>Usa vocabulario adecuado con errores menores.</td><td>Usa vocabulario básico con errores frecuentes.</td><td>Presenta uso muy limitado del lenguaje trabajado.</td></tr>
+        <tr><td>Presentación</td><td>Comunica con seguridad, orden y apoyo visual pertinente.</td><td>Comunica con claridad y apoyo ocasional.</td><td>Comunica con pausas frecuentes y apoyo constante.</td><td>Requiere mucha ayuda para comunicar sus ideas.</td></tr>
+      </tbody>
+    </table>`;
+  html += `<h3>ANEXO B — Lista de cotejo</h3><ul>
+    <li>Participa en las actividades de inicio, desarrollo y cierre.</li>
+    <li>Produce evidencias de conocimiento, desempeño y producto.</li>
+    <li>Usa los recursos y materiales de forma responsable.</li>
+    <li>Reflexiona sobre su proceso de aprendizaje.</li>
+  </ul>`;
+  html += `<h3>ANEXO C — Registro anecdótico</h3><p>Registrar fecha, estudiante, situación observada, interpretación pedagógica y acción de mejora.</p>`;
+  html += `<h3>ANEXO D — Autoevaluación y coevaluación</h3><p>Usar preguntas reflexivas y retroalimentación entre pares según los criterios de la unidad.</p>`;
+  html += `<h3>ANEXO E — Plan B tecnológico</h3><p>Si falla la tecnología, usar imágenes impresas, pizarra, lectura en voz alta, tarjetas, papelógrafos y presentación oral en vivo.</p></section>`;
+
+  html += `</div>
+<script>window.onload = () => { window.focus(); window.print(); }</script>
+</body></html>`;
+  return html;
+};
+
+export {
+  generarPlanificacion,
+  generarDesarrolloSemanal,
+  formatearParaPDF,
+  formatearParaPDFHtml,
+  validarDatosPlanificacion,
+};

@@ -6,7 +6,9 @@ import {
   getKnowledgeSources, createKnowledgeSource, updateKnowledgeSource,
   updateKnowledgeSourceStatus, deleteKnowledgeSource, uploadKnowledgePDF,
   validateJsonSobre, createCurricularContent, attachJsonToSource,
+  construirPaqueteCurricularJson, resumenPayloadCurricular,
 } from '../../services/bancoConocimientoService.js';
+import { AIService } from '../../services/ai/AIService.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,12 +29,903 @@ const FORM_EMPTY = {
   title: '', description: '',
   sourceType: 'diseno_curricular', bankType: 'oficial',
   level: '', grade: '', area: '', subject: '',
-  originType: 'pdf',
+  originType: 'json',
   fileUrl: '', fileName: '', fileSize: 0,
   url: '', manualContent: '',
   jsonText: '',
   isOfficial: true,
-  status: 'pending',
+  status: 'approved',
+};
+
+const SOLO_MALLA_CURRICULAR = true;
+const PDF_TEXT_MAX_CHARS = 65000;
+const MINERD_CURRICULAR_HEADINGS = [
+  'Eje Temático transversal',
+  'Eje Tematico transversal',
+  'Competencias fundamentales',
+  'Competencias específicas',
+  'Competencias especificas',
+  'Indicadores de Logro',
+  'Indicadores de logro',
+  'Contenidos',
+  'Conceptos',
+  'Procedimientos',
+  'Actitudes y valores',
+];
+const PDF_KEYWORDS = [
+  'registro',
+  'calificación',
+  'calificacion',
+  'asistencia',
+  'evaluación',
+  'evaluacion',
+  'evidencias',
+  'instrumentos',
+  ...MINERD_CURRICULAR_HEADINGS,
+  'eje tematico transversal',
+  'eje temático transversal',
+  'ejes tematicos transversales',
+  'ejes temáticos transversales',
+  'indicadores de logro',
+  'indicador de logro',
+  'indicadores',
+  'indicadores de logro por competencias',
+  'competencias fundamentales',
+  'competencia fundamental',
+  'competencias especificas',
+  'competencias específicas',
+  'competencia especifica',
+  'competencia específica',
+  'competencias especificas del grado',
+  'competencias específicas del grado',
+  'competencias especificas por ciclo',
+  'competencias específicas por ciclo',
+  'contenidos',
+  'contenidos conceptuales',
+  'conceptuales',
+  'contenidos procedimentales',
+  'procedimentales',
+  'contenidos actitudinales',
+  'conceptos',
+  'procedimientos',
+  'actitudes y valores',
+  'actitudinales',
+  'vocabulario',
+  'gramatica',
+  'gramática',
+  'frases',
+  'temas',
+];
+
+const normalizarTexto = (value) => String(value || '').toLowerCase().trim()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/\s+/g, ' ');
+
+const normalizarNivel = (value) => {
+  const txt = normalizarTexto(value);
+  if (txt.startsWith('secundar')) return 'secundaria';
+  if (txt.startsWith('primar')) return 'primaria';
+  if (txt.startsWith('inicial')) return 'inicial';
+  return txt;
+};
+
+const normalizarGrado = (value) => normalizarTexto(value)
+  .replace(/\s+(primaria|secundaria|inicial|bachillerato)\b.*$/g, '')
+  .replace(/\bprimero\b/g, '1ro')
+  .replace(/\bsegundo\b/g, '2do')
+  .replace(/\btercero\b/g, '3ro')
+  .replace(/\bcuarto\b/g, '4to')
+  .replace(/\bquinto\b/g, '5to')
+  .replace(/\bsexto\b/g, '6to')
+  .trim();
+
+const tituloDesdeParsed = (parsed) => {
+  const explicit = parsed?.title || parsed?.titulo;
+  if (explicit) return String(explicit).trim();
+  const prefijo = parsed?.contentType === 'registro_minerd' ? 'Registro MINERD' : 'Malla curricular';
+  return `${prefijo} ${parsed?.subject || parsed?.asignatura || 'asignatura'} ${parsed?.grade || ''}`.trim();
+};
+
+const descripcionDesdeParsed = (parsed) => {
+  const explicit = parsed?.description || parsed?.descripcion;
+  if (explicit) return String(explicit).trim();
+  const tipo = parsed?.contentType === 'registro_minerd'
+    ? 'Registro oficial MINERD estructurado'
+    : 'Contenido curricular oficial';
+  return `${tipo} para ${parsed?.level || 'nivel'} ${parsed?.grade || ''} · ${parsed?.subject || parsed?.asignatura || 'asignatura'}`.trim();
+};
+
+const validarCoincidenciaContexto = (parsed, contexto) => {
+  const errores = [];
+  if (!parsed) return ['La IA no devolvió un JSON curricular verificable.'];
+  const checks = [
+    ['level', 'nivel', normalizarNivel, contexto.level, parsed.level],
+    ['grade', 'grado', normalizarGrado, contexto.grade, parsed.grade],
+    ['area', 'área', normalizarTexto, contexto.area, parsed.area],
+    ['subject', 'materia', normalizarTexto, contexto.subject, parsed.subject || parsed.asignatura],
+  ];
+  checks.forEach(([, label, normalizer, esperado, detectado]) => {
+    if (!esperado) return;
+    if (!detectado) {
+      errores.push(`No se pudo confirmar el ${label} seleccionado (${esperado}) dentro del PDF.`);
+      return;
+    }
+    if (normalizer(esperado) !== normalizer(detectado)) {
+      errores.push(`El ${label} seleccionado es "${esperado}", pero el PDF convertido indica "${detectado}".`);
+    }
+  });
+  return errores;
+};
+
+const contarMencionesNivel = (textoPdf) => {
+  const texto = normalizarTexto(textoPdf);
+  return {
+    inicial: (texto.match(/\binicial\b/g) || []).length,
+    primaria: (texto.match(/\bprimaria\b/g) || []).length,
+    secundaria: (texto.match(/\bsecundaria\b|\bsecundario\b/g) || []).length,
+  };
+};
+
+const detectarNivelProbablePdf = (textoPdf) => {
+  const conteos = Object.entries(contarMencionesNivel(textoPdf))
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const etiquetas = { inicial: 'Inicial', primaria: 'Primaria', secundaria: 'Secundaria' };
+  return etiquetas[conteos[0]?.[0]] || '';
+};
+
+const normalizarParaBusquedaLiteral = (value) => normalizarTexto(value)
+  .replace(/\u00ad/g, '')
+  .replace(/(\p{L})\s*-\s+(\p{L})/gu, '$1$2')
+  .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+// Fix auditoría 2026-07-04: los PDF del MINERD cortan palabras con guion al
+// final de línea ("comuni- cación"); sin re-unirlas el match literal fallaba
+// y se descartaban indicadores reales. Se pre-computa UNA vez por conversión
+// (antes se normalizaba el PDF completo por cada competencia/indicador).
+const construirHaystackLiteral = (textoPdf) =>
+  normalizarParaBusquedaLiteral(String(textoPdf || '').replace(/(\p{L})-\s+(\p{L})/gu, '$1$2'));
+
+const textoOficialPresenteEnPdf = (texto, haystack) => {
+  const needle = normalizarParaBusquedaLiteral(texto);
+  if (!needle || needle.length < 18) return false;
+  if (haystack.includes(needle)) return true;
+  const palabras = needle.split(' ').filter(Boolean);
+  if (palabras.length < 8) return false;
+  // Ventana inicial y final: sobrevive a diferencias menores en el medio
+  const ventanaInicio = palabras.slice(0, 14).join(' ');
+  if (ventanaInicio.length >= 35 && haystack.includes(ventanaInicio)) return true;
+  const ventanaFin = palabras.slice(-14).join(' ');
+  if (ventanaFin.length >= 35 && haystack.includes(ventanaFin)) return true;
+
+  const claves = palabras.filter(p => p.length >= 5);
+  if (claves.length < 6) return false;
+  const presentes = claves.filter(p => haystack.includes(p)).length;
+  return presentes / claves.length >= 0.78;
+};
+
+const textoPrincipalCompetencia = (comp = {}) => (
+  comp.textoOficial || comp.especificaGrado || comp.especifica || comp.descripcion || comp.description || comp.texto || ''
+);
+
+const textoPrincipalIndicador = (indicador = {}) => (
+  indicador.descripcion || indicador.texto || indicador.description || ''
+);
+
+const detectarEncabezadosCurricularesPdf = (textoPdf) => {
+  const texto = normalizarTexto(textoPdf);
+  return {
+    competencias: /\bcompetencias?\b/.test(texto),
+    indicadores: /indicadores?\s+de\s+logro/.test(texto),
+    contenidos: /\bcontenidos?\b/.test(texto),
+    conceptos: /\bconceptos?\b/.test(texto),
+    procedimientos: /\bprocedimientos?\b/.test(texto),
+    actitudes: /actitudes?\s+y\s+valores?/.test(texto),
+  };
+};
+
+const auditarLiteralidadCurricular = (jsonText, textoPdf) => {
+  const parsed = JSON.parse(jsonText);
+  if (parsed.contentType === 'registro_minerd') return jsonText;
+
+  const errores = [];
+  const encabezados = detectarEncabezadosCurricularesPdf(textoPdf);
+  const haystack = construirHaystackLiteral(textoPdf);
+  const competenciasOriginales = Array.isArray(parsed.competencias) ? parsed.competencias : [];
+  if (!competenciasOriginales.length && encabezados.competencias && encabezados.indicadores) {
+    errores.push('El PDF contiene encabezados de Competencias e Indicadores de Logro, pero la IA no extrajo ninguna competencia. Conviene convertir de nuevo o revisar si el PDF está partido en columnas.');
+  }
+  const competenciasFiltradas = competenciasOriginales.map((comp) => {
+    const textoComp = textoPrincipalCompetencia(comp);
+    const compEsLiteral = textoOficialPresenteEnPdf(textoComp, haystack);
+    if (!compEsLiteral) {
+      errores.push(`Competencia descartada por no aparecer literalmente en el PDF: "${String(textoComp).slice(0, 90)}"`);
+      return null;
+    }
+
+    const indicadores = Array.isArray(comp.indicadoresLogro) ? comp.indicadoresLogro : [];
+    const indicadoresFiltrados = indicadores.filter((indicador) => {
+      const textoIndicador = textoPrincipalIndicador(indicador);
+      const literal = textoOficialPresenteEnPdf(textoIndicador, haystack);
+      if (!literal) {
+        errores.push(`Indicador descartado por no aparecer literalmente en el PDF: "${String(textoIndicador).slice(0, 90)}"`);
+      }
+      return literal;
+    });
+    return { ...comp, indicadoresLogro: indicadoresFiltrados };
+  }).filter(Boolean);
+
+  const indicadoresOriginales = Array.isArray(parsed.indicadoresLogro)
+    ? parsed.indicadoresLogro
+    : Array.isArray(parsed.indicadores)
+      ? parsed.indicadores
+      : [];
+  if (!indicadoresOriginales.length && encabezados.indicadores) {
+    errores.push('El PDF contiene encabezado de Indicadores de Logro, pero la IA no extrajo indicadores.');
+  }
+  const indicadoresFiltrados = indicadoresOriginales.filter((indicador) => {
+    const textoIndicador = textoPrincipalIndicador(indicador);
+    const literal = textoOficialPresenteEnPdf(textoIndicador, haystack);
+    if (!literal) {
+      errores.push(`Indicador descartado por no aparecer literalmente en el PDF: "${String(textoIndicador).slice(0, 90)}"`);
+    }
+    return literal;
+  });
+
+  parsed.competencias = competenciasFiltradas;
+  parsed.indicadoresLogro = indicadoresFiltrados.length
+    ? indicadoresFiltrados
+    : competenciasFiltradas.flatMap(comp => Array.isArray(comp.indicadoresLogro) ? comp.indicadoresLogro : []);
+  parsed.indicadores = parsed.indicadoresLogro;
+  const contenidosGenerales = parsed.contenidosGenerales || {};
+  const conceptos = parsed.contenidos?.conceptos || {};
+  const procedimientos = parsed.contenidos?.procedimientos || {};
+  const tieneConceptuales = [
+    ...(Array.isArray(contenidosGenerales.conceptuales) ? contenidosGenerales.conceptuales : []),
+    ...(Array.isArray(conceptos.temas) ? conceptos.temas : []),
+    ...(Array.isArray(conceptos.vocabulario) ? conceptos.vocabulario : []),
+    ...(Array.isArray(conceptos.gramatica) ? conceptos.gramatica : []),
+    ...(Array.isArray(conceptos.items) ? conceptos.items : []),
+  ].length > 0;
+  const tieneProcedimentales = [
+    ...(Array.isArray(contenidosGenerales.procedimentales) ? contenidosGenerales.procedimentales : []),
+    ...(Array.isArray(procedimientos.funcionales) ? procedimientos.funcionales : []),
+    ...(Array.isArray(procedimientos.items) ? procedimientos.items : []),
+  ].length > 0;
+  if (!tieneConceptuales && encabezados.contenidos && encabezados.conceptos) {
+    errores.push('El PDF contiene Contenidos/Conceptos, pero la IA no extrajo contenidos conceptuales.');
+  }
+  if (!tieneProcedimentales && encabezados.contenidos && encabezados.procedimientos) {
+    errores.push('El PDF contiene Contenidos/Procedimientos, pero la IA no extrajo contenidos procedimentales.');
+  }
+  parsed.paquete = {
+    ...(parsed.paquete || {}),
+    auditoriaLiteral: true,
+    errores: [
+      ...((parsed.paquete && Array.isArray(parsed.paquete.errores)) ? parsed.paquete.errores : []),
+      ...errores,
+    ],
+  };
+
+  return JSON.stringify(parsed, null, 2);
+};
+
+const buildSourceDataFromParsed = (form, parsed) => ({
+  ...form,
+  title: tituloDesdeParsed(parsed),
+  description: descripcionDesdeParsed(parsed),
+  sourceType: parsed.contentType === 'registro_minerd' ? 'registro_minerd' : 'diseno_curricular',
+  bankType: 'oficial',
+  level: parsed.level,
+  cycle: parsed.cycle || form.cycle || '',
+  grade: parsed.grade,
+  area: parsed.area,
+  subject: parsed.subject,
+  originType: 'json',
+  isOfficial: true,
+  status: form.status || 'approved',
+  _jsonParsed: parsed,
+});
+
+const extraerJsonDeTexto = (texto) => {
+  const limpio = String(texto || '').trim()
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/i, '')
+    .trim();
+  try {
+    return JSON.stringify(JSON.parse(limpio), null, 2);
+  } catch {
+    const start = limpio.indexOf('{');
+    const end = limpio.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      // Fix auditoría 2026-07-04: este segundo parse podía lanzar un
+      // SyntaxError crudo al usuario en vez del mensaje amable.
+      try {
+        return JSON.stringify(JSON.parse(limpio.slice(start, end + 1)), null, 2);
+      } catch {
+        throw new Error('La IA no devolvió un JSON válido (respuesta truncada o malformada). Intenta convertir de nuevo.');
+      }
+    }
+    throw new Error('La IA no devolvió un JSON válido.');
+  }
+};
+
+const extraerPaginasPdf = async (file, onProgress = null) => {
+  // Fix auditoría 2026-07-04: pdfjs empaquetado localmente (npm) en vez del
+  // CDN de jsdelivr — el convertidor ya no depende de red externa ni expone
+  // un vector de supply-chain en runtime. Vite hace code-splitting del chunk.
+  const pdfjsLib = await import('pdfjs-dist');
+  const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = worker.default;
+
+  const data = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
+  const paginas = [];
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const text = content.items.map(item => item.str || '').join(' ').replace(/\s{2,}/g, ' ').trim();
+    paginas.push({ n: pageNumber, texto: text });
+    if (onProgress) onProgress(`Leyendo página ${pageNumber} de ${pdf.numPages}...`);
+  }
+
+  const textoCompleto = paginas
+    .map(p => `\n\n[Página ${p.n}]\n${p.texto}`)
+    .join('\n')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  return { paginas, textoCompleto };
+};
+
+// ─── Lectura COMPLETA por fragmentos (fix 2026-07-04) ─────────────────────────
+// El recorte anterior a 65K chars por palabras clave dejaba fuera la sección
+// de la asignatura en diseños grandes: la IA veía encabezados pero 0 contenido.
+// Ahora: (1) se localizan las páginas de la asignatura/grado, (2) se parte el
+// texto en fragmentos con solape, (3) la IA extrae CADA fragmento por separado,
+// (4) los resultados se fusionan con dedupe y (5) el sobre final se ensambla
+// LOCALMENTE (la IA ya no redacta el envelope, solo extrae contenido literal).
+
+const FRAGMENTO_CHARS = 26000;   // ~7K tokens de entrada por llamada
+const FRAGMENTO_SOLAPE = 1500;   // para no cortar indicadores por la mitad
+const MAX_FRAGMENTOS_PDF = 16;   // tope duro de llamadas por conversión
+
+const TERMINOS_ASIGNATURA = {
+  'ingles': ['ingles', 'english'],
+  'frances': ['frances', 'francais', 'french'],
+  'lengua espanola': ['lengua espanola'],
+  'matematica': ['matematica', 'matematicas'],
+  'ciencias sociales': ['ciencias sociales'],
+  'ciencias de la naturaleza': ['ciencias de la naturaleza', 'ciencias naturales'],
+};
+
+/**
+ * Localiza las páginas del PDF que corresponden a la asignatura seleccionada
+ * (± 2 páginas de margen). Si la asignatura no se encuentra con confianza,
+ * devuelve TODAS las páginas (cobertura completa: mejor gastar más llamadas
+ * que perder la malla).
+ */
+const seleccionarPaginasRelevantes = (paginas, contexto = {}) => {
+  const asignatura = normalizarTexto(contexto.subject || contexto.area || '');
+  const terminos = TERMINOS_ASIGNATURA[asignatura] || (asignatura ? [asignatura] : []);
+  if (!terminos.length) return { paginas, cobertura: 'completo' };
+
+  const indicesAsignatura = new Set();
+  paginas.forEach((pagina, idx) => {
+    const texto = normalizarTexto(pagina.texto);
+    if (terminos.some(t => texto.includes(t))) indicesAsignatura.add(idx);
+  });
+
+  // Muy pocas coincidencias → no hay sección identificable, leer todo
+  if (indicesAsignatura.size < 2) return { paginas, cobertura: 'completo' };
+
+  const seleccion = new Set();
+  for (const idx of indicesAsignatura) {
+    for (let d = -2; d <= 2; d += 1) {
+      const j = idx + d;
+      if (j >= 0 && j < paginas.length) seleccion.add(j);
+    }
+  }
+  const ordenadas = [...seleccion].sort((a, b) => a - b).map(i => paginas[i]);
+  return { paginas: ordenadas, cobertura: 'seccion' };
+};
+
+const partirEnFragmentos = (texto, tamano = FRAGMENTO_CHARS, solape = FRAGMENTO_SOLAPE) => {
+  const limpio = String(texto || '').trim();
+  if (!limpio) return [];
+  if (limpio.length <= tamano) return [limpio];
+  const fragmentos = [];
+  let inicio = 0;
+  while (inicio < limpio.length) {
+    fragmentos.push(limpio.slice(inicio, inicio + tamano));
+    inicio += tamano - solape;
+  }
+  return fragmentos;
+};
+
+const construirTextoCurricularParaIA = (textoPdf) => {
+  const texto = String(textoPdf || '').trim();
+  if (texto.length <= PDF_TEXT_MAX_CHARS) return texto;
+
+  const bloques = [
+    texto.slice(0, 18000),
+    texto.slice(Math.max(0, texto.length - 10000)),
+  ];
+  const lower = texto.toLowerCase();
+  const vistos = new Set();
+
+  PDF_KEYWORDS.forEach((keyword) => {
+    let index = lower.indexOf(keyword);
+    let ocurrencias = 0;
+    while (index >= 0 && ocurrencias < 4) {
+      const start = Math.max(0, index - 3500);
+      const end = Math.min(texto.length, index + 9000);
+      const key = `${start}:${end}`;
+      if (!vistos.has(key)) {
+        bloques.push(texto.slice(start, end));
+        vistos.add(key);
+      }
+      index = lower.indexOf(keyword, index + keyword.length);
+      ocurrencias += 1;
+    }
+  });
+
+  const unido = bloques.join('\n\n--- FRAGMENTO CURRICULAR ---\n\n');
+  return unido.length > PDF_TEXT_MAX_CHARS ? unido.slice(0, PDF_TEXT_MAX_CHARS) : unido;
+};
+
+const convertirPdfCurricularAJson = ({ fileName, textoPdf, contexto = {}, onProgress }) => new Promise((resolve, reject) => {
+  const texto = construirTextoCurricularParaIA(textoPdf);
+  const esRegistro = contexto.tipoDocumento === 'registro_minerd';
+  const registroSchema = esRegistro ? `  "registroMINERD": {
+    "campos": [],
+    "momentosEvaluacion": [],
+    "tiposEvidencia": [],
+    "criterios": [],
+    "calificaciones": [],
+    "asistencia": [],
+    "observaciones": []
+  },` : '  "registroMINERD": null,';
+  const contextoTexto = [
+    contexto.tipoDocumento ? `Tipo de documento: ${contexto.tipoDocumento === 'registro_minerd' ? 'Registro MINERD' : 'Diseño curricular'}` : '',
+    contexto.level ? `Nivel: ${contexto.level}` : '',
+    contexto.grade ? `Grado: ${contexto.grade}` : '',
+    contexto.area ? `Área: ${contexto.area}` : '',
+    contexto.subject ? `Asignatura/Materia: ${contexto.subject}` : '',
+  ].filter(Boolean).join('\n');
+  const system = [
+    'Eres un convertidor curricular para DocenteOS.',
+    esRegistro
+      ? 'Tu tarea es transformar un registro oficial MINERD a JSON estructurado para alimentar datos administrativos y de evaluación.'
+      : 'Tu tarea es transformar texto oficial de un PDF curricular MINERD a JSON.',
+    'No inventes competencias, indicadores, temas, contenidos, campos ni instrumentos.',
+    'Las competencias e indicadores deben salir textual o casi textual del PDF; si no aparecen, usa arreglos vacíos.',
+    'Si el PDF contiene tablas en columnas, reconstruye la lectura por encabezados y filas aunque el texto extraído aparezca corrido.',
+    esRegistro
+      ? 'Prioriza campos del registro, evaluación, evidencias, instrumentos, asistencia, calificaciones y momentos del proceso.'
+      : 'Prioriza encontrar y extraer indicadores de logro; son obligatorios para que DocenteOS pueda planificar.',
+    esRegistro
+      ? 'No devuelvas una malla curricular si el documento es un registro.'
+      : 'Si el texto trae indicadores en secciones separadas, colócalos en indicadoresLogro y vincúlalos con competenciaId cuando sea posible.',
+    'Si no encuentras un dato oficial después de revisar los fragmentos, usa arreglo vacío o cadena vacía.',
+    'Responde únicamente JSON válido, sin markdown.',
+  ].join(' ');
+  const prompt = `
+Convierte el siguiente texto extraído de un PDF curricular a un JSON único compatible con DocenteOS.
+
+Selección realizada por el administrador:
+${contextoTexto || 'No especificada'}
+
+Instrucción crítica:
+- Si el administrador seleccionó nivel, grado, área o asignatura, extrae SOLO esa malla.
+- No devuelvas una malla general si hay una asignatura seleccionada.
+- Si el PDF tiene varios grados, usa únicamente el grado seleccionado.
+- Si el PDF tiene varias áreas, usa únicamente el área/asignatura seleccionada.
+- Debes buscar estas secciones oficiales del diseño MINERD: Eje Temático transversal, Competencias fundamentales y específicas, Indicadores de Logro, Contenidos: Conceptos, Procedimientos, Actitudes y valores.
+- Si encuentras una tabla con encabezados "Competencias" e "Indicadores de Logro", extrae la competencia de la columna izquierda y sus indicadores de la columna derecha.
+- Si encuentras una tabla con encabezados "Contenidos", "Conceptos", "Procedimientos" y "Actitudes y valores", extrae cada columna en su categoría correspondiente.
+
+Estructura requerida:
+{
+  "schemaVersion": "2.0",
+  "level": "${(contexto.level || '').replace(/"/g, '\\"')}",
+  "cycle": "",
+  "grade": "${(contexto.grade || '').replace(/"/g, '\\"')}",
+  "area": "${(contexto.area || '').replace(/"/g, '\\"')}",
+  "subject": "${(contexto.subject || '').replace(/"/g, '\\"')}",
+  "title": "${`${esRegistro ? 'Registro MINERD' : 'Malla curricular'} ${contexto.subject || ''} ${contexto.grade || ''}`.trim().replace(/"/g, '\\"')}",
+  "description": "${`${esRegistro ? 'Registro oficial MINERD' : 'Contenido curricular oficial'} para ${contexto.level || ''} ${contexto.grade || ''} · ${contexto.subject || ''}`.trim().replace(/"/g, '\\"')}",
+  "contentType": "${esRegistro ? 'registro_minerd' : 'malla_curricular'}",
+  "fuente": "MINERD",
+  "versionCurriculo": "",
+  "ejeTematicoTransversal": [],
+  "competencias": [
+    {
+      "id": "",
+      "competenciaFundamental": "",
+      "descripcion": "",
+      "especifica": "",
+      "especificaGrado": "",
+      "textoOficial": "",
+      "indicadoresLogro": []
+    }
+  ],
+  "indicadoresLogro": [
+    { "id": "", "descripcion": "", "competenciaId": "" }
+  ],
+  "temas": [],
+  "temasCurriculares": [],
+  "contenidosGenerales": {
+    "conceptuales": [],
+    "procedimentales": [],
+    "actitudinales": []
+  },
+  "contenidos": {
+    "conceptos": {
+      "temas": [],
+      "frases": [],
+      "vocabulario": [],
+      "gramatica": [],
+      "items": []
+    },
+    "procedimientos": {
+      "funcionales": [],
+      "items": []
+    },
+    "actitudinales": []
+  },
+  "estrategiasSugeridas": [],
+  "evidenciasEsperadas": [],
+  "instrumentosSugeridos": [],
+${registroSchema}
+  "paquete": {
+    "tipo": "pdf_convertido",
+    "archivo": "${fileName.replace(/"/g, '\\"')}"
+  }
+}
+
+Reglas:
+- Conserva textos oficiales literalmente cuando aparezcan claros.
+- Extrae "Eje Temático transversal" únicamente desde esa sección o encabezado equivalente y colócalo en ejeTematicoTransversal.
+- Para competencias, copia únicamente lo que aparezca bajo títulos como "Competencias Fundamentales", "Competencias Específicas", "Competencias Específicas del Grado" o tablas equivalentes.
+- Para indicadores, copia únicamente frases bajo "Indicadores de logro", "Indicadores de logro por competencias" o títulos equivalentes.
+- Si el texto dice "Competencias Indicadores de Logro" como encabezado corrido, interpreta que es una tabla curricular de dos columnas.
+- Si el texto dice "Contenidos Evidencias de aprendizaje Conceptos Procedimientos Actitudes y valores", interpreta que Conceptos, Procedimientos y Actitudes y valores son columnas curriculares oficiales.
+- No conviertas contenidos, actividades, estrategias ni criterios de evaluación en competencias o indicadores.
+- No generes competencias genéricas por el área o por el grado. Si no hay texto oficial suficiente, deja competencias e indicadoresLogro como [].
+- Genera IDs estables solo si el texto no los trae; el ID no reemplaza el texto oficial.
+- Relaciona cada indicador con competenciaId solo cuando la relación sea evidente en el PDF.
+- Si aparecen frases bajo títulos "Indicadores", "Indicadores de logro" o similares, deben ir en indicadoresLogro.
+- En contenidos conceptuales usa SOLO la sección "Conceptos" del diseño; dentro separa temas, frases, vocabulario y gramatica cuando el texto lo permita.
+- En contenidos procedimentales usa SOLO la sección "Procedimientos".
+- En contenidos actitudinales usa SOLO la sección "Actitudes y valores".
+- Si el documento seleccionado es Registro MINERD, usa contentType "registro_minerd" y llena registroMINERD con los datos reales encontrados.
+- Si el documento seleccionado es Diseño curricular, usa contentType "malla_curricular", NO llenes registroMINERD y busca indicadores/temas solo en secciones curriculares.
+- No agregues nivel MCERL si el currículo no lo trae.
+- Si el PDF contiene varias áreas o grados, extrae solo la selección del administrador; si no aparece esa selección, conserva los campos seleccionados pero deja vacío lo no verificable.
+
+Texto del PDF:
+${texto}
+`;
+
+  let acumulado = '';
+  AIService.generate({
+    module: 'planificacion.curriculo_pdf_json',
+    system,
+    prompt,
+    maxTokens: 12000,
+    onChunk: (chunk) => {
+      acumulado += chunk;
+      if (onProgress) onProgress('Convirtiendo PDF a JSON con IA...');
+    },
+    onFinish: (finalText) => {
+      try {
+        resolve(extraerJsonDeTexto(finalText || acumulado));
+      } catch (err) {
+        reject(err);
+      }
+    },
+    onError: (error) => reject(new Error(error)),
+  });
+});
+
+// ─── Extracción por fragmento + fusión + ensamblado local ────────────────────
+
+const llamarIAExtraccion = ({ system, prompt, maxTokens = 9000 }) => new Promise((resolve, reject) => {
+  let acumulado = '';
+  AIService.generate({
+    module: 'planificacion.curriculo_pdf_json',
+    system,
+    prompt,
+    maxTokens,
+    onChunk: (chunk) => { acumulado += chunk; },
+    onFinish: (finalText) => {
+      try {
+        resolve(JSON.parse(extraerJsonDeTexto(finalText || acumulado)));
+      } catch (err) {
+        reject(err);
+      }
+    },
+    onError: (error) => reject(new Error(error)),
+  });
+});
+
+const SYSTEM_EXTRACCION_FRAGMENTO = [
+  'Eres un extractor curricular literal para DocenteOS.',
+  'Recibes UN fragmento del texto de un PDF curricular oficial MINERD.',
+  'Extrae ÚNICAMENTE lo que aparece textual en el fragmento para la asignatura y el grado indicados.',
+  'No inventes, no completes, no parafrasees: copia el texto oficial.',
+  'Si un dato no aparece en este fragmento, deja su arreglo vacío — otros fragmentos lo cubrirán.',
+  'Responde únicamente JSON válido, sin markdown.',
+].join(' ');
+
+// 1ro-3ro → Primer Ciclo; 4to-6to → Segundo Ciclo (estructura MINERD Secundaria)
+const cicloDelGrado = (grado = '') => {
+  const g = normalizarGrado(grado);
+  if (['1ro', '2do', '3ro'].includes(g)) return 'Primer Ciclo';
+  if (['4to', '5to', '6to'].includes(g)) return 'Segundo Ciclo';
+  return '';
+};
+
+const extraerFragmentoCurricular = async ({ fragmento, contexto, indice, total }) => {
+  const ciclo = contexto.cycle || cicloDelGrado(contexto.grade);
+  const prompt = `Fragmento ${indice} de ${total} del PDF curricular.
+
+SELECCIÓN DEL ADMINISTRADOR (extrae SOLO esto):
+- Nivel: ${contexto.level || ''} · Ciclo: ${ciclo || 'no especificado'} · Grado: ${contexto.grade || ''} · Área: ${contexto.area || ''} · Asignatura: ${contexto.subject || ''}
+
+IMPORTANTE sobre la estructura MINERD (Adecuación Curricular / Diseño Curricular):
+- Las Competencias Específicas suelen estar definidas POR CICLO (p. ej. "Primer Ciclo"
+  cubre 1ro, 2do y 3ro). Si el fragmento trae competencias del ${ciclo || 'ciclo del grado seleccionado'},
+  EXTRÁELAS: aplican al grado seleccionado aunque no mencionen "${contexto.grade || 'el grado'}".
+- Los Indicadores de Logro y los contenidos sí suelen ir POR GRADO: extrae los del
+  grado seleccionado (bajo títulos como "${contexto.grade || ''} grado", "Segundo grado", etc.).
+- Si el fragmento trae contenido de OTRA asignatura, de OTRO ciclo, o indicadores/
+  contenidos claramente de OTRO grado, ignóralo (arreglos vacíos).
+
+Devuelve exactamente este JSON (agrega elementos solo si aparecen textualmente en el fragmento):
+{
+  "competencias": [
+    { "id": "", "descripcion": "", "indicadoresLogro": [ { "id": "", "descripcion": "" } ] }
+  ],
+  "indicadoresLogro": [ { "id": "", "descripcion": "", "competenciaId": "" } ],
+  "temas": [],
+  "vocabulario": [],
+  "gramatica": [],
+  "frases": [],
+  "funcionesComunicativas": [],
+  "conceptuales": [],
+  "procedimentales": [],
+  "actitudinales": [],
+  "estrategias": [],
+  "evidencias": [],
+  "instrumentos": []
+}
+
+Reglas:
+- Competencias: solo texto bajo títulos "Competencias Fundamentales/Específicas (del Grado)" o tablas equivalentes.
+- Indicadores: solo frases bajo "Indicadores de logro" o equivalentes; vincula competenciaId solo si es evidente.
+- Contenidos: separa conceptos (temas/vocabulario/gramática/frases) de procedimientos y de actitudes y valores.
+- Los IDs oficiales se copian si existen; si no existen, déjalos vacíos (no los inventes).
+
+TEXTO DEL FRAGMENTO:
+${fragmento}`;
+
+  // Un reintento por fragmento: los fragmentos buenos no se pierden
+  try {
+    return await llamarIAExtraccion({ system: SYSTEM_EXTRACCION_FRAGMENTO, prompt });
+  } catch {
+    return await llamarIAExtraccion({ system: SYSTEM_EXTRACCION_FRAGMENTO, prompt });
+  }
+};
+
+const dedupePorTexto = (items = [], getTexto = (x) => x) => {
+  const vistos = new Set();
+  return items.filter((item) => {
+    const clave = normalizarTexto(typeof item === 'string' ? item : getTexto(item));
+    if (!clave || vistos.has(clave)) return false;
+    vistos.add(clave);
+    return true;
+  });
+};
+
+const listaLimpia = (items = []) =>
+  dedupePorTexto((Array.isArray(items) ? items : []).map(x => String(typeof x === 'string' ? x : (x?.descripcion || x?.texto || x?.nombre || '')).trim()).filter(Boolean));
+
+/** Fusiona las extracciones de todos los fragmentos, sin duplicar. */
+const fusionarExtraccionesCurriculares = (parciales = []) => {
+  const competenciasMap = new Map();
+  const indicadoresSueltos = [];
+  const listas = {
+    temas: [], vocabulario: [], gramatica: [], frases: [], funcionesComunicativas: [],
+    conceptuales: [], procedimentales: [], actitudinales: [],
+    estrategias: [], evidencias: [], instrumentos: [],
+  };
+
+  for (const parcial of parciales) {
+    if (!parcial || typeof parcial !== 'object') continue;
+
+    for (const comp of (Array.isArray(parcial.competencias) ? parcial.competencias : [])) {
+      const descripcion = String(comp?.descripcion || comp?.texto || '').trim();
+      if (!descripcion) continue;
+      const clave = String(comp?.id || '').trim() || normalizarTexto(descripcion);
+      const previa = competenciasMap.get(clave);
+      const indicadores = (Array.isArray(comp.indicadoresLogro) ? comp.indicadoresLogro : [])
+        .map(ind => ({ id: String(ind?.id || '').trim(), descripcion: String(ind?.descripcion || ind?.texto || '').trim() }))
+        .filter(ind => ind.descripcion);
+      if (previa) {
+        previa.indicadoresLogro = dedupePorTexto(
+          [...previa.indicadoresLogro, ...indicadores],
+          (i) => i.descripcion
+        );
+      } else {
+        competenciasMap.set(clave, {
+          id: String(comp?.id || '').trim(),
+          descripcion,
+          indicadoresLogro: dedupePorTexto(indicadores, (i) => i.descripcion),
+        });
+      }
+    }
+
+    for (const ind of (Array.isArray(parcial.indicadoresLogro) ? parcial.indicadoresLogro : [])) {
+      const descripcion = String(ind?.descripcion || ind?.texto || '').trim();
+      if (descripcion) {
+        indicadoresSueltos.push({
+          id: String(ind?.id || '').trim(),
+          descripcion,
+          competenciaId: String(ind?.competenciaId || '').trim(),
+        });
+      }
+    }
+
+    for (const clave of Object.keys(listas)) {
+      listas[clave].push(...(Array.isArray(parcial[clave]) ? parcial[clave] : []));
+    }
+  }
+
+  const competencias = [...competenciasMap.values()];
+  const indicadoresDeCompetencias = competencias.flatMap((comp) =>
+    comp.indicadoresLogro.map((ind) => ({ ...ind, competenciaId: comp.id || '' }))
+  );
+  const indicadoresLogro = dedupePorTexto(
+    [...indicadoresDeCompetencias, ...indicadoresSueltos],
+    (i) => i.descripcion
+  );
+
+  return {
+    competencias,
+    indicadoresLogro,
+    ...Object.fromEntries(Object.entries(listas).map(([clave, items]) => [clave, listaLimpia(items)])),
+  };
+};
+
+/** Ensambla el sobre final LOCALMENTE (determinista, la IA no redacta el envelope). */
+const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }) => {
+  const conceptuales = merged.conceptuales.length
+    ? merged.conceptuales
+    : dedupePorTexto([...merged.temas, ...merged.frases, ...merged.vocabulario, ...merged.gramatica]);
+  const procedimentales = merged.procedimentales.length
+    ? merged.procedimentales
+    : merged.funcionesComunicativas;
+
+  return {
+    schemaVersion: '2.0',
+    level: contexto.level || '',
+    cycle: contexto.cycle || '',
+    grade: contexto.grade || '',
+    area: contexto.area || '',
+    subject: contexto.subject || '',
+    title: `Malla curricular ${contexto.subject || ''} ${contexto.grade || ''}`.trim(),
+    description: `Contenido curricular oficial para ${contexto.level || ''} ${contexto.grade || ''} · ${contexto.subject || ''}`.trim(),
+    contentType: 'malla_curricular',
+    fuente: 'MINERD',
+    versionCurriculo: '',
+    competencias: merged.competencias,
+    indicadoresLogro: merged.indicadoresLogro,
+    temas: merged.temas,
+    temasCurriculares: merged.temas,
+    contenidosGenerales: {
+      conceptuales,
+      procedimentales,
+      actitudinales: merged.actitudinales,
+    },
+    contenidos: {
+      conceptos: {
+        temas: merged.temas,
+        frases: merged.frases,
+        vocabulario: merged.vocabulario,
+        gramatica: merged.gramatica,
+        items: conceptuales,
+      },
+      procedimientos: {
+        funcionales: merged.funcionesComunicativas.length ? merged.funcionesComunicativas : procedimentales,
+        items: procedimentales,
+      },
+      actitudinales: merged.actitudinales,
+    },
+    estrategiasSugeridas: merged.estrategias,
+    evidenciasEsperadas: merged.evidencias,
+    instrumentosSugeridos: merged.instrumentos,
+    registroMINERD: null,
+    paquete: {
+      tipo: 'pdf_convertido',
+      archivo: fileName,
+      lecturaCompleta: true,
+      ...info,
+    },
+  };
+};
+
+/**
+ * Pipeline completo de conversión de una MALLA curricular:
+ * páginas relevantes → fragmentos → extracción IA por fragmento → fusión →
+ * sobre ensamblado localmente. Con fallback: si la sección localizada no
+ * produjo competencias/indicadores, se re-lee el documento COMPLETO.
+ */
+const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgress }) => {
+  const procesar = async (paginasAUsar, cobertura) => {
+    const texto = paginasAUsar.map(p => p.texto).join('\n\n');
+    let fragmentos = partirEnFragmentos(texto);
+    let advertenciaTope = null;
+    if (fragmentos.length > MAX_FRAGMENTOS_PDF) {
+      advertenciaTope = `El PDF es muy extenso: se procesaron ${MAX_FRAGMENTOS_PDF} de ${fragmentos.length} fragmentos. Considera subir un PDF solo de la asignatura.`;
+      fragmentos = fragmentos.slice(0, MAX_FRAGMENTOS_PDF);
+    }
+
+    const parciales = [];
+    const fallidos = [];
+    for (let i = 0; i < fragmentos.length; i += 1) {
+      if (onProgress) onProgress(`Extrayendo con IA: fragmento ${i + 1} de ${fragmentos.length} (${cobertura === 'seccion' ? 'sección de la asignatura' : 'documento completo'})...`);
+      try {
+        parciales.push(await extraerFragmentoCurricular({
+          fragmento: fragmentos[i], contexto, indice: i + 1, total: fragmentos.length,
+        }));
+      } catch (err) {
+        fallidos.push(`Fragmento ${i + 1}/${fragmentos.length}: ${err.message}`);
+      }
+    }
+    if (!parciales.length) {
+      throw new Error(`La IA no pudo procesar ningún fragmento. ${fallidos[0] || ''}`);
+    }
+
+    if (onProgress) onProgress('Fusionando resultados de todos los fragmentos...');
+    const merged = fusionarExtraccionesCurriculares(parciales);
+    return { merged, info: {
+      cobertura,
+      paginasLeidas: paginasAUsar.length,
+      fragmentos: fragmentos.length,
+      fragmentosFallidos: fallidos.length,
+      errores: [...(advertenciaTope ? [advertenciaTope] : []), ...fallidos],
+    } };
+  };
+
+  const seleccion = seleccionarPaginasRelevantes(paginas, contexto);
+  if (onProgress && seleccion.cobertura === 'seccion') {
+    onProgress(`Sección de ${contexto.subject || 'la asignatura'} localizada: ${seleccion.paginas.length} de ${paginas.length} páginas.`);
+  }
+
+  let resultado = await procesar(seleccion.paginas, seleccion.cobertura);
+
+  // Fallback: la sección localizada no trajo lo esencial → leer TODO el PDF
+  if (
+    seleccion.cobertura === 'seccion'
+    && seleccion.paginas.length < paginas.length
+    && !resultado.merged.competencias.length
+    && !resultado.merged.indicadoresLogro.length
+  ) {
+    if (onProgress) onProgress('La sección localizada no trajo competencias; re-leyendo el documento completo...');
+    resultado = await procesar(paginas, 'completo');
+  }
+
+  return construirSobreDesdeExtraccion({
+    merged: resultado.merged,
+    contexto,
+    fileName,
+    info: resultado.info,
+  });
 };
 
 const STATUS_FLOW = {
@@ -88,7 +981,7 @@ function OriginBadge({ type }) {
 
 function JsonPreviewBox({ result }) {
   if (!result) return null;
-  if (!result.ok) {
+  if (!result.parsed) {
     return (
       <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginTop: 8 }}>
         <div style={{ fontWeight: 700, color: '#dc2626', fontSize: 12, marginBottom: 4 }}>JSON inválido</div>
@@ -97,6 +990,7 @@ function JsonPreviewBox({ result }) {
     );
   }
   const { parsed } = result;
+  const analysis = result.analysis;
   const filas = [
     ['schemaVersion', 'Versión schema'],
     ['level',         'Nivel'],
@@ -106,10 +1000,62 @@ function JsonPreviewBox({ result }) {
     ['subject',       'Asignatura'],
     ['contentType',   'Tipo de contenido'],
   ];
+  const conteos = [
+    ['Módulos', analysis?.conteos?.modulos ?? parsed.paquete?.modulos?.length ?? 0],
+    ['Competencias', analysis?.conteos?.competencias ?? parsed.competencias?.length ?? 0],
+    ['Indicadores', analysis?.conteos?.indicadores ?? parsed.indicadoresLogro?.length ?? parsed.indicadores?.length ?? 0],
+    ['Temas oficiales', analysis?.conteos?.temas ?? parsed.temas?.length ?? parsed.temasCurriculares?.length ?? 0],
+    ['Eje transversal', analysis?.conteos?.ejeTematicoTransversal ?? parsed.ejeTematicoTransversal?.length ?? 0],
+    ['Conceptuales', analysis?.conteos?.conceptuales ?? parsed.contenidosGenerales?.conceptuales?.length ?? parsed.contenidos?.conceptos?.items?.length ?? 0],
+    ['Procedimentales', analysis?.conteos?.procedimentales ?? parsed.contenidosGenerales?.procedimentales?.length ?? parsed.contenidos?.procedimientos?.items?.length ?? 0],
+    ['Registro MINERD', analysis?.conteos?.registroMINERD ?? 0],
+  ].filter(([, value]) => value > 0);
+  const ok = result.ok;
+  const esRegistro = parsed.contentType === 'registro_minerd';
   return (
-    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 14px', marginTop: 8 }}>
-      <div style={{ fontWeight: 700, color: '#15803d', fontSize: 12, marginBottom: 8 }}>
-        JSON válido — declaración del sobre
+    <div style={{
+      background: ok ? '#f0fdf4' : '#fffbeb',
+      border: `1px solid ${ok ? '#bbf7d0' : '#fde68a'}`,
+      borderRadius: 8,
+      padding: '12px 14px',
+      marginTop: 8,
+    }}>
+      <div style={{ fontWeight: 700, color: ok ? '#15803d' : '#b45309', fontSize: 12, marginBottom: 4 }}>
+        {ok
+          ? (esRegistro ? 'Registro MINERD listo para guardar' : 'JSON listo para generar planificación')
+          : (esRegistro ? 'Registro leído, pero incompleto' : 'JSON leído, pero incompleto para generar')}
+      </div>
+      {analysis?.tipoDetectado && (
+        <div style={{ fontSize: 13, color: '#1e293b', fontWeight: 700, marginBottom: 8 }}>
+          {analysis.tipoDetectado}
+        </div>
+      )}
+      {!ok && result.error && (
+        <div style={{ fontSize: 12, color: '#92400e', marginBottom: 8 }}>
+          {result.error}
+        </div>
+      )}
+      {analysis?.advertencias?.length > 0 && (
+        <div style={{ display: 'grid', gap: 4, marginBottom: 8 }}>
+          {analysis.advertencias.map((msg) => (
+            <div key={msg} style={{ fontSize: 11, color: '#92400e' }}>{msg}</div>
+          ))}
+        </div>
+      )}
+      {analysis?.requisitos?.length > 0 && (
+        <div style={{ display: 'grid', gap: 5, marginBottom: 10 }}>
+          {analysis.requisitos.map((req) => (
+            <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+              <span style={{ color: req.ok ? '#166534' : '#92400e', fontWeight: 700 }}>
+                {req.ok ? 'OK' : 'Falta'} · {req.label}
+              </span>
+              <span style={{ color: '#64748b', fontFamily: 'monospace' }}>{req.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ fontWeight: 700, color: '#334155', fontSize: 11, marginBottom: 6 }}>
+        Identificación detectada
       </div>
       <table style={{ fontSize: 12, borderCollapse: 'collapse', width: '100%' }}>
         <tbody>
@@ -121,6 +1067,14 @@ function JsonPreviewBox({ result }) {
           ))}
         </tbody>
       </table>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6, marginTop: 10 }}>
+        {conteos.map(([label, value]) => (
+          <div key={label} style={{ background: '#fff', border: '1px solid #dcfce7', borderRadius: 6, padding: '6px 8px' }}>
+            <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0 }}>{label}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#166534' }}>{value}</div>
+          </div>
+        ))}
+      </div>
       <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>
         Tamaño del payload: ~{(JSON.stringify(parsed).length / 1024).toFixed(1)} KB
       </div>
@@ -232,9 +1186,46 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
   const [subiendo, setSubiendo]       = useState(false);
   const [errSubida, setErrSubida]     = useState('');
   const [jsonPreview, setJsonPreview] = useState(null);
+  const [archivosJson, setArchivosJson] = useState([]);
+  const [convirtiendoPdf, setConvirtiendoPdf] = useState(false);
+  const [progresoPdf, setProgresoPdf] = useState('');
+  const [pdfSeleccionado, setPdfSeleccionado] = useState(null);
+  const [pdfContexto, setPdfContexto] = useState({
+    tipoDocumento: 'diseno_curricular',
+    level: '',
+    grade: '',
+    area: '',
+    subject: '',
+  });
   const jsonTextRef                   = useRef(null);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setPdfCtx = (k, v) => {
+    setPdfContexto(ctx => {
+      const next = { ...ctx, [k]: v };
+      if (k === 'area') next.subject = '';
+      return next;
+    });
+  };
+
+  const aplicarJsonValidado = (res) => {
+    setJsonPreview(res);
+    if (!res?.parsed) return;
+    const { parsed } = res;
+    setForm(f => ({
+      ...f,
+      title: tituloDesdeParsed(parsed),
+      description: descripcionDesdeParsed(parsed),
+      level: parsed.level || f.level,
+      grade: parsed.grade || f.grade,
+      area: parsed.area || f.area,
+      subject: parsed.subject || f.subject,
+      sourceType: parsed.contentType === 'registro_minerd' ? 'registro_minerd' : 'diseno_curricular',
+      bankType: 'oficial',
+      originType: 'json',
+      isOfficial: true,
+    }));
+  };
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -253,35 +1244,154 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
     }
   };
 
-  const handleJsonFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith('.json')) { setErrSubida('Solo archivos .json'); return; }
+  const handleJsonFile = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const invalidos = files.filter(file => !file.name.endsWith('.json'));
+    if (invalidos.length) {
+      setErrSubida(`Solo archivos .json. Revisa: ${invalidos.map(f => f.name).join(', ')}`);
+      return;
+    }
     setErrSubida('');
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target.result;
+    setSubiendo(true);
+    try {
+      const leidos = await Promise.all(files.map(async (file) => {
+        const text = await file.text();
+        return { name: file.name, text, json: JSON.parse(text) };
+      }));
+      const text = leidos.length === 1
+        ? leidos[0].text
+        : JSON.stringify(construirPaqueteCurricularJson(leidos), null, 2);
       if (jsonTextRef.current) jsonTextRef.current.value = text;
-      setJsonPreview(validateJsonSobre(text));
-    };
-    reader.readAsText(file);
+      setArchivosJson(leidos.map(file => file.name));
+      aplicarJsonValidado(validateJsonSobre(text));
+    } catch (err) {
+      setArchivosJson([]);
+      setJsonPreview(null);
+      setErrSubida(`No se pudo leer el paquete JSON: ${err.message}`);
+    } finally {
+      setSubiendo(false);
+    }
   };
 
   const handleValidarJson = (e) => {
     e.preventDefault();
     e.stopPropagation();
     const text = jsonTextRef.current?.value || '';
-    setJsonPreview(validateJsonSobre(text));
+    setArchivosJson(text ? ['JSON pegado manualmente'] : []);
+    aplicarJsonValidado(validateJsonSobre(text));
+  };
+
+  const handlePdfSeleccionado = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setErrSubida('Solo se permiten archivos PDF.');
+      return;
+    }
+    setErrSubida('');
+    setPdfSeleccionado(file);
+    setProgresoPdf('');
+  };
+
+  const handlePdfToJson = async () => {
+    const file = pdfSeleccionado;
+    if (!file) {
+      setErrSubida('Selecciona un PDF primero.');
+      return;
+    }
+    if (!pdfContexto.level || !pdfContexto.grade || !pdfContexto.area || !pdfContexto.subject) {
+      setErrSubida('Selecciona nivel, grado, área y materia antes de convertir.');
+      return;
+    }
+    setErrSubida('');
+    setJsonPreview(null);
+    setArchivosJson([]);
+    setConvirtiendoPdf(true);
+    setProgresoPdf('Preparando PDF...');
+    try {
+      const { paginas, textoCompleto: textoPdf } = await extraerPaginasPdf(file, setProgresoPdf);
+      if (!textoPdf || textoPdf.length < 200) {
+        throw new Error('No se pudo extraer texto suficiente. Si el PDF es una imagen escaneada, hará falta OCR.');
+      }
+      // Fix auditoría 2026-07-04: bloquear SOLO si el nivel seleccionado no
+      // aparece en el PDF y otro nivel sí. Los diseños del MINERD mencionan
+      // otros niveles con frecuencia (articulación), y el conteo dominante
+      // producía falsos bloqueos.
+      const mencionesNivel = contarMencionesNivel(textoPdf);
+      const nivelSeleccionado = normalizarNivel(pdfContexto.level);
+      const nivelProbable = detectarNivelProbablePdf(textoPdf);
+      if (
+        nivelProbable
+        && (mencionesNivel[nivelSeleccionado] || 0) === 0
+        && normalizarNivel(nivelProbable) !== nivelSeleccionado
+      ) {
+        throw new Error(`Seleccionaste ${pdfContexto.level}, pero ese nivel no aparece en el PDF (parece corresponder a ${nivelProbable}). Cambia la selección o usa el PDF correcto.`);
+      }
+      if (nivelProbable && normalizarNivel(nivelProbable) !== nivelSeleccionado) {
+        setProgresoPdf(`Aviso: el PDF menciona más veces "${nivelProbable}" que "${pdfContexto.level}". Verifica la selección en el diagnóstico.`);
+      }
+      setProgresoPdf('Buscando competencias, indicadores y contenidos en el PDF...');
+      // Malla curricular: lectura COMPLETA por fragmentos con fusión (la IA ve
+      // todo el texto de la asignatura, no un recorte de 65K chars). Registro
+      // MINERD: vía anterior (documentos cortos, una sola llamada).
+      let jsonTextGenerado;
+      if (pdfContexto.tipoDocumento === 'registro_minerd') {
+        jsonTextGenerado = await convertirPdfCurricularAJson({
+          fileName: file.name,
+          textoPdf,
+          contexto: pdfContexto,
+          onProgress: setProgresoPdf,
+        });
+      } else {
+        const sobre = await convertirMallaPdfCompleto({
+          fileName: file.name,
+          paginas,
+          contexto: pdfContexto,
+          onProgress: setProgresoPdf,
+        });
+        jsonTextGenerado = JSON.stringify(sobre, null, 2);
+      }
+      const jsonText = auditarLiteralidadCurricular(jsonTextGenerado, textoPdf);
+      if (jsonTextRef.current) jsonTextRef.current.value = jsonText;
+      setArchivosJson([`PDF convertido: ${file.name}`]);
+      const res = validateJsonSobre(jsonText);
+      const tipoEsperado = pdfContexto.tipoDocumento === 'registro_minerd' ? 'registro_minerd' : 'malla_curricular';
+      if (res.parsed?.contentType && res.parsed.contentType !== tipoEsperado) {
+        const esperadoLabel = tipoEsperado === 'registro_minerd' ? 'Registro MINERD' : 'Diseño curricular';
+        const detectadoLabel = res.parsed.contentType === 'registro_minerd' ? 'Registro MINERD' : res.parsed.contentType;
+        const error = `El PDF convertido parece ser ${detectadoLabel}, pero seleccionaste ${esperadoLabel}. Cambia el tipo de documento o revisa el PDF.`;
+        setJsonPreview({ ...res, ok: false, contextMismatch: true, error });
+        setErrSubida(error);
+        setProgresoPdf('');
+        return;
+      }
+      const erroresContexto = validarCoincidenciaContexto(res.parsed, pdfContexto);
+      if (erroresContexto.length) {
+        const error = `El PDF no coincide con la selección realizada. ${erroresContexto.join(' ')}`;
+        setJsonPreview({ ...res, ok: false, contextMismatch: true, error });
+        setErrSubida(error);
+        setProgresoPdf('');
+        return;
+      }
+      aplicarJsonValidado(res);
+      setProgresoPdf('PDF convertido. Revisa el diagnóstico antes de guardar.');
+    } catch (err) {
+      setErrSubida(`No se pudo convertir el PDF: ${err.message}`);
+      setProgresoPdf('');
+    } finally {
+      setConvirtiendoPdf(false);
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.title.trim()) return;
     if (form.originType === 'json') {
       const text = jsonTextRef.current?.value || '';
+      if (jsonPreview?.contextMismatch) return;
       const res = jsonPreview?.ok ? jsonPreview : validateJsonSobre(text);
       if (!res.ok) { setJsonPreview(res); return; }
-      onGuardar({ ...form, _jsonParsed: res.parsed });
+      onGuardar(buildSourceDataFromParsed(form, res.parsed));
     } else {
       onGuardar(form);
     }
@@ -321,18 +1431,203 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
   const row2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 };
   const grup = { marginBottom: 14 };
 
-  const canSubmit = !guardando && !subiendo;
+  const autoDetectado = SOLO_MALLA_CURRICULAR && form.originType === 'json';
+  const canSubmit = !guardando && !subiendo && !convirtiendoPdf && (!autoDetectado || jsonPreview?.ok === true);
 
   return (
     <form onSubmit={handleSubmit}>
+      {form.originType === 'json' && (
+        <div style={grup}>
+          {campo.label('Convertir PDF oficial a JSON')}
+          <div style={{ marginBottom: 14, padding: '10px 12px', border: '1px solid #dbeafe', borderRadius: 8, background: '#eff6ff' }}>
+            <div style={{ marginBottom: 10 }}>
+              {campo.label('Tipo de documento', true)}
+              {campo.select(
+                {
+                  value: pdfContexto.tipoDocumento,
+                  onChange: e => setPdfCtx('tipoDocumento', e.target.value),
+                  disabled: convirtiendoPdf,
+                },
+                [
+                  <option key="diseno_curricular" value="diseno_curricular">Diseño curricular / adecuación</option>,
+                  <option key="registro_minerd" value="registro_minerd">Registro MINERD</option>,
+                ]
+              )}
+            </div>
+            <div style={{ ...row2, marginBottom: 10 }}>
+              <div>
+                {campo.label('Nivel', true)}
+                {campo.select(
+                  {
+                    value: pdfContexto.level,
+                    onChange: e => setPdfCtx('level', e.target.value),
+                    disabled: convirtiendoPdf,
+                  },
+                  [<option key="" value="">— Seleccionar —</option>,
+                   ...BC_LEVELS.map(v => <option key={v} value={v}>{v}</option>)]
+                )}
+              </div>
+              <div>
+                {campo.label('Grado', true)}
+                {campo.select(
+                  {
+                    value: pdfContexto.grade,
+                    onChange: e => setPdfCtx('grade', e.target.value),
+                    disabled: convirtiendoPdf,
+                  },
+                  [<option key="" value="">— Seleccionar —</option>,
+                   ...BC_GRADES.map(v => <option key={v} value={v}>{v}</option>)]
+                )}
+              </div>
+            </div>
+            <div style={{ ...row2, marginBottom: 10 }}>
+              <div>
+                {campo.label('Área', true)}
+                {campo.select(
+                  {
+                    value: pdfContexto.area,
+                    onChange: e => setPdfCtx('area', e.target.value),
+                    disabled: convirtiendoPdf,
+                  },
+                  [<option key="" value="">— Seleccionar —</option>,
+                   ...BC_AREAS.map(v => <option key={v} value={v}>{v}</option>)]
+                )}
+              </div>
+              <div>
+                {campo.label('Materia', true)}
+                {BC_SUBJECTS_BY_AREA[pdfContexto.area]
+                  ? campo.select(
+                      {
+                        value: pdfContexto.subject,
+                        onChange: e => setPdfCtx('subject', e.target.value),
+                        disabled: convirtiendoPdf,
+                      },
+                      [<option key="" value="">— Seleccionar —</option>,
+                       ...BC_SUBJECTS_BY_AREA[pdfContexto.area].map(v => <option key={v} value={v}>{v}</option>)]
+                    )
+                  : campo.input({
+                      value: pdfContexto.subject,
+                      onChange: e => setPdfCtx('subject', e.target.value),
+                      placeholder: 'Ej. Lengua Española',
+                      disabled: convirtiendoPdf,
+                    })
+                }
+              </div>
+            </div>
+            <input type="file" accept=".pdf" onChange={handlePdfSeleccionado} disabled={convirtiendoPdf} style={{ fontSize: 13 }} />
+            {pdfSeleccionado && (
+              <div style={{ marginTop: 6, fontSize: 12, color: '#334155', fontWeight: 700 }}>
+                PDF seleccionado: {pdfSeleccionado.name}
+              </div>
+            )}
+            <div style={{ marginTop: 6, fontSize: 12, color: '#1d4ed8' }}>
+              Selecciona la malla exacta y luego convierte. DocenteOS usará esa selección para evitar mallas generales.
+            </div>
+            <button
+              type="button"
+              onClick={handlePdfToJson}
+              disabled={convirtiendoPdf || !pdfSeleccionado || !pdfContexto.level || !pdfContexto.grade || !pdfContexto.area || !pdfContexto.subject}
+              style={{
+                marginTop: 10,
+                padding: '8px 18px',
+                borderRadius: 8,
+                border: '1px solid #1d4ed8',
+                background: (!pdfSeleccionado || !pdfContexto.level || !pdfContexto.grade || !pdfContexto.area || !pdfContexto.subject) ? '#94a3b8' : '#1d4ed8',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: (!pdfSeleccionado || !pdfContexto.level || !pdfContexto.grade || !pdfContexto.area || !pdfContexto.subject || convirtiendoPdf) ? 'default' : 'pointer',
+              }}
+            >
+              {convirtiendoPdf ? 'Convirtiendo...' : 'Convertir PDF a JSON'}
+            </button>
+            {progresoPdf && (
+              <div style={{ marginTop: 6, fontSize: 12, color: convirtiendoPdf ? '#0369a1' : '#15803d', fontWeight: 700 }}>
+                {progresoPdf}
+              </div>
+            )}
+          </div>
+
+          {campo.label('JSON estructurado', true)}
+          <div style={{ marginBottom: 8 }}>
+            <input type="file" accept=".json" multiple onChange={handleJsonFile} style={{ fontSize: 13 }} />
+            <div style={{ marginTop: 8 }}>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#475569', cursor: 'pointer' }}>
+                <span style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 7, background: '#f8fafc' }}>
+                  Seleccionar carpeta completa
+                </span>
+                <input
+                  type="file"
+                  accept=".json"
+                  multiple
+                  webkitdirectory=""
+                  directory=""
+                  onChange={handleJsonFile}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+            {errSubida && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#dc2626' }}>{errSubida}</p>}
+            {subiendo && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#0369a1' }}>Leyendo paquete JSON...</p>}
+            {convirtiendoPdf && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#0369a1' }}>La conversión puede tardar unos segundos.</p>}
+            {archivosJson.length > 0 && (
+              <div style={{ marginTop: 8, padding: '8px 10px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#f8fafc' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 4 }}>
+                  {archivosJson.length} archivo{archivosJson.length > 1 ? 's' : ''} leído{archivosJson.length > 1 ? 's' : ''}
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+                  {archivosJson.slice(0, 8).join(', ')}
+                  {archivosJson.length > 8 ? ` y ${archivosJson.length - 8} más` : ''}
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ marginBottom: 6, fontSize: 12, color: '#94a3b8' }}>
+            Selecciona uno o todos los módulos JSON del grado. También puedes pegar un JSON unificado:
+          </div>
+          <textarea
+            ref={jsonTextRef}
+            defaultValue=""
+            onChange={() => setJsonPreview(null)}
+            placeholder={'{\n  "nivel": "Secundaria",\n  "ciclo": "Primer Ciclo",\n  "grado": "2do",\n  "area": "Lenguas Extranjeras",\n  "asignatura": "Inglés",\n  "competencias": [],\n  "indicadoresLogro": []\n}'}
+            rows={8}
+            style={{
+              width: '100%', padding: '10px 12px', borderRadius: 8,
+              border: '1px solid #334155',
+              fontSize: 12, fontFamily: 'monospace',
+              resize: 'vertical', boxSizing: 'border-box',
+              color: '#f1f5f9', background: '#1e293b',
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleValidarJson}
+            style={{
+              marginTop: 8, padding: '8px 18px', borderRadius: 8,
+              border: '1px solid #6366f1', background: '#6366f1', color: '#fff',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            }}>
+            Leer JSON
+          </button>
+          <JsonPreviewBox result={jsonPreview} />
+          {jsonPreview === null && (
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: '#94a3b8' }}>
+              Al subirlo, DocenteOS une el paquete y detecta automáticamente título, nivel, grado, área y asignatura.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Título */}
       <div style={grup}>
-        {campo.label('Título', true)}
+        {campo.label(autoDetectado ? 'Título detectado' : 'Título', !autoDetectado)}
         {campo.input({
           value: form.title,
           onChange: e => set('title', e.target.value),
-          placeholder: 'Ej. Diseño Curricular Inglés 2do Secundaria',
-          required: true,
+          placeholder: 'Se completa al leer el JSON',
+          readOnly: autoDetectado,
+          required: !autoDetectado,
+          style: autoDetectado ? { background: '#f8fafc', color: '#475569' } : {},
         })}
       </div>
 
@@ -342,44 +1637,47 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         {campo.textarea({
           value: form.description,
           onChange: e => set('description', e.target.value),
-          placeholder: 'Descripción breve de la fuente...',
+          placeholder: 'Se completa al leer el JSON',
           rows: 2,
+          readOnly: autoDetectado,
+          style: autoDetectado ? { background: '#f8fafc', color: '#475569' } : {},
         })}
       </div>
 
-      {/* Tipo fuente + tipo banco */}
-      <div style={{ ...row2, ...grup }}>
-        <div>
-          {campo.label('Tipo de fuente', true)}
-          {campo.select(
-            { value: form.sourceType, onChange: e => set('sourceType', e.target.value) },
-            Object.entries(BC_SOURCE_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)
-          )}
+      {!SOLO_MALLA_CURRICULAR && (
+        <div style={{ ...row2, ...grup }}>
+          <div>
+            {campo.label('Tipo de fuente', true)}
+            {campo.select(
+              { value: form.sourceType, onChange: e => set('sourceType', e.target.value) },
+              Object.entries(BC_SOURCE_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)
+            )}
+          </div>
+          <div>
+            {campo.label('Banco', true)}
+            {campo.select(
+              { value: form.bankType, onChange: e => set('bankType', e.target.value) },
+              Object.entries(BC_BANK_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)
+            )}
+          </div>
         </div>
-        <div>
-          {campo.label('Banco', true)}
-          {campo.select(
-            { value: form.bankType, onChange: e => set('bankType', e.target.value) },
-            Object.entries(BC_BANK_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Nivel + Grado */}
       <div style={{ ...row2, ...grup }}>
         <div>
-          {campo.label('Nivel')}
+          {campo.label('Nivel', true)}
           {campo.select(
-            { value: form.level, onChange: e => set('level', e.target.value) },
-            [<option key="" value="">— Todos —</option>,
+            { value: form.level, onChange: e => set('level', e.target.value), disabled: autoDetectado },
+            [<option key="" value="">— Seleccionar —</option>,
              ...BC_LEVELS.map(v => <option key={v} value={v}>{v}</option>)]
           )}
         </div>
         <div>
-          {campo.label('Grado')}
+          {campo.label('Grado', true)}
           {campo.select(
-            { value: form.grade, onChange: e => set('grade', e.target.value) },
-            [<option key="" value="">— Todos —</option>,
+            { value: form.grade, onChange: e => set('grade', e.target.value), disabled: autoDetectado },
+            [<option key="" value="">— Seleccionar —</option>,
              ...BC_GRADES.map(v => <option key={v} value={v}>{v}</option>)]
           )}
         </div>
@@ -388,32 +1686,34 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
       {/* Área + Asignatura */}
       <div style={{ ...row2, ...grup }}>
         <div>
-          {campo.label('Área')}
+          {campo.label('Área', true)}
           {campo.select(
-            { value: form.area, onChange: e => { set('area', e.target.value); set('subject', ''); } },
+            { value: form.area, onChange: e => { set('area', e.target.value); set('subject', ''); }, disabled: autoDetectado },
             [<option key="" value="">— Seleccionar —</option>,
              ...BC_AREAS.map(v => <option key={v} value={v}>{v}</option>)]
           )}
         </div>
         <div>
-          {campo.label('Asignatura')}
+          {campo.label('Asignatura', true)}
           {BC_SUBJECTS_BY_AREA[form.area]
             ? campo.select(
-                { value: form.subject, onChange: e => set('subject', e.target.value) },
+                { value: form.subject, onChange: e => set('subject', e.target.value), disabled: autoDetectado },
                 [<option key="" value="">— Seleccionar —</option>,
                  ...BC_SUBJECTS_BY_AREA[form.area].map(v => <option key={v} value={v}>{v}</option>)]
               )
             : campo.input({
                 value: form.subject,
                 onChange: e => set('subject', e.target.value),
-                placeholder: 'Ej. Lengua Española I',
+                placeholder: 'Se completa al leer el JSON',
+                readOnly: autoDetectado,
+                style: autoDetectado ? { background: '#f8fafc', color: '#475569' } : {},
               })
           }
         </div>
       </div>
 
       {/* Tipo de origen */}
-      <div style={grup}>
+      {!SOLO_MALLA_CURRICULAR && <div style={grup}>
         {campo.label('Origen del contenido', true)}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 4 }}>
           {Object.entries(BC_ORIGIN_TYPES).map(([k, v]) => (
@@ -425,10 +1725,10 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
             </label>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* Campo dinámico según origen */}
-      {form.originType === 'pdf' && (
+      {!SOLO_MALLA_CURRICULAR && form.originType === 'pdf' && (
         <div style={grup}>
           {campo.label('Archivo PDF')}
           {form.fileUrl ? (
@@ -458,7 +1758,7 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         </div>
       )}
 
-      {form.originType === 'url' && (
+      {!SOLO_MALLA_CURRICULAR && form.originType === 'url' && (
         <div style={grup}>
           {campo.label('URL del documento', true)}
           {campo.input({
@@ -470,7 +1770,7 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         </div>
       )}
 
-      {form.originType === 'manual' && (
+      {!SOLO_MALLA_CURRICULAR && form.originType === 'manual' && (
         <div style={grup}>
           {campo.label('Contenido manual')}
           {campo.textarea({
@@ -482,56 +1782,15 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         </div>
       )}
 
-      {form.originType === 'json' && (
-        <div style={grup}>
-          {campo.label('JSON estructurado', true)}
-          <div style={{ marginBottom: 8 }}>
-            <input type="file" accept=".json" onChange={handleJsonFile} style={{ fontSize: 13 }} />
-            {errSubida && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#dc2626' }}>{errSubida}</p>}
-          </div>
-          <div style={{ marginBottom: 6, fontSize: 12, color: '#94a3b8' }}>O pegar el JSON directamente:</div>
-          <textarea
-            ref={jsonTextRef}
-            defaultValue=""
-            onChange={() => setJsonPreview(null)}
-            placeholder={'{\n  "schemaVersion": "1.0",\n  "level": "Secundaria",\n  "grade": "2do",\n  "area": "Inglés",\n  "subject": "Inglés II",\n  "contentType": "malla_curricular",\n  ...\n}'}
-            rows={8}
-            style={{
-              width: '100%', padding: '10px 12px', borderRadius: 8,
-              border: '1px solid #334155',
-              fontSize: 12, fontFamily: 'monospace',
-              resize: 'vertical', boxSizing: 'border-box',
-              color: '#f1f5f9', background: '#1e293b',
-            }}
-          />
-          <button
-            type="button"
-            onClick={handleValidarJson}
-            style={{
-              marginTop: 8, padding: '8px 18px', borderRadius: 8,
-              border: '1px solid #6366f1', background: '#6366f1', color: '#fff',
-              fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            }}>
-            Validar JSON
-          </button>
-          <JsonPreviewBox result={jsonPreview} />
-          {jsonPreview === null && (
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: '#94a3b8' }}>
-              Pega o carga el JSON y luego haz clic en "Validar JSON".
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Oficial */}
-      <div style={{ ...grup, display: 'flex', alignItems: 'center', gap: 8 }}>
+      {!SOLO_MALLA_CURRICULAR && <div style={{ ...grup, display: 'flex', alignItems: 'center', gap: 8 }}>
         <input type="checkbox" id="isOfficial"
           checked={form.isOfficial}
           onChange={e => set('isOfficial', e.target.checked)} />
         <label htmlFor="isOfficial" style={{ fontSize: 13, cursor: 'pointer' }}>
           Marcar como fuente oficial MINERD
         </label>
-      </div>
+      </div>}
 
       {/* Acciones */}
       <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, paddingTop: 16, borderTop: '1px solid #e2e8f0' }}>
@@ -681,14 +1940,24 @@ export default function AdminBancoConocimiento() {
       if (modal === 'crear') {
         if (form.originType === 'json' && form._jsonParsed) {
           const { _jsonParsed, ...sourceData } = form;
+          const esRegistro = _jsonParsed.contentType === 'registro_minerd';
           const sourceId = await createKnowledgeSource({
             ...sourceData,
             contentFormat: 'structured',
             processingStatus: 'structured',
             schemaVersion: _jsonParsed.schemaVersion,
+            contentType: _jsonParsed.contentType,
+            payloadResumen: resumenPayloadCurricular(_jsonParsed),
+            // Solo los registros MINERD guardan el payload en la fuente (no
+            // tienen curricularContent); las mallas viven en curricularContent
+            // para no duplicar documentos cerca del límite de 1 MB de Firestore.
+            ...(esRegistro ? { structuredPayload: _jsonParsed } : {}),
             extractionMethod: 'manual',
           });
-          await createCurricularContent({ sourceId, parsed: _jsonParsed });
+          if (!esRegistro) {
+            const contentId = await createCurricularContent({ sourceId, parsed: _jsonParsed });
+            await updateKnowledgeSource(sourceId, { curricularContentId: contentId });
+          }
         } else {
           await createKnowledgeSource({ ...form, contentFormat: 'unstructured' });
         }
@@ -755,7 +2024,7 @@ export default function AdminBancoConocimiento() {
   const sel = { borderRadius: 8, border: '1px solid #e2e8f0', padding: '7px 10px', fontSize: 13, background: '#fff' };
 
   const tituloModal = {
-    'crear':        'Nueva fuente',
+    'crear':        'Nueva malla curricular',
     'editar':       'Editar fuente',
     'adjuntar-json': 'Adjuntar JSON estructurado',
   };
@@ -765,9 +2034,9 @@ export default function AdminBancoConocimiento() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Banco de Conocimiento</h2>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Banco de Conocimiento Curricular</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-            Gestiona las fuentes oficiales y pedagógicas que alimentan DocenteOS
+            Carga las mallas oficiales que solicita el generador de planificación
           </p>
         </div>
         <button
@@ -777,14 +2046,14 @@ export default function AdminBancoConocimiento() {
             borderRadius: 9, padding: '10px 20px', fontWeight: 700,
             fontSize: 14, cursor: 'pointer',
           }}>
-          + Nueva fuente
+          + Nueva malla
         </button>
       </div>
 
       {/* Tarjetas resumen */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { label: 'Total fuentes',   value: fuentes.length,                                                icon: '📚', color: '#eff6ff', border: '#bfdbfe' },
+          { label: 'Total mallas',    value: fuentes.length,                                                icon: '📚', color: '#eff6ff', border: '#bfdbfe' },
           { label: 'Pendientes',      value: conteo('pendientes'),                                          icon: '⏳', color: '#fef9c3', border: '#fde68a' },
           { label: 'Estructuradas',   value: fuentes.filter(f => f.contentFormat === 'structured').length,  icon: '{ }', color: '#dcfce7', border: '#bbf7d0' },
           { label: 'Oficiales',       value: fuentes.filter(f => f.isOfficial).length,                      icon: '🏛️', color: '#ede9fe', border: '#c4b5fd' },
@@ -863,8 +2132,8 @@ export default function AdminBancoConocimiento() {
       ) : fuentesFiltradas.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>No hay fuentes registradas</div>
-          <div style={{ fontSize: 13 }}>Comienza agregando una nueva fuente con el botón de arriba</div>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>No hay mallas registradas</div>
+          <div style={{ fontSize: 13 }}>Comienza agregando una malla curricular JSON con el botón de arriba</div>
         </div>
       ) : (
         <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e2e8f0' }}>
