@@ -13,15 +13,16 @@ const PROVIDERS = [
   { id: "abacus",    displayName: "Abacus AI",   model: "route-llm",                               envVar: "ABACUS_API_KEY"    },
   { id: "anthropic", displayName: "Anthropic",   model: "claude-sonnet-4-6",                       envVar: "ANTHROPIC_API_KEY" },
   { id: "nvidia",    displayName: "NVIDIA NIM",  model: "nvidia/nemotron-3-ultra-550b-a55b",        envVar: "NVIDIA_API_KEY"    },
+  { id: "gemini",    displayName: "Google Gemini", model: "gemini-2.5-flash",                       envVar: "GEMINI_API_KEY", envVarAlt: "GOOGLE_API_KEY" },
 ];
 
-const PRIORITY_ORDER = ["openai", "abacus", "anthropic", "nvidia"];
+const PRIORITY_ORDER = ["openai", "abacus", "anthropic", "nvidia", "gemini"];
 
 export default function handler() {
   const providers = {};
 
   for (const p of PROVIDERS) {
-    const key = process.env[p.envVar];
+    const key = process.env[p.envVar] || (p.envVarAlt ? process.env[p.envVarAlt] : undefined);
     providers[p.id] = {
       configured: !!(key && key.length > 10),
       displayName: p.displayName,

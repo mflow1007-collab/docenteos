@@ -32,6 +32,14 @@ const PROVIDER_CONFIG = {
     type: "openai",
     envVar: "NVIDIA_API_KEY",
   },
+  gemini: {
+    model: "gemini-2.5-flash",
+    // Endpoint OpenAI-compatible oficial de Google AI Studio
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+    type: "openai",
+    envVar: "GEMINI_API_KEY",
+    envVarAlt: "GOOGLE_API_KEY",
+  },
 };
 
 /** Convierte errores técnicos en mensajes amigables para el administrador */
@@ -68,7 +76,7 @@ export default async function handler(request) {
     });
   }
 
-  const apiKey = process.env[cfg.envVar];
+  const apiKey = process.env[cfg.envVar] || (cfg.envVarAlt ? process.env[cfg.envVarAlt] : undefined);
   if (!apiKey || apiKey.length <= 10) {
     return new Response(
       JSON.stringify({ ok: false, provider, model: cfg.model, responseTime: 0, error: "No configurado" }),
