@@ -5,6 +5,7 @@ import {
 } from "firebase/auth";
 
 import { auth } from "./firebase";
+import { limpiarSesionPlanificacion } from "./services/planificacionSesionCache.js";
 
 export const register = (email, pass) =>
   createUserWithEmailAndPassword(auth, email, pass);
@@ -17,5 +18,6 @@ export const cerrarSesion = () => {
   Object.keys(localStorage)
     .filter((k) => k.startsWith("docenteos_"))
     .forEach((k) => localStorage.removeItem(k));
+  limpiarSesionPlanificacion();
   return signOut(auth);
 };

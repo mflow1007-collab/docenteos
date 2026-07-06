@@ -40,7 +40,9 @@
         "Escuela y educación"
       ],
       "duracionSugerida": "5-6 semanas",
-      "razon": "Los tres temas comparten el vocabulario de la vida del estudiante y permiten integrar el presente simple (rutinas), el pasado simple (experiencias escolares) y el presente perfecto (logros y experiencias recientes) de forma progresiva."
+      "razon": "Los tres temas comparten el vocabulario de la vida del estudiante y permiten integrar el presente simple (rutinas), el pasado simple (experiencias escolares) y el presente perfecto (logros y experiencias recientes) de forma progresiva.",
+      "tipo": "principal",
+      "tituloSugerido": "My Daily Life with Family and Friends"
     },
     {
       "nombre": "Entorno, clima y bienestar",
@@ -50,7 +52,9 @@
         "Salud y cuidados físicos"
       ],
       "duracionSugerida": "5-6 semanas",
-      "razon": "El entorno físico, el clima y la salud son temáticas interconectadas que permiten usar modales de consejo (should/shouldn't), descripción de estados de ánimo y físicos, y vocabulario de condiciones atmosféricas y hábitos saludables."
+      "razon": "El entorno físico, el clima y la salud son temáticas interconectadas que permiten usar modales de consejo (should/shouldn't), descripción de estados de ánimo y físicos, y vocabulario de condiciones atmosféricas y hábitos saludables.",
+      "tipo": "principal",
+      "tituloSugerido": "Home Sweet Home: Living Healthy in Every Season"
     },
     {
       "nombre": "Consumo, tiempo libre y cultura",
@@ -61,7 +65,9 @@
         "Actividades sociales y culturales"
       ],
       "duracionSugerida": "5-6 semanas",
-      "razon": "Los temas de consumo y recreación permiten trabajar el vocabulario de compras, deportes y celebraciones, integrando el gerundio, el condicional tipo 1 y expresiones de deseo (I'd like to...) para planes y preferencias."
+      "razon": "Los temas de consumo y recreación permiten trabajar el vocabulario de compras, deportes y celebraciones, integrando el gerundio, el condicional tipo 1 y expresiones de deseo (I'd like to...) para planes y preferencias.",
+      "tipo": "principal",
+      "tituloSugerido": "Shopping, Sports and Celebrations: Enjoying My Free Time"
     },
     {
       "nombre": "Tecnología, comunicación y viajes",
@@ -71,7 +77,81 @@
         "Viajes y turismo"
       ],
       "duracionSugerida": "5-6 semanas",
-      "razon": "Unidad integradora de cierre del año que sintetiza todas las estructuras del grado. La tecnología, la comunicación y los viajes amplían el repertorio del estudiante hacia el mundo global, permitiendo usar el presente perfecto, will/be going to y vocabulario de transporte, medios digitales y turismo."
+      "razon": "Unidad integradora de cierre del año que sintetiza todas las estructuras del grado. La tecnología, la comunicación y los viajes amplían el repertorio del estudiante hacia el mundo global, permitiendo usar el presente perfecto, will/be going to y vocabulario de transporte, medios digitales y turismo.",
+      "tipo": "principal",
+      "tituloSugerido": "Traveling and Connecting in a Digital World"
+    },
+    {
+      "nombre": "Rutinas, hogar y bienestar",
+      "temas": [
+        "Actividades de la vida diaria",
+        "Vivienda, entorno y ciudad",
+        "Salud y cuidados físicos"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Las rutinas diarias ocurren en el hogar y sostienen los hábitos de bienestar. Integra el vocabulario de la casa y la vida diaria con should/shouldn't para dar consejos de salud y los verbos estáticos (like, need, prefer) al hablar de hábitos.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Healthy Routines at Home for a Better Life"
+    },
+    {
+      "nombre": "Alimentación, deporte y salud",
+      "temas": [
+        "Alimentación",
+        "Deporte, tiempo libre y recreación",
+        "Salud y cuidados físicos"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Tres temas unidos por el eje de la vida saludable: comidas y bebidas, actividad física y cuidado del cuerpo. Integra would like para pedir alimentos, should/shouldn't para recomendaciones y los gerundios como sujeto (Swimming is fun).",
+      "tipo": "alternativa",
+      "tituloSugerido": "Eat Well, Play Hard, Stay Healthy"
+    },
+    {
+      "nombre": "Mi ciudad: lugares, compras y viajes",
+      "temas": [
+        "Vivienda, entorno y ciudad",
+        "Bienes y servicios",
+        "Viajes y turismo"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "El entorno urbano conecta los lugares de la ciudad con los establecimientos comerciales y los medios de transporte, vocabulario propio del grado. Permite usar can/could y would like para solicitudes corteses en tiendas, restaurantes y estaciones.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Exploring My City: Places, Shopping and Trips"
+    },
+    {
+      "nombre": "Escuela, tecnología y comunicación",
+      "temas": [
+        "Escuela y educación",
+        "Ciencia y tecnología",
+        "Lengua y comunicación"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "La vida escolar se apoya en la tecnología y los medios de comunicación. Integra el presente perfecto para logros recientes, will para predicciones sobre el futuro de la tecnología y los conectores lógicos (because, however, also) en textos escolares.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Smart School: Learning with Technology"
+    },
+    {
+      "nombre": "Celebraciones, familia y comida",
+      "temas": [
+        "Actividades sociales y culturales",
+        "Relaciones humanas y sociales",
+        "Alimentación"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Las celebraciones reúnen a las personas alrededor de la comida. Permite narrar celebraciones con el pasado simple, usar el presente perfecto para experiencias (Have you ever tried...?) y el vocabulario de celebraciones y comidas propio del grado.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Family Celebrations and Traditional Food"
+    },
+    {
+      "nombre": "Clima, viajes y recreación",
+      "temas": [
+        "Clima, condiciones atmosféricas y medioambiente",
+        "Viajes y turismo",
+        "Deporte, tiempo libre y recreación"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Planificar viajes y actividades al aire libre depende del clima. Integra be going to para planes, will para predicciones del tiempo y el primer condicional (If it rains, we will stay home) con el vocabulario de transporte y recreación.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Ready for the Weather: Trips and Fun Outdoors"
     }
   ],
   "contenidosGenerales": {

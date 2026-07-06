@@ -4,6 +4,7 @@
  */
 
 import { getAsignaturas, tieneMultiplesAsignaturas } from "../planning/areaAsignaturaMap.js";
+import { normalizarTema } from "../services/curriculumCombinacionService.js";
 
 const EJES_OPCIONES = [
   { value: "Desarrollo Sostenible",         color: "#059669" },
@@ -59,6 +60,7 @@ export default function FormularioPlanificacion({
   onAceptarCombinacion,
   onIgnorarCombinacion,
   temasIntegrados = [],
+  temasTrabajados = [],
   // Contexto curricular (opcional)
   ejesTematicos = [],
   setEjesTematicos,
@@ -72,6 +74,11 @@ export default function FormularioPlanificacion({
   periodosClasePorDia = {},
   setPeriodosClasePorDia,
 }) {
+  // Temas que el docente ya trabajó (según su historial guardado).
+  // Solo se marcan visualmente — el docente puede volver a elegirlos.
+  const trabajadosNorm = new Set(temasTrabajados.map(normalizarTema));
+  const temaYaTrabajado = (t) => trabajadosNorm.has(normalizarTema(t));
+
   const toggleDiaClase = (dia) => {
     setDiasClase((prev) =>
       prev.includes(dia) ? prev.filter((d) => d !== dia) : [...prev, dia]
@@ -204,7 +211,9 @@ export default function FormularioPlanificacion({
                 >
                   <option value="">Selecciona un tema del currículo oficial</option>
                   {temasCurriculares.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>
+                      {temaYaTrabajado(t) ? `${t} — ✓ ya trabajado` : t}
+                    </option>
                   ))}
                 </select>
               ) : (
@@ -215,6 +224,16 @@ export default function FormularioPlanificacion({
                   onChange={(e) => setTema(e.target.value)}
                   disabled={cargando}
                 />
+              )}
+              {tema && temaYaTrabajado(tema) && (
+                <span style={{
+                  display: "block", marginTop: 6, padding: "6px 10px",
+                  background: "#fffbeb", border: "1.5px solid #f59e0b",
+                  borderRadius: 8, color: "#92400e", fontSize: 12,
+                }}>
+                  ⚠️ <strong>Ya hemos trabajado este tema.</strong> Puedes volver a
+                  trabajarlo si lo deseas — no está bloqueado.
+                </span>
               )}
             </label>
 
@@ -306,6 +325,11 @@ export default function FormularioPlanificacion({
             </p>
             <p style={{ color: "#78350f", fontWeight: 700, fontSize: "14px", margin: "0 0 10px" }}>
               {combinacionSugerida.nombre}
+              {combinacionSugerida.tituloSugerido && (
+                <span style={{ display: "block", fontWeight: 500, fontSize: "12px", marginTop: "2px" }}>
+                  💡 Título sugerido: <em>“{combinacionSugerida.tituloSugerido}”</em>
+                </span>
+              )}
             </p>
             <ul style={{ margin: "0 0 10px", paddingLeft: "20px" }}>
               {combinacionSugerida.distribucion.map((bloque) => (
@@ -328,7 +352,7 @@ export default function FormularioPlanificacion({
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
               <button
                 type="button"
-                onClick={onAceptarCombinacion}
+                onClick={() => onAceptarCombinacion()}
                 disabled={cargando}
                 style={{
                   padding: "8px 18px", borderRadius: "8px",
@@ -352,6 +376,63 @@ export default function FormularioPlanificacion({
                 Continuar con tema individual
               </button>
             </div>
+
+            {/* ── Otras combinaciones posibles con este tema ── */}
+            {(combinacionSugerida.alternativas || []).length > 0 && (
+              <div style={{ marginTop: "16px", borderTop: "1px dashed #f59e0b", paddingTop: "12px" }}>
+                <p style={{ color: "#92400e", fontSize: "13px", fontWeight: 700, margin: "0 0 8px" }}>
+                  🔀 ¿Prefieres combinarlo con otros temas? El currículo también permite:
+                </p>
+                {combinacionSugerida.alternativas.map((alt) => (
+                  <div
+                    key={alt.nombre}
+                    style={{
+                      background: "white", border: "1px solid #fcd34d", borderRadius: "8px",
+                      padding: "10px 12px", marginBottom: "8px",
+                    }}
+                  >
+                    <p style={{ color: "#78350f", fontWeight: 700, fontSize: "13px", margin: "0 0 6px" }}>
+                      {alt.nombre}
+                      {alt.duracionSugerida && (
+                        <span style={{ fontWeight: 500, opacity: 0.75 }}> · {alt.duracionSugerida}</span>
+                      )}
+                      {alt.tituloSugerido && (
+                        <span style={{ display: "block", fontWeight: 500, fontSize: "12px", marginTop: "2px" }}>
+                          💡 <em>“{alt.tituloSugerido}”</em>
+                        </span>
+                      )}
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "6px" }}>
+                      {alt.temas.map((t) => (
+                        <span key={t} style={{
+                          background: "#fef3c7", color: "#92400e",
+                          borderRadius: "6px", padding: "2px 8px",
+                          fontSize: "12px", fontWeight: 600,
+                        }}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    <p style={{ color: "#92400e", fontSize: "12px", fontStyle: "italic", margin: "0 0 8px" }}>
+                      {alt.justificacion}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => onAceptarCombinacion(alt)}
+                      disabled={cargando}
+                      style={{
+                        padding: "6px 14px", borderRadius: "8px",
+                        background: "white", color: "#b45309",
+                        border: "2px solid #d97706",
+                        fontWeight: 700, fontSize: "12px", cursor: "pointer",
+                      }}
+                    >
+                      Usar esta combinación
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 

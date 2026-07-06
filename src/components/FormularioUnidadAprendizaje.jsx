@@ -2,8 +2,17 @@
  * Formulario para Unidad de Aprendizaje — formato MINERD
  * Incluye panel de recomendación de duración basado en análisis curricular
  */
+import { useEffect, useState } from "react";
 import { analizarComplejidad } from "../services/unidadAprendizajeService";
 import { getAreas, getAsignaturas, getAsignaturaAutomatica, tieneMultiplesAsignaturas } from "../planning/areaAsignaturaMap.js";
+import { consultarCurriculo } from "../services/curriculumService";
+import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema } from "../services/curriculumCombinacionService";
+
+// El currículo de Inglés/Francés vive bajo el área "Lenguas Extranjeras"
+const AREA_CURRICULO_POR_ASIGNATURA = {
+  "Inglés": "Lenguas Extranjeras",
+  "Francés": "Lenguas Extranjeras",
+};
 
 const GRADOS = [
   { grado: "Pre-Kínder", nivel: "Inicial" }, { grado: "Kínder", nivel: "Inicial" }, { grado: "Preprimario", nivel: "Inicial" },
@@ -51,7 +60,7 @@ const COLOR_NIVEL = {
   muyAlta: { bg: "#fff1f2", border: "#fda4af", badge: "#dc2626", text: "#7f1d1d" },
 };
 
-export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar, cargando }) {
+export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar, cargando, temasTrabajados = [] }) {
   const {
     grado = "", seccion = "", area = "", asignatura = "",
     titulo = "", numSemanas = 4,
@@ -64,6 +73,7 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
     jornada = "Extendida",
     periodo = "", fechaInicio = "",
     competenciasFundamentalesSeleccionadas = [],
+    temasSeleccionados = [],
   } = datos;
 
   const set = (campo) => (e) => onChange({ ...datos, [campo]: e.target.value });
@@ -98,6 +108,111 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
 
   const horasSemanales = (diasClase || []).length * (horasPorDia || 1);
 
+  // ── Sugerencia de tema oficial (texto libre → tema del currículo + afines) ──
+  const [sugerenciaTema, setSugerenciaTema] = useState(null);
+  const [temasMalla, setTemasMalla] = useState([]);
+  const [modoElegido, setModoElegido] = useState(null); // "solo" | nombre de combinación | "propia"
+  const [mostrarPropia, setMostrarPropia] = useState(false);
+  const [temasPropios, setTemasPropios] = useState([]);
+
+  useEffect(() => {
+    const texto = (titulo || "").trim();
+    if (texto.length < 3 || !grado || (!area && !asignatura)) {
+      setSugerenciaTema(null);
+      setTemasMalla([]);
+      return undefined;
+    }
+
+    let cancelado = false;
+    const timer = setTimeout(async () => {
+      const gradoCorto = grado.split(" ")[0]; // "2do Secundaria" → "2do"
+      const candidatas = [...new Set(
+        [asignatura, area, AREA_CURRICULO_POR_ASIGNATURA[asignatura], AREA_CURRICULO_POR_ASIGNATURA[area]].filter(Boolean)
+      )];
+
+      let curriculo = null;
+      for (const areaCandidata of candidatas) {
+        curriculo = await consultarCurriculo(nivel, gradoCorto, areaCandidata);
+        if (curriculo) break;
+      }
+
+      if (!cancelado) {
+        setSugerenciaTema(curriculo ? sugerirTemasATrabajar(curriculo, texto) : null);
+        setTemasMalla(curriculo?.temasCurriculares || []);
+      }
+    }, 600);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(timer);
+    };
+  }, [titulo, grado, nivel, area, asignatura]);
+
+  // Temas ya trabajados (del historial del docente), resueltos también contra
+  // la malla: si trabajó "Parts of the House", marca "Vivienda, entorno y
+  // ciudad" como trabajado. Solo marca visualmente — nunca bloquea.
+  const trabajadosResueltos = (() => {
+    const s = new Set();
+    temasTrabajados.forEach((usado) => {
+      s.add(normalizarTema(usado));
+      if (temasMalla.length > 0) {
+        const oficial = sugerirTemaOficial(usado, temasMalla);
+        if (oficial) s.add(normalizarTema(oficial.tema));
+      }
+    });
+    return s;
+  })();
+  const temaYaTrabajado = (t) => trabajadosResueltos.has(normalizarTema(t));
+  const estiloTrabajado = { textDecoration: "line-through", opacity: 0.7 };
+
+  // Semanas que sugiere una combinación ("5-6 semanas" → 5); si no trae
+  // duración, ~2 semanas por tema acotado a 4-8
+  const semanasDeCombinacion = (op) => {
+    const n = parseInt(String(op.duracionSugerida || ""), 10);
+    if (Number.isFinite(n) && n >= 1) return Math.min(8, n);
+    return Math.min(8, Math.max(4, op.temas.length * 2));
+  };
+
+  const elegirSoloTema = () => {
+    setModoElegido("solo");
+    setMostrarPropia(false);
+    onChange({
+      ...datos,
+      temasSeleccionados: [],
+      numSemanas: rec ? rec.semanasRecomendadas : numSemanas,
+    });
+  };
+
+  const elegirCombinacion = (op) => {
+    setModoElegido(op.nombre);
+    setMostrarPropia(false);
+    onChange({ ...datos, temasSeleccionados: op.temas, numSemanas: semanasDeCombinacion(op) });
+  };
+
+  const abrirPropia = () => {
+    setMostrarPropia(true);
+    if (temasPropios.length === 0 && sugerenciaTema?.temaOficial) {
+      setTemasPropios([sugerenciaTema.temaOficial]);
+    }
+  };
+
+  const toggleTemaPropio = (t) => {
+    setTemasPropios((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  };
+
+  const confirmarPropia = () => {
+    if (temasPropios.length === 0) return;
+    setModoElegido("propia");
+    const semanas = temasPropios.length === 1
+      ? (rec?.semanasRecomendadas ?? numSemanas)
+      : Math.min(8, Math.max(4, temasPropios.length * 2));
+    onChange({
+      ...datos,
+      temasSeleccionados: temasPropios.length > 1 ? [...temasPropios] : [],
+      numSemanas: semanas,
+    });
+  };
+
   // ── Análisis de complejidad ──
   const puedeAnalizar = !!(titulo.trim() && area && grado);
   const rec = puedeAnalizar
@@ -108,6 +223,10 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
 
   const aplicarRecomendacion = () => {
     onChange({ ...datos, numSemanas: rec.semanasRecomendadas });
+  };
+
+  const aplicarTituloSugerido = (tituloNuevo) => {
+    if (tituloNuevo) onChange({ ...datos, titulo: tituloNuevo });
   };
 
   // Determinar si el docente modificó la duración respecto a la recomendación
@@ -249,8 +368,281 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
         />
       </div>
 
-      {/* ── Panel de recomendación inteligente ── */}
-      {rec && (
+      {/* ── Asesor Pedagógico: tarjeta azul con las 3 formas de trabajar el tema ── */}
+      {sugerenciaTema ? (
+        <div
+          className="ua-rec-panel"
+          style={{ background: "#eff6ff", borderColor: "#93c5fd" }}
+        >
+          <div className="ua-rec-header">
+            <span className="ua-rec-tag">Asesor Pedagógico</span>
+            <span className="ua-rec-title">Análisis curricular del tema</span>
+          </div>
+
+          <div className="ua-rec-body">
+            <div className="ua-rec-row">
+              <div className="ua-rec-item">
+                <span className="ua-rec-label">Tema oficial del currículo</span>
+                <span className="ua-rec-value" style={{ color: "#1d4ed8" }}>
+                  🎯 {sugerenciaTema.temaOficial}
+                  <span className="ua-rec-sub"> (confianza {sugerenciaTema.confianza})</span>
+                </span>
+              </div>
+              {rec && (
+                <div className="ua-rec-item">
+                  <span className="ua-rec-label">Complejidad detectada</span>
+                  <span
+                    className="ua-rec-badge"
+                    style={{ background: colores.badge, color: "#fff" }}
+                  >
+                    {rec.emoji} {rec.etiqueta}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {temaYaTrabajado(sugerenciaTema.temaOficial) && (
+              <div style={{
+                marginTop: 8, padding: "8px 12px", borderRadius: 8,
+                background: "#fffbeb", border: "1.5px solid #f59e0b",
+                color: "#92400e", fontSize: 13,
+              }}>
+                ⚠️ <strong>Ya hemos trabajado este tema.</strong> Puedes volver a elegirlo
+                si deseas reforzarlo — no está bloqueado.
+              </div>
+            )}
+
+            <p style={{ color: "#1e3a8a", fontWeight: 700, fontSize: 14, margin: "12px 0 8px" }}>
+              ¿Cómo quieres trabajar esta unidad? Elige una opción:
+            </p>
+
+            {/* Opción 1: solo el tema del docente */}
+            <div style={{
+              background: modoElegido === "solo" ? "#dbeafe" : "white",
+              border: `2px solid ${modoElegido === "solo" ? "#1d4ed8" : "#bfdbfe"}`,
+              borderRadius: 10, padding: "10px 12px", marginBottom: 8,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <span style={{ color: "#1d4ed8", fontWeight: 700, fontSize: 13 }}>
+                  📍 Solo mi tema — {sugerenciaTema.temaOficial}
+                  {rec && (
+                    <span style={{ fontWeight: 500, opacity: 0.75 }}>
+                      {" "}· {rec.semanasRecomendadas} semana{rec.semanasRecomendadas > 1 ? "s" : ""} ({rec.encuentrosRango} horas clase)
+                    </span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={elegirSoloTema}
+                  disabled={cargando}
+                  style={{
+                    padding: "6px 14px", borderRadius: 8,
+                    background: "#1d4ed8", color: "white", border: "none",
+                    fontWeight: 700, fontSize: 12, cursor: "pointer",
+                  }}
+                >
+                  {modoElegido === "solo" ? "✓ Elegido" : `Elegir solo mi tema${rec ? ` (${rec.semanasRecomendadas} sem.)` : ""}`}
+                </button>
+              </div>
+              {rec && (
+                <p style={{ color: "#1e3a8a", fontSize: 12, fontStyle: "italic", margin: "6px 0 0" }}>
+                  {rec.justificacion}
+                </p>
+              )}
+            </div>
+
+            {/* Opción 2: combinación sugerida por el currículo (+ alternativas) */}
+            {(sugerenciaTema.opciones || []).map((op, i) => (
+              <div
+                key={op.nombre}
+                style={{
+                  background: modoElegido === op.nombre ? "#dbeafe" : "white",
+                  border: `2px solid ${modoElegido === op.nombre ? "#1d4ed8" : "#bfdbfe"}`,
+                  borderRadius: 10, padding: "10px 12px", marginBottom: 8,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                  <span style={{ color: "#1d4ed8", fontWeight: 700, fontSize: 13 }}>
+                    {i === 0 ? "✨ Combinación sugerida por el currículo — " : "🔀 "}
+                    {op.nombre}
+                    {op.duracionSugerida && (
+                      <span style={{ fontWeight: 500, opacity: 0.75 }}> · {op.duracionSugerida}</span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => elegirCombinacion(op)}
+                    disabled={cargando}
+                    style={{
+                      padding: "6px 14px", borderRadius: 8,
+                      background: i === 0 ? "#1d4ed8" : "white",
+                      color: i === 0 ? "white" : "#1d4ed8",
+                      border: i === 0 ? "none" : "1.5px solid #1d4ed8",
+                      fontWeight: 700, fontSize: 12, cursor: "pointer",
+                    }}
+                  >
+                    {modoElegido === op.nombre ? "✓ Elegida" : `Aceptar combinación (${semanasDeCombinacion(op)} sem.)`}
+                  </button>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                  {op.temas.map((t) => (
+                    <span
+                      key={t}
+                      className="pd-campo-badge"
+                      title={temaYaTrabajado(t) ? "Ya trabajaste este tema — puedes volver a elegirlo" : undefined}
+                      style={{ background: "#dbeafe", color: "#1e3a8a", ...(temaYaTrabajado(t) ? estiloTrabajado : {}) }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                {op.tituloSugerido && (
+                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                    <span style={{ color: "#1e3a8a", fontSize: 12 }}>
+                      💡 Título sugerido: <strong>“{op.tituloSugerido}”</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => aplicarTituloSugerido(op.tituloSugerido)}
+                      disabled={cargando}
+                      style={{
+                        padding: "2px 10px", borderRadius: 8,
+                        background: "white", color: "#1d4ed8",
+                        border: "1.5px solid #1d4ed8",
+                        fontWeight: 700, fontSize: 11, cursor: "pointer",
+                      }}
+                    >
+                      Usar este título
+                    </button>
+                  </div>
+                )}
+                {i === 0 && (
+                  <p style={{ color: "#1e3a8a", fontSize: 12, fontStyle: "italic", margin: "6px 0 0" }}>
+                    {op.razon}
+                  </p>
+                )}
+              </div>
+            ))}
+
+            {/* Opción 3: combinación propia con todos los temas de la malla */}
+            {temasMalla.length > 0 && (
+              <div style={{
+                background: modoElegido === "propia" ? "#dbeafe" : "white",
+                border: `2px solid ${modoElegido === "propia" ? "#1d4ed8" : "#bfdbfe"}`,
+                borderRadius: 10, padding: "10px 12px",
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                  <span style={{ color: "#1d4ed8", fontWeight: 700, fontSize: 13 }}>
+                    🎨 Mi propia combinación — elige los temas de la malla que quieras trabajar
+                  </span>
+                  {!mostrarPropia && (
+                    <button
+                      type="button"
+                      onClick={abrirPropia}
+                      disabled={cargando}
+                      style={{
+                        padding: "6px 14px", borderRadius: 8,
+                        background: "white", color: "#1d4ed8",
+                        border: "1.5px solid #1d4ed8",
+                        fontWeight: 700, fontSize: 12, cursor: "pointer",
+                      }}
+                    >
+                      Elegir mis temas
+                    </button>
+                  )}
+                </div>
+
+                {mostrarPropia && (
+                  <>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                      {temasMalla.map((t) => {
+                        const activo = temasPropios.includes(t);
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => toggleTemaPropio(t)}
+                            disabled={cargando}
+                            title={temaYaTrabajado(t) ? "Ya trabajaste este tema — puedes volver a elegirlo" : undefined}
+                            style={{
+                              padding: "4px 10px", borderRadius: 8,
+                              background: activo ? "#1d4ed8" : "white",
+                              color: activo ? "white" : "#1e3a8a",
+                              border: `1.5px solid ${activo ? "#1d4ed8" : "#93c5fd"}`,
+                              fontWeight: 600, fontSize: 12, cursor: "pointer",
+                              ...(temaYaTrabajado(t) && !activo ? estiloTrabajado : {}),
+                            }}
+                          >
+                            {activo ? "☑" : "☐"} {t}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {temasPropios.some(temaYaTrabajado) && (
+                      <p style={{
+                        color: "#92400e", background: "#fffbeb",
+                        border: "1.5px solid #f59e0b", borderRadius: 8,
+                        padding: "6px 10px", fontSize: 12, margin: "8px 0 0",
+                      }}>
+                        ⚠️ Ya hemos trabajado: {temasPropios.filter(temaYaTrabajado).join(", ")}.
+                        Puedes volver a trabajarlos si lo deseas.
+                      </p>
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                      <button
+                        type="button"
+                        onClick={confirmarPropia}
+                        disabled={cargando || temasPropios.length === 0}
+                        style={{
+                          padding: "6px 14px", borderRadius: 8,
+                          background: temasPropios.length === 0 ? "#93c5fd" : "#1d4ed8",
+                          color: "white", border: "none",
+                          fontWeight: 700, fontSize: 12,
+                          cursor: temasPropios.length === 0 ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {modoElegido === "propia"
+                          ? "✓ Elegida"
+                          : `Usar mi combinación (${temasPropios.length} tema${temasPropios.length !== 1 ? "s" : ""})`}
+                      </button>
+                      <span style={{ color: "#1e3a8a", fontSize: 12 }}>
+                        Duración estimada: {temasPropios.length <= 1
+                          ? `${rec?.semanasRecomendadas ?? numSemanas} semanas`
+                          : `${Math.min(8, Math.max(4, temasPropios.length * 2))} semanas`}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Confirmación de la elección */}
+            {modoElegido && (
+              <div style={{
+                marginTop: 10, padding: "8px 12px",
+                background: "#f0fdf4", border: "2px solid #22c55e", borderRadius: 10,
+                display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+              }}>
+                <span style={{ color: "#15803d", fontWeight: 700, fontSize: 13 }}>
+                  🔗 Trabajarás{temasSeleccionados.length > 1 ? " estos temas" : ""}:
+                </span>
+                {(temasSeleccionados.length > 0 ? temasSeleccionados : [sugerenciaTema.temaOficial]).map((t) => (
+                  <span key={t} style={{
+                    background: "#dcfce7", color: "#166534",
+                    borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 600,
+                  }}>
+                    {t}
+                  </span>
+                ))}
+                <span style={{ color: "#15803d", fontSize: 12 }}>
+                  · {numSemanas} semana{numSemanas > 1 ? "s" : ""}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : rec && (
+        /* Fallback: áreas sin malla curricular — solo análisis de complejidad */
         <div
           className="ua-rec-panel"
           style={{ background: colores.bg, borderColor: colores.border }}

@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { generarUnidadAprendizaje, formatearUnidadHTML } from "../services/unidadAprendizajeService";
+import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
 import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
 import { applyAuditAction } from "../services/auditAcciones.js";
@@ -26,11 +27,16 @@ export function useUnidadAprendizaje() {
 
   const syncDeps = (deps) => { depsRef.current = deps; };
 
-  const [unidadDatos, setUnidadDatos] = useState(DATOS_INICIALES);
-  const [unidad, setUnidad] = useState(null);
+  // Estado inicial desde el cache de sesión: si el docente generó una unidad
+  // y navegó a otro menú, al volver la encuentra intacta para consultarla.
+  const [unidadDatos, setUnidadDatos] = useState(() => leerSesion("unidad:datos", DATOS_INICIALES));
+  const [unidad, setUnidad] = useState(() => leerSesion("unidad:resultado", null));
   const [cargandoUnidad, setCargandoUnidad] = useState(false);
   const [guardandoUnidad, setGuardandoUnidad] = useState(false);
   const [mensajeUnidad, setMensajeUnidad] = useState(null);
+
+  useEffect(() => { guardarSesion("unidad:datos", unidadDatos); }, [unidadDatos]);
+  useEffect(() => { guardarSesion("unidad:resultado", unidad); }, [unidad]);
 
   const manejarGenerarUnidad = async () => {
     const { estadoTemas, setDialogoTema, cargarHistorial } = depsRef.current;

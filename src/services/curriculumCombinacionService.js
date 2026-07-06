@@ -94,27 +94,147 @@ export const analizarCombinacionTematica = (curriculoData, temaSeleccionado, dur
     return { necesitaCombinacion: false, combinacionSugerida: null };
   }
 
-  // Buscar el criterio oficial que incluye el tema seleccionado
+  // Buscar TODOS los criterios que incluyen el tema seleccionado.
+  // El primero (grupo principal del currículo) se propone por defecto;
+  // el resto se ofrece como combinaciones alternativas para que el
+  // docente elija con qué otros temas quiere integrar.
   const temaLower = temaSeleccionado.toLowerCase().trim();
-  const criterioMatch = criterios.find(
+  const criteriosMatch = criterios.filter(
     (c) => Array.isArray(c.temas) && c.temas.some((t) => t.toLowerCase().trim() === temaLower)
   );
 
-  if (!criterioMatch) {
+  if (criteriosMatch.length === 0) {
     return { necesitaCombinacion: false, combinacionSugerida: null };
   }
 
-  const distribucion = distribuirTemasEnSemanas(criterioMatch.temas, duracionSemanas);
+  const aCombinacion = (criterio) => ({
+    nombre: criterio.nombre,
+    temas: criterio.temas,
+    justificacion: criterio.razon,
+    duracionSugerida: criterio.duracionSugerida,
+    tipo: criterio.tipo || "principal",
+    tituloSugerido: criterio.tituloSugerido || "",
+    distribucion: distribuirTemasEnSemanas(criterio.temas, duracionSemanas),
+  });
+
+  const [principal, ...resto] = criteriosMatch;
 
   return {
     necesitaCombinacion: true,
     combinacionSugerida: {
-      nombre: criterioMatch.nombre,
-      temas: criterioMatch.temas,
-      justificacion: criterioMatch.razon,
-      duracionSugerida: criterioMatch.duracionSugerida,
-      distribucion,
+      ...aCombinacion(principal),
+      alternativas: resto.map(aCombinacion),
     },
+  };
+};
+
+// ── Sugerencia de tema oficial desde texto libre (2026-07-06) ────────────────
+// El docente escribe el tema como quiere ("Parts of the House") y el sistema
+// le sugiere el tema curricular oficial que corresponde y sus temas afines
+// (criteriosCombinacionTematica) para impartirlos juntos.
+
+const _norm = (s) => String(s || "")
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[̀-ͯ]/g, "")
+  .replace(/\s+/g, " ")
+  .trim();
+
+/** Normaliza un tema para comparaciones (minúsculas, sin acentos ni espacios dobles) */
+export const normalizarTema = _norm;
+
+// Vocabulario ES/EN por tema oficial (Lenguas Extranjeras 1ro-3ro; las claves
+// funcionan igual si otras áreas comparten nombres de tema)
+const TEMA_KEYWORDS = {
+  "identificacion personal": ["identificacion personal", "personal information", "introductions", "introduce myself", "about me", "greetings", "saludos", "my name", "nationality", "nacionalidad"],
+  "relaciones humanas y sociales": ["family", "familia", "friends", "amigos", "relationships", "relaciones", "people", "personas", "community", "comunidad", "social"],
+  "actividades de la vida diaria": ["routine", "routines", "rutina", "rutinas", "daily", "everyday", "dia a dia", "habits", "habitos", "my life", "schedule", "mi dia"],
+  "vivienda, entorno y ciudad": ["house", "home", "casa", "vivienda", "hogar", "rooms", "habitaciones", "parts of the house", "furniture", "muebles", "city", "ciudad", "neighborhood", "neighbourhood", "barrio", "apartment", "apartamento", "entorno", "places in town", "town"],
+  "escuela y educacion": ["school", "escuela", "education", "educacion", "classroom", "aula", "subjects", "asignaturas", "clases", "teachers"],
+  "deporte, tiempo libre y recreacion": ["sports", "sport", "deporte", "deportes", "hobbies", "hobby", "free time", "tiempo libre", "games", "juegos", "recreation", "recreacion", "leisure"],
+  "alimentacion": ["food", "comida", "alimentos", "alimentacion", "meals", "breakfast", "lunch", "dinner", "restaurant", "restaurante", "fruits", "frutas", "vegetables", "drinks", "bebidas", "recipes", "recetas", "healthy eating"],
+  "salud y cuidados fisicos": ["health", "salud", "body", "cuerpo", "doctor", "illness", "enfermedad", "sick", "exercise", "ejercicio", "hygiene", "higiene", "healthy habits", "habitos saludables", "wellness"],
+  "ciencia y tecnologia": ["technology", "tecnologia", "science", "ciencia", "computer", "computadora", "internet", "devices", "dispositivos", "gadgets", "phone", "celular", "apps"],
+  "lengua y comunicacion": ["language", "languages", "lengua", "idiomas", "communication", "comunicacion", "media", "medios de comunicacion"],
+  "clima, condiciones atmosfericas y medioambiente": ["weather", "clima", "climate", "seasons", "estaciones", "rain", "lluvia", "environment", "medioambiente", "medio ambiente", "nature", "naturaleza", "temperature", "temperatura"],
+  // 1ro y 3ro escriben "medio ambiente" separado
+  "clima, condiciones atmosfericas y medio ambiente": ["weather", "clima", "climate", "seasons", "estaciones", "rain", "lluvia", "environment", "medioambiente", "medio ambiente", "nature", "naturaleza", "temperature", "temperatura"],
+  "medio ambiente y problematicas sociales": ["environment", "medio ambiente", "medioambiente", "pollution", "contaminacion", "recycling", "reciclaje", "social problems", "problemas sociales", "climate change", "cambio climatico", "planet", "planeta"],
+  "bienes y servicios": ["shopping", "compras", "store", "shop", "tienda", "money", "dinero", "prices", "precios", "services", "servicios", "buy", "comprar", "market", "mercado", "clothes", "ropa"],
+  "actividades sociales y culturales": ["culture", "cultura", "celebrations", "celebraciones", "festivals", "festivales", "fiestas", "traditions", "tradiciones", "party", "holidays", "costumbres", "customs"],
+  "viajes y turismo": ["travel", "viaje", "viajes", "trip", "tourism", "turismo", "vacation", "vacaciones", "transport", "transporte", "directions", "direcciones", "airport", "aeropuerto", "hotel"],
+};
+
+/**
+ * Resuelve un tema escrito libremente al tema curricular oficial más parecido.
+ * 1º intenta match por nombre oficial; 2º por vocabulario ES/EN del tema.
+ *
+ * @returns {{ tema: string, confianza: "alta"|"media", motivo: string } | null}
+ */
+export const sugerirTemaOficial = (temaLibre, temasCurriculares = []) => {
+  const texto = _norm(temaLibre);
+  if (!texto || texto.length < 3 || !temasCurriculares.length) return null;
+
+  const directo = temasCurriculares.find(
+    (t) => texto.includes(_norm(t)) || _norm(t).includes(texto)
+  );
+  if (directo) {
+    return { tema: directo, confianza: "alta", motivo: "Coincide con el nombre oficial del tema" };
+  }
+
+  let mejor = null;
+  for (const tema of temasCurriculares) {
+    const claves = TEMA_KEYWORDS[_norm(tema)] || [];
+    const aciertos = claves.filter((k) => texto.includes(k)).length;
+    if (aciertos > (mejor?.aciertos || 0)) mejor = { tema, aciertos };
+  }
+  if (mejor) {
+    return {
+      tema: mejor.tema,
+      confianza: mejor.aciertos > 1 ? "alta" : "media",
+      motivo: "Coincidencia por el vocabulario del tema",
+    };
+  }
+  return null;
+};
+
+/**
+ * Dado el doc curricular y el tema libre del docente, devuelve el tema oficial
+ * detectado y los temas afines para trabajar juntos (grupo oficial de
+ * combinación temática).
+ *
+ * @returns {{
+ *   temaOficial: string, confianza: string, motivo: string,
+ *   grupo: { nombre, temas, razon, duracionSugerida } | null,
+ *   afines: string[]
+ * } | null}
+ */
+export const sugerirTemasATrabajar = (curriculoData, temaLibre) => {
+  const temas = curriculoData?.temasCurriculares || [];
+  const sugerencia = sugerirTemaOficial(temaLibre, temas);
+  if (!sugerencia) return null;
+
+  const criterios = curriculoData?.criteriosCombinacionTematica || [];
+  const opciones = criterios
+    .filter((c) => Array.isArray(c.temas) && c.temas.some((t) => _norm(t) === _norm(sugerencia.tema)))
+    .map((c) => ({
+      nombre: c.nombre,
+      temas: c.temas,
+      razon: c.razon,
+      duracionSugerida: c.duracionSugerida,
+      tipo: c.tipo || "principal",
+      tituloSugerido: c.tituloSugerido || "",
+      afines: c.temas.filter((t) => _norm(t) !== _norm(sugerencia.tema)),
+    }));
+  const grupo = opciones[0] || null;
+
+  return {
+    temaOficial: sugerencia.tema,
+    confianza: sugerencia.confianza,
+    motivo: sugerencia.motivo,
+    grupo,
+    afines: grupo ? grupo.afines : [],
+    opciones,
   };
 };
 
@@ -155,4 +275,6 @@ export default {
   analizarCombinacionTematica,
   obtenerTemaSemana,
   temaNecesitaCombinacion,
+  sugerirTemaOficial,
+  sugerirTemasATrabajar,
 };

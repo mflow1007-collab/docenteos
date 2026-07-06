@@ -2241,6 +2241,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     asignaturasVinculadasTexto = "",
     jornada = "Extendida",
     competenciasFundamentalesSeleccionadas = [],
+    temasSeleccionados = [],
     onProgress = null,
   } = datos;
 
@@ -2352,6 +2353,9 @@ export const generarUnidadAprendizaje = async (datos) => {
         ? asignaturasVinculadasTexto.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
       productoFinal: producto,
+      // Temas curriculares que el docente eligió integrar en la unidad
+      // (vacío = trabaja solo el tema del título)
+      temasIntegrados: Array.isArray(temasSeleccionados) ? temasSeleccionados : [],
     },
     ejesTematicos: ejes,
     situacionAprendizaje: situacion,
@@ -2376,6 +2380,18 @@ export const generarUnidadAprendizaje = async (datos) => {
         indicadores,
       };
     })(),
+    // Componente curricular POR COMPETENCIA (estructura oficial de la
+    // Adecuación, como el documento modelo): cada Competencia Fundamental con
+    // su Competencia Específica del ciclo y SUS indicadores, sin aplanar.
+    // El campo `competencias` de arriba se conserva por compatibilidad con
+    // unidades ya guardadas y otros consumidores.
+    competenciasDetalle: allComps.map((comp, i) => ({
+      competenciaFundamental: comp.competenciaFundamental || comp.fundamental || compFundEf[i] || compFundEf[i % compFundEf.length] || "",
+      especifica: comp.especificaGrado || comp.especifica || comp.descripcion || "",
+      indicadores: (Array.isArray(comp.indicadoresLogro) ? comp.indicadoresLogro : [])
+        .map((ind) => ind.descripcion || ind.texto || "")
+        .filter(Boolean),
+    })).filter((c) => c.especifica),
     contenidos,
     fasesSemanales: await _generarFasesConIA(
       numSemanas, schedule, claveContenido, titulo, estrategiaEf, producto,
@@ -2636,6 +2652,30 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
   <div class="section-head">COMPONENTE CURRICULAR — Asignatura: ${m.asignatura}</div>
   ${(() => {
+    // Estructura oficial por competencia (documento modelo): CF + específica
+    // del ciclo + SUS indicadores. Fallback: formato aplanado legacy.
+    const detalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
+    if (detalle.length) {
+      const nivelMCERL = unidad.competencias?.nivelMCERL
+        ? `<p style="margin:0 0 6pt"><em>Nivel de dominio MCERL: ${unidad.competencias.nivelMCERL}</em></p>`
+        : '';
+      const filas = detalle.map((c) => `
+        <tr>
+          <td style="width:34%;vertical-align:top;padding:6px 8px;background:#f8fafc">
+            <strong>${c.competenciaFundamental || 'Competencia'}</strong>
+            ${c.especifica ? `<br><em style="font-size:11pt">${c.especifica}</em>` : ''}
+          </td>
+          <td style="vertical-align:top;padding:6px 8px">
+            ${c.indicadores?.length
+              ? `<ul style="margin:0 0 0 16px;padding:0">${c.indicadores.map((ind) => `<li style="margin-bottom:3pt">${ind}</li>`).join('')}</ul>`
+              : '<em>Sin indicadores en la malla para esta competencia.</em>'}
+          </td>
+        </tr>`).join('');
+      return `${nivelMCERL}<table class="datos-table" style="margin-bottom:12px">
+        <tr><td class="lbl" style="width:34%;text-align:center">Competencias</td><td class="lbl" style="text-align:center">Indicadores de Logro</td></tr>
+        ${filas}
+      </table>`;
+    }
     const comp = unidad.competencias || {};
     const funds = Array.isArray(comp.fundamentales) ? comp.fundamentales : [];
     const especifica = comp.especifica || '';

@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { generarPlanDiario, formatearPlanDiarioHTML } from "../services/planDiarioService";
+import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
 import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
@@ -23,11 +24,16 @@ export function usePlanDiario() {
   // Llamar desde el componente padre en cada render para mantener deps actualizadas
   const syncDeps = (deps) => { depsRef.current = deps; };
 
-  const [planDiarioDatos, setPlanDiarioDatos] = useState(DATOS_INICIALES);
-  const [planDiario, setPlanDiario] = useState(null);
+  // Estado inicial desde el cache de sesión: el plan generado sobrevive
+  // cuando el docente navega a otro menú y regresa.
+  const [planDiarioDatos, setPlanDiarioDatos] = useState(() => leerSesion("diario:datos", DATOS_INICIALES));
+  const [planDiario, setPlanDiario] = useState(() => leerSesion("diario:resultado", null));
   const [cargandoDiario, setCargandoDiario] = useState(false);
   const [guardandoDiario, setGuardandoDiario] = useState(false);
   const [mensajeDiario, setMensajeDiario] = useState(null);
+
+  useEffect(() => { guardarSesion("diario:datos", planDiarioDatos); }, [planDiarioDatos]);
+  useEffect(() => { guardarSesion("diario:resultado", planDiario); }, [planDiario]);
 
   const ejecutarGenerarDiario = () => {
     const indicadoresCustom = planDiarioDatos.indicadoresTexto

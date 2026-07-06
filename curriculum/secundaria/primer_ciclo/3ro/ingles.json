@@ -41,7 +41,9 @@
         "Escuela y educación"
       ],
       "duracionSugerida": "5-6 semanas",
-      "razon": "Los tres temas permiten integrar el pasado continuo y simple para narrar historias, el presente perfecto para dar noticias y comparar el pasado con el presente. Vocabulario de relaciones humanas, vida escolar y rutinas facilita una progresión natural."
+      "razon": "Los tres temas permiten integrar el pasado continuo y simple para narrar historias, el presente perfecto para dar noticias y comparar el pasado con el presente. Vocabulario de relaciones humanas, vida escolar y rutinas facilita una progresión natural.",
+      "tipo": "principal",
+      "tituloSugerido": "Stories of My Everyday Life"
     },
     {
       "nombre": "Entorno, ambiente y salud",
@@ -52,7 +54,9 @@
         "Medio ambiente y problemáticas sociales"
       ],
       "duracionSugerida": "6-7 semanas",
-      "razon": "Los temas del entorno físico, el clima, la salud y las problemáticas ambientales se conectan para trabajar la voz pasiva, expresiones de prohibición y advertencia, y el vocabulario de problemas sociales como contaminación y reciclaje."
+      "razon": "Los temas del entorno físico, el clima, la salud y las problemáticas ambientales se conectan para trabajar la voz pasiva, expresiones de prohibición y advertencia, y el vocabulario de problemas sociales como contaminación y reciclaje.",
+      "tipo": "principal",
+      "tituloSugerido": "A Healthy Life in a Healthy Environment"
     },
     {
       "nombre": "Predicción, tecnología y comunicación",
@@ -62,7 +66,9 @@
         "Deporte, tiempo libre y recreación"
       ],
       "duracionSugerida": "5-6 semanas",
-      "razon": "La tecnología, la comunicación y el tiempo libre permiten integrar will/be going to para predicciones e inferencias, el condicional tipo 1 y vocabulario de medios de comunicación, tecnología y deportes."
+      "razon": "La tecnología, la comunicación y el tiempo libre permiten integrar will/be going to para predicciones e inferencias, el condicional tipo 1 y vocabulario de medios de comunicación, tecnología y deportes.",
+      "tipo": "principal",
+      "tituloSugerido": "The Future of Technology and Communication"
     },
     {
       "nombre": "Cultura, servicios y mundo global",
@@ -73,7 +79,81 @@
         "Viajes y turismo"
       ],
       "duracionSugerida": "6-7 semanas",
-      "razon": "Unidad integradora de cierre del año que sintetiza las estructuras del ciclo. Los temas de gastronomía, servicios, cultura y viajes permiten usar la voz pasiva para narrar hechos históricos y culturales, y las cláusulas relativas para enriquecer las descripciones."
+      "razon": "Unidad integradora de cierre del año que sintetiza las estructuras del ciclo. Los temas de gastronomía, servicios, cultura y viajes permiten usar la voz pasiva para narrar hechos históricos y culturales, y las cláusulas relativas para enriquecer las descripciones.",
+      "tipo": "principal",
+      "tituloSugerido": "Food, Culture and Travel in a Global World"
+    },
+    {
+      "nombre": "Historias del hogar y la comunidad",
+      "temas": [
+        "Vivienda, entorno y ciudad",
+        "Relaciones humanas y sociales",
+        "Actividades de la vida diaria"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Narrar historias familiares y del barrio conecta los tres temas. Integra el pasado continuo con el pasado simple (Rosa arrived when they were leaving) y las cláusulas adjetivas (That's the house where I grew up).",
+      "tipo": "alternativa",
+      "tituloSugerido": "Stories from My Home and Community"
+    },
+    {
+      "nombre": "Comida, salud y bienestar",
+      "temas": [
+        "Alimentación",
+        "Salud y cuidados físicos",
+        "Deporte, tiempo libre y recreación"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Los estilos de vida saludable integran comida, ejercicio y cuidado personal. Permite usar should/must para recomendaciones y el condicional tipo 1 (If you eat well, you will feel better).",
+      "tipo": "alternativa",
+      "tituloSugerido": "Good Food, Good Health, Good Life"
+    },
+    {
+      "nombre": "Viajes, clima y turismo responsable",
+      "temas": [
+        "Viajes y turismo",
+        "Clima, condiciones atmosféricas y medio ambiente",
+        "Medio ambiente y problemáticas sociales"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Viajar de forma responsable exige leer el clima y cuidar el entorno. Integra may/might para inferencias, will/be going to para predicciones y la voz pasiva para hechos (The island was discovered in 1492).",
+      "tipo": "alternativa",
+      "tituloSugerido": "Traveling Green: Weather and Responsible Tourism"
+    },
+    {
+      "nombre": "Escuela, tecnología y futuro",
+      "temas": [
+        "Escuela y educación",
+        "Ciencia y tecnología",
+        "Lengua y comunicación"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "La escuela y la tecnología apuntan al futuro del estudiante. Permite usar el presente perfecto para logros (She has just graduated), will para predicciones y las cláusulas sustantivas (I believe that...).",
+      "tipo": "alternativa",
+      "tituloSugerido": "My School Today, My Future Tomorrow"
+    },
+    {
+      "nombre": "Cultura, celebraciones y narración",
+      "temas": [
+        "Actividades sociales y culturales",
+        "Relaciones humanas y sociales",
+        "Alimentación"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Las celebraciones y tradiciones se narran y se comparten alrededor de la comida. Integra el pasado simple y continuo para narrar y la voz pasiva del pasado para tradiciones (The dish was prepared by...).",
+      "tipo": "alternativa",
+      "tituloSugerido": "Celebrations and Traditions: Stories We Share"
+    },
+    {
+      "nombre": "Ciudad, servicios y problemáticas sociales",
+      "temas": [
+        "Vivienda, entorno y ciudad",
+        "Bienes y servicios",
+        "Medio ambiente y problemáticas sociales"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "La vida urbana conecta los servicios con sus problemáticas. Permite usar there + be para anuncios, why don't / why not para proponer soluciones y la voz pasiva para describir problemas (The park was cleaned by volunteers).",
+      "tipo": "alternativa",
+      "tituloSugerido": "My City: Services, Problems and Solutions"
     }
   ],
   "contenidosGenerales": {

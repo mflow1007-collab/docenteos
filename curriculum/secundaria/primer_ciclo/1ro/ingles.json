@@ -41,7 +41,9 @@
         "Actividades de la vida diaria"
       ],
       "duracionSugerida": "5-6 semanas",
-      "razon": "Los temas de identidad, relaciones y vida cotidiana comparten vocabulario básico de personas, rutinas y presentaciones. Permiten progresar de 'Hola, me llamo...' hasta narrar actividades diarias usando el presente simple y continuo de forma natural y coherente."
+      "razon": "Los temas de identidad, relaciones y vida cotidiana comparten vocabulario básico de personas, rutinas y presentaciones. Permiten progresar de 'Hola, me llamo...' hasta narrar actividades diarias usando el presente simple y continuo de forma natural y coherente.",
+      "tipo": "principal",
+      "tituloSugerido": "This Is Me: My Life and My People"
     },
     {
       "nombre": "Mi entorno físico y el clima",
@@ -50,7 +52,9 @@
         "Clima, condiciones atmosféricas y medio ambiente"
       ],
       "duracionSugerida": "4-5 semanas",
-      "razon": "El hogar, la ciudad y el clima son temáticas complementarias que permiten trabajar preposiciones de lugar, vocabulario de espacios y expresiones del tiempo atmosférico usando there + be y el presente simple."
+      "razon": "El hogar, la ciudad y el clima son temáticas complementarias que permiten trabajar preposiciones de lugar, vocabulario de espacios y expresiones del tiempo atmosférico usando there + be y el presente simple.",
+      "tipo": "principal",
+      "tituloSugerido": "My Home and the Weather Around Me"
     },
     {
       "nombre": "Salud y bienestar",
@@ -59,7 +63,9 @@
         "Salud y cuidados físicos"
       ],
       "duracionSugerida": "4-5 semanas",
-      "razon": "La alimentación y la salud son temas íntimamente relacionados que se refuerzan mutuamente. Conectan con la competencia Ambiental y de la Salud y permiten trabajar vocabulario del cuerpo, alimentos y expresiones de hábitos con modales (can, should, have to)."
+      "razon": "La alimentación y la salud son temas íntimamente relacionados que se refuerzan mutuamente. Conectan con la competencia Ambiental y de la Salud y permiten trabajar vocabulario del cuerpo, alimentos y expresiones de hábitos con modales (can, should, have to).",
+      "tipo": "principal",
+      "tituloSugerido": "Healthy Food, Healthy Body"
     },
     {
       "nombre": "Aprendizaje y recreación",
@@ -68,7 +74,9 @@
         "Deporte, tiempo libre y recreación"
       ],
       "duracionSugerida": "4-5 semanas",
-      "razon": "El contexto escolar y las actividades de tiempo libre representan la realidad cotidiana del estudiante. Facilitan el uso del presente simple para rutinas, el presente continuo para acciones en curso y el futuro para planes, integrando vocabulario de deportes, asignaturas y actividades recreativas."
+      "razon": "El contexto escolar y las actividades de tiempo libre representan la realidad cotidiana del estudiante. Facilitan el uso del presente simple para rutinas, el presente continuo para acciones en curso y el futuro para planes, integrando vocabulario de deportes, asignaturas y actividades recreativas.",
+      "tipo": "principal",
+      "tituloSugerido": "School Time, Play Time"
     },
     {
       "nombre": "Mundo global y servicios",
@@ -80,7 +88,79 @@
         "Viajes y turismo"
       ],
       "duracionSugerida": "6-8 semanas",
-      "razon": "Bloque integrador de cierre del año escolar donde se sintetizan todas las estructuras aprendidas. Los temas de tecnología, servicios, cultura y viajes amplían el repertorio comunicativo del estudiante hacia el mundo global, incluyendo el presente perfecto básico, will/be going to y vocabulario de medios de comunicación, transportes y tradiciones culturales."
+      "razon": "Bloque integrador de cierre del año escolar donde se sintetizan todas las estructuras aprendidas. Los temas de tecnología, servicios, cultura y viajes amplían el repertorio comunicativo del estudiante hacia el mundo global, incluyendo el presente perfecto básico, will/be going to y vocabulario de medios de comunicación, transportes y tradiciones culturales.",
+      "tipo": "principal",
+      "tituloSugerido": "Traveling, Technology and the World Around Me"
+    },
+    {
+      "nombre": "Mi casa y mi vida diaria",
+      "temas": [
+        "Actividades de la vida diaria",
+        "Vivienda, entorno y ciudad"
+      ],
+      "duracionSugerida": "4-5 semanas",
+      "razon": "Las rutinas diarias ocurren en los espacios del hogar. Integra el presente simple para rutinas, there + be para describir la casa y las preposiciones de lugar con el vocabulario de habitaciones y objetos.",
+      "tipo": "alternativa",
+      "tituloSugerido": "My Daily Routine at Home"
+    },
+    {
+      "nombre": "Comida, deporte y vida sana",
+      "temas": [
+        "Alimentación",
+        "Deporte, tiempo libre y recreación",
+        "Salud y cuidados físicos"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "El eje de la vida saludable conecta la comida, el ejercicio y el cuidado del cuerpo. Permite usar can para habilidades deportivas, have to/must para hábitos de higiene y let's para sugerir actividades.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Healthy Food and Sports for a Better Life"
+    },
+    {
+      "nombre": "Mi escuela y mis amigos",
+      "temas": [
+        "Identificación personal",
+        "Escuela y educación",
+        "Relaciones humanas y sociales"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Presentarse y presentar a otros en el contexto escolar. Integra el presente simple, el possessive 's para hablar de la familia y los amigos, y el vocabulario de asignaturas y objetos del aula.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Welcome to My School: Meeting New Friends"
+    },
+    {
+      "nombre": "La ciudad: lugares y compras",
+      "temas": [
+        "Vivienda, entorno y ciudad",
+        "Bienes y servicios"
+      ],
+      "duracionSugerida": "4-5 semanas",
+      "razon": "Los lugares de la ciudad y las compras comparten contexto comunicativo. Permite usar there + be para ubicar tiendas y servicios, el imperativo para dar direcciones y los números y precios en situaciones de compra.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Around My City: Places and Shopping"
+    },
+    {
+      "nombre": "Clima, viajes y celebraciones",
+      "temas": [
+        "Clima, condiciones atmosféricas y medio ambiente",
+        "Viajes y turismo",
+        "Actividades sociales y culturales"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Los viajes y las celebraciones se planifican según el clima y el calendario. Integra will y be going to para planes y predicciones, y el presente continuo para planes futuros inmediatos.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Sunny Days, Trips and Celebrations"
+    },
+    {
+      "nombre": "Tecnología y comunicación para aprender",
+      "temas": [
+        "Ciencia y tecnología",
+        "Lengua y comunicación",
+        "Escuela y educación"
+      ],
+      "duracionSugerida": "5-6 semanas",
+      "razon": "Los dispositivos y los medios acompañan el aprendizaje escolar. Permite usar el imperativo para instrucciones de uso, can/can't para permisos y prohibiciones en el aula y el vocabulario de aparatos y medios.",
+      "tipo": "alternativa",
+      "tituloSugerido": "Learning with Technology"
     }
   ],
   "contenidosGenerales": {

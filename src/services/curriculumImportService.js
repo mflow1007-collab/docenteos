@@ -126,6 +126,8 @@ const normalizarCriteriosCombinacion = (criterios) => {
     temas: Array.isArray(c.temas) ? c.temas.map(String) : [],
     duracionSugerida: String(c.duracionSugerida || "").trim(),
     razon: String(c.razon || "").trim(),
+    tipo: String(c.tipo || "principal").trim(),
+    tituloSugerido: String(c.tituloSugerido || "").trim(),
   }));
 };
 

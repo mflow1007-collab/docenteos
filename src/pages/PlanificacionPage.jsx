@@ -9,7 +9,8 @@
  * - Manejar guardado local (Firebase pendiente)
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import CentroDecisionesKE from "../components/CentroDecisionesKE.jsx";
 import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
@@ -80,7 +81,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
   const [periodo, setPeriodo] = useState("");
   const [fechaInicio, setFechaInicio] = useState(hoyISO);
   const [duracion, setDuracion] = useState("");
-  const [tipoPlanificacion, setTipoPlanificacion] = useState("");
+  const [tipoPlanificacion, setTipoPlanificacion] = useState(() => leerSesion("tipo", ""));
   const [diasClase, setDiasClase] = useState(["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]);
   const [asignatura, setAsignatura] = useState("");
   const [tema, setTema] = useState("");
@@ -201,7 +202,8 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
-  const [planificacion, setPlanificacion] = useState(null);
+  // Resultado inicial desde el cache de sesión: sobrevive al cambio de menú
+  const [planificacion, setPlanificacion] = useState(() => leerSesion("plan:resultado", null));
   const [mensaje, setMensaje] = useState(null);
   const [historialPlanificaciones, setHistorialPlanificaciones] = useState([]);
   const [usoTiposPlanificacion, setUsoTiposPlanificacion] = useState({});
@@ -213,6 +215,29 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     creditosDisponibles: 0,
   });
   const [dialogoTema, setDialogoTema] = useState({ abierto: false, payload: null, contexto: "planificacion" });
+
+  // Persistir en el cache de sesión: al volver desde otro menú, el docente
+  // encuentra su planificación generada y el tipo que estaba trabajando.
+  useEffect(() => { guardarSesion("plan:resultado", planificacion); }, [planificacion]);
+  useEffect(() => { guardarSesion("tipo", tipoPlanificacion); }, [tipoPlanificacion]);
+
+  // Temas ya trabajados por el docente (según su historial guardado).
+  // Se usan para marcar visualmente — nunca para bloquear.
+  const temasTrabajados = useMemo(() => {
+    const lista = new Set();
+    historialPlanificaciones.forEach((item) => {
+      const contenido = item?.contenido || item;
+      const meta = contenido?.metadatos || {};
+      const candidatos = [
+        meta.titulo, meta.tema, item?.tema,
+        ...(Array.isArray(meta.temasIntegrados) ? meta.temasIntegrados : []),
+      ];
+      candidatos.forEach((t) => {
+        if (t && String(t).trim()) lista.add(String(t).trim());
+      });
+    });
+    return [...lista];
+  }, [historialPlanificaciones]);
 
   const formatearFechaRegistro = (fecha) => {
     if (!fecha) return "Sin fecha";
@@ -596,9 +621,11 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     setTemasIntegrados([]);
   }, [tema, duracion, curriculoCompleto, parsearSemanas]);
 
-  const manejarAceptarCombinacion = () => {
-    if (!combinacionSugerida) return;
-    setTemasIntegrados(combinacionSugerida.temas);
+  // Acepta la combinación principal o una alternativa elegida por el docente
+  const manejarAceptarCombinacion = (combinacion) => {
+    const elegida = combinacion?.temas ? combinacion : combinacionSugerida;
+    if (!elegida) return;
+    setTemasIntegrados(elegida.temas);
     setCombinacionSugerida(null);
     EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
       agentId: AGENT_IDS.PLANIFICADOR,
@@ -606,7 +633,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
       asignatura: asignatura ?? null,
       grado:      grado ?? null,
       tema:       tema ?? null,
-      metadata:   { tipo: 'combinacion' }
+      metadata:   { tipo: 'combinacion', combinacion: elegida.nombre ?? null }
     });
   };
 
@@ -1707,6 +1734,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             onChange={setUnidadDatos}
             onGenerar={manejarGenerarUnidad}
             cargando={cargandoUnidad}
+            temasTrabajados={temasTrabajados}
           />
         ) : tipoPlanificacion ? (
           <FormularioPlanificacion
@@ -1755,6 +1783,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             onAceptarCombinacion={manejarAceptarCombinacion}
             onIgnorarCombinacion={manejarIgnorarCombinacion}
             temasIntegrados={temasIntegrados}
+            temasTrabajados={temasTrabajados}
             ejesTematicos={ejesTematicos}
             setEjesTematicos={setEjesTematicos}
             asignaturasVinculadas={asignaturasVinculadas}
