@@ -395,9 +395,9 @@ const extraerPaginasPdf = async (file, onProgress = null) => {
 // (4) los resultados se fusionan con dedupe y (5) el sobre final se ensambla
 // LOCALMENTE (la IA ya no redacta el envelope, solo extrae contenido literal).
 
-const FRAGMENTO_CHARS = 14000;   // lectura más lenta y quirúrgica por llamada
-const FRAGMENTO_SOLAPE = 2200;   // para no cortar tablas por la mitad
-const MAX_FRAGMENTOS_PDF = 28;   // el administrador puede esperar una conversión más completa
+const FRAGMENTO_CHARS = 26000;   // ~7K tokens de entrada por llamada
+const FRAGMENTO_SOLAPE = 1500;   // para no cortar indicadores por la mitad
+const MAX_FRAGMENTOS_PDF = 16;   // tope duro de llamadas por conversión
 
 const MARCO_PEDAGOGICO_SECUNDARIA_MINERD_2023 = {
   tipo: 'marco_pedagogico_secundaria',
@@ -573,23 +573,12 @@ const paginaContieneGrado = (textoNormalizado, grado = '') => {
   return aliases.some(alias => textoNormalizado.includes(normalizarMalla(alias)));
 };
 
-const paginaContieneNivelCurricular = (textoNormalizado, nivel = '') => {
-  const esperado = normalizarNivel(nivel);
-  const checks = {
-    secundaria: ['nivel secundario', 'secundaria', 'secundario'],
-    primaria: ['nivel primario', 'primaria', 'primario'],
-    inicial: ['nivel inicial', 'inicial'],
-  };
-  const terms = checks[esperado] || Object.values(checks).flat();
-  return terms.some(term => textoNormalizado.includes(term));
-};
-
 const esInicioMallaCurricular = (pagina, contexto = {}, gradoEspecifico = contexto.grade) => {
   const texto = normalizarMalla(pagina?.texto || '');
   const terminos = terminosAsignaturaContexto(contexto);
   if (!terminos.length || !paginaContieneAsignatura(texto, terminos)) return false;
   if (!paginaContieneGrado(texto, gradoEspecifico)) return false;
-  return paginaContieneNivelCurricular(texto, contexto.level)
+  return texto.includes('nivel secundario')
     && texto.includes('competencias fundamentales')
     && (texto.includes('competencias especificas') || texto.includes('competencias específicas'))
     && texto.includes('grado');
@@ -665,38 +654,6 @@ const localizarContextoAreaCiclo = (paginas, contexto = {}, rangoMalla = null) =
   return paginas.slice(inicioContexto, finContexto);
 };
 
-const revisarSeccionesCurriculares = ({ textoMalla = '', textoContexto = '' } = {}) => {
-  const malla = normalizarMalla(textoMalla);
-  const contexto = normalizarMalla(textoContexto);
-  const todo = `${contexto}\n${malla}`;
-  return {
-    identificacionMalla: /nivel\s+secundario/.test(malla) && /grado/.test(malla),
-    competenciasFundamentales: /competencias?\s+fundamentales?/.test(todo),
-    competenciasEspecificas: /competencias?\s+especificas?/.test(todo),
-    aportesArea: /aportes?\s+del\s+area/.test(contexto),
-    ejesTransversales: /ejes?\s+transversales?/.test(contexto),
-    indicadoresLogro: /indicadores?\s+de\s+logro/.test(malla),
-    contenidos: /\bcontenidos?\b/.test(malla),
-    conceptos: /\bconceptos?\b/.test(malla),
-    procedimientos: /\bprocedimientos?\b/.test(malla),
-    actitudesValores: /actitudes?\s+y\s+valores?/.test(malla),
-  };
-};
-
-const advertenciasRevisionCurricular = (revision = {}) => {
-  const requeridas = [
-    ['identificacionMalla', 'No se confirmó el encabezado de identificación de la malla del grado.'],
-    ['competenciasFundamentales', 'No se confirmó el encabezado de Competencias Fundamentales.'],
-    ['competenciasEspecificas', 'No se confirmó el encabezado de Competencias Específicas.'],
-    ['indicadoresLogro', 'No se confirmó el bloque de Indicadores de logro dentro de la malla.'],
-    ['contenidos', 'No se confirmó el bloque Contenidos dentro de la malla.'],
-    ['conceptos', 'No se confirmó la columna Conceptos dentro de la malla.'],
-    ['procedimientos', 'No se confirmó la columna Procedimientos dentro de la malla.'],
-    ['actitudesValores', 'No se confirmó la columna Actitudes y Valores dentro de la malla.'],
-  ];
-  return requeridas.filter(([key]) => !revision[key]).map(([, msg]) => msg);
-};
-
 /**
  * Localiza las páginas del PDF que corresponden a la asignatura seleccionada
  * y, cuando puede, el rango exacto de la malla del grado. Si no encuentra
@@ -740,171 +697,6 @@ const seleccionarPaginasRelevantes = (paginas, contexto = {}) => {
   }
   const ordenadas = [...seleccion].sort((a, b) => a - b).map(i => paginas[i]);
   return { paginas: ordenadas, cobertura: 'seccion' };
-};
-
-const detectarNivelCurricularEnTexto = (texto = '') => {
-  const t = normalizarMalla(texto);
-  if (t.includes('nivel secundario') || /\bsecundaria\b|\bsecundario\b/.test(t)) return 'Secundaria';
-  if (t.includes('nivel primario') || /\bprimaria\b|\bprimario\b/.test(t)) return 'Primaria';
-  if (t.includes('nivel inicial') || /\binicial\b/.test(t)) return 'Inicial';
-  return '';
-};
-
-const detectarCicloCurricularEnTexto = (texto = '') => {
-  const t = normalizarMalla(texto);
-  if (t.includes('primer ciclo')) return 'Primer Ciclo';
-  if (t.includes('segundo ciclo')) return 'Segundo Ciclo';
-  return '';
-};
-
-const detectarDisenoCurricularEnTexto = (texto = '') => {
-  const t = normalizarMalla(texto).slice(0, 30000);
-  if (t.includes('adecuacion curricular') || t.includes('adecuación curricular')) return 'Adecuación Curricular';
-  if (t.includes('diseno curricular') || t.includes('diseño curricular')) return 'Diseño Curricular';
-  return '';
-};
-
-const detectarAnioCurricularEnTexto = (texto = '') => {
-  const cabecera = normalizarMalla(texto).slice(0, 30000);
-  const cercaDeCurriculo = cabecera.match(/(?:adecuacion|diseno|diseño|curricular|curriculo|currículo)[\s\S]{0,80}\b(20\d{2})\b/);
-  if (cercaDeCurriculo?.[1]) return cercaDeCurriculo[1];
-  const years = [...cabecera.matchAll(/\b(20\d{2})\b/g)].map(match => match[1]);
-  return years.includes('2023') ? '2023' : (years[0] || '');
-};
-
-const confirmarAreaEnTexto = (texto = '', area = '') => {
-  const t = normalizarMalla(texto);
-  const esperado = normalizarMalla(area);
-  if (esperado && t.includes(esperado)) return area;
-  const detectada = BC_AREAS.find(item => t.includes(normalizarMalla(item)));
-  return detectada || '';
-};
-
-const confirmarAsignaturaEnTexto = (texto = '', contexto = {}) => {
-  const t = normalizarMalla(texto);
-  const terminos = terminosAsignaturaContexto(contexto);
-  if (terminos.some(term => t.includes(normalizarMalla(term)))) return contexto.subject || '';
-  const asignaturas = Object.values(BC_SUBJECTS_BY_AREA).flat();
-  const detectada = asignaturas.find(item => t.includes(normalizarMalla(item)));
-  return detectada || '';
-};
-
-const confirmarGradoEnTexto = (texto = '', grado = '') =>
-  (paginaContieneGrado(normalizarMalla(texto), grado) ? grado : '');
-
-const construirSeleccionCurricularEstricta = (contexto = {}) => ({
-  nivel: contexto.level || '',
-  ciclo: contexto.cycle || cicloDelGrado(contexto.grade),
-  grado: contexto.grade || '',
-  area: contexto.area || '',
-  asignatura: contexto.subject || '',
-  disenoCurricular: contexto.curriculumDesign || 'Adecuación Curricular',
-  anioCurriculo: contexto.curriculumYear || '2023',
-});
-
-const extraerMetadataDocumentalPdf = ({ paginas = [], textoPdf = '', contexto = {} } = {}) => {
-  const rangoExacto = localizarRangoMallaCurricular(paginas, contexto);
-  const rangoCandidato = rangoExacto || localizarRangoMallaCurricular(paginas, { ...contexto, level: '' });
-  const paginasMalla = rangoCandidato?.paginas || [];
-  const textoMalla = paginasMalla.map(pagina => `\n[Página ${pagina.n}]\n${pagina.texto}`).join('\n');
-  const textoBase = textoMalla || textoPdf;
-  return {
-    rangoExacto,
-    rangoCandidato,
-    textoMalla,
-    nivel: detectarNivelCurricularEnTexto(textoBase || textoPdf),
-    ciclo: detectarCicloCurricularEnTexto(textoBase),
-    grado: confirmarGradoEnTexto(textoBase, contexto.grade),
-    modalidad: '',
-    area: confirmarAreaEnTexto(textoBase, contexto.area),
-    asignatura: confirmarAsignaturaEnTexto(textoBase, contexto),
-    disenoCurricular: detectarDisenoCurricularEnTexto(textoPdf),
-    anioCurriculo: detectarAnioCurricularEnTexto(textoPdf),
-    paginaInicio: rangoCandidato?.inicioPagina || null,
-    paginaFin: rangoCandidato?.finPagina || null,
-  };
-};
-
-const labelsCompatibilidadCurricular = {
-  nivel: 'Nivel',
-  ciclo: 'Ciclo',
-  grado: 'Grado',
-  area: 'Área',
-  asignatura: 'Asignatura',
-  disenoCurricular: 'Diseño curricular',
-  anioCurriculo: 'Año del currículo',
-};
-
-const normalizarCampoCompatibilidad = (key, value) => {
-  if (key === 'nivel') return normalizarNivel(value);
-  if (key === 'grado') return normalizarGrado(value);
-  return normalizarTexto(value);
-};
-
-const crearErrorCompatibilidadCurricular = ({ seleccion, documento, diferencias }) => {
-  const lineasDocumento = Object.entries(labelsCompatibilidadCurricular)
-    .map(([key, label]) => `${label}: ${documento[key] || 'No confirmado'}`);
-  const lineasSeleccion = Object.entries(labelsCompatibilidadCurricular)
-    .map(([key, label]) => `${label}: ${seleccion[key] || 'No seleccionado'}`);
-  const lineasDiferencias = diferencias
-    .map(diff => `- ${diff.label}: PDF "${diff.detectado || 'No confirmado'}" / selección "${diff.esperado || 'No seleccionado'}"`);
-
-  return [
-    'Error de compatibilidad curricular.',
-    '',
-    'El documento seleccionado pertenece a:',
-    ...lineasDocumento,
-    '',
-    'Mientras que la malla seleccionada pertenece a:',
-    ...lineasSeleccion,
-    '',
-    'Diferencias detectadas:',
-    ...lineasDiferencias,
-    '',
-    'La conversión fue cancelada para evitar generar información incorrecta. Seleccione la malla curricular correspondiente al documento e intente nuevamente.',
-  ].join('\n');
-};
-
-const validarCompatibilidadCurricularPdf = ({ paginas = [], textoPdf = '', contexto = {} } = {}) => {
-  const seleccion = construirSeleccionCurricularEstricta(contexto);
-  const documento = extraerMetadataDocumentalPdf({ paginas, textoPdf, contexto });
-  const diferencias = [];
-
-  if (contexto.tipoDocumento !== 'registro_minerd' && !documento.rangoExacto) {
-    diferencias.push({
-      key: 'malla',
-      label: 'Malla exacta',
-      esperado: `${seleccion.nivel} · ${seleccion.grado} · ${seleccion.area} · ${seleccion.asignatura}`,
-      detectado: documento.rangoCandidato
-        ? `${documento.nivel || 'No confirmado'} · páginas ${documento.paginaInicio}-${documento.paginaFin}`
-        : 'No se localizó una malla compatible',
-    });
-  }
-
-  Object.keys(labelsCompatibilidadCurricular).forEach((key) => {
-    const esperado = seleccion[key];
-    const detectado = documento[key];
-    if (!esperado || !detectado || normalizarCampoCompatibilidad(key, esperado) !== normalizarCampoCompatibilidad(key, detectado)) {
-      diferencias.push({
-        key,
-        label: labelsCompatibilidadCurricular[key],
-        esperado,
-        detectado,
-      });
-    }
-  });
-
-  if (diferencias.length) {
-    return {
-      ok: false,
-      seleccion,
-      documento,
-      diferencias,
-      error: crearErrorCompatibilidadCurricular({ seleccion, documento, diferencias }),
-    };
-  }
-
-  return { ok: true, seleccion, documento };
 };
 
 const partirEnFragmentos = (texto, tamano = FRAGMENTO_CHARS, solape = FRAGMENTO_SOLAPE) => {
@@ -1035,8 +827,7 @@ Estructura requerida:
   "contenidosGenerales": {
     "conceptuales": [],
     "procedimentales": [],
-    "actitudinales": [],
-    "actitudesValores": []
+    "actitudinales": []
   },
   "contenidos": {
     "conceptos": {
@@ -1050,8 +841,7 @@ Estructura requerida:
       "funcionales": [],
       "items": []
     },
-    "actitudinales": [],
-    "actitudesValores": []
+    "actitudinales": []
   },
   "estrategiasSugeridas": [],
   "evidenciasEsperadas": [],
@@ -1077,7 +867,7 @@ Reglas:
 - Si aparecen frases bajo títulos "Indicadores", "Indicadores de logro" o similares, deben ir en indicadoresLogro.
 - En contenidos conceptuales usa SOLO la sección "Conceptos" del diseño; dentro separa temas, frases, vocabulario y gramatica cuando el texto lo permita.
 - En contenidos procedimentales usa SOLO la sección "Procedimientos".
-- En contenidos actitudinales usa SOLO la sección "Actitudes y valores" y copia esa misma columna en actitudesValores.
+- En contenidos actitudinales usa SOLO la sección "Actitudes y valores".
 - Si el documento seleccionado es Registro MINERD, usa contentType "registro_minerd" y llena registroMINERD con los datos reales encontrados.
 - Si el documento seleccionado es Diseño curricular, usa contentType "malla_curricular", NO llenes registroMINERD y busca indicadores/temas solo en secciones curriculares.
 - No agregues nivel MCERL si el currículo no lo trae.
@@ -1227,7 +1017,6 @@ Devuelve exactamente este JSON (agrega elementos solo si aparecen textualmente e
   "conceptuales": [],
   "procedimentales": [],
   "actitudinales": [],
-  "actitudesValores": [],
   "estrategias": [],
   "evidencias": [],
   "instrumentos": []
@@ -1241,7 +1030,6 @@ Reglas:
 - Si la tabla de ejes trae columnas Primero/Segundo/Tercero o Cuarto/Quinto/Sexto, devuelve solo la descripción de la columna del grado seleccionado.
 - Indicadores: solo frases bajo "Indicadores de logro" o equivalentes; vincula competenciaId solo si es evidente.
 - Contenidos: separa conceptos (temas/vocabulario/gramática/frases) de procedimientos y de actitudes y valores.
-- La columna "Actitudes y Valores" es obligatoria si aparece: cópiala en actitudesValores y también en actitudinales.
 - Los IDs oficiales se copian si existen; si no existen, déjalos vacíos (no los inventes).
 
 TEXTO DEL FRAGMENTO:
@@ -1325,7 +1113,7 @@ const fusionarExtraccionesCurriculares = (parciales = [], contexto = {}) => {
   const indicadoresSueltos = [];
   const listas = {
     temas: [], vocabulario: [], gramatica: [], frases: [], funcionesComunicativas: [],
-    conceptuales: [], procedimentales: [], actitudinales: [], actitudesValores: [],
+    conceptuales: [], procedimentales: [], actitudinales: [],
     estrategias: [], evidencias: [], instrumentos: [],
   };
 
@@ -1428,9 +1216,6 @@ const fusionarExtraccionesCurriculares = (parciales = [], contexto = {}) => {
     [...indicadoresDeCompetencias, ...indicadoresSueltos],
     (i) => i.descripcion
   );
-  const actitudesValores = listaLimpia([...listas.actitudinales, ...listas.actitudesValores]);
-  listas.actitudinales = actitudesValores;
-  listas.actitudesValores = actitudesValores;
 
   return {
     competencias,
@@ -1479,7 +1264,6 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
       conceptuales,
       procedimentales,
       actitudinales: merged.actitudinales,
-      actitudesValores: merged.actitudesValores || merged.actitudinales,
     },
     contenidos: {
       conceptos: {
@@ -1494,7 +1278,6 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
         items: procedimentales,
       },
       actitudinales: merged.actitudinales,
-      actitudesValores: merged.actitudesValores || merged.actitudinales,
     },
     estrategiasSugeridas: merged.estrategias,
     evidenciasEsperadas: merged.evidencias,
@@ -1521,27 +1304,11 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
 const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgress }) => {
   const procesar = async (paginasAUsar, cobertura, opciones = {}) => {
     const paginasMalla = opciones.paginasMalla?.length ? opciones.paginasMalla : paginasAUsar;
-    const paginasContexto = opciones.paginasContextoAreaCiclo || [];
-    if (onProgress) onProgress('Paso 1/4: identificando rango exacto de malla y contexto curricular...');
     const textoLiteralMalla = paginasAUsar
       .filter(pagina => paginasMalla.some(p => p.n === pagina.n))
       .map(p => `[Página ${p.n}]\n${p.texto}`)
       .join('\n\n')
       .trim();
-    const textoContextoAreaCiclo = paginasContexto
-      .map(p => `[Página ${p.n}]\n${p.texto}`)
-      .join('\n\n')
-      .trim();
-    if (onProgress) onProgress(`Paso 2/4: leyendo texto literal de la malla (${paginasMalla[0]?.n || '?'}-${paginasMalla[paginasMalla.length - 1]?.n || '?'}) sin resumir...`);
-    const revisionSecciones = revisarSeccionesCurriculares({
-      textoMalla: textoLiteralMalla,
-      textoContexto: textoContextoAreaCiclo,
-    });
-    const advertenciasRevision = advertenciasRevisionCurricular(revisionSecciones);
-    if (onProgress) {
-      const faltas = advertenciasRevision.length ? ` Faltan por confirmar: ${advertenciasRevision.length}.` : ' Secciones clave confirmadas.';
-      onProgress(`Paso 3/4: revisando encabezados oficiales antes de extraer.${faltas}`);
-    }
     const texto = paginasAUsar
       .map(p => `[Página ${p.n}]\n${p.texto}`)
       .join('\n\n')
@@ -1556,14 +1323,11 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
     const parciales = [];
     const fallidos = [];
     for (let i = 0; i < fragmentos.length; i += 1) {
-      if (onProgress) onProgress(`Paso 4/4: extrayendo literal con IA, fragmento ${i + 1} de ${fragmentos.length} (${cobertura === 'rango_malla' ? 'contexto + malla exacta' : cobertura === 'seccion' ? 'sección de la asignatura' : 'documento completo'})...`);
+      if (onProgress) onProgress(`Extrayendo con IA: fragmento ${i + 1} de ${fragmentos.length} (${cobertura === 'seccion' ? 'sección de la asignatura' : 'documento completo'})...`);
       try {
         parciales.push(await extraerFragmentoCurricular({
           fragmento: fragmentos[i], contexto, indice: i + 1, total: fragmentos.length,
         }));
-        if (i < fragmentos.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
       } catch (err) {
         fallidos.push(`Fragmento ${i + 1}/${fragmentos.length}: ${err.message}`);
       }
@@ -1583,11 +1347,9 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
       paginaInicio: paginasMalla[0]?.n || null,
       paginaFin: paginasMalla[paginasMalla.length - 1]?.n || null,
       textoLiteralMalla: textoLiteralMalla.length <= 140000 ? textoLiteralMalla : '',
-      revisionSecciones,
       fragmentos: fragmentos.length,
       fragmentosFallidos: fallidos.length,
       errores: [
-        ...advertenciasRevision,
         ...(!textoLiteralMalla || textoLiteralMalla.length > 140000 ? ['El texto literal de la malla no se guardó completo porque excede el límite seguro del payload.'] : []),
         ...(advertenciaTope ? [advertenciaTope] : []),
         ...fallidos,
@@ -1713,7 +1475,6 @@ function JsonPreviewBox({ result }) {
     ['Marco pedagógico', analysis?.conteos?.marcoPedagogico ?? (parsed.marcoPedagogico ? 1 : 0)],
     ['Conceptuales', analysis?.conteos?.conceptuales ?? parsed.contenidosGenerales?.conceptuales?.length ?? parsed.contenidos?.conceptos?.items?.length ?? 0],
     ['Procedimentales', analysis?.conteos?.procedimentales ?? parsed.contenidosGenerales?.procedimentales?.length ?? parsed.contenidos?.procedimientos?.items?.length ?? 0],
-    ['Actitudes y valores', analysis?.conteos?.actitudinales ?? parsed.contenidosGenerales?.actitudesValores?.length ?? parsed.contenidos?.actitudesValores?.length ?? 0],
     ['Registro MINERD', analysis?.conteos?.registroMINERD ?? 0],
   ].filter(([, value]) => value > 0);
   const ok = result.ok;
@@ -1902,8 +1663,6 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
     grade: '',
     area: '',
     subject: '',
-    curriculumDesign: 'Adecuación Curricular',
-    curriculumYear: '2023',
   });
   const jsonTextRef                   = useRef(null);
 
@@ -2022,14 +1781,22 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
       if (!textoPdf || textoPdf.length < 200) {
         throw new Error('No se pudo extraer texto suficiente. Si el PDF es una imagen escaneada, hará falta OCR.');
       }
-      setProgresoPdf('Validando compatibilidad curricular antes de extraer...');
-      const compatibilidad = validarCompatibilidadCurricularPdf({
-        paginas,
-        textoPdf,
-        contexto: pdfContexto,
-      });
-      if (!compatibilidad.ok) {
-        throw new Error(compatibilidad.error);
+      // Fix auditoría 2026-07-04: bloquear SOLO si el nivel seleccionado no
+      // aparece en el PDF y otro nivel sí. Los diseños del MINERD mencionan
+      // otros niveles con frecuencia (articulación), y el conteo dominante
+      // producía falsos bloqueos.
+      const mencionesNivel = contarMencionesNivel(textoPdf);
+      const nivelSeleccionado = normalizarNivel(pdfContexto.level);
+      const nivelProbable = detectarNivelProbablePdf(textoPdf);
+      if (
+        nivelProbable
+        && (mencionesNivel[nivelSeleccionado] || 0) === 0
+        && normalizarNivel(nivelProbable) !== nivelSeleccionado
+      ) {
+        throw new Error(`Seleccionaste ${pdfContexto.level}, pero ese nivel no aparece en el PDF (parece corresponder a ${nivelProbable}). Cambia la selección o usa el PDF correcto.`);
+      }
+      if (nivelProbable && normalizarNivel(nivelProbable) !== nivelSeleccionado) {
+        setProgresoPdf(`Aviso: el PDF menciona más veces "${nivelProbable}" que "${pdfContexto.level}". Verifica la selección en el diagnóstico.`);
       }
       setProgresoPdf('Buscando competencias, indicadores y contenidos en el PDF...');
       // Malla curricular: lectura COMPLETA por fragmentos con fusión (la IA ve

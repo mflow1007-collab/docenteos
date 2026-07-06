@@ -281,8 +281,6 @@ const normalizeContenidoModulo = (contenidos = {}) => {
   const actitudinales = firstArray(
     contenidos.actitudinales,
     contenidos.actitudes,
-    contenidos.actitudesValores,
-    contenidos?.contenidos?.actitudesValores,
     contenidos?.contenidos?.actitudinales,
   ).map(cleanText).filter(Boolean);
 
@@ -383,7 +381,6 @@ const normalizeContentLists = (contenidos = {}) => ({
   conceptuales: asArray(contenidos.conceptuales).map(cleanText).filter(Boolean),
   procedimentales: asArray(contenidos.procedimentales).map(cleanText).filter(Boolean),
   actitudinales: asArray(contenidos.actitudinales).map(cleanText).filter(Boolean),
-  actitudesValores: asArray(contenidos.actitudesValores || contenidos.actitudinales).map(cleanText).filter(Boolean),
 });
 
 const normalizeIndicator = (indicator, comp = {}, index = 0) => {
@@ -421,52 +418,6 @@ const normalizeCompetencia = (comp = {}) => {
       .map((ind, index) => normalizeIndicator(ind, comp, index))
       .filter(ind => ind.descripcion || ind.texto),
     contenidos: normalizeContentLists(comp.contenidos),
-  };
-};
-
-const normalizeAporteCompetencia = (aporte = {}) => {
-  const porGrado = aporte.competenciasEspecificasPorGrado || aporte.competenciasPorGrado || {};
-  const buscarGrado = (grado) => {
-    const objetivo = cleanText(grado).toLowerCase();
-    const aliases = {
-      '1ro': ['1ro', 'primero', 'primer'],
-      '2do': ['2do', 'segundo'],
-      '3ro': ['3ro', 'tercero', 'tercer'],
-      '4to': ['4to', 'cuarto'],
-      '5to': ['5to', 'quinto'],
-      '6to': ['6to', 'sexto'],
-    }[objetivo] || [objetivo];
-    const match = Object.entries(porGrado).find(([key]) => {
-      const k = cleanText(key).toLowerCase();
-      return aliases.some(alias => k.includes(alias));
-    });
-    return cleanText(match?.[1]);
-  };
-  return {
-    competenciaFundamental: cleanText(aporte.competenciaFundamental || aporte.fundamental),
-    competenciaEspecificaCiclo: cleanText(aporte.competenciaEspecificaCiclo || aporte.especificaCiclo),
-    competenciasEspecificasPorGrado: {
-      '1ro': buscarGrado('1ro'),
-      '2do': buscarGrado('2do'),
-      '3ro': buscarGrado('3ro'),
-      '4to': buscarGrado('4to'),
-      '5to': buscarGrado('5to'),
-      '6to': buscarGrado('6to'),
-    },
-    criteriosEvaluacion: uniqueCleanTexts(flattenStringItems(aporte.criteriosEvaluacion || aporte.criterios || [])),
-  };
-};
-
-const normalizeEjeTransversal = (eje = {}) => {
-  if (typeof eje === 'string') {
-    return { eje: '', descripcion: cleanText(eje), grado: '', origen: 'conexion_ejes_transversales' };
-  }
-  return {
-    ...eje,
-    eje: cleanText(eje.eje || eje.nombre || eje.titulo),
-    descripcion: cleanText(eje.descripcion || eje.texto || eje.contenido),
-    grado: cleanText(eje.grado),
-    origen: cleanText(eje.origen || 'conexion_ejes_transversales'),
   };
 };
 
@@ -526,24 +477,9 @@ export const normalizeCurricularJson = (raw) => {
     procedimentales: contenidosBase.procedimentales.length
       ? contenidosBase.procedimentales
       : funcionesFuente,
-    actitudinales: uniqueCleanTexts([
-      ...contenidosBase.actitudinales,
-      ...contenidosBase.actitudesValores,
-    ]),
-    actitudesValores: uniqueCleanTexts([
-      ...contenidosBase.actitudinales,
-      ...contenidosBase.actitudesValores,
-    ]),
+    actitudinales: contenidosBase.actitudinales,
   };
   const competencias = asArray(source.competencias || raw.competencias).map(normalizeCompetencia);
-  const aportesCompetenciasFundamentales = asArray(
-    source.aportesCompetenciasFundamentales || raw.aportesCompetenciasFundamentales
-  ).map(normalizeAporteCompetencia)
-    .filter(aporte => aporte.competenciaFundamental || aporte.competenciaEspecificaCiclo);
-  const ejesTransversales = asArray(
-    source.ejesTransversales || raw.ejesTransversales
-  ).map(normalizeEjeTransversal)
-    .filter(eje => eje.eje || eje.descripcion);
   const indicadoresDesdeCompetencias = competencias.flatMap(comp =>
     asArray(comp.indicadoresLogro).map(ind => ({
       ...ind,
@@ -604,12 +540,9 @@ export const normalizeCurricularJson = (raw) => {
         ? procedimientosFuente.items
         : contenidosGenerales.procedimentales,
     },
-    actitudinales: firstArray(contenidosFuente.actitudinales, contenidosFuente.actitudesValores).length
-      ? firstArray(contenidosFuente.actitudinales, contenidosFuente.actitudesValores)
+    actitudinales: asArray(contenidosFuente.actitudinales).length
+      ? contenidosFuente.actitudinales
       : contenidosGenerales.actitudinales,
-    actitudesValores: firstArray(contenidosFuente.actitudesValores, contenidosFuente.actitudinales).length
-      ? firstArray(contenidosFuente.actitudesValores, contenidosFuente.actitudinales)
-      : contenidosGenerales.actitudesValores,
   };
 
   return {
@@ -625,20 +558,13 @@ export const normalizeCurricularJson = (raw) => {
     title: cleanText(raw.title || raw.titulo || source.title || source.titulo),
     description: cleanText(raw.description || raw.descripcion || source.description || source.descripcion),
     nivelMCERL: cleanText(raw.nivelMCERL || raw.nivelDominio || source.nivelMCERL || source.nivelDominio || sourceMetadata.mcerl || sourceMetadata.nivelMCERL),
-    competenciasFundamentales: uniqueCleanTexts([
-      ...asArray(source.competenciasFundamentales),
-      ...asArray(raw.competenciasFundamentales),
-      ...aportesCompetenciasFundamentales.map(aporte => aporte.competenciaFundamental).filter(Boolean),
-    ]),
-    marcoPedagogico: source.marcoPedagogico || raw.marcoPedagogico || null,
-    aportesCompetenciasFundamentales,
-    ejesTransversales,
     ejeTematicoTransversal: firstArray(
       source.ejeTematicoTransversal,
       source.ejeTemáticoTransversal,
       raw.ejeTematicoTransversal,
       raw.ejeTemáticoTransversal,
-      ejesTransversales.map(eje => [eje.eje, eje.descripcion].filter(Boolean).join(': ')),
+      source.ejesTransversales,
+      raw.ejesTransversales,
     ),
     competencias,
     indicadoresLogro,
@@ -673,9 +599,7 @@ export const analizarJsonCurricular = (parsed) => {
   ];
   const actitudinales = [
     ...asArray(parsed?.contenidosGenerales?.actitudinales),
-    ...asArray(parsed?.contenidosGenerales?.actitudesValores),
     ...asArray(parsed?.contenidos?.actitudinales),
-    ...asArray(parsed?.contenidos?.actitudesValores),
     ...asArray(parsed?.contenidos?.actitudes),
   ];
   const indicadores = asArray(parsed?.indicadoresLogro).length
@@ -683,12 +607,6 @@ export const analizarJsonCurricular = (parsed) => {
     : asArray(parsed?.indicadores);
   const temas = asArray(parsed?.temas).length ? asArray(parsed.temas) : asArray(parsed?.temasCurriculares);
   const ejeTematicoTransversal = asArray(parsed?.ejeTematicoTransversal || parsed?.ejeTemáticoTransversal);
-  const aportesCompetenciasFundamentales = asArray(parsed?.aportesCompetenciasFundamentales);
-  const ejesTransversales = asArray(parsed?.ejesTransversales);
-  const criteriosEvaluacion = [
-    ...aportesCompetenciasFundamentales.flatMap(aporte => asArray(aporte?.criteriosEvaluacion)),
-    ...asArray(parsed?.criteriosEvaluacion),
-  ];
   const tieneRaw = Boolean(cleanText(parsed?.contenidosRaw));
   const registroMINERD = parsed?.registroMINERD || parsed?.registro || {};
   const conteoRegistro = esRegistro ? contarRegistroMinerd(registroMINERD) : 0;
@@ -731,10 +649,6 @@ export const analizarJsonCurricular = (parsed) => {
       actitudinales: actitudinales.length,
       modulos: asArray(parsed?.paquete?.modulos).length,
       ejeTematicoTransversal: ejeTematicoTransversal.length,
-      ejesTransversales: ejesTransversales.length,
-      aportesCompetenciasFundamentales: aportesCompetenciasFundamentales.length,
-      criteriosEvaluacion: criteriosEvaluacion.length,
-      marcoPedagogico: parsed?.marcoPedagogico ? 1 : 0,
       registroMINERD: conteoRegistro,
     },
   };

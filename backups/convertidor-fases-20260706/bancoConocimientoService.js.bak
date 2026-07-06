@@ -281,8 +281,6 @@ const normalizeContenidoModulo = (contenidos = {}) => {
   const actitudinales = firstArray(
     contenidos.actitudinales,
     contenidos.actitudes,
-    contenidos.actitudesValores,
-    contenidos?.contenidos?.actitudesValores,
     contenidos?.contenidos?.actitudinales,
   ).map(cleanText).filter(Boolean);
 
@@ -383,7 +381,6 @@ const normalizeContentLists = (contenidos = {}) => ({
   conceptuales: asArray(contenidos.conceptuales).map(cleanText).filter(Boolean),
   procedimentales: asArray(contenidos.procedimentales).map(cleanText).filter(Boolean),
   actitudinales: asArray(contenidos.actitudinales).map(cleanText).filter(Boolean),
-  actitudesValores: asArray(contenidos.actitudesValores || contenidos.actitudinales).map(cleanText).filter(Boolean),
 });
 
 const normalizeIndicator = (indicator, comp = {}, index = 0) => {
@@ -526,14 +523,7 @@ export const normalizeCurricularJson = (raw) => {
     procedimentales: contenidosBase.procedimentales.length
       ? contenidosBase.procedimentales
       : funcionesFuente,
-    actitudinales: uniqueCleanTexts([
-      ...contenidosBase.actitudinales,
-      ...contenidosBase.actitudesValores,
-    ]),
-    actitudesValores: uniqueCleanTexts([
-      ...contenidosBase.actitudinales,
-      ...contenidosBase.actitudesValores,
-    ]),
+    actitudinales: contenidosBase.actitudinales,
   };
   const competencias = asArray(source.competencias || raw.competencias).map(normalizeCompetencia);
   const aportesCompetenciasFundamentales = asArray(
@@ -604,12 +594,9 @@ export const normalizeCurricularJson = (raw) => {
         ? procedimientosFuente.items
         : contenidosGenerales.procedimentales,
     },
-    actitudinales: firstArray(contenidosFuente.actitudinales, contenidosFuente.actitudesValores).length
-      ? firstArray(contenidosFuente.actitudinales, contenidosFuente.actitudesValores)
+    actitudinales: asArray(contenidosFuente.actitudinales).length
+      ? contenidosFuente.actitudinales
       : contenidosGenerales.actitudinales,
-    actitudesValores: firstArray(contenidosFuente.actitudesValores, contenidosFuente.actitudinales).length
-      ? firstArray(contenidosFuente.actitudesValores, contenidosFuente.actitudinales)
-      : contenidosGenerales.actitudesValores,
   };
 
   return {
@@ -673,9 +660,7 @@ export const analizarJsonCurricular = (parsed) => {
   ];
   const actitudinales = [
     ...asArray(parsed?.contenidosGenerales?.actitudinales),
-    ...asArray(parsed?.contenidosGenerales?.actitudesValores),
     ...asArray(parsed?.contenidos?.actitudinales),
-    ...asArray(parsed?.contenidos?.actitudesValores),
     ...asArray(parsed?.contenidos?.actitudes),
   ];
   const indicadores = asArray(parsed?.indicadoresLogro).length

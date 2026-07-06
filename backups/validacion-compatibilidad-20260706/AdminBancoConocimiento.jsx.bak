@@ -573,23 +573,12 @@ const paginaContieneGrado = (textoNormalizado, grado = '') => {
   return aliases.some(alias => textoNormalizado.includes(normalizarMalla(alias)));
 };
 
-const paginaContieneNivelCurricular = (textoNormalizado, nivel = '') => {
-  const esperado = normalizarNivel(nivel);
-  const checks = {
-    secundaria: ['nivel secundario', 'secundaria', 'secundario'],
-    primaria: ['nivel primario', 'primaria', 'primario'],
-    inicial: ['nivel inicial', 'inicial'],
-  };
-  const terms = checks[esperado] || Object.values(checks).flat();
-  return terms.some(term => textoNormalizado.includes(term));
-};
-
 const esInicioMallaCurricular = (pagina, contexto = {}, gradoEspecifico = contexto.grade) => {
   const texto = normalizarMalla(pagina?.texto || '');
   const terminos = terminosAsignaturaContexto(contexto);
   if (!terminos.length || !paginaContieneAsignatura(texto, terminos)) return false;
   if (!paginaContieneGrado(texto, gradoEspecifico)) return false;
-  return paginaContieneNivelCurricular(texto, contexto.level)
+  return texto.includes('nivel secundario')
     && texto.includes('competencias fundamentales')
     && (texto.includes('competencias especificas') || texto.includes('competencias específicas'))
     && texto.includes('grado');
@@ -740,171 +729,6 @@ const seleccionarPaginasRelevantes = (paginas, contexto = {}) => {
   }
   const ordenadas = [...seleccion].sort((a, b) => a - b).map(i => paginas[i]);
   return { paginas: ordenadas, cobertura: 'seccion' };
-};
-
-const detectarNivelCurricularEnTexto = (texto = '') => {
-  const t = normalizarMalla(texto);
-  if (t.includes('nivel secundario') || /\bsecundaria\b|\bsecundario\b/.test(t)) return 'Secundaria';
-  if (t.includes('nivel primario') || /\bprimaria\b|\bprimario\b/.test(t)) return 'Primaria';
-  if (t.includes('nivel inicial') || /\binicial\b/.test(t)) return 'Inicial';
-  return '';
-};
-
-const detectarCicloCurricularEnTexto = (texto = '') => {
-  const t = normalizarMalla(texto);
-  if (t.includes('primer ciclo')) return 'Primer Ciclo';
-  if (t.includes('segundo ciclo')) return 'Segundo Ciclo';
-  return '';
-};
-
-const detectarDisenoCurricularEnTexto = (texto = '') => {
-  const t = normalizarMalla(texto).slice(0, 30000);
-  if (t.includes('adecuacion curricular') || t.includes('adecuación curricular')) return 'Adecuación Curricular';
-  if (t.includes('diseno curricular') || t.includes('diseño curricular')) return 'Diseño Curricular';
-  return '';
-};
-
-const detectarAnioCurricularEnTexto = (texto = '') => {
-  const cabecera = normalizarMalla(texto).slice(0, 30000);
-  const cercaDeCurriculo = cabecera.match(/(?:adecuacion|diseno|diseño|curricular|curriculo|currículo)[\s\S]{0,80}\b(20\d{2})\b/);
-  if (cercaDeCurriculo?.[1]) return cercaDeCurriculo[1];
-  const years = [...cabecera.matchAll(/\b(20\d{2})\b/g)].map(match => match[1]);
-  return years.includes('2023') ? '2023' : (years[0] || '');
-};
-
-const confirmarAreaEnTexto = (texto = '', area = '') => {
-  const t = normalizarMalla(texto);
-  const esperado = normalizarMalla(area);
-  if (esperado && t.includes(esperado)) return area;
-  const detectada = BC_AREAS.find(item => t.includes(normalizarMalla(item)));
-  return detectada || '';
-};
-
-const confirmarAsignaturaEnTexto = (texto = '', contexto = {}) => {
-  const t = normalizarMalla(texto);
-  const terminos = terminosAsignaturaContexto(contexto);
-  if (terminos.some(term => t.includes(normalizarMalla(term)))) return contexto.subject || '';
-  const asignaturas = Object.values(BC_SUBJECTS_BY_AREA).flat();
-  const detectada = asignaturas.find(item => t.includes(normalizarMalla(item)));
-  return detectada || '';
-};
-
-const confirmarGradoEnTexto = (texto = '', grado = '') =>
-  (paginaContieneGrado(normalizarMalla(texto), grado) ? grado : '');
-
-const construirSeleccionCurricularEstricta = (contexto = {}) => ({
-  nivel: contexto.level || '',
-  ciclo: contexto.cycle || cicloDelGrado(contexto.grade),
-  grado: contexto.grade || '',
-  area: contexto.area || '',
-  asignatura: contexto.subject || '',
-  disenoCurricular: contexto.curriculumDesign || 'Adecuación Curricular',
-  anioCurriculo: contexto.curriculumYear || '2023',
-});
-
-const extraerMetadataDocumentalPdf = ({ paginas = [], textoPdf = '', contexto = {} } = {}) => {
-  const rangoExacto = localizarRangoMallaCurricular(paginas, contexto);
-  const rangoCandidato = rangoExacto || localizarRangoMallaCurricular(paginas, { ...contexto, level: '' });
-  const paginasMalla = rangoCandidato?.paginas || [];
-  const textoMalla = paginasMalla.map(pagina => `\n[Página ${pagina.n}]\n${pagina.texto}`).join('\n');
-  const textoBase = textoMalla || textoPdf;
-  return {
-    rangoExacto,
-    rangoCandidato,
-    textoMalla,
-    nivel: detectarNivelCurricularEnTexto(textoBase || textoPdf),
-    ciclo: detectarCicloCurricularEnTexto(textoBase),
-    grado: confirmarGradoEnTexto(textoBase, contexto.grade),
-    modalidad: '',
-    area: confirmarAreaEnTexto(textoBase, contexto.area),
-    asignatura: confirmarAsignaturaEnTexto(textoBase, contexto),
-    disenoCurricular: detectarDisenoCurricularEnTexto(textoPdf),
-    anioCurriculo: detectarAnioCurricularEnTexto(textoPdf),
-    paginaInicio: rangoCandidato?.inicioPagina || null,
-    paginaFin: rangoCandidato?.finPagina || null,
-  };
-};
-
-const labelsCompatibilidadCurricular = {
-  nivel: 'Nivel',
-  ciclo: 'Ciclo',
-  grado: 'Grado',
-  area: 'Área',
-  asignatura: 'Asignatura',
-  disenoCurricular: 'Diseño curricular',
-  anioCurriculo: 'Año del currículo',
-};
-
-const normalizarCampoCompatibilidad = (key, value) => {
-  if (key === 'nivel') return normalizarNivel(value);
-  if (key === 'grado') return normalizarGrado(value);
-  return normalizarTexto(value);
-};
-
-const crearErrorCompatibilidadCurricular = ({ seleccion, documento, diferencias }) => {
-  const lineasDocumento = Object.entries(labelsCompatibilidadCurricular)
-    .map(([key, label]) => `${label}: ${documento[key] || 'No confirmado'}`);
-  const lineasSeleccion = Object.entries(labelsCompatibilidadCurricular)
-    .map(([key, label]) => `${label}: ${seleccion[key] || 'No seleccionado'}`);
-  const lineasDiferencias = diferencias
-    .map(diff => `- ${diff.label}: PDF "${diff.detectado || 'No confirmado'}" / selección "${diff.esperado || 'No seleccionado'}"`);
-
-  return [
-    'Error de compatibilidad curricular.',
-    '',
-    'El documento seleccionado pertenece a:',
-    ...lineasDocumento,
-    '',
-    'Mientras que la malla seleccionada pertenece a:',
-    ...lineasSeleccion,
-    '',
-    'Diferencias detectadas:',
-    ...lineasDiferencias,
-    '',
-    'La conversión fue cancelada para evitar generar información incorrecta. Seleccione la malla curricular correspondiente al documento e intente nuevamente.',
-  ].join('\n');
-};
-
-const validarCompatibilidadCurricularPdf = ({ paginas = [], textoPdf = '', contexto = {} } = {}) => {
-  const seleccion = construirSeleccionCurricularEstricta(contexto);
-  const documento = extraerMetadataDocumentalPdf({ paginas, textoPdf, contexto });
-  const diferencias = [];
-
-  if (contexto.tipoDocumento !== 'registro_minerd' && !documento.rangoExacto) {
-    diferencias.push({
-      key: 'malla',
-      label: 'Malla exacta',
-      esperado: `${seleccion.nivel} · ${seleccion.grado} · ${seleccion.area} · ${seleccion.asignatura}`,
-      detectado: documento.rangoCandidato
-        ? `${documento.nivel || 'No confirmado'} · páginas ${documento.paginaInicio}-${documento.paginaFin}`
-        : 'No se localizó una malla compatible',
-    });
-  }
-
-  Object.keys(labelsCompatibilidadCurricular).forEach((key) => {
-    const esperado = seleccion[key];
-    const detectado = documento[key];
-    if (!esperado || !detectado || normalizarCampoCompatibilidad(key, esperado) !== normalizarCampoCompatibilidad(key, detectado)) {
-      diferencias.push({
-        key,
-        label: labelsCompatibilidadCurricular[key],
-        esperado,
-        detectado,
-      });
-    }
-  });
-
-  if (diferencias.length) {
-    return {
-      ok: false,
-      seleccion,
-      documento,
-      diferencias,
-      error: crearErrorCompatibilidadCurricular({ seleccion, documento, diferencias }),
-    };
-  }
-
-  return { ok: true, seleccion, documento };
 };
 
 const partirEnFragmentos = (texto, tamano = FRAGMENTO_CHARS, solape = FRAGMENTO_SOLAPE) => {
@@ -1902,8 +1726,6 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
     grade: '',
     area: '',
     subject: '',
-    curriculumDesign: 'Adecuación Curricular',
-    curriculumYear: '2023',
   });
   const jsonTextRef                   = useRef(null);
 
@@ -2022,14 +1844,22 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
       if (!textoPdf || textoPdf.length < 200) {
         throw new Error('No se pudo extraer texto suficiente. Si el PDF es una imagen escaneada, hará falta OCR.');
       }
-      setProgresoPdf('Validando compatibilidad curricular antes de extraer...');
-      const compatibilidad = validarCompatibilidadCurricularPdf({
-        paginas,
-        textoPdf,
-        contexto: pdfContexto,
-      });
-      if (!compatibilidad.ok) {
-        throw new Error(compatibilidad.error);
+      // Fix auditoría 2026-07-04: bloquear SOLO si el nivel seleccionado no
+      // aparece en el PDF y otro nivel sí. Los diseños del MINERD mencionan
+      // otros niveles con frecuencia (articulación), y el conteo dominante
+      // producía falsos bloqueos.
+      const mencionesNivel = contarMencionesNivel(textoPdf);
+      const nivelSeleccionado = normalizarNivel(pdfContexto.level);
+      const nivelProbable = detectarNivelProbablePdf(textoPdf);
+      if (
+        nivelProbable
+        && (mencionesNivel[nivelSeleccionado] || 0) === 0
+        && normalizarNivel(nivelProbable) !== nivelSeleccionado
+      ) {
+        throw new Error(`Seleccionaste ${pdfContexto.level}, pero ese nivel no aparece en el PDF (parece corresponder a ${nivelProbable}). Cambia la selección o usa el PDF correcto.`);
+      }
+      if (nivelProbable && normalizarNivel(nivelProbable) !== nivelSeleccionado) {
+        setProgresoPdf(`Aviso: el PDF menciona más veces "${nivelProbable}" que "${pdfContexto.level}". Verifica la selección en el diagnóstico.`);
       }
       setProgresoPdf('Buscando competencias, indicadores y contenidos en el PDF...');
       // Malla curricular: lectura COMPLETA por fragmentos con fusión (la IA ve
