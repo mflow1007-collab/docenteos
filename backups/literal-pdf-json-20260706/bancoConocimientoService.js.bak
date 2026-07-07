@@ -652,12 +652,7 @@ export const normalizeCurricularJson = (raw) => {
     gramatica: gramaticaFuente,
     funcionesComunicativas: funcionesFuente,
     registroMINERD: contentType === 'registro_minerd' ? registroMINERD : null,
-    auditoriaLiteralPdf: source.auditoriaLiteralPdf || raw.auditoriaLiteralPdf || null,
-    textoLiteralMalla: source.textoLiteralMalla || raw.textoLiteralMalla || '',
-    textoLiteralContextoAreaCiclo: source.textoLiteralContextoAreaCiclo || raw.textoLiteralContextoAreaCiclo || '',
-    textoLiteralSeleccionado: source.textoLiteralSeleccionado || raw.textoLiteralSeleccionado || '',
-    paginasLiterales: asArray(source.paginasLiterales || raw.paginasLiterales),
-    contenidosRaw: source.contenidosRaw || raw.contenidosRaw || source.textoLiteralMalla || raw.textoLiteralMalla || '',
+    contenidosRaw: source.contenidosRaw || raw.contenidosRaw || '',
   };
 };
 
@@ -926,9 +921,7 @@ export const getCurricularContentForUnit = async (subject, grade) => {
     });
     if (!candidates.length) return null;
 
-    // Regla estricta DocenteOS: la planificación solo puede usar la malla del
-    // grado seleccionado. No se permite caer a otro grado de la misma área.
-    return candidates.find(d => normGrade(d.grade) === ng) || null;
+    return candidates.find(d => normGrade(d.grade) === ng) || candidates[0];
   } catch (err) {
     if (err?.code === 'permission-denied') {
       // Re-throw: el caller debe mostrar este mensaje exacto, no degradar a "malla vacía"

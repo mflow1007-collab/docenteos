@@ -75,42 +75,6 @@ const textoItem = (item) => {
   return item.descripcion || item.texto || item.nombre || item.especificaGrado || item.especifica || "";
 };
 
-const normPlan = (value) => String(value || "").toLowerCase().trim()
-  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  .replace(/\s+/g, " ");
-
-const normGradePlan = (value) => normPlan(value)
-  .replace(/\s+(primaria|secundaria|inicial|bachillerato)\b.*$/g, "")
-  .replace(/\b1er\b|\bprimer\b|\bprimero\b/g, "1ro")
-  .replace(/\b2do\b|\bsegundo\b/g, "2do")
-  .replace(/\b3er\b|\btercer\b|\btercero\b/g, "3ro")
-  .replace(/\b4to\b|\bcuarto\b/g, "4to")
-  .replace(/\b5to\b|\bquinto\b/g, "5to")
-  .replace(/\b6to\b|\bsexto\b/g, "6to")
-  .trim();
-
-const validarCurriculoOficialExacto = ({ curriculoOficial, area, asignatura, grado }) => {
-  const payload = curriculoOficial?.payload || curriculoOficial || null;
-  const subject = payload?.subject || payload?.asignatura || curriculoOficial?.subject || curriculoOficial?.asignatura || "";
-  const areaPayload = payload?.area || curriculoOficial?.area || "";
-  const gradePayload = payload?.grade || payload?.grado || curriculoOficial?.grade || curriculoOficial?.grado || "";
-  const competencias = asArray(payload?.competencias || curriculoOficial?.competencias);
-  const indicadores = asArray(payload?.indicadoresLogro || payload?.indicadores || curriculoOficial?.indicadoresLogro || curriculoOficial?.indicadores);
-  const expectedSubject = asignatura || area;
-  const expectedArea = area || asignatura;
-  const sameSubjectOrArea = [subject, areaPayload].some(value => {
-    const normalized = normPlan(value);
-    return normalized && [expectedSubject, expectedArea].some(expected => normPlan(expected) === normalized);
-  });
-
-  if (!payload || !sameSubjectOrArea || normGradePlan(gradePayload) !== normGradePlan(grado) || (!competencias.length && !indicadores.length)) {
-    throw new Error(
-      `No hay malla curricular oficial cargada para ${expectedSubject || expectedArea || "la asignatura"} — ${grado}. ` +
-      "Sube el JSON de ese grado en Administración → Banco de Conocimiento antes de generar la planificación."
-    );
-  }
-};
-
 const normalizarContenidosCurriculares = (curriculo = {}) => {
   const generales = curriculo.contenidosGenerales || {};
   const contenidos = curriculo.contenidos || {};
@@ -1087,12 +1051,6 @@ const generarPlanificacion = async (datos) => {
 
   // Para lookups de contenido usa la asignatura si existe en el diccionario; si no, usa el área
   const claveArea = resolverClave(asignatura, area, EJES_DEFAULT);
-  validarCurriculoOficialExacto({
-    curriculoOficial,
-    area: claveArea,
-    asignatura: asignatura || area,
-    grado,
-  });
 
   const curso            = datos.curso || [grado, seccion].filter(Boolean).join(" ").trim();
   const duracionSemanas  = normalizarDuracionSemanas(datos.duracion);

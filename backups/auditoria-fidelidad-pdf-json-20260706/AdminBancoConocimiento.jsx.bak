@@ -920,48 +920,6 @@ const partirEnFragmentos = (texto, tamano = FRAGMENTO_CHARS, solape = FRAGMENTO_
   return fragmentos;
 };
 
-const normalizarLiteralParaAuditoria = (texto = '') =>
-  String(texto || '').replace(/\s+/g, ' ').trim();
-
-const contarPalabrasLiteral = (texto = '') => {
-  const limpio = normalizarLiteralParaAuditoria(texto);
-  return limpio ? limpio.split(/\s+/).length : 0;
-};
-
-const checksumLiteral = (texto = '') => {
-  const limpio = normalizarLiteralParaAuditoria(texto);
-  let hash = 2166136261;
-  for (let i = 0; i < limpio.length; i += 1) {
-    hash ^= limpio.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0');
-};
-
-const crearAuditoriaFidelidadLiteral = ({ textoFuente = '', textoJson = '', paginas = [], etapa = 'final' } = {}) => {
-  const fuente = normalizarLiteralParaAuditoria(textoFuente);
-  const json = normalizarLiteralParaAuditoria(textoJson);
-  const palabrasFuente = contarPalabrasLiteral(fuente);
-  const palabrasJson = contarPalabrasLiteral(json);
-  const checksumFuente = checksumLiteral(fuente);
-  const checksumJson = checksumLiteral(json);
-  return {
-    etapa,
-    paginasAuditadas: paginas,
-    caracteresPdf: fuente.length,
-    caracteresJson: json.length,
-    palabrasPdf: palabrasFuente,
-    palabrasJson,
-    diferenciaPalabras: palabrasJson - palabrasFuente,
-    checksumPdf: checksumFuente,
-    checksumJson,
-    literalExacto: fuente === json,
-    conteoPalabrasExacto: palabrasFuente === palabrasJson,
-    calidadLiteral: fuente === json && palabrasFuente === palabrasJson ? 'aprobada' : 'rechazada',
-    regla: 'El texto literal del PDF se adjunta localmente al JSON y debe coincidir en palabras y checksum con lo leído antes de extraer.',
-  };
-};
-
 const construirTextoCurricularParaIA = (textoPdf) => {
   const texto = String(textoPdf || '').trim();
   if (texto.length <= PDF_TEXT_MAX_CHARS) return texto;
@@ -1490,7 +1448,6 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
     textoLiteralContextoAreaCiclo = '',
     textoLiteralSeleccionado = '',
     paginasLiterales = [],
-    auditoriaPreExtraccion = null,
     ...infoPaquete
   } = info;
   const conceptuales = merged.conceptuales.length
@@ -1499,14 +1456,8 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
   const procedimentales = merged.procedimentales.length
     ? merged.procedimentales
     : merged.funcionesComunicativas;
-  const auditoriaLiteralPdf = crearAuditoriaFidelidadLiteral({
-    textoFuente: textoLiteralSeleccionado || textoLiteralMalla,
-    textoJson: textoLiteralSeleccionado || textoLiteralMalla,
-    paginas: paginasLiterales.map(pagina => pagina.pagina),
-    etapa: 'sobre_local_antes_de_json_stringify',
-  });
 
-  const sobre = {
+  return {
     schemaVersion: '2.0',
     level: contexto.level || '',
     cycle: contexto.cycle || cicloDelGrado(contexto.grade),
@@ -1561,7 +1512,6 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
     textoLiteralSeleccionado,
     paginasLiterales,
     contenidosRaw: textoLiteralMalla || textoLiteralSeleccionado,
-    auditoriaLiteralPdf,
     paquete: {
       tipo: 'pdf_convertido',
       archivo: fileName,
@@ -1572,23 +1522,6 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
       ...infoPaquete,
     },
   };
-  const sobreSerializado = JSON.parse(JSON.stringify(sobre));
-  const auditoriaPostJson = crearAuditoriaFidelidadLiteral({
-    textoFuente: textoLiteralSeleccionado || textoLiteralMalla,
-    textoJson: sobreSerializado.textoLiteralSeleccionado || sobreSerializado.textoLiteralMalla || '',
-    paginas: paginasLiterales.map(pagina => pagina.pagina),
-    etapa: 'despues_de_json_stringify_parse',
-  });
-  sobre.auditoriaLiteralPdf = {
-    ...auditoriaLiteralPdf,
-    preExtraccion: auditoriaPreExtraccion,
-    postJson: auditoriaPostJson,
-    calidadJsonVsPdf: auditoriaPostJson.literalExacto && auditoriaPostJson.conteoPalabrasExacto ? 'aprobada' : 'rechazada',
-  };
-  if (!sobre.auditoriaLiteralPdf.postJson.literalExacto || !sobre.auditoriaLiteralPdf.postJson.conteoPalabrasExacto) {
-    throw new Error('Auditoría de fidelidad fallida: el texto literal dentro del JSON no coincide exactamente con el texto leído del PDF.');
-  }
-  return sobre;
 };
 
 /**
@@ -1630,15 +1563,6 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
       tipo: paginasMalla.some(p => p.n === pagina.n) ? 'malla' : 'contexto_area_ciclo',
       texto: pagina.texto,
     }));
-    const auditoriaPreExtraccion = crearAuditoriaFidelidadLiteral({
-      textoFuente: texto,
-      textoJson: paginasLiterales.map(p => `[Página ${p.pagina}]\n${p.texto}`).join('\n\n'),
-      paginas: paginasLiterales.map(p => p.pagina),
-      etapa: 'antes_de_extraccion_ia',
-    });
-    if (!auditoriaPreExtraccion.literalExacto) {
-      throw new Error('Auditoría previa fallida: la reconstrucción local de páginas no coincide con el texto seleccionado del PDF.');
-    }
     let fragmentos = partirEnFragmentos(texto);
     let advertenciaTope = null;
     if (fragmentos.length > MAX_FRAGMENTOS_PDF) {
@@ -1676,10 +1600,9 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
       paginaInicio: paginasMalla[0]?.n || null,
       paginaFin: paginasMalla[paginasMalla.length - 1]?.n || null,
       textoLiteralMalla,
-      textoLiteralContextoAreaCiclo: textoContextoAreaCiclo,
+      textoLiteralContextoAreaCiclo,
       textoLiteralSeleccionado: texto,
       paginasLiterales,
-      auditoriaPreExtraccion,
       tamanoTextoLiteralMalla: textoLiteralMalla.length,
       tamanoTextoLiteralSeleccionado: texto.length,
       revisionSecciones,

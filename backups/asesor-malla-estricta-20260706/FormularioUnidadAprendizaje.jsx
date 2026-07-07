@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { analizarComplejidad } from "../services/unidadAprendizajeService";
 import { getAreas, getAsignaturas, getAsignaturaAutomatica, tieneMultiplesAsignaturas } from "../planning/areaAsignaturaMap.js";
-import { getCurricularContentForUnit } from "../services/bancoConocimientoService.js";
+import { consultarCurriculo } from "../services/curriculumService";
 import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema } from "../services/curriculumCombinacionService";
 
 // El currículo de Inglés/Francés vive bajo el área "Lenguas Extranjeras"
@@ -27,76 +27,6 @@ const GRADOS = [
 const SECCIONES = ["A", "B", "C", "D", "E", "F", "G"];
 
 const AREAS = getAreas();
-
-const normalizarClave = (valor) => String(valor || "")
-  .normalize("NFD")
-  .replace(/[\u0300-\u036f]/g, "")
-  .toLowerCase()
-  .replace(/\s+/g, " ")
-  .trim();
-
-const normalizarNivel = (valor) => {
-  const n = normalizarClave(valor);
-  if (["secundario", "secundaria"].includes(n)) return "secundaria";
-  if (["primario", "primaria"].includes(n)) return "primaria";
-  return n;
-};
-
-const gradoCorto = (grado = "") => String(grado || "").split(" ")[0] || "";
-
-const normalizarGrado = (grado = "") => normalizarClave(grado)
-  .replace(/\s+(primaria|secundaria|inicial|bachillerato)\b.*/g, "")
-  .trim();
-
-const textoTemaCurricular = (tema) => {
-  if (typeof tema === "string") return tema;
-  if (!tema || typeof tema !== "object") return "";
-  return tema.nombre || tema.tema || tema.titulo || tema.title || tema.descripcion || tema.texto || "";
-};
-
-const normalizarTemasCurriculares = (temas = []) => [
-  ...new Set((Array.isArray(temas) ? temas : [])
-    .map(textoTemaCurricular)
-    .map((tema) => String(tema || "").trim())
-    .filter(Boolean)),
-];
-
-const extraerTemasAsesor = (payload = {}) => normalizarTemasCurriculares([
-  ...(Array.isArray(payload.temasCurriculares) ? payload.temasCurriculares : []),
-  ...(Array.isArray(payload.temas) ? payload.temas : []),
-  ...(Array.isArray(payload.contenidos?.conceptos?.temas) ? payload.contenidos.conceptos.temas : []),
-  ...(Array.isArray(payload.contenidos?.conceptos?.items) ? payload.contenidos.conceptos.items : []),
-  ...(Array.isArray(payload.contenidosGenerales?.conceptuales) ? payload.contenidosGenerales.conceptuales : []),
-]);
-
-const normalizarCurriculoParaAsesor = (doc) => {
-  const payload = doc?.payload || doc || {};
-  return {
-    ...payload,
-    id: doc?.id || payload.id,
-    temasCurriculares: extraerTemasAsesor(payload),
-    criteriosCombinacionTematica: Array.isArray(payload.criteriosCombinacionTematica)
-      ? payload.criteriosCombinacionTematica
-      : [],
-  };
-};
-
-const curriculoCoincideConSeleccion = ({ doc, nivel, grado, area, asignatura }) => {
-  const payload = doc?.payload || doc || {};
-  const docNivel = payload.level || payload.nivel || doc?.level || "";
-  const docGrado = payload.grade || payload.grado || doc?.grade || "";
-  const docArea = payload.area || doc?.area || "";
-  const docAsignatura = payload.subject || payload.asignatura || doc?.subject || "";
-  const esperadoAsignatura = asignatura || area;
-
-  return Boolean(
-    docNivel && docGrado && docArea && docAsignatura &&
-    normalizarNivel(docNivel) === normalizarNivel(nivel) &&
-    normalizarGrado(docGrado) === normalizarGrado(grado) &&
-    normalizarClave(docArea) === normalizarClave(area) &&
-    normalizarClave(docAsignatura) === normalizarClave(esperadoAsignatura)
-  );
-};
 
 const COMPETENCIAS_FUND = [
   "Comunicativa",
@@ -181,75 +111,34 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
   // ── Sugerencia de tema oficial (texto libre → tema del currículo + afines) ──
   const [sugerenciaTema, setSugerenciaTema] = useState(null);
   const [temasMalla, setTemasMalla] = useState([]);
-  const [estadoCurriculoAsesor, setEstadoCurriculoAsesor] = useState({ status: "idle", mensaje: "" });
   const [modoElegido, setModoElegido] = useState(null); // "solo" | nombre de combinación | "propia"
   const [mostrarPropia, setMostrarPropia] = useState(false);
   const [temasPropios, setTemasPropios] = useState([]);
 
   useEffect(() => {
     const texto = (titulo || "").trim();
-    const asignaturaRequerida = tieneMultiplesAsignaturas(area);
-    const seleccionCompleta = Boolean(grado && area && (!asignaturaRequerida || asignatura));
-
-    if (!seleccionCompleta) {
+    if (texto.length < 3 || !grado || (!area && !asignatura)) {
       setSugerenciaTema(null);
       setTemasMalla([]);
-      setEstadoCurriculoAsesor({ status: "idle", mensaje: "" });
       return undefined;
     }
 
     let cancelado = false;
     const timer = setTimeout(async () => {
+      const gradoCorto = grado.split(" ")[0]; // "2do Secundaria" → "2do"
       const candidatas = [...new Set(
-        [asignatura || area, area, AREA_CURRICULO_POR_ASIGNATURA[asignatura], AREA_CURRICULO_POR_ASIGNATURA[area]].filter(Boolean)
+        [asignatura, area, AREA_CURRICULO_POR_ASIGNATURA[asignatura], AREA_CURRICULO_POR_ASIGNATURA[area]].filter(Boolean)
       )];
 
       let curriculo = null;
-      let docDetectado = null;
-      if (!cancelado) setEstadoCurriculoAsesor({ status: "loading", mensaje: "Verificando malla curricular oficial..." });
-
-      try {
-        for (const areaCandidata of candidatas) {
-          const doc = await getCurricularContentForUnit(areaCandidata, gradoCorto(grado));
-          if (!doc) continue;
-          docDetectado = docDetectado || doc;
-          if (curriculoCoincideConSeleccion({ doc, nivel, grado, area, asignatura: asignatura || area })) {
-            curriculo = normalizarCurriculoParaAsesor(doc);
-            break;
-          }
-        }
-      } catch (error) {
-        if (!cancelado) {
-          setSugerenciaTema(null);
-          setTemasMalla([]);
-          setEstadoCurriculoAsesor({
-            status: "error",
-            mensaje: `No se pudo verificar la malla curricular oficial: ${error.message}`,
-          });
-        }
-        return;
+      for (const areaCandidata of candidatas) {
+        curriculo = await consultarCurriculo(nivel, gradoCorto, areaCandidata);
+        if (curriculo) break;
       }
 
       if (!cancelado) {
-        if (!curriculo) {
-          const payload = docDetectado?.payload || docDetectado || {};
-          const detalleDetectado = docDetectado
-            ? ` Se encontró otra malla activa (${payload.level || payload.nivel || docDetectado.level || "nivel no indicado"} · ${payload.grade || payload.grado || docDetectado.grade || "grado no indicado"} · ${payload.area || docDetectado.area || "área no indicada"} · ${payload.subject || payload.asignatura || docDetectado.subject || "asignatura no indicada"}), pero no coincide exactamente.`
-            : "";
-          setSugerenciaTema(null);
-          setTemasMalla([]);
-          setModoElegido(null);
-          setMostrarPropia(false);
-          setEstadoCurriculoAsesor({
-            status: "missing",
-            mensaje: `No existe una malla curricular oficial exacta para ${nivel} · ${grado} · ${area}${asignatura ? ` · ${asignatura}` : ""}.${detalleDetectado}`,
-          });
-          return;
-        }
-
-        setEstadoCurriculoAsesor({ status: "ready", mensaje: "" });
-        setSugerenciaTema(texto.length >= 3 ? sugerirTemasATrabajar(curriculo, texto) : null);
-        setTemasMalla(curriculo.temasCurriculares || []);
+        setSugerenciaTema(curriculo ? sugerirTemasATrabajar(curriculo, texto) : null);
+        setTemasMalla(curriculo?.temasCurriculares || []);
       }
     }, 600);
 
@@ -350,8 +239,6 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
     !area && "Área",
     (tieneMultiplesAsignaturas(area) && !asignatura) && "Asignatura",
     !titulo && "Título de la Unidad",
-    (grado && area && (!tieneMultiplesAsignaturas(area) || asignatura) && estadoCurriculoAsesor.status === "loading") && "Verificación de malla curricular",
-    (grado && area && (!tieneMultiplesAsignaturas(area) || asignatura) && ["missing", "error"].includes(estadoCurriculoAsesor.status)) && "Malla curricular oficial exacta",
   ].filter(Boolean);
 
   const puedoGenerar = camposFaltantes.length === 0;
@@ -482,60 +369,7 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
       </div>
 
       {/* ── Asesor Pedagógico: tarjeta azul con las 3 formas de trabajar el tema ── */}
-      {estadoCurriculoAsesor.status === "loading" ? (
-        <div
-          className="ua-rec-panel"
-          style={{ background: "#eff6ff", borderColor: "#93c5fd" }}
-        >
-          <div className="ua-rec-header">
-            <span className="ua-rec-tag">Asesor Pedagógico</span>
-            <span className="ua-rec-title">Verificación curricular</span>
-          </div>
-          <div className="ua-rec-body">
-            <p style={{ color: "#1e3a8a", fontWeight: 700, margin: 0 }}>
-              {estadoCurriculoAsesor.mensaje}
-            </p>
-          </div>
-        </div>
-      ) : ["missing", "error"].includes(estadoCurriculoAsesor.status) ? (
-        <div
-          className="ua-rec-panel"
-          style={{ background: "#fff1f2", borderColor: "#fda4af" }}
-        >
-          <div className="ua-rec-header">
-            <span className="ua-rec-tag">Asesor Pedagógico</span>
-            <span className="ua-rec-title">Malla curricular no disponible</span>
-          </div>
-          <div className="ua-rec-body">
-            <p style={{ color: "#7f1d1d", fontWeight: 700, margin: "0 0 6px" }}>
-              No se puede analizar ni generar esta unidad sin la malla curricular oficial exacta.
-            </p>
-            <p style={{ color: "#7f1d1d", margin: 0, fontSize: 13 }}>
-              {estadoCurriculoAsesor.mensaje}
-            </p>
-          </div>
-        </div>
-      ) : estadoCurriculoAsesor.status === "ready" && !sugerenciaTema ? (
-        <div
-          className="ua-rec-panel"
-          style={{ background: "#eff6ff", borderColor: "#93c5fd" }}
-        >
-          <div className="ua-rec-header">
-            <span className="ua-rec-tag">Asesor Pedagógico</span>
-            <span className="ua-rec-title">Análisis curricular del tema</span>
-          </div>
-          <div className="ua-rec-body">
-            <p style={{ color: "#1e3a8a", fontWeight: 700, margin: "0 0 6px" }}>
-              Malla curricular oficial verificada.
-            </p>
-            <p style={{ color: "#1e3a8a", margin: 0, fontSize: 13 }}>
-              {(titulo || "").trim().length >= 3
-                ? "El tema escrito no coincide todavía con un tema oficial de esta malla."
-                : "Escribe el título o tema de la unidad para buscar su tema oficial en la malla."}
-            </p>
-          </div>
-        </div>
-      ) : sugerenciaTema ? (
+      {sugerenciaTema ? (
         <div
           className="ua-rec-panel"
           style={{ background: "#eff6ff", borderColor: "#93c5fd" }}
@@ -807,7 +641,7 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
             )}
           </div>
         </div>
-      ) : estadoCurriculoAsesor.status === "ready" && rec && (
+      ) : rec && (
         /* Fallback: áreas sin malla curricular — solo análisis de complejidad */
         <div
           className="ua-rec-panel"

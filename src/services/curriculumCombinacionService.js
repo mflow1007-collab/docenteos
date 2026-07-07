@@ -140,6 +140,19 @@ const _norm = (s) => String(s || "")
   .replace(/\s+/g, " ")
   .trim();
 
+const textoTema = (tema) => {
+  if (typeof tema === "string") return tema;
+  if (!tema || typeof tema !== "object") return "";
+  return tema.nombre || tema.tema || tema.titulo || tema.title || tema.descripcion || tema.texto || "";
+};
+
+const claveTema = (tema) => {
+  const normalizado = _norm(textoTema(tema));
+  return Object.keys(TEMA_KEYWORDS).find(
+    (key) => normalizado === key || normalizado.includes(key) || key.includes(normalizado)
+  ) || categoriaPorVocabulario(normalizado);
+};
+
 /** Normaliza un tema para comparaciones (minúsculas, sin acentos ni espacios dobles) */
 export const normalizarTema = _norm;
 
@@ -165,6 +178,30 @@ const TEMA_KEYWORDS = {
   "viajes y turismo": ["travel", "viaje", "viajes", "trip", "tourism", "turismo", "vacation", "vacaciones", "transport", "transporte", "directions", "direcciones", "airport", "aeropuerto", "hotel"],
 };
 
+const TEMA_CANONICO = {
+  "identificacion personal": "Identificación personal",
+  "relaciones humanas y sociales": "Relaciones humanas y sociales",
+  "actividades de la vida diaria": "Actividades de la vida diaria",
+  "vivienda, entorno y ciudad": "Vivienda, entorno y ciudad",
+  "escuela y educacion": "Escuela y educación",
+  "deporte, tiempo libre y recreacion": "Deporte, tiempo libre y recreación",
+  "alimentacion": "Alimentación",
+  "salud y cuidados fisicos": "Salud y cuidados físicos",
+  "ciencia y tecnologia": "Ciencia y tecnología",
+  "lengua y comunicacion": "Lengua y comunicación",
+  "clima, condiciones atmosfericas y medioambiente": "Clima, condiciones atmosféricas y medioambiente",
+  "clima, condiciones atmosfericas y medio ambiente": "Clima, condiciones atmosféricas y medio ambiente",
+  "medio ambiente y problematicas sociales": "Medio ambiente y problemáticas sociales",
+  "bienes y servicios": "Bienes y servicios",
+  "actividades sociales y culturales": "Actividades sociales y culturales",
+  "viajes y turismo": "Viajes y turismo",
+};
+
+const categoriaPorVocabulario = (textoNormalizado) =>
+  Object.entries(TEMA_KEYWORDS).find(([, claves]) =>
+    claves.some((k) => textoNormalizado.includes(_norm(k)))
+  )?.[0] || "";
+
 /**
  * Resuelve un tema escrito libremente al tema curricular oficial más parecido.
  * 1º intenta match por nombre oficial; 2º por vocabulario ES/EN del tema.
@@ -173,9 +210,25 @@ const TEMA_KEYWORDS = {
  */
 export const sugerirTemaOficial = (temaLibre, temasCurriculares = []) => {
   const texto = _norm(temaLibre);
-  if (!texto || texto.length < 3 || !temasCurriculares.length) return null;
+  const temas = (Array.isArray(temasCurriculares) ? temasCurriculares : [])
+    .map(textoTema)
+    .map((tema) => String(tema || "").trim())
+    .filter(Boolean);
+  if (!texto || texto.length < 3 || !temas.length) return null;
 
-  const directo = temasCurriculares.find(
+  const categoriaEntrada = categoriaPorVocabulario(texto);
+  if (categoriaEntrada) {
+    const oficialEnMalla = temas.find((tema) =>
+      claveTema(tema) === categoriaEntrada && _norm(tema).includes(categoriaEntrada)
+    );
+    return {
+      tema: oficialEnMalla || TEMA_CANONICO[categoriaEntrada] || categoriaEntrada,
+      confianza: "alta",
+      motivo: "Coincidencia por el vocabulario del tema",
+    };
+  }
+
+  const directo = temas.find(
     (t) => texto.includes(_norm(t)) || _norm(t).includes(texto)
   );
   if (directo) {
@@ -183,9 +236,9 @@ export const sugerirTemaOficial = (temaLibre, temasCurriculares = []) => {
   }
 
   let mejor = null;
-  for (const tema of temasCurriculares) {
-    const claves = TEMA_KEYWORDS[_norm(tema)] || [];
-    const aciertos = claves.filter((k) => texto.includes(k)).length;
+  for (const tema of temas) {
+    const claves = TEMA_KEYWORDS[claveTema(tema)] || [];
+    const aciertos = claves.filter((k) => texto.includes(_norm(k))).length;
     if (aciertos > (mejor?.aciertos || 0)) mejor = { tema, aciertos };
   }
   if (mejor) {
