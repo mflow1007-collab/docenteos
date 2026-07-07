@@ -158,212 +158,6 @@ const construirCheckpointFormativo = ({ tema, producto, numSemanas }) => ({
   accion: "Para quienes aún no logran el indicador: reforzar con frases y ejemplos modelo, práctica guiada en parejas y revisión acompañada del avance del producto antes de la siguiente fase.",
 });
 
-// ─── Modelo curricular superior ──────────────────────────────────────────────
-// Antes de entrar a las fases, DocenteOS arma una antesala curricular desde la
-// malla oficial: ejes, competencias, contenidos y progresión. No copia un PDF;
-// usa el patrón del documento modelo para decidir cómo consultar la malla.
-
-const toArray = (value) => {
-  if (Array.isArray(value)) return value;
-  if (value === null || value === undefined || value === "") return [];
-  return [value];
-};
-
-const textoPlano = (value) => {
-  if (typeof value === "string") return value.trim();
-  if (!value || typeof value !== "object") return "";
-  return String(
-    value.descripcion ||
-    value.texto ||
-    value.nombre ||
-    value.titulo ||
-    value.tema ||
-    value.estructura ||
-    value.funcion ||
-    value.valor ||
-    ""
-  ).trim();
-};
-
-const textosUnicos = (items = []) => {
-  const seen = new Set();
-  const out = [];
-  for (const raw of toArray(items)) {
-    const texto = textoPlano(raw);
-    const key = texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (!texto || seen.has(key)) continue;
-    seen.add(key);
-    out.push(texto);
-  }
-  return out;
-};
-
-const extraerEjemplos = (items = []) => toArray(items).flatMap((item) => {
-  if (typeof item === "string") return [item];
-  if (!item || typeof item !== "object") return [];
-  if (Array.isArray(item.ejemplos)) return item.ejemplos;
-  if (Array.isArray(item.items)) return item.items;
-  return [textoPlano(item)].filter(Boolean);
-});
-
-const construirBloquesContenidoMalla = (payload = {}) => {
-  const conceptos = payload.contenidos?.conceptos || {};
-  const procedimientos = payload.contenidos?.procedimientos || {};
-  const generales = payload.contenidosGenerales || {};
-  const actitudes = textosUnicos([
-    ...toArray(generales.actitudinales),
-    ...toArray(generales.actitudesValores),
-    ...toArray(payload.contenidos?.actitudinales),
-    ...toArray(payload.contenidos?.actitudesValores),
-  ]);
-
-  return {
-    temas: textosUnicos([
-      ...toArray(payload.temas),
-      ...toArray(payload.temasCurriculares),
-      ...toArray(conceptos.temas),
-    ]),
-    frases: textosUnicos([
-      ...extraerEjemplos(conceptos.frases),
-      ...extraerEjemplos(conceptos.expresiones),
-      ...toArray(payload.frases),
-      ...toArray(payload.expresiones),
-    ]),
-    vocabulario: textosUnicos([
-      ...extraerEjemplos(conceptos.vocabulario),
-      ...extraerEjemplos(payload.vocabulario),
-    ]),
-    gramatica: textosUnicos([
-      ...toArray(conceptos.gramatica),
-      ...toArray(conceptos.gramática),
-      ...toArray(payload.gramatica),
-      ...toArray(payload.gramática),
-    ]),
-    procedimientosFuncionales: textosUnicos([
-      ...toArray(procedimientos.funcionales),
-      ...toArray(procedimientos.items),
-      ...toArray(generales.procedimentales),
-      ...toArray(payload.funcionesComunicativas),
-    ]),
-    procedimientosDiscursivos: textosUnicos([
-      ...toArray(procedimientos.discursivos),
-      ...toArray(procedimientos.discurso),
-      ...toArray(procedimientos.comprension),
-      ...toArray(procedimientos.produccion),
-    ]),
-    actitudesValores: actitudes,
-    conceptuales: textosUnicos([
-      ...toArray(generales.conceptuales),
-      ...toArray(conceptos.items),
-      ...toArray(conceptos.temas),
-      ...extraerEjemplos(conceptos.frases),
-      ...extraerEjemplos(conceptos.vocabulario),
-      ...toArray(conceptos.gramatica),
-    ]),
-  };
-};
-
-const agruparIndicadoresPorCompetencia = (allComps = [], allInds = []) => {
-  const indicadoresPlanos = toArray(allInds);
-  return toArray(allComps).map((comp, index) => {
-    const compId = comp.id || comp.codigo || "";
-    const propios = toArray(comp.indicadoresLogro || comp.indicadores);
-    const relacionados = propios.length
-      ? propios
-      : indicadoresPlanos.filter((ind) =>
-          compId && String(ind.competenciaId || ind.competencia || "").trim() === String(compId).trim()
-        );
-    return {
-      competenciaFundamental: textoPlano(comp.competenciaFundamental || comp.fundamental) || "",
-      especifica: textoPlano(comp.especificaGrado || comp.especifica || comp.descripcion || comp.description),
-      indicadores: textosUnicos(relacionados),
-      orden: index + 1,
-    };
-  }).filter((item) => item.especifica || item.indicadores.length);
-};
-
-const construirProgresionCurricularSuperior = ({ payload = {}, titulo, producto, allComps = [], allInds = [] }) => {
-  const bloques = construirBloquesContenidoMalla(payload);
-  const temasBase = bloques.temas.length ? bloques.temas : textosUnicos([titulo]);
-  const funciones = bloques.procedimientosFuncionales;
-  const actitudes = bloques.actitudesValores;
-  const indicadores = textosUnicos(allInds);
-
-  return temasBase.map((tema, index) => ({
-    tema,
-    focoConceptual: textosUnicos([
-      bloques.vocabulario[index],
-      bloques.frases[index],
-      bloques.gramatica[index],
-      bloques.conceptuales[index],
-    ]).slice(0, 4),
-    procedimientos: textosUnicos([
-      funciones[index],
-      funciones[index + temasBase.length],
-      bloques.procedimientosDiscursivos[index],
-    ]).slice(0, 4),
-    actitudesValores: textosUnicos([
-      actitudes[index],
-      actitudes[index + temasBase.length],
-    ]).slice(0, 3),
-    evidenciasEsperadas: textosUnicos([
-      indicadores[index],
-      `Producción oral o escrita vinculada a "${tema}" como aporte progresivo al producto final (${String(producto).replace(/\.$/, "")}).`,
-    ]).slice(0, 3),
-    competenciasRelacionadas: agruparIndicadoresPorCompetencia(allComps, allInds)
-      .filter((_, i) => i === index || i % Math.max(1, temasBase.length) === index)
-      .slice(0, 2)
-      .map((c) => c.competenciaFundamental || `Competencia ${c.orden}`),
-  }));
-};
-
-const construirModeloCurricularSuperior = ({
-  payload = {}, titulo, area, estrategia, producto, ejes = [], allComps = [], allInds = [],
-}) => {
-  const bloques = construirBloquesContenidoMalla(payload);
-  const competencias = agruparIndicadoresPorCompetencia(allComps, allInds);
-  const ejesOficiales = toArray(payload.ejesTransversales).length
-    ? toArray(payload.ejesTransversales).map((eje) => ({
-        nombre: textoPlano(eje.eje || eje.nombre || eje.titulo) || "Eje transversal",
-        descripcion: textoPlano(eje.descripcion || eje.texto || eje.contenido) || textoPlano(eje),
-      })).filter((eje) => eje.nombre || eje.descripcion)
-    : construirEjesContextualizados(ejes, { area, tema: titulo });
-
-  return {
-    fuente: payload.fuente || payload.ministerio || "MINERD",
-    versionCurriculo: payload.versionCurriculo || payload.version || payload.schemaVersion || "",
-    nivelMCERL: payload.nivelMCERL || payload.nivelDominio || "",
-    estrategia,
-    productoFinal: producto,
-    ejes: ejesOficiales,
-    competencias,
-    contenidos: {
-      temas: bloques.temas,
-      frases: bloques.frases,
-      vocabulario: bloques.vocabulario,
-      gramatica: bloques.gramatica,
-      procedimientosFuncionales: bloques.procedimientosFuncionales,
-      procedimientosDiscursivos: bloques.procedimientosDiscursivos,
-      actitudesValores: bloques.actitudesValores,
-    },
-    contenidosSintesis: {
-      conceptuales: textosUnicos([
-        ...bloques.temas,
-        ...bloques.frases,
-        ...bloques.vocabulario,
-        ...bloques.gramatica,
-        ...bloques.conceptuales,
-      ]),
-      procedimentales: textosUnicos([
-        ...bloques.procedimientosFuncionales,
-        ...bloques.procedimientosDiscursivos,
-      ]),
-      actitudinales: bloques.actitudesValores,
-    },
-    progresion: construirProgresionCurricularSuperior({ payload, titulo, producto, allComps, allInds }),
-  };
-};
-
 // ─── Anexos A-L (parametrizados según el documento modelo) ───────────────────
 
 const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases = [], numSemanas = 4 }) => {
@@ -2522,33 +2316,23 @@ export const generarUnidadAprendizaje = async (datos) => {
 
   // Extrae vocabulario, gramática y funcionales del nivel-grado (corpus)
   const mallaContenidos = _extraerContenidosMallaCorpus(mallaPayload);
-  const modeloCurricularSuperior = construirModeloCurricularSuperior({
-    payload: mallaPayload,
-    titulo: temaMallaStr || titulo,
-    area: claveContenido,
-    estrategia: estrategiaEf,
-    producto,
-    ejes,
-    allComps,
-    allInds,
-  });
 
   // Contenidos ÚNICAMENTE desde el corpus — eliminar strings placeholder legacy
   const contenidos = (() => {
-    const sintesis = modeloCurricularSuperior.contenidosSintesis || {};
-    const conceptuales = textosUnicos(sintesis.conceptuales);
-    const procedimentales = textosUnicos(sintesis.procedimentales);
-    const actitudinales = textosUnicos(sintesis.actitudinales);
+    const vocab = mallaContenidos.vocabulario.slice(0, 12);
+    const gram  = mallaContenidos.gramatica.slice(0, 6);
+    const exprs = (mallaContenidos.expresiones || []).slice(0, 4);
+    const funcs = mallaContenidos.funcionales.slice(0, 8);
     return {
-      conceptuales,
-      procedimentales: procedimentales.length
-        ? procedimentales
+      conceptuales:    [...vocab, ...gram, ...exprs].filter(Boolean),
+      procedimentales: funcs.length
+        ? funcs
         : [`Uso de los contenidos de "${titulo}" en situaciones comunicativas`, "Trabajo colaborativo e individual", "Producción oral y escrita"],
-      actitudinales: actitudinales.length ? actitudinales : [
-        "Disposición activa para participar en las actividades de aprendizaje.",
-        "Respeto y valoración de las producciones de los compañeros.",
-        "Perseverancia ante los desafíos del aprendizaje.",
-        "Responsabilidad en el cumplimiento de las tareas asignadas.",
+      actitudinales: [
+        "Disposición activa para participar en las actividades de aprendizaje",
+        "Respeto y valoración de las producciones de los compañeros",
+        "Perseverancia ante los desafíos del aprendizaje",
+        "Responsabilidad en el cumplimiento de las tareas asignadas",
       ],
     };
   })();
@@ -2576,7 +2360,6 @@ export const generarUnidadAprendizaje = async (datos) => {
     ejesTematicos: ejes,
     situacionAprendizaje: situacion,
     ambienteAprendizaje: ambiente,
-    modeloCurricularSuperior,
     competencias: (() => {
       // ÚNICA FUENTE: malla oficial en curricularContent (ya garantizada arriba).
       // fundamentales: nombres de CFs del área — COMPETENCIAS_FUND_POR_AREA siempre tiene valores
@@ -2689,13 +2472,6 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     .cont-col { border: 1px solid #93c5fd; }
     .cont-head { background: #bfdbfe; padding: 4px 8px; font-weight: bold; font-size: 11pt; }
     .cont-list { padding: 4px 8px 4px 18px; margin: 0; font-size: 12pt; }
-    .curriculo-meta { font-size: 10.5pt; color: #334155; margin: 3px 0 8px; }
-    .modelo-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-    .modelo-table th { background: #1d4ed8; color: white; border: 1px solid #1e40af; padding: 5px 6px; font-size: 10.5pt; text-align: left; }
-    .modelo-table td { border: 1px solid #93c5fd; padding: 5px 6px; font-size: 10.5pt; vertical-align: top; }
-    .modelo-table ul { margin: 0 0 0 16px; padding: 0; }
-    .modelo-table li { margin-bottom: 2pt; }
-    .modelo-subhead { background: #dbeafe; color: #1e3a8a; font-weight: bold; padding: 4px 8px; border: 1px solid #93c5fd; font-size: 11pt; }
     .fase-band { background: #1e3a5f; color: white; padding: 6px 10px; font-weight: bold; font-size: 11pt; margin-top: 18px; }
     .est-band { background: #2563eb; color: white; padding: 4px 10px; font-size: 10pt; }
     .semana-band { background: #3b82f6; color: white; padding: 5px 10px; font-weight: bold; font-size: 11pt; margin-top: 12px; }
@@ -2740,48 +2516,6 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       .neae-col { break-inside: auto; page-break-inside: auto; }
     }
   `;
-
-  const modeloSuperior = unidad.modeloCurricularSuperior || {};
-  const listaHtml = (items = [], max = 0) => {
-    const arr = max ? (items || []).slice(0, max) : (items || []);
-    return arr.length
-      ? `<ul>${arr.map((item) => `<li>${item}</li>`).join("")}</ul>`
-      : "<em>No registrado en la malla.</em>";
-  };
-
-  const ejesSuperiorHtml = Array.isArray(modeloSuperior.ejes) && modeloSuperior.ejes.length ? `
-    <div class="section-head">EJE TEMÁTICO TRANSVERSAL Y CONEXIONES CURRICULARES</div>
-    <table class="modelo-table">
-      ${modeloSuperior.ejes.map((eje) => `
-        <tr>
-          <td style="width:24%;background:#f8fafc"><strong>${eje.nombre}</strong></td>
-          <td>${eje.descripcion}</td>
-        </tr>`).join("")}
-    </table>` : "";
-
-  const progresionHtml = Array.isArray(modeloSuperior.progresion) && modeloSuperior.progresion.length ? `
-    <div class="section-head">PROGRESIÓN CURRICULAR DE LA UNIDAD</div>
-    <table class="modelo-table">
-      <thead>
-        <tr>
-          <th style="width:17%">Tema oficial</th>
-          <th style="width:23%">Conceptos: temas, frases, vocabulario y gramática</th>
-          <th style="width:23%">Procedimientos / funciones comunicativas</th>
-          <th style="width:17%">Actitudes y valores</th>
-          <th>Evidencias esperadas</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${modeloSuperior.progresion.map((bloque) => `
-          <tr>
-            <td><strong>${bloque.tema}</strong>${bloque.competenciasRelacionadas?.length ? `<br><em>${bloque.competenciasRelacionadas.join(", ")}</em>` : ""}</td>
-            <td>${listaHtml(bloque.focoConceptual)}</td>
-            <td>${listaHtml(bloque.procedimientos)}</td>
-            <td>${listaHtml(bloque.actitudesValores)}</td>
-            <td>${listaHtml(bloque.evidenciasEsperadas)}</td>
-          </tr>`).join("")}
-      </tbody>
-    </table>` : "";
 
   const fasesHtml = (unidad.fasesSemanales || []).map((fase) => {
     const diasHtml = (fase.dias || []).map((dia) => {
@@ -2902,7 +2636,11 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <tr><td class="lbl">Producto final</td><td colspan="3">${m.productoFinal}</td></tr>
   </table>
 
-  ${ejesSuperiorHtml}
+  ${Array.isArray(unidad.ejesTematicosDetalle) && unidad.ejesTematicosDetalle.length ? `
+  <div class="section-head">EJE TEMÁTICO TRANSVERSAL</div>
+  <table class="datos-table">
+    ${unidad.ejesTematicosDetalle.map((eje) => `<tr><td class="lbl" style="vertical-align:middle">${eje.nombre}</td><td>${eje.descripcion}</td></tr>`).join("")}
+  </table>` : ""}
 
   <div class="section-head">SITUACIÓN DE APRENDIZAJE</div>
   <div class="texto-seccion">${unidad.situacionAprendizaje}</div>
@@ -2913,12 +2651,6 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   <div class="texto-seccion">${String(unidad.notaInstitucional).split("\n").map((parrafo) => `<p style="margin-bottom:6pt">${parrafo}</p>`).join("")}</div>` : ""}
 
   <div class="section-head">COMPONENTE CURRICULAR — Asignatura: ${m.asignatura}</div>
-  ${modeloSuperior.fuente || modeloSuperior.versionCurriculo || modeloSuperior.nivelMCERL ? `
-    <p class="curriculo-meta">
-      Fuente curricular: ${modeloSuperior.fuente || "MINERD"}
-      ${modeloSuperior.versionCurriculo ? ` · Versión: ${modeloSuperior.versionCurriculo}` : ""}
-      ${modeloSuperior.nivelMCERL ? ` · Nivel MCERL: ${modeloSuperior.nivelMCERL}` : ""}
-    </p>` : ""}
   ${(() => {
     // Estructura oficial por competencia (documento modelo): CF + específica
     // del ciclo + SUS indicadores. Fallback: formato aplanado legacy.
@@ -2970,8 +2702,6 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <div class="cont-col"><div class="cont-head">Procedimentales</div><ul class="cont-list">${(unidad.contenidos?.procedimentales || []).map((c) => `<li>${c}</li>`).join("")}</ul></div>
     <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${(unidad.contenidos?.actitudinales || []).map((c) => `<li>${c}</li>`).join("")}</ul></div>
   </div>
-
-  ${progresionHtml}
 
   ${fasesHtml}
 

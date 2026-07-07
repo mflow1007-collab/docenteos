@@ -13,12 +13,6 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
   if (!unidad) return null;
 
   const { metadatos: m, competencias, contenidos, fasesSemanales = [] } = unidad;
-  const modeloSuperior = unidad.modeloCurricularSuperior || {};
-  const renderList = (items = [], empty = "No registrado en la malla.") => (
-    items?.length ? (
-      <ul className="ua-list">{items.map((item, i) => <li key={i}>{item}</li>)}</ul>
-    ) : <em>{empty}</em>
-  );
 
   return (
     <div className="ua-resultado">
@@ -116,93 +110,48 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
         </table>
       </section>
 
-      {/* ── MODELO CURRICULAR SUPERIOR ── */}
-      {modeloSuperior.ejes?.length > 0 && (
-        <section className="ua-section">
-          <div className="ua-section-head">EJE TEMÁTICO TRANSVERSAL Y CONEXIONES CURRICULARES</div>
-          <table className="ua-tabla-datos">
-            <tbody>
-              {modeloSuperior.ejes.map((eje, i) => (
-                <tr key={i}>
-                  <td className="ua-lbl ua-lbl-top">{eje.nombre}</td>
-                  <td>{eje.descripcion}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
       {/* ── SITUACIÓN Y AMBIENTE ── */}
       <section className="ua-section">
         <div className="ua-section-head">SITUACIÓN DE APRENDIZAJE</div>
         <p className="ua-text-block">{unidad.situacionAprendizaje}</p>
         <div className="ua-section-head" style={{ marginTop: 8 }}>AMBIENTE DE APRENDIZAJE</div>
         <p className="ua-text-block">{unidad.ambienteAprendizaje}</p>
-        {unidad.notaInstitucional && (
-          <>
-            <div className="ua-section-head" style={{ marginTop: 8 }}>NOTA INSTITUCIONAL DE ORGANIZACIÓN TEMPORAL</div>
-            <div className="ua-text-block">
-              {String(unidad.notaInstitucional).split("\n").map((parrafo, i) => (
-                <p key={i}>{parrafo}</p>
-              ))}
-            </div>
-          </>
-        )}
       </section>
 
       {/* ── COMPETENCIAS ── */}
       <section className="ua-section">
-        <div className="ua-section-head">COMPONENTE CURRICULAR — Asignatura: {m.asignatura}</div>
-        {(modeloSuperior.fuente || modeloSuperior.versionCurriculo || modeloSuperior.nivelMCERL || competencias?.nivelMCERL) && (
-          <p className="ua-text-block" style={{ fontSize: 13 }}>
-            Fuente curricular: {modeloSuperior.fuente || "MINERD"}
-            {modeloSuperior.versionCurriculo ? ` · Versión: ${modeloSuperior.versionCurriculo}` : ""}
-            {modeloSuperior.nivelMCERL || competencias?.nivelMCERL ? ` · Nivel MCERL: ${modeloSuperior.nivelMCERL || competencias.nivelMCERL}` : ""}
-          </p>
-        )}
-        {modeloSuperior.competencias?.length > 0 ? (
-          <table className="ua-tabla-datos">
-            <tbody>
-              <tr>
-                <td className="ua-lbl">Competencias</td>
-                <td className="ua-lbl">Indicadores de Logro</td>
-              </tr>
-              {modeloSuperior.competencias.map((comp, i) => (
-                <tr key={i}>
-                  <td className="ua-lbl-top">
-                    <strong>{comp.competenciaFundamental || `Competencia ${comp.orden}`}</strong>
-                    {comp.especifica && <><br /><em>{comp.especifica}</em></>}
-                  </td>
-                  <td>{renderList(comp.indicadores)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <table className="ua-tabla-datos">
-            <tbody>
-              <tr>
-                <td className="ua-lbl ua-lbl-top">Competencias<br/>Fundamentales</td>
-                <td>
-                  <div className="ua-comp-chips">
-                    {(competencias?.fundamentales || []).map((c) => (
-                      <span key={c} className="ua-comp-chip">☑ {c}</span>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td className="ua-lbl ua-lbl-top">Competencia<br/>Específica</td>
-                <td>{competencias?.especifica}</td>
-              </tr>
-              <tr>
-                <td className="ua-lbl ua-lbl-top">Indicadores<br/>de Logro</td>
-                <td>{renderList(competencias?.indicadores || [])}</td>
-              </tr>
-            </tbody>
-          </table>
-        )}
+        <div className="ua-section-head">COMPETENCIAS E INDICADORES DE LOGRO</div>
+        <table className="ua-tabla-datos">
+          <tbody>
+            <tr>
+              <td className="ua-lbl ua-lbl-top">Competencias<br/>Fundamentales</td>
+              <td>
+                <div className="ua-comp-chips">
+                  {(competencias?.fundamentales || []).map((c) => (
+                    <span key={c} className="ua-comp-chip">☑ {c}</span>
+                  ))}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td className="ua-lbl ua-lbl-top">Competencia<br/>Específica</td>
+              <td>
+                {competencias?.nivelMCERL && (
+                  <span className="ua-mcerl-badge">MCERL {competencias.nivelMCERL}</span>
+                )}
+                {competencias?.especifica}
+              </td>
+            </tr>
+            <tr>
+              <td className="ua-lbl ua-lbl-top">Indicadores<br/>de Logro</td>
+              <td>
+                <ul className="ua-list">
+                  {(competencias?.indicadores || []).map((ind, i) => <li key={i}>{ind}</li>)}
+                </ul>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       {/* ── CONTENIDOS ── */}
@@ -223,34 +172,6 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
           </div>
         </div>
       </section>
-
-      {modeloSuperior.progresion?.length > 0 && (
-        <section className="ua-section">
-          <div className="ua-section-head">PROGRESIÓN CURRICULAR DE LA UNIDAD</div>
-          <table className="ua-dia-table">
-            <thead>
-              <tr>
-                <th className="ua-th">Tema oficial</th>
-                <th className="ua-th">Conceptos</th>
-                <th className="ua-th">Procedimientos</th>
-                <th className="ua-th">Actitudes y valores</th>
-                <th className="ua-th">Evidencias esperadas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {modeloSuperior.progresion.map((bloque, i) => (
-                <tr key={i}>
-                  <td><strong>{bloque.tema}</strong></td>
-                  <td>{renderList(bloque.focoConceptual)}</td>
-                  <td>{renderList(bloque.procedimientos)}</td>
-                  <td>{renderList(bloque.actitudesValores)}</td>
-                  <td>{renderList(bloque.evidenciasEsperadas)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
 
       {/* ══════════════════════════════════════
           FASES / SEMANAS
