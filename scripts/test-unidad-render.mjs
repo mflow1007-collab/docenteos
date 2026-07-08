@@ -14,7 +14,8 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico } from "../src/services/unidadAprendizajeService.js";
+import { validarVozActividad } from "../src/services/phaseAService.js";
 
 let pasadas = 0;
 let falladas = 0;
@@ -44,13 +45,30 @@ const EVAL_INICIO = { tipo: "Diagnóstica", agente: "Heteroevaluación", tecnica
 const EVAL_DESARROLLO = { tipo: "Formativa", agente: "Heteroevaluación", tecnica: "Observación directa y revisión del trabajo", instrumento: "Rúbrica analítica" };
 const EVAL_CIERRE = { tipo: "Formativa", agente: "Autoevaluación / Coevaluación", tecnica: "Reflexión oral / Ticket de salida", instrumento: "Escala de valoración" };
 
+// Actividades en la VOZ oficial MINERD: verbo en tercera persona plural del
+// presente; el Inicio con sus 5 posiciones canónicas.
+const ACTIVIDADES_POR_MOMENTO = {
+  Inicio: (n) => construirInicioCanonico({
+    saludoInicial: `Good morning! How are you today? Are you ready for class ${n}?`,
+    retroalimentacionPrevia: "Retroalimentación del vocabulario trabajado en la clase anterior. (Do you remember the parts of the house? What rooms can you name?)",
+    saberesPrevios: "Recuperación o exploración de saberes previos sobre las partes de la casa y los muebles de cada habitación.",
+    actividadEnganche: "Observan imágenes de diferentes casas de la comunidad e identifican en inglés las partes que reconocen (lobby, entrance, bedroom).",
+  }),
+  Desarrollo: (n) => [
+    `Practican en parejas un diálogo corto describiendo su habitación con there is / there are. (Clase ${n})`,
+    "Elaboran cinco oraciones sencillas sobre los muebles de su casa (chair, desk, bed) y las registran en el cuaderno.",
+  ],
+  Cierre: (n) => [
+    `Socializan algunas de las oraciones elaboradas durante la clase ${n}.`,
+    "Reflexionan sobre cómo describir su casa en inglés fortalece la comunicación con otras personas.",
+    "Guardan la producción escrita como Entrada 1 del Portafolio.",
+  ],
+};
+
 const momento = (nombre, tiempo, evaluacion, n) => ({
   nombre,
   tiempo,
-  actividades: [
-    `Actividad ${n}.1 de ${nombre}: práctica oral con el vocabulario de la casa (lobby, entrance).`,
-    `Actividad ${n}.2 de ${nombre}: trabajo en parejas describiendo habitaciones.`,
-  ],
+  actividades: ACTIVIDADES_POR_MOMENTO[nombre](n),
   evidencias: `• Identifica las partes de la casa en inglés.\n• Describe su habitación usando there is / there are.`,
   evaluacion,
   recursos: {
@@ -256,6 +274,74 @@ check("indicadores legacy como strings siguen siendo válidos (compatibilidad)",
   const u = clonar();
   u.competenciasDetalle[0].indicadores = ["Responde de forma adecuada a preguntas sencillas."];
   validarUnidadRenderizada(u, formatearUnidadHTML(u, ""));
+});
+
+console.log("Contrato de estilo MINERD — voz e Inicio canónico:");
+
+check("validarVozActividad acepta verbos oficiales y las dos excepciones canónicas", () => {
+  const validas = [
+    "Responden al saludo e indicaciones iniciales. (Good morning!)",
+    "Observan imágenes de diferentes casas de la comunidad.",
+    "Elaboran un mapa de ideas sobre su rutina diaria.",
+    "Socializan sus respuestas explicando por qué son importantes.",
+    "Guardan la producción escrita como Entrada 2 del Portafolio.",
+    "Retroalimentación del vocabulario trabajado en la clase anterior. (Do you remember?)",
+    "Recuperación o exploración de saberes previos sobre las partes de la casa.",
+  ];
+  for (const a of validas) {
+    const v = validarVozActividad(a);
+    if (!v.ok) throw new Error(`rechazó una válida: "${a.slice(0, 40)}" — ${v.motivo}`);
+  }
+});
+
+check("validarVozActividad rechaza los arranques prohibidos", () => {
+  const prohibidas = [
+    "Los estudiantes practican el vocabulario en parejas.",
+    "El docente presenta la unidad y sus criterios.",
+    "La docente modela la pronunciación de los verbos.",
+    "Se realiza una dinámica de activación oral.",
+    "Practica el vocabulario con su compañero.",
+  ];
+  for (const a of prohibidas) {
+    if (validarVozActividad(a).ok) throw new Error(`aceptó una prohibida: "${a.slice(0, 40)}"`);
+  }
+});
+
+check("construirInicioCanonico arma las 5 posiciones fijas", () => {
+  const acts = construirInicioCanonico({
+    saludoInicial: "Good morning! What time did you wake up today?",
+    retroalimentacionPrevia: "Retroalimentación de la clase anterior. (What rooms do you remember?)",
+    saberesPrevios: "Recuperación o exploración de saberes previos sobre los muebles de la casa.",
+    actividadEnganche: "Observan un plano de una casa e identifican sus partes en inglés.",
+  });
+  if (acts.length !== 5) throw new Error(`esperaba 5 posiciones, hay ${acts.length}`);
+  if (!acts[0].startsWith("Responden al saludo")) throw new Error("posición 1 incorrecta");
+  if (!acts[0].includes("Good morning! What time did you wake up today?")) throw new Error("saludo no incrustado");
+  if (!acts[1].startsWith("Retroalimentación")) throw new Error("posición 2 no es la retroalimentación");
+  if (!acts[2].startsWith("Recuperación")) throw new Error("posición 3 no es saberes previos");
+  if (!acts[4].startsWith("Escuchan la intención pedagógica")) throw new Error("posición 5 incorrecta");
+});
+
+check("Inicio sin las 5 posiciones canónicas → error", () => {
+  const u = clonar();
+  u.fasesSemanales[0].dias[0].momentos[0].actividades.pop();
+  esperaError(() => validarUnidadRenderizada(u, formatearUnidadHTML(u, "")), "5 posiciones canónicas");
+});
+
+check("actividad con voz incorrecta en el documento → error", () => {
+  const u = clonar();
+  u.fasesSemanales[0].dias[1].momentos[1].actividades[0] = "Los estudiantes practican el diálogo en parejas.";
+  esperaError(() => validarUnidadRenderizada(u, formatearUnidadHTML(u, "")), "voz —");
+});
+
+check("la retroalimentación vive en el Inicio (posición 2), no en el Cierre", () => {
+  const u = clonar();
+  const inicio = u.fasesSemanales[0].dias[0].momentos[0].actividades;
+  const cierre = u.fasesSemanales[0].dias[0].momentos[2].actividades;
+  if (!String(inicio[1]).startsWith("Retroalimentación")) throw new Error("posición 2 del Inicio sin retroalimentación");
+  if (cierre.some((a) => String(a).trim().startsWith("Retroalimentación"))) {
+    throw new Error("el Cierre no debe abrir con retroalimentación de la clase");
+  }
 });
 
 // ─── Resultado ────────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.j
 import { inyectarExpresiones } from "../planning/bancoExpresionesIdiomas.js";
 import { obtenerBPActs } from "./bpCache.js";
 import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
-import { buildEspecificacionCurricular, generateWeekPlan } from "./phaseAService.js";
+import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad } from "./phaseAService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -2253,6 +2253,23 @@ const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '') => {
   return { vocabulario, gramatica, expresiones, funcionales, conceptuales, procedimentales };
 };
 
+// ─── Inicio canónico del formato MINERD (5 posiciones fijas) ─────────────────
+// El esqueleto lo pone el código; el contenido lo aporta el contrato de la IA
+// (saludoInicial, retroalimentacionPrevia, saberesPrevios, actividadEnganche).
+// La retroalimentación de la clase anterior vive AQUÍ (posición 2), no en el
+// Cierre. Posición 5 fija del formato oficial.
+
+export const construirInicioCanonico = (clase = {}) => {
+  const saludo = String(clase.saludoInicial || "").trim().replace(/^\(+|\)+$/g, "");
+  return [
+    `Responden al saludo e indicaciones iniciales. (${saludo})`,
+    String(clase.retroalimentacionPrevia || "").trim(),
+    String(clase.saberesPrevios || "").trim(),
+    String(clase.actividadEnganche || "").trim(),
+    "Escuchan la intención pedagógica y el propósito de la clase.",
+  ];
+};
+
 // ─── Phase A: genera fases con IA y reemplaza momentos JS ────────────────────
 //
 // Llama generarFases() para obtener estructura + calendario, luego para cada
@@ -2316,22 +2333,26 @@ const _generarFasesConIA = async (
         if (!orig) {
           throw new Error(`R3: semana ${fase.numero}, clase ${dia.dia || i + 1} — momento ${mi + 1} inexistente en la estructura base`);
         }
+        const esInicio = mi === 0;
         const etiqueta = `semana ${fase.numero}, clase ${dia.dia || i + 1}, "${orig.nombre || `momento ${mi + 1}`}"`;
         const listaOk = (v) => Array.isArray(v) && v.filter((x) => String(x || "").trim()).length > 0;
-        if (!listaOk(aiMom.actividades)) throw new Error(`R3: ${etiqueta} — la IA no aportó actividades (plantillas vetadas como respaldo)`);
+        if (!esInicio && !listaOk(aiMom.actividades)) throw new Error(`R3: ${etiqueta} — la IA no aportó actividades (plantillas vetadas como respaldo)`);
         if (!listaOk(aiMom.evidencias)) throw new Error(`R3: ${etiqueta} — la IA no aportó evidencias (plantillas vetadas como respaldo)`);
         if (!listaOk(aiMom.metacognicion)) throw new Error(`R3: ${etiqueta} — la IA no aportó metacognición (plantillas vetadas como respaldo)`);
         if (!listaOk(aiMom.recursos)) throw new Error(`R3: ${etiqueta} — la IA no aportó recursos (plantillas vetadas como respaldo)`);
 
-        orig.actividades = aiMom.actividades;
+        // Inicio canónico: 5 posiciones fijas armadas en código con el
+        // contenido del contrato (saludo, retroalimentación de la clase
+        // anterior, saberes previos, enganche, intención pedagógica).
+        orig.actividades = esInicio ? construirInicioCanonico(aiClase) : aiMom.actividades;
         if (aiMom.tiempo) orig.tiempo = aiMom.tiempo;
         orig.evidencias = aiMom.evidencias.map((e) => `• ${String(e).trim()}`).join("\n");
         orig.metacognicion = aiMom.metacognicion;
         orig.recursos = {
           humanos: "Docente y estudiantes",
           didacticos: aiMom.recursos.map((r) => String(r).trim()).filter(Boolean).join(", "),
-          // Tecnológicos: derivación determinística desde las actividades reales de la IA
-          tecnologicos: derivarRecursos(aiMom.actividades, area, fase.numero).tecnologicos,
+          // Tecnológicos: derivación determinística desde las actividades reales
+          tecnologicos: derivarRecursos(orig.actividades, area, fase.numero).tecnologicos,
         };
       });
 
@@ -2668,7 +2689,26 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
         }
         if (vacio(mom.recursos?.humanos)) errores.push(`${mref}: sin recursos humanos`);
         if (vacio(mom.recursos?.didacticos)) errores.push(`${mref}: sin recursos didácticos`);
+
+        // Contrato de estilo MINERD: voz verbo-inicial en toda actividad
+        for (const act of mom.actividades || []) {
+          const voz = validarVozActividad(act);
+          if (!voz.ok) errores.push(`${mref}: voz — ${voz.motivo}`);
+        }
       });
+
+      // Inicio canónico del formato oficial: 5 posiciones fijas
+      const actsInicio = (dia.momentos || [])[0]?.actividades || [];
+      if (actsInicio.length !== 5) {
+        errores.push(`${ref}: el Inicio no tiene las 5 posiciones canónicas (tiene ${actsInicio.length})`);
+      } else {
+        if (!String(actsInicio[0]).startsWith("Responden al saludo")) {
+          errores.push(`${ref}: posición 1 del Inicio no es el saludo canónico`);
+        }
+        if (!String(actsInicio[4]).startsWith("Escuchan la intención pedagógica")) {
+          errores.push(`${ref}: posición 5 del Inicio no es la intención pedagógica`);
+        }
+      }
     });
   });
 

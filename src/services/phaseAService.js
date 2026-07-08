@@ -20,7 +20,15 @@ const BATCH_SIZE   = 2;
 const MAX_TOKENS   = 6500;   // por lote (contrato incluye evidencias/metacognición/recursos); escala a 9000 si hay truncamiento
 
 const SYSTEM_PROMPT =
-  'Eres un planificador curricular experto. ' +
+  'Eres un planificador curricular experto del formato oficial MINERD. ' +
+  'Redactas cada actividad iniciando con un VERBO en tercera persona plural del presente ' +
+  '(Responden, Observan, Escuchan, Elaboran, Socializan, Practican, Identifican, Comparan, Guardan...) ' +
+  'y NUNCA inicias con "Los estudiantes", "El docente", "La docente" ni "Se". ' +
+  'El inglés va incrustado entre paréntesis dentro de la actividad. ' +
+  'Estilo oficial de referencia: ' +
+  '"Responden al saludo e indicaciones iniciales. (Good morning! How are you today? Are you ready for the class?)" · ' +
+  '"Retroalimentación del vocabulario trabajado en la clase anterior. (Do you remember the last class? What words do you remember about daily routines?)" · ' +
+  '"Elaboran un mapa de ideas sobre las actividades que consideran más importantes dentro de su rutina diaria. Socializan sus respuestas explicando brevemente por qué esas actividades son importantes para su vida." ' +
   'Respondes ÚNICAMENTE con JSON válido, sin texto adicional ni bloques markdown.';
 
 const JSON_REMINDER =
@@ -141,10 +149,36 @@ function jaccardSimilarity(a, b) {
   return inter / Math.max(setA.size, setB.size, 1);
 }
 
-// ─── Validación por lote (R1 + R7, sin R2) ───────────────────────────────────
-// Contrato completo por momento: actividades + evidencias + metacognicion +
-// recursos. La ausencia de cualquiera = rechazo del lote (consume reintento).
-// NUNCA render vacío ni relleno de plantilla.
+// ─── Contrato de estilo MINERD: voz de las actividades ────────────────────────
+// Toda actividad inicia con VERBO en tercera persona plural del presente
+// ("Responden...", "Observan...", "Elaboran..."). Prohibido iniciar con
+// "Los...", "El docente", "La docente" o "Se ". Excepciones canónicas del
+// formato oficial: "Retroalimentación..." y "Recuperación...".
+
+const ARRANQUES_PROHIBIDOS = /^(los\s|el\s+docente|la\s+docente|se\s)/i;
+
+export function validarVozActividad(texto) {
+  const t = String(texto || '').trim();
+  if (!t) return { ok: false, motivo: 'actividad vacía' };
+  if (ARRANQUES_PROHIBIDOS.test(t)) {
+    return { ok: false, motivo: `arranque prohibido ("Los/El docente/La docente/Se"): "${t.slice(0, 40)}…"` };
+  }
+  const primera = (t.split(/\s+/)[0] || '').replace(/[.,:;!¡¿?]+$/, '');
+  const esVerboPluralPresente = /^[A-ZÁÉÍÓÚÜÑ]/.test(primera) && /n$/.test(primera);
+  const esCanonica = primera === 'Retroalimentación' || primera === 'Recuperación';
+  if (!esVerboPluralPresente && !esCanonica) {
+    return { ok: false, motivo: `no inicia con verbo en tercera persona plural del presente: "${primera}"` };
+  }
+  return { ok: true };
+}
+
+// ─── Validación por lote (R1 + R7 + voz, sin R2) ─────────────────────────────
+// Contrato completo por momento: evidencias + metacognicion + recursos
+// (actividades solo en Desarrollo y Cierre: el Inicio se arma en código con
+// las 5 posiciones canónicas). Por clase: saludoInicial,
+// retroalimentacionPrevia, saberesPrevios, actividadEnganche e
+// indicadoresTrabajados. La ausencia de cualquiera o una violación de voz =
+// rechazo del lote (consume reintento). NUNCA render vacío ni plantilla.
 
 function validateBatch(data, durMin, count) {
   if (!data?.clases || !Array.isArray(data.clases)) throw new Error('R1: falta clases[]');
@@ -156,6 +190,7 @@ function validateBatch(data, durMin, count) {
   const tiempos = { Inicio: tInicio, Desarrollo: tDesarrollo, Cierre: tCierre };
 
   const listaNoVacia = (v) => Array.isArray(v) && v.filter((x) => String(x || '').trim()).length > 0;
+  const textoNoVacio = (v) => String(v || '').trim().length > 0;
 
   for (let idx = 0; idx < count; idx++) {
     const clase = data.clases[idx];
@@ -165,10 +200,30 @@ function validateBatch(data, durMin, count) {
     if (!Array.isArray(clase.indicadoresTrabajados)) {
       throw new Error(`R1: clase ${idx + 1} sin indicadoresTrabajados[] (usa los códigos de la especificación)`);
     }
+
+    // Piezas del Inicio canónico (el merge las coloca en posiciones fijas)
+    for (const campo of ['saludoInicial', 'retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
+      if (!textoNoVacio(clase[campo])) {
+        throw new Error(`R1: clase ${idx + 1} sin ${campo} (contrato del Inicio canónico)`);
+      }
+    }
+    // Voz obligatoria en las piezas redactadas como actividad
+    for (const campo of ['retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
+      const voz = validarVozActividad(clase[campo]);
+      if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} ${campo} — ${voz.motivo}`);
+    }
+
     let totalMin = 0;
     for (const m of clase.momentos) {
-      if (!listaNoVacia(m.actividades)) {
+      const esInicio = m.nombre === 'Inicio';
+      if (!esInicio && !listaNoVacia(m.actividades)) {
         throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin actividades`);
+      }
+      if (!esInicio) {
+        for (const act of m.actividades) {
+          const voz = validarVozActividad(act);
+          if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} "${m.nombre}" — ${voz.motivo}`);
+        }
       }
       if (!listaNoVacia(m.evidencias)) {
         throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin evidencias`);
@@ -259,6 +314,11 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
 
   const endDia  = startDia + count - 1;
   const rango   = count === 1 ? `Clase ${startDia}` : `Clases ${startDia}-${endDia}`;
+  const esPrimeraClaseUnidad = semanaNum === 1 && startDia === 1;
+
+  const reglaInicio = esPrimeraClaseUnidad
+    ? `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el saludo en inglés, variado por clase: "Good morning! ..."), "retroalimentacionPrevia", "saberesPrevios" y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). Para la PRIMERA clase de la unidad no hay clase anterior: "retroalimentacionPrevia" inicia con "Retroalimentación de experiencias relacionadas con..." (exploración diagnóstica del tema con preguntas EN INGLÉS entre paréntesis) y "saberesPrevios" (inicia con "Recuperación o exploración de saberes previos sobre...") puede versar sobre el tema o sobre cómo serán evaluados en la unidad. NO repitas saludo ni retroalimentación dentro de los momentos.`
+    : `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el saludo en inglés, variado por clase: "Good morning! ..."), "retroalimentacionPrevia" (oración completa que inicia con "Retroalimentación de..." recordando lo trabajado en la clase anterior — usa las actividades ya programadas listadas arriba — con preguntas de recuerdo EN INGLÉS entre paréntesis), "saberesPrevios" (oración completa que inicia con "Recuperación o exploración de saberes previos sobre..." el contenido de ESTE día) y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). NO repitas saludo ni retroalimentación dentro de los momentos.`;
 
   return `Eres un planificador curricular experto del sistema educativo dominicano (MINERD).
 
@@ -280,11 +340,13 @@ REGLAS:
 1. Solo JSON puro, sin texto ni markdown.
 2. Desarrollos distintos entre sí y distintos a los ya listados arriba.
 3. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
-4. Mínimo 2 actividades concretas por momento.
-5. CADA momento incluye ADEMÁS: "evidencias" (2-3 evidencias observables y evaluables de ESE momento, en español), "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
-6. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
+4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con "Los estudiantes", "El docente", "La docente" o "Se". El inglés va incrustado entre paréntesis dentro de la actividad. Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
+5. Desarrollo: mínimo 2 actividades concretas. Cierre (patrón guía): Socializan las producciones del día → Reflexionan sobre un aspecto específico → Organizan y guardan el artefacto en el portafolio → Responden preguntas de reflexión.
+${reglaInicio}
+7. CADA momento (incluido Inicio) incluye: "evidencias" (2-3 evidencias observables y evaluables de ESE momento, en español), "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
+8. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
 
-{"outputSchemaVersion":"1.1","semana":${semanaNum},"clases":[{"dia":${startDia},"titulo":"...","indicadoresTrabajados":["..."],"momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","actividades":["...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.2","semana":${semanaNum},"clases":[{"dia":${startDia},"titulo":"...","indicadoresTrabajados":["..."],"saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote (2 intentos por lote) ─────────────────────────────
@@ -418,6 +480,6 @@ export const buildEspecificacionCurricular = ({
       gramatica:   mallaContenidos?.gramatica?.slice(0, 6)   || [],
       funcionales: mallaContenidos?.funcionales?.slice(0, 5) || [],
     },
-    outputSchemaVersion: '1.1',
+    outputSchemaVersion: '1.2',
   };
 };
