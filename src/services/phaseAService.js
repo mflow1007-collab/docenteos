@@ -297,6 +297,9 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
     }
   }
 
+  // Reintentos agotados → DETENER, nunca degradar a plantillas en silencio.
+  // FUTURO: cuando exista el Banco de Secuencias, el respaldo legítimo es
+  // servir una secuencia cosechada y validada — nunca plantillas.
   throw new Error(
     `${contextoLog} falló tras 2 intentos [${lastProvider}/${lastModel}]. ` +
     `Motivo: ${lastError?.message}. ` +

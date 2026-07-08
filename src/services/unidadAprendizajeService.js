@@ -2394,6 +2394,12 @@ const _generarFasesConIA = async (
         }
       : null;
 
+    // Si la IA falla tras los reintentos por lote, generateWeekPlan lanza y la
+    // generación SE DETIENE con el error visible (mensaje + reintento manual).
+    // VETADO degradar a plantillas: el docente nunca debe recibir una unidad
+    // genérica creyendo que es curricular.
+    // FUTURO: cuando exista el Banco de Secuencias, el respaldo legítimo es
+    // servir una secuencia cosechada y validada — nunca plantillas.
     const weekPlan = await generateWeekPlan(
       spec, fase.numero, durMin, numClases, numSemanas,
       memoriaAcumulada, progressWrapper,
@@ -2401,15 +2407,24 @@ const _generarFasesConIA = async (
 
     weekPlan.clases.slice(0, numClases).forEach((aiClase, i) => {
       const dia = fase.dias[i];
-      if (!dia) return;
+      if (!dia) {
+        throw new Error(`R3: clase IA ${i + 1} de la semana ${fase.numero} sin día calendario correspondiente`);
+      }
 
       if (aiClase.titulo) dia.tituloIA = aiClase.titulo;
 
       // MERGE: reemplazar solo actividades/tiempo dentro de cada momento existente.
       // Preserva evaluacion, evidencias, recursos, metacognicion de generarDia.
+      // Si las actividades de la IA no pueden aplicarse, se DETIENE: dejar las
+      // actividades de plantilla sería degradar a genérico en silencio.
       aiClase.momentos.slice(0, 3).forEach((aiMom, mi) => {
         const orig = dia.momentos?.[mi];
-        if (!orig || !Array.isArray(aiMom.actividades) || !aiMom.actividades.length) return;
+        if (!orig) {
+          throw new Error(`R3: semana ${fase.numero}, clase ${dia.dia || i + 1} — momento ${mi + 1} inexistente en la estructura base`);
+        }
+        if (!Array.isArray(aiMom.actividades) || !aiMom.actividades.length) {
+          throw new Error(`R3: semana ${fase.numero}, clase ${dia.dia || i + 1} — la IA no aportó actividades para "${orig.nombre || `momento ${mi + 1}`}" (plantillas vetadas como respaldo)`);
+        }
         orig.actividades = aiMom.actividades;
         if (aiMom.tiempo) orig.tiempo = aiMom.tiempo;
       });
