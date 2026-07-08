@@ -2843,11 +2843,22 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       </tbody>
     </table>` : "";
 
+  // Estilo oficial: la primera palabra de cada actividad va en negrita
+  // ("Responden...", "Retroalimentación...", "Recuperación..."). Es una
+  // transformación de render: la IA entrega texto plano y las unidades ya
+  // guardadas también se benefician. Si la actividad ya trae su propia
+  // negrita inicial (markdown ** legacy), no se duplica.
+  const negritaPrimeraPalabra = (texto) => {
+    const t = String(texto || "");
+    if (!t.trim() || t.trimStart().startsWith("**")) return t;
+    return t.replace(/^(\s*)(\S+)/, (_m, esp, palabra) => `${esp}<strong>${palabra}</strong>`);
+  };
+
   const fasesHtml = (unidad.fasesSemanales || []).map((fase) => {
     const diasHtml = (fase.dias || []).map((dia) => {
       const momentosHtml = (dia.momentos || []).map((mom) => {
         const actsHtml = (mom.actividades || []).map((a, i) => {
-          const html = a
+          const html = negritaPrimeraPalabra(a)
             .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
             .replace(/_([^_]+)_/g, "<em>$1</em>");
           return `<p style="margin:2px 0"><strong>${i + 1})</strong> ${html}</p>`;

@@ -334,6 +334,29 @@ check("actividad con voz incorrecta en el documento → error", () => {
   esperaError(() => validarUnidadRenderizada(u, formatearUnidadHTML(u, "")), "voz —");
 });
 
+check("el render pone en negrita la primera palabra de cada actividad (incl. fórmulas fijas)", () => {
+  for (const esperado of [
+    "<strong>Responden</strong> al saludo e indicaciones iniciales.",
+    "<strong>Retroalimentación</strong> del vocabulario trabajado",
+    "<strong>Recuperación</strong> o exploración de saberes previos",
+    "<strong>Practican</strong> en parejas",
+    "<strong>Socializan</strong> algunas de las oraciones",
+    "<strong>Escuchan</strong> la intención pedagógica",
+  ]) {
+    if (!html.includes(esperado)) throw new Error(`falta negrita inicial: "${esperado.slice(0, 50)}"`);
+  }
+});
+
+check("actividad legacy con negrita markdown propia no se duplica", () => {
+  const u = clonar();
+  u.fasesSemanales[0].dias[1].momentos[2].actividades.push(
+    "**Comparten** sus respuestas con el grupo. **Reciben** retroalimentación sobre su producción."
+  );
+  const h = formatearUnidadHTML(u, "");
+  if (h.includes("<strong><strong>")) throw new Error("negrita duplicada en actividad legacy");
+  if (!h.includes("<strong>Comparten</strong> sus respuestas")) throw new Error("markdown legacy no convertido");
+});
+
 check("la retroalimentación vive en el Inicio (posición 2), no en el Cierre", () => {
   const u = clonar();
   const inicio = u.fasesSemanales[0].dias[0].momentos[0].actividades;
