@@ -1,4 +1,9 @@
 /**
+ * CUARENTENA (Fase 1, 2026-07-07): sin imports directos detectados en src/
+ * (verificado estático + dinámico), pendiente confirmar uso dinámico antes
+ * de eliminar definitivamente.
+ */
+/**
  * AgenteAuditor — Control de calidad pedagógica y alineación curricular.
  *
  * Responsabilidades:
@@ -9,7 +14,7 @@
  *   - Guardar resultados de auditoría en el BIC para análisis posterior
  */
 
-import { AIService } from "../AIService.js";
+import { AIService } from "../services/ai/AIService.js";
 
 const SYSTEM = `Eres el Agente Auditor de DocenteOS. Evalúas la calidad pedagógica de planificaciones didácticas según:
 

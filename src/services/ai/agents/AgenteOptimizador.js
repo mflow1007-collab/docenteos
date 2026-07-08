@@ -35,6 +35,7 @@ Prioriza: claridad pedagógica > alineación curricular > variedad de actividade
  * @returns {{ pares: Array<[string, string, number]> }} Pares de IDs y su similitud
  */
 export function detectarDuplicados(items, umbral = 0.95) {
+  console.warn("[KE-audit] AgenteOptimizador.detectarDuplicados invocado");
   const pares = [];
 
   for (let i = 0; i < items.length; i++) {
@@ -59,6 +60,7 @@ export function detectarDuplicados(items, umbral = 0.95) {
  * @returns {Promise<{ idResultante: string, calidad: number }>}
  */
 export async function fusionar(idA, idB, tipo = "planes") {
+  console.warn("[KE-audit] AgenteOptimizador.fusionar invocado");
   const [itemA, itemB] = await Promise.all([obtener(tipo, idA), obtener(tipo, idB)]);
 
   if (!itemA || !itemB) throw new Error("[Optimizador] No se encontraron los ítems para fusionar.");
@@ -96,6 +98,7 @@ export async function fusionar(idA, idB, tipo = "planes") {
  * @returns {Promise<Object>} Contenido mejorado
  */
 export async function incorporarMejoras(planId, tipo = "planes") {
+  console.warn("[KE-audit] AgenteOptimizador.incorporarMejoras invocado");
   const [item, versiones] = await Promise.all([
     obtener(tipo, planId),
     obtenerVersiones(planId),
@@ -147,6 +150,7 @@ Mantén la estructura original. Responde SOLO con el JSON mejorado.`,
  * @returns {Promise<{ fusionados: number, archivados: number, procesados: number }>}
  */
 export async function cicloOptimizacion(tipo, filtros = {}) {
+  console.warn("[KE-audit] AgenteOptimizador.cicloOptimizacion invocado");
   const candidatos = await buscarCandidatos(tipo, filtros, 100);
 
   let fusionados = 0;

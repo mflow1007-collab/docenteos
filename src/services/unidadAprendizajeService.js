@@ -2448,6 +2448,9 @@ export const generarUnidadAprendizaje = async (datos) => {
     jornada = "Extendida",
     competenciasFundamentalesSeleccionadas = [],
     temasSeleccionados = [],
+    // Rótulo del documento: "Unidad de Aprendizaje" o "Secuencia Didáctica"
+    // (mismo esquema MINERD; solo cambia la etiqueta)
+    tipoPlanificacion = "Unidad de Aprendizaje",
     onProgress = null,
   } = datos;
 
@@ -2554,7 +2557,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   })();
 
   const unidadResult = {
-    tipoPlanificacion: "Unidad de Aprendizaje",
+    tipoPlanificacion,
     curricularContentId: curricularDoc?.id || null,
     // IDs de todos los indicadores de la malla (base curricular de la unidad)
     curricularRefs: allInds.map(i => i.id).filter(Boolean),
@@ -2877,13 +2880,13 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
   return `<!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><title>Unidad de Aprendizaje — ${m.titulo}</title>
+<head><meta charset="UTF-8"><title>${unidad.tipoPlanificacion || "Unidad de Aprendizaje"} — ${m.titulo}</title>
 <style>${estilos}</style></head>
 <body><div class="page">
   <div class="header-minerd">
     ${logoUrl ? `<img src="${logoUrl}" alt="Logo MINERD" onerror="this.style.display='none'">` : ""}
     <h1>MINISTERIO DE EDUCACIÓN DE LA REPÚBLICA DOMINICANA</h1>
-    <div class="sub">PLANIFICACIÓN: UNIDAD DE APRENDIZAJE</div>
+    <div class="sub">PLANIFICACIÓN: ${(unidad.tipoPlanificacion || "Unidad de Aprendizaje").toUpperCase()}</div>
   </div>
 
   <div class="section-head">DATOS GENERALES</div>

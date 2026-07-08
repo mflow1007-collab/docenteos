@@ -30,6 +30,7 @@ Eres analítico, empático con los docentes y orientado a mejora continua.`;
  * @param {{ onChunk, onFinish, onError }} callbacks
  */
 export async function analizarPatrones(limite = 100, { onChunk, onFinish, onError }) {
+  console.warn("[KE-audit] AgenteAprendizaje.analizarPatrones invocado");
   let versiones;
   try {
     versiones = await obtenerVersionesRecientes(limite);
@@ -79,6 +80,7 @@ Identifica:
  * @returns {Promise<{ leccion: string, categoria: string, impacto: "alto"|"medio"|"bajo" }>}
  */
 export async function inferirLeccion(version) {
+  console.warn("[KE-audit] AgenteAprendizaje.inferirLeccion invocado");
   return new Promise(resolve => {
     let acumulado = "";
 
@@ -122,6 +124,7 @@ Responde en JSON:
  * @param {{ onChunk, onFinish, onError }} callbacks
  */
 export async function reporteTendencias({ periodo = "mes" } = {}, { onChunk, onFinish, onError }) {
+  console.warn("[KE-audit] AgenteAprendizaje.reporteTendencias invocado");
   let versiones;
   const limites = { semana: 50, mes: 200, trimestre: 500 };
 

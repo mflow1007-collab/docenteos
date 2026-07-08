@@ -288,7 +288,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
 
   // Sync latest deps into hooks on every render (avoids stale closures via depsRef pattern)
   planDiarioHook.syncDeps({ estadoTemas, setDialogoTema, cargarHistorial });
-  unidadHook.syncDeps({ estadoTemas, setDialogoTema, cargarHistorial });
+  unidadHook.syncDeps({ estadoTemas, setDialogoTema, cargarHistorial, tipoPlanificacion });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -297,6 +297,46 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
 
     return () => clearTimeout(timer);
   }, []);
+
+  const cargarFormularioDesdeHistorial = (contenido, { duplicar = false } = {}) => {
+    if (!contenido) return;
+
+    const contenidoNormalizado = contenido.contenido || contenido;
+    const meta = contenidoNormalizado.metadatos || contenido.metadatos || {};
+
+    if (!duplicar) {
+      setPlanificacion(contenidoNormalizado);
+    } else {
+      setPlanificacion(null);
+    }
+    setGrado(meta.grado || "");
+    setSeccion(meta.seccion || "");
+    setArea(meta.area || "");
+    setPeriodo(meta.periodo || "");
+    setFechaInicio(meta.fechaInicio || hoyISO);
+    setDuracion(meta.duracion || "");
+    setTipoPlanificacion(meta.tipoPlanificacion || "");
+    setDiasClase(Array.isArray(meta.diasClase) && meta.diasClase.length ? meta.diasClase : ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]);
+    setTema(meta.tema || "");
+    setCompetencia(meta.competenciaSeleccionada || "");
+    setIndicadoresOficiales((meta.indicadoresOficiales || []).join("\n"));
+    setImagenTematicaSrc(meta.imagenTematicaSrc || "");
+    setImagenTematicaNombre(meta.imagenTematicaNombre || "");
+    setEjesTematicos(Array.isArray(meta.ejesTematicos) ? meta.ejesTematicos : []);
+    setAsignaturasVinculadas(Array.isArray(meta.asignaturasVinculadas) ? meta.asignaturasVinculadas.join(", ") : (meta.asignaturasVinculadas || ""));
+    setSituacionAprendizaje(meta.situacionAprendizaje || "");
+    setMinutosHoraClase(meta.minutosHoraClase || 45);
+    setPeriodosClasePorDia(meta.periodosClasePorDia && typeof meta.periodosClasePorDia === "object" ? meta.periodosClasePorDia : {});
+    setTemasIntegrados(Array.isArray(meta.temasIntegrados) && meta.temasIntegrados.length > 1 ? meta.temasIntegrados : []);
+    setCombinacionSugerida(null);
+
+    const texto = duplicar
+      ? "🧬 Configuración duplicada en el formulario"
+      : "📂 Planificación cargada desde historial";
+
+    setMensaje({ tipo: "success", texto });
+    setTimeout(() => setMensaje(null), 2000);
+  };
 
   // Carga una planificación desde el historial reciente del Dashboard
   useEffect(() => {
@@ -888,45 +928,6 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     }
   };
 
-  const cargarFormularioDesdeHistorial = (contenido, { duplicar = false } = {}) => {
-    if (!contenido) return;
-
-    const contenidoNormalizado = contenido.contenido || contenido;
-    const meta = contenidoNormalizado.metadatos || contenido.metadatos || {};
-
-    if (!duplicar) {
-      setPlanificacion(contenidoNormalizado);
-    } else {
-      setPlanificacion(null);
-    }
-    setGrado(meta.grado || "");
-    setSeccion(meta.seccion || "");
-    setArea(meta.area || "");
-    setPeriodo(meta.periodo || "");
-    setFechaInicio(meta.fechaInicio || hoyISO);
-    setDuracion(meta.duracion || "");
-    setTipoPlanificacion(meta.tipoPlanificacion || "");
-    setDiasClase(Array.isArray(meta.diasClase) && meta.diasClase.length ? meta.diasClase : ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]);
-    setTema(meta.tema || "");
-    setCompetencia(meta.competenciaSeleccionada || "");
-    setIndicadoresOficiales((meta.indicadoresOficiales || []).join("\n"));
-    setImagenTematicaSrc(meta.imagenTematicaSrc || "");
-    setImagenTematicaNombre(meta.imagenTematicaNombre || "");
-    setEjesTematicos(Array.isArray(meta.ejesTematicos) ? meta.ejesTematicos : []);
-    setAsignaturasVinculadas(Array.isArray(meta.asignaturasVinculadas) ? meta.asignaturasVinculadas.join(", ") : (meta.asignaturasVinculadas || ""));
-    setSituacionAprendizaje(meta.situacionAprendizaje || "");
-    setMinutosHoraClase(meta.minutosHoraClase || 45);
-    setPeriodosClasePorDia(meta.periodosClasePorDia && typeof meta.periodosClasePorDia === "object" ? meta.periodosClasePorDia : {});
-    setTemasIntegrados(Array.isArray(meta.temasIntegrados) && meta.temasIntegrados.length > 1 ? meta.temasIntegrados : []);
-    setCombinacionSugerida(null);
-
-    const texto = duplicar
-      ? "🧬 Configuración duplicada en el formulario"
-      : "📂 Planificación cargada desde historial";
-
-    setMensaje({ tipo: "success", texto });
-    setTimeout(() => setMensaje(null), 2000);
-  };
 
   const manejarCargarHistorial = (id) => {
     const encontrado = historialPlanificaciones.find((item) => String(item.id) === String(id));

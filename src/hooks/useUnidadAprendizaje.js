@@ -66,6 +66,9 @@ export function useUnidadAprendizaje() {
       await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
       const resultado = await generarUnidadAprendizaje({
         ...unidadDatos,
+        // Rótulo del documento según el tipo elegido en la página
+        // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
+        tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
         onProgress: (msg) => setMensajeUnidad({ tipo: "loading", texto: `⏳ ${msg}` }),
       });
       setUnidad(resultado);
@@ -177,6 +180,7 @@ export function useUnidadAprendizaje() {
       await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
       const resultado = await generarUnidadAprendizaje({
         ...unidadDatos,
+        tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
         onProgress: (msg) => setMensajeUnidad({ tipo: "loading", texto: `⏳ ${msg}` }),
       });
       setUnidad(resultado);
