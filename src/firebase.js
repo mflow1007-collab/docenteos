@@ -25,13 +25,17 @@ import { esUsuarioDocenteOS } from "./utils/permisos.js";
 import { COMP_CODIGOS, resolverCI, resolverPI } from "./constants/registroCodigos.js";
 import { aplicarNotaEnCelda } from "./services/hiloPedagogico.js";
 
+// import.meta.env solo existe bajo Vite; en Node (tests) queda {} y
+// isFirebaseConfigured=false — mismo comportamiento que sin credenciales.
+const ENV = (typeof import.meta !== "undefined" && import.meta.env) || {};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: ENV.VITE_FIREBASE_API_KEY,
+  authDomain: ENV.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: ENV.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: ENV.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: ENV.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: ENV.VITE_FIREBASE_APP_ID,
 };
 
 const isFirebaseConfigured =

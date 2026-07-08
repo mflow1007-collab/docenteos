@@ -17,7 +17,7 @@ import { db }                                   from '../firebase.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
-const MAX_TOKENS   = 5000;   // por lote; escala a 8000 si hay truncamiento
+const MAX_TOKENS   = 6500;   // por lote (contrato incluye evidencias/metacognición/recursos); escala a 9000 si hay truncamiento
 
 const SYSTEM_PROMPT =
   'Eres un planificador curricular experto. ' +
@@ -142,6 +142,9 @@ function jaccardSimilarity(a, b) {
 }
 
 // ─── Validación por lote (R1 + R7, sin R2) ───────────────────────────────────
+// Contrato completo por momento: actividades + evidencias + metacognicion +
+// recursos. La ausencia de cualquiera = rechazo del lote (consume reintento).
+// NUNCA render vacío ni relleno de plantilla.
 
 function validateBatch(data, durMin, count) {
   if (!data?.clases || !Array.isArray(data.clases)) throw new Error('R1: falta clases[]');
@@ -152,15 +155,29 @@ function validateBatch(data, durMin, count) {
   const tDesarrollo = durMin - tInicio - tCierre;
   const tiempos = { Inicio: tInicio, Desarrollo: tDesarrollo, Cierre: tCierre };
 
+  const listaNoVacia = (v) => Array.isArray(v) && v.filter((x) => String(x || '').trim()).length > 0;
+
   for (let idx = 0; idx < count; idx++) {
     const clase = data.clases[idx];
     if (!Array.isArray(clase?.momentos) || clase.momentos.length !== 3) {
       throw new Error(`R1: clase ${idx + 1} debe tener 3 momentos`);
     }
+    if (!Array.isArray(clase.indicadoresTrabajados)) {
+      throw new Error(`R1: clase ${idx + 1} sin indicadoresTrabajados[] (usa los códigos de la especificación)`);
+    }
     let totalMin = 0;
     for (const m of clase.momentos) {
-      if (!Array.isArray(m.actividades) || m.actividades.length === 0) {
+      if (!listaNoVacia(m.actividades)) {
         throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin actividades`);
+      }
+      if (!listaNoVacia(m.evidencias)) {
+        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin evidencias`);
+      }
+      if (!listaNoVacia(m.metacognicion)) {
+        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin metacognicion`);
+      }
+      if (!listaNoVacia(m.recursos)) {
+        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin recursos`);
       }
       const esp = tiempos[m.nombre];
       if (esp !== undefined) { m.tiempo = `${esp} min`; totalMin += esp; }
@@ -200,14 +217,19 @@ function formatearMemoria(memoria) {
 }
 
 // ─── Plan gramatical pre-repartido ────────────────────────────────────────────
-// Sem 1: solo vocabulario / intro (sin estructuras complejas)
-// Sem 2+: estructuras gramaticales asignadas por rango proporcional
+// EL CÓDIGO decide el orden según la progresión del nivel; la IA compone
+// alrededor de los focos asignados, no decide el orden.
+//   Sem 1: SOLO vocabulario e introducción al tema — ninguna estructura
+//          compleja (los comparativos y similares NUNCA en semana 1).
+//   Sem 2+: las estructuras de la malla, en su orden oficial, repartidas
+//          proporcionalmente entre las semanas restantes.
 
 function getFocoGramatical(gramaticaArray, semanaNum, numSemanas) {
   if (!gramaticaArray?.length) return [];
-  if (semanaNum === 1) return gramaticaArray.slice(0, 1); // sem 1 solo intro
-  const perWeek = Math.ceil(gramaticaArray.length / Math.max(numSemanas, 1));
-  const start   = (semanaNum - 1) * perWeek;
+  if (semanaNum === 1) return []; // sem 1: solo vocabulario/intro
+  const semanasConGramatica = Math.max(numSemanas - 1, 1);
+  const perWeek = Math.ceil(gramaticaArray.length / semanasConGramatica);
+  const start   = (semanaNum - 2) * perWeek;
   return gramaticaArray.slice(start, start + perWeek);
 }
 
@@ -220,12 +242,20 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
 
   const vocab      = spec.contenidosClaves?.vocabulario?.slice(0, 16).join(', ') || '';
   const funcs      = spec.contenidosClaves?.funcionales?.slice(0, 3).join('; ')  || '';
+  // Indicadores CON código oficial: la IA reporta en indicadoresTrabajados
+  // cuáles trabajó cada clase (usando exactamente esos códigos)
   const indText    = (spec.indicadores || []).slice(0, 3)
-    .map(i => i.descripcion || i.texto || '').filter(Boolean).join(' | ');
+    .map(i => `[${i.codigoOficial || i.id || 's/c'}] ${i.descripcion || i.texto || ''}`)
+    .filter(l => !l.endsWith('] ')).join(' | ');
   const ceText     = (spec.ces || []).slice(0, 2)
     .map(c => c.descripcion || '').filter(Boolean).join(' | ');
   const focoGram   = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas);
-  const focoGramTx = focoGram.length ? focoGram.join('; ') : 'vocabulario y expresiones del tema';
+  const focoGramTx = focoGram.length
+    ? focoGram.join('; ')
+    : 'SOLO vocabulario y expresiones del tema (semana introductoria: sin estructuras gramaticales nuevas)';
+  const idiomaMeta = spec.esIdioma
+    ? `en ${spec.idiomaNombre || 'inglés'} sencillo (nivel del estudiante)`
+    : 'en español';
 
   const endDia  = startDia + count - 1;
   const rango   = count === 1 ? `Clase ${startDia}` : `Clases ${startDia}-${endDia}`;
@@ -237,7 +267,7 @@ TEMA: "${spec.temaOficial}"
 
 ESPECIFICACIÓN CURRICULAR:
 - Competencias: ${ceText || '(ver indicadores)'}
-- Indicadores: ${indText}
+- Indicadores (con código): ${indText}
 - Vocabulario disponible: ${vocab}
 - FOCO GRAMATICAL ESTA SEMANA (usar en Desarrollo): ${focoGramTx}
 - Funciones comunicativas: ${funcs}
@@ -251,8 +281,10 @@ REGLAS:
 2. Desarrollos distintos entre sí y distintos a los ya listados arriba.
 3. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
 4. Mínimo 2 actividades concretas por momento.
+5. CADA momento incluye ADEMÁS: "evidencias" (2-3 evidencias observables y evaluables de ESE momento, en español), "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
+6. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
 
-{"outputSchemaVersion":"1.0","semana":${semanaNum},"clases":[{"dia":${startDia},"titulo":"...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","actividades":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.1","semana":${semanaNum},"clases":[{"dia":${startDia},"titulo":"...","indicadoresTrabajados":["..."],"momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","actividades":["...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote (2 intentos por lote) ─────────────────────────────
@@ -279,7 +311,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${result.motivo}`,
           { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
         lastError = new Error(result.motivo);
-        if (result.motivo.includes('TRUNCADO')) maxTokens = 8000;
+        if (result.motivo.includes('TRUNCADO')) maxTokens = 9000;
         else prefix = JSON_REMINDER;
         continue;
       }
@@ -370,11 +402,15 @@ export const buildEspecificacionCurricular = ({
     aspecto:       '',
   })).filter(i => i.descripcion);
 
+  const esIdioma = area === 'Inglés' || area === 'Francés';
+
   return {
     temaOficial: titulo,
     area,
     grado,
     nivelMCERL:  mallaPayload?.nivelMCERL || null,
+    esIdioma,
+    idiomaNombre: esIdioma ? (area === 'Francés' ? 'francés' : 'inglés') : null,
     ces,
     indicadores,
     contenidosClaves: {
@@ -382,6 +418,6 @@ export const buildEspecificacionCurricular = ({
       gramatica:   mallaContenidos?.gramatica?.slice(0, 6)   || [],
       funcionales: mallaContenidos?.funcionales?.slice(0, 5) || [],
     },
-    outputSchemaVersion: '1.0',
+    outputSchemaVersion: '1.1',
   };
 };

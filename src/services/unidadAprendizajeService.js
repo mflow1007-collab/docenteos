@@ -61,31 +61,6 @@ const getAmbiente = (area) => {
   return a[area] || "Aula de clases organizada para trabajo colaborativo e individual. Entorno comunitario y familiar para extensión de los aprendizajes.";
 };
 
-const getContenidos = (area, tema) => {
-  const c = {
-    "Inglés": {
-      conceptuales: [`Vocabulario clave relacionado con ${tema}`, "Estructuras gramaticales básicas", "Elementos de la comunicación oral y escrita", "Comprensión lectora y auditiva"],
-      procedimentales: [`Identificación y uso de vocabulario de ${tema} en contexto`, "Práctica de diálogos y conversaciones", "Lectura comprensiva de textos cortos", "Producción escrita de oraciones y párrafos simples"],
-      actitudinales: ["Disposición para comunicarse en inglés sin temor", "Valoración de la diversidad cultural anglosajona", "Colaboración y respeto en actividades grupales", "Perseverancia ante las dificultades del aprendizaje del idioma"],
-    },
-    "Matemática": {
-      conceptuales: [`Conceptos y definiciones de ${tema}`, "Propiedades y relaciones matemáticas", "Representaciones gráficas y simbólicas", "Terminología matemática específica"],
-      procedimentales: [`Resolución de ejercicios y problemas sobre ${tema}`, "Aplicación de algoritmos y procedimientos", "Representación gráfica de conceptos", "Verificación y justificación de resultados"],
-      actitudinales: ["Gusto por la resolución de problemas", "Perseverancia ante situaciones desafiantes", "Trabajo en equipo y respeto a las estrategias de los compañeros", "Valoración de la matemática en la vida cotidiana"],
-    },
-    "Lengua Española": {
-      conceptuales: [`Características del género/tipo de texto relacionado con ${tema}`, "Elementos gramaticales y ortográficos", "Vocabulario específico del área", "Estructura de la comunicación oral y escrita"],
-      procedimentales: [`Lectura comprensiva y análisis de textos sobre ${tema}`, "Producción de textos escritos con coherencia y cohesión", "Participación en situaciones de comunicación oral", "Aplicación de normas ortográficas y gramaticales"],
-      actitudinales: ["Valoración de la lengua española como herramienta de comunicación", "Gusto por la lectura y la escritura", "Respeto por las producciones orales y escritas de los compañeros", "Responsabilidad en las tareas comunicativas"],
-    },
-  };
-  return c[area] || {
-    conceptuales: [`Conceptos fundamentales de ${tema}`, "Principios y teorías relacionadas", "Terminología específica del área", "Relaciones entre los diferentes elementos del tema"],
-    procedimentales: [`Aplicación práctica de los conceptos de ${tema}`, "Desarrollo de habilidades específicas del área", "Trabajo colaborativo e individual", "Producción y presentación de trabajos"],
-    actitudinales: ["Interés y curiosidad por el aprendizaje", "Responsabilidad en el desarrollo de las actividades", "Respeto y colaboración con los compañeros", "Valoración del conocimiento y su aplicación práctica"],
-  };
-};
-
 const getEjesTematicos = (area) => {
   const ejes = {
     "Inglés": ["Alfabetización Imprescindible", "Ciudadanía y Convivencia"],
@@ -1170,37 +1145,43 @@ const getEvidencias = (area, momento, _fasePos) => {
   return byMom[area] || byMom.default;
 };
 
-const getEvaluacion = (momento, fasePos) => {
-  const evals = {
-    Inicio: {
-      tipo: "Diagnóstica",
-      agente: "Heteroevaluación",
-      tecnica: "Observación directa",
-      instrumento: "Lista de cotejo",
-    },
-    Desarrollo: {
-      tipo: "Formativa",
-      agente: "Heteroevaluación",
-      tecnica: "Observación directa y revisión del trabajo",
-      instrumento: "Rúbrica analítica",
-    },
-    Cierre: {
-      tipo: "Formativa",
-      agente: "Autoevaluación / Coevaluación",
-      tecnica: "Reflexión oral / Ticket de salida",
-      instrumento: "Escala de valoración",
-    },
-  };
-  // Last phase adds summative evaluation
-  if (fasePos === "final") {
-    return {
-      tipo: "Sumativa",
-      agente: "Heteroevaluación",
-      tecnica: "Revisión de producciones y observación",
-      instrumento: "Rúbrica analítica / Lista de cotejo",
-    };
-  }
-  return evals[momento] || evals.Inicio;
+// ─── Evaluación por momento: asignación DETERMINÍSTICA (no es tarea de la IA) ─
+// Tabla de reglas momento+fase. El Resumen de Evaluación del día se deriva de
+// esta MISMA tabla (ver generarDia) para que documento y resumen coincidan.
+//   Inicio     → Diagnóstica / heteroevaluación / observación directa / lista de cotejo
+//   Desarrollo → Formativa (Sumativa en la fase final)
+//   Cierre     → Formativa / autoevaluación-coevaluación
+
+const TABLA_EVALUACION = {
+  Inicio: {
+    tipo: "Diagnóstica",
+    agente: "Heteroevaluación",
+    tecnica: "Observación directa",
+    instrumento: "Lista de cotejo",
+  },
+  Desarrollo: {
+    tipo: "Formativa",
+    agente: "Heteroevaluación",
+    tecnica: "Observación directa y revisión del trabajo",
+    instrumento: "Rúbrica analítica",
+  },
+  DesarrolloFaseFinal: {
+    tipo: "Sumativa",
+    agente: "Heteroevaluación",
+    tecnica: "Revisión de producciones y observación",
+    instrumento: "Rúbrica analítica",
+  },
+  Cierre: {
+    tipo: "Formativa",
+    agente: "Autoevaluación / Coevaluación",
+    tecnica: "Reflexión oral / Ticket de salida",
+    instrumento: "Escala de valoración",
+  },
+};
+
+const getEvaluacion = (momento, esFaseFinal = false) => {
+  if (momento === "Desarrollo" && esFaseFinal) return TABLA_EVALUACION.DesarrolloFaseFinal;
+  return TABLA_EVALUACION[momento] || TABLA_EVALUACION.Inicio;
 };
 
 const getMetacognicion = (momento, area, tema) => {
@@ -1285,113 +1266,6 @@ const derivarRecursos = (actividades, area, _faseNum) => {
     didacticos: [...did].slice(0, 5).join(", "),
     tecnologicos: [...tec].slice(0, 4).join(", "),
   };
-};
-
-// ─── Criterios de éxito por área y fase ──────────────────────────────────────
-
-const CRITERIOS_EXITO = {
-  "Inglés": [
-    [`☐ Puedo identificar al menos 6 palabras de "{tema}" en inglés.`, `☐ Digo una oración simple sobre "{tema}" usando vocabulario nuevo.`, `☐ Completé el organizador diagnóstico con mis saberes previos.`, `☐ Participé al menos una vez en la actividad oral.`],
-    [`☐ Usé la estructura gramatical trabajada en al menos 3 oraciones sobre "{tema}".`, `☐ Respondí correctamente al menos 2 preguntas de comprensión.`, `☐ Anoté 3 palabras nuevas en mi banco de vocabulario.`, `☐ Practiqué con mi compañero/a en inglés durante la actividad de pareja.`],
-    [`☐ Produje un párrafo o diálogo completo sobre "{tema}" usando estructuras aprendidas.`, `☐ Revisé la producción de un compañero/a aplicando los criterios.`, `☐ Incorporé al menos una corrección en mi producción.`, `☐ Puedo explicar en inglés un aspecto relacionado con "{tema}".`],
-    [`☐ Avancé una sección concreta de mi producto final sobre "{tema}".`, `☐ Mi producción cumple al menos 3 criterios de la rúbrica.`, `☐ Practiqué mi presentación oral con un compañero/a.`, `☐ Puedo presentar mi trabajo en inglés durante al menos 60 segundos.`],
-  ],
-  "Francés": [
-    [`☐ Puedo identificar al menos 6 palabras de "{tema}" en francés.`, `☐ Digo una oración simple sobre "{tema}" usando vocabulario nuevo.`, `☐ Completé el organizador diagnóstico con mis saberes previos.`, `☐ Participé al menos una vez en la actividad oral.`],
-    [`☐ Usé la estructura gramatical trabajada en al menos 3 oraciones sobre "{tema}".`, `☐ Respondí correctamente al menos 2 preguntas de comprensión.`, `☐ Anoté 3 palabras nuevas en mi banco de vocabulario.`, `☐ Practiqué con mi compañero/a en francés durante la actividad.`],
-    [`☐ Produje un párrafo o diálogo completo sobre "{tema}" usando estructuras aprendidas.`, `☐ Revisé la producción de un compañero/a aplicando los criterios.`, `☐ Incorporé al menos una corrección en mi producción.`, `☐ Puedo explicar en francés un aspecto relacionado con "{tema}".`],
-    [`☐ Avancé una sección concreta de mi producto final sobre "{tema}".`, `☐ Mi producción cumple al menos 3 criterios de la rúbrica.`, `☐ Practiqué mi presentación oral con un compañero/a.`, `☐ Puedo presentar mi trabajo en francés durante al menos 60 segundos.`],
-  ],
-  "Matemática": [
-    [`☐ Puedo explicar con mis palabras qué es "{tema}" y para qué sirve.`, `☐ Resolví los ejercicios diagnósticos mostrando mi procedimiento.`, `☐ Identifiqué una situación real donde se aplica "{tema}".`, `☐ Formulé una pregunta sobre lo que quiero aprender.`],
-    [`☐ Resolví los ejercicios de "{tema}" aplicando el procedimiento correcto.`, `☐ Expliqué a mi compañero/a cómo llegué a mi respuesta.`, `☐ Identifiqué y corregí al menos un error en mi procedimiento.`, `☐ Registré el procedimiento completo en mi cuaderno de manera organizada.`],
-    [`☐ Resolví un problema aplicado de "{tema}" eligiendo la estrategia apropiada.`, `☐ Representé el problema de al menos dos formas diferentes.`, `☐ Justifiqué mis respuestas con argumentos matemáticos correctos.`, `☐ Evalué la razonabilidad de mi resultado.`],
-    [`☐ Completé la sección asignada de mi producto matemático sobre "{tema}".`, `☐ Verifiqué que mi producción cumple los criterios de calidad.`, `☐ Expliqué mi procedimiento ante el grupo con claridad.`, `☐ Incorporé la retroalimentación recibida en mi trabajo.`],
-  ],
-  "Ciencias de la Naturaleza": [
-    [`☐ Formulé una hipótesis sobre "{tema}".`, `☐ Identifiqué al menos 3 conceptos relacionados con "{tema}".`, `☐ Registré mis observaciones iniciales de manera organizada.`, `☐ Relacioné "{tema}" con un fenómeno del entorno natural.`],
-    [`☐ Realicé la actividad de indagación siguiendo el procedimiento.`, `☐ Registré los datos de forma clara y completa.`, `☐ Identifiqué evidencia que apoya o refuta mi hipótesis.`, `☐ Expliqué el fenómeno de "{tema}" usando vocabulario científico.`],
-    [`☐ Analicé los datos y construí una explicación científica de "{tema}".`, `☐ Relacioné "{tema}" con conceptos anteriores o situaciones reales.`, `☐ Usé vocabulario científico correctamente en mi producción.`, `☐ Evalué críticamente la evidencia disponible sobre "{tema}".`],
-    [`☐ Aporté la sección asignada a mi informe científico de "{tema}".`, `☐ Presenté mis hallazgos usando evidencia y vocabulario científico.`, `☐ Respondí preguntas de compañeros sobre mi investigación.`, `☐ Reflexioné sobre la aplicación de "{tema}" en la vida y el ambiente.`],
-  ],
-  "Lengua Española": [
-    [`☐ Identifiqué las características del tipo de texto de "{tema}".`, `☐ Participé en la actividad oral aportando al menos una idea.`, `☐ Completé el organizador diagnóstico con mis saberes previos.`, `☐ Formulé al menos una pregunta de aprendizaje.`],
-    [`☐ Leí el texto de "{tema}" e identifiqué la idea principal.`, `☐ Apliqué la norma gramatical u ortográfica en mis producciones.`, `☐ Produje un texto breve con cohesión y coherencia básicas.`, `☐ Revisé mi producción y realicé al menos una corrección.`],
-    [`☐ Produje un texto completo con estructura adecuada sobre "{tema}".`, `☐ Apliqué recursos lingüísticos (conectores, vocabulario) apropiados.`, `☐ Leí mi producción en voz alta con fluidez.`, `☐ Di retroalimentación constructiva a un compañero/a.`],
-    [`☐ Completé la sección asignada de mi producción final sobre "{tema}".`, `☐ Mi producción cumple los criterios de calidad del tipo textual.`, `☐ Incorporé la retroalimentación en mi versión revisada.`, `☐ Puedo presentar mi producción oralmente con claridad.`],
-  ],
-  "Ciencias Sociales": [
-    [`☐ Identifiqué los actores, el contexto y el período de "{tema}".`, `☐ Expresé mis conocimientos previos y formulé una pregunta de investigación.`, `☐ Clasifiqué las fuentes sobre "{tema}" por tipo y confiabilidad.`, `☐ Relacioné "{tema}" con situaciones actuales de la comunidad o el país.`],
-    [`☐ Analicé al menos una fuente primaria o secundaria sobre "{tema}".`, `☐ Construí un organizador gráfico sobre "{tema}".`, `☐ Identifiqué causas y consecuencias del proceso de "{tema}".`, `☐ Formulé un argumento fundamentado en evidencia.`],
-    [`☐ Elaboré una producción escrita sobre "{tema}" con argumentos sustentados.`, `☐ Relacioné "{tema}" con ciudadanía, derechos o responsabilidad social.`, `☐ Expresé oralmente mi posición con al menos 2 argumentos.`, `☐ Evalué críticamente la confiabilidad de las fuentes.`],
-    [`☐ Completé la sección asignada de mi proyecto investigativo sobre "{tema}".`, `☐ Presenté mis hallazgos con evidencia histórica/social con claridad.`, `☐ Respondí preguntas del grupo con fundamentos.`, `☐ Reflexioné sobre la relevancia de "{tema}" para la vida ciudadana.`],
-  ],
-};
-
-const getCriteriosExito = (area, faseIdx, tema) => {
-  const banco = CRITERIOS_EXITO[area] || [
-    [`☐ Comprendo los conceptos principales de "${tema}" trabajados hoy.`, `☐ Completé las actividades mostrando mi procedimiento o razonamiento.`, `☐ Participé activamente al menos en una actividad.`, `☐ Puedo explicar con mis palabras algo que aprendí sobre "${tema}".`],
-    [`☐ Apliqué los procedimientos sobre "${tema}" en situaciones nuevas.`, `☐ Expliqué a un compañero/a cómo llegué a mis respuestas.`, `☐ Identifiqué y corregí mis errores con apoyo.`, `☐ Registré los aprendizajes del día de manera organizada.`],
-    [`☐ Produje algo concreto que evidencia mi dominio de "${tema}".`, `☐ Evalué críticamente mi producción usando los criterios de calidad.`, `☐ Incorporé retroalimentación para mejorar mi trabajo.`, `☐ Puedo aplicar lo de "${tema}" en una situación real.`],
-    [`☐ Completé mi aporte al producto final de la unidad.`, `☐ Mi producción cumple los criterios de la rúbrica.`, `☐ Presenté o compartí mi trabajo con claridad ante el grupo.`, `☐ Reflexioné sobre mis aprendizajes a lo largo de la unidad.`],
-  ];
-  const faseBank = banco[Math.min(faseIdx, banco.length - 1)];
-  return faseBank.map((c) => c.replace(/\{tema\}/g, tema));
-};
-
-// ─── Indicadores de avance por fase ──────────────────────────────────────────
-
-const INDICADORES_AVANCE = {
-  "Inglés": [
-    (t) => [`Identifica el vocabulario esencial de "${t}" y lo asocia con situaciones reales.`, `Comprende el sentido general de diálogos breves sobre "${t}".`, `Produce 3 oraciones simples sobre "${t}" con vocabulario nuevo.`, `Formula al menos 2 preguntas básicas sobre "${t}" en inglés.`],
-    (t) => [`Usa la estructura gramatical trabajada en oraciones sobre "${t}".`, `Comprende textos breves sobre "${t}" en niveles literal e inferencial.`, `Produce un párrafo coherente sobre "${t}" usando conectores de secuencia.`, `Practica diálogos sobre "${t}" con pronunciación comprensible.`, `Registra y usa activamente al menos 10 palabras nuevas.`],
-    (t) => [`Produce textos sobre "${t}" con vocabulario variado y estructuras apropiadas.`, `Identifica información específica en textos orales o escritos sobre "${t}".`, `Evalúa producciones propias y de compañeros con criterios acordados.`, `Desarrolla un componente concreto del producto final de la unidad.`],
-    (t) => [`Presenta el producto final sobre "${t}" con fluidez básica y claridad.`, `Integra todos los contenidos de la unidad en su producción final.`, `Autoevalúa su desempeño con honestidad usando la rúbrica.`, `Coevalúa la producción de un compañero/a con retroalimentación constructiva.`],
-  ],
-  "Francés": [
-    (t) => [`Identifica el vocabulario esencial de "${t}" y lo asocia con situaciones reales.`, `Comprende el sentido general de diálogos breves sobre "${t}".`, `Produce 3 oraciones simples sobre "${t}" con vocabulario nuevo.`, `Formula al menos 2 preguntas básicas sobre "${t}" en francés.`],
-    (t) => [`Usa la estructura gramatical trabajada en oraciones sobre "${t}".`, `Comprende textos breves sobre "${t}" en nivel literal e inferencial.`, `Produce un párrafo coherente sobre "${t}" usando conectores de secuencia.`, `Practica diálogos sobre "${t}" con pronunciación comprensible.`],
-    (t) => [`Produce textos sobre "${t}" con vocabulario variado y estructuras apropiadas.`, `Identifica información específica en textos orales o escritos sobre "${t}".`, `Evalúa producciones propias y de compañeros con criterios acordados.`, `Desarrolla un componente del producto final de la unidad.`],
-    (t) => [`Presenta el producto final sobre "${t}" con fluidez básica y claridad.`, `Integra todos los contenidos de la unidad en su producción final.`, `Autoevalúa su desempeño con honestidad usando la rúbrica.`],
-  ],
-  "Matemática": [
-    (t) => [`Identifica los conceptos y propiedades fundamentales de "${t}".`, `Resuelve ejercicios básicos de "${t}" mostrando el procedimiento ordenado.`, `Relaciona "${t}" con situaciones del entorno cotidiano.`, `Formula preguntas sobre los aspectos de "${t}" que quiere comprender mejor.`],
-    (t) => [`Aplica los procedimientos de "${t}" en ejercicios de dificultad progresiva.`, `Explica con sus palabras el procedimiento usado para resolver problemas de "${t}".`, `Representa "${t}" de manera gráfica, numérica y/o algebraica según corresponda.`, `Resuelve problemas contextualizados de "${t}" con autonomía creciente.`],
-    (t) => [`Selecciona la estrategia apropiada para resolver problemas complejos de "${t}".`, `Justifica matemáticamente sus procedimientos y resultados.`, `Conecta "${t}" con otros conceptos y con situaciones reales.`, `Produce una solución completa, organizada y argumentada.`],
-    (t) => [`Integra los aprendizajes en un producto matemático coherente.`, `Presenta su producción de "${t}" con claridad ante el grupo.`, `Autoevalúa su dominio de "${t}" identificando logros y áreas de mejora.`],
-  ],
-  "Ciencias de la Naturaleza": [
-    (t) => [`Formula hipótesis o preguntas de investigación sobre "${t}".`, `Identifica los conceptos científicos clave de "${t}".`, `Observa y registra fenómenos de "${t}" de manera sistemática.`, `Relaciona "${t}" con procesos naturales observables en el entorno local.`],
-    (t) => [`Participa en actividades de indagación sobre "${t}" siguiendo el método científico.`, `Registra y organiza datos de manera precisa durante la exploración de "${t}".`, `Analiza la evidencia e identifica patrones relacionados con "${t}".`, `Usa vocabulario científico apropiado al explicar "${t}".`],
-    (t) => [`Construye explicaciones científicas fundamentadas en evidencia sobre "${t}".`, `Relaciona "${t}" con otros conceptos del área y con el entorno real.`, `Evalúa críticamente la calidad de la evidencia sobre "${t}".`, `Produce un informe o representación que sintetice los hallazgos.`],
-    (t) => [`Presenta los resultados de la indagación sobre "${t}" con claridad y fundamento.`, `Integra los aprendizajes científicos en el producto final.`, `Reflexiona sobre el impacto ambiental, social o tecnológico de "${t}".`],
-  ],
-  "Lengua Española": [
-    (t) => [`Identifica las características del tipo de texto de "${t}" y su propósito.`, `Participa en situaciones orales sobre "${t}" con vocabulario adecuado.`, `Comprende textos sobre "${t}" en nivel literal e inferencial.`, `Formula preguntas sobre los aspectos lingüísticos de "${t}".`],
-    (t) => [`Lee textos de "${t}" e identifica estructura, recursos lingüísticos e intención.`, `Aplica normas gramaticales y ortográficas en sus producciones.`, `Produce un texto escrito sobre "${t}" con cohesión y coherencia básicas.`, `Participa en intercambios orales sobre "${t}" con registro apropiado.`],
-    (t) => [`Produce textos sobre "${t}" con mayor autonomía y dominio de recursos lingüísticos.`, `Analiza críticamente textos relacionados con "${t}".`, `Expone oralmente sobre "${t}" con organización y fluidez.`, `Evalúa y mejora sus producciones aplicando criterios de calidad textual.`],
-    (t) => [`Produce una presentación final sobre "${t}" que integra los aprendizajes.`, `Coevalúa producciones de compañeros con criterios lingüísticos.`, `Reflexiona sobre su desarrollo como lector, escritor y comunicador.`],
-  ],
-  "Ciencias Sociales": [
-    (t) => [`Identifica los actores, el período y el contexto relacionados con "${t}".`, `Clasifica fuentes históricas, geográficas o sociales por tipo y confiabilidad.`, `Relaciona "${t}" con procesos del presente dominicano.`, `Formula preguntas de investigación sobre "${t}".`],
-    (t) => [`Analiza fuentes sobre "${t}" identificando perspectiva e intención.`, `Construye representaciones gráficas (línea de tiempo, mapa, cuadro) sobre "${t}".`, `Establece relaciones de causalidad en "${t}" y sus consecuencias.`, `Formula argumentos fundamentados en evidencia.`],
-    (t) => [`Produce textos argumentativos sobre "${t}" con posición propia sustentada.`, `Evalúa críticamente diferentes perspectivas sobre "${t}".`, `Propone respuestas ciudadanas a problemas identificados en "${t}".`, `Conecta "${t}" con los retos actuales de la República Dominicana.`],
-    (t) => [`Presenta su investigación de "${t}" con claridad y fundamento.`, `Integra perspectivas históricas, geográficas y sociales en el producto final.`, `Reflexiona sobre el rol ciudadano en relación con "${t}".`],
-  ],
-};
-
-const getIndicadoresAvance = (area, faseIdx, tema) => {
-  const banco = INDICADORES_AVANCE[area];
-  if (!banco) {
-    return [
-      `Identifica los conceptos fundamentales de "${tema}".`,
-      `Aplica los procedimientos del área en situaciones prácticas relacionadas con "${tema}".`,
-      `Produce evidencias concretas del aprendizaje sobre "${tema}".`,
-      `Reflexiona sobre el proceso de aprendizaje y establece metas de mejora.`,
-    ];
-  }
-  const fn = banco[Math.min(faseIdx, banco.length - 1)];
-  return fn(tema);
 };
 
 // ─── Posibles dificultades del área por fase ──────────────────────────────────
@@ -2107,11 +1981,8 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
   const actsDesarrollo = faseIdx === 3 ? getActsFase4Desarrollo(area, tema, numDia, totalDiasFase) : getActsDesarrollo(area, tema, faseIdx, diaIdx, mc);
   const actsCierre   = faseIdx === 3 ? getActsFase4Cierre(area, tema, numDia, totalDiasFase)     : getActsCierre(area, tema, faseIdx, diaIdx, mc);
 
-  // Evaluación: última fase último día → sumativa
-  const esUltimoDiaFase4 = faseIdx === 3 && numDia >= totalDiasFase;
-  const evalOverride = esUltimoDiaFase4
-    ? { tipo: "Sumativa", agente: "Hetero / Auto / Coevaluación", tecnica: "Exposición / Revisión de producciones / Reflexión", instrumento: "Rúbrica analítica / Instrumento de autoevaluación" }
-    : null;
+  // Evaluación determinística por momento+fase (TABLA_EVALUACION)
+  const esFaseFinal = faseIdx === 3;
 
   // Evidencias de Fase 4 (más específicas)
   const evidF4 = {
@@ -2131,13 +2002,14 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
     tiempo,
     actividades: acts,
     evidencias: faseIdx === 3 ? evidF4[nombre] : getEvidencias(area, nombre, faseIdx),
-    evaluacion: evalOverride || getEvaluacion(nombre, faseIdx),
+    evaluacion: getEvaluacion(nombre, esFaseFinal),
     recursos: derivarRecursos(acts, area, faseIdx + 1),
     metacognicion: getMetacognicion(nombre, area, tema),
   });
 
   const etapaProgresion = getEtapaProgresion(faseIdx, numDia, totalDiasFase);
-  const criteriosExito = getCriteriosExito(area, faseIdx, tema);
+  // criteriosExito se deriva de las evidencias reales de la IA en el merge
+  const criteriosExito = [];
   const aporteProducto = getAporteProducto(area, faseIdx, numDia, totalDiasFase, tema);
 
   return {
@@ -2157,18 +2029,19 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
       metodologicas: "Simplificar instrucciones, permitir tiempo adicional y ofrecer materiales concretos y visuales como apoyo.",
       evaluacion: "Evaluar los mismos criterios adaptando el nivel de complejidad y el tipo de respuesta esperado.",
     },
-    resumenEvaluacion: {
-      tecnicas: faseIdx === 3
-        ? ["Exposición oral", "Revisión de producciones", "Autoevaluación / Coevaluación"]
-        : ["Observación directa", "Revisión del cuaderno", "Interrogatorio oral"],
-      instrumentos: faseIdx === 3
-        ? ["Rúbrica analítica", "Lista de cotejo", "Autoevaluación / coevaluación"]
-        : ["Lista de cotejo", "Rúbrica analítica", "Escala de valoración"],
-      criterioPuntuacion: "El docente selecciona los instrumentos que aplicará ese día y define la puntuación según la complejidad del tema.",
-      observaciones: faseIdx === 3
-        ? "Registrar los logros del producto final, el nivel de participación en la exposición y el desempeño en la auto y coevaluación."
-        : "Registrar el desempeño general del grupo e identificar estudiantes que requieren atención diferenciada o refuerzo.",
-    },
+    // Derivado de TABLA_EVALUACION (misma fuente que la columna Evaluación de
+    // cada momento) — documento y resumen siempre consistentes.
+    resumenEvaluacion: (() => {
+      const evaluaciones = ["Inicio", "Desarrollo", "Cierre"].map((mom) => getEvaluacion(mom, esFaseFinal));
+      return {
+        tecnicas: [...new Set(evaluaciones.map((e) => e.tecnica))],
+        instrumentos: [...new Set(evaluaciones.map((e) => e.instrumento))],
+        criterioPuntuacion: "El docente selecciona los instrumentos que aplicará ese día y define la puntuación según la complejidad del tema.",
+        observaciones: esFaseFinal
+          ? "Registrar los logros del producto final, el nivel de participación en la exposición y el desempeño en la auto y coevaluación."
+          : "Registrar el desempeño general del grupo e identificar estudiantes que requieren atención diferenciada o refuerzo.",
+      };
+    })(),
   };
 };
 
@@ -2193,7 +2066,7 @@ const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFina
     numero: faseIdx + 1,
     nombre: NOMBRES_FASES[faseIdx],
     estrategia,
-    indicadoresAvance: getIndicadoresAvance(area, faseIdx, tema),
+    indicadoresAvance: [], // derivados de los indicadores trabajados reales en el merge
     posiblesDificultades: getPosiblesDificultades(area, faseIdx),
     dias: Array.from({ length: numHoras }, (_, d) =>
       generarDia(d + 1, area, tema, faseIdx, numHoras, productoFinal, mallaContenidos, duracionHoraClase)
@@ -2327,23 +2200,42 @@ const _resolverTemaMalla = (tituloDocente, temas) => {
   return match ? getText(match) : getText(temas[0]);
 };
 
+// Filtra ítems del corpus por tema (campo tema/topico) cuando el corpus
+// segmenta; si ninguno coincide o no hay segmentación, devuelve todos.
+const _filtrarPorTema = (items, temaFiltro) => {
+  if (!Array.isArray(items) || !items.length || !temaFiltro) return items || [];
+  const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  const objetivo = norm(temaFiltro);
+  const conTema = items.filter((it) => it && typeof it === 'object' && (it.tema || it.topico));
+  if (!conTema.length) return items;
+  const delTema = conTema.filter((it) => {
+    const t = norm(it.tema || it.topico);
+    return t === objetivo || t.includes(objetivo) || objetivo.includes(t);
+  });
+  return delTema.length ? delTema : items;
+};
+
 // Lee del payload de nivel-grado del corpus: contenidos.conceptos + contenidos.procedimientos
-const _extraerContenidosMallaCorpus = (mallaPayload) => {
+const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '') => {
   const c = mallaPayload?.contenidos?.conceptos    || {};
   const p = mallaPayload?.contenidos?.procedimientos || {};
 
-  // v1.3 grade-level paths
-  const vocabRaw  = Array.isArray(c.vocabulario) ? c.vocabulario : [];
+  // v1.3 grade-level paths — subconjunto del tema cuando el corpus lo segmenta
+  // (ítems con campo tema/topico); si no segmenta, nivel-grado completo
+  // (sigue siendo malla oficial, nunca plantilla)
+  const vocabRaw  = _filtrarPorTema(Array.isArray(c.vocabulario) ? c.vocabulario : [], temaFiltro);
   let vocabulario = vocabRaw.flatMap(v =>
     Array.isArray(v.ejemplos) ? v.ejemplos : (typeof v === 'string' ? [v] : [])
   );
-  const gramRaw = Array.isArray(c.gramatica) ? c.gramatica : [];
+  const gramRaw = _filtrarPorTema(Array.isArray(c.gramatica) ? c.gramatica : [], temaFiltro);
   let gramatica = gramRaw.map(g => g.estructura || (typeof g === 'string' ? g : '')).filter(Boolean);
-  const exprRaw   = Array.isArray(c.expresiones) ? c.expresiones : [];
+  const exprRaw   = _filtrarPorTema(Array.isArray(c.expresiones) ? c.expresiones : [], temaFiltro);
   const expresiones = exprRaw.flatMap(e =>
     Array.isArray(e.ejemplos) ? e.ejemplos : (typeof e === 'string' ? [e] : [])
   );
-  let funcionales = Array.isArray(p.funcionales) ? p.funcionales : [];
+  let funcionales = _filtrarPorTema(Array.isArray(p.funcionales) ? p.funcionales : [], temaFiltro)
+    .map((f) => (typeof f === 'string' ? f : (f.descripcion || f.texto || f.funcion || '')))
+    .filter(Boolean);
 
   // v1.1 fallback: per-tema arrays (vocabulario/gramatica/funcionales at temas[i] level)
   if (!vocabulario.length && Array.isArray(mallaPayload.temas)) {
@@ -2413,34 +2305,75 @@ const _generarFasesConIA = async (
 
       if (aiClase.titulo) dia.tituloIA = aiClase.titulo;
 
-      // MERGE: reemplazar solo actividades/tiempo dentro de cada momento existente.
-      // Preserva evaluacion, evidencias, recursos, metacognicion de generarDia.
-      // Si las actividades de la IA no pueden aplicarse, se DETIENE: dejar las
-      // actividades de plantilla sería degradar a genérico en silencio.
+      // MERGE: la estructura base (generarDia) aporta SOLO forma (momentos,
+      // tiempos, calendario). TODO el contenido semántico del momento viene
+      // del contrato de la IA: actividades, evidencias, metacognición y
+      // recursos didácticos. La evaluación es determinística (TABLA_EVALUACION)
+      // y no se toca. Si falta cualquier campo del contrato, se DETIENE:
+      // dejar contenido de plantilla sería degradar a genérico en silencio.
       aiClase.momentos.slice(0, 3).forEach((aiMom, mi) => {
         const orig = dia.momentos?.[mi];
         if (!orig) {
           throw new Error(`R3: semana ${fase.numero}, clase ${dia.dia || i + 1} — momento ${mi + 1} inexistente en la estructura base`);
         }
-        if (!Array.isArray(aiMom.actividades) || !aiMom.actividades.length) {
-          throw new Error(`R3: semana ${fase.numero}, clase ${dia.dia || i + 1} — la IA no aportó actividades para "${orig.nombre || `momento ${mi + 1}`}" (plantillas vetadas como respaldo)`);
-        }
+        const etiqueta = `semana ${fase.numero}, clase ${dia.dia || i + 1}, "${orig.nombre || `momento ${mi + 1}`}"`;
+        const listaOk = (v) => Array.isArray(v) && v.filter((x) => String(x || "").trim()).length > 0;
+        if (!listaOk(aiMom.actividades)) throw new Error(`R3: ${etiqueta} — la IA no aportó actividades (plantillas vetadas como respaldo)`);
+        if (!listaOk(aiMom.evidencias)) throw new Error(`R3: ${etiqueta} — la IA no aportó evidencias (plantillas vetadas como respaldo)`);
+        if (!listaOk(aiMom.metacognicion)) throw new Error(`R3: ${etiqueta} — la IA no aportó metacognición (plantillas vetadas como respaldo)`);
+        if (!listaOk(aiMom.recursos)) throw new Error(`R3: ${etiqueta} — la IA no aportó recursos (plantillas vetadas como respaldo)`);
+
         orig.actividades = aiMom.actividades;
         if (aiMom.tiempo) orig.tiempo = aiMom.tiempo;
+        orig.evidencias = aiMom.evidencias.map((e) => `• ${String(e).trim()}`).join("\n");
+        orig.metacognicion = aiMom.metacognicion;
+        orig.recursos = {
+          humanos: "Docente y estudiantes",
+          didacticos: aiMom.recursos.map((r) => String(r).trim()).filter(Boolean).join(", "),
+          // Tecnológicos: derivación determinística desde las actividades reales de la IA
+          tecnologicos: derivarRecursos(aiMom.actividades, area, fase.numero).tecnologicos,
+        };
       });
+
+      // "Hoy tendrás éxito si…": derivado de las evidencias reales de la clase
+      // (Desarrollo + Cierre), no de un checklist fijo idéntico entre clases.
+      const evidenciasClase = [
+        ...(aiClase.momentos[1]?.evidencias || []).slice(0, 3),
+        ...(aiClase.momentos[2]?.evidencias || []).slice(0, 1),
+      ].map((e) => String(e).trim()).filter(Boolean);
+      if (evidenciasClase.length) {
+        dia.criteriosExito = evidenciasClase.map((e) => `☐ ${e.replace(/\.$/, "")}.`);
+      }
 
       // R3: contrato — todos los campos del render deben estar presentes post-merge
       for (const mom of dia.momentos || []) {
         if (!mom.evaluacion?.tipo)
-          throw new Error(`R3: "${mom.nombre}" falta evaluacion.tipo — revisar generarDia`);
+          throw new Error(`R3: "${mom.nombre}" falta evaluacion.tipo — revisar TABLA_EVALUACION`);
         if (!mom.evidencias)
-          throw new Error(`R3: "${mom.nombre}" falta evidencias — revisar generarDia`);
-        if (!mom.recursos)
-          throw new Error(`R3: "${mom.nombre}" falta recursos — revisar generarDia`);
-        if (!Array.isArray(mom.metacognicion))
-          throw new Error(`R3: "${mom.nombre}" falta metacognicion — revisar generarDia`);
+          throw new Error(`R3: "${mom.nombre}" falta evidencias — revisar contrato de phaseA`);
+        if (!mom.recursos?.didacticos)
+          throw new Error(`R3: "${mom.nombre}" falta recursos — revisar contrato de phaseA`);
+        if (!Array.isArray(mom.metacognicion) || !mom.metacognicion.length)
+          throw new Error(`R3: "${mom.nombre}" falta metacognicion — revisar contrato de phaseA`);
       }
     });
+
+    // Indicadores de avance de la fase: derivados de los indicadores que las
+    // clases de la fase REALMENTE trabajaron (códigos reportados por la IA),
+    // resueltos contra la especificación oficial. Fallback: los indicadores
+    // oficiales de la malla (nunca checklist de plantilla).
+    const normCodigo = (c) => String(c || "").replace(/[[\]\s]/g, "").toUpperCase();
+    const codigosTrabajados = new Set(
+      weekPlan.clases.flatMap((c) => (Array.isArray(c.indicadoresTrabajados) ? c.indicadoresTrabajados : []))
+        .map(normCodigo).filter(Boolean)
+    );
+    const indicadoresFase = (spec.indicadores || [])
+      .filter((ind) => codigosTrabajados.has(normCodigo(ind.codigoOficial || ind.id)))
+      .map((ind) => ind.descripcion)
+      .filter(Boolean);
+    fase.indicadoresAvance = indicadoresFase.length
+      ? indicadoresFase
+      : (spec.indicadores || []).slice(0, 4).map((ind) => ind.descripcion).filter(Boolean);
 
     globalOffset += numClases;
   }
@@ -2491,7 +2424,6 @@ export const generarUnidadAprendizaje = async (datos) => {
     estrategia: estrategiaEf, producto,
   });
   const ejes = getEjesTematicos(claveContenido);
-  const contenidosBase = getContenidos(claveContenido, titulo);
   const compFundBase = COMPETENCIAS_FUND_POR_AREA[claveContenido] || ["Comunicativa", "Pensamiento Lógico, Creativo y Crítico"];
   const compFundEf = competenciasFundamentalesSeleccionadas.length > 0
     ? competenciasFundamentalesSeleccionadas
@@ -2538,8 +2470,9 @@ export const generarUnidadAprendizaje = async (datos) => {
   // Resuelve el título del docente contra los temas oficiales → devuelve string
   const temaMallaStr   = _resolverTemaMalla(titulo, temasOficiales);
 
-  // Extrae vocabulario, gramática y funcionales del nivel-grado (corpus)
-  const mallaContenidos = _extraerContenidosMallaCorpus(mallaPayload);
+  // Extrae vocabulario, gramática y funcionales del corpus, filtrados al tema
+  // de la unidad cuando el corpus segmenta por tema
+  const mallaContenidos = _extraerContenidosMallaCorpus(mallaPayload, temaMallaStr || titulo);
   const modeloCurricularSuperior = construirModeloCurricularSuperior({
     payload: mallaPayload,
     titulo: temaMallaStr || titulo,
@@ -2551,11 +2484,20 @@ export const generarUnidadAprendizaje = async (datos) => {
     allInds,
   });
 
-  // Contenidos ÚNICAMENTE desde el corpus — eliminar strings placeholder legacy
+  // CONTENIDOS del documento: subconjunto del corpus resuelto para el tema
+  // (vocabulario con palabras reales, gramática con ejemplos oficiales,
+  // funcionales y actitudes de la malla). Fallback: síntesis nivel-grado del
+  // mismo corpus — nunca strings de plantilla.
   const contenidos = (() => {
     const sintesis = modeloCurricularSuperior.contenidosSintesis || {};
-    const conceptuales = textosUnicos(sintesis.conceptuales);
-    const procedimentales = textosUnicos(sintesis.procedimentales);
+    const conceptualesTema = textosUnicos([
+      ...(mallaContenidos.vocabulario || []).slice(0, 12),
+      ...(mallaContenidos.gramatica || []).slice(0, 5),
+      ...(mallaContenidos.expresiones || []).slice(0, 5),
+    ]);
+    const procedimentalesTema = textosUnicos(mallaContenidos.funcionales || []).slice(0, 8);
+    const conceptuales = conceptualesTema.length ? conceptualesTema : textosUnicos(sintesis.conceptuales);
+    const procedimentales = procedimentalesTema.length ? procedimentalesTema : textosUnicos(sintesis.procedimentales);
     const actitudinales = textosUnicos(sintesis.actitudinales);
     return {
       conceptuales,
@@ -2621,11 +2563,18 @@ export const generarUnidadAprendizaje = async (datos) => {
     // El campo `competencias` de arriba se conserva por compatibilidad con
     // unidades ya guardadas y otros consumidores.
     competenciasDetalle: allComps.map((comp, i) => ({
+      // Código oficial de la competencia específica (ej. CE-LEI-1) — del corpus
+      codigo: comp.id || comp.codigo || "",
       competenciaFundamental: comp.competenciaFundamental || comp.fundamental || compFundEf[i] || compFundEf[i % compFundEf.length] || "",
       especifica: comp.especificaGrado || comp.especifica || comp.descripcion || "",
+      // Indicadores con su código oficial (ej. IL-LEI-1-1). El formatter acepta
+      // también strings (unidades guardadas antes de este cambio).
       indicadores: (Array.isArray(comp.indicadoresLogro) ? comp.indicadoresLogro : [])
-        .map((ind) => ind.descripcion || ind.texto || "")
-        .filter(Boolean),
+        .map((ind) => ({
+          codigo: ind.id || ind.codigo || "",
+          descripcion: ind.descripcion || ind.texto || "",
+        }))
+        .filter((ind) => ind.descripcion),
     })).filter((c) => c.especifica),
     contenidos,
     fasesSemanales: await _generarFasesConIA(
@@ -2664,25 +2613,78 @@ export const generarUnidadAprendizaje = async (datos) => {
     numSemanas,
   });
 
-  // R1 sobre la unidad renderizada completa — atrapar placeholders legacy que entren por código
-  const PLACEHOLDERS_PROHIBIDOS = [
-    'Vocabulario clave relacionado con',
-    'Estructuras gramaticales básicas',
-    'diversidad cultural anglosajona',
-    'Conceptos fundamentales de ',
-    'Definiciones de ',
-  ];
-  const unidadStr = JSON.stringify(unidadResult);
-  for (const p of PLACEHOLDERS_PROHIBIDOS) {
-    if (unidadStr.includes(p)) {
-      throw new Error(
-        `R1: placeholder legacy detectado en unidad renderizada: "${p}". ` +
-        `Revisar getContenidos() o las cadenas legadas en el generador.`
-      );
-    }
-  }
+  // R1 FINAL sobre el DOCUMENTO RENDERIZADO completo (no solo el JSON de la
+  // IA): atrapa cualquier placeholder o campo vacío que entre por código
+  // residual antes de entregar la unidad al docente.
+  const htmlRenderizado = formatearUnidadHTML(unidadResult);
+  validarUnidadRenderizada(unidadResult, htmlRenderizado);
 
   return unidadResult;
+};
+
+// ─── R1 final: validación del documento renderizado ──────────────────────────
+// El esquema MINERD no admite campos vacíos ni placeholders. Esta validación
+// recorre la unidad Y el HTML renderizado; cualquier hueco detiene la entrega.
+
+const PLACEHOLDERS_PROHIBIDOS = [
+  "Vocabulario clave relacionado con",
+  "Estructuras gramaticales básicas",
+  "diversidad cultural anglosajona",
+  "Conceptos fundamentales de ",
+  "Definiciones de ",
+];
+
+export const validarUnidadRenderizada = (unidad, html = "") => {
+  const errores = [];
+  const vacio = (v) => !String(v ?? "").trim();
+
+  if (vacio(unidad?.situacionAprendizaje)) errores.push("SITUACIÓN DE APRENDIZAJE vacía");
+  if (vacio(unidad?.ambienteAprendizaje)) errores.push("AMBIENTE DE APRENDIZAJE vacío");
+
+  for (const col of ["conceptuales", "procedimentales", "actitudinales"]) {
+    if (!unidad?.contenidos?.[col]?.length) errores.push(`CONTENIDOS ${col} vacíos`);
+  }
+
+  const detalle = Array.isArray(unidad?.competenciasDetalle) ? unidad.competenciasDetalle : [];
+  if (!detalle.length) errores.push("tabla de competencias e indicadores vacía");
+  detalle.forEach((c, i) => {
+    if (vacio(c.especifica)) errores.push(`competencia ${i + 1} sin específica`);
+    if (!c.indicadores?.length) errores.push(`competencia ${i + 1} sin indicadores`);
+  });
+
+  (unidad?.fasesSemanales || []).forEach((fase) => {
+    if (!fase.indicadoresAvance?.length) errores.push(`fase ${fase.numero} sin indicadores de avance`);
+    (fase.dias || []).forEach((dia) => {
+      const ref = `fase ${fase.numero}, clase ${dia.numeroGlobal || dia.numero}`;
+      if (vacio(dia.titulo)) errores.push(`${ref}: sin título`);
+      if (!dia.criteriosExito?.length) errores.push(`${ref}: sin criterios de éxito`);
+      (dia.momentos || []).forEach((mom) => {
+        const mref = `${ref}, ${mom.nombre}`;
+        if (!mom.actividades?.filter((a) => !vacio(a)).length) errores.push(`${mref}: sin actividades`);
+        if (vacio(mom.evidencias)) errores.push(`${mref}: sin evidencias`);
+        if (!mom.metacognicion?.filter((q) => !vacio(q)).length) errores.push(`${mref}: sin metacognición`);
+        for (const campo of ["tipo", "agente", "tecnica", "instrumento"]) {
+          if (vacio(mom.evaluacion?.[campo])) errores.push(`${mref}: evaluación sin ${campo}`);
+        }
+        if (vacio(mom.recursos?.humanos)) errores.push(`${mref}: sin recursos humanos`);
+        if (vacio(mom.recursos?.didacticos)) errores.push(`${mref}: sin recursos didácticos`);
+      });
+    });
+  });
+
+  const contenidoCompleto = `${JSON.stringify(unidad)}\n${html}`;
+  for (const p of PLACEHOLDERS_PROHIBIDOS) {
+    if (contenidoCompleto.includes(p)) errores.push(`placeholder legacy detectado: "${p}"`);
+  }
+  if (/<li>\s*<\/li>/.test(html)) errores.push("ítem de lista vacío en el documento renderizado");
+  if (/>\s*undefined\s*</.test(html)) errores.push('texto "undefined" en el documento renderizado');
+
+  if (errores.length) {
+    const muestra = errores.slice(0, 8).join("; ");
+    const extra = errores.length > 8 ? ` (+${errores.length - 8} más)` : "";
+    throw new Error(`R1: documento renderizado incompleto — ${muestra}${extra}`);
+  }
+  return true;
 };
 
 // ─── Formateador HTML para PDF ────────────────────────────────────────────────
@@ -2945,15 +2947,23 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       const nivelMCERL = unidad.competencias?.nivelMCERL
         ? `<p style="margin:0 0 6pt"><em>Nivel de dominio MCERL: ${unidad.competencias.nivelMCERL}</em></p>`
         : '';
+      // Indicador puede ser string (unidades guardadas legacy) u objeto
+      // { codigo, descripcion } con el código oficial de la malla (IL-…)
+      const indicadorHtml = (ind) => {
+        if (typeof ind === 'string') return ind;
+        const cod = ind?.codigo ? `<strong>${ind.codigo}</strong> — ` : '';
+        return `${cod}${ind?.descripcion || ''}`;
+      };
       const filas = detalle.map((c) => `
         <tr>
           <td style="width:34%;vertical-align:top;padding:6px 8px;background:#f8fafc">
             <strong>${c.competenciaFundamental || 'Competencia'}</strong>
+            ${c.codigo ? `<br><strong style="font-size:10.5pt;color:#1e3a8a">${c.codigo}</strong>` : ''}
             ${c.especifica ? `<br><em style="font-size:11pt">${c.especifica}</em>` : ''}
           </td>
           <td style="vertical-align:top;padding:6px 8px">
             ${c.indicadores?.length
-              ? `<ul style="margin:0 0 0 16px;padding:0">${c.indicadores.map((ind) => `<li style="margin-bottom:3pt">${ind}</li>`).join('')}</ul>`
+              ? `<ul style="margin:0 0 0 16px;padding:0">${c.indicadores.map((ind) => `<li style="margin-bottom:3pt">${indicadorHtml(ind)}</li>`).join('')}</ul>`
               : '<em>Sin indicadores en la malla para esta competencia.</em>'}
           </td>
         </tr>`).join('');

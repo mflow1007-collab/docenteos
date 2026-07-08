@@ -9,7 +9,8 @@
     "dev:vite": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node scripts/test-hilo-pedagogico.mjs && node scripts/test-unidad-render.mjs"
   },
   "dependencies": {
     "firebase": "^12.14.0",
