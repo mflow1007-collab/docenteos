@@ -16,6 +16,7 @@
 
 import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
+import { seleccionarMallaParaUnidad } from "../src/services/bancoConocimientoService.js";
 
 let pasadas = 0;
 let falladas = 0;
@@ -365,6 +366,70 @@ check("la retroalimentación vive en el Inicio (posición 2), no en el Cierre", 
   if (cierre.some((a) => String(a).trim().startsWith("Retroalimentación"))) {
     throw new Error("el Cierre no debe abrir con retroalimentación de la clase");
   }
+});
+
+// ─── Candado por nivel: la malla se resuelve por (level, grade, subject) ─────
+
+console.log("Candado por nivel — resolución estricta de malla:");
+
+// Escenario real del síntoma: SOLO la malla de Inglés 1ro SECUNDARIA cargada
+const docsBanco = [
+  {
+    id: "ing-1ro-secundaria",
+    contentType: "malla_curricular",
+    level: "Secundario",
+    grade: "1ro",
+    subject: "Inglés",
+    area: "Lenguas Extranjeras",
+    payload: {},
+  },
+  // Distractor: un registro del mismo grado/asignatura NUNCA sirve de malla
+  {
+    id: "registro-1ro-secundaria",
+    contentType: "registro_minerd",
+    level: "Secundario",
+    grade: "1ro",
+    subject: "Inglés",
+    payload: {},
+  },
+];
+
+check("(a) primaria (cualquier grado) con solo ING-1 secundaria → DETIENE (null)", () => {
+  for (const grado of ["1ro Primaria", "4to Primaria", "6to Primaria"]) {
+    const doc = seleccionarMallaParaUnidad(docsBanco, { nivel: "Primaria", grado });
+    if (doc) throw new Error(`resolvió "${doc.id}" para ${grado} de Primaria — cruzó niveles`);
+  }
+});
+
+check("(b) secundaria 2do/3ro sin malla cargada → DETIENE (null)", () => {
+  for (const grado of ["2do Secundaria", "3ro Secundaria"]) {
+    const doc = seleccionarMallaParaUnidad(docsBanco, { nivel: "Secundaria", grado });
+    if (doc) throw new Error(`resolvió "${doc.id}" para ${grado} — grado sin malla`);
+  }
+});
+
+check("(c) secundaria 1ro → procede con la malla correcta", () => {
+  const doc = seleccionarMallaParaUnidad(docsBanco, { nivel: "Secundaria", grado: "1ro Secundaria" });
+  if (!doc) throw new Error("no resolvió la malla existente de 1ro Secundaria");
+  if (doc.id !== "ing-1ro-secundaria") throw new Error(`resolvió el doc equivocado: ${doc.id}`);
+});
+
+check("el nivel se deriva del grado cuando no viene aparte (\"1ro Secundaria\")", () => {
+  const doc = seleccionarMallaParaUnidad(docsBanco, { grado: "1ro Secundaria" });
+  if (!doc || doc.id !== "ing-1ro-secundaria") throw new Error("no derivó el nivel desde el grado");
+  const cruzado = seleccionarMallaParaUnidad(docsBanco, { grado: "1ro Primaria" });
+  if (cruzado) throw new Error("derivando desde el grado también cruzó niveles");
+});
+
+check("clave incompleta (sin nivel resoluble) → fail closed (null)", () => {
+  const doc = seleccionarMallaParaUnidad(docsBanco, { grado: "1ro" });
+  if (doc) throw new Error("resolvió malla sin conocer el nivel — debe detenerse");
+});
+
+check("contentType distinto de malla_curricular nunca se selecciona", () => {
+  const soloRegistro = docsBanco.filter((d) => d.contentType === "registro_minerd");
+  const doc = seleccionarMallaParaUnidad(soloRegistro, { nivel: "Secundaria", grado: "1ro Secundaria" });
+  if (doc) throw new Error(`seleccionó un ${doc.contentType} como malla`);
 });
 
 // ─── Resultado ────────────────────────────────────────────────────────────────

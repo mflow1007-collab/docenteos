@@ -858,17 +858,61 @@ export const attachJsonToSource = async (sourceId, jsonText) => {
 };
 
 // ─── Consulta de malla curricular para el motor generador ─────────────────────
+//
+// CLAVE DE RESOLUCIÓN ESTRICTA: (level, grade, subject, contentType) — los
+// cuatro, siempre. La normalización de grado ("1ro Secundaria" → "1ro") NO
+// puede cruzar niveles: pedir 1ro de PRIMARIA jamás resuelve la malla de 1ro
+// de SECUNDARIA. Sin malla del nivel solicitado → null → candado caso (a).
 
-export const getCurricularContentForUnit = async (subject, grade) => {
+const bcNorm = (s) => (s || '').toLowerCase().trim()
+  .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
+  .replace(/ó/g, 'o').replace(/ú/g, 'u').replace(/ñ/g, 'n');
+
+// "5to Secundaria" → "5to", "6to Primaria" → "6to"
+const bcNormGrade = (g) => bcNorm(g)
+  .replace(/\s+(primaria|secundaria|inicial|bachillerato)\b.*/g, '').trim();
+
+// "Secundario"/"Secundaria"/"secundaria" → "secundaria" (idem primaria/inicial)
+const bcNormalizarNivel = (v) => {
+  const n = bcNorm(v);
+  if (n.includes('secundari')) return 'secundaria';
+  if (n.includes('primari')) return 'primaria';
+  if (n.includes('inicial') || n.includes('preprimari')) return 'inicial';
+  return n;
+};
+
+// Fallback: extraer el nivel cuando viene dentro del grado ("1ro Secundaria")
+const bcNivelDesdeGrado = (g) => {
+  const n = bcNorm(g);
+  if (n.includes('secundari')) return 'secundaria';
+  if (n.includes('primari')) return 'primaria';
+  if (n.includes('inicial') || n.includes('kinder') || n.includes('preprimari')) return 'inicial';
+  return '';
+};
+
+/**
+ * Selector PURO de malla (testeable sin Firestore): entre docs candidatos ya
+ * filtrados por subject/area, elige el que coincide en contentType
+ * (malla_curricular), NIVEL y grado. Clave incompleta o sin coincidencia
+ * de nivel → null (fail closed: el candado detiene, nunca hereda otro nivel).
+ */
+export const seleccionarMallaParaUnidad = (docs, { nivel = '', grado = '' } = {}) => {
+  const ng = bcNormGrade(grado);
+  const nn = bcNormalizarNivel(nivel) || bcNivelDesdeGrado(grado);
+  if (!ng || !nn) return null;
+  return (docs || []).find((d) => {
+    const tipo = bcNorm(d.contentType || d.payload?.contentType || 'malla_curricular');
+    if (tipo !== 'malla_curricular') return false;
+    const nivelDoc = bcNormalizarNivel(d.level || d.payload?.level || d.payload?.nivel);
+    if (!nivelDoc || nivelDoc !== nn) return false;
+    return bcNormGrade(d.grade) === ng;
+  }) || null;
+};
+
+export const getCurricularContentForUnit = async (subject, grade, nivel = '') => {
   if (!db || !subject) return null;
 
-  const norm = (s) => (s || '').toLowerCase().trim()
-    .replace(/á/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i')
-    .replace(/ó/g, 'o').replace(/ú/g, 'u').replace(/ñ/g, 'n');
-
-  // "5to Secundaria" → "5to", "6to Primaria" → "6to"
-  const normGrade = (g) => norm(g)
-    .replace(/\s+(primaria|secundaria|inicial|bachillerato)\b.*/g, '').trim();
+  const norm = bcNorm;
 
   try {
     // Fix auditoría 2026-07-04: primero consultas dirigidas por subject/area
@@ -900,7 +944,6 @@ export const getCurricularContentForUnit = async (subject, grade) => {
     }
 
     const ns  = norm(subject);
-    const ng  = normGrade(grade);
     const npa = norm(BC_AREA_BY_SUBJECT[subject] || '');
 
     const docs = docsSnap.map(d => {
@@ -927,8 +970,9 @@ export const getCurricularContentForUnit = async (subject, grade) => {
     if (!candidates.length) return null;
 
     // Regla estricta DocenteOS: la planificación solo puede usar la malla del
-    // grado seleccionado. No se permite caer a otro grado de la misma área.
-    return candidates.find(d => normGrade(d.grade) === ng) || null;
+    // NIVEL y grado seleccionados (clave completa: level+grade+subject+
+    // contentType). No se cae a otro grado ni a otro nivel de la misma área.
+    return seleccionarMallaParaUnidad(candidates, { nivel, grado: grade });
   } catch (err) {
     if (err?.code === 'permission-denied') {
       // Re-throw: el caller debe mostrar este mensaje exacto, no degradar a "malla vacía"

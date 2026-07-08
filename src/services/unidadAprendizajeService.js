@@ -2456,14 +2456,15 @@ export const generarUnidadAprendizaje = async (datos) => {
   // Caso (c) payload incompleto → error "Malla incompleta"
   let curricularDoc;
   try {
-    curricularDoc = await getCurricularContentForUnit(claveContenido, grado);
+    // Clave estricta: (level, grade, subject, contentType) — primaria no hereda secundaria
+    curricularDoc = await getCurricularContentForUnit(claveContenido, grado, nivel);
   } catch (permErr) {
     throw new Error(`Sin acceso al contenido curricular — ${permErr.message}`, { cause: permErr });
   }
   if (!curricularDoc) {
     throw new Error(
-      `No hay malla curricular cargada para ${claveContenido} — ${grado}. ` +
-      `Ve a Administración → Banco de Conocimiento y sube el JSON de la malla.`
+      `No hay malla curricular cargada para ${claveContenido} — ${String(grado).split(" ")[0] || grado} de ${nivel}. ` +
+      `Ve a Administración → Banco de Conocimiento y sube el JSON de la malla de ese nivel.`
     );
   }
   const mallaPayload    = curricularDoc.payload || {};

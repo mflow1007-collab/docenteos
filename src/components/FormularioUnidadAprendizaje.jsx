@@ -210,7 +210,8 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
 
       try {
         for (const areaCandidata of candidatas) {
-          const doc = await getCurricularContentForUnit(areaCandidata, gradoCorto(grado));
+          // Clave estricta con nivel: el asesor jamás lee la malla de otro nivel
+          const doc = await getCurricularContentForUnit(areaCandidata, gradoCorto(grado), nivel);
           if (!doc) continue;
           docDetectado = docDetectado || doc;
           if (curriculoCoincideConSeleccion({ doc, nivel, grado, area, asignatura: asignatura || area })) {
