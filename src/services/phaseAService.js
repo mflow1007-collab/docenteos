@@ -308,6 +308,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const focoGramTx = focoGram.length
     ? focoGram.join('; ')
     : 'SOLO vocabulario y expresiones del tema (semana introductoria: sin estructuras gramaticales nuevas)';
+  const exprs      = spec.contenidosClaves?.expresiones?.slice(0, 6).join('; ') || '';
   const idiomaMeta = spec.esIdioma
     ? `en ${spec.idiomaNombre || 'inglés'} sencillo (nivel del estudiante)`
     : 'en español';
@@ -331,7 +332,7 @@ ESPECIFICACIÓN CURRICULAR:
 - Vocabulario disponible: ${vocab}
 - FOCO GRAMATICAL ESTA SEMANA (usar en Desarrollo): ${focoGramTx}
 - Funciones comunicativas: ${funcs}
-${formatearMemoria(memoria)}
+${exprs ? `- Expresiones oficiales del tema (incrústalas en las situaciones comunicativas): ${exprs}\n` : ''}${formatearMemoria(memoria)}
 TAREA: Genera exactamente ${count} clase(s) — ${rango} de la Semana ${semanaNum}.
 Clases con PROGRESIÓN PEDAGÓGICA, DISTINTAS de las ya programadas.
 El foco gramatical asignado debe trabajarse explícitamente en el Desarrollo.
@@ -479,6 +480,9 @@ export const buildEspecificacionCurricular = ({
       vocabulario: mallaContenidos?.vocabulario?.slice(0, 20) || [],
       gramatica:   mallaContenidos?.gramatica?.slice(0, 6)   || [],
       funcionales: mallaContenidos?.funcionales?.slice(0, 5) || [],
+      // Expresiones oficiales del tema (Capa 2) — la IA las incrusta en las
+      // situaciones comunicativas
+      expresiones: mallaContenidos?.expresiones?.slice(0, 6) || [],
     },
     outputSchemaVersion: '1.2',
   };

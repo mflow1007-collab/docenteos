@@ -2215,27 +2215,77 @@ const _filtrarPorTema = (items, temaFiltro) => {
   return delTema.length ? delTema : items;
 };
 
+// ─── Capa 2 opcional: enriquecimiento_tema (tema oficial → subconjunto) ──────
+// Resuelve la entrada del tema en el doc de enriquecimiento (payload.temas[]
+// con temaOficial). Exportada pura para tests. null = sin Capa 2 → el flujo
+// sigue con el comportamiento actual (nivel-grado completo). Nunca bloquea.
+
+const _normTexto = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+
+export const resolverTemaEnriquecido = (enriquecimientoDoc, temaOficial) => {
+  const temas = enriquecimientoDoc?.payload?.temas || enriquecimientoDoc?.temas;
+  if (!Array.isArray(temas) || !temas.length || !temaOficial) return null;
+  const objetivo = _normTexto(temaOficial);
+  return temas.find((t) => {
+    const nombre = _normTexto(t?.temaOficial || t?.tema);
+    return nombre && (nombre === objetivo || nombre.includes(objetivo) || objetivo.includes(nombre));
+  }) || null;
+};
+
+// Filtro por pertenencia de 'categoria' a las categorías del tema enriquecido.
+// null = no aplicable (sin categorías, corpus sin campo categoria o cero
+// coincidencias) → el caller cae al comportamiento actual.
+const _filtrarPorCategoria = (items, categorias) => {
+  if (!Array.isArray(items) || !items.length || !categorias?.length) return null;
+  const cats = new Set(categorias.map(_normTexto));
+  const conCategoria = items.filter((it) => it && typeof it === 'object' && (it.categoria || it.nombre));
+  if (!conCategoria.length) return null;
+  const delTema = conCategoria.filter((it) => cats.has(_normTexto(it.categoria || it.nombre)));
+  return delTema.length ? delTema : null;
+};
+
+// Filtro de gramática por IGUALDAD EXACTA de 'estructura' (el enriquecimiento
+// se valida contra el corpus por cadena exacta). null = no aplicable.
+const _filtrarPorEstructura = (items, estructuras) => {
+  if (!Array.isArray(items) || !items.length || !estructuras?.length) return null;
+  const set = new Set(estructuras.map((e) => String(e).trim()));
+  const delTema = items.filter((g) => set.has(String(g?.estructura || g || '').trim()));
+  return delTema.length ? delTema : null;
+};
+
 // Lee del payload de nivel-grado del corpus: contenidos.conceptos + contenidos.procedimientos
-const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '') => {
+// (exportada para tests)
+export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', temaEnriquecido = null) => {
   const c = mallaPayload?.contenidos?.conceptos    || {};
   const p = mallaPayload?.contenidos?.procedimientos || {};
 
-  // v1.3 grade-level paths — subconjunto del tema cuando el corpus lo segmenta
-  // (ítems con campo tema/topico); si no segmenta, nivel-grado completo
-  // (sigue siendo malla oficial, nunca plantilla)
-  const vocabRaw  = _filtrarPorTema(Array.isArray(c.vocabulario) ? c.vocabulario : [], temaFiltro);
+  // Subconjunto del tema: primero la Capa 2 (enriquecimiento_tema: categorías
+  // de vocabulario + estructuras exactas); si no aplica, la segmentación por
+  // campo tema/topico; si tampoco, nivel-grado completo (siempre malla
+  // oficial, nunca plantilla)
+  const vocabRaw = _filtrarPorCategoria(c.vocabulario, temaEnriquecido?.vocabularioCategorias)
+    ?? _filtrarPorTema(Array.isArray(c.vocabulario) ? c.vocabulario : [], temaFiltro);
   let vocabulario = vocabRaw.flatMap(v =>
     Array.isArray(v.ejemplos) ? v.ejemplos : (typeof v === 'string' ? [v] : [])
   );
-  const gramRaw = _filtrarPorTema(Array.isArray(c.gramatica) ? c.gramatica : [], temaFiltro);
+  const gramRaw = _filtrarPorEstructura(c.gramatica, temaEnriquecido?.gramaticaEstructuras)
+    ?? _filtrarPorTema(Array.isArray(c.gramatica) ? c.gramatica : [], temaFiltro);
   let gramatica = gramRaw.map(g => g.estructura || (typeof g === 'string' ? g : '')).filter(Boolean);
-  const exprRaw   = _filtrarPorTema(Array.isArray(c.expresiones) ? c.expresiones : [], temaFiltro);
-  const expresiones = exprRaw.flatMap(e =>
+  const exprRaw = _filtrarPorCategoria(c.expresiones, temaEnriquecido?.expresiones)
+    ?? _filtrarPorTema(Array.isArray(c.expresiones) ? c.expresiones : [], temaFiltro);
+  let expresiones = exprRaw.flatMap(e =>
     Array.isArray(e.ejemplos) ? e.ejemplos : (typeof e === 'string' ? [e] : [])
   );
-  let funcionales = _filtrarPorTema(Array.isArray(p.funcionales) ? p.funcionales : [], temaFiltro)
-    .map((f) => (typeof f === 'string' ? f : (f.descripcion || f.texto || f.funcion || '')))
-    .filter(Boolean);
+  // Expresiones/funcionales del tema enriquecido pasan directo (etiquetas
+  // oficiales de la malla) cuando el corpus no permite filtrar por categoría
+  if (!expresiones.length && temaEnriquecido?.expresiones?.length) {
+    expresiones = temaEnriquecido.expresiones.map(String);
+  }
+  let funcionales = temaEnriquecido?.funcionales?.length
+    ? temaEnriquecido.funcionales.map(String)
+    : _filtrarPorTema(Array.isArray(p.funcionales) ? p.funcionales : [], temaFiltro)
+        .map((f) => (typeof f === 'string' ? f : (f.descripcion || f.texto || f.funcion || '')))
+        .filter(Boolean);
 
   // v1.1 fallback: per-tema arrays (vocabulario/gramatica/funcionales at temas[i] level)
   if (!vocabulario.length && Array.isArray(mallaPayload.temas)) {
@@ -2527,9 +2577,17 @@ export const generarUnidadAprendizaje = async (datos) => {
   // Resuelve el título del docente contra los temas oficiales → devuelve string
   const temaMallaStr   = _resolverTemaMalla(titulo, temasOficiales);
 
+  // Capa 2 opcional: entrada del tema en el doc enriquecimiento_tema derivado
+  // de esta malla (adjuntado por getCurricularContentForUnit); null = sin capa
+  const temaEnriquecido = resolverTemaEnriquecido(
+    curricularDoc.enriquecimientoTema,
+    temaMallaStr || titulo,
+  );
+
   // Extrae vocabulario, gramática y funcionales del corpus, filtrados al tema
-  // de la unidad cuando el corpus segmenta por tema
-  const mallaContenidos = _extraerContenidosMallaCorpus(mallaPayload, temaMallaStr || titulo);
+  // de la unidad (Capa 2 por categorías/estructuras exactas; fallback:
+  // segmentación por tema del corpus; fallback: nivel-grado completo)
+  const mallaContenidos = _extraerContenidosMallaCorpus(mallaPayload, temaMallaStr || titulo, temaEnriquecido);
   const modeloCurricularSuperior = construirModeloCurricularSuperior({
     payload: mallaPayload,
     titulo: temaMallaStr || titulo,

@@ -14,7 +14,7 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad } from "../src/services/bancoConocimientoService.js";
 
@@ -488,6 +488,102 @@ check("contentType distinto de malla_curricular nunca se selecciona", () => {
   const soloRegistro = docsBanco.filter((d) => d.contentType === "registro_minerd");
   const doc = seleccionarMallaParaUnidad(soloRegistro, { nivel: "Secundaria", grado: "1ro Secundaria" });
   if (doc) throw new Error(`seleccionó un ${doc.contentType} como malla`);
+});
+
+// ─── Capa 2: enriquecimiento_tema (tema oficial → subconjunto de la malla) ───
+
+console.log("Capa 2 — enriquecimiento_tema:");
+
+// Fixture fiel al JSON real (enriquecimiento_tema_ING1.json, tema Vivienda)
+const enriquecimientoING1 = {
+  contentType: "enriquecimiento_tema",
+  payload: {
+    derivedFrom: "ING-1",
+    temas: [{
+      temaOficial: "Vivienda, entorno y ciudad",
+      vocabularioCategorias: ["Lugares de un edificio", "Mobiliario del hogar y de la oficina", "Tareas del hogar"],
+      gramaticaEstructuras: ["There + be en presente simple para describir lugares", "Preposiciones de tiempo (in, on, at) y de lugar (in, on, at)"],
+      funcionales: ["Describir y comparar lugares y objetos", "Dar y pedir indicaciones e instrucciones"],
+      expresiones: ["Expresar aprobación o acuerdo", "Atraer la atención"],
+    }],
+  },
+};
+
+const corpusV13 = {
+  contenidos: {
+    conceptos: {
+      vocabulario: [
+        { categoria: "Lugares de un edificio", ejemplos: ["lobby", "entrance", "exit"] },
+        { categoria: "Mobiliario del hogar y de la oficina", ejemplos: ["chair", "desk"] },
+        { categoria: "Alimentos", ejemplos: ["rice", "beans"] },
+      ],
+      gramatica: [
+        { estructura: "There + be en presente simple para describir lugares" },
+        { estructura: "Presente perfecto para narrar experiencias personales" },
+      ],
+      expresiones: [
+        { categoria: "Expresar aprobación o acuerdo", ejemplos: ["That's right!"] },
+        { categoria: "Despedidas", ejemplos: ["Goodbye!"] },
+      ],
+    },
+    procedimientos: { funcionales: ["Funcional genérica del grado completo"] },
+  },
+};
+
+check("resolverTemaEnriquecido encuentra el tema oficial (acentos/mayúsculas indiferentes)", () => {
+  const t = resolverTemaEnriquecido(enriquecimientoING1, "vivienda, entorno y ciudad");
+  if (!t || t.temaOficial !== "Vivienda, entorno y ciudad") throw new Error("no resolvió el tema");
+  if (resolverTemaEnriquecido(enriquecimientoING1, "Alimentación")) throw new Error("resolvió un tema inexistente");
+});
+
+check("con Capa 2: vocabulario SOLO de las categorías del tema (sin rice/beans)", () => {
+  const t = resolverTemaEnriquecido(enriquecimientoING1, "Vivienda, entorno y ciudad");
+  const mc = _extraerContenidosMallaCorpus(corpusV13, "Vivienda, entorno y ciudad", t);
+  for (const palabra of ["lobby", "entrance", "chair", "desk"]) {
+    if (!mc.vocabulario.includes(palabra)) throw new Error(`falta "${palabra}"`);
+  }
+  if (mc.vocabulario.includes("rice") || mc.vocabulario.includes("beans")) {
+    throw new Error("incluyó vocabulario de otra categoría (Alimentos)");
+  }
+});
+
+check("con Capa 2: gramática por igualdad EXACTA de estructura", () => {
+  const t = resolverTemaEnriquecido(enriquecimientoING1, "Vivienda, entorno y ciudad");
+  const mc = _extraerContenidosMallaCorpus(corpusV13, "Vivienda, entorno y ciudad", t);
+  if (!mc.gramatica.includes("There + be en presente simple para describir lugares")) throw new Error("falta la estructura del tema");
+  if (mc.gramatica.some((g) => g.includes("Presente perfecto"))) throw new Error("incluyó una estructura de otro tema");
+});
+
+check("con Capa 2: funcionales del tema pasan a la spec; expresiones filtradas por categoría", () => {
+  const t = resolverTemaEnriquecido(enriquecimientoING1, "Vivienda, entorno y ciudad");
+  const mc = _extraerContenidosMallaCorpus(corpusV13, "Vivienda, entorno y ciudad", t);
+  if (!mc.funcionales.includes("Describir y comparar lugares y objetos")) throw new Error("no pasó los funcionales del tema");
+  if (mc.funcionales.includes("Funcional genérica del grado completo")) throw new Error("mezcló funcionales del grado");
+  if (!mc.expresiones.includes("That's right!")) throw new Error("no filtró expresiones por categoría");
+  if (mc.expresiones.includes("Goodbye!")) throw new Error("incluyó expresiones de otra categoría");
+});
+
+check("sin Capa 2 (ausente): comportamiento actual — nivel-grado completo, nunca bloquea", () => {
+  const mc = _extraerContenidosMallaCorpus(corpusV13, "Vivienda, entorno y ciudad", null);
+  if (!mc.vocabulario.includes("rice")) throw new Error("sin Capa 2 debía traer el grado completo");
+  if (!mc.funcionales.includes("Funcional genérica del grado completo")) throw new Error("perdió los funcionales del grado");
+});
+
+check("corpus sin campo categoria + Capa 2 → fallback al grado (expresiones = etiquetas del tema)", () => {
+  const corpusSinCategorias = {
+    contenidos: {
+      conceptos: {
+        vocabulario: [{ ejemplos: ["window", "door"] }],
+        gramatica: [{ estructura: "Otra estructura cualquiera" }],
+        expresiones: [],
+      },
+      procedimientos: { funcionales: [] },
+    },
+  };
+  const t = resolverTemaEnriquecido(enriquecimientoING1, "Vivienda, entorno y ciudad");
+  const mc = _extraerContenidosMallaCorpus(corpusSinCategorias, "Vivienda, entorno y ciudad", t);
+  if (!mc.vocabulario.includes("window")) throw new Error("el fallback no conservó el vocabulario del grado");
+  if (!mc.expresiones.includes("Expresar aprobación o acuerdo")) throw new Error("no pasó las etiquetas de expresiones del tema");
 });
 
 // ─── Resultado ────────────────────────────────────────────────────────────────

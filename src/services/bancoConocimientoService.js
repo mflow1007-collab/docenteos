@@ -909,6 +909,34 @@ export const seleccionarMallaParaUnidad = (docs, { nivel = '', grado = '' } = {}
   }) || null;
 };
 
+// ─── Capa 2 opcional: enriquecimiento_tema (tema oficial → subconjunto) ──────
+// Doc curricularContent con contentType "enriquecimiento_tema" cuyo
+// payload.derivedFrom apunta al id/contentId de la malla. Dato derivado y
+// OPCIONAL: si no existe o la consulta falla, se devuelve null y el flujo
+// sigue con el nivel-grado completo (nunca bloquea).
+
+const buscarEnriquecimientoTema = async (mallaDoc) => {
+  if (!db || !mallaDoc?.id) return null;
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'curricularContent'),
+      where('contentType', '==', 'enriquecimiento_tema'),
+      limit(20),
+    ));
+    const objetivos = new Set(
+      [mallaDoc.id, mallaDoc.contentId, mallaDoc.payload?.contentId]
+        .filter(Boolean).map((v) => String(v).trim())
+    );
+    const encontrado = (snap?.docs || [])
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .find((d) => d.active !== false
+        && objetivos.has(String(d.payload?.derivedFrom || d.derivedFrom || '').trim()));
+    return encontrado || null;
+  } catch {
+    return null; // Capa 2 opcional — su fallo jamás detiene la generación
+  }
+};
+
 export const getCurricularContentForUnit = async (subject, grade, nivel = '') => {
   if (!db || !subject) return null;
 
@@ -972,7 +1000,13 @@ export const getCurricularContentForUnit = async (subject, grade, nivel = '') =>
     // Regla estricta DocenteOS: la planificación solo puede usar la malla del
     // NIVEL y grado seleccionados (clave completa: level+grade+subject+
     // contentType). No se cae a otro grado ni a otro nivel de la misma área.
-    return seleccionarMallaParaUnidad(candidates, { nivel, grado: grade });
+    const malla = seleccionarMallaParaUnidad(candidates, { nivel, grado: grade });
+    if (!malla) return null;
+
+    // Capa 2 opcional: enriquecimiento_tema derivado de ESTA malla
+    // (payload.derivedFrom === id/contentId). Su ausencia nunca bloquea.
+    malla.enriquecimientoTema = await buscarEnriquecimientoTema(malla);
+    return malla;
   } catch (err) {
     if (err?.code === 'permission-denied') {
       // Re-throw: el caller debe mostrar este mensaje exacto, no degradar a "malla vacía"
