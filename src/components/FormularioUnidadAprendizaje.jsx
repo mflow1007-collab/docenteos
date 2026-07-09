@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { analizarComplejidad } from "../services/unidadAprendizajeService";
 import { getAreas, getAsignaturas, getAsignaturaAutomatica, tieneMultiplesAsignaturas } from "../planning/areaAsignaturaMap.js";
-import { getCurricularContentForUnit } from "../services/bancoConocimientoService.js";
+import { getCurricularContentForUnit, temasOficialesDeMalla } from "../services/bancoConocimientoService.js";
 import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema } from "../services/curriculumCombinacionService";
 
 // El currículo de Inglés/Francés vive bajo el área "Lenguas Extranjeras"
@@ -48,33 +48,15 @@ const normalizarGrado = (grado = "") => normalizarClave(grado)
   .replace(/\s+(primaria|secundaria|inicial|bachillerato)\b.*/g, "")
   .trim();
 
-const textoTemaCurricular = (tema) => {
-  if (typeof tema === "string") return tema;
-  if (!tema || typeof tema !== "object") return "";
-  return tema.nombre || tema.tema || tema.titulo || tema.title || tema.descripcion || tema.texto || "";
-};
-
-const normalizarTemasCurriculares = (temas = []) => [
-  ...new Set((Array.isArray(temas) ? temas : [])
-    .map(textoTemaCurricular)
-    .map((tema) => String(tema || "").trim())
-    .filter(Boolean)),
-];
-
-const extraerTemasAsesor = (payload = {}) => normalizarTemasCurriculares([
-  ...(Array.isArray(payload.temasCurriculares) ? payload.temasCurriculares : []),
-  ...(Array.isArray(payload.temas) ? payload.temas : []),
-  ...(Array.isArray(payload.contenidos?.conceptos?.temas) ? payload.contenidos.conceptos.temas : []),
-  ...(Array.isArray(payload.contenidos?.conceptos?.items) ? payload.contenidos.conceptos.items : []),
-  ...(Array.isArray(payload.contenidosGenerales?.conceptuales) ? payload.contenidosGenerales.conceptuales : []),
-]);
-
+// FUENTE ÚNICA: los temas del selector salen EXCLUSIVAMENTE de los temas
+// oficiales de la malla resuelta (temasOficialesDeMalla — payload.temas).
+// Los contenidos (estructuras, vocabulario, items) JAMÁS se ofrecen como temas.
 const normalizarCurriculoParaAsesor = (doc) => {
   const payload = doc?.payload || doc || {};
   return {
     ...payload,
     id: doc?.id || payload.id,
-    temasCurriculares: extraerTemasAsesor(payload),
+    temasCurriculares: temasOficialesDeMalla(doc),
     criteriosCombinacionTematica: Array.isArray(payload.criteriosCombinacionTematica)
       ? payload.criteriosCombinacionTematica
       : [],

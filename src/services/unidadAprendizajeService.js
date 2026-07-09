@@ -6,7 +6,7 @@ import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.js";
 import { inyectarExpresiones } from "../planning/bancoExpresionesIdiomas.js";
 import { obtenerBPActs } from "./bpCache.js";
-import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
+import { getCurricularContentForUnit, temasOficialesDeMalla } from "./bancoConocimientoService.js";
 import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad } from "./phaseAService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -2315,6 +2315,17 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
     descripcion: ind.descripcion || ind.texto || "",
   });
 
+  // Fallback 3 (corpus plano SIN competenciaId): mapeo por BLOQUES
+  // secuenciales — los corpus oficiales listan los indicadores en el orden de
+  // sus competencias (ej. ING-1: 21 indicadores / 7 competencias = bloques de
+  // 3: I01-I03 → C01, I04-I06 → C02...). Solo aplica si la división es exacta.
+  const indsPlanos = Array.isArray(allInds) ? allInds : [];
+  const hayVinculo = indsPlanos.some((ind) => String(ind.competenciaId || ind.competencia || "").trim());
+  const tamanoBloque = !hayVinculo && allComps.length && indsPlanos.length
+    && indsPlanos.length % allComps.length === 0
+    ? indsPlanos.length / allComps.length
+    : 0;
+
   return allComps.map((comp, i) => {
     const anidados = Array.isArray(comp.indicadoresLogro) && comp.indicadoresLogro.length
       ? comp.indicadoresLogro
@@ -2323,17 +2334,21 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
         : [];
     const compId = String(comp.id || comp.codigo || "").trim();
     // Fallback v1.2: índice plano vinculado por competenciaId/competencia
-    const planos = !anidados.length && compId
-      ? (allInds || []).filter((ind) =>
+    const vinculados = !anidados.length && compId
+      ? indsPlanos.filter((ind) =>
           String(ind.competenciaId || ind.competencia || "").trim() === compId)
       : [];
+    const porBloque = !anidados.length && !vinculados.length && tamanoBloque
+      ? indsPlanos.slice(i * tamanoBloque, (i + 1) * tamanoBloque)
+      : [];
+    const fuente = anidados.length ? anidados : (vinculados.length ? vinculados : porBloque);
     return {
       // Código oficial de la competencia específica (ej. CE-LEI-1 / ING-1-C01)
       codigo: compId,
       competenciaFundamental: comp.competenciaFundamental || comp.fundamental || compFundEf[i] || compFundEf[i % compFundEf.length] || "",
       especifica: comp.especificaGrado || comp.especifica || comp.descripcion || "",
       // El formatter acepta también strings (unidades guardadas antes)
-      indicadores: (anidados.length ? anidados : planos).map(aIndicador).filter((ind) => ind.descripcion),
+      indicadores: fuente.map(aIndicador).filter((ind) => ind.descripcion),
     };
   }).filter((c) => c.especifica);
 };
@@ -2554,6 +2569,14 @@ export const generarUnidadAprendizaje = async (datos) => {
   }
   const mallaPayload    = curricularDoc.payload || {};
 
+  // Trazabilidad: qué doc de malla se cargó realmente (para triaje en consola)
+  const versionMalla = curricularDoc.schemaVersion || mallaPayload.schemaVersion || "desconocida";
+  console.info(
+    `[Unidad] Malla cargada: id=${curricularDoc.id || "?"} · contentId=${curricularDoc.contentId || mallaPayload.contentId || "—"} ` +
+    `· schemaVersion=${versionMalla} · level=${curricularDoc.level || "?"} · grade=${curricularDoc.grade || "?"} ` +
+    `· enriquecimientoTema=${curricularDoc.enriquecimientoTema ? "sí" : "no"}`
+  );
+
   // Índices planos del corpus (payload level) — deben existir antes de chequeo (c)
   const allComps = Array.isArray(mallaPayload.competencias) ? mallaPayload.competencias : [];
   const allInds  = Array.isArray(mallaPayload.indicadoresLogro)
@@ -2562,18 +2585,24 @@ export const generarUnidadAprendizaje = async (datos) => {
 
   if (!allComps.length && !allInds.length) {
     throw new Error(
-      `Malla curricular incompleta para ${claveContenido} — ${grado}: ` +
+      `Malla curricular incompleta o versión antigua (schemaVersion ${versionMalla}) para ${claveContenido} — ${grado}: ` +
       `falta competencias e indicadoresLogro en el payload. ` +
-      `Re-importa el JSON curricular desde el Banco de Conocimiento.`
+      `Recarga la versión vigente del JSON en el Banco de Conocimiento.`
     );
   }
 
-  // Corpus: payload.temas es string[] con los temas oficiales del grado
-  const temasOficiales  = Array.isArray(mallaPayload.temas)
-    ? mallaPayload.temas
-    : Array.isArray(mallaPayload.contenidos?.conceptos?.temas)
-      ? mallaPayload.contenidos.conceptos.temas
-      : [];
+  // Caso (c) ampliado: sin contenidos estructurados NO se rellena nada —
+  // el fallback correcto es DETENER, nunca inventar contenido
+  if (!mallaPayload.contenidos && !mallaPayload.contenidosGenerales) {
+    throw new Error(
+      `Malla incompleta o versión antigua (schemaVersion ${versionMalla}) para ${claveContenido} — ${grado}: ` +
+      `el doc "${curricularDoc.id || "?"}" no trae payload.contenidos. ` +
+      `Recarga la versión vigente del JSON en el Banco de Conocimiento.`
+    );
+  }
+
+  // FUENTE ÚNICA: mismos temas oficiales que consume el selector del Asesor
+  const temasOficiales = temasOficialesDeMalla(mallaPayload);
   // Resuelve el título del docente contra los temas oficiales → devuelve string
   const temaMallaStr   = _resolverTemaMalla(titulo, temasOficiales);
 

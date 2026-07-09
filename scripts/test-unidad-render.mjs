@@ -16,7 +16,7 @@
 
 import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
-import { seleccionarMallaParaUnidad } from "../src/services/bancoConocimientoService.js";
+import { seleccionarMallaParaUnidad, temasOficialesDeMalla } from "../src/services/bancoConocimientoService.js";
 
 let pasadas = 0;
 let falladas = 0;
@@ -488,6 +488,75 @@ check("contentType distinto de malla_curricular nunca se selecciona", () => {
   const soloRegistro = docsBanco.filter((d) => d.contentType === "registro_minerd");
   const doc = seleccionarMallaParaUnidad(soloRegistro, { nivel: "Secundaria", grado: "1ro Secundaria" });
   if (doc) throw new Error(`seleccionó un ${doc.contentType} como malla`);
+});
+
+// ─── Selector de temas: FUENTE ÚNICA (payload.temas de la malla resuelta) ────
+
+console.log("Selector de temas — fuente única:");
+
+const TEMAS_ING1 = [
+  "Identificación personal", "Relaciones humanas y sociales", "Actividades de la vida diaria",
+  "Vivienda, entorno y ciudad", "Escuela y educación", "Deporte, tiempo libre y recreación",
+  "Alimentación", "Salud y cuidados físicos", "Lengua y comunicación", "Ciencia y tecnología",
+  "Clima, condiciones atmosféricas y medio ambiente", "Bienes y servicios", "Actividades sociales y culturales",
+];
+
+check("temasOficialesDeMalla devuelve SOLO temas oficiales — jamás contenidos", () => {
+  const payload = {
+    temas: TEMAS_ING1,
+    contenidosGenerales: { conceptuales: ["Verb Be en presente simple", "Estructuras gramaticales básicas"] },
+    contenidos: { conceptos: { items: ["There + be para describir lugares"] } },
+  };
+  const temas = temasOficialesDeMalla(payload);
+  if (temas.length !== 13) throw new Error(`esperaba 13 temas, hay ${temas.length}`);
+  if (temas.some((t) => t.includes("Verb Be") || t.includes("Estructuras") || t.includes("There + be"))) {
+    throw new Error("mezcló contenidos como temas");
+  }
+});
+
+check("con solo ING-1 Secundaria: el selector lista los 13 temas en 1ro Secundaria y candado en el resto", () => {
+  const banco = [{
+    id: "ING-1", contentType: "malla_curricular", level: "Secundario", grade: "1ro",
+    subject: "Inglés", area: "Lenguas Extranjeras", payload: { temas: TEMAS_ING1 },
+  }];
+  const malla = seleccionarMallaParaUnidad(banco, { nivel: "Secundaria", grado: "1ro Secundaria" });
+  if (!malla || temasOficialesDeMalla(malla).length !== 13) throw new Error("1ro Secundaria no listó los 13 temas oficiales");
+  for (const caso of [
+    { nivel: "Primaria", grado: "1ro Primaria" },
+    { nivel: "Secundaria", grado: "2do Secundaria" },
+    { nivel: "Secundaria", grado: "3ro Secundaria" },
+  ]) {
+    if (seleccionarMallaParaUnidad(banco, caso)) throw new Error(`${caso.grado} debía mostrar el candado, no temas`);
+  }
+});
+
+check("fallbacks secuenciales (temasCurriculares / conceptos.temas), nunca mezcla", () => {
+  const t1 = temasOficialesDeMalla({ temasCurriculares: ["Alimentación"] });
+  if (t1.length !== 1 || t1[0] !== "Alimentación") throw new Error("no usó temasCurriculares");
+  const t2 = temasOficialesDeMalla({ contenidos: { conceptos: { temas: ["Vivienda, entorno y ciudad"] } } });
+  if (t2.length !== 1) throw new Error("no usó conceptos.temas");
+  if (temasOficialesDeMalla({ contenidosGenerales: { conceptuales: ["Verb Be"] } }).length !== 0) {
+    throw new Error("inventó temas desde contenidos");
+  }
+});
+
+check("indicadores sin competenciaId → mapeo por bloques secuenciales (21/7 = 3 por competencia)", () => {
+  const comps = Array.from({ length: 7 }, (_, i) => ({ id: `ING-1-C0${i + 1}`, especifica: `Competencia ${i + 1}` }));
+  const inds = Array.from({ length: 21 }, (_, i) => ({ id: `ING-1-I${String(i + 1).padStart(2, "0")}`, descripcion: `Indicador ${i + 1}` }));
+  const detalle = construirCompetenciasDetalle(comps, inds, ["Comunicativa"]);
+  if (detalle.length !== 7) throw new Error("perdió competencias");
+  for (let i = 0; i < 7; i++) {
+    if (detalle[i].indicadores.length !== 3) throw new Error(`C0${i + 1} esperaba 3 indicadores, tiene ${detalle[i].indicadores.length}`);
+  }
+  if (detalle[0].indicadores[0].codigo !== "ING-1-I01") throw new Error("bloque 1 desordenado");
+  if (detalle[6].indicadores[2].codigo !== "ING-1-I21") throw new Error("bloque 7 desordenado");
+});
+
+check("división inexacta sin vínculos → NO inventa asociación (indicadores vacíos)", () => {
+  const comps = [{ id: "C1", especifica: "Comp 1" }, { id: "C2", especifica: "Comp 2" }];
+  const inds = [{ id: "I1", descripcion: "Ind 1" }, { id: "I2", descripcion: "Ind 2" }, { id: "I3", descripcion: "Ind 3" }];
+  const detalle = construirCompetenciasDetalle(comps, inds, []);
+  if (detalle.some((c) => c.indicadores.length)) throw new Error("asoció indicadores adivinando (3/2 no es exacto)");
 });
 
 // ─── Capa 2: enriquecimiento_tema (tema oficial → subconjunto de la malla) ───

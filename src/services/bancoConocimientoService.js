@@ -857,6 +857,34 @@ export const attachJsonToSource = async (sourceId, jsonText) => {
   return contentId;
 };
 
+// ─── Temas oficiales de la malla (FUENTE ÚNICA del selector y del motor) ─────
+// SOLO los temas oficiales del MINERD: payload.temas → payload.temasCurriculares
+// → payload.contenidos.conceptos.temas (fallbacks SECUENCIALES, nunca mezcla).
+// Los contenidos (estructuras gramaticales, vocabulario, items) JAMÁS se
+// ofrecen como temas.
+
+const _textoTema = (t) => {
+  if (typeof t === 'string') return t.trim();
+  if (!t || typeof t !== 'object') return '';
+  return String(t.nombre || t.tema || t.titulo || t.title || '').trim();
+};
+
+export const temasOficialesDeMalla = (docOrPayload) => {
+  const payload = docOrPayload?.payload || docOrPayload || {};
+  const fuentes = [
+    payload.temas,
+    payload.temasCurriculares,
+    payload.contenidos?.conceptos?.temas,
+  ];
+  for (const fuente of fuentes) {
+    if (Array.isArray(fuente) && fuente.length) {
+      const temas = [...new Set(fuente.map(_textoTema).filter(Boolean))];
+      if (temas.length) return temas;
+    }
+  }
+  return [];
+};
+
 // ─── Consulta de malla curricular para el motor generador ─────────────────────
 //
 // CLAVE DE RESOLUCIÓN ESTRICTA: (level, grade, subject, contentType) — los
