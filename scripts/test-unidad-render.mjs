@@ -14,7 +14,7 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad } from "../src/services/bancoConocimientoService.js";
 
@@ -366,6 +366,64 @@ check("la retroalimentación vive en el Inicio (posición 2), no en el Cierre", 
   if (cierre.some((a) => String(a).trim().startsWith("Retroalimentación"))) {
     throw new Error("el Cierre no debe abrir con retroalimentación de la clase");
   }
+});
+
+// ─── Regresión del error real de generación (2026-07-08) ─────────────────────
+// "R1: competencia 1 sin indicadores; placeholder legacy detectado"
+
+console.log("Regresión — corpus v1.2 con indicadores planos y placeholders:");
+
+check("competenciasDetalle resuelve indicadores PLANOS por competenciaId (corpus v1.2)", () => {
+  const comps = [
+    { id: "ING-1-C01", competenciaFundamental: "Comunicativa", especifica: "Comprende y expresa ideas..." },
+    { id: "ING-1-C02", competenciaFundamental: "Pensamiento Lógico", especifica: "Interactúa empleando estrategias..." },
+  ];
+  const indsPlanos = [
+    { id: "ING-1-I01", descripcion: "Responde de forma adecuada a preguntas e indicaciones.", competenciaId: "ING-1-C01" },
+    { id: "ING-1-I02", descripcion: "Se expresa mediante frases breves y sencillas.", competenciaId: "ING-1-C01" },
+    { id: "ING-1-I04", descripcion: "Responde utilizando el pensamiento lógico verbal.", competenciaId: "ING-1-C02" },
+  ];
+  const detalle = construirCompetenciasDetalle(comps, indsPlanos, ["Comunicativa"]);
+  if (detalle[0].indicadores.length !== 2) throw new Error(`C01 esperaba 2 indicadores, tiene ${detalle[0].indicadores.length}`);
+  if (detalle[1].indicadores.length !== 1) throw new Error(`C02 esperaba 1 indicador, tiene ${detalle[1].indicadores.length}`);
+  if (detalle[0].indicadores[0].codigo !== "ING-1-I01") throw new Error("perdió el código oficial del indicador");
+});
+
+check("competenciasDetalle sigue soportando indicadores ANIDADOS (v1.3)", () => {
+  const comps = [{
+    id: "CE-LEI-1", especifica: "Comprensión oral...",
+    indicadoresLogro: [{ id: "IL-1", descripcion: "Responde de forma adecuada." }],
+  }];
+  const detalle = construirCompetenciasDetalle(comps, [], ["Comunicativa"]);
+  if (detalle[0].indicadores.length !== 1) throw new Error("no leyó los anidados");
+});
+
+check("una competencia puntual sin indicadores en la malla NO bloquea (nota honesta)", () => {
+  const u = clonar();
+  u.competenciasDetalle.push({
+    codigo: "CE-LEI-9", competenciaFundamental: "Ambiental y de la Salud",
+    especifica: "Muestra preferencias por opciones saludables...", indicadores: [],
+  });
+  validarUnidadRenderizada(u, formatearUnidadHTML(u, ""));
+});
+
+check("TODAS las competencias sin indicadores → sí bloquea", () => {
+  const u = clonar();
+  u.competenciasDetalle = u.competenciasDetalle.map((c) => ({ ...c, indicadores: [] }));
+  esperaError(() => validarUnidadRenderizada(u, formatearUnidadHTML(u, "")), "ninguna competencia tiene indicadores");
+});
+
+check("texto de la IA con 'Estructuras gramaticales básicas' NO bloquea (lenguaje pedagógico normal)", () => {
+  const u = clonar();
+  u.fasesSemanales[0].dias[0].momentos[1].evidencias = "• Identifica las Estructuras gramaticales básicas del tema en contexto.";
+  u.fasesSemanales[0].dias[0].momentos[1].actividades.push("Practican las Estructuras gramaticales básicas trabajadas con there is / there are.");
+  validarUnidadRenderizada(u, formatearUnidadHTML(u, ""));
+});
+
+check("placeholder en CONTENIDOS (corpus) → sí bloquea con mensaje accionable", () => {
+  const u = clonar();
+  u.contenidos.conceptuales.push("Estructuras gramaticales básicas");
+  esperaError(() => validarUnidadRenderizada(u, formatearUnidadHTML(u, "")), "Banco de Conocimiento");
 });
 
 // ─── Candado por nivel: la malla se resuelve por (level, grade, subject) ─────

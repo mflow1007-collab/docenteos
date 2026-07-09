@@ -2253,6 +2253,41 @@ const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '') => {
   return { vocabulario, gramatica, expresiones, funcionales, conceptuales, procedimentales };
 };
 
+// ─── Tabla curricular por competencia (códigos CE/IL del corpus) ─────────────
+// Soporta AMBOS formatos del corpus: indicadores ANIDADOS en cada competencia
+// (v1.3: comp.indicadoresLogro[]) e indicadores PLANOS con vínculo por
+// competenciaId (v1.2: payload.indicadoresLogro[] con ind.competenciaId).
+// Exportada pura para tests.
+
+export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFundEf = []) => {
+  const aIndicador = (ind) => ({
+    codigo: ind.id || ind.codigo || "",
+    descripcion: ind.descripcion || ind.texto || "",
+  });
+
+  return allComps.map((comp, i) => {
+    const anidados = Array.isArray(comp.indicadoresLogro) && comp.indicadoresLogro.length
+      ? comp.indicadoresLogro
+      : Array.isArray(comp.indicadores) && comp.indicadores.length
+        ? comp.indicadores
+        : [];
+    const compId = String(comp.id || comp.codigo || "").trim();
+    // Fallback v1.2: índice plano vinculado por competenciaId/competencia
+    const planos = !anidados.length && compId
+      ? (allInds || []).filter((ind) =>
+          String(ind.competenciaId || ind.competencia || "").trim() === compId)
+      : [];
+    return {
+      // Código oficial de la competencia específica (ej. CE-LEI-1 / ING-1-C01)
+      codigo: compId,
+      competenciaFundamental: comp.competenciaFundamental || comp.fundamental || compFundEf[i] || compFundEf[i % compFundEf.length] || "",
+      especifica: comp.especificaGrado || comp.especifica || comp.descripcion || "",
+      // El formatter acepta también strings (unidades guardadas antes)
+      indicadores: (anidados.length ? anidados : planos).map(aIndicador).filter((ind) => ind.descripcion),
+    };
+  }).filter((c) => c.especifica);
+};
+
 // ─── Inicio canónico del formato MINERD (5 posiciones fijas) ─────────────────
 // El esqueleto lo pone el código; el contenido lo aporta el contrato de la IA
 // (saludoInicial, retroalimentacionPrevia, saberesPrevios, actividadEnganche).
@@ -2584,20 +2619,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     // su Competencia Específica del ciclo y SUS indicadores, sin aplanar.
     // El campo `competencias` de arriba se conserva por compatibilidad con
     // unidades ya guardadas y otros consumidores.
-    competenciasDetalle: allComps.map((comp, i) => ({
-      // Código oficial de la competencia específica (ej. CE-LEI-1) — del corpus
-      codigo: comp.id || comp.codigo || "",
-      competenciaFundamental: comp.competenciaFundamental || comp.fundamental || compFundEf[i] || compFundEf[i % compFundEf.length] || "",
-      especifica: comp.especificaGrado || comp.especifica || comp.descripcion || "",
-      // Indicadores con su código oficial (ej. IL-LEI-1-1). El formatter acepta
-      // también strings (unidades guardadas antes de este cambio).
-      indicadores: (Array.isArray(comp.indicadoresLogro) ? comp.indicadoresLogro : [])
-        .map((ind) => ({
-          codigo: ind.id || ind.codigo || "",
-          descripcion: ind.descripcion || ind.texto || "",
-        }))
-        .filter((ind) => ind.descripcion),
-    })).filter((c) => c.especifica),
+    competenciasDetalle: construirCompetenciasDetalle(allComps, allInds, compFundEf),
     contenidos,
     fasesSemanales: await _generarFasesConIA(
       numSemanas, schedule, claveContenido, titulo, estrategiaEf, producto,
@@ -2671,8 +2693,13 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
   if (!detalle.length) errores.push("tabla de competencias e indicadores vacía");
   detalle.forEach((c, i) => {
     if (vacio(c.especifica)) errores.push(`competencia ${i + 1} sin específica`);
-    if (!c.indicadores?.length) errores.push(`competencia ${i + 1} sin indicadores`);
   });
+  // Indicadores: exige que la tabla tenga indicadores EN CONJUNTO. Una
+  // competencia puntual sin indicadores en la malla se muestra con la nota
+  // honesta del formatter ("Sin indicadores en la malla…"), no bloquea.
+  if (detalle.length && !detalle.some((c) => c.indicadores?.length)) {
+    errores.push("ninguna competencia tiene indicadores de logro (revisa el corpus del Banco de Conocimiento)");
+  }
 
   (unidad?.fasesSemanales || []).forEach((fase) => {
     if (!fase.indicadoresAvance?.length) errores.push(`fase ${fase.numero} sin indicadores de avance`);
@@ -2713,9 +2740,23 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
     });
   });
 
-  const contenidoCompleto = `${JSON.stringify(unidad)}\n${html}`;
+  // Placeholders legacy: se buscan SOLO en los campos que llenan el código y
+  // el corpus (CONTENIDOS, situación, ambiente, nota, anexos). El texto que
+  // compone la IA (actividades, evidencias) usa lenguaje pedagógico normal y
+  // puede contener frases parecidas de forma legítima — no se bloquea por eso.
+  const camposTemplate = JSON.stringify({
+    contenidos: unidad?.contenidos,
+    situacionAprendizaje: unidad?.situacionAprendizaje,
+    ambienteAprendizaje: unidad?.ambienteAprendizaje,
+    notaInstitucional: unidad?.notaInstitucional,
+    ejesTematicosDetalle: unidad?.ejesTematicosDetalle,
+    anexos: unidad?.anexos,
+    modeloCurricularSuperior: unidad?.modeloCurricularSuperior,
+  });
   for (const p of PLACEHOLDERS_PROHIBIDOS) {
-    if (contenidoCompleto.includes(p)) errores.push(`placeholder legacy detectado: "${p}"`);
+    if (camposTemplate.includes(p)) {
+      errores.push(`placeholder legacy en CONTENIDOS/secciones del corpus: "${p}" — depura el JSON en el Banco de Conocimiento`);
+    }
   }
   if (/<li>\s*<\/li>/.test(html)) errores.push("ítem de lista vacío en el documento renderizado");
   if (/>\s*undefined\s*</.test(html)) errores.push('texto "undefined" en el documento renderizado');
