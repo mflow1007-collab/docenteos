@@ -16,7 +16,7 @@
 
 import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
-import { seleccionarMallaParaUnidad, temasOficialesDeMalla } from "../src/services/bancoConocimientoService.js";
+import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "../src/services/bancoConocimientoService.js";
 
 let pasadas = 0;
 let falladas = 0;
@@ -420,10 +420,34 @@ check("texto de la IA con 'Estructuras gramaticales básicas' NO bloquea (lengua
   validarUnidadRenderizada(u, formatearUnidadHTML(u, ""));
 });
 
-check("placeholder en CONTENIDOS (corpus) → sí bloquea con mensaje accionable", () => {
+check("placeholder en CONTENIDOS (corpus) → sí bloquea con la RUTA exacta", () => {
   const u = clonar();
   u.contenidos.conceptuales.push("Estructuras gramaticales básicas");
-  esperaError(() => validarUnidadRenderizada(u, formatearUnidadHTML(u, "")), "Banco de Conocimiento");
+  esperaError(
+    () => validarUnidadRenderizada(u, formatearUnidadHTML(u, "")),
+    `CONTENIDOS.conceptuales[${u.contenidos.conceptuales.length - 1}]`
+  );
+});
+
+check("placeholder en contenidosSintesis (NO renderizado) → no bloquea", () => {
+  const u = clonar();
+  u.modeloCurricularSuperior = {
+    ejes: [{ nombre: "Alfabetización Imprescindible", descripcion: "Comprensión y expresión en inglés." }],
+    progresion: [],
+    contenidosSintesis: { conceptuales: ["Estructuras gramaticales básicas", "There + be"] },
+  };
+  validarUnidadRenderizada(u, formatearUnidadHTML(u, ""));
+});
+
+check("localizarPlaceholdersProhibidos devuelve la ruta exacta dentro del JSON", () => {
+  const payload = {
+    contenidosGenerales: { conceptuales: ["There + be en presente simple", "Estructuras gramaticales básicas"] },
+    competencias: [{ descripcion: "Vocabulario clave relacionado con el tema" }],
+  };
+  const hallazgos = localizarPlaceholdersProhibidos(payload);
+  if (hallazgos.length !== 2) throw new Error(`esperaba 2 hallazgos, hay ${hallazgos.length}`);
+  if (!hallazgos.some((h) => h.ruta === "contenidosGenerales.conceptuales[1]")) throw new Error("no localizó la ruta del conceptual");
+  if (!hallazgos.some((h) => h.ruta === "competencias[0].descripcion")) throw new Error("no localizó la ruta de la competencia");
 });
 
 // ─── Candado por nivel: la malla se resuelve por (level, grade, subject) ─────

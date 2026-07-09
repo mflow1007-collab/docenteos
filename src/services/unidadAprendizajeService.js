@@ -6,7 +6,7 @@ import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.js";
 import { inyectarExpresiones } from "../planning/bancoExpresionesIdiomas.js";
 import { obtenerBPActs } from "./bpCache.js";
-import { getCurricularContentForUnit, temasOficialesDeMalla } from "./bancoConocimientoService.js";
+import { getCurricularContentForUnit, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "./bancoConocimientoService.js";
 import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad } from "./phaseAService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -2756,14 +2756,8 @@ export const generarUnidadAprendizaje = async (datos) => {
 // ─── R1 final: validación del documento renderizado ──────────────────────────
 // El esquema MINERD no admite campos vacíos ni placeholders. Esta validación
 // recorre la unidad Y el HTML renderizado; cualquier hueco detiene la entrega.
-
-const PLACEHOLDERS_PROHIBIDOS = [
-  "Vocabulario clave relacionado con",
-  "Estructuras gramaticales básicas",
-  "diversidad cultural anglosajona",
-  "Conceptos fundamentales de ",
-  "Definiciones de ",
-];
+// (La lista de placeholders y el localizador viven en bancoConocimientoService
+// — misma higiene en la subida al Banco y en el render.)
 
 export const validarUnidadRenderizada = (unidad, html = "") => {
   const errores = [];
@@ -2827,22 +2821,24 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
     });
   });
 
-  // Placeholders legacy: se buscan SOLO en los campos que llenan el código y
-  // el corpus (CONTENIDOS, situación, ambiente, nota, anexos). El texto que
-  // compone la IA (actividades, evidencias) usa lenguaje pedagógico normal y
-  // puede contener frases parecidas de forma legítima — no se bloquea por eso.
-  const camposTemplate = JSON.stringify({
-    contenidos: unidad?.contenidos,
-    situacionAprendizaje: unidad?.situacionAprendizaje,
-    ambienteAprendizaje: unidad?.ambienteAprendizaje,
-    notaInstitucional: unidad?.notaInstitucional,
-    ejesTematicosDetalle: unidad?.ejesTematicosDetalle,
-    anexos: unidad?.anexos,
-    modeloCurricularSuperior: unidad?.modeloCurricularSuperior,
-  });
-  for (const p of PLACEHOLDERS_PROHIBIDOS) {
-    if (camposTemplate.includes(p)) {
-      errores.push(`placeholder legacy en CONTENIDOS/secciones del corpus: "${p}" — depura el JSON en el Banco de Conocimiento`);
+  // Placeholders legacy: se buscan SOLO en las secciones que se RENDERIZAN y
+  // que llena el código o el corpus. Ni el texto de la IA (lenguaje pedagógico
+  // normal) ni datos internos no renderizados (contenidosSintesis del modelo
+  // superior) pueden bloquear. El hallazgo reporta la RUTA exacta.
+  const seccionesRenderizadas = {
+    "CONTENIDOS": unidad?.contenidos,
+    "situacionAprendizaje": unidad?.situacionAprendizaje,
+    "ambienteAprendizaje": unidad?.ambienteAprendizaje,
+    "notaInstitucional": unidad?.notaInstitucional,
+    "ejesTematicosDetalle": unidad?.ejesTematicosDetalle,
+    "anexos": unidad?.anexos,
+    "modeloCurricularSuperior.ejes": unidad?.modeloCurricularSuperior?.ejes,
+    "modeloCurricularSuperior.progresion": unidad?.modeloCurricularSuperior?.progresion,
+    "competenciasDetalle": unidad?.competenciasDetalle,
+  };
+  for (const [ruta, valor] of Object.entries(seccionesRenderizadas)) {
+    for (const hallazgo of localizarPlaceholdersProhibidos(valor, ruta)) {
+      errores.push(`placeholder legacy en ${hallazgo.ruta}: "${hallazgo.cadena}" — depura esa línea del JSON en el Banco de Conocimiento`);
     }
   }
   if (/<li>\s*<\/li>/.test(html)) errores.push("ítem de lista vacío en el documento renderizado");

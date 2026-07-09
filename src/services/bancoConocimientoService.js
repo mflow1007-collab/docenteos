@@ -745,6 +745,42 @@ export const analizarJsonCurricular = (parsed) => {
   };
 };
 
+// ─── Higiene de placeholders legacy ──────────────────────────────────────────
+// Cadenas de plantilla que JAMÁS pueden vivir en un corpus curricular. Se
+// rechazan en la SUBIDA (aquí) y se verifican sobre las secciones RENDERIZADAS
+// del documento (validarUnidadRenderizada).
+
+export const PLACEHOLDERS_PROHIBIDOS = [
+  'Vocabulario clave relacionado con',
+  'Estructuras gramaticales básicas',
+  'diversidad cultural anglosajona',
+  'Conceptos fundamentales de ',
+  'Definiciones de ',
+];
+
+// Recorre un valor (string/array/objeto) y devuelve [{ ruta, cadena }] con la
+// ubicación EXACTA de cada placeholder — para que el docente sepa qué depurar.
+export const localizarPlaceholdersProhibidos = (valor, rutaBase = '') => {
+  const hallazgos = [];
+  const visitar = (v, ruta) => {
+    if (typeof v === 'string') {
+      for (const p of PLACEHOLDERS_PROHIBIDOS) {
+        if (v.includes(p)) hallazgos.push({ ruta: ruta || '(raíz)', cadena: p });
+      }
+      return;
+    }
+    if (Array.isArray(v)) {
+      v.forEach((item, i) => visitar(item, `${ruta}[${i}]`));
+      return;
+    }
+    if (v && typeof v === 'object') {
+      for (const [k, val] of Object.entries(v)) visitar(val, ruta ? `${ruta}.${k}` : k);
+    }
+  };
+  visitar(valor, rutaBase);
+  return hallazgos;
+};
+
 export const validateJsonSobre = (text) => {
   if (!text || !text.trim()) return { ok: false, error: 'El JSON no puede estar vacío.' };
   if (text.length > JSON_MAX_BYTES) {
@@ -778,6 +814,19 @@ export const validateJsonSobre = (text) => {
       error: esRegistro
         ? `El registro fue leído, pero aún no trae datos suficientes: ${analysis.faltantes.join(', ')}.`
         : `El JSON fue leído, pero aún no tiene todo lo que solicita el generador: ${analysis.faltantes.join(', ')}.`,
+    };
+  }
+
+  // Guard de higiene: un corpus con cadenas de plantilla no entra al Banco
+  const sucios = localizarPlaceholdersProhibidos(parsed);
+  if (sucios.length) {
+    const detalle = sucios.slice(0, 5).map((h) => `${h.ruta} → "${h.cadena}"`).join(' · ');
+    return {
+      ok: false,
+      parsed,
+      analysis,
+      error: `El JSON contiene texto de plantilla que no es contenido curricular oficial: ${detalle}` +
+        `${sucios.length > 5 ? ` (+${sucios.length - 5} más)` : ''}. Elimina esas líneas y vuelve a cargarlo.`,
     };
   }
 
