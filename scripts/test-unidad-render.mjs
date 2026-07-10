@@ -390,6 +390,29 @@ check("competenciasDetalle resuelve indicadores PLANOS por competenciaId (corpus
   if (detalle[0].indicadores[0].codigo !== "ING-1-I01") throw new Error("perdió el código oficial del indicador");
 });
 
+check("indicadores ANIDADOS como STRINGS planos (corpus antiguos) → también resuelven", () => {
+  const comps = [{
+    id: "ING-1-C01", especifica: "Comprende y expresa ideas...",
+    indicadoresLogro: [
+      "Responde de forma adecuada a preguntas e indicaciones.",
+      "Se expresa mediante frases y oraciones breves y sencillas.",
+    ],
+  }];
+  const detalle = construirCompetenciasDetalle(comps, [], ["Comunicativa"]);
+  if (detalle[0].indicadores.length !== 2) throw new Error(`esperaba 2, hay ${detalle[0].indicadores.length}`);
+  if (!detalle[0].indicadores[0].descripcion.startsWith("Responde")) throw new Error("perdió el texto del string");
+});
+
+check("indicadores PLANOS como strings + división exacta → bloques secuenciales", () => {
+  const comps = [{ id: "C1", especifica: "Comp 1" }, { id: "C2", especifica: "Comp 2" }];
+  const inds = ["Indicador uno.", "Indicador dos.", "Indicador tres.", "Indicador cuatro."];
+  const detalle = construirCompetenciasDetalle(comps, inds, []);
+  if (detalle[0].indicadores.length !== 2 || detalle[1].indicadores.length !== 2) {
+    throw new Error("no repartió los strings planos en bloques");
+  }
+  if (detalle[1].indicadores[0].descripcion !== "Indicador tres.") throw new Error("bloques desordenados");
+});
+
 check("competenciasDetalle sigue soportando indicadores ANIDADOS (v1.3)", () => {
   const comps = [{
     id: "CE-LEI-1", especifica: "Comprensión oral...",

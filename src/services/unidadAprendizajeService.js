@@ -2310,10 +2310,17 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
 // Exportada pura para tests.
 
 export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFundEf = []) => {
-  const aIndicador = (ind) => ({
-    codigo: ind.id || ind.codigo || "",
-    descripcion: ind.descripcion || ind.texto || "",
-  });
+  // Tolerante a AMBAS formas: objeto {id, descripcion|texto} y string plano
+  // ("Responde de forma adecuada...") — corpus antiguos guardan strings
+  const aIndicador = (ind) => {
+    if (typeof ind === "string") {
+      return { codigo: "", descripcion: ind.trim() };
+    }
+    return {
+      codigo: ind?.id || ind?.codigo || "",
+      descripcion: ind?.descripcion || ind?.texto || "",
+    };
+  };
 
   // Fallback 3 (corpus plano SIN competenciaId): mapeo por BLOQUES
   // secuenciales — los corpus oficiales listan los indicadores en el orden de
@@ -2614,6 +2621,22 @@ export const generarUnidadAprendizaje = async (datos) => {
     );
   }
 
+  // Candado temprano de asociación: si la tabla curricular va a quedar sin
+  // indicadores, DETENER AQUÍ con diagnóstico completo — antes de gastar una
+  // sola llamada de IA (el validador final quedaría como última defensa).
+  const detalleTemprano = construirCompetenciasDetalle(allComps, allInds, compFundEf);
+  if (detalleTemprano.length && !detalleTemprano.some((c) => c.indicadores.length)) {
+    const conVinculo = allInds.filter((i) => String(i?.competenciaId || i?.competencia || "").trim()).length;
+    const anidados = allComps.filter((c) => (c?.indicadoresLogro || c?.indicadores || []).length).length;
+    const divisionExacta = allComps.length && allInds.length && allInds.length % allComps.length === 0;
+    throw new Error(
+      `Malla sin indicadores asociables a sus competencias (schemaVersion ${versionMalla}, doc "${curricularDoc.id || "?"}"): ` +
+      `${allComps.length} competencias (${anidados} con indicadores anidados), ${allInds.length} indicadores planos ` +
+      `(${conVinculo} con competenciaId, división ${allInds.length}/${allComps.length} ${divisionExacta ? "exacta" : "INEXACTA"}). ` +
+      `Recarga la versión vigente del JSON (v1.2+) en el Banco de Conocimiento.`
+    );
+  }
+
   // FUENTE ÚNICA: mismos temas oficiales que consume el selector del Asesor
   const temasOficiales = temasOficialesDeMalla(mallaPayload);
   // Resuelve el título del docente contra los temas oficiales → devuelve string
@@ -2721,7 +2744,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     // su Competencia Específica del ciclo y SUS indicadores, sin aplanar.
     // El campo `competencias` de arriba se conserva por compatibilidad con
     // unidades ya guardadas y otros consumidores.
-    competenciasDetalle: construirCompetenciasDetalle(allComps, allInds, compFundEf),
+    competenciasDetalle: detalleTemprano,
     contenidos,
     fasesSemanales: await _generarFasesConIA(
       numSemanas, schedule, claveContenido, titulo, estrategiaEf, producto,
