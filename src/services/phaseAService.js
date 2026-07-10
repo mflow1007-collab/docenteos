@@ -279,7 +279,7 @@ function formatearMemoria(memoria) {
 //   Sem 2+: las estructuras de la malla, en su orden oficial, repartidas
 //          proporcionalmente entre las semanas restantes.
 
-function getFocoGramatical(gramaticaArray, semanaNum, numSemanas) {
+export function getFocoGramatical(gramaticaArray, semanaNum, numSemanas) {
   if (!gramaticaArray?.length) return [];
   if (semanaNum === 1) return []; // sem 1: solo vocabulario/intro
   const semanasConGramatica = Math.max(numSemanas - 1, 1);

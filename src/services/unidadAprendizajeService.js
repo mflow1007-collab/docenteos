@@ -7,7 +7,7 @@ import { obtenerActividadesBanco, withTema } from "../planning/bancoPedagogico.j
 import { inyectarExpresiones } from "../planning/bancoExpresionesIdiomas.js";
 import { obtenerBPActs } from "./bpCache.js";
 import { getCurricularContentForUnit, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "./bancoConocimientoService.js";
-import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad } from "./phaseAService.js";
+import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical } from "./phaseAService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -2395,11 +2395,23 @@ const _generarFasesConIA = async (
   for (const fase of fases) {
     const numClases = fase.dias.length;
 
+    // Progreso narrado para el docente: semana, clases y el contenido que se
+    // está redactando en ese momento (foco oficial de la semana)
     const progressWrapper = onProgress
       ? (startDia, endDia) => {
           const globalStart = globalOffset + startDia;
           const globalEnd   = globalOffset + endDia;
-          onProgress(`Componiendo clases ${globalStart}–${globalEnd} de ${totalClases}...`);
+          const rango = globalStart === globalEnd
+            ? `la clase ${globalStart}`
+            : `las clases ${globalStart} y ${globalEnd}`;
+          const foco = getFocoGramatical(spec.contenidosClaves?.gramatica, fase.numero, numSemanas);
+          const focoCompleto = foco.length
+            ? foco.join(" · ")
+            : "vocabulario y expresiones del tema";
+          const focoTx = focoCompleto.length > 90 ? `${focoCompleto.slice(0, 90)}…` : focoCompleto;
+          onProgress(
+            `✍️ Semana ${fase.numero} de ${numSemanas} — escribiendo ${rango} de ${totalClases} · Trabajando: ${focoTx}`
+          );
         }
       : null;
 
@@ -2554,6 +2566,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   // Caso (a) doc no existe → null → error "No hay malla"
   // Caso (b) permission-denied → getCurricularContentForUnit lanza → re-throw aquí
   // Caso (c) payload incompleto → error "Malla incompleta"
+  onProgress?.("🔍 Verificando la malla curricular oficial (MINERD) de tu grado...");
   let curricularDoc;
   try {
     // Clave estricta: (level, grade, subject, contentType) — primaria no hereda secundaria
@@ -2605,6 +2618,8 @@ export const generarUnidadAprendizaje = async (datos) => {
   const temasOficiales = temasOficialesDeMalla(mallaPayload);
   // Resuelve el título del docente contra los temas oficiales → devuelve string
   const temaMallaStr   = _resolverTemaMalla(titulo, temasOficiales);
+
+  onProgress?.(`📚 Malla oficial verificada — preparando los contenidos de "${temaMallaStr || titulo}"...`);
 
   // Capa 2 opcional: entrada del tema en el doc enriquecimiento_tema derivado
   // de esta malla (adjuntado por getCurricularContentForUnit); null = sin capa
@@ -2724,6 +2739,8 @@ export const generarUnidadAprendizaje = async (datos) => {
   // anexos A-L. Se añaden como campos nuevos: las unidades ya guardadas sin
   // estos campos siguen renderizando igual (el formateador los trata como
   // opcionales).
+  onProgress?.("🎨 Armando tu documento MINERD (componente curricular, fases y anexos)...");
+
   unidadResult.ejesTematicosDetalle = construirEjesContextualizados(ejes, {
     area: claveContenido, tema: titulo,
   });
@@ -2747,6 +2764,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   // R1 FINAL sobre el DOCUMENTO RENDERIZADO completo (no solo el JSON de la
   // IA): atrapa cualquier placeholder o campo vacío que entre por código
   // residual antes de entregar la unidad al docente.
+  onProgress?.("✅ Revisión final: verificando que ninguna sección quede vacía...");
   const htmlRenderizado = formatearUnidadHTML(unidadResult);
   validarUnidadRenderizada(unidadResult, htmlRenderizado);
 

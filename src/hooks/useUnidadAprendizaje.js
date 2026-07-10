@@ -69,7 +69,7 @@ export function useUnidadAprendizaje() {
         // Rótulo del documento según el tipo elegido en la página
         // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
         tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
-        onProgress: (msg) => setMensajeUnidad({ tipo: "loading", texto: `⏳ ${msg}` }),
+        onProgress: (msg) => setMensajeUnidad({ tipo: "loading", texto: msg }),
       });
       setUnidad(resultado);
       setTimeout(() => {
@@ -181,7 +181,7 @@ export function useUnidadAprendizaje() {
       const resultado = await generarUnidadAprendizaje({
         ...unidadDatos,
         tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
-        onProgress: (msg) => setMensajeUnidad({ tipo: "loading", texto: `⏳ ${msg}` }),
+        onProgress: (msg) => setMensajeUnidad({ tipo: "loading", texto: msg }),
       });
       setUnidad(resultado);
       setTimeout(() => document.querySelector(".ua-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
