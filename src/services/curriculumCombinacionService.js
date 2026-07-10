@@ -211,29 +211,168 @@ const TEMA_KEYWORDS = {
   "viajes y turismo": ["travel", "viaje", "viajes", "trip", "tourism", "turismo", "vacation", "vacaciones", "transport", "transporte", "directions", "direcciones", "airport", "aeropuerto", "hotel"],
 };
 
-const TEMA_CANONICO = {
-  "identificacion personal": "Identificación personal",
-  "relaciones humanas y sociales": "Relaciones humanas y sociales",
-  "actividades de la vida diaria": "Actividades de la vida diaria",
-  "vivienda, entorno y ciudad": "Vivienda, entorno y ciudad",
-  "escuela y educacion": "Escuela y educación",
-  "deporte, tiempo libre y recreacion": "Deporte, tiempo libre y recreación",
-  "alimentacion": "Alimentación",
-  "salud y cuidados fisicos": "Salud y cuidados físicos",
-  "ciencia y tecnologia": "Ciencia y tecnología",
-  "lengua y comunicacion": "Lengua y comunicación",
-  "clima, condiciones atmosfericas y medioambiente": "Clima, condiciones atmosféricas y medioambiente",
-  "clima, condiciones atmosfericas y medio ambiente": "Clima, condiciones atmosféricas y medio ambiente",
-  "medio ambiente y problematicas sociales": "Medio ambiente y problemáticas sociales",
-  "bienes y servicios": "Bienes y servicios",
-  "actividades sociales y culturales": "Actividades sociales y culturales",
-  "viajes y turismo": "Viajes y turismo",
+const AFINIDAD_TEMATICA = {
+  "identificacion personal": {
+    nombre: "Identidad, relaciones y comunicación",
+    relacionadas: ["relaciones humanas y sociales", "lengua y comunicacion", "escuela y educacion"],
+    razon: "La identificación personal se fortalece al presentarse, interactuar con otras personas y usar funciones comunicativas básicas en contextos escolares y sociales.",
+    tituloSugerido: "Who I Am and How I Connect",
+  },
+  "relaciones humanas y sociales": {
+    nombre: "Identidad, familia y vida social",
+    relacionadas: ["identificacion personal", "actividades sociales y culturales", "lengua y comunicacion"],
+    razon: "Las relaciones humanas permiten integrar presentación personal, interacción social, normas de cortesía y participación en situaciones culturales cercanas al estudiante.",
+    tituloSugerido: "People Around Me",
+  },
+  "actividades de la vida diaria": {
+    nombre: "Rutinas, tiempo y bienestar",
+    relacionadas: ["salud y cuidados fisicos", "escuela y educacion", "deporte, tiempo libre y recreacion"],
+    razon: "Las rutinas se amplían naturalmente hacia hábitos saludables, vida escolar, horarios, frecuencia y actividades de recreación.",
+    tituloSugerido: "My Daily Life and Healthy Habits",
+  },
+  "vivienda, entorno y ciudad": {
+    nombre: "Entorno, clima y bienestar",
+    relacionadas: ["clima, condiciones atmosfericas y medioambiente", "clima, condiciones atmosfericas y medio ambiente", "salud y cuidados fisicos", "bienes y servicios"],
+    razon: "El hogar, la ciudad, el clima y el bienestar se conectan para describir lugares, condiciones del entorno, necesidades personales y recomendaciones en situaciones reales.",
+    tituloSugerido: "My Home, My Environment and My Well-being",
+  },
+  "escuela y educacion": {
+    nombre: "Escuela, identidad y rutina académica",
+    relacionadas: ["actividades de la vida diaria", "identificacion personal", "lengua y comunicacion", "ciencia y tecnologia"],
+    razon: "La vida escolar permite integrar horarios, asignaturas, instrucciones, comunicación en el aula y uso básico de recursos tecnológicos.",
+    tituloSugerido: "My School Life",
+  },
+  "deporte, tiempo libre y recreacion": {
+    nombre: "Tiempo libre, salud y vida diaria",
+    relacionadas: ["salud y cuidados fisicos", "actividades de la vida diaria", "actividades sociales y culturales"],
+    razon: "El deporte y la recreación se articulan con hábitos saludables, rutinas, preferencias y participación en actividades sociales.",
+    tituloSugerido: "Free Time and Healthy Choices",
+  },
+  "alimentacion": {
+    nombre: "Alimentación, salud y servicios",
+    relacionadas: ["salud y cuidados fisicos", "bienes y servicios", "actividades de la vida diaria"],
+    razon: "La alimentación se trabaja con hábitos saludables, rutinas, compras, preferencias y situaciones de intercambio en tiendas o restaurantes.",
+    tituloSugerido: "Food, Health and Everyday Choices",
+  },
+  "salud y cuidados fisicos": {
+    nombre: "Bienestar, hábitos y entorno",
+    relacionadas: ["actividades de la vida diaria", "alimentacion", "deporte, tiempo libre y recreacion", "clima, condiciones atmosfericas y medioambiente"],
+    razon: "La salud se desarrolla mejor al integrarla con rutinas, alimentación, actividad física y condiciones del entorno que afectan el bienestar.",
+    tituloSugerido: "Healthy Life in My Environment",
+  },
+  "ciencia y tecnologia": {
+    nombre: "Tecnología, escuela y comunicación",
+    relacionadas: ["escuela y educacion", "lengua y comunicacion", "medio ambiente y problematicas sociales"],
+    razon: "La ciencia y la tecnología permiten trabajar comunicación funcional, recursos escolares, solución de problemas y situaciones del entorno.",
+    tituloSugerido: "Technology in My Learning World",
+  },
+  "lengua y comunicacion": {
+    nombre: "Comunicación, identidad y vida social",
+    relacionadas: ["identificacion personal", "relaciones humanas y sociales", "escuela y educacion", "ciencia y tecnologia"],
+    razon: "La comunicación atraviesa la presentación personal, la interacción social, la vida escolar y el uso de medios o tecnologías.",
+    tituloSugerido: "Communicating in Real Life",
+  },
+  "clima, condiciones atmosfericas y medioambiente": {
+    nombre: "Clima, entorno y bienestar",
+    relacionadas: ["vivienda, entorno y ciudad", "salud y cuidados fisicos", "medio ambiente y problematicas sociales"],
+    razon: "El clima y el medioambiente se conectan con la descripción del entorno, la salud, el cuidado personal y problemas ambientales cercanos.",
+    tituloSugerido: "Weather, Environment and Care",
+  },
+  "clima, condiciones atmosfericas y medio ambiente": {
+    nombre: "Clima, entorno y bienestar",
+    relacionadas: ["vivienda, entorno y ciudad", "salud y cuidados fisicos", "medio ambiente y problematicas sociales"],
+    razon: "El clima y el medio ambiente se conectan con la descripción del entorno, la salud, el cuidado personal y problemas ambientales cercanos.",
+    tituloSugerido: "Weather, Environment and Care",
+  },
+  "medio ambiente y problematicas sociales": {
+    nombre: "Medioambiente, tecnología y ciudadanía",
+    relacionadas: ["clima, condiciones atmosfericas y medioambiente", "ciencia y tecnologia", "bienes y servicios"],
+    razon: "Las problemáticas ambientales y sociales permiten integrar descripciones, recomendaciones, soluciones, tecnología y consumo responsable.",
+    tituloSugerido: "Taking Care of Our World",
+  },
+  "bienes y servicios": {
+    nombre: "Servicios, ciudad y vida cotidiana",
+    relacionadas: ["vivienda, entorno y ciudad", "alimentacion", "viajes y turismo", "medio ambiente y problematicas sociales"],
+    razon: "Los bienes y servicios se trabajan en situaciones reales de la ciudad, compras, alimentación, transporte, turismo y consumo responsable.",
+    tituloSugerido: "Services in My Community",
+  },
+  "actividades sociales y culturales": {
+    nombre: "Vida social, cultura y relaciones",
+    relacionadas: ["relaciones humanas y sociales", "deporte, tiempo libre y recreacion", "viajes y turismo"],
+    razon: "Las actividades sociales y culturales se fortalecen con interacción, preferencias, tiempo libre, celebraciones y experiencias de viaje.",
+    tituloSugerido: "Culture and Social Life",
+  },
+  "viajes y turismo": {
+    nombre: "Turismo, ciudad y cultura",
+    relacionadas: ["bienes y servicios", "vivienda, entorno y ciudad", "actividades sociales y culturales", "clima, condiciones atmosfericas y medioambiente"],
+    razon: "Viajes y turismo integran orientación en la ciudad, servicios, clima, cultura, transporte y participación en situaciones comunicativas reales.",
+    tituloSugerido: "Travel, Culture and Services",
+  },
 };
 
 const categoriaPorVocabulario = (textoNormalizado) =>
   Object.entries(TEMA_KEYWORDS).find(([, claves]) =>
     claves.some((k) => textoNormalizado.includes(_norm(k)))
   )?.[0] || "";
+
+const semanasParaCantidadTemas = (cantidad) => {
+  if (cantidad <= 1) return "4 semanas";
+  if (cantidad === 2) return "5 semanas";
+  if (cantidad === 3) return "5-6 semanas";
+  return "7-8 semanas";
+};
+
+const construirOpcionesDesdeMalla = (temaOficial, temasCurriculares = []) => {
+  const temas = (Array.isArray(temasCurriculares) ? temasCurriculares : [])
+    .map(textoTema)
+    .map((tema) => String(tema || "").trim())
+    .filter(Boolean);
+  const claveBase = claveTema(temaOficial);
+  if (!claveBase || !temas.length) return [];
+
+  const afinidad = AFINIDAD_TEMATICA[claveBase];
+  const porClave = new Map();
+  temas.forEach((tema) => {
+    const clave = claveTema(tema);
+    if (clave && !porClave.has(clave)) porClave.set(clave, tema);
+  });
+
+  const relacionados = (afinidad?.relacionadas || [])
+    .map((clave) => porClave.get(clave))
+    .filter(Boolean)
+    .filter((tema) => _norm(tema) !== _norm(temaOficial));
+
+  const principal = [temaOficial, ...relacionados.slice(0, 2)]
+    .filter((tema, index, lista) => lista.findIndex((t) => _norm(t) === _norm(tema)) === index);
+
+  if (principal.length < 2) return [];
+
+  const opciones = [{
+    nombre: afinidad?.nombre || `Integración curricular de ${temaOficial}`,
+    temas: principal,
+    razon: afinidad?.razon || "Los temas comparten funciones comunicativas, vocabulario y contextos de uso dentro de la malla curricular oficial.",
+    duracionSugerida: semanasParaCantidadTemas(principal.length),
+    tipo: "sugerida",
+    tituloSugerido: afinidad?.tituloSugerido || "",
+    afines: principal.filter((tema) => _norm(tema) !== _norm(temaOficial)),
+  }];
+
+  const segundaLinea = [temaOficial, ...relacionados.slice(2, 5)]
+    .filter((tema, index, lista) => lista.findIndex((t) => _norm(t) === _norm(tema)) === index);
+  if (segundaLinea.length >= 2) {
+    opciones.push({
+      nombre: `Ampliación curricular de ${temaOficial}`,
+      temas: segundaLinea,
+      razon: "Esta opción amplía el tema con otros contenidos oficiales de la malla cuando la unidad requiere más semanas o un producto final más riguroso.",
+      duracionSugerida: semanasParaCantidadTemas(segundaLinea.length),
+      tipo: "alternativa",
+      tituloSugerido: "",
+      afines: segundaLinea.filter((tema) => _norm(tema) !== _norm(temaOficial)),
+    });
+  }
+
+  return opciones;
+};
 
 /**
  * Resuelve un tema escrito libremente al tema curricular oficial más parecido.
@@ -252,10 +391,10 @@ export const sugerirTemaOficial = (temaLibre, temasCurriculares = []) => {
   const categoriaEntrada = categoriaPorVocabulario(texto);
   if (categoriaEntrada) {
     const oficialEnMalla = temas.find((tema) =>
-      claveTema(tema) === categoriaEntrada && _norm(tema).includes(categoriaEntrada)
+      claveTema(tema) === categoriaEntrada
     );
-    return {
-      tema: oficialEnMalla || TEMA_CANONICO[categoriaEntrada] || categoriaEntrada,
+    if (oficialEnMalla) return {
+      tema: oficialEnMalla,
       confianza: "alta",
       motivo: "Coincidencia por el vocabulario del tema",
     };
@@ -301,7 +440,7 @@ export const sugerirTemasATrabajar = (curriculoData, temaLibre) => {
   if (!sugerencia) return null;
 
   const criterios = curriculoData?.criteriosCombinacionTematica || [];
-  const opciones = criterios
+  let opciones = criterios
     .filter((c) => Array.isArray(c.temas) && c.temas.some((t) => _norm(t) === _norm(sugerencia.tema)))
     .map((c) => ({
       nombre: c.nombre,
@@ -312,6 +451,9 @@ export const sugerirTemasATrabajar = (curriculoData, temaLibre) => {
       tituloSugerido: c.tituloSugerido || "",
       afines: c.temas.filter((t) => _norm(t) !== _norm(sugerencia.tema)),
     }));
+  if (opciones.length === 0) {
+    opciones = construirOpcionesDesdeMalla(sugerencia.tema, temas);
+  }
   const grupo = opciones[0] || null;
 
   return {
