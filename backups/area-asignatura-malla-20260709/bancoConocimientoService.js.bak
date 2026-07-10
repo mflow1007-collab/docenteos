@@ -38,22 +38,19 @@ export const BC_AREAS = [
 // Áreas con múltiples asignaturas — muestra selector de asignatura en el formulario
 export const BC_SUBJECTS_BY_AREA = {
   'Lenguas Extranjeras':       ['Inglés', 'Francés'],
-  'Ciencias Sociales':         ['Ciencias Sociales', 'Geografía', 'Historia', 'Moral y Cívica'],
-  'Ciencias de la Naturaleza': ['Ciencias de la Naturaleza', 'Biología', 'Química', 'Física'],
+  'Ciencias Sociales':         ['Historia', 'Geografía'],
+  'Ciencias de la Naturaleza': ['Biología', 'Química', 'Física'],
 };
 
 // Mapeo asignatura → área (para búsquedas inversas)
 export const BC_AREA_BY_SUBJECT = {
-  'Inglés':                  'Lenguas Extranjeras',
-  'Francés':                 'Lenguas Extranjeras',
-  'Ciencias Sociales':       'Ciencias Sociales',
-  'Geografía':               'Ciencias Sociales',
-  'Historia':                'Ciencias Sociales',
-  'Moral y Cívica':          'Ciencias Sociales',
-  'Ciencias de la Naturaleza':'Ciencias de la Naturaleza',
-  'Biología':                'Ciencias de la Naturaleza',
-  'Química':                 'Ciencias de la Naturaleza',
-  'Física':                  'Ciencias de la Naturaleza',
+  'Inglés':    'Lenguas Extranjeras',
+  'Francés':   'Lenguas Extranjeras',
+  'Historia':  'Ciencias Sociales',
+  'Geografía': 'Ciencias Sociales',
+  'Biología':  'Ciencias de la Naturaleza',
+  'Química':   'Ciencias de la Naturaleza',
+  'Física':    'Ciencias de la Naturaleza',
 };
 
 export const BC_ORIGIN_TYPES = {
@@ -150,40 +147,9 @@ export const getKnowledgeSources = async (filters = {}) => {
   }
 };
 
-const getActiveMallaSourceGuards = async () => {
-  if (!db) return { sourceIds: new Set(), contentIds: new Set() };
-  const snap = await getDocs(query(
-    collection(db, COL),
-    where('active', '==', true),
-    limit(500),
-  ));
-  const guards = { sourceIds: new Set(), contentIds: new Set() };
-  snap.docs.forEach((d) => {
-    const source = { id: d.id, ...d.data() };
-    const sourceType = normCascade(source.contentType || source.structuredPayload?.contentType || '');
-    const isMalla = sourceType === 'malla curricular' || Boolean(source.curricularContentId);
-    if (!isMalla) return;
-    guards.sourceIds.add(source.id);
-    if (source.curricularContentId) guards.contentIds.add(String(source.curricularContentId));
-  });
-  return guards;
-};
-
-const hasActiveMallaSource = (docItem = {}, guards) => {
-  if (!guards) return true;
-  const id = String(docItem.id || '');
-  const sourceId = String(docItem.sourceId || '');
-  // Regla estricta: planificación solo lee contenido enlazado a una fuente
-  // visible del Banco de Conocimiento. No se acepta coincidencia suelta por
-  // nivel/grado/área/asignatura porque puede distorsionar la malla oficial.
-  return (id && guards.contentIds.has(id))
-    || (sourceId && guards.sourceIds.has(sourceId));
-};
-
 export const getAvailableCurricularScopes = async () => {
   if (!db) return [];
   try {
-    const guards = await getActiveMallaSourceGuards();
     const snap = await getDocs(query(
       collection(db, 'curricularContent'),
       where('active', '==', true),
@@ -195,10 +161,8 @@ export const getAvailableCurricularScopes = async () => {
       const payload = data.payload || {};
       const contentType = data.contentType || payload.contentType || '';
       if (normCascade(contentType) !== 'malla curricular') return;
-      if (!hasActiveMallaSource(data, guards)) return;
       const item = {
         id: data.id,
-        sourceId: data.sourceId || '',
         level: cleanText(data.level || payload.level || payload.nivel),
         cycle: cleanText(data.cycle || payload.cycle || payload.ciclo),
         grade: cleanText(data.grade || payload.grade || payload.grado),
@@ -1206,7 +1170,6 @@ export const getCurricularContentForUnit = async (subject, grade, nivel = '') =>
   const norm = bcNorm;
 
   try {
-    const guards = await getActiveMallaSourceGuards();
     // Fix auditoría 2026-07-04: primero consultas dirigidas por subject/area
     // exactos (docs con payloads grandes — el escaneo de 200 docs completos en
     // cada generación era caro). El escaneo amplio queda solo como fallback
@@ -1255,7 +1218,6 @@ export const getCurricularContentForUnit = async (subject, grade, nivel = '') =>
     });
 
     const candidates = docs.filter(d => {
-      if (!hasActiveMallaSource(d, guards)) return false;
       const ds = norm(d.subject || d.payload?.subject || d.payload?.asignatura);
       const da = norm(d.area || d.payload?.area);
       return ds === ns || da === ns || ds === npa || da === npa;

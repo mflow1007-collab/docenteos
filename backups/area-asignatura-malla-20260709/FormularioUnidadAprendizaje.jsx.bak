@@ -2,21 +2,21 @@
  * Formulario para Unidad de Aprendizaje — formato MINERD
  * Incluye panel de recomendación de duración basado en análisis curricular
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { analizarComplejidad } from "../services/unidadAprendizajeService";
-import {
-  getAreas,
-  getAreaCurricularDeAsignatura,
-  getAsignaturas,
-  getAsignaturaAutomatica,
-  tieneMultiplesAsignaturas,
-} from "../planning/areaAsignaturaMap.js";
+import { getAreas, getAsignaturas, getAsignaturaAutomatica, tieneMultiplesAsignaturas } from "../planning/areaAsignaturaMap.js";
 import {
   getAvailableCurricularScopes,
   getCurricularContentForUnit,
   temasOficialesDeMalla,
 } from "../services/bancoConocimientoService.js";
 import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema } from "../services/curriculumCombinacionService";
+
+// El currículo de Inglés/Francés vive bajo el área "Lenguas Extranjeras"
+const AREA_CURRICULO_POR_ASIGNATURA = {
+  "Inglés": "Lenguas Extranjeras",
+  "Francés": "Lenguas Extranjeras",
+};
 
 const GRADOS = [
   { grado: "Pre-Kínder", nivel: "Inicial" }, { grado: "Kínder", nivel: "Inicial" }, { grado: "Preprimario", nivel: "Inicial" },
@@ -58,17 +58,6 @@ const normalizarGrado = (grado = "") => normalizarClave(grado)
   .replace(/\s+(primaria|secundaria|inicial|bachillerato)\b.*/g, "")
   .trim();
 
-const scopeHabilitaAsignatura = (scope = {}, area = "", asignatura = "") => {
-  if (!area) return true;
-  const scopeArea = scope.area || "";
-  const scopeSubject = scope.subject || "";
-  if (normalizarClave(scopeArea) !== normalizarClave(area)) return false;
-  if (!asignatura) return true;
-  if (normalizarClave(scopeSubject) === normalizarClave(asignatura)) return true;
-  return normalizarClave(scopeSubject) === normalizarClave(area)
-    && normalizarClave(getAreaCurricularDeAsignatura(asignatura)) === normalizarClave(area);
-};
-
 // FUENTE ÚNICA: los temas del selector salen EXCLUSIVAMENTE de los temas
 // oficiales de la malla resuelta (temasOficialesDeMalla — payload.temas).
 // Los contenidos (estructuras, vocabulario, items) JAMÁS se ofrecen como temas.
@@ -91,16 +80,13 @@ const curriculoCoincideConSeleccion = ({ doc, nivel, grado, area, asignatura }) 
   const docArea = payload.area || doc?.area || "";
   const docAsignatura = payload.subject || payload.asignatura || doc?.subject || "";
   const esperadoAsignatura = asignatura || area;
-  const asignaturaPerteneceAlArea = normalizarClave(getAreaCurricularDeAsignatura(esperadoAsignatura)) === normalizarClave(area);
-  const coincideAsignatura = normalizarClave(docAsignatura) === normalizarClave(esperadoAsignatura)
-    || (asignaturaPerteneceAlArea && normalizarClave(docAsignatura) === normalizarClave(area));
 
   return Boolean(
     docNivel && docGrado && docArea && docAsignatura &&
     normalizarNivel(docNivel) === normalizarNivel(nivel) &&
     normalizarGrado(docGrado) === normalizarGrado(grado) &&
     normalizarClave(docArea) === normalizarClave(area) &&
-    coincideAsignatura
+    normalizarClave(docAsignatura) === normalizarClave(esperadoAsignatura)
   );
 };
 
@@ -223,34 +209,15 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
     return () => { cancelado = true; };
   }, []);
 
-  const areasDisponibles = useMemo(() => {
-    const activas = new Set(
-      mallasDisponibles
-        .map((scope) => scope.area)
-        .filter(Boolean)
-        .map(normalizarClave)
-    );
-    return AREAS.filter((a) => activas.has(normalizarClave(a)));
-  }, [mallasDisponibles]);
-
-  const asignaturasDisponibles = useMemo(() => {
-    if (!area) return [];
-    const asignaturasBase = getAsignaturas(area);
-    return asignaturasBase.filter((asig) => (
-      mallasDisponibles.some((scope) => scopeHabilitaAsignatura(scope, area, asig))
-    ));
-  }, [area, mallasDisponibles]);
-
-  const areaTieneMultiplesAsignaturas = asignaturasDisponibles.length > 1
-    || tieneMultiplesAsignaturas(area);
-
-  const gradosDisponibles = useMemo(() => {
+  const gradosDisponibles = (() => {
     const candidatos = mallasDisponibles.filter((scope) => {
-      return scopeHabilitaAsignatura(scope, area, asignatura);
+      if (area && normalizarClave(scope.area) !== normalizarClave(area)) return false;
+      if (asignatura && normalizarClave(scope.subject) !== normalizarClave(asignatura)) return false;
+      return true;
     });
     const labels = [...new Set(candidatos.map(gradoCompletoDesdeMalla).filter(Boolean))];
     return GRADOS.filter((g) => labels.includes(g.grado));
-  }, [area, asignatura, mallasDisponibles]);
+  })();
 
   useEffect(() => {
     if (cargandoMallas || !grado) return;
@@ -261,22 +228,8 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
   }, [cargandoMallas, grado, gradosDisponibles, datos, onChange]);
 
   useEffect(() => {
-    if (cargandoMallas || !area) return;
-    const existeArea = areasDisponibles.some((a) => normalizarClave(a) === normalizarClave(area));
-    if (!existeArea) {
-      onChange({ ...datos, area: "", asignatura: "", grado: "", nivel: "", ciclo: "Primer Ciclo" });
-      return;
-    }
-    const existeAsignatura = !asignatura
-      || asignaturasDisponibles.some((a) => normalizarClave(a) === normalizarClave(asignatura));
-    if (!existeAsignatura) {
-      onChange({ ...datos, asignatura: "", grado: "", nivel: "", ciclo: "Primer Ciclo" });
-    }
-  }, [cargandoMallas, area, asignatura, areasDisponibles, asignaturasDisponibles, datos, onChange]);
-
-  useEffect(() => {
     const texto = (titulo || "").trim();
-    const asignaturaRequerida = areaTieneMultiplesAsignaturas;
+    const asignaturaRequerida = tieneMultiplesAsignaturas(area);
     const seleccionCompleta = Boolean(grado && area && (!asignaturaRequerida || asignatura));
 
     if (!seleccionCompleta) {
@@ -289,7 +242,7 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
     let cancelado = false;
     const timer = setTimeout(async () => {
       const candidatas = [...new Set(
-        [asignatura || area, area, getAreaCurricularDeAsignatura(asignatura)].filter(Boolean)
+        [asignatura || area, area, AREA_CURRICULO_POR_ASIGNATURA[asignatura], AREA_CURRICULO_POR_ASIGNATURA[area]].filter(Boolean)
       )];
 
       let curriculo = null;
@@ -346,7 +299,7 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
       cancelado = true;
       clearTimeout(timer);
     };
-  }, [titulo, grado, nivel, area, asignatura, areaTieneMultiplesAsignaturas]);
+  }, [titulo, grado, nivel, area, asignatura]);
 
   // Temas ya trabajados (del historial del docente), resueltos también contra
   // la malla: si trabajó "Parts of the House", marca "Vivienda, entorno y
@@ -437,10 +390,10 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
     !grado && "Grado",
     !seccion && "Sección",
     !area && "Área",
-    (areaTieneMultiplesAsignaturas && !asignatura) && "Asignatura",
+    (tieneMultiplesAsignaturas(area) && !asignatura) && "Asignatura",
     !titulo && "Título de la Unidad",
-    (grado && area && (!areaTieneMultiplesAsignaturas || asignatura) && estadoCurriculoAsesor.status === "loading") && "Verificación de malla curricular",
-    (grado && area && (!areaTieneMultiplesAsignaturas || asignatura) && ["missing", "error"].includes(estadoCurriculoAsesor.status)) && "Malla curricular oficial exacta",
+    (grado && area && (!tieneMultiplesAsignaturas(area) || asignatura) && estadoCurriculoAsesor.status === "loading") && "Verificación de malla curricular",
+    (grado && area && (!tieneMultiplesAsignaturas(area) || asignatura) && ["missing", "error"].includes(estadoCurriculoAsesor.status)) && "Malla curricular oficial exacta",
   ].filter(Boolean);
 
   const puedoGenerar = camposFaltantes.length === 0;
@@ -543,23 +496,17 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
         </div>
         <div className="pd-field">
           <label>Área <span className="pd-req">*</span></label>
-          <select value={area} onChange={handleAreaChange} disabled={cargandoMallas || !areasDisponibles.length}>
-            <option value="">
-              {cargandoMallas
-                ? "Cargando áreas..."
-                : areasDisponibles.length
-                  ? "Seleccionar área"
-                  : "No hay áreas con malla activa"}
-            </option>
-            {areasDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
+          <select value={area} onChange={handleAreaChange}>
+            <option value="">Seleccionar área</option>
+            {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
         <div className="pd-field">
-          <label>Asignatura {areaTieneMultiplesAsignaturas && <span className="pd-req">*</span>}</label>
-          {areaTieneMultiplesAsignaturas ? (
+          <label>Asignatura {tieneMultiplesAsignaturas(area) && <span className="pd-req">*</span>}</label>
+          {tieneMultiplesAsignaturas(area) ? (
             <select value={asignatura} onChange={set("asignatura")}>
               <option value="">Seleccionar asignatura</option>
-              {asignaturasDisponibles.map((a) => (
+              {getAsignaturas(area).map((a) => (
                 <option key={a} value={a}>{a}</option>
               ))}
             </select>

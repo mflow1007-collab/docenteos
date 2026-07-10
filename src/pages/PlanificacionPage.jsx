@@ -43,6 +43,7 @@ import { getAreas, getAsignaturaAutomatica } from "../planning/areaAsignaturaMap
 import { analizarCombinacionTematica } from "../services/curriculumCombinacionService.js";
 import { getReferenciaAdecuacionesCurriculares } from "../data/adecuacionesCurriculares.js";
 import {
+  eliminarTodasPlanificacionesDetalladas,
   eliminarPlanificacionDetallada,
   obtenerPlanificacionesDetalladas,
   guardarPreferenciaUsuario,
@@ -980,6 +981,38 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     }
   };
 
+  const manejarEliminarTodoHistorial = async () => {
+    if (!historialPlanificaciones.length) return;
+    const confirmar = await new Promise((resolve) => {
+      confirmResolveRef.current = resolve;
+      setConfirmMensaje(
+        `¿Deseas eliminar TODAS las planificaciones guardadas?\n\nSe borrarán ${historialPlanificaciones.length} planificación(es) del historial del usuario actual.`
+      );
+    });
+    if (!confirmar) return;
+
+    setEliminando(true);
+    try {
+      const resultadoEliminacion = await eliminarTodasPlanificacionesDetalladas("all");
+      setHistorialPlanificaciones([]);
+      setPlanificacion(null);
+      setUnidad(null);
+      await cargarHistorial({ mostrarMensajeRecuperacion: false });
+      setMensaje({
+        tipo: "success",
+        texto: `🗑️ Historial limpio: ${resultadoEliminacion.eliminadasTotales || 0} planificación(es) eliminada(s).`,
+      });
+    } catch (error) {
+      setMensaje({
+        tipo: "error",
+        texto: `❌ ${error.message || "No se pudo eliminar el historial de planificaciones"}`,
+      });
+    } finally {
+      setEliminando(false);
+      setTimeout(() => setMensaje(null), 3500);
+    }
+  };
+
   /**
    * Maneja la descarga de PDF
    */
@@ -1674,6 +1707,18 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
           <p>
             Recupera tus planificaciones recientes, duplica su configuración o elimina las que ya no necesites.
           </p>
+          {historialPlanificaciones.length > 0 && (
+            <div className="history-item-actions" style={{ justifyContent: "flex-end", marginBottom: 12 }}>
+              <button
+                type="button"
+                className="danger"
+                onClick={manejarEliminarTodoHistorial}
+                disabled={eliminando}
+              >
+                Eliminar todo el historial
+              </button>
+            </div>
+          )}
 
           {historialPlanificaciones.length > 0 ? (
             <div className="history-cards">

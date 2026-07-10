@@ -11,8 +11,8 @@
 export const AREA_ASIGNATURAS = {
   "Lengua Española":                    ["Lengua Española"],
   "Matemática":                         ["Matemática"],
-  "Ciencias Sociales":                  ["Ciencias Sociales", "Geografía", "Historia", "Moral y Cívica"],
-  "Ciencias de la Naturaleza":          ["Ciencias de la Naturaleza", "Biología", "Química", "Física"],
+  "Ciencias Sociales":                  ["Historia", "Geografía"],
+  "Ciencias de la Naturaleza":          ["Biología", "Química", "Física"],
   "Lenguas Extranjeras":                ["Inglés", "Francés"],
   "Educación Física":                   ["Educación Física"],
   "Educación Artística":                ["Educación Artística"],
@@ -20,17 +20,9 @@ export const AREA_ASIGNATURAS = {
   "Tecnología":                         ["Tecnología"],
 };
 
-export const AREA_CURRICULAR_POR_ASIGNATURA = Object.entries(AREA_ASIGNATURAS)
-  .reduce((acc, [area, asignaturas]) => {
-    asignaturas.forEach((asignatura) => { acc[asignatura] = area; });
-    return acc;
-  }, {});
-
 export const getAreas = () => Object.keys(AREA_ASIGNATURAS);
 
 export const getAsignaturas = (area) => AREA_ASIGNATURAS[area] ?? [];
-
-export const getAreaCurricularDeAsignatura = (asignatura) => AREA_CURRICULAR_POR_ASIGNATURA[asignatura] ?? "";
 
 export const tieneMultiplesAsignaturas = (area) => getAsignaturas(area).length > 1;
 
