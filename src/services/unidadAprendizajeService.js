@@ -1129,6 +1129,15 @@ const _filtrarPorTema = (items, temaFiltro) => {
   return delTema.length ? delTema : items;
 };
 
+const _resolverContenidoPorTema = (contenidosPorTema = [], temaFiltro = '') => {
+  if (!Array.isArray(contenidosPorTema) || !contenidosPorTema.length || !temaFiltro) return null;
+  const objetivo = _normTexto(temaFiltro);
+  return contenidosPorTema.find((bloque) => {
+    const tema = _normTexto(bloque?.tema || bloque?.conceptos?.temas?.[0]);
+    return tema && (tema === objetivo || tema.includes(objetivo) || objetivo.includes(tema));
+  }) || null;
+};
+
 // ─── Capa 2 opcional: enriquecimiento_tema (tema oficial → subconjunto) ──────
 // Resuelve la entrada del tema en el doc de enriquecimiento (payload.temas[]
 // con temaOficial). Exportada pura para tests. null = sin Capa 2 → el flujo
@@ -1170,6 +1179,49 @@ const _filtrarPorEstructura = (items, estructuras) => {
 // Lee del payload de nivel-grado del corpus: contenidos.conceptos + contenidos.procedimientos
 // (exportada para tests)
 export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', temaEnriquecido = null) => {
+  const bloqueTema = _resolverContenidoPorTema(mallaPayload?.contenidosPorTema, temaFiltro);
+  if (bloqueTema) {
+    const conceptos = bloqueTema.conceptos || {};
+    const procedimientos = bloqueTema.procedimientos || {};
+    const vocabulario = textosUnicos(conceptos.vocabulario || []);
+    const gramatica = textosUnicos(conceptos.gramatica || conceptos.gramática || []);
+    const expresiones = textosUnicos([
+      ...(conceptos.frases || []),
+      ...(conceptos.expresiones || []),
+      ...(conceptos.sociolinguisticos || []),
+    ]);
+    const funcionales = textosUnicos([
+      ...(procedimientos.funcionales || []),
+      ...(procedimientos.discursivos || []),
+      ...(procedimientos.comprensionOralEscrita || []),
+      ...(procedimientos.produccionOral || []),
+      ...(procedimientos.produccionEscrita || []),
+      ...(procedimientos.items || []),
+    ]);
+    const actitudinales = textosUnicos([
+      ...(bloqueTema.actitudinales || []),
+      ...(bloqueTema.actitudesValores || []),
+    ]);
+    const conceptuales = textosUnicos([
+      bloqueTema.tema,
+      ...(conceptos.temas || []),
+      ...vocabulario,
+      ...gramatica,
+      ...expresiones,
+    ]);
+    return {
+      vocabulario,
+      gramatica,
+      expresiones,
+      funcionales,
+      actitudinales,
+      conceptuales,
+      procedimentales: funcionales,
+      fuenteContenido: 'contenidosPorTema',
+      temaContenido: bloqueTema.tema || temaFiltro,
+    };
+  }
+
   const c = mallaPayload?.contenidos?.conceptos    || {};
   const p = mallaPayload?.contenidos?.procedimientos || {};
 
@@ -1688,9 +1740,10 @@ export const generarUnidadAprendizaje = async (datos) => {
       ...(mallaContenidos.expresiones || []).slice(0, 5),
     ]);
     const procedimentalesTema = textosUnicos(mallaContenidos.funcionales || []).slice(0, 8);
+    const actitudinalesTema = textosUnicos(mallaContenidos.actitudinales || []).slice(0, 8);
     const conceptuales = conceptualesTema.length ? conceptualesTema : textosUnicos(sintesis.conceptuales);
     const procedimentales = procedimentalesTema.length ? procedimentalesTema : textosUnicos(sintesis.procedimentales);
-    const actitudinales = textosUnicos(sintesis.actitudinales);
+    const actitudinales = actitudinalesTema.length ? actitudinalesTema : textosUnicos(sintesis.actitudinales);
     // LA MALLA ES LA ÚNICA FUENTE: columna vacía = malla incompleta = DETENER
     // (nunca rellenar con texto genérico inventado)
     const faltantes = [

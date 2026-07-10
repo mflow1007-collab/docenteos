@@ -1284,6 +1284,28 @@ Devuelve exactamente este JSON (agrega elementos solo si aparecen textualmente e
   ],
   "indicadoresLogro": [ { "id": "", "descripcion": "", "competenciaId": "" } ],
   "temas": [],
+  "contenidosPorTema": [
+    {
+      "tema": "",
+      "conceptos": {
+        "temas": [],
+        "vocabulario": [],
+        "gramatica": [],
+        "frases": [],
+        "sociolinguisticos": []
+      },
+      "procedimientos": {
+        "funcionales": [],
+        "discursivos": [],
+        "comprensionOralEscrita": [],
+        "produccionOral": [],
+        "produccionEscrita": [],
+        "items": []
+      },
+      "actitudinales": [],
+      "actitudesValores": []
+    }
+  ],
   "vocabulario": [],
   "gramatica": [],
   "frases": [],
@@ -1304,7 +1326,11 @@ Reglas:
 - Ejes transversales: extrae solo desde "Conexión con los Ejes Transversales" o encabezado equivalente; no lo confundas con "Eje temático".
 - Si la tabla de ejes trae columnas Primero/Segundo/Tercero o Cuarto/Quinto/Sexto, devuelve solo la descripción de la columna del grado seleccionado.
 - Indicadores: solo frases bajo "Indicadores de logro" o equivalentes; vincula competenciaId solo si es evidente.
-- Contenidos: separa conceptos (temas/vocabulario/gramática/frases) de procedimientos y de actitudes y valores.
+- Contenidos: respeta la organización de la tabla MINERD. Si aparece "Contenidos / Conceptos / Procedimientos / Actitudes y valores", crea un bloque en contenidosPorTema por cada tema o fila temática.
+- En contenidosPorTema[].conceptos coloca solo la columna Conceptos del tema: tema, vocabulario, gramática, frases y sociolingüísticos/socioculturales si aparecen.
+- En contenidosPorTema[].procedimientos coloca solo la columna Procedimientos del tema: funcionales, discursivos, comprensión oral/escrita, producción oral y producción escrita.
+- En contenidosPorTema[].actitudesValores coloca solo la columna Actitudes y valores del tema. Copia también esos textos en actitudinales.
+- Además de contenidosPorTema, llena las listas planas vocabulario, gramatica, frases, funcionesComunicativas, conceptuales, procedimentales y actitudesValores para compatibilidad.
 - La columna "Actitudes y Valores" es obligatoria si aparece: cópiala en actitudesValores y también en actitudinales.
 - Los IDs oficiales se copian si existen; si no existen, déjalos vacíos (no los inventes).
 
@@ -1331,6 +1357,72 @@ const dedupePorTexto = (items = [], getTexto = (x) => x) => {
 
 const listaLimpia = (items = []) =>
   dedupePorTexto((Array.isArray(items) ? items : []).map(x => String(typeof x === 'string' ? x : (x?.descripcion || x?.texto || x?.nombre || '')).trim()).filter(Boolean));
+
+const extraerListaTexto = (value = []) => {
+  if (!Array.isArray(value)) return [];
+  return listaLimpia(value.map((item) => {
+    if (typeof item === 'string') return item;
+    if (!item || typeof item !== 'object') return '';
+    return item.descripcion || item.texto || item.nombre || item.titulo || item.valor || item.estructura || item.funcion || '';
+  }));
+};
+
+const normalizarContenidoPorTema = (bloque = {}) => {
+  const conceptos = bloque?.conceptos || {};
+  const procedimientos = bloque?.procedimientos || {};
+  const tema = String(bloque?.tema || conceptos?.tema || conceptos?.nombre || '').trim();
+  return {
+    tema,
+    conceptos: {
+      temas: extraerListaTexto(conceptos.temas || (tema ? [tema] : [])),
+      vocabulario: extraerListaTexto(conceptos.vocabulario),
+      gramatica: extraerListaTexto(conceptos.gramatica || conceptos.gramática),
+      frases: extraerListaTexto(conceptos.frases || conceptos.expresiones),
+      sociolinguisticos: extraerListaTexto(
+        conceptos.sociolinguisticos || conceptos.sociolingüísticos || conceptos.socioculturales || conceptos.sociolinguisticosSocioculturales
+      ),
+    },
+    procedimientos: {
+      funcionales: extraerListaTexto(procedimientos.funcionales),
+      discursivos: extraerListaTexto(procedimientos.discursivos),
+      comprensionOralEscrita: extraerListaTexto(
+        procedimientos.comprensionOralEscrita || procedimientos.comprensiónOralEscrita || procedimientos.comprension || procedimientos.comprensión
+      ),
+      produccionOral: extraerListaTexto(procedimientos.produccionOral || procedimientos.producciónOral),
+      produccionEscrita: extraerListaTexto(procedimientos.produccionEscrita || procedimientos.producciónEscrita),
+      items: extraerListaTexto(procedimientos.items),
+    },
+    actitudinales: extraerListaTexto(bloque.actitudinales || bloque.actitudesValores),
+    actitudesValores: extraerListaTexto(bloque.actitudesValores || bloque.actitudinales),
+  };
+};
+
+const fusionarContenidoPorTema = (actual = null, siguiente = {}) => {
+  const base = actual || normalizarContenidoPorTema({});
+  const nuevo = normalizarContenidoPorTema(siguiente);
+  const unir = (...items) => listaLimpia(items.flat());
+  const tema = base.tema || nuevo.tema;
+  return {
+    tema,
+    conceptos: {
+      temas: unir(base.conceptos?.temas, nuevo.conceptos.temas, tema ? [tema] : []),
+      vocabulario: unir(base.conceptos?.vocabulario, nuevo.conceptos.vocabulario),
+      gramatica: unir(base.conceptos?.gramatica, nuevo.conceptos.gramatica),
+      frases: unir(base.conceptos?.frases, nuevo.conceptos.frases),
+      sociolinguisticos: unir(base.conceptos?.sociolinguisticos, nuevo.conceptos.sociolinguisticos),
+    },
+    procedimientos: {
+      funcionales: unir(base.procedimientos?.funcionales, nuevo.procedimientos.funcionales),
+      discursivos: unir(base.procedimientos?.discursivos, nuevo.procedimientos.discursivos),
+      comprensionOralEscrita: unir(base.procedimientos?.comprensionOralEscrita, nuevo.procedimientos.comprensionOralEscrita),
+      produccionOral: unir(base.procedimientos?.produccionOral, nuevo.procedimientos.produccionOral),
+      produccionEscrita: unir(base.procedimientos?.produccionEscrita, nuevo.procedimientos.produccionEscrita),
+      items: unir(base.procedimientos?.items, nuevo.procedimientos.items),
+    },
+    actitudinales: unir(base.actitudinales, nuevo.actitudinales, nuevo.actitudesValores),
+    actitudesValores: unir(base.actitudesValores, nuevo.actitudesValores, nuevo.actitudinales),
+  };
+};
 
 const normalizarClaveGrado = (grado = '') => normalizarGrado(grado);
 
@@ -1385,6 +1477,7 @@ const normalizarEjeTransversal = (eje = {}, contexto = {}) => {
 const fusionarExtraccionesCurriculares = (parciales = [], contexto = {}) => {
   const competenciasMap = new Map();
   const aportesMap = new Map();
+  const contenidosPorTemaMap = new Map();
   const ejesTransversales = [];
   const indicadoresSueltos = [];
   const listas = {
@@ -1465,6 +1558,16 @@ const fusionarExtraccionesCurriculares = (parciales = [], contexto = {}) => {
     for (const clave of Object.keys(listas)) {
       listas[clave].push(...(Array.isArray(parcial[clave]) ? parcial[clave] : []));
     }
+
+    for (const bloqueRaw of (Array.isArray(parcial.contenidosPorTema) ? parcial.contenidosPorTema : [])) {
+      const bloque = normalizarContenidoPorTema(bloqueRaw);
+      const claveTema = normalizarTexto(bloque.tema || bloque.conceptos.temas[0] || '');
+      if (!claveTema) continue;
+      contenidosPorTemaMap.set(
+        claveTema,
+        fusionarContenidoPorTema(contenidosPorTemaMap.get(claveTema), bloque)
+      );
+    }
   }
 
   const aportesCompetenciasFundamentales = [...aportesMap.values()];
@@ -1501,6 +1604,7 @@ const fusionarExtraccionesCurriculares = (parciales = [], contexto = {}) => {
     aportesCompetenciasFundamentales,
     ejesTransversales: dedupePorTexto(ejesTransversales, (eje) => `${eje.eje} ${eje.descripcion}`),
     indicadoresLogro,
+    contenidosPorTema: [...contenidosPorTemaMap.values()],
     ...Object.fromEntries(Object.entries(listas).map(([clave, items]) => [clave, listaLimpia(items)])),
   };
 };
@@ -1515,12 +1619,53 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
     auditoriaPreExtraccion = null,
     ...infoPaquete
   } = info;
+  const contenidosPorTema = Array.isArray(merged.contenidosPorTema)
+    ? merged.contenidosPorTema.map(normalizarContenidoPorTema).filter((bloque) => bloque.tema)
+    : [];
+  const temasDesdeBloques = contenidosPorTema.map((bloque) => bloque.tema).filter(Boolean);
+  const vocabularioPorTema = contenidosPorTema.flatMap((bloque) => bloque.conceptos.vocabulario || []);
+  const gramaticaPorTema = contenidosPorTema.flatMap((bloque) => bloque.conceptos.gramatica || []);
+  const frasesPorTema = contenidosPorTema.flatMap((bloque) => bloque.conceptos.frases || []);
+  const sociolinguisticosPorTema = contenidosPorTema.flatMap((bloque) => bloque.conceptos.sociolinguisticos || []);
+  const funcionalesPorTema = contenidosPorTema.flatMap((bloque) => bloque.procedimientos.funcionales || []);
+  const discursivosPorTema = contenidosPorTema.flatMap((bloque) => bloque.procedimientos.discursivos || []);
+  const comprensionPorTema = contenidosPorTema.flatMap((bloque) => bloque.procedimientos.comprensionOralEscrita || []);
+  const produccionOralPorTema = contenidosPorTema.flatMap((bloque) => bloque.procedimientos.produccionOral || []);
+  const produccionEscritaPorTema = contenidosPorTema.flatMap((bloque) => bloque.procedimientos.produccionEscrita || []);
+  const procedimientosItemsPorTema = contenidosPorTema.flatMap((bloque) => bloque.procedimientos.items || []);
+  const actitudesPorTema = contenidosPorTema.flatMap((bloque) => [
+    ...(bloque.actitudinales || []),
+    ...(bloque.actitudesValores || []),
+  ]);
   const conceptuales = merged.conceptuales.length
     ? merged.conceptuales
-    : dedupePorTexto([...merged.temas, ...merged.frases, ...merged.vocabulario, ...merged.gramatica]);
+    : dedupePorTexto([
+        ...merged.temas,
+        ...temasDesdeBloques,
+        ...merged.frases,
+        ...frasesPorTema,
+        ...merged.vocabulario,
+        ...vocabularioPorTema,
+        ...merged.gramatica,
+        ...gramaticaPorTema,
+        ...sociolinguisticosPorTema,
+      ]);
   const procedimentales = merged.procedimentales.length
     ? merged.procedimentales
-    : merged.funcionesComunicativas;
+    : dedupePorTexto([
+        ...merged.funcionesComunicativas,
+        ...funcionalesPorTema,
+        ...discursivosPorTema,
+        ...comprensionPorTema,
+        ...produccionOralPorTema,
+        ...produccionEscritaPorTema,
+        ...procedimientosItemsPorTema,
+      ]);
+  const actitudesValores = listaLimpia([
+    ...merged.actitudinales,
+    ...merged.actitudesValores,
+    ...actitudesPorTema,
+  ]);
   const auditoriaLiteralPdf = crearAuditoriaFidelidadLiteral({
     textoFuente: textoLiteralSeleccionado || textoLiteralMalla,
     textoJson: textoLiteralSeleccionado || textoLiteralMalla,
@@ -1551,28 +1696,34 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
     ),
     competencias: merged.competencias,
     indicadoresLogro: merged.indicadoresLogro,
-    temas: merged.temas,
-    temasCurriculares: merged.temas,
+    temas: listaLimpia([...merged.temas, ...temasDesdeBloques]),
+    temasCurriculares: listaLimpia([...merged.temas, ...temasDesdeBloques]),
+    contenidosPorTema,
     contenidosGenerales: {
       conceptuales,
       procedimentales,
-      actitudinales: merged.actitudinales,
-      actitudesValores: merged.actitudesValores || merged.actitudinales,
+      actitudinales: actitudesValores,
+      actitudesValores,
     },
     contenidos: {
       conceptos: {
-        temas: merged.temas,
-        frases: merged.frases,
-        vocabulario: merged.vocabulario,
-        gramatica: merged.gramatica,
+        temas: listaLimpia([...merged.temas, ...temasDesdeBloques]),
+        frases: listaLimpia([...merged.frases, ...frasesPorTema]),
+        vocabulario: listaLimpia([...merged.vocabulario, ...vocabularioPorTema]),
+        gramatica: listaLimpia([...merged.gramatica, ...gramaticaPorTema]),
+        sociolinguisticos: sociolinguisticosPorTema,
         items: conceptuales,
       },
       procedimientos: {
-        funcionales: merged.funcionesComunicativas.length ? merged.funcionesComunicativas : procedimentales,
+        funcionales: listaLimpia([...merged.funcionesComunicativas, ...funcionalesPorTema]),
+        discursivos: discursivosPorTema,
+        comprensionOralEscrita: comprensionPorTema,
+        produccionOral: produccionOralPorTema,
+        produccionEscrita: produccionEscritaPorTema,
         items: procedimentales,
       },
-      actitudinales: merged.actitudinales,
-      actitudesValores: merged.actitudesValores || merged.actitudinales,
+      actitudinales: actitudesValores,
+      actitudesValores,
     },
     estrategiasSugeridas: merged.estrategias,
     evidenciasEsperadas: merged.evidencias,
