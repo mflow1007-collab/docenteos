@@ -249,6 +249,10 @@ function validateBatch(data, durMin, count) {
         throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin actividades`);
       }
       if (!esInicio) {
+        const minActividades = m.nombre === 'Desarrollo' ? 4 : 3;
+        if ((m.actividades || []).filter((x) => String(x || '').trim()).length < minActividades) {
+          throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
+        }
         for (const act of m.actividades) {
           const voz = validarVozActividad(act);
           if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} "${m.nombre}" — ${voz.motivo}`);
@@ -371,13 +375,13 @@ REGLAS:
 2. Desarrollos distintos entre sí y distintos a los ya listados arriba.
 3. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
 4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con "Los estudiantes", "El docente", "La docente" o "Se". El inglés va incrustado entre paréntesis dentro de la actividad. Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
-5. Desarrollo: mínimo 2 actividades concretas. Cierre (patrón guía): Socializan las producciones del día → Reflexionan sobre un aspecto específico → Organizan y guardan el artefacto en el portafolio → Responden preguntas de reflexión.
+5. Desarrollo: mínimo 4 actividades concretas y progresivas: modelado o explicación guiada → práctica guiada → práctica colaborativa → producción individual o grupal → retroalimentación breve si aplica. Cierre: mínimo 3 actividades siguiendo el patrón guía: socialización de producciones → reflexión sobre un aspecto específico → organización del artefacto en el portafolio con pregunta final.
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" (2-3 evidencias observables y evaluables de ESE momento, en español), "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
 8. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
 9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán] mediante [cómo], [para qué / evidencia de logro]." — específica de ESA clase, nunca genérica.
 
-{"outputSchemaVersion":"1.2","semana":${semanaNum},"clases":[{"dia":${startDia},"titulo":"...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.2","semana":${semanaNum},"clases":[{"dia":${startDia},"titulo":"...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["modelado...","práctica guiada...","práctica colaborativa...","producción..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["socialización...","reflexión...","ticket/portafolio..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote (2 intentos por lote) ─────────────────────────────

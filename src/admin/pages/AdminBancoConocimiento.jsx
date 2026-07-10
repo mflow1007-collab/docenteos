@@ -885,6 +885,11 @@ const validarCompatibilidadCurricularPdf = ({ paginas = [], textoPdf = '', conte
   Object.keys(labelsCompatibilidadCurricular).forEach((key) => {
     const esperado = seleccion[key];
     const detectado = documento[key];
+    const permiteNoConfirmadoEnRegistro = contexto.tipoDocumento === 'registro_minerd'
+      && ['disenoCurricular', 'anioCurriculo'].includes(key)
+      && esperado
+      && !detectado;
+    if (permiteNoConfirmadoEnRegistro) return;
     if (!esperado || !detectado || normalizarCampoCompatibilidad(key, esperado) !== normalizarCampoCompatibilidad(key, detectado)) {
       diferencias.push({
         key,

@@ -16,9 +16,39 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
   const modeloSuperior = unidad.modeloCurricularSuperior || {};
   const renderList = (items = [], empty = "No registrado en la malla.") => (
     items?.length ? (
-      <ul className="ua-list">{items.map((item, i) => <li key={i}>{item}</li>)}</ul>
+      <ul className="ua-list">{items.map((item, i) => <li key={i}>{textoItem(item)}</li>)}</ul>
     ) : <em>{empty}</em>
   );
+  const textoItem = (item) => {
+    if (typeof item === "string") return item;
+    if (!item || typeof item !== "object") return "";
+    return item.descripcion || item.texto || item.nombre || item.titulo || item.codigo || "";
+  };
+  const renderIndicador = (ind) => {
+    if (typeof ind === "string") return ind;
+    const codigo = ind?.codigo || ind?.id || ind?.codigoOficial || "";
+    const descripcion = ind?.descripcion || ind?.texto || "";
+    const style = {
+      fontWeight: ind?.aplicaTemaActual ? 800 : undefined,
+      textDecoration: ind?.trabajadoAntes ? "line-through" : undefined,
+      opacity: ind?.trabajadoAntes ? 0.72 : undefined,
+    };
+    return (
+      <span style={style}>
+        {codigo && <><strong>{codigo}</strong> — </>}
+        {descripcion}
+      </span>
+    );
+  };
+  const renderIndicadores = (items = [], empty = "No registrado en la malla.") => (
+    items?.length ? (
+      <ul className="ua-list">{items.map((item, i) => <li key={i}>{renderIndicador(item)}</li>)}</ul>
+    ) : <em>{empty}</em>
+  );
+  const competenciasDetalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
+  const competenciasVisibles = competenciasDetalle.length
+    ? competenciasDetalle
+    : (Array.isArray(modeloSuperior.competencias) ? modeloSuperior.competencias : []);
 
   return (
     <div className="ua-resultado">
@@ -161,20 +191,21 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
             {modeloSuperior.nivelMCERL || competencias?.nivelMCERL ? ` · Nivel MCERL: ${modeloSuperior.nivelMCERL || competencias.nivelMCERL}` : ""}
           </p>
         )}
-        {modeloSuperior.competencias?.length > 0 ? (
+        {competenciasVisibles.length > 0 ? (
           <table className="ua-tabla-datos">
             <tbody>
               <tr>
                 <td className="ua-lbl">Competencias</td>
                 <td className="ua-lbl">Indicadores de Logro</td>
               </tr>
-              {modeloSuperior.competencias.map((comp, i) => (
+              {competenciasVisibles.map((comp, i) => (
                 <tr key={i}>
                   <td className="ua-lbl-top">
-                    <strong>{comp.competenciaFundamental || `Competencia ${comp.orden}`}</strong>
+                    <strong>{comp.competenciaFundamental || `Competencia ${comp.orden || i + 1}`}</strong>
+                    {comp.codigo && <><br /><strong style={{ color: "#1e3a8a" }}>{comp.codigo}</strong></>}
                     {comp.especifica && <><br /><em>{comp.especifica}</em></>}
                   </td>
-                  <td>{renderList(comp.indicadores)}</td>
+                  <td>{renderIndicadores(comp.indicadores)}</td>
                 </tr>
               ))}
             </tbody>
@@ -223,34 +254,6 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
           </div>
         </div>
       </section>
-
-      {modeloSuperior.progresion?.length > 0 && (
-        <section className="ua-section">
-          <div className="ua-section-head">PROGRESIÓN CURRICULAR DE LA UNIDAD</div>
-          <table className="ua-dia-table">
-            <thead>
-              <tr>
-                <th className="ua-th">Tema oficial</th>
-                <th className="ua-th">Conceptos</th>
-                <th className="ua-th">Procedimientos</th>
-                <th className="ua-th">Actitudes y valores</th>
-                <th className="ua-th">Evidencias esperadas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {modeloSuperior.progresion.map((bloque, i) => (
-                <tr key={i}>
-                  <td><strong>{bloque.tema}</strong></td>
-                  <td>{renderList(bloque.focoConceptual)}</td>
-                  <td>{renderList(bloque.procedimientos)}</td>
-                  <td>{renderList(bloque.actitudesValores)}</td>
-                  <td>{renderList(bloque.evidenciasEsperadas)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
 
       {/* ══════════════════════════════════════
           FASES / SEMANAS

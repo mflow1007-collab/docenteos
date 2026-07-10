@@ -1311,6 +1311,40 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
   });
 };
 
+const normalizarCodigoIndicador = (codigo) =>
+  String(codigo || "").replace(/[\[\]\s]/g, "").toUpperCase().trim();
+
+const codigosIndicadoresTrabajados = (fasesSemanales = []) => {
+  const codigos = new Set();
+  for (const fase of fasesSemanales || []) {
+    for (const dia of fase.dias || []) {
+      for (const codigo of dia.indicadoresTrabajados || []) {
+        const norm = normalizarCodigoIndicador(codigo);
+        if (norm) codigos.add(norm);
+      }
+    }
+  }
+  return codigos;
+};
+
+const enriquecerIndicadoresCurriculares = (detalle = [], codigosActuales = new Set(), codigosPrevios = new Set()) =>
+  (detalle || []).map((comp) => ({
+    ...comp,
+    indicadores: (comp.indicadores || []).map((ind) => {
+      const item = typeof ind === "string"
+        ? { codigo: "", descripcion: ind }
+        : { ...ind };
+      const codigoNorm = normalizarCodigoIndicador(item.codigo || item.id || item.codigoOficial);
+      return {
+        ...item,
+        codigo: item.codigo || item.id || item.codigoOficial || "",
+        descripcion: item.descripcion || item.texto || "",
+        aplicaTemaActual: codigoNorm ? codigosActuales.has(codigoNorm) : false,
+        trabajadoAntes: codigoNorm ? codigosPrevios.has(codigoNorm) : false,
+      };
+    }),
+  }));
+
 // ─── Inicio canónico del formato MINERD (5 posiciones fijas) ─────────────────
 // El esqueleto lo pone el código; el contenido lo aporta el contrato de la IA
 // (saludoInicial, retroalimentacionPrevia, saberesPrevios, actividadEnganche).
@@ -1490,6 +1524,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     jornada = "Extendida",
     competenciasFundamentalesSeleccionadas = [],
     temasSeleccionados = [],
+    indicadoresTrabajadosAntes = [],
     // Rótulo del documento: "Unidad de Aprendizaje" o "Secuencia Didáctica"
     // (mismo esquema MINERD; solo cambia la etiqueta)
     tipoPlanificacion = "Unidad de Aprendizaje",
@@ -1669,6 +1704,24 @@ export const generarUnidadAprendizaje = async (datos) => {
     return { conceptuales, procedimentales, actitudinales };
   })();
 
+  const fasesSemanalesGeneradas = await _generarFasesConIA(
+    numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
+    { grado, nivel }, mallaContenidos,
+    mallaPayload, allInds, allComps, durMinEf, grado,
+    onProgress,
+  );
+  const indicadoresActuales = codigosIndicadoresTrabajados(fasesSemanalesGeneradas);
+  const indicadoresPrevios = new Set(
+    (Array.isArray(indicadoresTrabajadosAntes) ? indicadoresTrabajadosAntes : [])
+      .map(normalizarCodigoIndicador)
+      .filter(Boolean)
+  );
+  const competenciasDetalleEnriquecidas = enriquecerIndicadoresCurriculares(
+    detalleTemprano,
+    indicadoresActuales,
+    indicadoresPrevios,
+  );
+
   const unidadResult = {
     tipoPlanificacion,
     curricularContentId: curricularDoc?.id || null,
@@ -1718,14 +1771,17 @@ export const generarUnidadAprendizaje = async (datos) => {
     // su Competencia Específica del ciclo y SUS indicadores, sin aplanar.
     // El campo `competencias` de arriba se conserva por compatibilidad con
     // unidades ya guardadas y otros consumidores.
-    competenciasDetalle: detalleTemprano,
+    competenciasDetalle: competenciasDetalleEnriquecidas,
+    matrizCurricularInterna: {
+      visibleParaDocente: false,
+      temaOficial: temaMallaStr || titulo,
+      indicadoresTrabajadosUnidad: Array.from(indicadoresActuales),
+      indicadoresTrabajadosAntes: Array.from(indicadoresPrevios),
+      competencias: competenciasDetalleEnriquecidas,
+      progresionCurricular: modeloCurricularSuperior.progresion || [],
+    },
     contenidos,
-    fasesSemanales: await _generarFasesConIA(
-      numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
-      { grado, nivel }, mallaContenidos,
-      mallaPayload, allInds, allComps, durMinEf, grado,
-      onProgress,
-    ),
+    fasesSemanales: fasesSemanalesGeneradas,
     especificacionCurricular: buildEspecificacionCurricular({
       mallaPayload, titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
     }),
@@ -1968,29 +2024,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         </tr>`).join("")}
     </table>` : "";
 
-  const progresionHtml = Array.isArray(modeloSuperior.progresion) && modeloSuperior.progresion.length ? `
-    <div class="section-head">PROGRESIÓN CURRICULAR DE LA UNIDAD</div>
-    <table class="modelo-table">
-      <thead>
-        <tr>
-          <th style="width:17%">Tema oficial</th>
-          <th style="width:23%">Conceptos: temas, frases, vocabulario y gramática</th>
-          <th style="width:23%">Procedimientos / funciones comunicativas</th>
-          <th style="width:17%">Actitudes y valores</th>
-          <th>Evidencias esperadas</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${modeloSuperior.progresion.map((bloque) => `
-          <tr>
-            <td><strong>${bloque.tema}</strong>${bloque.competenciasRelacionadas?.length ? `<br><em>${bloque.competenciasRelacionadas.join(", ")}</em>` : ""}</td>
-            <td>${listaHtml(bloque.focoConceptual)}</td>
-            <td>${listaHtml(bloque.procedimientos)}</td>
-            <td>${listaHtml(bloque.actitudesValores)}</td>
-            <td>${listaHtml(bloque.evidenciasEsperadas)}</td>
-          </tr>`).join("")}
-      </tbody>
-    </table>` : "";
+  // La progresión curricular queda guardada en matrizCurricularInterna para
+  // trazabilidad y auditoría. No se imprime al docente para no cargar el plan
+  // con una tabla técnica que pertenece al motor curricular.
+  const progresionHtml = "";
 
   // Estilo oficial: la primera palabra de cada actividad va en negrita
   // ("Responden...", "Retroalimentación...", "Recuperación..."). Es una
@@ -2151,8 +2188,14 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       // { codigo, descripcion } con el código oficial de la malla (IL-…)
       const indicadorHtml = (ind) => {
         if (typeof ind === 'string') return ind;
+        const estilo = [
+          ind?.aplicaTemaActual ? 'font-weight:700' : '',
+          ind?.trabajadoAntes ? 'text-decoration:line-through;opacity:.72' : '',
+        ].filter(Boolean).join(';');
+        const abrir = estilo ? `<span style="${estilo}">` : '';
+        const cerrar = estilo ? '</span>' : '';
         const cod = ind?.codigo ? `<strong>${ind.codigo}</strong> — ` : '';
-        return `${cod}${ind?.descripcion || ''}`;
+        return `${abrir}${cod}${ind?.descripcion || ''}${cerrar}`;
       };
       const filas = detalle.map((c) => `
         <tr>
