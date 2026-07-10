@@ -997,9 +997,13 @@ const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFina
     }
   }
 
-  // Asignar ranura y número global de clase a cada día
+  // Asignar ranura y número global de clase a cada día. Las FASES conservan
+  // su tamaño pedagógico (una fase puede abarcar varias semanas); lo que se
+  // etiqueta por calendario es el "Día N" DENTRO de su semana real, para que
+  // ninguna banda diga "SEMANA X (8 días)" cuando el horario es de 4.
   let slotIdx = 0;
   let claseGlobal = 0;
+  const clasesPorSemanaCal = {};
   fases.forEach((fase) => {
     fase.dias.forEach((dia) => {
       dia.numeroGlobal = ++claseGlobal;
@@ -1010,6 +1014,8 @@ const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFina
         dia.hora = s.hora;
         dia.mostrarHora = horasPorDia > 1;
         dia.duracionMin = duracionHoraClase;
+        clasesPorSemanaCal[s.semana] = (clasesPorSemanaCal[s.semana] || 0) + 1;
+        dia.numeroEnSemana = clasesPorSemanaCal[s.semana];
       }
     });
   });
@@ -1717,6 +1723,23 @@ export const generarUnidadAprendizaje = async (datos) => {
   // de la unidad (Capa 2 por categorías/estructuras exactas; fallback:
   // segmentación por tema del corpus; fallback: nivel-grado completo)
   const mallaContenidos = _extraerContenidosMallaCorpus(mallaPayload, temaMallaStr || titulo, temaEnriquecido);
+
+  // Cobertura temática VISIBLE para el docente: sin Capa 2 (enriquecimiento_
+  // tema) ni bloque contenidosPorTema para este tema, la gramática y el
+  // vocabulario salen del grado COMPLETO y la unidad puede arrastrar
+  // estructuras de otros temas (ej. clima en una unidad de la casa). No
+  // bloquea — la Capa 2 es opcional por diseño — pero se avisa, no se calla.
+  const advertencias = [];
+  if (!temaEnriquecido && mallaContenidos.fuenteContenido !== "contenidosPorTema") {
+    const aviso =
+      `El tema "${temaMallaStr || titulo}" no tiene contenidos propios en la malla del Banco ` +
+      `(enriquecimiento_tema o contenidosPorTema): la gramática y el vocabulario provienen del grado completo, ` +
+      `y la unidad puede incluir estructuras de otros temas. Carga el enriquecimiento de este tema en el Banco de Conocimiento para una unidad 100% enfocada.`;
+    advertencias.push(aviso);
+    console.warn(`[Unidad] ⚠️ ${aviso}`);
+    onProgress?.(`⚠️ ${aviso}`);
+  }
+
   const modeloCurricularSuperior = construirModeloCurricularSuperior({
     payload: mallaPayload,
     titulo: temaMallaStr || titulo,
@@ -1850,6 +1873,8 @@ export const generarUnidadAprendizaje = async (datos) => {
       contentId: curricularDoc.contentId || mallaPayload.contentId || "",
       schemaVersion: versionMalla,
     },
+    // Avisos de cobertura (ej. tema sin Capa 2): informativos, nunca bloquean
+    advertencias,
   };
 
   // ── Secciones del documento modelo (2026-07-04) ────────────────────────────
@@ -2098,7 +2123,22 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   };
 
   const fasesHtml = (unidad.fasesSemanales || []).map((fase) => {
-    const diasHtml = (fase.dias || []).map((dia) => {
+    // Una FASE puede abarcar varias semanas calendario (su tamaño es decisión
+    // pedagógica). Para el documento, sus días se agrupan por la semana REAL
+    // del horario: la fase de 8 clases con 4 clases/semana se muestra como
+    // SEMANA 2 (4 días) + SEMANA 3 (4 días), nunca "SEMANA 2 (8 días)".
+    const gruposSemana = [];
+    (fase.dias || []).forEach((dia) => {
+      const sem = dia.semana || fase.numero;
+      let g = gruposSemana[gruposSemana.length - 1];
+      if (!g || g.semana !== sem) {
+        g = { semana: sem, dias: [] };
+        gruposSemana.push(g);
+      }
+      g.dias.push(dia);
+    });
+
+    const diaHtml = (dia) => {
       const momentosHtml = (dia.momentos || []).map((mom) => {
         const actsHtml = (mom.actividades || []).map((a, i) => {
           const html = negritaPrimeraPalabra(a)
@@ -2129,7 +2169,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${dia.estrategiasDia}</div>`
         : "";
       return `
-        <div class="semana-band">Día ${dia.dia || dia.numero || dia.numeroGlobal}: "${dia.titulo}"${focoHtml}</div>
+        <div class="semana-band">Día ${dia.numeroEnSemana || dia.dia || dia.numero || dia.numeroGlobal}: "${dia.titulo}"${focoHtml}</div>
         ${estrategiaDiaHtml}
         <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${dia.intencionPedagogica}</div>
         <table class="dia-table">
@@ -2153,6 +2193,14 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           </thead>
           <tbody>${momentosHtml}</tbody>
         </table>`;
+    };
+
+    // Banda por semana calendario dentro de la fase, con el título de semana
+    // que aportó la IA (o el de la fase para unidades guardadas legacy)
+    const diasHtml = gruposSemana.map((g) => {
+      const tituloSem = String(g.dias[0]?.tituloSemana || fase.tituloSemana || "").trim();
+      const banda = `<div class="semana-band">${m.titulo} — SEMANA ${g.semana} (${g.dias.length} día${g.dias.length === 1 ? "" : "s"})${tituloSem ? `: "${tituloSem}"` : ""}</div>`;
+      return banda + g.dias.map(diaHtml).join("");
     }).join("");
 
     const neaeHtml = (fase.dias[0]?.adaptacionesNEAE) ? `
@@ -2188,7 +2236,6 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     return `
       <div class="fase-band">FASE ${fase.numero} — ${fase.nombre}</div>
       <div class="est-band">Estrategia de enseñanza y de aprendizaje: ${fase.estrategia}</div>
-      ${fase.tituloSemana ? `<div class="semana-band">${m.titulo} — SEMANA ${fase.numero} (${(fase.dias || []).length} día${(fase.dias || []).length === 1 ? "" : "s"}): "${fase.tituloSemana}"</div>` : ""}
       ${diasHtml}
       ${neaeHtml}
       ${resumenHtml}

@@ -285,7 +285,29 @@ function normalizarVozBatch(data) {
 // indicadoresTrabajados. La ausencia de cualquiera o una violación de voz =
 // rechazo del lote (consume reintento). NUNCA render vacío ni plantilla.
 
-function validateBatch(data, durMin, count) {
+// ─── Intención directa + foco anclado (documento modelo del docente) ─────────
+
+const FRASES_VAGAS_INTENCION = [
+  'una serie de actividades',
+  'actividades interactivas',
+  'diversas actividades',
+  'diferentes actividades',
+  'varias actividades',
+  'actividades variadas',
+  'vocabulario específico',
+];
+
+const _normTextoFoco = (s) => String(s || '')
+  .toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+// "Presente simple para hablar sobre rutinas (I wake up…)" → "Presente simple"
+export const nombreCortoEstructura = (estructura) =>
+  String(estructura || '').split(/\s+para\s+|\(/)[0].replace(/[:.]+$/, '').trim();
+
+function validateBatch(data, durMin, count, focoGram = []) {
   if (!data?.clases || !Array.isArray(data.clases)) throw new Error('R1: falta clases[]');
   if (data.clases.length < count) throw new Error(`R1: se esperaban ${count} clases, llegaron ${data.clases.length}`);
 
@@ -314,6 +336,39 @@ function validateBatch(data, durMin, count) {
     for (const campo of ['tituloSemana', 'focoLinguistico', 'estrategiasDia']) {
       if (!textoNoVacio(clase[campo])) {
         throw new Error(`R1: clase ${idx + 1} sin ${campo} (encabezado pedagógico semanal/día)`);
+      }
+    }
+
+    // R9 — intención pedagógica DIRECTA Y OBJETIVA (documento modelo):
+    // formato oficial + el CÓMO ("mediante") + el CON QUÉ ("utilizando/usando")
+    // + sin relleno vago. El contenido del día debe nombrarse, no aludirse.
+    const intencion = String(clase.intencionPedagogica || '').trim();
+    if (!/^Desde el inicio hasta el final de la clase/i.test(intencion)) {
+      throw new Error(`R9: clase ${idx + 1} — la intención no usa el formato oficial ("Desde el inicio hasta el final de la clase, los estudiantes…")`);
+    }
+    if (!/\bmediante\b/i.test(intencion)) {
+      throw new Error(`R9: clase ${idx + 1} — la intención no dice el CÓMO ("mediante [actividades concretas del día]")`);
+    }
+    if (!/\b(utilizando|usando|empleando|aplicando)\b/i.test(intencion)) {
+      throw new Error(`R9: clase ${idx + 1} — la intención no dice el CON QUÉ ("utilizando [estructura/vocabulario del día]")`);
+    }
+    const vaga = FRASES_VAGAS_INTENCION.find((f) => _normTextoFoco(intencion).includes(_normTextoFoco(f)));
+    if (vaga) {
+      throw new Error(`R9: clase ${idx + 1} — intención vaga ("${vaga}"): nombra el contenido y las actividades REALES del día`);
+    }
+
+    // Foco lingüístico anclado al plan gramatical del bloque: el encabezado
+    // del día debe declarar una estructura OFICIAL del foco, no una etiqueta
+    // inventada. (Bloque introductorio sin foco → sin restricción.)
+    if (focoGram.length) {
+      const nombres = focoGram.map(nombreCortoEstructura).filter((n) => n.length >= 4);
+      if (nombres.length) {
+        const focoDia = _normTextoFoco(clase.focoLinguistico);
+        if (!nombres.some((n) => focoDia.includes(_normTextoFoco(n)))) {
+          throw new Error(
+            `Foco: clase ${idx + 1} — focoLinguistico "${String(clase.focoLinguistico).slice(0, 60)}…" no corresponde a ninguna estructura del foco del bloque (${nombres.join(' · ')})`,
+          );
+        }
       }
     }
 
@@ -466,8 +521,8 @@ REGLAS:
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" (2-3 evidencias observables y evaluables de ESE momento, en español), "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
 8. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
-9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán] mediante [cómo], [para qué / evidencia de logro]." — específica de ESA clase, nunca genérica.
-10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo de la semana según la progresión), "focoLinguistico" (estructura gramatical, vocabulario, función comunicativa o "apropiación de la unidad / producto / evaluación" si es Semana 1) y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla.
+9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], utilizando [la estructura gramatical o el vocabulario del día], [evidencia de logro observable]." PROHIBIDO el relleno vago: "una serie de actividades", "actividades interactivas", "diversas actividades", "vocabulario específico" — nombra el contenido real (ej.: "describirán sus hábitos saludables y la frecuencia con la que realizan actividades cotidianas mediante comprensión oral, interacción y producción escrita, utilizando presente simple y adverbios de frecuencia").
+10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo de la semana según la progresión), "focoLinguistico" (copia EXACTA de UNA estructura del FOCO GRAMATICAL indicado arriba, incluidos sus ejemplos entre paréntesis; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla, y la intención pedagógica de cada clase nombra su foco del día.
 
 {"outputSchemaVersion":"1.2","semana":${semanaNum},"clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Observan un modelo guiado del contenido del día.","Practican el vocabulario o la estructura con apoyo del docente.","Comparan respuestas en parejas o equipos pequeños.","Elaboran una producción oral o escrita relacionada con el tema.","Socializan avances y reciben retroalimentación breve."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["Socializan una producción breve de la clase.","Reflexionan sobre el aprendizaje logrado y una dificultad encontrada.","Guardan la evidencia en el portafolio.","Completan un ticket de salida con una pregunta final."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
@@ -475,6 +530,9 @@ ${reglaInicio}
 // ─── Generación de un lote (2 intentos por lote) ─────────────────────────────
 
 async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, contextoLog) {
+  // El foco del bloque es el MISMO que recibió el prompt: la validación exige
+  // que cada focoLinguistico del día sea una estructura oficial de este set.
+  const focoGram = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas);
   let maxTokens = MAX_TOKENS;
   let prefix    = '';
   let lastError = null;
@@ -516,7 +574,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       }
 
       normalizarVozBatch(result.data);
-      validateBatch(result.data, durMin, count);
+      validateBatch(result.data, durMin, count, focoGram);
       return result.data;
 
     } catch (err) {

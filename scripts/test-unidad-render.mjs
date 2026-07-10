@@ -15,7 +15,7 @@
  */
 
 import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
-import { validarVozActividad, normalizarVozActividadMINERD } from "../src/services/phaseAService.js";
+import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import { coincideContextoTemaTrabajado } from "../src/services/curriculumCombinacionService.js";
 import { validateCurricularDoc, SCHEMA_VERSION_CANONICA, localizarPlaceholdersProhibidos as locSchema } from "../src/services/curricularSchema.js";
@@ -914,6 +914,57 @@ check("enriquecimiento_tema: exige derivedFrom y temas; no exige competencias", 
 
 check("re-export de compat: el Banco y curricularSchema comparten el MISMO walker", () => {
   if (localizarPlaceholdersProhibidos !== locSchema) throw new Error("el Banco no re-exporta la fuente única");
+});
+
+// ─── Semanas calendario en el render (fase ≠ semana) ─────────────────────────
+
+console.log("\nSemanas calendario:");
+
+check("una fase de 8 días con 4 clases/semana se muestra como SEMANA 2 y SEMANA 3, jamás '(8 días)'", () => {
+  const u = JSON.parse(JSON.stringify(unidadFixture));
+  const dias = Array.from({ length: 8 }, (_, i) => {
+    const d = JSON.parse(JSON.stringify(unidadFixture.fasesSemanales[0].dias[0]));
+    d.numero = i + 1;
+    d.numeroGlobal = i + 3;
+    d.semana = i < 4 ? 2 : 3;
+    d.numeroEnSemana = (i % 4) + 1;
+    d.tituloSemana = d.semana === 2 ? "Explorando la casa" : "Describiendo mi casa";
+    return d;
+  });
+  u.fasesSemanales.push({
+    numero: 2, nombre: "Desarrollo y exploración", estrategia: "Enfoque comunicativo",
+    indicadoresAvance: ["Responde de forma adecuada a preguntas sencillas sobre su entorno."],
+    dias,
+  });
+  const h = formatearUnidadHTML(u, "");
+  if (!h.includes("SEMANA 2 (4 días)")) throw new Error("no agrupó la primera semana calendario");
+  if (!h.includes("SEMANA 3 (4 días)")) throw new Error("no agrupó la segunda semana calendario");
+  if (h.includes("(8 días)")) throw new Error("sigue rotulando la fase completa como una semana de 8 días");
+  if (!h.includes('"Explorando la casa"') || !h.includes('"Describiendo mi casa"')) {
+    throw new Error("las bandas no usan el título de SU semana");
+  }
+});
+
+check("el Día N se cuenta dentro de su semana (numeroEnSemana manda)", () => {
+  const u = JSON.parse(JSON.stringify(unidadFixture));
+  u.fasesSemanales[0].dias[1].numeroEnSemana = 2;
+  u.fasesSemanales[0].dias[1].numero = 7; // número de fase ≠ número en semana
+  const h = formatearUnidadHTML(u, "");
+  if (!h.includes(`Día 2: "${u.fasesSemanales[0].dias[1].titulo}"`)) {
+    throw new Error("el encabezado del día no usa numeroEnSemana");
+  }
+});
+
+check("nombreCortoEstructura extrae el nombre de la estructura oficial", () => {
+  const casos = [
+    ["Presente simple para hablar sobre rutinas diarias (I wake up at 6:00 a.m.)", "Presente simple"],
+    ["Adverbios de frecuencia para describir hábitos (always, usually)", "Adverbios de frecuencia"],
+    ["There + be en presente simple para describir lugares", "There + be en presente simple"],
+  ];
+  for (const [entrada, esperado] of casos) {
+    const r = nombreCortoEstructura(entrada);
+    if (r !== esperado) throw new Error(`"${entrada}" → "${r}" (esperado "${esperado}")`);
+  }
 });
 
 // ─── Banco de Aprendizaje: refs exactas contra la malla ACTIVA ────────────────
