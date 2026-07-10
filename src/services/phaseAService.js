@@ -20,7 +20,7 @@ import { logUsage }                             from './ai/usage.js';
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
 const MAX_TOKENS   = 9000;   // por lote (contrato incluye evidencias/metacognición/recursos); escala a 12000 si hay truncamiento
-const RETRY_TOKENS = 12000;
+const RETRY_TOKENS = 16000;
 
 // Para JSON curricular estricto conviene priorizar proveedores con salida
 // estructurada estable. NVIDIA queda disponible, pero no como primera opción
@@ -530,6 +530,22 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   );
 }
 
+const esFalloRecuperablePorTamano = (err) =>
+  /JSON TRUNCADO|respuesta truncada|malformad|Unexpected end/i.test(String(err?.message || err || ''));
+
+function agregarClasesAMemoria(clases = [], semanaNum, memoriaAcumulada) {
+  clases.forEach(c => {
+    const desarrolloResumen =
+      c.momentos?.find(m => m.nombre === 'Desarrollo')?.actividades?.[0] || '';
+    memoriaAcumulada.push({
+      semana: semanaNum,
+      dia:    c.dia,
+      titulo: c.titulo || `Clase ${c.dia}`,
+      desarrolloResumen,
+    });
+  });
+}
+
 // ─── generateWeekPlan — exportación principal ─────────────────────────────────
 
 export const generateWeekPlan = async (
@@ -547,27 +563,34 @@ export const generateWeekPlan = async (
 
     onProgress?.(startDia, endDia);
 
-    const batchData = await generateWeekBatch(
-      spec, semanaNum, startDia, count, durMin, numSemanas, memoriaAcumulada, contextoLog,
-    );
+    let nuevasClases = [];
+    let memoriaActualizada = false;
+    try {
+      const batchData = await generateWeekBatch(
+        spec, semanaNum, startDia, count, durMin, numSemanas, memoriaAcumulada, contextoLog,
+      );
+      nuevasClases = batchData.clases.slice(0, count).map((c, i) => ({
+        ...c, dia: startDia + i,
+      }));
+    } catch (err) {
+      if (count <= 1 || !esFalloRecuperablePorTamano(err)) throw err;
+      console.warn(`[FaseA] ${contextoLog}: lote truncado; reintentando clase por clase.`);
+      for (let dia = startDia; dia <= endDia; dia++) {
+        onProgress?.(dia, dia);
+        const singleData = await generateWeekBatch(
+          spec, semanaNum, dia, 1, durMin, numSemanas, memoriaAcumulada, `S${semanaNum}/C${dia}`,
+        );
+        const clase = singleData.clases?.[0];
+        nuevasClases.push({ ...clase, dia });
+        agregarClasesAMemoria([{ ...clase, dia }], semanaNum, memoriaAcumulada);
+      }
+      memoriaActualizada = true;
+    }
 
-    // Renumerar dias y agregar a la semana
-    const nuevasClases = batchData.clases.slice(0, count).map((c, i) => ({
-      ...c, dia: startDia + i,
-    }));
     allClases.push(...nuevasClases);
-
-    // Actualizar memoria para los lotes siguientes
-    nuevasClases.forEach(c => {
-      const desarrolloResumen =
-        c.momentos?.find(m => m.nombre === 'Desarrollo')?.actividades?.[0] || '';
-      memoriaAcumulada.push({
-        semana: semanaNum,
-        dia:    c.dia,
-        titulo: c.titulo || `Clase ${c.dia}`,
-        desarrolloResumen,
-      });
-    });
+    if (nuevasClases.length && !memoriaActualizada) {
+      agregarClasesAMemoria(nuevasClases, semanaNum, memoriaAcumulada);
+    }
   }
 
   const combined = { outputSchemaVersion: '1.0', semana: semanaNum, clases: allClases };
