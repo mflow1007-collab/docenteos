@@ -19,7 +19,13 @@ import { logUsage }                             from './ai/usage.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
-const MAX_TOKENS   = 6500;   // por lote (contrato incluye evidencias/metacognición/recursos); escala a 9000 si hay truncamiento
+const MAX_TOKENS   = 9000;   // por lote (contrato incluye evidencias/metacognición/recursos); escala a 12000 si hay truncamiento
+const RETRY_TOKENS = 12000;
+
+// Para JSON curricular estricto conviene priorizar proveedores con salida
+// estructurada estable. NVIDIA queda disponible, pero no como primera opción
+// para Phase A aunque el admin lo tenga arriba para tareas conversacionales.
+const PHASE_A_PROVIDER_ORDER = ['openai', 'anthropic', 'gemini', 'nvidia', 'abacus'];
 
 const SYSTEM_PROMPT =
   'Eres un planificador curricular experto del formato oficial MINERD. ' +
@@ -65,7 +71,7 @@ async function logParseError({ contexto, attempt, motivo, raw, provider, model }
 
 // ─── SSE collector ────────────────────────────────────────────────────────────
 
-async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS) {
+async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS, providerOrder = PHASE_A_PROVIDER_ORDER) {
   const user = getAuth().currentUser;
   if (!user) throw new Error('Usuario no autenticado');
 
@@ -88,7 +94,7 @@ async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS) {
       prompt,
       system,
       maxTokens,
-      providerOrder: gwConfig.priority || undefined,
+      providerOrder,
       modelOverrides: gwConfig.models || undefined,
       providersDisabled: Array.isArray(gwConfig.disabled) ? gwConfig.disabled : undefined,
     }),
@@ -412,7 +418,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${result.motivo}`,
           { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
         lastError = new Error(result.motivo);
-        if (result.motivo.includes('TRUNCADO')) maxTokens = 9000;
+        if (result.motivo.includes('TRUNCADO')) maxTokens = RETRY_TOKENS;
         else prefix = JSON_REMINDER;
         continue;
       }
