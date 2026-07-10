@@ -151,20 +151,24 @@ export const getKnowledgeSources = async (filters = {}) => {
 };
 
 const getActiveMallaSourceGuards = async () => {
-  if (!db) return { sourceIds: new Set(), contentIds: new Set() };
+  if (!db) return { sourceIds: new Set(), contentIds: new Set(), contentToSource: new Map() };
   const snap = await getDocs(query(
     collection(db, COL),
     where('active', '==', true),
     limit(500),
   ));
-  const guards = { sourceIds: new Set(), contentIds: new Set() };
+  const guards = { sourceIds: new Set(), contentIds: new Set(), contentToSource: new Map() };
   snap.docs.forEach((d) => {
     const source = { id: d.id, ...d.data() };
     const sourceType = normCascade(source.contentType || source.structuredPayload?.contentType || '');
     const isMalla = sourceType === 'malla curricular' || Boolean(source.curricularContentId);
     if (!isMalla) return;
     guards.sourceIds.add(source.id);
-    if (source.curricularContentId) guards.contentIds.add(String(source.curricularContentId));
+    if (source.curricularContentId) {
+      const contentId = String(source.curricularContentId);
+      guards.contentIds.add(contentId);
+      guards.contentToSource.set(contentId, source.id);
+    }
   });
   return guards;
 };
@@ -176,8 +180,9 @@ const hasActiveMallaSource = (docItem = {}, guards) => {
   // Regla estricta: planificación solo lee contenido enlazado a una fuente
   // visible del Banco de Conocimiento. No se acepta coincidencia suelta por
   // nivel/grado/área/asignatura porque puede distorsionar la malla oficial.
-  return (id && guards.contentIds.has(id))
-    || (sourceId && guards.sourceIds.has(sourceId));
+  if (!id || !guards.contentIds.has(id)) return false;
+  const expectedSourceId = guards.contentToSource.get(id);
+  return !expectedSourceId || !sourceId || sourceId === expectedSourceId;
 };
 
 export const getAvailableCurricularScopes = async () => {
