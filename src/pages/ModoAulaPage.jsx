@@ -59,19 +59,35 @@ function normMomentoDiario(key, dc) {
   return normalizarMomento({ ...m, nombre: nombres[key], tiempo: m.tiempo || tiemposDefault[key] })
 }
 
+function obtenerFasesUnidad(contenido = {}) {
+  if (Array.isArray(contenido.fasesSemanales) && contenido.fasesSemanales.length > 0) {
+    return contenido.fasesSemanales
+  }
+  if (Array.isArray(contenido.fases) && contenido.fases.length > 0) {
+    return contenido.fases
+  }
+  return []
+}
+
+function obtenerNumeroDia(dia = {}, fallback = 1) {
+  return dia.numeroGlobal || dia.dia || dia.numero || dia.numeroDia || fallback
+}
+
 function normalizarClase(contenido) {
   if (!contenido) return null
   const meta = contenido.metadatos || {}
   const grado  = [meta.grado, meta.seccion].filter(Boolean).join(' ')
   const area   = meta.area || meta.asignatura || ''
+  const fasesUnidad = obtenerFasesUnidad(contenido)
 
-  if (Array.isArray(contenido.fases) && contenido.fases.length > 0) {
+  if (fasesUnidad.length > 0) {
     const dias = []
-    contenido.fases.forEach(fase => {
+    fasesUnidad.forEach(fase => {
       ;(fase.dias || []).forEach(dia => {
+        const diaNum = obtenerNumeroDia(dia, dias.length + 1)
         dias.push({
           semana:             dia.semana || null,
-          diaNum:             dia.numeroGlobal || dias.length + 1,
+          diaNum,
           diaCalendario:      dia.diaCalendario || null,
           titulo:             dia.titulo || `Clase ${dias.length + 1}`,
           intencionPedagogica: dia.intencionPedagogica || '',
@@ -330,12 +346,12 @@ function detectarPlanHoy(planes) {
     }
   }
   for (const plan of planes) {
-    const fases = plan.contenido?.fases || []
+    const fases = obtenerFasesUnidad(plan.contenido || {})
     for (const fase of fases) {
       const dia = (fase.dias || []).find(d => d.diaCalendario === diaSemanaHoy)
       if (dia) {
         const norm = normalizarClase(plan.contenido)
-        const diaFound = norm?.dias.find(d => d.diaNum === (dia.numeroGlobal || dia.numero)) || norm?.dias[0]
+        const diaFound = norm?.dias.find(d => d.diaNum === obtenerNumeroDia(dia)) || norm?.dias[0]
         return { plan, dia: diaFound, norm }
       }
     }
