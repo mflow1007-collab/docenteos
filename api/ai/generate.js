@@ -265,6 +265,13 @@ async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens
       model,
       max_tokens: maxTokens || 4096,
       stream: true,
+      // Usage REAL en el último chunk del stream (tokens exactos facturables).
+      // Solo en endpoints que lo soportan documentadamente — los demás
+      // proveedores pueden adjuntar usage igual y también se captura.
+      ...(baseURL === "https://api.openai.com/v1"
+        || baseURL === "https://generativelanguage.googleapis.com/v1beta/openai"
+        ? { stream_options: { include_usage: true } }
+        : {}),
       // response_format JSON solo para api.openai.com — evita errores en Abacus/NVIDIA
       ...(jsonMode && baseURL === "https://api.openai.com/v1"
         ? { response_format: { type: "json_object" } }
@@ -293,6 +300,10 @@ function buildNormalizedStream(providerResponse, provider, model) {
       const send = (payload) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
 
+      // Tokens EXACTOS reportados por el proveedor (facturables), si los envía
+      let usageIn  = 0;
+      let usageOut = 0;
+
       try {
         let buffer = "";
         while (true) {
@@ -319,8 +330,21 @@ function buildNormalizedStream(providerResponse, provider, model) {
                 ) {
                   text = parsed.delta.text;
                 }
+                // Anthropic: input en message_start, output acumulado en message_delta
+                if (parsed.type === "message_start" && parsed.message?.usage?.input_tokens) {
+                  usageIn = parsed.message.usage.input_tokens;
+                }
+                if (parsed.usage?.output_tokens) {
+                  usageOut = parsed.usage.output_tokens;
+                }
               } else {
                 text = parsed.choices?.[0]?.delta?.content ?? null;
+                // OpenAI-compatible: chunk final con usage (stream_options
+                // include_usage) o usage adjunto que envían algunos proveedores
+                if (parsed.usage) {
+                  if (parsed.usage.prompt_tokens)     usageIn  = parsed.usage.prompt_tokens;
+                  if (parsed.usage.completion_tokens) usageOut = parsed.usage.completion_tokens;
+                }
               }
 
               if (text) send({ text });
@@ -330,6 +354,9 @@ function buildNormalizedStream(providerResponse, provider, model) {
           }
         }
 
+        if (usageIn || usageOut) {
+          send({ usage: { in: usageIn, out: usageOut, exact: true } });
+        }
         send({ meta: { provider, model } });
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();

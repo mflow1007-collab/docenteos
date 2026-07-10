@@ -49,6 +49,7 @@ export async function logUsage({
   tokensOut = 0,
   ms        = 0,
   fromCache = false,
+  exact     = false, // true = tokens EXACTOS reportados por el proveedor
   error     = null,
 }) {
   try {
@@ -65,6 +66,7 @@ export async function logUsage({
       costoEstimado:   fromCache ? "0.000000" : estimateCost(model, tokensIn, tokensOut),
       tiempoRespuesta: ms,
       cache:           fromCache,
+      tokensExactos:   exact,
       error:           error || null,
     });
   } catch {

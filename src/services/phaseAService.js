@@ -107,6 +107,7 @@ async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS) {
   const decoder = new TextDecoder();
   let buffer = '';
   let text   = '';
+  let usage  = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -121,11 +122,12 @@ async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS) {
       try {
         const parsed = JSON.parse(raw);
         if (parsed.text) text += parsed.text;
+        if (parsed.usage) usage = parsed.usage; // tokens EXACTOS del proveedor
       } catch {}
     }
   }
 
-  return { text, provider: usedProvider, model: usedModel };
+  return { text, provider: usedProvider, model: usedModel, usage };
 }
 
 // ─── Extractor robusto de JSON ────────────────────────────────────────────────
@@ -379,21 +381,22 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
     try {
       const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria);
       const t0 = Date.now();
-      const { text: raw, provider, model } = await callGatewayCollect(prompt, SYSTEM_PROMPT, maxTokens);
+      const { text: raw, provider, model, usage } = await callGatewayCollect(prompt, SYSTEM_PROMPT, maxTokens);
       lastProvider = provider;
       lastModel    = model;
       lastRaw      = raw;
 
-      // Registro de USO en aiLogs (antes solo se registraban errores de
-      // parseo: todas las llamadas de generación de unidades — las más
-      // costosas — quedaban FUERA del dashboard de costos)
+      // Registro de USO en aiLogs — tokens EXACTOS del proveedor cuando
+      // llegan; estimación chars/4 si no (antes solo se registraban errores
+      // de parseo y la generación de unidades quedaba fuera del dashboard)
       logUsage({
         module: MODULE_NAME,
         provider,
         model,
-        tokensIn:  Math.ceil((prompt.length + SYSTEM_PROMPT.length) / 4),
-        tokensOut: Math.ceil((raw || '').length / 4),
+        tokensIn:  usage?.in  || Math.ceil((prompt.length + SYSTEM_PROMPT.length) / 4),
+        tokensOut: usage?.out || Math.ceil((raw || '').length / 4),
         ms: Date.now() - t0,
+        exact: Boolean(usage),
       });
 
       const result = extraerJSON(raw);

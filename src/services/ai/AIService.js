@@ -81,6 +81,7 @@ export const AIService = {
     const resolvedMaxTokens = maxTokens ?? routerOpts.maxTokens;
     const startTime         = Date.now();
     let accumulated  = "";
+    let usageReal = null; // usage exacto del proveedor, si el gateway lo emite
     let usedProvider;
     let usedModel;
 
@@ -197,6 +198,9 @@ export const AIService = {
             if (parsed.text) {
               accumulated += parsed.text;
               onChunk(parsed.text);
+            } else if (parsed.usage) {
+              // Tokens EXACTOS reportados por el proveedor (facturables)
+              usageReal = parsed.usage;
             } else if (parsed.error) {
               onError(parsed.error);
               return;
@@ -219,9 +223,10 @@ export const AIService = {
     }
 
     // ── 6. Registrar uso ─────────────────────────────────────────────────────
+    // Tokens EXACTOS del proveedor cuando llegan; estimación chars/4 si no
     if (AIConfig.logging) {
-      const tokensIn  = Math.ceil(((prompt || '').length + (system || '').length) / 4);
-      const tokensOut = Math.ceil(accumulated.length / 4);
+      const tokensIn  = usageReal?.in  || Math.ceil(((prompt || '').length + (system || '').length) / 4);
+      const tokensOut = usageReal?.out || Math.ceil(accumulated.length / 4);
       logUsage({
         module,
         provider:  usedProvider,
@@ -230,6 +235,7 @@ export const AIService = {
         tokensOut,
         ms,
         fromCache: false,
+        exact: Boolean(usageReal),
       });
     }
 
