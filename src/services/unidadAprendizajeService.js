@@ -2612,7 +2612,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   console.info(
     `[Unidad] Malla cargada: id=${curricularDoc.id || "?"} · contentId=${curricularDoc.contentId || mallaPayload.contentId || "—"} ` +
     `· schemaVersion=${versionMalla} · level=${curricularDoc.level || "?"} · grade=${curricularDoc.grade || "?"} ` +
-    `· enriquecimientoTema=${curricularDoc.enriquecimientoTema ? "sí" : "no"}`
+    `· temas=${temasOficialesDeMalla(mallaPayload).length} · enriquecimientoTema=${curricularDoc.enriquecimientoTema ? "sí" : "no"}`
   );
 
   // Índices planos del corpus (payload level) — deben existir antes de chequeo (c)
