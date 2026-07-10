@@ -5,7 +5,11 @@
 import { useEffect, useState } from "react";
 import { analizarComplejidad } from "../services/unidadAprendizajeService";
 import { getAreas, getAsignaturas, getAsignaturaAutomatica, tieneMultiplesAsignaturas } from "../planning/areaAsignaturaMap.js";
-import { getCurricularContentForUnit, temasOficialesDeMalla } from "../services/bancoConocimientoService.js";
+import {
+  getAvailableCurricularScopes,
+  getCurricularContentForUnit,
+  temasOficialesDeMalla,
+} from "../services/bancoConocimientoService.js";
 import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema } from "../services/curriculumCombinacionService";
 
 // El currículo de Inglés/Francés vive bajo el área "Lenguas Extranjeras"
@@ -43,6 +47,12 @@ const normalizarNivel = (valor) => {
 };
 
 const gradoCorto = (grado = "") => String(grado || "").split(" ")[0] || "";
+
+const gradoCompletoDesdeMalla = (scope = {}) => {
+  const grado = String(scope.grade || "").trim();
+  const nivel = String(scope.level || "").trim();
+  return [grado, nivel].filter(Boolean).join(" ");
+};
 
 const normalizarGrado = (grado = "") => normalizarClave(grado)
   .replace(/\s+(primaria|secundaria|inicial|bachillerato)\b.*/g, "")
@@ -129,6 +139,19 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
   } = datos;
 
   const set = (campo) => (e) => onChange({ ...datos, [campo]: e.target.value });
+
+  // Nivel EFECTIVO: el del grado seleccionado manda (el campo Nivel puede
+  // quedar rancio en "Secundaria" si el docente no lo toca — bypass real).
+  const nivelDelGradoSeleccionado = GRADOS.find((g) => g.grado === grado)?.nivel || "";
+  const nivelEfectivo = nivelDelGradoSeleccionado || nivel;
+
+  // Al elegir grado se sincroniza el nivel en los datos (consistencia del
+  // documento y de la generación, no solo del Asesor)
+  const handleGradoChange = (e) => {
+    const nuevoGrado = e.target.value;
+    const nivelDelGrado = GRADOS.find((g) => g.grado === nuevoGrado)?.nivel;
+    onChange({ ...datos, grado: nuevoGrado, ...(nivelDelGrado ? { nivel: nivelDelGrado } : {}) });
+  };
   const setNum = (campo) => (e) => onChange({ ...datos, [campo]: Number(e.target.value) });
 
   const toggleCompFund = (nombre) => {
@@ -167,6 +190,42 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
   const [modoElegido, setModoElegido] = useState(null); // "solo" | nombre de combinación | "propia"
   const [mostrarPropia, setMostrarPropia] = useState(false);
   const [temasPropios, setTemasPropios] = useState([]);
+  const [mallasDisponibles, setMallasDisponibles] = useState([]);
+  const [cargandoMallas, setCargandoMallas] = useState(true);
+
+  useEffect(() => {
+    let cancelado = false;
+    setCargandoMallas(true);
+    getAvailableCurricularScopes()
+      .then((items) => {
+        if (!cancelado) setMallasDisponibles(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        if (!cancelado) setMallasDisponibles([]);
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoMallas(false);
+      });
+    return () => { cancelado = true; };
+  }, []);
+
+  const gradosDisponibles = (() => {
+    const candidatos = mallasDisponibles.filter((scope) => {
+      if (area && normalizarClave(scope.area) !== normalizarClave(area)) return false;
+      if (asignatura && normalizarClave(scope.subject) !== normalizarClave(asignatura)) return false;
+      return true;
+    });
+    const labels = [...new Set(candidatos.map(gradoCompletoDesdeMalla).filter(Boolean))];
+    return GRADOS.filter((g) => labels.includes(g.grado));
+  })();
+
+  useEffect(() => {
+    if (cargandoMallas || !grado) return;
+    const existe = gradosDisponibles.some((g) => g.grado === grado);
+    if (!existe) {
+      onChange({ ...datos, grado: "", nivel: "", ciclo: "Primer Ciclo" });
+    }
+  }, [cargandoMallas, grado, gradosDisponibles, datos, onChange]);
 
   useEffect(() => {
     const texto = (titulo || "").trim();
@@ -412,10 +471,21 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
       <div className="pd-grid-2">
         <div className="pd-field">
           <label>Grado <span className="pd-req">*</span></label>
-          <select value={grado} onChange={set("grado")}>
-            <option value="">Seleccionar grado</option>
-            {GRADOS.map((g) => <option key={g.grado} value={g.grado}>{g.grado}</option>)}
+          <select value={grado} onChange={handleGradoChange} disabled={cargandoMallas || !gradosDisponibles.length}>
+            <option value="">
+              {cargandoMallas
+                ? "Cargando mallas..."
+                : gradosDisponibles.length
+                  ? "Seleccionar grado"
+                  : "No hay mallas activas"}
+            </option>
+            {gradosDisponibles.map((g) => <option key={g.grado} value={g.grado}>{g.grado}</option>)}
           </select>
+          {!cargandoMallas && !gradosDisponibles.length && (
+            <small style={{ color: "#b91c1c", fontWeight: 700 }}>
+              Sube primero la malla oficial de ese grado en el Banco de Conocimiento.
+            </small>
+          )}
         </div>
         <div className="pd-field">
           <label>Sección <span className="pd-req">*</span></label>

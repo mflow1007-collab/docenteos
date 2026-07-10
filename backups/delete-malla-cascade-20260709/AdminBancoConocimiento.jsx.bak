@@ -2732,9 +2732,6 @@ export default function AdminBancoConocimiento() {
     return true;
   });
 
-  const gradosConFuente = [...new Set(fuentes.map(f => f.grade).filter(Boolean))]
-    .sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
-
   const handleGuardar = async (form) => {
     setGuardando(true);
     setError('');
@@ -2804,7 +2801,7 @@ export default function AdminBancoConocimiento() {
   const handleDelete = async (id) => {
     try {
       await deleteKnowledgeSource(id);
-      await cargar();
+      setFuentes(prev => prev.filter(f => f.id !== id));
     } catch (err) {
       setError('Error al eliminar: ' + err.message);
     }
@@ -2906,7 +2903,7 @@ export default function AdminBancoConocimiento() {
         </select>
         <select value={filtros.grado} onChange={e => setFiltros(f => ({ ...f, grado: e.target.value }))} style={sel}>
           <option value="">Todos los grados</option>
-          {gradosConFuente.map(v => <option key={v} value={v}>{v}</option>)}
+          {BC_GRADES.map(v => <option key={v} value={v}>{v}</option>)}
         </select>
         <select value={filtros.area} onChange={e => setFiltros(f => ({ ...f, area: e.target.value }))} style={sel}>
           <option value="">Todas las áreas</option>

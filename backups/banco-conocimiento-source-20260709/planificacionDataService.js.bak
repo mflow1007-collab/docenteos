@@ -3,8 +3,7 @@
  *
  * La planificación como FUENTE DE VERDAD pedagógica: al guardar, el plan
  * queda enriquecido con una capa curricular normalizada (capaCurricular)
- * construida desde la malla MINERD activa del Banco de Conocimiento
- * (curricularContent),
+ * construida desde el Diseño Curricular MINERD importado (diseñoCurricular),
  * con IDs oficiales de competencias e indicadores.
  *
  * No rompe nada: guardarPlanificacionDetallada sigue funcionando igual para
@@ -21,7 +20,7 @@ import {
   obtenerPlanificacionesDetalladas,
   obtenerCursos,
 } from "../firebase.js";
-import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
+import { consultarCurriculo } from "./curriculumService.js";
 import { construirCapaCurricular, normalizarTexto } from "./hiloPedagogico.js";
 import { generarAspectosRegistroDesdePlanificacion } from "./registroService.js";
 import { crearInstrumentosPlaneadosDesdePlan } from "./instrumentosService.js";
@@ -41,30 +40,11 @@ const resolverNivel = (meta = {}) => {
   return "";
 };
 
-const adaptarCurricularContentParaHilo = (docCurricular) => {
-  if (!docCurricular) return null;
-  const payload = docCurricular.payload || docCurricular;
-  return {
-    ...payload,
-    id: docCurricular.id || payload.id || payload.contentId || null,
-    nivel: payload.nivel || payload.level || docCurricular.level || "",
-    level: payload.level || payload.nivel || docCurricular.level || "",
-    grado: payload.grado || payload.grade || docCurricular.grade || "",
-    grade: payload.grade || payload.grado || docCurricular.grade || "",
-    area: payload.area || docCurricular.area || "",
-    asignatura: payload.asignatura || payload.subject || docCurricular.subject || "",
-    subject: payload.subject || payload.asignatura || docCurricular.subject || "",
-    competencias: Array.isArray(payload.competencias) ? payload.competencias : [],
-    indicadoresLogro: Array.isArray(payload.indicadoresLogro)
-      ? payload.indicadoresLogro
-      : Array.isArray(payload.indicadores) ? payload.indicadores : [],
-  };
-};
-
 /**
- * Busca la malla activa del Banco de Conocimiento que corresponde al plan.
- * Prueba asignatura y área curricular, pero siempre respetando nivel+grado.
- * Devuelve null si no hay malla activa; no consulta archivos ni bancos legacy.
+ * Busca el documento de diseñoCurricular que corresponde al plan.
+ * Prueba área directa y el mapeo asignatura → área curricular.
+ * Devuelve null si no hay currículo importado (la capa se genera igual,
+ * con IDs locales estables, y se puede re-vincular después).
  */
 export const consultarCurriculoParaPlan = async (planificacion) => {
   const meta = planificacion?.metadatos || {};
@@ -77,9 +57,9 @@ export const consultarCurriculoParaPlan = async (planificacion) => {
     AREA_CURRICULO_POR_ASIGNATURA[meta.area],
   ].filter(Boolean);
 
-  for (const subject of candidatas) {
-    const docCurriculo = await getCurricularContentForUnit(subject, grado, nivel);
-    if (docCurriculo) return adaptarCurricularContentParaHilo(docCurriculo);
+  for (const area of candidatas) {
+    const docCurriculo = await consultarCurriculo(nivel, grado, area);
+    if (docCurriculo) return docCurriculo;
   }
   return null;
 };

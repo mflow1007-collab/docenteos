@@ -1,6 +1,6 @@
 import {
-  collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc,
-  serverTimestamp, query, where, orderBy, limit, writeBatch,
+  collection, addDoc, getDocs, doc, updateDoc, deleteDoc,
+  serverTimestamp, query, where, orderBy, limit,
 } from 'firebase/firestore';
 import {
   ref as storageRef, uploadBytes, getDownloadURL,
@@ -147,42 +147,6 @@ export const getKnowledgeSources = async (filters = {}) => {
   }
 };
 
-export const getAvailableCurricularScopes = async () => {
-  if (!db) return [];
-  try {
-    const snap = await getDocs(query(
-      collection(db, 'curricularContent'),
-      where('active', '==', true),
-      limit(500),
-    ));
-    const map = new Map();
-    snap.docs.forEach((d) => {
-      const data = { id: d.id, ...d.data() };
-      const payload = data.payload || {};
-      const contentType = data.contentType || payload.contentType || '';
-      if (normCascade(contentType) !== 'malla curricular') return;
-      const item = {
-        id: data.id,
-        level: cleanText(data.level || payload.level || payload.nivel),
-        cycle: cleanText(data.cycle || payload.cycle || payload.ciclo),
-        grade: cleanText(data.grade || payload.grade || payload.grado),
-        area: cleanText(data.area || payload.area),
-        subject: cleanText(data.subject || payload.subject || payload.asignatura),
-        contentType: 'malla_curricular',
-      };
-      if (!item.level || !item.grade || !item.area || !item.subject) return;
-      const key = [item.level, item.grade, item.area, item.subject].map(normCascade).join('|');
-      if (!map.has(key)) map.set(key, item);
-    });
-    return [...map.values()].sort((a, b) =>
-      `${a.level} ${a.grade} ${a.area} ${a.subject}`.localeCompare(`${b.level} ${b.grade} ${b.area} ${b.subject}`, 'es')
-    );
-  } catch (err) {
-    console.error('[bancoConocimiento] getAvailableCurricularScopes:', err);
-    return [];
-  }
-};
-
 export const updateKnowledgeSource = async (id, data) => {
   if (!db || !id) throw new Error('Parámetros inválidos');
   await updateDoc(doc(db, COL, id), {
@@ -199,120 +163,9 @@ export const updateKnowledgeSourceStatus = async (id, status) => {
   });
 };
 
-const CASCADE_DELETABLE_CONTENT_TYPES = new Set([
-  'malla curricular',
-  'competencias',
-  'indicadores',
-  'contenidos',
-  'enriquecimiento tema',
-]);
-
-const normCascade = (value) => String(value || '')
-  .trim()
-  .toLowerCase()
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .replace(/[^a-z0-9]+/g, ' ')
-  .replace(/\s+/g, ' ');
-
-const sameCurricularScope = (a = {}, b = {}) => (
-  normCascade(a.level || a.nivel) === normCascade(b.level || b.nivel) &&
-  normCascade(a.grade || a.grado) === normCascade(b.grade || b.grado) &&
-  normCascade(a.area) === normCascade(b.area) &&
-  normCascade(a.subject || a.asignatura) === normCascade(b.subject || b.asignatura)
-);
-
-const shouldCascadeCurricular = (item = {}) => {
-  const type = normCascade(item.contentType || item.payload?.contentType || '');
-  const sourceType = normCascade(item.sourceType || '');
-  return CASCADE_DELETABLE_CONTENT_TYPES.has(type)
-    || sourceType === 'diseno curricular'
-    || Boolean(item.curricularContentId);
-};
-
-const deleteRefsInBatches = async (refs = []) => {
-  const unique = [];
-  const seen = new Set();
-  refs.forEach((ref) => {
-    if (!ref?.path || seen.has(ref.path)) return;
-    seen.add(ref.path);
-    unique.push(ref);
-  });
-
-  for (let i = 0; i < unique.length; i += 450) {
-    const batch = writeBatch(db);
-    unique.slice(i, i + 450).forEach((ref) => batch.delete(ref));
-    await batch.commit();
-  }
-  return unique.length;
-};
-
 export const deleteKnowledgeSource = async (id) => {
   if (!db || !id) throw new Error('Parámetros inválidos');
-  const sourceRef = doc(db, COL, id);
-  const sourceSnap = await getDoc(sourceRef);
-  if (!sourceSnap.exists()) {
-    await deleteDoc(sourceRef);
-    return { deletedSources: 0, deletedCurricularContent: 0 };
-  }
-
-  const source = { id: sourceSnap.id, ...sourceSnap.data() };
-  const refsSources = [sourceRef];
-  const refsCurricular = [];
-
-  if (source.curricularContentId) {
-    refsCurricular.push(doc(db, 'curricularContent', String(source.curricularContentId)));
-  }
-
-  // Siempre borra el contenido que nació de esta fuente.
-  const ownContentSnap = await getDocs(query(
-    collection(db, 'curricularContent'),
-    where('sourceId', '==', id),
-    limit(200),
-  ));
-  ownContentSnap.docs.forEach((d) => refsCurricular.push(d.ref));
-
-  // Para mallas curriculares: borrar todo el alcance exacto nivel+grado+area+asignatura.
-  // Esto evita que queden mallas fantasma si se cargó un JSON equivocado y luego
-  // se intenta actualizar el grado desde el Banco de Conocimiento.
-  if (shouldCascadeCurricular(source) && source.level && source.grade && source.area && source.subject) {
-    const [sourcesByGrade, contentByGrade] = await Promise.all([
-      getDocs(query(collection(db, COL), where('grade', '==', source.grade), limit(300))),
-      getDocs(query(collection(db, 'curricularContent'), where('grade', '==', source.grade), limit(300))),
-    ]);
-
-    sourcesByGrade.docs.forEach((d) => {
-      const data = { id: d.id, ...d.data() };
-      if (sameCurricularScope(data, source) && shouldCascadeCurricular(data)) {
-        refsSources.push(d.ref);
-      }
-    });
-
-    contentByGrade.docs.forEach((d) => {
-      const data = { id: d.id, ...d.data() };
-      const payload = data.payload || {};
-      const scope = {
-        level: data.level || payload.level || payload.nivel,
-        grade: data.grade || payload.grade || payload.grado,
-        area: data.area || payload.area,
-        subject: data.subject || payload.subject || payload.asignatura,
-      };
-      const type = data.contentType || payload.contentType;
-      const derivedFromSelected = [source.curricularContentId, source.id]
-        .filter(Boolean)
-        .map(String)
-        .includes(String(payload.derivedFrom || data.derivedFrom || ''));
-
-      if ((sameCurricularScope(scope, source) && shouldCascadeCurricular({ ...data, contentType: type }))
-        || derivedFromSelected) {
-        refsCurricular.push(d.ref);
-      }
-    });
-  }
-
-  const deletedSources = await deleteRefsInBatches(refsSources);
-  const deletedCurricularContent = await deleteRefsInBatches(refsCurricular);
-  return { deletedSources, deletedCurricularContent };
+  await deleteDoc(doc(db, COL, id));
 };
 
 // ─── Contenido curricular estructurado (JSON) ─────────────────────────────────
