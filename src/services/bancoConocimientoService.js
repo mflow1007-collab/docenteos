@@ -1117,6 +1117,23 @@ export const attachJsonToSource = async (sourceId, jsonText) => {
   return contentId;
 };
 
+// ─── Coincidencia de grado escolar (scope del banco ↔ catálogo de la UI) ─────
+// Los docs traen variantes reales ("1er", "Secundario") que no coinciden por
+// etiqueta exacta con el catálogo ("1ro Secundaria"). Se compara por NÚMERO de
+// grado + nivel normalizado; sin número (Kínder...), por texto normalizado.
+// Exportada para tests.
+
+export const esMismoGradoEscolar = (scope = {}, gradoLabel = '', nivelLabel = '') => {
+  const nivelScope = bcNormalizarNivel(scope.level || scope.nivel || '') || bcNivelDesdeGrado(scope.grade || scope.grado || '');
+  const nivelSel = bcNormalizarNivel(nivelLabel) || bcNivelDesdeGrado(gradoLabel);
+  if (!nivelScope || !nivelSel || nivelScope !== nivelSel) return false;
+  const gradoScope = String(scope.grade || scope.grado || '');
+  const numScope = (gradoScope.match(/\d+/) || [''])[0];
+  const numSel = (String(gradoLabel).match(/\d+/) || [''])[0];
+  if (numScope && numSel) return numScope === numSel;
+  return bcNormGrade(gradoScope) === bcNormGrade(gradoLabel);
+};
+
 // ─── Temas oficiales de la malla (FUENTE ÚNICA del selector y del motor) ─────
 // SOLO los temas oficiales del MINERD: payload.temas → payload.temasCurriculares
 // → payload.contenidos.conceptos.temas (fallbacks SECUENCIALES, nunca mezcla).
