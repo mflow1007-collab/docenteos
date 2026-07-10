@@ -620,6 +620,27 @@ check("CASO REAL doc ayDm2…: 8 competencias (1 basura sin específica) + 21 in
   if (detalle[6].indicadores[2].codigo !== "ING-1-I21") throw new Error("bloques desalineados tras filtrar la basura");
 });
 
+check("CASO REAL doc 39Jn…: 8 competencias por CF duplicada + 21 indicadores planos → dedupe prudente a 7 bloques", () => {
+  const comps = [
+    { id: "", competenciaFundamental: "Comunicativa", especifica: "Competencia específica 1" },
+    { id: "", competenciaFundamental: "Pensamiento Lógico, Creativo y Crítico", especifica: "Competencia específica 2" },
+    { id: "", competenciaFundamental: "Resolución de Problemas", especifica: "Competencia específica 3" },
+    { id: "", competenciaFundamental: "Ética y Ciudadana", especifica: "Competencia específica 4" },
+    { id: "", competenciaFundamental: "Científica y Tecnológica", especifica: "Competencia específica 5" },
+    { id: "", competenciaFundamental: "Ambiental y de la Salud", especifica: "Competencia específica 6" },
+    { id: "", competenciaFundamental: "Desarrollo Personal y Espiritual", especifica: "Competencia específica 7" },
+    { id: "CE-pensamiento-logico-cre", competenciaFundamental: "Pensamiento Lógico, Creativo y Crítico", especifica: "Competencia específica duplicada" },
+  ];
+  const inds = Array.from({ length: 21 }, (_, i) => ({ id: `IL-${String(i + 1).padStart(2, "0")}`, descripcion: `Indicador ${i + 1}` }));
+  const detalle = construirCompetenciasDetalle(comps, inds, []);
+  if (detalle.length !== 7) throw new Error(`esperaba dedupe a 7 competencias, hay ${detalle.length}`);
+  for (const c of detalle) {
+    if (c.indicadores.length !== 3) throw new Error(`${c.competenciaFundamental} esperaba 3 indicadores, tiene ${c.indicadores.length}`);
+  }
+  if (detalle[1].competenciaFundamental !== "Pensamiento Lógico, Creativo y Crítico") throw new Error("eliminó la competencia original en vez de la duplicada");
+  if (detalle[6].indicadores[2].codigo !== "IL-21") throw new Error("bloques desalineados tras dedupe por CF");
+});
+
 check("fallback por Competencia Fundamental: indicadores con CF textual se asocian por nombre", () => {
   const comps = [
     { id: "C1", competenciaFundamental: "Comunicativa", especifica: "CE comunicativa" },

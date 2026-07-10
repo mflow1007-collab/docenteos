@@ -1240,12 +1240,31 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
   // Las conversiones a veces meten una competencia basura/vacía (ej. 8 filas
   // cuando la Adecuación tiene 7). Se filtran ANTES de repartir: los bloques
   // se calculan sobre las competencias VÁLIDAS (21/7 = 3 ✓, no 21/8 ✗).
-  const compsValidas = allComps.filter(
+  const compsConTexto = allComps.filter(
     (c) => String(c?.especificaGrado || c?.especifica || c?.descripcion || "").trim()
   );
 
   const indsPlanos = Array.isArray(allInds) ? allInds : [];
   const hayVinculo = indsPlanos.some((ind) => String(ind?.competenciaId || ind?.competencia || "").trim());
+
+  // Si no hay competenciaId, solo repartimos por bloques cuando la división
+  // es exacta. Si una conversión duplicó una Competencia Fundamental, se
+  // elimina solo cuando eso hace exacta la división; no se inventan vínculos.
+  let compsValidas = compsConTexto;
+  if (!hayVinculo && indsPlanos.length && compsConTexto.length && indsPlanos.length % compsConTexto.length !== 0) {
+    const vistas = new Set();
+    const dedupePorFundamental = compsConTexto.filter((comp) => {
+      const key = normFund(comp?.competenciaFundamental || comp?.fundamental || comp?.descripcion);
+      if (!key) return true;
+      if (vistas.has(key)) return false;
+      vistas.add(key);
+      return true;
+    });
+    if (dedupePorFundamental.length && indsPlanos.length % dedupePorFundamental.length === 0) {
+      compsValidas = dedupePorFundamental;
+    }
+  }
+
   // Fallback 4: asociación por nombre de Competencia Fundamental cuando los
   // indicadores planos la traen (cada CF aparece una sola vez en la Adecuación)
   const hayFundEnInds = indsPlanos.some((ind) => normFund(ind?.competenciaFundamental));
