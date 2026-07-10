@@ -269,6 +269,12 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
             <strong>Estrategia de enseñanza y de aprendizaje:</strong> {fase.estrategia}
           </div>
 
+          {fase.tituloSemana && (
+            <div className="ua-semana-header">
+              {m.titulo} — SEMANA {fase.numero} ({fase.dias?.length || 0} día{(fase.dias?.length || 0) === 1 ? "" : "s"}): &ldquo;{fase.tituloSemana}&rdquo;
+            </div>
+          )}
+
           {/* INDICADORES DE AVANCE DE LA FASE */}
           {fase.indicadoresAvance?.length > 0 && (
             <div className="ua-avance-block">
@@ -284,11 +290,19 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
             <div key={dia.numero} className="ua-dia-block">
 
               <div className="ua-semana-header">
-                FASE {fase.numero} — CLASE {dia.numeroGlobal} (Semana {dia.semana}, {dia.diaCalendario}{dia.mostrarHora ? ` H${dia.hora}` : ""}): &ldquo;{dia.titulo}&rdquo;
+                Día {dia.dia || dia.numero || dia.numeroGlobal}: &ldquo;{dia.titulo}&rdquo;
+                {dia.focoLinguistico && (
+                  <span> · {dia.focoLinguistico}</span>
+                )}
                 {dia.etapaProgresion && (
                   <span className="ua-etapa-badge">{dia.etapaProgresion}</span>
                 )}
               </div>
+              {dia.estrategiasDia && (
+                <div className="ua-estrategia-band">
+                  <strong>Estrategia de enseñanza y aprendizaje:</strong> {dia.estrategiasDia}
+                </div>
+              )}
               <div className="ua-intencion-band">
                 <strong>Intención pedagógica del día:</strong> {dia.intencionPedagogica}
               </div>

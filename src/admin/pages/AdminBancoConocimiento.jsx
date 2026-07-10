@@ -1008,6 +1008,15 @@ const convertirPdfCurricularAJson = ({ fileName, textoPdf, contexto = {}, onProg
   const esRegistro = contexto.tipoDocumento === 'registro_minerd';
   const registroSchema = esRegistro ? `  "registroMINERD": {
     "campos": [],
+    "competenciasIndicadores": [
+      {
+        "competenciaId": "",
+        "competencia": "",
+        "indicadoresLogro": [
+          { "id": "", "descripcion": "", "competenciaId": "" }
+        ]
+      }
+    ],
     "momentosEvaluacion": [],
     "tiposEvidencia": [],
     "criterios": [],
@@ -1025,16 +1034,16 @@ const convertirPdfCurricularAJson = ({ fileName, textoPdf, contexto = {}, onProg
   const system = [
     'Eres un convertidor curricular para DocenteOS.',
     esRegistro
-      ? 'Tu tarea es transformar un registro oficial MINERD a JSON estructurado para alimentar datos administrativos y de evaluación.'
+      ? 'Tu tarea es transformar un registro oficial MINERD a JSON estructurado para alimentar datos administrativos, evaluación y la relación competencia-indicadores.'
       : 'Tu tarea es transformar texto oficial de un PDF curricular MINERD a JSON.',
     'No inventes competencias, indicadores, temas, contenidos, campos ni instrumentos.',
     'Las competencias e indicadores deben salir textual o casi textual del PDF; si no aparecen, usa arreglos vacíos.',
     'Si el PDF contiene tablas en columnas, reconstruye la lectura por encabezados y filas aunque el texto extraído aparezca corrido.',
     esRegistro
-      ? 'Prioriza campos del registro, evaluación, evidencias, instrumentos, asistencia, calificaciones y momentos del proceso.'
+      ? 'Prioriza campos del registro, evaluación, evidencias, instrumentos, asistencia, calificaciones, momentos del proceso y la matriz competencia-indicadores.'
       : 'Prioriza encontrar y extraer indicadores de logro; son obligatorios para que DocenteOS pueda planificar.',
     esRegistro
-      ? 'No devuelvas una malla curricular si el documento es un registro.'
+      ? 'No devuelvas una malla curricular si el documento es un registro; extrae la relación entre competencias e indicadores tal como aparece para compararla luego con la malla.'
       : 'Si el texto trae indicadores en secciones separadas, colócalos en indicadoresLogro y vincúlalos con competenciaId cuando sea posible.',
     'Si no encuentras un dato oficial después de revisar los fragmentos, usa arreglo vacío o cadena vacía.',
     'Responde únicamente JSON válido, sin markdown.',
@@ -1131,6 +1140,9 @@ Reglas:
 - En contenidos procedimentales usa SOLO la sección "Procedimientos".
 - En contenidos actitudinales usa SOLO la sección "Actitudes y valores" y copia esa misma columna en actitudesValores.
 - Si el documento seleccionado es Registro MINERD, usa contentType "registro_minerd" y llena registroMINERD con los datos reales encontrados.
+- Si el documento seleccionado es Registro MINERD, extrae en registroMINERD.competenciasIndicadores la matriz que relacione cada competencia con sus indicadores. Copia los indicadores literal o casi literal, no los redistribuyas por intuición.
+- Para Registro MINERD, si un indicador aparece bajo una competencia o columna/sección específica, usa el mismo competenciaId en indicadoresLogro[].competenciaId. Si no hay relación evidente, deja competenciaId vacío.
+- Para Registro MINERD, si el registro muestra organización descendente por competencia, conserva ese orden en competencias y registroMINERD.competenciasIndicadores.
 - Si el documento seleccionado es Diseño curricular, usa contentType "malla_curricular", NO llenes registroMINERD y busca indicadores/temas solo en secciones curriculares.
 - No agregues nivel MCERL si el currículo no lo trae.
 - Si el PDF contiene varias áreas o grados, extrae solo la selección del administrador; si no aparece esa selección, conserva los campos seleccionados pero deja vacío lo no verificable.

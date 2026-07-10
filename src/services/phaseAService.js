@@ -229,6 +229,11 @@ function validateBatch(data, durMin, count) {
     if (!textoNoVacio(clase.intencionPedagogica)) {
       throw new Error(`R1: clase ${idx + 1} sin intencionPedagogica`);
     }
+    for (const campo of ['tituloSemana', 'focoLinguistico', 'estrategiasDia']) {
+      if (!textoNoVacio(clase[campo])) {
+        throw new Error(`R1: clase ${idx + 1} sin ${campo} (encabezado pedagógico semanal/día)`);
+      }
+    }
 
     // Piezas del Inicio canónico (el merge las coloca en posiciones fijas)
     for (const campo of ['saludoInicial', 'retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
@@ -375,13 +380,14 @@ REGLAS:
 2. Desarrollos distintos entre sí y distintos a los ya listados arriba.
 3. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
 4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con "Los estudiantes", "El docente", "La docente" o "Se". El inglés va incrustado entre paréntesis dentro de la actividad. Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
-5. Desarrollo: mínimo 4 actividades concretas y progresivas: modelado o explicación guiada → práctica guiada → práctica colaborativa → producción individual o grupal → retroalimentación breve si aplica. Cierre: mínimo 3 actividades siguiendo el patrón guía: socialización de producciones → reflexión sobre un aspecto específico → organización del artefacto en el portafolio con pregunta final.
+5. Desarrollo: 4 o 5 actividades concretas y progresivas, según la complejidad del foco: modelado o explicación guiada → práctica guiada → práctica colaborativa → producción individual o grupal → retroalimentación breve si aplica. Cierre: 3 o 4 actividades, según el cierre natural de la clase: socialización de producciones → reflexión sobre un aspecto específico → organización del artefacto en el portafolio → pregunta/ticket final.
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" (2-3 evidencias observables y evaluables de ESE momento, en español), "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
 8. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
 9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán] mediante [cómo], [para qué / evidencia de logro]." — específica de ESA clase, nunca genérica.
+10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo de la semana según la progresión), "focoLinguistico" (estructura gramatical, vocabulario, función comunicativa o "apropiación de la unidad / producto / evaluación" si es Semana 1) y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla.
 
-{"outputSchemaVersion":"1.2","semana":${semanaNum},"clases":[{"dia":${startDia},"titulo":"...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["modelado...","práctica guiada...","práctica colaborativa...","producción..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["socialización...","reflexión...","ticket/portafolio..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.2","semana":${semanaNum},"clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["modelado...","práctica guiada...","práctica colaborativa...","producción...","retroalimentación..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["socialización...","reflexión...","portafolio...","ticket final..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote (2 intentos por lote) ─────────────────────────────

@@ -1425,8 +1425,12 @@ const _generarFasesConIA = async (
       }
 
       // Título e intención pedagógica: SOLO del contrato validado de la IA
+      fase.tituloSemana = fase.tituloSemana || String(aiClase.tituloSemana || "").trim();
       dia.titulo = String(aiClase.titulo || "").trim();
       dia.tituloIA = dia.titulo;
+      dia.tituloSemana = String(aiClase.tituloSemana || fase.tituloSemana || "").trim();
+      dia.focoLinguistico = String(aiClase.focoLinguistico || "").trim();
+      dia.estrategiasDia = String(aiClase.estrategiasDia || "").trim();
       dia.intencionPedagogica = String(aiClase.intencionPedagogica || "").trim();
 
       // MERGE: la estructura base (generarDia) aporta SOLO forma (momentos,
@@ -1490,7 +1494,7 @@ const _generarFasesConIA = async (
     // clases de la fase REALMENTE trabajaron (códigos reportados por la IA),
     // resueltos contra la especificación oficial. Fallback: los indicadores
     // oficiales de la malla (nunca checklist de plantilla).
-    const normCodigo = (c) => String(c || "").replace(/[[\]\s]/g, "").toUpperCase();
+    const normCodigo = (c) => String(c || "").replace(/[\[\]\s]/g, "").toUpperCase();
     const codigosTrabajados = new Set(
       weekPlan.clases.flatMap((c) => (Array.isArray(c.indicadoresTrabajados) ? c.indicadoresTrabajados : []))
         .map(normCodigo).filter(Boolean)
@@ -2067,8 +2071,13 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           </tr>`;
       }).join("");
 
+      const focoHtml = dia.focoLinguistico ? ` <span style="font-weight:400">· ${dia.focoLinguistico}</span>` : "";
+      const estrategiaDiaHtml = dia.estrategiasDia
+        ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${dia.estrategiasDia}</div>`
+        : "";
       return `
-        <div class="semana-band">FASE ${fase.numero} — CLASE ${dia.numeroGlobal} (Sem. ${dia.semana}, ${dia.diaCalendario}${dia.mostrarHora ? " H" + dia.hora : ""}): "${dia.titulo}"</div>
+        <div class="semana-band">Día ${dia.dia || dia.numero || dia.numeroGlobal}: "${dia.titulo}"${focoHtml}</div>
+        ${estrategiaDiaHtml}
         <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${dia.intencionPedagogica}</div>
         <table class="dia-table">
           <colgroup>
@@ -2126,6 +2135,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     return `
       <div class="fase-band">FASE ${fase.numero} — ${fase.nombre}</div>
       <div class="est-band">Estrategia de enseñanza y de aprendizaje: ${fase.estrategia}</div>
+      ${fase.tituloSemana ? `<div class="semana-band">${m.titulo} — SEMANA ${fase.numero} (${(fase.dias || []).length} día${(fase.dias || []).length === 1 ? "" : "s"}): "${fase.tituloSemana}"</div>` : ""}
       ${diasHtml}
       ${neaeHtml}
       ${resumenHtml}
