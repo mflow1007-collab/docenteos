@@ -43,7 +43,6 @@ import { getAreas, getAsignaturaAutomatica } from "../planning/areaAsignaturaMap
 import { analizarCombinacionTematica } from "../services/curriculumCombinacionService.js";
 import { getReferenciaAdecuacionesCurriculares } from "../data/adecuacionesCurriculares.js";
 import {
-  eliminarTodasPlanificacionesDetalladas,
   eliminarPlanificacionDetallada,
   obtenerPlanificacionesDetalladas,
   guardarPreferenciaUsuario,
@@ -55,6 +54,8 @@ import {
   subirImagenPlanificacion,
 } from "../firebase";
 import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
+
+const LIMITE_HISTORIAL_DOCENTE = 3;
 
 export default function PlanificacionPage({ planificacionPreCargada = null, onConsumirPreCargada = () => {}, onIrA }) {
   const hoyISO = new Date().toISOString().slice(0, 10);
@@ -254,6 +255,11 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     });
     return lista;
   }, [historialPlanificaciones]);
+
+  const historialVisibleDocente = useMemo(
+    () => historialPlanificaciones.slice(0, LIMITE_HISTORIAL_DOCENTE),
+    [historialPlanificaciones]
+  );
 
   const formatearFechaRegistro = (fecha) => {
     if (!fecha) return "Sin fecha";
@@ -996,38 +1002,6 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     }
   };
 
-  const manejarEliminarTodoHistorial = async () => {
-    if (!historialPlanificaciones.length) return;
-    const confirmar = await new Promise((resolve) => {
-      confirmResolveRef.current = resolve;
-      setConfirmMensaje(
-        `¿Deseas eliminar TODAS las planificaciones guardadas?\n\nSe borrarán ${historialPlanificaciones.length} planificación(es) del historial del usuario actual.`
-      );
-    });
-    if (!confirmar) return;
-
-    setEliminando(true);
-    try {
-      const resultadoEliminacion = await eliminarTodasPlanificacionesDetalladas("all");
-      setHistorialPlanificaciones([]);
-      setPlanificacion(null);
-      setUnidad(null);
-      await cargarHistorial({ mostrarMensajeRecuperacion: false });
-      setMensaje({
-        tipo: "success",
-        texto: `🗑️ Historial limpio: ${resultadoEliminacion.eliminadasTotales || 0} planificación(es) eliminada(s).`,
-      });
-    } catch (error) {
-      setMensaje({
-        tipo: "error",
-        texto: `❌ ${error.message || "No se pudo eliminar el historial de planificaciones"}`,
-      });
-    } finally {
-      setEliminando(false);
-      setTimeout(() => setMensaje(null), 3500);
-    }
-  };
-
   /**
    * Maneja la descarga de PDF
    */
@@ -1720,24 +1694,13 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
         <section className="planning-history-card">
           <h2>Planificaciones guardadas</h2>
           <p>
-            Recupera tus planificaciones recientes, duplica su configuración o elimina las que ya no necesites.
+            Mostramos tus últimas 3 planificaciones. Las demás permanecen guardadas para aprendizaje,
+            recuperación interna y mejora del sistema.
           </p>
-          {historialPlanificaciones.length > 0 && (
-            <div className="history-item-actions" style={{ justifyContent: "flex-end", marginBottom: 12 }}>
-              <button
-                type="button"
-                className="danger"
-                onClick={manejarEliminarTodoHistorial}
-                disabled={eliminando}
-              >
-                Eliminar todo el historial
-              </button>
-            </div>
-          )}
 
-          {historialPlanificaciones.length > 0 ? (
+          {historialVisibleDocente.length > 0 ? (
             <div className="history-cards">
-              {historialPlanificaciones.slice(0, 6).map((item) => {
+              {historialVisibleDocente.map((item) => {
                 const contenido = item?.contenido || item;
                 const meta = contenido?.metadatos || {};
                 const titulo = meta.tema || meta.titulo || item.tema || "Planificación sin tema";

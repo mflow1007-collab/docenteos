@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { obtenerPlanificacionesDetalladas } from "../firebase.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
+const LIMITE_HISTORIAL_RECIENTE_DOCENTE = 3;
+
 // ── Helpers de presentación ───────────────────────────────────────────────────
 function saludoHora() {
   const h = new Date().getHours();
@@ -354,6 +356,7 @@ function Inicio({
   const temaParaSugerencia = cursoActivo?.temaActual || historialReciente[0]?.tema || "";
   const areaParaSugerencia = cursoActivo?.area || historialReciente[0]?.area || "";
   const { temaBase, sugerencias } = generarSugerenciasContextuales(temaParaSugerencia, areaParaSugerencia);
+  const historialVisibleDocente = historialReciente.slice(0, LIMITE_HISTORIAL_RECIENTE_DOCENTE);
 
   return (
     <div className="inicio-saas-shell">
@@ -663,9 +666,14 @@ function Inicio({
 
       <section className="panel assistant-historial">
         <h2>🕘 Historial reciente</h2>
+        {historialReciente.length > LIMITE_HISTORIAL_RECIENTE_DOCENTE && (
+          <p className="texto-secundario">
+            Mostrando las últimas 3. Las anteriores siguen guardadas para el aprendizaje del sistema.
+          </p>
+        )}
         <div className="assistant-lista-simple">
-          {historialReciente.length > 0 ? (
-            historialReciente.map((item) => (
+          {historialVisibleDocente.length > 0 ? (
+            historialVisibleDocente.map((item) => (
               <article key={item.id} className="assistant-list-item historial-item">
                 <strong>{item.titulo}</strong>
                 <p>{item.detalle}</p>
