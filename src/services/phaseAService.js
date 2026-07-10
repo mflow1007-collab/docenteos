@@ -15,6 +15,7 @@ import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
 import { db }                                   from '../firebase.js';
 import { loadGatewayConfig }                    from './ai/AIService.js';
+import { logUsage }                             from './ai/usage.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -377,10 +378,23 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria);
+      const t0 = Date.now();
       const { text: raw, provider, model } = await callGatewayCollect(prompt, SYSTEM_PROMPT, maxTokens);
       lastProvider = provider;
       lastModel    = model;
       lastRaw      = raw;
+
+      // Registro de USO en aiLogs (antes solo se registraban errores de
+      // parseo: todas las llamadas de generación de unidades — las más
+      // costosas — quedaban FUERA del dashboard de costos)
+      logUsage({
+        module: MODULE_NAME,
+        provider,
+        model,
+        tokensIn:  Math.ceil((prompt.length + SYSTEM_PROMPT.length) / 4),
+        tokensOut: Math.ceil((raw || '').length / 4),
+        ms: Date.now() - t0,
+      });
 
       const result = extraerJSON(raw);
       if (!result.ok) {

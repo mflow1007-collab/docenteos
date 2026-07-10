@@ -435,7 +435,7 @@ function TabResumen({
           if (result?.ok)              { dotColor = 'green'; statusLabel = 'Conectado' }
           if (result && !result.ok)    { dotColor = 'red';   statusLabel = result.error || 'Error' }
           if (isTesting)               { statusLabel = 'Probando…' }
-          if (isApagado)               { dotColor = 'gray';  statusLabel = 'Apagado por el administrador' }
+          if (isApagado)               { dotColor = 'red';   statusLabel = 'Desactivado' }
 
           return (
             <div
@@ -455,7 +455,7 @@ function TabResumen({
                   </div>
                 </div>
                 <div className="aim-prov-badges">
-                  {isApagado && <Badge label="Apagado" variant="red" />}
+                  {isApagado && <Badge label="Desactivado" variant="red" />}
                   {isPrimary && configured && !isApagado && <Badge label="Principal" variant="blue" />}
                 </div>
               </div>
@@ -518,20 +518,20 @@ function TabResumen({
                   className={`aim-btn ${isPrimary ? 'aim-btn-ghost' : 'aim-btn-primary'}`}
                   disabled={isTesting || isPrimary || isApagado}
                   onClick={() => onActivar(prov.id)}
-                  title={isApagado ? 'Enciende el proveedor primero' : isPrimary ? 'Ya es el proveedor principal' : 'Activar como proveedor principal'}
+                  title={isApagado ? 'Actívalo primero (está desactivado)' : isPrimary ? 'Ya es el proveedor principal' : 'Ponerlo de primero en la cola'}
                   style={{ width: 'auto', fontSize: 12 }}
                 >
-                  {isPrimary && !isApagado ? '✓ Principal' : 'Activar'}
+                  {isPrimary && !isApagado ? '✓ Principal' : '★ Hacer principal'}
                 </button>
                 <button
                   className="aim-btn aim-btn-ghost"
                   onClick={() => onToggleApagado?.(prov.id)}
                   title={isApagado
-                    ? 'Encender: vuelve a estar disponible para el sistema'
-                    : 'Apagar: NO se usará en ninguna generación, ni como fallback'}
+                    ? 'Activar: vuelve a estar disponible para el sistema'
+                    : 'Desactivar: NO se usará en ninguna generación, ni como fallback'}
                   style={{ fontSize: 12, color: isApagado ? 'var(--adm-success)' : 'var(--adm-danger)' }}
                 >
-                  {isApagado ? '🟢 Encender' : '⏻ Apagar'}
+                  {isApagado ? '🟢 Activar' : '🔴 Desactivar'}
                 </button>
                 <button
                   className="aim-btn aim-btn-ghost"
