@@ -260,7 +260,7 @@ function extraerJson(texto = '') {
   throw new Error('La respuesta no contiene JSON válido.')
 }
 
-const ARRANQUES_NOMINALES_MINERD = /^(ticket|exit\s+ticket|reflexi[oó]n|metacognici[oó]n|socializaci[oó]n|portafolio|evaluaci[oó]n|pregunta|recurso|hoja|ficha|pizarra)\b/i
+const ARRANQUES_NOMINALES_MINERD = /^(ticket|exit\s+ticket|reflexi[oó]n|metacognici[oó]n|socializaci[oó]n|portafolio|evaluaci[oó]n|pregunta|recurso|hoja|ficha|pizarra|pr[aá]ctica|modelado|producci[oó]n|lectura|escritura|trabajo|din[aá]mica|juego|di[aá]logo|conversaci[oó]n|presentaci[oó]n|retroalimentaci[oó]n\s+breve)\b/i
 const ARRANQUES_PROHIBIDOS_MINERD = /^(los\s|el\s+docente|la\s+docente|se\s)/i
 const CLAVES_ACTIVIDAD_MINERD = new Set([
   'actividad', 'actividades', 'actividadEnganche', 'retroalimentacionPrevia',
@@ -290,6 +290,18 @@ function normalizarVozMINERD(texto = '') {
     [/^puesta\s+en\s+com[uú]n\b[:：-]?\s*/i, 'Socializan '],
     [/^portafolio\b[:：-]?\s*/i, 'Guardan la evidencia en el portafolio '],
     [/^evaluaci[oó]n\b[:：-]?\s*/i, 'Completan una evaluación formativa '],
+    [/^pr[aá]ctica(?:\s+guiada|\s+colaborativa|\s+individual)?\b[:：-]?\s*/i, 'Practican '],
+    [/^modelado\b[:：-]?\s*/i, 'Observan un modelado '],
+    [/^producci[oó]n(?:\s+oral|\s+escrita)?\b[:：-]?\s*/i, 'Elaboran una producción '],
+    [/^lectura\b[:：-]?\s*/i, 'Leen '],
+    [/^escritura\b[:：-]?\s*/i, 'Escriben '],
+    [/^trabajo\s+colaborativo\b[:：-]?\s*/i, 'Trabajan colaborativamente '],
+    [/^din[aá]mica\b[:：-]?\s*/i, 'Participan en una dinámica '],
+    [/^juego\b[:：-]?\s*/i, 'Participan en un juego '],
+    [/^di[aá]logo\b[:：-]?\s*/i, 'Dialogan '],
+    [/^conversaci[oó]n\b[:：-]?\s*/i, 'Conversan '],
+    [/^presentaci[oó]n\b[:：-]?\s*/i, 'Presentan '],
+    [/^retroalimentaci[oó]n\s+breve\b[:：-]?\s*/i, 'Socializan una retroalimentación breve '],
     [/^se\s+/i, 'Realizan '],
   ]
   for (const [regex, replacement] of reglas) {

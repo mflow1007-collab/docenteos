@@ -320,6 +320,9 @@ check("normalizarVozActividadMINERD repara arranques nominales comunes", () => {
     ["Ticket final sobre las partes de la casa.", "Completan un ticket de salida"],
     ["Reflexión sobre lo aprendido durante la clase.", "Reflexionan"],
     ["Portafolio: evidencia escrita individual.", "Guardan la evidencia en el portafolio"],
+    ["Práctica guiada con tarjetas de vocabulario.", "Practican"],
+    ["Producción oral sobre los espacios del hogar.", "Elaboran una producción"],
+    ["Modelado de una descripción breve de la casa.", "Observan un modelado"],
     ["Los estudiantes practican el vocabulario en parejas.", "Practican"],
   ];
   for (const [entrada, esperado] of casos) {
