@@ -260,6 +260,84 @@ function extraerJson(texto = '') {
   throw new Error('La respuesta no contiene JSON válido.')
 }
 
+const ARRANQUES_NOMINALES_MINERD = /^(ticket|exit\s+ticket|reflexi[oó]n|metacognici[oó]n|socializaci[oó]n|portafolio|evaluaci[oó]n|pregunta|recurso|hoja|ficha|pizarra)\b/i
+const ARRANQUES_PROHIBIDOS_MINERD = /^(los\s|el\s+docente|la\s+docente|se\s)/i
+const CLAVES_ACTIVIDAD_MINERD = new Set([
+  'actividad', 'actividades', 'actividadEnganche', 'retroalimentacionPrevia',
+  'saberesPrevios', 'inicio', 'desarrollo', 'cierre',
+])
+
+function normalizarVozMINERD(texto = '') {
+  const original = String(texto || '').replace(/^\s*[-•\d.)]+\s*/, '').replace(/\s+/g, ' ').trim()
+  if (!original) return original
+  const primera = (original.split(/\s+/)[0] || '').replace(/[.,:;!¡¿?]+$/, '')
+  const canonica = primera === 'Retroalimentación' || primera === 'Recuperación'
+  const verboOk = /^[A-ZÁÉÍÓÚÜÑ]/.test(primera) && /n$/.test(primera) && !ARRANQUES_NOMINALES_MINERD.test(original)
+  if (!ARRANQUES_PROHIBIDOS_MINERD.test(original) && (canonica || verboOk)) return original
+
+  const cap = (value) => {
+    const t = String(value || '').replace(/\s+/g, ' ').trim()
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : t
+  }
+  const reglas = [
+    [/^los\s+estudiantes\s+(responden|observan|escuchan|elaboran|socializan|practican|identifican|comparan|guardan|completan|registran|reflexionan|relacionan|organizan|presentan|leen|escriben|dibujan|clasifican|formulan)\b/i, '$1'],
+    [/^ticket(?:\s+de\s+salida|\s+final)?\b[:：-]?\s*/i, 'Completan un ticket de salida '],
+    [/^exit\s+ticket\b[:：-]?\s*/i, 'Completan un ticket de salida '],
+    [/^pregunta(?:\s+final)?\b[:：-]?\s*/i, 'Responden una pregunta final '],
+    [/^reflexi[oó]n\b[:：-]?\s*/i, 'Reflexionan '],
+    [/^metacognici[oó]n\b[:：-]?\s*/i, 'Reflexionan '],
+    [/^socializaci[oó]n\b[:：-]?\s*/i, 'Socializan '],
+    [/^puesta\s+en\s+com[uú]n\b[:：-]?\s*/i, 'Socializan '],
+    [/^portafolio\b[:：-]?\s*/i, 'Guardan la evidencia en el portafolio '],
+    [/^evaluaci[oó]n\b[:：-]?\s*/i, 'Completan una evaluación formativa '],
+    [/^se\s+/i, 'Realizan '],
+  ]
+  for (const [regex, replacement] of reglas) {
+    if (regex.test(original)) return cap(original.replace(regex, replacement))
+  }
+  if (/^(el|la)\s+docente\s+/i.test(original)) {
+    return cap(original.replace(/^(el|la)\s+docente\s+/i, 'Observan '))
+  }
+  return `Realizan ${original.charAt(0).toLowerCase()}${original.slice(1)}`
+}
+
+function repararVozEnValor(value, key = '', dentroDeActividad = false) {
+  let cambios = 0
+  const claveActividad = CLAVES_ACTIVIDAD_MINERD.has(String(key || '')) || dentroDeActividad
+  if (typeof value === 'string') {
+    if (!claveActividad && !ARRANQUES_NOMINALES_MINERD.test(value) && !ARRANQUES_PROHIBIDOS_MINERD.test(value)) {
+      return { value, cambios }
+    }
+    const next = normalizarVozMINERD(value)
+    return { value: next, cambios: next !== value ? 1 : 0 }
+  }
+  if (Array.isArray(value)) {
+    const arr = value.map((item) => {
+      const r = repararVozEnValor(item, key, claveActividad)
+      cambios += r.cambios
+      return r.value
+    })
+    return { value: arr, cambios }
+  }
+  if (value && typeof value === 'object') {
+    const out = {}
+    Object.entries(value).forEach(([k, v]) => {
+      const r = repararVozEnValor(v, k, claveActividad)
+      cambios += r.cambios
+      out[k] = r.value
+    })
+    return { value: out, cambios }
+  }
+  return { value, cambios }
+}
+
+function textoAValorCorreccion(texto = '') {
+  const t = String(texto || '').trim()
+  if (!t) return null
+  try { return extraerJson(t) } catch {}
+  return t.split(/\n+/).map((line) => line.trim()).filter(Boolean)
+}
+
 async function cargarGatewayConfig() {
   if (!db) return { models: {}, priority: [] }
   try {
@@ -589,6 +667,43 @@ export default function AdminPotenteIA() {
     }
   }
 
+  const repararVozMINERDAhora = async () => {
+    setCorrigiendoJson(true)
+    setMensajeCorreccion('')
+    setSalidaCorreccion('')
+    setJsonCorregido(null)
+    setValorCorregido(null)
+    setViolacionesContrato([])
+    try {
+      const base = fuenteId ? (jsonActual || await cargarJsonFuente(fuenteId)) : null
+      const valorEntrada = textoAValorCorreccion(textoCorreccion) ?? (base ? getByPath(base, seccionCorreccion) : null)
+      if (valorEntrada == null) {
+        throw new Error('Carga una fuente o pega actividades/JSON para reparar.')
+      }
+      const reparado = repararVozEnValor(valorEntrada)
+      setValorCorregido(reparado.value)
+      setSalidaCorreccion(JSON.stringify(reparado.value, null, 2))
+
+      if (!base) {
+        setMensajeCorreccion(`Reparación lista: ${reparado.cambios} cambio(s) de voz MINERD. Revisa el resultado y pégalo donde corresponda.`)
+        return
+      }
+
+      const nextJson = setByPath(base, seccionCorreccion, reparado.value)
+      const validacion = validateJsonSobre(JSON.stringify(nextJson))
+      if (!validacion.parsed) throw new Error(validacion.error || 'No se pudo validar el JSON corregido.')
+      setJsonCorregido(validacion.parsed)
+      setViolacionesContrato(validacion.violaciones || [])
+      setMensajeCorreccion(validacion.ok
+        ? `Reparación lista: ${reparado.cambios} cambio(s) de voz MINERD. Revisa y pulsa "Aplicar al Banco".`
+        : `La voz fue reparada (${reparado.cambios} cambio(s)), pero el JSON aún viola el contrato curricular (${(validacion.violaciones || []).length || '?'} violaciones).`)
+    } catch (err) {
+      setMensajeCorreccion(`No se pudo reparar la voz MINERD: ${err.message || err}`)
+    } finally {
+      setCorrigiendoJson(false)
+    }
+  }
+
   const aplicarCorreccionJson = async () => {
     if (!fuenteId || !jsonCorregido) return
     setAplicandoJson(true)
@@ -889,6 +1004,9 @@ export default function AdminPotenteIA() {
               <input className="admin-form-input" type="file" onChange={agregarArchivoCorreccion} style={{ maxWidth: 320 }} />
               <button className="admin-btn admin-btn-primary" onClick={prepararCorreccionJson} disabled={!fuenteId || !textoCorreccion.trim() || corrigiendoJson}>
                 {corrigiendoJson ? 'Preparando...' : 'Preparar corrección JSON'}
+              </button>
+              <button className="admin-btn admin-btn-secondary" onClick={repararVozMINERDAhora} disabled={corrigiendoJson || (!fuenteId && !textoCorreccion.trim())}>
+                Reparar voz MINERD ahora
               </button>
               <button className="admin-btn admin-btn-secondary" onClick={aplicarCorreccionJson} disabled={!jsonCorregido || aplicandoJson || violacionesContrato.length > 0}>
                 {aplicandoJson ? 'Aplicando...' : 'Aplicar al Banco'}
