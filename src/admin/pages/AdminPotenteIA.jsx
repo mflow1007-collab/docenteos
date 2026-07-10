@@ -345,28 +345,8 @@ export default function AdminPotenteIA() {
 
   useEffect(() => { cargarBancos() }, [])
 
-  const cargarFuentes = async () => {
-    if (!db) return []
-    const snap = await getDocs(query(collection(db, 'knowledgeSources'), limit(200)))
-    const items = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((f) => f.active !== false && (f.curricularContentId || f.structuredPayload || f.contentType))
-      .sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'es'))
-    setFuentes(items)
-    let sourceFromSession = ''
-    try { sourceFromSession = sessionStorage.getItem('docenteos_potente_ia_source_id') || '' } catch {}
-    if (sourceFromSession && items.some((f) => f.id === sourceFromSession)) {
-      setFuenteId(sourceFromSession)
-      cargarJsonFuente(sourceFromSession).catch(() => {})
-      try { sessionStorage.removeItem('docenteos_potente_ia_source_id') } catch {}
-    } else if (!fuenteId && items[0]) {
-      setFuenteId(items[0].id)
-    }
-    return items
-  }
-
-  useEffect(() => { cargarFuentes() }, [])
-
+  // Declarada ANTES de cargarFuentes, que la invoca (evita el acceso a una
+  // const antes de su declaración — bug real de lint/runtime)
   const cargarJsonFuente = async (id = fuenteId) => {
     setMensajeCorreccion('')
     setJsonActual(null)
@@ -388,6 +368,28 @@ export default function AdminPotenteIA() {
     setJsonActual(payload)
     return payload
   }
+
+  const cargarFuentes = async () => {
+    if (!db) return []
+    const snap = await getDocs(query(collection(db, 'knowledgeSources'), limit(200)))
+    const items = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((f) => f.active !== false && (f.curricularContentId || f.structuredPayload || f.contentType))
+      .sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'es'))
+    setFuentes(items)
+    let sourceFromSession = ''
+    try { sourceFromSession = sessionStorage.getItem('docenteos_potente_ia_source_id') || '' } catch {}
+    if (sourceFromSession && items.some((f) => f.id === sourceFromSession)) {
+      setFuenteId(sourceFromSession)
+      cargarJsonFuente(sourceFromSession).catch(() => {})
+      try { sessionStorage.removeItem('docenteos_potente_ia_source_id') } catch {}
+    } else if (!fuenteId && items[0]) {
+      setFuenteId(items[0].id)
+    }
+    return items
+  }
+
+  useEffect(() => { cargarFuentes() }, [])
 
   const agregarArchivos = async (event) => {
     const files = Array.from(event.target.files || [])

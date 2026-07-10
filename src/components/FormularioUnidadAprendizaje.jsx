@@ -15,6 +15,7 @@ import {
   getAvailableCurricularScopes,
   getCurricularContentForUnit,
   temasOficialesDeMalla,
+  esMismoGradoEscolar,
 } from "../services/bancoConocimientoService.js";
 import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema, coincideContextoTemaTrabajado } from "../services/curriculumCombinacionService";
 
@@ -223,45 +224,63 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
     return () => { cancelado = true; };
   }, []);
 
+  // FALLBACK ABIERTO: el filtrado por scopes es azúcar de UX — quien aplica la
+  // regla es el CANDADO al resolver la malla. Si los scopes llegan vacíos
+  // (reglas sin publicar, vínculos rotos, red), el formulario NUNCA queda
+  // muerto: se ofrece el catálogo completo y el candado decide después.
+  const sinScopes = !cargandoMallas && mallasDisponibles.length === 0;
+
   const areasDisponibles = useMemo(() => {
+    if (sinScopes) return AREAS;
     const activas = new Set(
       mallasDisponibles
         .map((scope) => scope.area)
         .filter(Boolean)
         .map(normalizarClave)
     );
-    return AREAS.filter((a) => activas.has(normalizarClave(a)));
-  }, [mallasDisponibles]);
+    const filtradas = AREAS.filter((a) => activas.has(normalizarClave(a)));
+    return filtradas.length ? filtradas : AREAS;
+  }, [mallasDisponibles, sinScopes]);
 
   const asignaturasDisponibles = useMemo(() => {
     if (!area) return [];
     const asignaturasBase = getAsignaturas(area);
-    return asignaturasBase.filter((asig) => (
+    if (sinScopes) return asignaturasBase;
+    const filtradas = asignaturasBase.filter((asig) => (
       mallasDisponibles.some((scope) => scopeHabilitaAsignatura(scope, area, asig))
     ));
-  }, [area, mallasDisponibles]);
+    return filtradas.length ? filtradas : asignaturasBase;
+  }, [area, mallasDisponibles, sinScopes]);
 
   const areaTieneMultiplesAsignaturas = asignaturasDisponibles.length > 1
     || tieneMultiplesAsignaturas(area);
 
   const gradosDisponibles = useMemo(() => {
+    if (sinScopes) return GRADOS;
     const candidatos = mallasDisponibles.filter((scope) => {
       return scopeHabilitaAsignatura(scope, area, asignatura);
     });
-    const labels = [...new Set(candidatos.map(gradoCompletoDesdeMalla).filter(Boolean))];
-    return GRADOS.filter((g) => labels.includes(g.grado));
-  }, [area, asignatura, mallasDisponibles]);
+    if (!candidatos.length) return GRADOS;
+    // Coincidencia NORMALIZADA por número de grado + nivel: los docs reales
+    // traen variantes ("1er", "Secundario") que jamás igualan la etiqueta
+    // exacta del catálogo ("1ro Secundaria")
+    const filtrados = GRADOS.filter((g) =>
+      candidatos.some((scope) => esMismoGradoEscolar(scope, g.grado, g.nivel)));
+    return filtrados.length ? filtrados : GRADOS;
+  }, [area, asignatura, mallasDisponibles, sinScopes]);
 
+  // La limpieza de selección solo corre con scopes REALES cargados; con
+  // fallback abierto nada se borra (todo existe en el catálogo completo)
   useEffect(() => {
-    if (cargandoMallas || !grado) return;
+    if (cargandoMallas || sinScopes || !grado) return;
     const existe = gradosDisponibles.some((g) => g.grado === grado);
     if (!existe) {
       onChange({ ...datos, grado: "", nivel: "", ciclo: "Primer Ciclo" });
     }
-  }, [cargandoMallas, grado, gradosDisponibles, datos, onChange]);
+  }, [cargandoMallas, sinScopes, grado, gradosDisponibles, datos, onChange]);
 
   useEffect(() => {
-    if (cargandoMallas || !area) return;
+    if (cargandoMallas || sinScopes || !area) return;
     const existeArea = areasDisponibles.some((a) => normalizarClave(a) === normalizarClave(area));
     if (!existeArea) {
       onChange({ ...datos, area: "", asignatura: "", grado: "", nivel: "", ciclo: "Primer Ciclo" });
@@ -272,7 +291,7 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
     if (!existeAsignatura) {
       onChange({ ...datos, asignatura: "", grado: "", nivel: "", ciclo: "Primer Ciclo" });
     }
-  }, [cargandoMallas, area, asignatura, areasDisponibles, asignaturasDisponibles, datos, onChange]);
+  }, [cargandoMallas, sinScopes, area, asignatura, areasDisponibles, asignaturasDisponibles, datos, onChange]);
 
   useEffect(() => {
     const texto = (titulo || "").trim();
