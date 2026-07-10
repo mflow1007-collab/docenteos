@@ -869,9 +869,18 @@ const crearErrorCompatibilidadCurricular = ({ seleccion, documento, diferencias 
 const validarCompatibilidadCurricularPdf = ({ paginas = [], textoPdf = '', contexto = {} } = {}) => {
   const seleccion = construirSeleccionCurricularEstricta(contexto);
   const documento = extraerMetadataDocumentalPdf({ paginas, textoPdf, contexto });
+  if (contexto.tipoDocumento === 'registro_minerd') {
+    return {
+      ok: true,
+      seleccion,
+      documento,
+      modo: 'registro_minerd',
+      advertencia: 'Registro MINERD: se omite el bloqueo estricto de compatibilidad curricular porque es un documento complementario.',
+    };
+  }
   const diferencias = [];
 
-  if (contexto.tipoDocumento !== 'registro_minerd' && !documento.rangoExacto) {
+  if (!documento.rangoExacto) {
     diferencias.push({
       key: 'malla',
       label: 'Malla exacta',
@@ -885,11 +894,6 @@ const validarCompatibilidadCurricularPdf = ({ paginas = [], textoPdf = '', conte
   Object.keys(labelsCompatibilidadCurricular).forEach((key) => {
     const esperado = seleccion[key];
     const detectado = documento[key];
-    const permiteNoConfirmadoEnRegistro = contexto.tipoDocumento === 'registro_minerd'
-      && ['disenoCurricular', 'anioCurriculo'].includes(key)
-      && esperado
-      && !detectado;
-    if (permiteNoConfirmadoEnRegistro) return;
     if (!esperado || !detectado || normalizarCampoCompatibilidad(key, esperado) !== normalizarCampoCompatibilidad(key, detectado)) {
       diferencias.push({
         key,
