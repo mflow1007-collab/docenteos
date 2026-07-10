@@ -1,5 +1,5 @@
 import {
-  collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc,
+  collection, addDoc, getDocs, getDoc, doc, updateDoc,
   serverTimestamp, query, where, orderBy, limit, writeBatch,
 } from 'firebase/firestore';
 import {
@@ -150,39 +150,51 @@ export const getKnowledgeSources = async (filters = {}) => {
   }
 };
 
+// Guards de fuente↔contenido. Devuelve null cuando las fuentes no se pueden
+// leer (reglas, red): null = "sin información de guards" → NO se filtra y
+// NUNCA se bloquea al docente por esta capa (la clave estricta de resolución
+// nivel+grado+subject+contentType sigue aplicando siempre).
 const getActiveMallaSourceGuards = async () => {
-  if (!db) return { sourceIds: new Set(), contentIds: new Set(), contentToSource: new Map() };
-  const snap = await getDocs(query(
-    collection(db, COL),
-    where('active', '==', true),
-    limit(500),
-  ));
-  const guards = { sourceIds: new Set(), contentIds: new Set(), contentToSource: new Map() };
-  snap.docs.forEach((d) => {
-    const source = { id: d.id, ...d.data() };
-    const sourceType = normCascade(source.contentType || source.structuredPayload?.contentType || '');
-    const isMalla = sourceType === 'malla curricular' || Boolean(source.curricularContentId);
-    if (!isMalla) return;
-    guards.sourceIds.add(source.id);
-    if (source.curricularContentId) {
-      const contentId = String(source.curricularContentId);
-      guards.contentIds.add(contentId);
-      guards.contentToSource.set(contentId, source.id);
-    }
-  });
-  return guards;
+  if (!db) return null;
+  try {
+    const snap = await getDocs(query(
+      collection(db, COL),
+      where('active', '==', true),
+      limit(500),
+    ));
+    const guards = { sourceIds: new Set(), contentIds: new Set(), contentToSource: new Map() };
+    snap.docs.forEach((d) => {
+      const source = { id: d.id, ...d.data() };
+      const sourceType = normCascade(source.contentType || source.structuredPayload?.contentType || '');
+      const isMalla = sourceType === 'malla curricular' || Boolean(source.curricularContentId);
+      if (!isMalla) return;
+      guards.sourceIds.add(source.id);
+      if (source.curricularContentId) {
+        const contentId = String(source.curricularContentId);
+        guards.contentIds.add(contentId);
+        guards.contentToSource.set(contentId, source.id);
+      }
+    });
+    return guards;
+  } catch (err) {
+    console.warn('[bancoConocimiento] guards ilegibles (no se filtra por fuente):', err?.code || err?.message);
+    return null;
+  }
 };
 
-const hasActiveMallaSource = (docItem = {}, guards) => {
+// Exportada para tests. Regla: el contenido es visible si (a) una fuente
+// activa lo referencia por curricularContentId (backlink), o (b) HUÉRFANO
+// RESCATADO: su propio sourceId apunta a una fuente-malla activa (docs
+// creados antes de que existiera el backlink). guards null → no filtrar.
+export const hasActiveMallaSource = (docItem = {}, guards) => {
   if (!guards) return true;
   const id = String(docItem.id || '');
   const sourceId = String(docItem.sourceId || '');
-  // Regla estricta: planificación solo lee contenido enlazado a una fuente
-  // visible del Banco de Conocimiento. No se acepta coincidencia suelta por
-  // nivel/grado/área/asignatura porque puede distorsionar la malla oficial.
-  if (!id || !guards.contentIds.has(id)) return false;
-  const expectedSourceId = guards.contentToSource.get(id);
-  return !expectedSourceId || !sourceId || sourceId === expectedSourceId;
+  if (id && guards.contentIds.has(id)) {
+    const expectedSourceId = guards.contentToSource.get(id);
+    return !expectedSourceId || !sourceId || sourceId === expectedSourceId;
+  }
+  return Boolean(sourceId && guards.sourceIds.has(sourceId));
 };
 
 export const getAvailableCurricularScopes = async () => {
@@ -271,7 +283,11 @@ const shouldCascadeCurricular = (item = {}) => {
     || Boolean(item.curricularContentId);
 };
 
-const deleteRefsInBatches = async (refs = []) => {
+// Regla DocenteOS "nunca destructivo": la cascada ARCHIVA (active:false +
+// status archived), no borra físicamente. Todo lector del flujo filtra
+// active==true, así que el efecto operativo es idéntico — pero reversible
+// desde la consola si se archivó una fuente equivocada.
+const archiveRefsInBatches = async (refs = [], razon = 'cascade') => {
   const unique = [];
   const seen = new Set();
   refs.forEach((ref) => {
@@ -280,9 +296,16 @@ const deleteRefsInBatches = async (refs = []) => {
     unique.push(ref);
   });
 
+  const marca = {
+    active: false,
+    status: 'archived',
+    archivedAt: serverTimestamp(),
+    archivedBy: currentUser()?.uid || null,
+    archiveReason: razon,
+  };
   for (let i = 0; i < unique.length; i += 450) {
     const batch = writeBatch(db);
-    unique.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+    unique.slice(i, i + 450).forEach((ref) => batch.update(ref, marca));
     await batch.commit();
   }
   return unique.length;
@@ -293,7 +316,6 @@ export const deleteKnowledgeSource = async (id) => {
   const sourceRef = doc(db, COL, id);
   const sourceSnap = await getDoc(sourceRef);
   if (!sourceSnap.exists()) {
-    await deleteDoc(sourceRef);
     return { deletedSources: 0, deletedCurricularContent: 0 };
   }
 
@@ -305,7 +327,7 @@ export const deleteKnowledgeSource = async (id) => {
     refsCurricular.push(doc(db, 'curricularContent', String(source.curricularContentId)));
   }
 
-  // Siempre borra el contenido que nació de esta fuente.
+  // Siempre archiva el contenido que nació de esta fuente.
   const ownContentSnap = await getDocs(query(
     collection(db, 'curricularContent'),
     where('sourceId', '==', id),
@@ -313,9 +335,9 @@ export const deleteKnowledgeSource = async (id) => {
   ));
   ownContentSnap.docs.forEach((d) => refsCurricular.push(d.ref));
 
-  // Para mallas curriculares: borrar todo el alcance exacto nivel+grado+area+asignatura.
-  // Esto evita que queden mallas fantasma si se cargó un JSON equivocado y luego
-  // se intenta actualizar el grado desde el Banco de Conocimiento.
+  // Para mallas curriculares: ARCHIVAR todo el alcance exacto
+  // nivel+grado+area+asignatura. Evita mallas fantasma si se cargó un JSON
+  // equivocado, sin destruir datos (reversible poniendo active:true).
   if (shouldCascadeCurricular(source) && source.level && source.grade && source.area && source.subject) {
     const [sourcesByGrade, contentByGrade] = await Promise.all([
       getDocs(query(collection(db, COL), where('grade', '==', source.grade), limit(300))),
@@ -351,8 +373,9 @@ export const deleteKnowledgeSource = async (id) => {
     });
   }
 
-  const deletedSources = await deleteRefsInBatches(refsSources);
-  const deletedCurricularContent = await deleteRefsInBatches(refsCurricular);
+  const deletedSources = await archiveRefsInBatches(refsSources, `archivo de fuente ${id}`);
+  const deletedCurricularContent = await archiveRefsInBatches(refsCurricular, `cascada de fuente ${id}`);
+  // Nombres de retorno conservados por compatibilidad: son ARCHIVADOS
   return { deletedSources, deletedCurricularContent };
 };
 

@@ -16,7 +16,8 @@
 
 import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
-import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "../src/services/bancoConocimientoService.js";
+import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
+import { coincideContextoTemaTrabajado } from "../src/services/curriculumCombinacionService.js";
 
 let pasadas = 0;
 let falladas = 0;
@@ -581,6 +582,64 @@ check("división inexacta sin vínculos → NO inventa asociación (indicadores 
   const inds = [{ id: "I1", descripcion: "Ind 1" }, { id: "I2", descripcion: "Ind 2" }, { id: "I3", descripcion: "Ind 3" }];
   const detalle = construirCompetenciasDetalle(comps, inds, []);
   if (detalle.some((c) => c.indicadores.length)) throw new Error("asoció indicadores adivinando (3/2 no es exacto)");
+});
+
+// ─── Cirugía del Banco: bypass de nivel, guards y temas trabajados ───────────
+
+console.log("Cirugía del Banco — bypass, guards y contexto:");
+
+check("BYPASS cerrado: nivel rancio 'Secundaria' + grado '1ro Primaria' → candado (el grado manda)", () => {
+  const banco = [{
+    id: "ING-1", contentType: "malla_curricular", level: "Secundario", grade: "1ro",
+    subject: "Inglés", area: "Lenguas Extranjeras", payload: { temas: TEMAS_ING1 },
+  }];
+  const doc = seleccionarMallaParaUnidad(banco, { nivel: "Secundaria", grado: "1ro Primaria" });
+  if (doc) throw new Error("resolvió Secundaria para un grado de Primaria con nivel rancio");
+  const ok = seleccionarMallaParaUnidad(banco, { nivel: "Secundaria", grado: "1ro Secundaria" });
+  if (!ok) throw new Error("dejó de resolver el caso legítimo");
+});
+
+check("guards: backlink correcto pasa; huérfano con sourceId hacia fuente-malla activa RESCATADO", () => {
+  const guards = {
+    sourceIds: new Set(["src-A", "src-B"]),
+    contentIds: new Set(["content-1"]),
+    contentToSource: new Map([["content-1", "src-A"]]),
+  };
+  if (!hasActiveMallaSource({ id: "content-1", sourceId: "src-A" }, guards)) throw new Error("backlink correcto rechazado");
+  if (hasActiveMallaSource({ id: "content-1", sourceId: "src-X" }, guards)) throw new Error("backlink a otra fuente aceptado");
+  if (!hasActiveMallaSource({ id: "content-2", sourceId: "src-B" }, guards)) throw new Error("huérfano con sourceId válido no rescatado");
+  if (hasActiveMallaSource({ id: "content-3", sourceId: "src-Z" }, guards)) throw new Error("contenido sin vínculo alguno aceptado");
+});
+
+check("guards null (fuentes ilegibles) → no filtra, nunca bloquea", () => {
+  if (!hasActiveMallaSource({ id: "x", sourceId: "" }, null)) throw new Error("guards null bloqueó contenido");
+});
+
+check("tema trabajado en 1ro Secundaria NO marca 1ro Primaria (ni 2do, ni otra asignatura)", () => {
+  const registro = { texto: "Parts of the House", nivel: "Secundaria", grado: "1ro Secundaria", asignatura: "Inglés", area: "Lenguas Extranjeras" };
+  if (!coincideContextoTemaTrabajado(registro, { nivel: "Secundaria", grado: "1ro Secundaria", asignatura: "Inglés" })) {
+    throw new Error("no coincidió en su propio contexto");
+  }
+  if (coincideContextoTemaTrabajado(registro, { nivel: "Primaria", grado: "1ro Primaria", asignatura: "Inglés" })) {
+    throw new Error("marcó trabajado en Primaria");
+  }
+  if (coincideContextoTemaTrabajado(registro, { nivel: "Secundaria", grado: "2do Secundaria", asignatura: "Inglés" })) {
+    throw new Error("marcó trabajado en otro grado");
+  }
+  if (coincideContextoTemaTrabajado(registro, { nivel: "Secundaria", grado: "1ro Secundaria", asignatura: "Francés" })) {
+    throw new Error("marcó trabajado en otra asignatura");
+  }
+});
+
+check("contexto: nivel derivado del grado cuando falta; irresoluble → no coincide", () => {
+  const registro = { texto: "Daily Routine", grado: "1ro Secundaria", asignatura: "Inglés" };
+  if (!coincideContextoTemaTrabajado(registro, { grado: "1ro Secundaria", asignatura: "Inglés" })) {
+    throw new Error("no derivó el nivel del grado");
+  }
+  const sinNivel = { texto: "Daily Routine", grado: "1ro", asignatura: "Inglés" };
+  if (coincideContextoTemaTrabajado(sinNivel, { grado: "1ro Primaria", asignatura: "Inglés" })) {
+    throw new Error("coincidió con contexto irresoluble (grado sin nivel)");
+  }
 });
 
 // ─── Capa 2: enriquecimiento_tema (tema oficial → subconjunto de la malla) ───

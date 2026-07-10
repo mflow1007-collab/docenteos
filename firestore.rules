@@ -246,9 +246,14 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // ── Banco de Conocimiento (admin) ────────────────────────────────────────
+    // ── Banco de Conocimiento ────────────────────────────────────────────────
+    // Lectura para autenticados: los guards de resolución de malla
+    // (getActiveMallaSourceGuards) corren en el flujo del DOCENTE al generar
+    // y en el Asesor Pedagógico. Son metadatos de fuentes oficiales, no datos
+    // sensibles. Escritura solo admin.
     match /knowledgeSources/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if isAuth();
+      allow write: if isAdmin();
     }
     // Contenido curricular estructurado — docentes leen para generar planificaciones
     match /curricularContent/{docId} {

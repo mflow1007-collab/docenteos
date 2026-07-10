@@ -4,7 +4,7 @@
  */
 
 import { getAsignaturas, tieneMultiplesAsignaturas } from "../planning/areaAsignaturaMap.js";
-import { normalizarTema } from "../services/curriculumCombinacionService.js";
+import { normalizarTema, coincideContextoTemaTrabajado } from "../services/curriculumCombinacionService.js";
 
 const EJES_OPCIONES = [
   { value: "Desarrollo Sostenible",         color: "#059669" },
@@ -74,9 +74,15 @@ export default function FormularioPlanificacion({
   periodosClasePorDia = {},
   setPeriodosClasePorDia,
 }) {
-  // Temas que el docente ya trabajó (según su historial guardado).
+  // Temas que el docente ya trabajó (según su historial guardado), SOLO del
+  // mismo contexto nivel+grado+asignatura (el nivel se deriva del grado).
   // Solo se marcan visualmente — el docente puede volver a elegirlos.
-  const trabajadosNorm = new Set(temasTrabajados.map(normalizarTema));
+  const trabajadosNorm = new Set(
+    temasTrabajados
+      .filter((r) => r && typeof r === "object"
+        && coincideContextoTemaTrabajado(r, { grado, asignatura: asignatura || area, area }))
+      .map((r) => normalizarTema(r.texto))
+  );
   const temaYaTrabajado = (t) => trabajadosNorm.has(normalizarTema(t));
 
   const toggleDiaClase = (dia) => {

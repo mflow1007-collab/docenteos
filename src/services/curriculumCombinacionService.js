@@ -156,6 +156,39 @@ const claveTema = (tema) => {
 /** Normaliza un tema para comparaciones (minúsculas, sin acentos ni espacios dobles) */
 export const normalizarTema = _norm;
 
+// ─── Temas trabajados: coincidencia por CONTEXTO (nivel+grado+asignatura) ────
+// Un tema trabajado en 1ro SECUNDARIA no está "trabajado" en 1ro PRIMARIA.
+// El nivel se toma del campo nivel o, si falta, del texto del grado
+// ("1ro Secundaria"). Contexto irresoluble → NO coincide (nunca marca cruzado).
+
+const _nivelDesdeTexto = (t) => {
+  const n = _norm(t);
+  if (n.includes("secundari")) return "secundaria";
+  if (n.includes("primari")) return "primaria";
+  if (n.includes("inicial") || n.includes("kinder") || n.includes("preprimari")) return "inicial";
+  return "";
+};
+
+const _nivelDeContexto = (ctx = {}) =>
+  _nivelDesdeTexto(ctx.nivel) || _nivelDesdeTexto(ctx.grado);
+
+const _gradoCortoNorm = (g) => _norm(String(g || "").split(" ")[0]);
+
+export const coincideContextoTemaTrabajado = (registro = {}, seleccion = {}) => {
+  const nivelReg = _nivelDeContexto(registro);
+  const nivelSel = _nivelDeContexto(seleccion);
+  if (!nivelReg || !nivelSel || nivelReg !== nivelSel) return false;
+
+  const gradoReg = _gradoCortoNorm(registro.grado);
+  const gradoSel = _gradoCortoNorm(seleccion.grado);
+  if (!gradoReg || !gradoSel || gradoReg !== gradoSel) return false;
+
+  const asigsReg = [registro.asignatura, registro.area].map(_norm).filter(Boolean);
+  const asigsSel = [seleccion.asignatura, seleccion.area].map(_norm).filter(Boolean);
+  if (!asigsReg.length || !asigsSel.length) return false;
+  return asigsReg.some((a) => asigsSel.includes(a));
+};
+
 // Vocabulario ES/EN por tema oficial (Lenguas Extranjeras 1ro-3ro; las claves
 // funcionan igual si otras áreas comparten nombres de tema)
 const TEMA_KEYWORDS = {

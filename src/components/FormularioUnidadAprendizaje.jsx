@@ -16,7 +16,7 @@ import {
   getCurricularContentForUnit,
   temasOficialesDeMalla,
 } from "../services/bancoConocimientoService.js";
-import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema } from "../services/curriculumCombinacionService";
+import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema, coincideContextoTemaTrabajado } from "../services/curriculumCombinacionService";
 
 const GRADOS = [
   { grado: "Pre-Kínder", nivel: "Inicial" }, { grado: "Kínder", nivel: "Inicial" }, { grado: "Preprimario", nivel: "Inicial" },
@@ -298,11 +298,14 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
 
       try {
         for (const areaCandidata of candidatas) {
-          // Clave estricta con nivel: el asesor jamás lee la malla de otro nivel
-          const doc = await getCurricularContentForUnit(areaCandidata, gradoCorto(grado), nivel);
+          // Clave estricta con nivel: se pasa el GRADO COMPLETO ("1ro Primaria")
+          // y el nivel EFECTIVO del grado seleccionado — el campo nivel del
+          // formulario puede quedar rancio (bypass real: resolvía Secundaria
+          // para Primaria). El nivel embebido en el grado manda en el resolver.
+          const doc = await getCurricularContentForUnit(areaCandidata, grado, nivelEfectivo);
           if (!doc) continue;
           docDetectado = docDetectado || doc;
-          if (curriculoCoincideConSeleccion({ doc, nivel, grado, area, asignatura: asignatura || area })) {
+          if (curriculoCoincideConSeleccion({ doc, nivel: nivelEfectivo, grado, area, asignatura: asignatura || area })) {
             curriculo = normalizarCurriculoParaAsesor(doc);
             break;
           }
@@ -331,7 +334,7 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
           setMostrarPropia(false);
           setEstadoCurriculoAsesor({
             status: "missing",
-            mensaje: `No existe una malla curricular oficial exacta para ${nivel} · ${grado} · ${area}${asignatura ? ` · ${asignatura}` : ""}.${detalleDetectado}`,
+            mensaje: `No existe una malla curricular oficial exacta para ${nivelEfectivo || nivel} · ${grado} · ${area}${asignatura ? ` · ${asignatura}` : ""}.${detalleDetectado}`,
           });
           return;
         }
@@ -351,9 +354,15 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
   // Temas ya trabajados (del historial del docente), resueltos también contra
   // la malla: si trabajó "Parts of the House", marca "Vivienda, entorno y
   // ciudad" como trabajado. Solo marca visualmente — nunca bloquea.
+  // Solo cuentan los registros del MISMO contexto (nivel+grado+asignatura):
+  // "Parts of the House" trabajado en 1ro Secundaria no marca 1ro Primaria.
   const trabajadosResueltos = (() => {
     const s = new Set();
-    temasTrabajados.forEach((usado) => {
+    const seleccionContexto = { nivel: nivelEfectivo, grado, asignatura: asignatura || area, area };
+    temasTrabajados.forEach((registro) => {
+      if (!registro || typeof registro !== "object") return; // strings legacy: sin contexto → no marcar
+      if (!coincideContextoTemaTrabajado(registro, seleccionContexto)) return;
+      const usado = registro.texto;
       s.add(normalizarTema(usado));
       if (temasMalla.length > 0) {
         const oficial = sugerirTemaOficial(usado, temasMalla);
@@ -967,7 +976,8 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
       {/* ── Estructura de la unidad ── */}
       <div className="pd-section-title">
         Estructura de la Unidad (FASES)
-        {rec && (
+        {/* Ante candado de malla no se muestra estructura recomendada */}
+        {!["missing", "error"].includes(estadoCurriculoAsesor.status) && rec && (
           <span className="ua-dur-rec-hint">
             — Recomendado: {rec.emoji} {rec.semanasRecomendadas} semanas
           </span>

@@ -224,20 +224,35 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
 
   // Temas ya trabajados por el docente (según su historial guardado).
   // Se usan para marcar visualmente — nunca para bloquear.
+  // Registros de temas trabajados CON CONTEXTO: un tema trabajado en 1ro
+  // Secundaria no está "trabajado" en 1ro Primaria. Los formularios filtran
+  // con coincideContextoTemaTrabajado (nivel+grado+asignatura).
   const temasTrabajados = useMemo(() => {
-    const lista = new Set();
+    const lista = [];
+    const vistos = new Set();
     historialPlanificaciones.forEach((item) => {
       const contenido = item?.contenido || item;
       const meta = contenido?.metadatos || {};
+      const contexto = {
+        nivel: meta.nivel || meta.nivelEducativo || "",
+        grado: meta.grado || item?.grado || "",
+        asignatura: meta.asignatura || "",
+        area: meta.area || item?.area || "",
+      };
       const candidatos = [
         meta.titulo, meta.tema, item?.tema,
         ...(Array.isArray(meta.temasIntegrados) ? meta.temasIntegrados : []),
       ];
       candidatos.forEach((t) => {
-        if (t && String(t).trim()) lista.add(String(t).trim());
+        const texto = String(t || "").trim();
+        if (!texto) return;
+        const clave = `${texto}|${contexto.nivel}|${contexto.grado}|${contexto.asignatura}|${contexto.area}`.toLowerCase();
+        if (vistos.has(clave)) return;
+        vistos.add(clave);
+        lista.push({ texto, ...contexto });
       });
     });
-    return [...lista];
+    return lista;
   }, [historialPlanificaciones]);
 
   const formatearFechaRegistro = (fecha) => {
