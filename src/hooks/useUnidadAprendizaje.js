@@ -4,7 +4,6 @@ import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
 import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
 import { applyAuditAction } from "../services/auditAcciones.js";
-import { precargarBP } from "../services/bpCache.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 
@@ -63,7 +62,6 @@ export function useUnidadAprendizaje() {
     setCargandoUnidad(true);
     setMensajeUnidad(null);
     try {
-      await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
       const resultado = await generarUnidadAprendizaje({
         ...unidadDatos,
         // Rótulo del documento según el tipo elegido en la página
@@ -177,7 +175,6 @@ export function useUnidadAprendizaje() {
     setCargandoUnidad(true);
     try {
       await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
-      await precargarBP(unidadDatos.area || "", unidadDatos.grado || "");
       const resultado = await generarUnidadAprendizaje({
         ...unidadDatos,
         tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",

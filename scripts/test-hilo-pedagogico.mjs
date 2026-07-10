@@ -7,7 +7,7 @@
  * Ejecutar:  node scripts/test-hilo-pedagogico.mjs
  *
  * Usa el núcleo puro real (src/services/hiloPedagogico.js) y el JSON real del
- * Diseño Curricular (curriculum/secundaria/primer_ciclo/1ro/ingles.json).
+ * Diseño Curricular (scripts/fixtures/curriculum/secundaria/primer_ciclo/1ro/ingles.json).
  * La persistencia se simula con un FakeFirestore que reproduce el contrato de
  * los servicios (mismas rutas, mismos IDs deterministas, misma idempotencia).
  * Lo que NO cubre: reglas de seguridad ni red (requiere emulador — pendiente).
@@ -81,7 +81,7 @@ console.log("\n1) FASE 1 — Planificación → capa curricular (currículo MINE
 
 const curriculo = {
   id: "secundaria__1ro__lenguas_extranjeras",
-  ...JSON.parse(readFileSync(join(raiz, "curriculum/secundaria/primer_ciclo/1ro/ingles.json"), "utf8")),
+  ...JSON.parse(readFileSync(join(raiz, "scripts/fixtures/curriculum/secundaria/primer_ciclo/1ro/ingles.json"), "utf8")),
 };
 const compCOM = curriculo.competencias.find((c) => c.id === "CE-ING-1-COM");
 assert.ok(compCOM, "El currículo real debe tener la competencia CE-ING-1-COM");
