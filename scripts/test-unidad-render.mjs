@@ -600,6 +600,35 @@ check("indicadores sin competenciaId → mapeo por bloques secuenciales (21/7 = 
   if (detalle[6].indicadores[2].codigo !== "ING-1-I21") throw new Error("bloque 7 desordenado");
 });
 
+check("CASO REAL doc ayDm2…: 8 competencias (1 basura sin específica) + 21 indicadores planos → 7 bloques de 3", () => {
+  const comps = [
+    ...Array.from({ length: 7 }, (_, i) => ({ id: `ING-1-C0${i + 1}`, especifica: `Competencia específica ${i + 1}` })),
+    { id: "ING-1-C08", especifica: "" }, // fila basura de la conversión
+  ];
+  const inds = Array.from({ length: 21 }, (_, i) => ({ id: `ING-1-I${String(i + 1).padStart(2, "0")}`, descripcion: `Indicador ${i + 1}` }));
+  const detalle = construirCompetenciasDetalle(comps, inds, ["Comunicativa"]);
+  if (detalle.length !== 7) throw new Error(`esperaba 7 competencias válidas, hay ${detalle.length}`);
+  for (const c of detalle) {
+    if (c.indicadores.length !== 3) throw new Error(`${c.codigo} esperaba 3 indicadores, tiene ${c.indicadores.length}`);
+  }
+  if (detalle[6].indicadores[2].codigo !== "ING-1-I21") throw new Error("bloques desalineados tras filtrar la basura");
+});
+
+check("fallback por Competencia Fundamental: indicadores con CF textual se asocian por nombre", () => {
+  const comps = [
+    { id: "C1", competenciaFundamental: "Comunicativa", especifica: "CE comunicativa" },
+    { id: "C2", competenciaFundamental: "Ética y Ciudadana", especifica: "CE ética" },
+  ];
+  const inds = [
+    { id: "I1", descripcion: "Responde adecuadamente.", competenciaFundamental: "Comunicativa" },
+    { id: "I2", descripcion: "Se expresa con frases breves.", competenciaFundamental: "comunicativa" },
+    { id: "I3", descripcion: "Interactúa con cortesía.", competenciaFundamental: "Ética y ciudadana" },
+  ];
+  const detalle = construirCompetenciasDetalle(comps, inds, []);
+  if (detalle[0].indicadores.length !== 2) throw new Error("no asoció por CF (comunicativa)");
+  if (detalle[1].indicadores.length !== 1) throw new Error("no asoció por CF (ética)");
+});
+
 check("división inexacta sin vínculos → NO inventa asociación (indicadores vacíos)", () => {
   const comps = [{ id: "C1", especifica: "Comp 1" }, { id: "C2", especifica: "Comp 2" }];
   const inds = [{ id: "I1", descripcion: "Ind 1" }, { id: "I2", descripcion: "Ind 2" }, { id: "I3", descripcion: "Ind 3" }];

@@ -2321,19 +2321,29 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
       descripcion: ind?.descripcion || ind?.texto || "",
     };
   };
+  const normFund = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
 
-  // Fallback 3 (corpus plano SIN competenciaId): mapeo por BLOQUES
-  // secuenciales — los corpus oficiales listan los indicadores en el orden de
-  // sus competencias (ej. ING-1: 21 indicadores / 7 competencias = bloques de
-  // 3: I01-I03 → C01, I04-I06 → C02...). Solo aplica si la división es exacta.
+  // Las conversiones a veces meten una competencia basura/vacía (ej. 8 filas
+  // cuando la Adecuación tiene 7). Se filtran ANTES de repartir: los bloques
+  // se calculan sobre las competencias VÁLIDAS (21/7 = 3 ✓, no 21/8 ✗).
+  const compsValidas = allComps.filter(
+    (c) => String(c?.especificaGrado || c?.especifica || c?.descripcion || "").trim()
+  );
+
   const indsPlanos = Array.isArray(allInds) ? allInds : [];
-  const hayVinculo = indsPlanos.some((ind) => String(ind.competenciaId || ind.competencia || "").trim());
-  const tamanoBloque = !hayVinculo && allComps.length && indsPlanos.length
-    && indsPlanos.length % allComps.length === 0
-    ? indsPlanos.length / allComps.length
+  const hayVinculo = indsPlanos.some((ind) => String(ind?.competenciaId || ind?.competencia || "").trim());
+  // Fallback 4: asociación por nombre de Competencia Fundamental cuando los
+  // indicadores planos la traen (cada CF aparece una sola vez en la Adecuación)
+  const hayFundEnInds = indsPlanos.some((ind) => normFund(ind?.competenciaFundamental));
+  // Fallback 5 (bloques secuenciales): los corpus oficiales listan los
+  // indicadores en el orden de sus competencias (I01-I03 → C01...). Solo si
+  // la división sobre las competencias VÁLIDAS es exacta.
+  const tamanoBloque = !hayVinculo && compsValidas.length && indsPlanos.length
+    && indsPlanos.length % compsValidas.length === 0
+    ? indsPlanos.length / compsValidas.length
     : 0;
 
-  return allComps.map((comp, i) => {
+  return compsValidas.map((comp, i) => {
     const anidados = Array.isArray(comp.indicadoresLogro) && comp.indicadoresLogro.length
       ? comp.indicadoresLogro
       : Array.isArray(comp.indicadores) && comp.indicadores.length
@@ -2343,21 +2353,29 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
     // Fallback v1.2: índice plano vinculado por competenciaId/competencia
     const vinculados = !anidados.length && compId
       ? indsPlanos.filter((ind) =>
-          String(ind.competenciaId || ind.competencia || "").trim() === compId)
+          String(ind?.competenciaId || ind?.competencia || "").trim() === compId)
       : [];
-    const porBloque = !anidados.length && !vinculados.length && tamanoBloque
+    const compFund = comp.competenciaFundamental || comp.fundamental || "";
+    const porFundamental = !anidados.length && !vinculados.length && hayFundEnInds && normFund(compFund)
+      ? indsPlanos.filter((ind) => normFund(ind?.competenciaFundamental) === normFund(compFund))
+      : [];
+    const porBloque = !anidados.length && !vinculados.length && !porFundamental.length && tamanoBloque
       ? indsPlanos.slice(i * tamanoBloque, (i + 1) * tamanoBloque)
       : [];
-    const fuente = anidados.length ? anidados : (vinculados.length ? vinculados : porBloque);
+    const fuente = anidados.length
+      ? anidados
+      : vinculados.length
+        ? vinculados
+        : porFundamental.length ? porFundamental : porBloque;
     return {
       // Código oficial de la competencia específica (ej. CE-LEI-1 / ING-1-C01)
       codigo: compId,
-      competenciaFundamental: comp.competenciaFundamental || comp.fundamental || compFundEf[i] || compFundEf[i % compFundEf.length] || "",
+      competenciaFundamental: compFund || compFundEf[i] || compFundEf[i % compFundEf.length] || "",
       especifica: comp.especificaGrado || comp.especifica || comp.descripcion || "",
       // El formatter acepta también strings (unidades guardadas antes)
       indicadores: fuente.map(aIndicador).filter((ind) => ind.descripcion),
     };
-  }).filter((c) => c.especifica);
+  });
 };
 
 // ─── Inicio canónico del formato MINERD (5 posiciones fijas) ─────────────────
@@ -2629,11 +2647,15 @@ export const generarUnidadAprendizaje = async (datos) => {
     const conVinculo = allInds.filter((i) => String(i?.competenciaId || i?.competencia || "").trim()).length;
     const anidados = allComps.filter((c) => (c?.indicadoresLogro || c?.indicadores || []).length).length;
     const divisionExacta = allComps.length && allInds.length && allInds.length % allComps.length === 0;
+    const listaComps = allComps.map((c, idx) =>
+      `${idx + 1}:${String(c?.id || c?.codigo || "s/id")}·${String(c?.competenciaFundamental || c?.fundamental || "sin CF").slice(0, 26)}${String(c?.especificaGrado || c?.especifica || c?.descripcion || "").trim() ? "" : "·SIN ESPECÍFICA"}`
+    ).join(" | ");
     throw new Error(
       `Malla sin indicadores asociables a sus competencias (schemaVersion ${versionMalla}, doc "${curricularDoc.id || "?"}"): ` +
       `${allComps.length} competencias (${anidados} con indicadores anidados), ${allInds.length} indicadores planos ` +
       `(${conVinculo} con competenciaId, división ${allInds.length}/${allComps.length} ${divisionExacta ? "exacta" : "INEXACTA"}). ` +
-      `Recarga la versión vigente del JSON (v1.2+) en el Banco de Conocimiento.`
+      `Competencias: [${listaComps}]. ` +
+      `Corrige el JSON en Administración → Potente IA (sección indicadoresLogro) o recarga la versión vigente (v1.2+).`
     );
   }
 
