@@ -2608,7 +2608,7 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
 
 // ─── Fila de la tabla ─────────────────────────────────────────────────────────
 
-function FuenteRow({ f, onEdit, onStatusChange, onDelete, onAdjuntarJson }) {
+function FuenteRow({ f, onEdit, onStatusChange, onDelete, onAdjuntarJson, onInspeccionManual }) {
   const siguientes = STATUS_FLOW[f.status] || [];
   const esEstructurada = (f.contentFormat || 'unstructured') === 'structured';
   const puedeAdjuntar  = f.originType !== 'json' && !esEstructurada;
@@ -2654,6 +2654,13 @@ function FuenteRow({ f, onEdit, onStatusChange, onDelete, onAdjuntarJson }) {
             </button>
           )}
 
+          {(f.contentFormat === 'structured' || f.curricularContentId || f.structuredPayload) && (
+            <button onClick={() => onInspeccionManual(f)}
+              style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#3730a3', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
+              Inspección manual
+            </button>
+          )}
+
           {siguientes.length > 0 && (
             <select
               value=""
@@ -2696,7 +2703,7 @@ const TAB_STATUSES = {
   archivadas: ['archived', 'rejected'],
 };
 
-export default function AdminBancoConocimiento() {
+export default function AdminBancoConocimiento({ onIrPotenteIA = null }) {
   const [fuentes, setFuentes]       = useState([]);
   const [cargando, setCargando]     = useState(true);
   const [tab, setTab]               = useState('todas');
@@ -2705,6 +2712,7 @@ export default function AdminBancoConocimiento() {
   const [adjuntandoA, setAdjuntandoA] = useState(null);
   const [guardando, setGuardando]   = useState(false);
   const [error, setError]           = useState('');
+  const [ultimaFuenteGuardada, setUltimaFuenteGuardada] = useState(null);
   const [filtros, setFiltros]       = useState({ nivel: '', grado: '', area: '', bankType: '', contentFormat: '' });
 
   const cargar = useCallback(async () => {
@@ -2739,6 +2747,7 @@ export default function AdminBancoConocimiento() {
     setGuardando(true);
     setError('');
     try {
+      let fuenteGuardada = null;
       if (modal === 'crear') {
         if (form.originType === 'json' && form._jsonParsed) {
           const { _jsonParsed, ...sourceData } = form;
@@ -2756,19 +2765,23 @@ export default function AdminBancoConocimiento() {
             ...(esRegistro ? { structuredPayload: _jsonParsed } : {}),
             extractionMethod: 'manual',
           });
+          fuenteGuardada = { id: sourceId, title: sourceData.title, grade: sourceData.grade, area: sourceData.area, subject: sourceData.subject };
           if (!esRegistro) {
             const contentId = await createCurricularContent({ sourceId, parsed: _jsonParsed });
             await updateKnowledgeSource(sourceId, { curricularContentId: contentId });
           }
         } else {
-          await createKnowledgeSource({ ...form, contentFormat: 'unstructured' });
+          const sourceId = await createKnowledgeSource({ ...form, contentFormat: 'unstructured' });
+          fuenteGuardada = { id: sourceId, title: form.title, grade: form.grade, area: form.area, subject: form.subject };
         }
       } else if (modal === 'editar' && editando) {
         await updateKnowledgeSource(editando.id, form);
+        fuenteGuardada = { id: editando.id, title: form.title || editando.title, grade: form.grade || editando.grade, area: form.area || editando.area, subject: form.subject || editando.subject };
       }
       await cargar();
       setModal(null);
       setEditando(null);
+      if (fuenteGuardada?.id) setUltimaFuenteGuardada(fuenteGuardada);
     } catch (err) {
       setError('Error al guardar: ' + err.message);
     } finally {
@@ -2784,6 +2797,7 @@ export default function AdminBancoConocimiento() {
       await attachJsonToSource(adjuntandoA.id, jsonText);
       await cargar();
       setModal(null);
+      setUltimaFuenteGuardada({ id: adjuntandoA.id, title: adjuntandoA.title, grade: adjuntandoA.grade, area: adjuntandoA.area, subject: adjuntandoA.subject });
       setAdjuntandoA(null);
     } catch (err) {
       setError('Error al vincular JSON: ' + err.message);
@@ -2814,6 +2828,17 @@ export default function AdminBancoConocimiento() {
 
   const abrirAdjuntarJson = (f) => { setAdjuntandoA(f); setModal('adjuntar-json'); };
 
+  const abrirInspeccionManual = (fuente = ultimaFuenteGuardada) => {
+    if (!fuente?.id) return;
+    try {
+      sessionStorage.setItem('docenteos_potente_ia_source_id', fuente.id);
+      sessionStorage.setItem('docenteos_potente_ia_source_label', `${fuente.title || 'Fuente'} · ${fuente.grade || ''} · ${fuente.subject || fuente.area || ''}`.trim());
+    } catch {
+      // No bloquea la navegación.
+    }
+    onIrPotenteIA?.();
+  };
+
   const cerrarModal = () => { setModal(null); setEditando(null); setAdjuntandoA(null); };
 
   const conteo = (tabId) => {
@@ -2841,15 +2866,28 @@ export default function AdminBancoConocimiento() {
             Carga las mallas oficiales que solicita el generador de planificación
           </p>
         </div>
-        <button
-          onClick={() => { setEditando(null); setModal('crear'); }}
-          style={{
-            background: '#1d4ed8', color: '#fff', border: 'none',
-            borderRadius: 9, padding: '10px 20px', fontWeight: 700,
-            fontSize: 14, cursor: 'pointer',
-          }}>
-          + Nueva malla
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {ultimaFuenteGuardada?.id && (
+            <button
+              onClick={() => abrirInspeccionManual()}
+              style={{
+                background: '#eef2ff', color: '#3730a3', border: '1px solid #c7d2fe',
+                borderRadius: 9, padding: '10px 16px', fontWeight: 800,
+                fontSize: 13, cursor: 'pointer',
+              }}>
+              Inspección manual en Potente IA
+            </button>
+          )}
+          <button
+            onClick={() => { setEditando(null); setModal('crear'); }}
+            style={{
+              background: '#1d4ed8', color: '#fff', border: 'none',
+              borderRadius: 9, padding: '10px 20px', fontWeight: 700,
+              fontSize: 14, cursor: 'pointer',
+            }}>
+            + Nueva malla
+          </button>
+        </div>
       </div>
 
       {/* Tarjetas resumen */}
@@ -2956,6 +2994,7 @@ export default function AdminBancoConocimiento() {
                   onStatusChange={handleStatusChange}
                   onDelete={handleDelete}
                   onAdjuntarJson={abrirAdjuntarJson}
+                  onInspeccionManual={abrirInspeccionManual}
                 />
               ))}
             </tbody>

@@ -23,6 +23,7 @@
  *   preferredProvider string  — mueve este proveedor al frente si está disponible
  *   providerOrder    string[] — orden completo enviado desde Firestore (sobrescribe default)
  *   modelOverrides   object  — { openai: "gpt-4o-mini", anthropic: "claude-opus-4-8" }
+ *   strictProvider   boolean — si true, no agrega fallbacks fuera del providerOrder
  */
 
 export const config = { runtime: "edge" };
@@ -202,12 +203,13 @@ function getModel(provider, modelOverrides) {
  *   2. Si llega `preferredProvider`, muévelo al frente del DEFAULT_ORDER.
  *   3. Si no llega nada, usa DEFAULT_ORDER.
  */
-function getProviderQueue(preferredProvider, providerOrder) {
+function getProviderQueue(preferredProvider, providerOrder, strictProvider = false) {
   let queue;
 
   if (providerOrder && Array.isArray(providerOrder) && providerOrder.length > 0) {
     // Usar el orden de Firestore, filtrando solo los que tienen key
     const ordered = providerOrder.filter((p) => getApiKey(p));
+    if (strictProvider) return ordered;
     // Añadir cualquier proveedor de DEFAULT_ORDER que no esté en el order del admin
     const extras  = DEFAULT_ORDER.filter((p) => !providerOrder.includes(p) && getApiKey(p));
     queue = [...ordered, ...extras];
@@ -379,6 +381,7 @@ export default async function handler(request) {
     preferredProvider,
     providerOrder,     // string[] desde Firestore vía AIService
     modelOverrides,    // { openai: "gpt-4.1", ... } desde Firestore vía AIService
+    strictProvider = false,
     imageBase64,       // base64 image for vision (Anthropic only)
     imageMediaType,    // e.g. "image/jpeg"
   } = body;
@@ -401,7 +404,7 @@ export default async function handler(request) {
   // Tope de tokens de salida: el cliente no decide costos ilimitados
   const tokensSalida = Math.min(Math.max(parseInt(maxTokens, 10) || 4096, 1), MAX_TOKENS_CAP);
 
-  const queue = getProviderQueue(preferredProvider, providerOrder);
+  const queue = getProviderQueue(preferredProvider, providerOrder, strictProvider);
 
   if (queue.length === 0) {
     console.error("[AI Gateway] No hay proveedores configurados (OPENAI_API_KEY / ABACUS_API_KEY / ANTHROPIC_API_KEY / NVIDIA_API_KEY)");

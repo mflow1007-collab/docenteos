@@ -68,7 +68,14 @@ export const AIService = {
    * @param {Function} opts.onFinish       - Llamado al finalizar con el texto completo
    * @param {Function} opts.onError        - Llamado con mensaje de error amigable
    */
-  async generate({ module, prompt, system, maxTokens, imageBase64, imageMediaType, onChunk, onFinish, onError, _contextMeta }) {
+  async generate({
+    module, prompt, system, maxTokens, imageBase64, imageMediaType,
+    providerOrder: providerOrderOverride,
+    preferredProvider: preferredProviderOverride,
+    modelOverrides: modelOverridesOverride,
+    strictProvider = false,
+    onChunk, onFinish, onError, _contextMeta,
+  }) {
     const moduleConfig      = getModuleConfig(module);
     const routerOpts        = resolveModuleOptions(module);
     const resolvedMaxTokens = maxTokens ?? routerOpts.maxTokens;
@@ -132,9 +139,10 @@ export const AIService = {
           prompt,
           system,
           maxTokens:         resolvedMaxTokens,
-          preferredProvider: imageBase64 ? "anthropic" : routerOpts.preferredProvider,
-          providerOrder:     imageBase64 ? ["anthropic"] : providerOrder,
-          modelOverrides,   // modelos del admin desde Firestore
+          preferredProvider: imageBase64 ? "anthropic" : (preferredProviderOverride || routerOpts.preferredProvider),
+          providerOrder:     imageBase64 ? ["anthropic"] : (providerOrderOverride || providerOrder),
+          modelOverrides:    modelOverridesOverride || modelOverrides,
+          strictProvider,
           imageBase64,
           imageMediaType,
         }),

@@ -78,6 +78,10 @@ export const AIConfig = {
       maxTokens: 2048,
       cache: false,
     },
+    "admin-potente-ia": {
+      maxTokens: 6000,
+      cache: false,
+    },
     "vision-estudiantes": {
       maxTokens: 1024,
       cache: false,

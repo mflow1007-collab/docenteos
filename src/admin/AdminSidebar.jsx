@@ -32,6 +32,7 @@ const MENU = [
   {
     grupo: 'Inteligencia Artificial',
     items: [
+      { id: 'potente-ia',       icon: '⚙️', label: 'Potente IA' },
       { id: 'costos-ia',         icon: '💰', label: 'Costos por Proveedor' },
       { id: 'uso-ia',            icon: '⚡', label: 'Uso IA por Docente' },
       { id: 'gateway-ia',        icon: '🔀', label: 'Gateway de Proveedores' },

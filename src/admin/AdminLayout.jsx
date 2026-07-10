@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 
-const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','banco-conocimiento','monitor-fuentes','banco-pedagogico','gateway-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-docente','asistente-personal','uso-ia','costos-ia','agentes','topics','insights']
+const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','banco-conocimiento','monitor-fuentes','banco-pedagogico','gateway-ia','potente-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-docente','asistente-personal','uso-ia','costos-ia','agentes','topics','insights']
 import AdminSidebar from './AdminSidebar.jsx'
 import AdminTopbar from './AdminTopbar.jsx'
 import AdminHome from './pages/AdminHome.jsx'
@@ -17,6 +17,7 @@ import AdminAuditoria from './pages/AdminAuditoria.jsx'
 import AdminSeguridad from './pages/AdminSeguridad.jsx'
 import AdminFirebase from './pages/AdminFirebase.jsx'
 import AdminIA from './pages/AdminIA.jsx'
+import AdminPotenteIA from './pages/AdminPotenteIA.jsx'
 import AdminSubscriptions from './pages/AdminSubscriptions.jsx'
 import AdminConfiguracion from './pages/AdminConfiguracion.jsx'
 import AdminEntrenamientoIA from './pages/AdminEntrenamientoIA.jsx'
@@ -30,6 +31,7 @@ import AdminCostosIA from './pages/AdminCostosIA.jsx'
 import AdminAgentes from './pages/AdminAgentes.jsx'
 import AdminTopics from './pages/AdminTopics.jsx'
 import AdminInsights from './pages/AdminInsights.jsx'
+import AdminPotenteIAFloat from './AdminPotenteIAFloat.jsx'
 import './admin.css'
 
 export default function AdminLayout({ paginaInicial = 'home' }) {
@@ -43,6 +45,10 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
   const [pagina, setPagina] = useState(seccionInicial)
 
   const volverApp = () => navigate('/', { replace: true })
+  const abrirPotenteIA = () => {
+    setPagina('potente-ia')
+    navigate('/admin/potente-ia', { replace: false })
+  }
 
   return (
     <div className="admin-shell">
@@ -54,8 +60,9 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
           {pagina === 'usuarios'      && <AdminUsuarios      />}
           {pagina === 'centros'       && <AdminCentros       />}
           {pagina === 'curriculo'     && <AdminCurriculo     />}
-          {pagina === 'banco-conocimiento' && <AdminBancoConocimiento />}
+          {pagina === 'banco-conocimiento' && <AdminBancoConocimiento onIrPotenteIA={abrirPotenteIA} />}
           {pagina === 'monitor-fuentes' && <AdminMonitorFuentes />}
+          {pagina === 'potente-ia'    && <AdminPotenteIA      />}
           {pagina === 'gateway-ia'    && <AdminIA            />}
           {pagina === 'prompts'       && <AdminPrompts       />}
           {pagina === 'historial-ia'  && <AdminHistorialIA   />}
@@ -77,6 +84,7 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
           {pagina === 'insights'          && <AdminInsights />}
         </main>
       </div>
+      <AdminPotenteIAFloat pagina={pagina} onAbrirPanel={abrirPotenteIA} />
     </div>
   )
 }
