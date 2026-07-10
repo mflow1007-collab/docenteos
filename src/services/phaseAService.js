@@ -253,16 +253,13 @@ export function normalizarVozActividadMINERD(texto) {
     }
   }
 
-  if (/^se\s+/i.test(t)) {
-    return capitalizar(t.replace(/^se\s+/i, 'Realizan '));
-  }
   if (/^(el|la)\s+docente\s+(presenta|modela|explica|muestra|orienta|gu[ií]a|lee|proyecta)\b/i.test(t)) {
     return capitalizar(t.replace(/^(el|la)\s+docente\s+(presenta|modela|explica|muestra|orienta|gu[ií]a|lee|proyecta)\b/i, 'Observan'));
   }
 
   const primera = (t.split(/\s+/)[0] || '').replace(/[.,:;!¡¿?]+$/, '');
   if (VERBOS_VOZ_MINERD.includes(primera)) return t;
-  return `Realizan ${t.charAt(0).toLowerCase()}${t.slice(1)}`;
+  return original;
 }
 
 function normalizarVozBatch(data) {

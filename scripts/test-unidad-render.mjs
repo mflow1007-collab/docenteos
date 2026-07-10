@@ -333,6 +333,22 @@ check("normalizarVozActividadMINERD repara arranques nominales comunes", () => {
   }
 });
 
+check("normalizarVozActividadMINERD no disfraza arranques desconocidos con Realizan", () => {
+  const casos = [
+    "Los estudiantes juegan bingo de vocabulario.",
+    "El docente entrega las fichas de trabajo.",
+    "Se realiza una dinámica de activación oral.",
+  ];
+  for (const entrada of casos) {
+    const salida = normalizarVozActividadMINERD(entrada);
+    if (salida.startsWith("Realizan ")) {
+      throw new Error(`maquilló una actividad insegura: "${entrada}" → "${salida}"`);
+    }
+    const v = validarVozActividad(salida);
+    if (v.ok) throw new Error(`dejó pasar una actividad insegura: "${entrada}" → "${salida}"`);
+  }
+});
+
 check("construirInicioCanonico arma las 5 posiciones fijas", () => {
   const acts = construirInicioCanonico({
     saludoInicial: "Good morning! What time did you wake up today?",

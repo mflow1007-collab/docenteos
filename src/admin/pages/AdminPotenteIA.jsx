@@ -302,15 +302,14 @@ function normalizarVozMINERD(texto = '') {
     [/^conversaci[oó]n\b[:：-]?\s*/i, 'Conversan '],
     [/^presentaci[oó]n\b[:：-]?\s*/i, 'Presentan '],
     [/^retroalimentaci[oó]n\s+breve\b[:：-]?\s*/i, 'Socializan una retroalimentación breve '],
-    [/^se\s+/i, 'Realizan '],
   ]
   for (const [regex, replacement] of reglas) {
     if (regex.test(original)) return cap(original.replace(regex, replacement))
   }
-  if (/^(el|la)\s+docente\s+/i.test(original)) {
-    return cap(original.replace(/^(el|la)\s+docente\s+/i, 'Observan '))
+  if (/^(el|la)\s+docente\s+(presenta|modela|explica|muestra|orienta|gu[ií]a|lee|proyecta)\b/i.test(original)) {
+    return cap(original.replace(/^(el|la)\s+docente\s+(presenta|modela|explica|muestra|orienta|gu[ií]a|lee|proyecta)\b/i, 'Observan'))
   }
-  return `Realizan ${original.charAt(0).toLowerCase()}${original.slice(1)}`
+  return original
 }
 
 function repararVozEnValor(value, key = '', dentroDeActividad = false) {
