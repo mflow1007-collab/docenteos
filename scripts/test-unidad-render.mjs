@@ -861,6 +861,87 @@ check("re-export de compat: el Banco y curricularSchema comparten el MISMO walke
   if (localizarPlaceholdersProhibidos !== locSchema) throw new Error("el Banco no re-exporta la fuente única");
 });
 
+// ─── Banco de Aprendizaje: refs exactas contra la malla ACTIVA ────────────────
+
+const { verificarRefsContraMalla, construirSecuenciaCosechada, cosecharSecuenciaDeUnidad } =
+  await import("../src/services/bancoAprendizajeService.js");
+
+const mallaActiva = {
+  id: "malla-abc",
+  contentId: "ING-1",
+  payload: {
+    temas: ["Vivienda, entorno y ciudad", "Rutinas diarias"],
+    competencias: [{ id: "ING-1-C01", indicadoresLogro: [{ id: "ING-1-I01" }, { id: "ING-1-I02" }] }],
+    contenidos: {
+      conceptos: {
+        vocabulario: [{ categoria: "Vivienda", ejemplos: ["lobby"] }],
+        gramatica: [{ estructura: "There + be en presente simple para describir lugares" }],
+      },
+    },
+  },
+};
+const refsValidas = {
+  mallaId: "malla-abc",
+  temaOficial: "Vivienda, entorno y ciudad",
+  codigosIndicadores: ["ING-1-I01", "ING-1-I02"],
+  estructurasGramaticales: ["There + be en presente simple para describir lugares"],
+  vocabularioCategorias: ["Vivienda"],
+};
+
+console.log("\nBanco de Aprendizaje — verificación de refs:");
+
+check("refs exactas contra la malla activa → servible", () => {
+  const r = verificarRefsContraMalla(refsValidas, mallaActiva);
+  if (!r.servible) throw new Error(`no servible: ${r.motivos.join(" · ")}`);
+});
+
+check("un solo indicador inexistente → NO se sirve, motivo con el código exacto", () => {
+  const r = verificarRefsContraMalla({ ...refsValidas, codigosIndicadores: ["ING-1-I01", "ING-1-I99"] }, mallaActiva);
+  if (r.servible) throw new Error("sirvió una secuencia con indicador roto");
+  if (!r.motivos.some((m) => m.includes("ING-1-I99"))) throw new Error("el motivo no nombra el código roto");
+});
+
+check("estructura gramatical parecida pero NO exacta → no servible (sin fuzzy)", () => {
+  const r = verificarRefsContraMalla({ ...refsValidas, estructurasGramaticales: ["There + be en presente simple"] }, mallaActiva);
+  if (r.servible) throw new Error("aceptó una coincidencia parcial de estructura");
+});
+
+check("secuencia de OTRA malla (mallaId distinto) → no servible", () => {
+  const r = verificarRefsContraMalla({ ...refsValidas, mallaId: "malla-vieja" }, mallaActiva);
+  if (r.servible) throw new Error("sirvió una secuencia anclada a otra malla");
+});
+
+check("tema que ya no existe en la malla → no servible", () => {
+  const r = verificarRefsContraMalla({ ...refsValidas, temaOficial: "Alimentación" }, mallaActiva);
+  if (r.servible) throw new Error("sirvió con tema inexistente");
+});
+
+check("construirSecuenciaCosechada exige spec + mallaId y ancla los códigos", () => {
+  esperaError(() => construirSecuenciaCosechada({ unidad: {}, mallaId: "malla-abc" }), "especificacionCurricular");
+  const sec = construirSecuenciaCosechada({
+    unidad: {
+      id: "u1",
+      especificacionCurricular: {
+        temaOficial: "Vivienda, entorno y ciudad", area: "Inglés", grado: "1ro Secundaria",
+        ces: [{ codigoOficial: "ING-1-C01" }],
+        indicadores: [{ codigoOficial: "ING-1-I01" }],
+        contenidosClaves: { gramatica: ["There + be en presente simple para describir lugares"] },
+        outputSchemaVersion: "1.2",
+      },
+      semanas: [{ semana: 1 }],
+    },
+    mallaId: "malla-abc", mallaContentId: "ING-1", docenteUid: "uid-1",
+  });
+  if (sec.estado !== "cosechada") throw new Error("no nace en estado cosechada");
+  if (sec.curricularRefs.codigosIndicadores[0] !== "ING-1-I01") throw new Error("no ancló los códigos");
+  if (!verificarRefsContraMalla(sec.curricularRefs, mallaActiva).servible) throw new Error("la cosecha no pasa su propia verificación");
+});
+
+const cosechaSinConsentimiento = await cosecharSecuenciaDeUnidad({ unidad: {}, mallaId: "x", consentimiento: false });
+check("cosecha SIN consentimiento explícito → null (opt-in, jamás por defecto)", () => {
+  if (cosechaSinConsentimiento !== null) throw new Error("cosechó sin consentimiento");
+});
+
 // ─── Resultado ────────────────────────────────────────────────────────────────
 
 console.log(`\n${pasadas} ✓ · ${falladas} ✗`);

@@ -10,7 +10,7 @@ const OPERADORES = [
   { id: 'openai', label: 'OpenAI', hint: 'Buen equilibrio para código, JSON, análisis y síntesis.' },
   { id: 'anthropic', label: 'Anthropic', hint: 'Fuerte en auditoría larga, arquitectura y razonamiento pedagógico.' },
   { id: 'gemini', label: 'Gemini', hint: 'Rápido para exploración, reescritura y síntesis extensa.' },
-  { id: 'abacus', label: 'Abacus', hint: 'RouteLLM para enrutar automáticamente a modelos disponibles.' },
+  { id: 'abacus', label: 'Abacus', hint: 'Proveedor compatible OpenAI; usar solo si la prueba de conexión pasa.' },
   { id: 'nvidia', label: 'NVIDIA NIM', hint: 'Modelos abiertos potentes para razonamiento y tareas técnicas.' },
 ]
 

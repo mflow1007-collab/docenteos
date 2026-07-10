@@ -159,11 +159,11 @@ function isAdminUser(authedUser) {
 
 // ─── Configuración por defecto ────────────────────────────────────────────────
 
-const DEFAULT_ORDER = ["openai", "abacus", "anthropic", "nvidia", "gemini"];
+const DEFAULT_ORDER = ["openai", "anthropic", "gemini", "nvidia", "abacus"];
 
 const DEFAULT_MODELS = {
   openai:    "gpt-4o",
-  abacus:    "route-llm",
+  abacus:    "gpt-4o-mini",
   anthropic: "claude-sonnet-4-6",
   nvidia:    "nvidia/nemotron-3-ultra-550b-a55b",
   gemini:    "gemini-2.5-flash",
@@ -171,7 +171,7 @@ const DEFAULT_MODELS = {
 
 const PROVIDER_BASE_URLS = {
   openai:  "https://api.openai.com/v1",
-  abacus:  "https://routellm.abacus.ai/v1",
+  abacus:  process.env.ABACUS_BASE_URL || "https://routellm.abacus.ai/v1",
   nvidia:  "https://integrate.api.nvidia.com/v1",
   // Endpoint OpenAI-compatible oficial de Google AI Studio
   gemini:  "https://generativelanguage.googleapis.com/v1beta/openai",
@@ -192,6 +192,23 @@ function getApiKey(provider) {
 
 function getModel(provider, modelOverrides) {
   return (modelOverrides?.[provider]) || DEFAULT_MODELS[provider] || provider;
+}
+
+function getProviderTimeoutMs(provider) {
+  switch (provider) {
+    case "abacus":    return 12_000;
+    case "nvidia":    return 18_000;
+    case "gemini":    return 20_000;
+    case "openai":    return 25_000;
+    case "anthropic": return 25_000;
+    default:          return 18_000;
+  }
+}
+
+function timeoutSignal(ms) {
+  return typeof AbortSignal !== "undefined" && AbortSignal.timeout
+    ? AbortSignal.timeout(ms)
+    : undefined;
 }
 
 /**
@@ -229,7 +246,7 @@ function getProviderQueue(preferredProvider, providerOrder, strictProvider = fal
 
 // ─── Llamadas a proveedores ────────────────────────────────────────────────────
 
-async function callAnthropic(apiKey, { system, prompt, maxTokens, model, imageBase64, imageMediaType }) {
+async function callAnthropic(apiKey, { system, prompt, maxTokens, model, imageBase64, imageMediaType, signal }) {
   const userContent = imageBase64
     ? [
         { type: "image", source: { type: "base64", media_type: imageMediaType || "image/jpeg", data: imageBase64 } },
@@ -251,10 +268,11 @@ async function callAnthropic(apiKey, { system, prompt, maxTokens, model, imageBa
       system: system || "",
       messages: [{ role: "user", content: userContent }],
     }),
+    signal,
   });
 }
 
-async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens, model, jsonMode }) {
+async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens, model, jsonMode, signal }) {
   return fetch(`${baseURL}/chat/completions`, {
     method: "POST",
     headers: {
@@ -281,6 +299,7 @@ async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens
         { role: "user", content: prompt },
       ],
     }),
+    signal,
   });
 }
 
@@ -459,16 +478,17 @@ export default async function handler(request) {
   for (const provider of queue) {
     const apiKey = getApiKey(provider);
     const model  = getModel(provider, modelOverrides);
+    const signal = timeoutSignal(getProviderTimeoutMs(provider));
 
     try {
       let providerResponse;
 
       if (provider === "anthropic") {
-        providerResponse = await callAnthropic(apiKey, { system, prompt, maxTokens: tokensSalida, model, imageBase64, imageMediaType });
+        providerResponse = await callAnthropic(apiKey, { system, prompt, maxTokens: tokensSalida, model, imageBase64, imageMediaType, signal });
       } else {
         const baseURL = PROVIDER_BASE_URLS[provider];
         providerResponse = await callOpenAICompatible(apiKey, baseURL, {
-          system, prompt, maxTokens: tokensSalida, model, jsonMode,
+          system, prompt, maxTokens: tokensSalida, model, jsonMode, signal,
         });
       }
 
@@ -492,7 +512,10 @@ export default async function handler(request) {
         },
       });
     } catch (err) {
-      lastError = `${provider}: ${err.message}`;
+      const isTimeout = err?.name === "TimeoutError" || err?.name === "AbortError";
+      lastError = isTimeout
+        ? `${provider}: tiempo de espera agotado`
+        : `${provider}: ${err.message}`;
       console.error(`[AI Gateway] Proveedor ${provider} falló:`, err);
       continue;
     }

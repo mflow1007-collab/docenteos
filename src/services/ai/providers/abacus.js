@@ -2,7 +2,7 @@
 export const abacus = {
   name: "abacus",
   displayName: "Abacus AI",
-  model: "route-llm",
+  model: "gpt-4o-mini",
   baseURL: "https://routellm.abacus.ai/v1",
   serverEnvVar: "ABACUS_API_KEY",
   supportsStreaming: true,

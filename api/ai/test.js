@@ -1,6 +1,6 @@
 /**
  * AI Gateway — Prueba de conexión por proveedor
- * POST /api/ai/test  { provider: "openai" | "abacus" | "anthropic" }
+ * POST /api/ai/test  { provider: "openai" | "abacus" | "anthropic", model?: string }
  *
  * Hace una llamada mínima (max_tokens=5) para verificar que la API key
  * funciona correctamente. Nunca expone errores técnicos al usuario.
@@ -16,8 +16,8 @@ const PROVIDER_CONFIG = {
     envVar: "OPENAI_API_KEY",
   },
   abacus: {
-    model: "route-llm",
-    baseURL: "https://routellm.abacus.ai/v1",
+    model: "gpt-4o-mini",
+    baseURL: process.env.ABACUS_BASE_URL || "https://routellm.abacus.ai/v1",
     type: "openai",
     envVar: "ABACUS_API_KEY",
   },
@@ -53,14 +53,30 @@ function sanitizeError(status, rawMessage = "") {
   return `Error de conexión (${status})`;
 }
 
+function safeDetail(rawMessage = "") {
+  return String(rawMessage || "")
+    .replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, "Bearer [oculto]")
+    .replace(/sk-[A-Za-z0-9_\-]+/gi, "sk-[oculto]")
+    .slice(0, 220);
+}
+
+function modelsToTry(provider, selectedModel, defaultModel) {
+  const base = [selectedModel, defaultModel].filter(Boolean);
+  if (provider === "abacus") {
+    base.push("gpt-4o-mini", "gpt-4o");
+  }
+  return [...new Set(base)];
+}
+
 export default async function handler(request) {
   if (request.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
   }
 
   let provider;
+  let requestedModel;
   try {
-    ({ provider } = await request.json());
+    ({ provider, model: requestedModel } = await request.json());
   } catch {
     return new Response(JSON.stringify({ ok: false, error: "Parámetro inválido" }), {
       status: 400,
@@ -85,8 +101,11 @@ export default async function handler(request) {
   }
 
   const start = Date.now();
+  const candidates = modelsToTry(provider, requestedModel, cfg.model);
+  let lastFailure = null;
 
-  try {
+  for (const model of candidates) {
+    try {
     let response;
 
     if (cfg.type === "anthropic") {
@@ -98,7 +117,7 @@ export default async function handler(request) {
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: cfg.model,
+          model,
           max_tokens: 5,
           messages: [{ role: "user", content: "Responde solo: OK" }],
         }),
@@ -112,7 +131,7 @@ export default async function handler(request) {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: cfg.model,
+          model,
           max_tokens: 5,
           messages: [{ role: "user", content: "Responde solo: OK" }],
         }),
@@ -124,30 +143,42 @@ export default async function handler(request) {
 
     if (response.ok) {
       return new Response(
-        JSON.stringify({ ok: true, provider, model: cfg.model, responseTime, error: null }),
+        JSON.stringify({ ok: true, provider, model, responseTime, error: null }),
         { headers: { "Content-Type": "application/json" } }
       );
     }
 
     const errText = await response.text().catch(() => "");
-    console.error(`[AI Test] ${provider} HTTP ${response.status}: ${errText.slice(0, 200)}`);
+    lastFailure = {
+      status: response.status,
+      model,
+      raw: errText,
+      message: sanitizeError(response.status, errText),
+    };
+    console.error(`[AI Test] ${provider}/${model} HTTP ${response.status}: ${errText.slice(0, 200)}`);
 
-    return new Response(
-      JSON.stringify({
-        ok: false, provider, model: cfg.model, responseTime: 0,
-        error: sanitizeError(response.status, errText),
-      }),
-      { headers: { "Content-Type": "application/json" } }
-    );
   } catch (err) {
-    console.error(`[AI Test] ${provider} error:`, err.message);
+    console.error(`[AI Test] ${provider}/${model} error:`, err.message);
     const isTimeout = err.name === "TimeoutError" || err.name === "AbortError";
-    return new Response(
-      JSON.stringify({
-        ok: false, provider, model: cfg.model, responseTime: 0,
-        error: isTimeout ? "Tiempo de espera agotado" : "Error de conexión",
-      }),
-      { headers: { "Content-Type": "application/json" } }
-    );
+    lastFailure = {
+      status: null,
+      model,
+      raw: err.message,
+      message: isTimeout ? "Tiempo de espera agotado" : "Error de conexión",
+    };
   }
+  }
+
+  return new Response(
+    JSON.stringify({
+      ok: false,
+      provider,
+      model: lastFailure?.model || requestedModel || cfg.model,
+      responseTime: 0,
+      error: lastFailure?.message || "Error de conexión",
+      detail: safeDetail(lastFailure?.raw),
+      triedModels: candidates,
+    }),
+    { headers: { "Content-Type": "application/json" } }
+  );
 }

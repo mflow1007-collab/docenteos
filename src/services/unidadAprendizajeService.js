@@ -1710,6 +1710,14 @@ export const generarUnidadAprendizaje = async (datos) => {
     especificacionCurricular: buildEspecificacionCurricular({
       mallaPayload, titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
     }),
+    // Trazabilidad: la malla EXACTA que produjo esta unidad. Ancla obligatoria
+    // para la cosecha del Banco de Aprendizaje (verificarRefsContraMalla exige
+    // igualdad de id/contentId contra la malla activa al servir).
+    mallaRef: {
+      id: curricularDoc.id || "",
+      contentId: curricularDoc.contentId || mallaPayload.contentId || "",
+      schemaVersion: versionMalla,
+    },
   };
 
   // ── Secciones del documento modelo (2026-07-04) ────────────────────────────

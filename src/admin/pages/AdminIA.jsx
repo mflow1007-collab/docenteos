@@ -21,9 +21,9 @@ const PROVIDER_CATALOG = [
     desc: 'GPT-4o · API OpenAI estándar',
   },
   {
-    id: 'abacus',     name: 'Abacus AI',        model: 'route-llm',
+    id: 'abacus',     name: 'Abacus AI',        model: 'gpt-4o-mini',
     envVar: 'ABACUS_API_KEY',    logo: '🔷', type: 'active',
-    desc: 'RouteLLM · Compatible OpenAI',
+    desc: 'Compatible OpenAI · routing externo',
   },
   {
     id: 'anthropic',  name: 'Anthropic',         model: 'claude-sonnet-4-6',
@@ -78,7 +78,13 @@ const MODEL_OPTIONS = {
     { value: 'gpt-5',          label: 'GPT-5 (más capaz)' },
   ],
   abacus: [
-    { value: 'route-llm',      label: 'RouteLLM (routing automático)' },
+    { value: 'gpt-4o-mini',    label: 'GPT-4o Mini vía Abacus (recomendado)' },
+    { value: 'gpt-4o',         label: 'GPT-4o vía Abacus' },
+    { value: 'gpt-4.1',        label: 'GPT-4.1 vía Abacus' },
+    { value: 'gpt-4.1-mini',   label: 'GPT-4.1 Mini vía Abacus' },
+    { value: 'claude-sonnet-4-6', label: 'Claude Sonnet vía Abacus, si está habilitado' },
+    { value: 'gemini-2.5-flash',  label: 'Gemini Flash vía Abacus, si está habilitado' },
+    { value: 'route-llm',      label: 'RouteLLM (si tu cuenta lo soporta)' },
   ],
   anthropic: [
     { value: 'claude-sonnet-4-6',          label: 'Claude Sonnet 4.6 (recomendado)' },
@@ -331,8 +337,12 @@ function MiniBarChart({ data, colorFn }) {
 
 // ─── Modal: Editar modelo ─────────────────────────────────────────────────────
 function ModalEditarModelo({ prov, currentModel, onSave, onClose }) {
-  const options  = MODEL_OPTIONS[prov.id] || [{ value: prov.model, label: prov.model }]
+  const baseOptions = MODEL_OPTIONS[prov.id] || [{ value: prov.model, label: prov.model }]
+  const options = currentModel && !baseOptions.some(opt => opt.value === currentModel)
+    ? [{ value: currentModel, label: `Modelo guardado: ${currentModel}` }, ...baseOptions]
+    : baseOptions
   const [sel, setSel] = useState(currentModel || prov.model)
+  const [customModel, setCustomModel] = useState('')
 
   return (
     <div className="admin-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -361,6 +371,37 @@ function ModalEditarModelo({ prov, currentModel, onSave, onClose }) {
                 <code style={{ fontSize: 11, color: 'var(--adm-dim)' }}>{opt.value}</code>
               </label>
             ))}
+          </div>
+          <div style={{ marginTop: 14, padding: 12, border: '1px solid var(--adm-border)', borderRadius: 8, background: 'var(--adm-surface2)' }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--adm-dim)', marginBottom: 6 }}>
+              Modelo manual
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={customModel}
+                onChange={(e) => setCustomModel(e.target.value)}
+                placeholder="Ej. gpt-4o-mini, route-llm, modelo de tu cuenta..."
+                style={{
+                  flex: 1,
+                  border: '1px solid var(--adm-border)',
+                  borderRadius: 8,
+                  padding: '9px 10px',
+                  background: 'var(--adm-surface)',
+                  color: 'var(--adm-text)',
+                }}
+              />
+              <button
+                type="button"
+                className="aim-btn aim-btn-ghost"
+                disabled={!customModel.trim()}
+                onClick={() => setSel(customModel.trim())}
+              >
+                Usar
+              </button>
+            </div>
+            <small style={{ display: 'block', color: 'var(--adm-dim)', marginTop: 6 }}>
+              Útil si Abacus te habilita un modelo que no aparece en la lista.
+            </small>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button className="admin-save-btn" onClick={() => onSave(sel)}>Guardar modelo</button>
@@ -503,7 +544,21 @@ function TabResumen({
                 <div className="aim-test-ok">✓ Proveedor activado correctamente</div>
               )}
               {result?.ok    && activacionOk !== prov.id && <div className="aim-test-ok">✓ Conexión verificada</div>}
-              {result && !result.ok && <div className="aim-test-fail">✗ {result.error}</div>}
+              {result && !result.ok && (
+                <div className="aim-test-fail">
+                  <div>✗ {result.error}</div>
+                  {result.detail && (
+                    <small style={{ display: 'block', marginTop: 4, opacity: 0.85 }}>
+                      Detalle: {result.detail}
+                    </small>
+                  )}
+                  {Array.isArray(result.triedModels) && result.triedModels.length > 1 && (
+                    <small style={{ display: 'block', marginTop: 4, opacity: 0.85 }}>
+                      Modelos probados: {result.triedModels.join(', ')}
+                    </small>
+                  )}
+                </div>
+              )}
 
               <div className="aim-prov-actions" style={{ flexWrap: 'wrap' }}>
                 <button
@@ -1025,10 +1080,13 @@ export default function AdminIA() {
       const res  = await fetch('/api/ai/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: providerId }),
+        body: JSON.stringify({ provider: providerId, model: models?.[providerId] }),
       })
       const data = await res.json()
       setTestResults(p => ({ ...p, [providerId]: data }))
+      if (data.ok && data.model && data.model !== models?.[providerId]) {
+        saveModels({ ...models, [providerId]: data.model })
+      }
       setUltimaPrueba(p => ({ ...p, [providerId]: new Date().toLocaleTimeString('es-DO') }))
     } catch {
       setTestResults(p => ({ ...p, [providerId]: { ok: false, error: 'Error de conexión' } }))
@@ -1047,13 +1105,16 @@ export default function AdminIA() {
       const res  = await fetch('/api/ai/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: provId }),
+        body: JSON.stringify({ provider: provId, model: models?.[provId] }),
       })
       const data = await res.json()
       setTestResults(p => ({ ...p, [provId]: data }))
       setUltimaPrueba(p => ({ ...p, [provId]: new Date().toLocaleTimeString('es-DO') }))
 
       if (data.ok) {
+        if (data.model && data.model !== models?.[provId]) {
+          saveModels({ ...models, [provId]: data.model })
+        }
         const next = [provId, ...priority.filter(p => p !== provId)]
         savePriority(next)
         setActivacionOk(provId)

@@ -16,6 +16,8 @@ Ayudas a auditar bancos, diagnosticar errores, preparar acciones manuales y deci
 No inventes datos curriculares. No recomiendes tocar templates si el problema es de datos o flujo.
 Responde con diagnóstico, acción recomendada y validación.`
 
+const CHAT_PROVIDER_ORDER = ['openai', 'anthropic', 'gemini', 'nvidia', 'abacus']
+
 async function resumenBancos() {
   if (!db) return 'Firestore no disponible.'
   const datos = await Promise.all(BANCOS.map(async (id) => {
@@ -75,6 +77,7 @@ ${texto}
         system: SYSTEM,
         prompt,
         maxTokens: 3500,
+        providerOrder: CHAT_PROVIDER_ORDER,
         onChunk: (chunk) => {
           acumulado += chunk
           setSalida(acumulado)
@@ -129,6 +132,7 @@ Si faltan datos curriculares oficiales, dilo claramente. No inventes competencia
 También puedes actuar como compañero de conversación técnica: breve, claro, honesto y orientado a decisiones.`,
         prompt,
         maxTokens: 2200,
+        providerOrder: CHAT_PROVIDER_ORDER,
         onChunk: (chunk) => {
           acumulado += chunk
           setChatMensajes((prev) => {

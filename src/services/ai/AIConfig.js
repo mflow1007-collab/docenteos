@@ -9,7 +9,7 @@
 export const AIConfig = {
   // Orden de prioridad de proveedores. El primero disponible (con API key) gana.
   // Para cambiar el default: mueve el nombre deseado a la primera posición.
-  providerPriority: ["openai", "abacus", "anthropic"],
+  providerPriority: ["openai", "anthropic", "gemini", "nvidia", "abacus"],
 
   // Configuración por módulo
   modules: {

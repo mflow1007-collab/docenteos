@@ -260,6 +260,17 @@ service cloud.firestore {
       allow read: if isAuth();
       allow write: if isAdmin();
     }
+    // ── Banco de Aprendizaje (secuencias cosechadas) ─────────────────────────
+    // Cosecha OPT-IN: el docente crea SOLO en estado 'cosechada' y con su
+    // propio uid en la procedencia. Validar/retirar/servir es del admin.
+    // El gate de servicio (config/banco-aprendizaje) nace apagado.
+    match /bancoAprendizaje/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && request.resource.data.estado == 'cosechada'
+        && request.resource.data.procedencia.docenteUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
 
     // ── Fuentes oficiales MINERD ───────────────────────────────────────────────
     match /fuentesOficiales/{docId} {

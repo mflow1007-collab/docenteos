@@ -25,6 +25,7 @@ import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
 import { construirCapaCurricular, normalizarTexto } from "./hiloPedagogico.js";
 import { generarAspectosRegistroDesdePlanificacion } from "./registroService.js";
 import { crearInstrumentosPlaneadosDesdePlan } from "./instrumentosService.js";
+import { cosecharSecuenciaDeUnidad } from "./bancoAprendizajeService.js";
 
 const AREA_CURRICULO_POR_ASIGNATURA = {
   // El currículo de Inglés/Francés vive bajo el área "Lenguas Extranjeras"
@@ -176,11 +177,30 @@ export const crearPlanificacion = async (planificacion, { cursoId = "" } = {}) =
  *
  * @returns {{ success, id, mode, capaCurricular, aspectos|null, advertencias: string[] }}
  */
-export const guardarPlanificacionConHilo = async (planificacion, { cursoId = "" } = {}) => {
+export const guardarPlanificacionConHilo = async (planificacion, { cursoId = "", cosecharSecuencia = false } = {}) => {
   const resultado = await crearPlanificacion(planificacion, { cursoId });
   const advertencias = [...(resultado.advertencias || [])];
   let aspectos = null;
   let instrumentos = null;
+
+  // Banco de Aprendizaje — cosecha OPT-IN (apagada por defecto): solo si el
+  // docente lo consintió y la unidad trae su especificación y su malla de
+  // origen. Best-effort: jamás bloquea ni afecta el guardado del plan.
+  if (cosecharSecuencia === true && resultado?.id) {
+    try {
+      const unidad = planificacion?.contenido?.unidad || planificacion?.unidad || planificacion?.contenido || planificacion;
+      if (unidad?.especificacionCurricular && unidad?.mallaRef?.id) {
+        await cosecharSecuenciaDeUnidad({
+          unidad: { ...unidad, id: resultado.id },
+          mallaId: unidad.mallaRef.id,
+          mallaContentId: unidad.mallaRef.contentId || "",
+          consentimiento: true,
+        });
+      }
+    } catch (error) {
+      advertencias.push(`El plan se guardó, pero la secuencia no se cosechó al Banco de Aprendizaje: ${error.message}`);
+    }
+  }
 
   if (resultado?.id && resultado.capaCurricular?.cursoId) {
     try {
