@@ -1359,8 +1359,8 @@ const listaLimpia = (items = []) =>
   dedupePorTexto((Array.isArray(items) ? items : []).map(x => String(typeof x === 'string' ? x : (x?.descripcion || x?.texto || x?.nombre || '')).trim()).filter(Boolean));
 
 const extraerListaTexto = (value = []) => {
-  if (!Array.isArray(value)) return [];
-  return listaLimpia(value.map((item) => {
+  const items = Array.isArray(value) ? value : (value ? [value] : []);
+  return listaLimpia(items.map((item) => {
     if (typeof item === 'string') return item;
     if (!item || typeof item !== 'object') return '';
     return item.descripcion || item.texto || item.nombre || item.titulo || item.valor || item.estructura || item.funcion || '';

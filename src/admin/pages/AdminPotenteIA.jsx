@@ -45,6 +45,12 @@ const TIPOS_TRABAJO = [
     orden: ['gemini', 'anthropic', 'openai', 'abacus', 'nvidia'],
     descripcion: 'Mejora de textos, instrucciones, metacognición, recursos y comunicación docente.',
   },
+  {
+    id: 'planificacion-minerd',
+    nombre: 'Planificación MINERD',
+    orden: ['openai', 'anthropic', 'gemini', 'nvidia', 'abacus'],
+    descripcion: 'Auditoría y reparación de secuencias, voz oficial, momentos, evidencias, metacognición y recursos.',
+  },
 ]
 
 const MODOS = [
@@ -96,6 +102,11 @@ const ACCIONES_MANUALES = [
     titulo: 'Crear plan de acción',
     texto: 'Convierte el diagnóstico actual en una lista priorizada de acciones: seguro ahora, refactor, migración y validación.',
   },
+  {
+    id: 'reparar-voz-minerd',
+    titulo: 'Reparar voz MINERD',
+    texto: 'Revisa el JSON o las actividades pegadas y corrige únicamente la voz de las actividades para que cada una inicie con verbo en tercera persona plural del presente. Ejemplos: "Ticket final..." → "Completan un ticket de salida..."; "Reflexión..." → "Reflexionan..."; "Portafolio..." → "Guardan la evidencia en el portafolio...". No cambies competencias, indicadores, contenidos ni intención pedagógica.',
+  },
 ]
 
 const SECCIONES_CORREGIBLES = [
@@ -122,6 +133,8 @@ Reglas:
 - Distingue diagnóstico, decisión y próximo paso.
 - Si falta información, dilo claramente.
 - Prioriza seguridad, trazabilidad, compatibilidad con MINERD y no romper templates existentes.
+- Cuando corrijas actividades de planificación MINERD, conserva la idea original y corrige solo la voz: cada actividad debe iniciar con verbo en tercera persona plural del presente (Responden, Observan, Elaboran, Socializan, Completan, Guardan, Reflexionan...). Nunca debe iniciar con "Los estudiantes", "El docente", "La docente", "Se", "Ticket", "Reflexión", "Portafolio" ni nombres de recursos.
+- Para errores como "Ticket final..." usa "Completan un ticket de salida..."; para "Reflexión..." usa "Reflexionan..."; para "Portafolio..." usa "Guardan la evidencia en el portafolio...".
 - Responde en español claro, operativo y con acciones concretas.`
 
 const promptOperador = ({ tipo, instruccion, contexto }) => `

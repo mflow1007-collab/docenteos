@@ -31,7 +31,7 @@ const SYSTEM_PROMPT =
   'Eres un planificador curricular experto del formato oficial MINERD. ' +
   'Redactas cada actividad iniciando con un VERBO en tercera persona plural del presente ' +
   '(Responden, Observan, Escuchan, Elaboran, Socializan, Practican, Identifican, Comparan, Guardan...) ' +
-  'y NUNCA inicias con "Los estudiantes", "El docente", "La docente" ni "Se". ' +
+  'y NUNCA inicias con "Los estudiantes", "El docente", "La docente", "Se", "Ticket", "Reflexión" ni nombres de recursos. ' +
   'El inglés va incrustado entre paréntesis dentro de la actividad. ' +
   'Estilo oficial de referencia: ' +
   '"Responden al saludo e indicaciones iniciales. (Good morning! How are you today? Are you ready for the class?)" · ' +
@@ -179,6 +179,13 @@ function jaccardSimilarity(a, b) {
 // formato oficial: "Retroalimentación..." y "Recuperación...".
 
 const ARRANQUES_PROHIBIDOS = /^(los\s|el\s+docente|la\s+docente|se\s)/i;
+const ARRANQUES_NOMINALES = /^(ticket|exit\s+ticket|reflexi[oó]n|metacognici[oó]n|socializaci[oó]n|portafolio|evaluaci[oó]n|pregunta|recurso|hoja|ficha|pizarra)\b/i;
+const VERBOS_VOZ_MINERD = [
+  'Responden', 'Observan', 'Escuchan', 'Elaboran', 'Socializan',
+  'Practican', 'Identifican', 'Comparan', 'Guardan', 'Completan',
+  'Registran', 'Reflexionan', 'Relacionan', 'Organizan', 'Presentan',
+  'Leen', 'Escriben', 'Dibujan', 'Clasifican', 'Formulan',
+];
 
 export function validarVozActividad(texto) {
   const t = String(texto || '').trim();
@@ -187,12 +194,78 @@ export function validarVozActividad(texto) {
     return { ok: false, motivo: `arranque prohibido ("Los/El docente/La docente/Se"): "${t.slice(0, 40)}…"` };
   }
   const primera = (t.split(/\s+/)[0] || '').replace(/[.,:;!¡¿?]+$/, '');
-  const esVerboPluralPresente = /^[A-ZÁÉÍÓÚÜÑ]/.test(primera) && /n$/.test(primera);
   const esCanonica = primera === 'Retroalimentación' || primera === 'Recuperación';
+  if (!esCanonica && ARRANQUES_NOMINALES.test(t)) {
+    return { ok: false, motivo: `inicia con sustantivo o recurso, no con acción observable: "${primera}"` };
+  }
+  const esVerboPluralPresente = /^[A-ZÁÉÍÓÚÜÑ]/.test(primera) && /n$/.test(primera);
   if (!esVerboPluralPresente && !esCanonica) {
     return { ok: false, motivo: `no inicia con verbo en tercera persona plural del presente: "${primera}"` };
   }
   return { ok: true };
+}
+
+export function normalizarVozActividadMINERD(texto) {
+  const original = String(texto || '').trim();
+  if (!original) return original;
+  if (validarVozActividad(original).ok) return original;
+
+  const limpiar = (value) => String(value || '')
+    .replace(/^\s*[-•\d.)]+\s*/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const capitalizar = (value) => {
+    const t = limpiar(value);
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+  };
+
+  let t = limpiar(original);
+
+  const reemplazosDirectos = [
+    [/^los\s+estudiantes\s+(responden|observan|escuchan|elaboran|socializan|practican|identifican|comparan|guardan|completan|registran|reflexionan|relacionan|organizan|presentan|leen|escriben|dibujan|clasifican|formulan)\b/i, '$1'],
+    [/^ticket(?:\s+de\s+salida|\s+final)?\b[:：-]?\s*/i, 'Completan un ticket de salida '],
+    [/^exit\s+ticket\b[:：-]?\s*/i, 'Completan un ticket de salida '],
+    [/^pregunta(?:\s+final)?\b[:：-]?\s*/i, 'Responden una pregunta final '],
+    [/^reflexi[oó]n\b[:：-]?\s*/i, 'Reflexionan '],
+    [/^metacognici[oó]n\b[:：-]?\s*/i, 'Reflexionan '],
+    [/^socializaci[oó]n\b[:：-]?\s*/i, 'Socializan '],
+    [/^puesta\s+en\s+com[uú]n\b[:：-]?\s*/i, 'Socializan '],
+    [/^portafolio\b[:：-]?\s*/i, 'Guardan la evidencia en el portafolio '],
+    [/^evaluaci[oó]n\b[:：-]?\s*/i, 'Completan una evaluación formativa '],
+  ];
+
+  for (const [regex, replacement] of reemplazosDirectos) {
+    if (regex.test(t)) {
+      t = t.replace(regex, replacement);
+      return capitalizar(t);
+    }
+  }
+
+  if (/^se\s+/i.test(t)) {
+    return capitalizar(t.replace(/^se\s+/i, 'Realizan '));
+  }
+  if (/^(el|la)\s+docente\s+(presenta|modela|explica|muestra|orienta|gu[ií]a|lee|proyecta)\b/i.test(t)) {
+    return capitalizar(t.replace(/^(el|la)\s+docente\s+(presenta|modela|explica|muestra|orienta|gu[ií]a|lee|proyecta)\b/i, 'Observan'));
+  }
+
+  const primera = (t.split(/\s+/)[0] || '').replace(/[.,:;!¡¿?]+$/, '');
+  if (VERBOS_VOZ_MINERD.includes(primera)) return t;
+  return `Realizan ${t.charAt(0).toLowerCase()}${t.slice(1)}`;
+}
+
+function normalizarVozBatch(data) {
+  if (!data?.clases || !Array.isArray(data.clases)) return data;
+  for (const clase of data.clases) {
+    for (const campo of ['retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
+      if (clase?.[campo]) clase[campo] = normalizarVozActividadMINERD(clase[campo]);
+    }
+    for (const momento of (clase?.momentos || [])) {
+      if (Array.isArray(momento.actividades)) {
+        momento.actividades = momento.actividades.map(normalizarVozActividadMINERD);
+      }
+    }
+  }
+  return data;
 }
 
 // ─── Validación por lote (R1 + R7 + voz, sin R2) ─────────────────────────────
@@ -387,7 +460,7 @@ ${reglaInicio}
 9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán] mediante [cómo], [para qué / evidencia de logro]." — específica de ESA clase, nunca genérica.
 10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo de la semana según la progresión), "focoLinguistico" (estructura gramatical, vocabulario, función comunicativa o "apropiación de la unidad / producto / evaluación" si es Semana 1) y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla.
 
-{"outputSchemaVersion":"1.2","semana":${semanaNum},"clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["modelado...","práctica guiada...","práctica colaborativa...","producción...","retroalimentación..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["socialización...","reflexión...","portafolio...","ticket final..."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.2","semana":${semanaNum},"clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Observan un modelo guiado del contenido del día.","Practican el vocabulario o la estructura con apoyo del docente.","Comparan respuestas en parejas o equipos pequeños.","Elaboran una producción oral o escrita relacionada con el tema.","Socializan avances y reciben retroalimentación breve."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["Socializan una producción breve de la clase.","Reflexionan sobre el aprendizaje logrado y una dificultad encontrada.","Guardan la evidencia en el portafolio.","Completan un ticket de salida con una pregunta final."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote (2 intentos por lote) ─────────────────────────────
@@ -433,6 +506,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         continue;
       }
 
+      normalizarVozBatch(result.data);
       validateBatch(result.data, durMin, count);
       return result.data;
 

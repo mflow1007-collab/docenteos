@@ -15,7 +15,7 @@
  */
 
 import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
-import { validarVozActividad } from "../src/services/phaseAService.js";
+import { validarVozActividad, normalizarVozActividadMINERD } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import { coincideContextoTemaTrabajado } from "../src/services/curriculumCombinacionService.js";
 import { validateCurricularDoc, SCHEMA_VERSION_CANONICA, localizarPlaceholdersProhibidos as locSchema } from "../src/services/curricularSchema.js";
@@ -312,6 +312,21 @@ check("validarVozActividad rechaza los arranques prohibidos", () => {
   ];
   for (const a of prohibidas) {
     if (validarVozActividad(a).ok) throw new Error(`aceptó una prohibida: "${a.slice(0, 40)}"`);
+  }
+});
+
+check("normalizarVozActividadMINERD repara arranques nominales comunes", () => {
+  const casos = [
+    ["Ticket final sobre las partes de la casa.", "Completan un ticket de salida"],
+    ["Reflexión sobre lo aprendido durante la clase.", "Reflexionan"],
+    ["Portafolio: evidencia escrita individual.", "Guardan la evidencia en el portafolio"],
+    ["Los estudiantes practican el vocabulario en parejas.", "Practican"],
+  ];
+  for (const [entrada, esperado] of casos) {
+    const salida = normalizarVozActividadMINERD(entrada);
+    if (!salida.startsWith(esperado)) throw new Error(`no reparó "${entrada}" → "${salida}"`);
+    const v = validarVozActividad(salida);
+    if (!v.ok) throw new Error(`reparación inválida: "${salida}" — ${v.motivo}`);
   }
 });
 

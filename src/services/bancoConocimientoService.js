@@ -699,7 +699,10 @@ const normalizeContenidoPorTema = (bloque = {}) => {
       ? value
       : value?.descripcion || value?.texto || value?.nombre || value?.titulo || value?.valor || value?.estructura || value?.funcion
   );
-  const lista = (value) => uniqueCleanTexts(asArray(value).map(texto).filter(Boolean));
+  const lista = (value) => {
+    const items = Array.isArray(value) ? value : (value ? [value] : []);
+    return uniqueCleanTexts(items.map(texto).filter(Boolean));
+  };
   const conceptos = bloque?.conceptos || {};
   const procedimientos = bloque?.procedimientos || {};
   const tema = cleanText(bloque?.tema || conceptos?.tema || conceptos?.nombre);
