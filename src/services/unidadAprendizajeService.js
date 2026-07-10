@@ -1364,7 +1364,7 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
 };
 
 const normalizarCodigoIndicador = (codigo) =>
-  String(codigo || "").replace(/[\[\]\s]/g, "").toUpperCase().trim();
+  String(codigo || "").replaceAll("[", "").replaceAll("]", "").replace(/\s/g, "").toUpperCase().trim();
 
 const codigosIndicadoresTrabajados = (fasesSemanales = []) => {
   const codigos = new Set();
@@ -1546,7 +1546,7 @@ const _generarFasesConIA = async (
     // clases de la fase REALMENTE trabajaron (códigos reportados por la IA),
     // resueltos contra la especificación oficial. Fallback: los indicadores
     // oficiales de la malla (nunca checklist de plantilla).
-    const normCodigo = (c) => String(c || "").replace(/[\[\]\s]/g, "").toUpperCase();
+    const normCodigo = (c) => String(c || "").replaceAll("[", "").replaceAll("]", "").replace(/\s/g, "").toUpperCase();
     const codigosTrabajados = new Set(
       weekPlan.clases.flatMap((c) => (Array.isArray(c.indicadoresTrabajados) ? c.indicadoresTrabajados : []))
         .map(normCodigo).filter(Boolean)

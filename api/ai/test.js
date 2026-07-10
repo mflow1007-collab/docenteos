@@ -55,8 +55,8 @@ function sanitizeError(status, rawMessage = "") {
 
 function safeDetail(rawMessage = "") {
   return String(rawMessage || "")
-    .replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, "Bearer [oculto]")
-    .replace(/sk-[A-Za-z0-9_\-]+/gi, "sk-[oculto]")
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [oculto]")
+    .replace(/sk-[A-Za-z0-9_-]+/gi, "sk-[oculto]")
     .slice(0, 220);
 }
 
