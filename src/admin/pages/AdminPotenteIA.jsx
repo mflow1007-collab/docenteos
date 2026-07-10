@@ -324,6 +324,7 @@ export default function AdminPotenteIA() {
   const [corrigiendoJson, setCorrigiendoJson] = useState(false)
   const [aplicandoJson, setAplicandoJson] = useState(false)
   const [mensajeCorreccion, setMensajeCorreccion] = useState('')
+  const [violacionesContrato, setViolacionesContrato] = useState([])
 
   const tipo = useMemo(() => TIPOS_TRABAJO.find((t) => t.id === tipoId) || TIPOS_TRABAJO[0], [tipoId])
   const configured = status?.providers || {}
@@ -531,6 +532,7 @@ export default function AdminPotenteIA() {
     setSalidaCorreccion('')
     setJsonCorregido(null)
     setValorCorregido(null)
+    setViolacionesContrato([])
     try {
       const base = jsonActual || await cargarJsonFuente(fuenteId)
       const fuente = fuentes.find((f) => f.id === fuenteId)
@@ -563,9 +565,10 @@ export default function AdminPotenteIA() {
       if (!validacion.parsed) throw new Error(validacion.error || 'No se pudo validar el JSON corregido.')
       setValorCorregido(nuevoValor)
       setJsonCorregido(validacion.parsed)
+      setViolacionesContrato(validacion.violaciones || [])
       setMensajeCorreccion(validacion.ok
-        ? 'Corrección lista y validada. Revisa el JSON antes de aplicar.'
-        : `Corrección preparada, pero el JSON aún no está listo para generar: ${validacion.error}`)
+        ? 'Corrección lista y validada contra el contrato curricular. Revisa el JSON antes de aplicar.'
+        : `El JSON corregido aún viola el contrato curricular (${(validacion.violaciones || []).length || '?'} violaciones — ver detalle abajo). No se puede aplicar hasta resolverlas.`)
     } catch (err) {
       setMensajeCorreccion(`No se pudo preparar la corrección: ${err.message || err}`)
     } finally {
@@ -578,6 +581,13 @@ export default function AdminPotenteIA() {
     setAplicandoJson(true)
     setMensajeCorreccion('')
     try {
+      // Se guarda SOLO lo validado: re-verificar el contrato justo antes de aplicar.
+      const recheck = validateJsonSobre(JSON.stringify(jsonCorregido))
+      if (!recheck.ok) {
+        setViolacionesContrato(recheck.violaciones || [])
+        setMensajeCorreccion(`No se aplicó: el JSON viola el contrato curricular. ${recheck.error || ''}`)
+        return
+      }
       await attachJsonToSource(fuenteId, JSON.stringify(jsonCorregido))
       await cargarFuentes()
       await cargarJsonFuente(fuenteId)
@@ -867,14 +877,27 @@ export default function AdminPotenteIA() {
               <button className="admin-btn admin-btn-primary" onClick={prepararCorreccionJson} disabled={!fuenteId || !textoCorreccion.trim() || corrigiendoJson}>
                 {corrigiendoJson ? 'Preparando...' : 'Preparar corrección JSON'}
               </button>
-              <button className="admin-btn admin-btn-secondary" onClick={aplicarCorreccionJson} disabled={!jsonCorregido || aplicandoJson}>
+              <button className="admin-btn admin-btn-secondary" onClick={aplicarCorreccionJson} disabled={!jsonCorregido || aplicandoJson || violacionesContrato.length > 0}>
                 {aplicandoJson ? 'Aplicando...' : 'Aplicar al Banco'}
               </button>
             </div>
 
             {mensajeCorreccion && (
-              <div className={`admin-alert ${mensajeCorreccion.startsWith('No se pudo') ? 'error' : 'success'}`}>
+              <div className={`admin-alert ${mensajeCorreccion.startsWith('No se pudo') || mensajeCorreccion.startsWith('No se aplicó') || mensajeCorreccion.includes('viola el contrato') ? 'error' : 'success'}`}>
                 {mensajeCorreccion}
+              </div>
+            )}
+
+            {violacionesContrato.length > 0 && (
+              <div style={{ border: '1px solid #b91c1c', borderRadius: 8, padding: 10, background: '#1c0f0f' }}>
+                <strong style={{ display: 'block', marginBottom: 6, color: '#fca5a5' }}>
+                  Violaciones del contrato curricular ({violacionesContrato.length}) — el Banco solo acepta JSON validado
+                </strong>
+                <ul style={{ margin: 0, paddingLeft: 18, maxHeight: 220, overflow: 'auto', fontSize: 12, color: '#fecaca' }}>
+                  {violacionesContrato.map((viol, i) => (
+                    <li key={i}><code>{viol.ruta}</code> — {viol.mensaje}</li>
+                  ))}
+                </ul>
               </div>
             )}
 

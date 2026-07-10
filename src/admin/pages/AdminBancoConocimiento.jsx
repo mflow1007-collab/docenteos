@@ -8,6 +8,7 @@ import {
   validateJsonSobre, createCurricularContent, attachJsonToSource,
   construirPaqueteCurricularJson, resumenPayloadCurricular,
 } from '../../services/bancoConocimientoService.js';
+import { SCHEMA_VERSION_CANONICA } from '../../services/curricularSchema.js';
 import { AIService } from '../../services/ai/AIService.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1046,7 +1047,7 @@ Instrucción crítica:
 
 Estructura requerida:
 {
-  "schemaVersion": "2.0",
+  "schemaVersion": "${SCHEMA_VERSION_CANONICA}",
   "level": "${(contexto.level || '').replace(/"/g, '\\"')}",
   "cycle": "",
   "grade": "${(contexto.grade || '').replace(/"/g, '\\"')}",
@@ -1507,7 +1508,7 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
   });
 
   const sobre = {
-    schemaVersion: '2.0',
+    schemaVersion: SCHEMA_VERSION_CANONICA,
     level: contexto.level || '',
     cycle: contexto.cycle || cicloDelGrado(contexto.grade),
     grade: contexto.grade || '',

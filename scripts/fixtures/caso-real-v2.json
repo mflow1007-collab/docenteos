@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "2.0",
+  "level": "Secundaria",
+  "cycle": "Primer ciclo",
+  "grade": "1ro",
+  "area": "Lenguas Extranjeras",
+  "subject": "Inglés",
+  "contentType": "malla_curricular",
+  "fuente": "MINERD",
+  "competencias": [
+    {
+      "id": "ING-1-C01",
+      "competenciaFundamental": "Comunicativa",
+      "especificaGrado": "Comprende expresiones y vocabulario de uso frecuente relacionados con su entorno inmediato."
+    },
+    {
+      "id": "ING-1-C02",
+      "competenciaFundamental": "Comunicativa",
+      "especificaGrado": "Comprende textos breves y sencillos sobre temas cotidianos."
+    },
+    {
+      "id": "ING-1-C03",
+      "competenciaFundamental": "Comunicativa",
+      "especificaGrado": "Participa en conversaciones sencillas sobre temas conocidos."
+    },
+    {
+      "id": "ING-1-C04",
+      "competenciaFundamental": "Comunicativa",
+      "especificaGrado": "Describe de forma sencilla personas, lugares y actividades cotidianas."
+    },
+    {
+      "id": "ING-1-C05",
+      "competenciaFundamental": "Comunicativa",
+      "especificaGrado": "Escribe textos breves y sencillos sobre su entorno."
+    },
+    {
+      "id": "ING-1-C06",
+      "competenciaFundamental": "Ética y Ciudadana",
+      "especificaGrado": "Reconoce aspectos culturales de los países anglófonos."
+    },
+    {
+      "id": "ING-1-C07",
+      "competenciaFundamental": "Ética y Ciudadana",
+      "especificaGrado": "Utiliza estrategias básicas para apoyar la comprensión y la producción."
+    },
+    {
+      "id": "ING-1-C08",
+      "competenciaFundamental": "",
+      "especificaGrado": ""
+    }
+  ],
+  "indicadoresLogro": [
+    "Indicador de logro plano número 1 sin vínculo a competencia.",
+    "Indicador de logro plano número 2 sin vínculo a competencia.",
+    "Indicador de logro plano número 3 sin vínculo a competencia.",
+    "Indicador de logro plano número 4 sin vínculo a competencia.",
+    "Indicador de logro plano número 5 sin vínculo a competencia.",
+    "Indicador de logro plano número 6 sin vínculo a competencia.",
+    "Indicador de logro plano número 7 sin vínculo a competencia.",
+    "Indicador de logro plano número 8 sin vínculo a competencia.",
+    "Indicador de logro plano número 9 sin vínculo a competencia.",
+    "Indicador de logro plano número 10 sin vínculo a competencia.",
+    "Indicador de logro plano número 11 sin vínculo a competencia.",
+    "Indicador de logro plano número 12 sin vínculo a competencia.",
+    "Indicador de logro plano número 13 sin vínculo a competencia.",
+    "Indicador de logro plano número 14 sin vínculo a competencia.",
+    "Indicador de logro plano número 15 sin vínculo a competencia.",
+    "Indicador de logro plano número 16 sin vínculo a competencia.",
+    "Indicador de logro plano número 17 sin vínculo a competencia.",
+    "Indicador de logro plano número 18 sin vínculo a competencia.",
+    "Indicador de logro plano número 19 sin vínculo a competencia.",
+    "Indicador de logro plano número 20 sin vínculo a competencia.",
+    "Indicador de logro plano número 21 sin vínculo a competencia."
+  ],
+  "temas": [
+    "Vivienda, entorno y ciudad",
+    "Rutinas diarias",
+    "Alimentación"
+  ],
+  "contenidos": {
+    "conceptos": {
+      "vocabulario": [
+        {
+          "categoria": "Vivienda",
+          "ejemplos": [
+            "lobby",
+            "entrance",
+            "chair",
+            "desk"
+          ]
+        }
+      ],
+      "gramatica": [
+        {
+          "estructura": "There + be en presente simple para describir lugares"
+        }
+      ]
+    },
+    "procedimientos": {
+      "funcionales": [
+        "Describir y comparar lugares y objetos"
+      ]
+    },
+    "actitudinales": [
+      "Valoración del trabajo colaborativo"
+    ]
+  }
+}

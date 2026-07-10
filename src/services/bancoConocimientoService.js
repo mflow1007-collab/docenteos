@@ -6,6 +6,15 @@ import {
   ref as storageRef, uploadBytes, getDownloadURL,
 } from 'firebase/storage';
 import { db, auth, storage } from '../firebase.js';
+import {
+  SCHEMA_VERSION_CANONICA,
+  PLACEHOLDERS_PROHIBIDOS,
+  localizarPlaceholdersProhibidos,
+  validateCurricularDoc,
+} from './curricularSchema.js';
+
+// Re-export para compatibilidad: la fuente única del contrato es curricularSchema.js
+export { PLACEHOLDERS_PROHIBIDOS, localizarPlaceholdersProhibidos, validateCurricularDoc };
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -542,7 +551,10 @@ export const construirPaqueteCurricularJson = (archivos = []) => {
   };
 
   const paquete = {
-    schemaVersion: cleanText(metadata.schemaVersion || metadata.schema_version || '2.0'),
+    // Respeta la versión que declare el material; si no trae, la CANÓNICA.
+    // Jamás estampar una versión inventada (el default '2.0' aquí fue el
+    // origen de los docs v2.0 que el generador no sabía leer).
+    schemaVersion: cleanText(metadata.schemaVersion || metadata.schema_version || SCHEMA_VERSION_CANONICA),
     level: cleanText(metadata.level || metadata.nivel),
     cycle: cleanText(metadata.cycle || metadata.ciclo),
     grade: cleanText(metadata.grade || metadata.grado),
@@ -956,41 +968,10 @@ export const analizarJsonCurricular = (parsed) => {
   };
 };
 
-// ─── Higiene de placeholders legacy ──────────────────────────────────────────
-// Cadenas de plantilla que JAMÁS pueden vivir en un corpus curricular. Se
-// rechazan en la SUBIDA (aquí) y se verifican sobre las secciones RENDERIZADAS
-// del documento (validarUnidadRenderizada).
-
-export const PLACEHOLDERS_PROHIBIDOS = [
-  'Vocabulario clave relacionado con',
-  'Estructuras gramaticales básicas',
-  'diversidad cultural anglosajona',
-  'Conceptos fundamentales de ',
-  'Definiciones de ',
-];
-
-// Recorre un valor (string/array/objeto) y devuelve [{ ruta, cadena }] con la
-// ubicación EXACTA de cada placeholder — para que el docente sepa qué depurar.
-export const localizarPlaceholdersProhibidos = (valor, rutaBase = '') => {
-  const hallazgos = [];
-  const visitar = (v, ruta) => {
-    if (typeof v === 'string') {
-      for (const p of PLACEHOLDERS_PROHIBIDOS) {
-        if (v.includes(p)) hallazgos.push({ ruta: ruta || '(raíz)', cadena: p });
-      }
-      return;
-    }
-    if (Array.isArray(v)) {
-      v.forEach((item, i) => visitar(item, `${ruta}[${i}]`));
-      return;
-    }
-    if (v && typeof v === 'object') {
-      for (const [k, val] of Object.entries(v)) visitar(val, ruta ? `${ruta}.${k}` : k);
-    }
-  };
-  visitar(valor, rutaBase);
-  return hallazgos;
-};
+// ─── Guard de subida ─────────────────────────────────────────────────────────
+// La higiene de placeholders y el contrato canónico viven en curricularSchema.js
+// (fuente única). Aquí solo se aplican: capa ESTRICTA — lo que viola el
+// contrato no entra al Banco.
 
 export const validateJsonSobre = (text) => {
   if (!text || !text.trim()) return { ok: false, error: 'El JSON no puede estar vacío.' };
@@ -1028,20 +1009,22 @@ export const validateJsonSobre = (text) => {
     };
   }
 
-  // Guard de higiene: un corpus con cadenas de plantilla no entra al Banco
-  const sucios = localizarPlaceholdersProhibidos(parsed);
-  if (sucios.length) {
-    const detalle = sucios.slice(0, 5).map((h) => `${h.ruta} → "${h.cadena}"`).join(' · ');
+  // Contrato canónico (curricularSchema.js): placeholders, schemaVersion,
+  // competencias/indicadores asociables, contenidos por columna — con ruta exacta.
+  const contrato = validateCurricularDoc(parsed);
+  if (!contrato.ok) {
+    const detalle = contrato.violaciones.slice(0, 6).map((h) => `${h.ruta} → ${h.mensaje}`).join(' · ');
     return {
       ok: false,
       parsed,
       analysis,
-      error: `El JSON contiene texto de plantilla que no es contenido curricular oficial: ${detalle}` +
-        `${sucios.length > 5 ? ` (+${sucios.length - 5} más)` : ''}. Elimina esas líneas y vuelve a cargarlo.`,
+      violaciones: contrato.violaciones,
+      error: `El JSON no cumple el contrato curricular (${contrato.violaciones.length} violación${contrato.violaciones.length === 1 ? '' : 'es'}): ${detalle}` +
+        `${contrato.violaciones.length > 6 ? ` (+${contrato.violaciones.length - 6} más)` : ''}. Corrígelo (o usa Potente IA) y vuelve a cargarlo.`,
     };
   }
 
-  return { ok: true, parsed, analysis };
+  return { ok: true, parsed, analysis, violaciones: [] };
 };
 
 export const createCurricularContent = async ({ sourceId, parsed, extractionMethod = 'manual' }) => {
@@ -1312,6 +1295,18 @@ export const getCurricularContentForUnit = async (subject, grade, nivel = '') =>
     // contentType). No se cae a otro grado ni a otro nivel de la misma área.
     const malla = seleccionarMallaParaUnidad(candidates, { nivel, grado: grade });
     if (!malla) return null;
+
+    // Capa TOLERANTE del contrato: el lector NO bloquea docs históricos, pero
+    // deja ADVERTENCIA con ruta exacta para corregirlos en Potente IA. Los
+    // candados del generador siguen deteniendo lo que no se puede generar.
+    const contrato = validateCurricularDoc(malla);
+    if (!contrato.ok) {
+      console.warn(
+        `[curricularContent] Malla ${malla.id} (schemaVersion=${malla.schemaVersion || '?'}) ` +
+        `viola el contrato curricular en ${contrato.violaciones.length} punto(s) — corrígela en Potente IA:`,
+        contrato.violaciones.map((h) => `${h.ruta}: ${h.mensaje}`),
+      );
+    }
 
     // Capa 2 opcional: enriquecimiento_tema derivado de ESTA malla
     // (payload.derivedFrom === id/contentId). Su ausencia nunca bloquea.

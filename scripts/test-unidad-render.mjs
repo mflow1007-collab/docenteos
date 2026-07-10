@@ -18,6 +18,12 @@ import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico,
 import { validarVozActividad } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import { coincideContextoTemaTrabajado } from "../src/services/curriculumCombinacionService.js";
+import { validateCurricularDoc, SCHEMA_VERSION_CANONICA, localizarPlaceholdersProhibidos as locSchema } from "../src/services/curricularSchema.js";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __dir = dirname(fileURLToPath(import.meta.url));
 
 let pasadas = 0;
 let falladas = 0;
@@ -788,6 +794,71 @@ check("corpus sin campo categoria + Capa 2 → fallback al grado (expresiones = 
   const mc = _extraerContenidosMallaCorpus(corpusSinCategorias, "Vivienda, entorno y ciudad", t);
   if (!mc.vocabulario.includes("window")) throw new Error("el fallback no conservó el vocabulario del grado");
   if (!mc.expresiones.includes("Expresar aprobación o acuerdo")) throw new Error("no pasó las etiquetas de expresiones del tema");
+});
+
+// ─── Contrato canónico (curricularSchema.js) — caso real v2.0 como fixture ───
+
+const casoRealV2 = JSON.parse(readFileSync(join(__dir, "fixtures", "caso-real-v2.json"), "utf8"));
+
+check("caso real v2.0: el contrato lo RECHAZA y nombra cada violación con ruta", () => {
+  const r = validateCurricularDoc(casoRealV2);
+  if (r.ok) throw new Error("aceptó el doc v2.0 que rompió la generación real");
+  const rutas = r.violaciones.map((h) => h.ruta);
+  if (!r.violaciones.some((h) => h.ruta === "schemaVersion" && h.mensaje.includes('"2.0"'))) {
+    throw new Error("no marcó schemaVersion 2.0 como versión desconocida");
+  }
+  if (!rutas.includes("competencias[7].especifica")) throw new Error("no marcó la fila basura sin específica");
+  if (!rutas.includes("indicadoresLogro[0]")) throw new Error("no marcó los indicadores planos string sin competenciaId");
+});
+
+check("el MISMO doc corregido (lo que Potente IA debe lograr) → contrato ok", () => {
+  const reparado = JSON.parse(JSON.stringify(casoRealV2));
+  reparado.schemaVersion = SCHEMA_VERSION_CANONICA;
+  reparado.competencias = reparado.competencias.slice(0, 7); // fuera la fila basura
+  reparado.indicadoresLogro = reparado.indicadoresLogro.map((texto, j) => ({
+    id: `ING-1-I${String(j + 1).padStart(2, "0")}`,
+    descripcion: texto,
+    competenciaId: `ING-1-C${String((j % 7) + 1).padStart(2, "0")}`,
+  }));
+  const r = validateCurricularDoc(reparado);
+  if (!r.ok) throw new Error(`sigue violando: ${r.violaciones.map((h) => `${h.ruta}: ${h.mensaje}`).join(" · ")}`);
+});
+
+check("indicador plano con competenciaId inexistente → violación con el código exacto", () => {
+  const doc = JSON.parse(JSON.stringify(casoRealV2));
+  doc.schemaVersion = SCHEMA_VERSION_CANONICA;
+  doc.competencias = doc.competencias.slice(0, 7);
+  doc.indicadoresLogro = [{ id: "I1", descripcion: "Algo", competenciaId: "ING-9-C99" }];
+  const r = validateCurricularDoc(doc);
+  if (!r.violaciones.some((h) => h.ruta === "indicadoresLogro[0].competenciaId" && h.mensaje.includes("ING-9-C99"))) {
+    throw new Error("no señaló el competenciaId huérfano");
+  }
+});
+
+check("placeholder prohibido dentro del payload → violación con ruta exacta", () => {
+  const doc = JSON.parse(JSON.stringify(casoRealV2));
+  doc.schemaVersion = SCHEMA_VERSION_CANONICA;
+  doc.competencias = doc.competencias.slice(0, 7);
+  doc.indicadoresLogro = [{ id: "I1", descripcion: "Algo", competenciaId: "ING-1-C01" }];
+  doc.contenidos.conceptos.gramatica = [{ estructura: "Estructuras gramaticales básicas" }];
+  const r = validateCurricularDoc(doc);
+  if (!r.violaciones.some((h) => h.ruta === "contenidos.conceptos.gramatica[0].estructura" && h.mensaje.includes("placeholder"))) {
+    throw new Error(`no localizó el placeholder: ${JSON.stringify(r.violaciones)}`);
+  }
+});
+
+check("enriquecimiento_tema: exige derivedFrom y temas; no exige competencias", () => {
+  const r1 = validateCurricularDoc({
+    schemaVersion: "1.0", level: "Secundaria", grade: "1ro", area: "Lenguas Extranjeras",
+    subject: "Inglés", contentType: "enriquecimiento_tema",
+    payload: { contentType: "enriquecimiento_tema", schemaVersion: "1.0", level: "Secundaria", grade: "1ro", area: "Lenguas Extranjeras", subject: "Inglés", temas: [{ temaOficial: "Vivienda, entorno y ciudad" }] },
+  });
+  if (!r1.violaciones.some((h) => h.ruta === "payload.derivedFrom")) throw new Error("no exigió derivedFrom");
+  if (r1.violaciones.some((h) => h.ruta === "competencias")) throw new Error("exigió competencias a un enriquecimiento");
+});
+
+check("re-export de compat: el Banco y curricularSchema comparten el MISMO walker", () => {
+  if (localizarPlaceholdersProhibidos !== locSchema) throw new Error("el Banco no re-exporta la fuente única");
 });
 
 // ─── Resultado ────────────────────────────────────────────────────────────────
