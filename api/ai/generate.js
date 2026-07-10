@@ -203,18 +203,22 @@ function getModel(provider, modelOverrides) {
  *   2. Si llega `preferredProvider`, muévelo al frente del DEFAULT_ORDER.
  *   3. Si no llega nada, usa DEFAULT_ORDER.
  */
-function getProviderQueue(preferredProvider, providerOrder, strictProvider = false) {
+function getProviderQueue(preferredProvider, providerOrder, strictProvider = false, providersDisabled = []) {
+  // Proveedores APAGADOS por el admin: se excluyen SIEMPRE — del orden, de los
+  // fallbacks y del default. Apagado ≠ "al final de la cola": apagado no se usa.
+  const apagados = new Set(Array.isArray(providersDisabled) ? providersDisabled : []);
+  const disponible = (p) => !apagados.has(p) && getApiKey(p);
   let queue;
 
   if (providerOrder && Array.isArray(providerOrder) && providerOrder.length > 0) {
     // Usar el orden de Firestore, filtrando solo los que tienen key
-    const ordered = providerOrder.filter((p) => getApiKey(p));
+    const ordered = providerOrder.filter(disponible);
     if (strictProvider) return ordered;
     // Añadir cualquier proveedor de DEFAULT_ORDER que no esté en el order del admin
-    const extras  = DEFAULT_ORDER.filter((p) => !providerOrder.includes(p) && getApiKey(p));
+    const extras  = DEFAULT_ORDER.filter((p) => !providerOrder.includes(p) && disponible(p));
     queue = [...ordered, ...extras];
   } else {
-    queue = DEFAULT_ORDER.filter((p) => getApiKey(p));
+    queue = DEFAULT_ORDER.filter(disponible);
     if (preferredProvider && queue.includes(preferredProvider)) {
       queue = [preferredProvider, ...queue.filter((p) => p !== preferredProvider)];
     }
@@ -381,6 +385,7 @@ export default async function handler(request) {
     preferredProvider,
     providerOrder,     // string[] desde Firestore vía AIService
     modelOverrides,    // { openai: "gpt-4.1", ... } desde Firestore vía AIService
+    providersDisabled, // string[] — proveedores APAGADOS por el admin (jamás se usan, ni como fallback)
     strictProvider = false,
     imageBase64,       // base64 image for vision (Anthropic only)
     imageMediaType,    // e.g. "image/jpeg"
@@ -404,13 +409,16 @@ export default async function handler(request) {
   // Tope de tokens de salida: el cliente no decide costos ilimitados
   const tokensSalida = Math.min(Math.max(parseInt(maxTokens, 10) || 4096, 1), MAX_TOKENS_CAP);
 
-  const queue = getProviderQueue(preferredProvider, providerOrder, strictProvider);
+  const queue = getProviderQueue(preferredProvider, providerOrder, strictProvider, providersDisabled);
 
   if (queue.length === 0) {
-    console.error("[AI Gateway] No hay proveedores configurados (OPENAI_API_KEY / ABACUS_API_KEY / ANTHROPIC_API_KEY / NVIDIA_API_KEY)");
+    const hayApagados = Array.isArray(providersDisabled) && providersDisabled.length > 0;
+    console.error(`[AI Gateway] Cola vacía — apagados por admin: [${(providersDisabled || []).join(", ")}]`);
     return new Response(
       JSON.stringify({
-        error: "No hay ningún servicio de Inteligencia Artificial disponible en este momento. Verifica la configuración del administrador o intenta nuevamente más tarde.",
+        error: hayApagados
+          ? "Todos los proveedores de IA disponibles están desactivados por el administrador. Enciende al menos uno en Administración → Motor de IA."
+          : "No hay ningún servicio de Inteligencia Artificial disponible en este momento. Verifica la configuración del administrador o intenta nuevamente más tarde.",
       }),
       { status: 503, headers: { "Content-Type": "application/json" } }
     );

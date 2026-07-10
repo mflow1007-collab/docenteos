@@ -17,10 +17,10 @@
  *   7. Llamar onFinish(textoCompleto)
  */
 
-import { AIConfig, getModuleConfig } from "./AIConfig";
-import { resolveModuleOptions } from "./router";
-import { getCached, setCached } from "./cache";
-import { logUsage } from "./usage";
+import { AIConfig, getModuleConfig } from "./AIConfig.js";
+import { resolveModuleOptions } from "./router.js";
+import { getCached, setCached } from "./cache.js";
+import { logUsage } from "./usage.js";
 import { db } from "../../firebase.js";
 import { doc, getDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -33,7 +33,7 @@ let _gwConfig    = null;
 let _gwLoadedAt  = 0;
 const GW_TTL_MS  = 5 * 60 * 1000; // 5 minutos
 
-async function loadGatewayConfig() {
+export async function loadGatewayConfig() {
   const now = Date.now();
   if (_gwConfig !== null && now - _gwLoadedAt < GW_TTL_MS) return _gwConfig;
 
@@ -109,12 +109,15 @@ export const AIService = {
     // ── 2. Cargar config dinámica de Firestore ───────────────────────────────
     //    priority:      orden de proveedores guardado por el admin
     //    modelOverrides: modelo seleccionado por el admin por proveedor
-    let providerOrder  = null;
-    let modelOverrides = null;
+    let providerOrder     = null;
+    let modelOverrides    = null;
+    let providersDisabled = null;
     try {
-      const gwConfig  = await loadGatewayConfig();
-      providerOrder   = gwConfig.priority || null;
-      modelOverrides  = gwConfig.models   || null;
+      const gwConfig    = await loadGatewayConfig();
+      providerOrder     = gwConfig.priority || null;
+      modelOverrides    = gwConfig.models   || null;
+      // Apagados por el admin: jamás se usan (ni como fallback)
+      providersDisabled = Array.isArray(gwConfig.disabled) ? gwConfig.disabled : null;
     } catch {
       // no-fatal — el gateway usará su orden por defecto
     }
@@ -142,6 +145,7 @@ export const AIService = {
           preferredProvider: imageBase64 ? "anthropic" : (preferredProviderOverride || routerOpts.preferredProvider),
           providerOrder:     imageBase64 ? ["anthropic"] : (providerOrderOverride || providerOrder),
           modelOverrides:    modelOverridesOverride || modelOverrides,
+          providersDisabled,
           strictProvider,
           imageBase64,
           imageMediaType,

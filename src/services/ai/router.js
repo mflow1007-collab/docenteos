@@ -9,7 +9,7 @@
  *   "auditoria-ia": { preferredProvider: "anthropic" }
  */
 
-import { getModuleConfig } from "./AIConfig";
+import { getModuleConfig } from "./AIConfig.js";
 
 // Override de proveedor por módulo (null = usar prioridad global del servidor)
 const MODULE_PROVIDER_OVERRIDES = {

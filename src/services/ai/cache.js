@@ -11,7 +11,7 @@
  *     Esto permite cache hits entre docentes distintos con el mismo contexto pedagógico.
  */
 
-import { db } from "../../firebase";
+import { db } from "../../firebase.js";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 /** Hash SHA-256 del texto (usa primeros 2000 chars para rendimiento) */

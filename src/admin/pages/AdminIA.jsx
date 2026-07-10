@@ -201,6 +201,9 @@ function useProviderPriority() {
   const DEF_MODELS = Object.fromEntries(ACTIVE_PROVIDERS.map(p => [p.id, p.model]))
   const [priority, setPriority] = useState(AIConfig.providerPriority || ACTIVE_PROVIDERS.map(p => p.id))
   const [models,   setModels]   = useState(DEF_MODELS)
+  // Proveedores APAGADOS por el admin: jamás se usan, ni como fallback
+  // (distinto de "mover al final", que solo baja la prioridad)
+  const [apagados, setApagados] = useState([])
   const [saving,   setSaving]   = useState(false)
 
   useEffect(() => {
@@ -211,26 +214,34 @@ function useProviderPriority() {
         const d = snap.data()
         if (d.priority) setPriority(d.priority)
         if (d.models)   setModels({ ...DEF_MODELS, ...d.models })
+        if (Array.isArray(d.disabled)) setApagados(d.disabled)
       })
       .catch(() => {})
   }, [])
 
-  const saveConfig = async (nextPriority, nextModels) => {
+  const saveConfig = async (nextPriority, nextModels, nextApagados) => {
     if (!db) return
     setSaving(true)
     try {
       await setDoc(doc(db, 'config', 'ia-gateway'),
-        { priority: nextPriority, models: nextModels }, { merge: true })
+        { priority: nextPriority, models: nextModels, disabled: nextApagados }, { merge: true })
       // Invalidar cache local de AIService para que aplique inmediatamente
       invalidateGatewayConfig()
     } catch(e) { console.error('[AdminIA] saveConfig:', e) }
     finally { setSaving(false) }
   }
 
-  const savePriority = (next) => { setPriority(next); saveConfig(next, models) }
-  const saveModels   = (next) => { setModels(next);   saveConfig(priority, next) }
+  const savePriority = (next) => { setPriority(next); saveConfig(next, models, apagados) }
+  const saveModels   = (next) => { setModels(next);   saveConfig(priority, next, apagados) }
+  const toggleApagado = (provId) => {
+    const next = apagados.includes(provId)
+      ? apagados.filter(p => p !== provId)
+      : [...apagados, provId]
+    setApagados(next)
+    saveConfig(priority, models, next)
+  }
 
-  return { priority, savePriority, models, saveModels, saving }
+  return { priority, savePriority, models, saveModels, saving, apagados, toggleApagado }
 }
 
 // ─── Hook: Cache stats ────────────────────────────────────────────────────────
@@ -368,6 +379,7 @@ function TabResumen({
   configuredCount, activeProvName,
   priority, models,
   onActivar, onDesactivar, onEditarModelo,
+  apagados = [], onToggleApagado,
   activacionOk,
 }) {
   const t = stats?.today
@@ -416,15 +428,21 @@ function TabResumen({
           const ps         = providerStats[prov.id]
           const isPrimary  = priority[0] === prov.id
           const isLast     = priority[priority.length - 1] === prov.id
+          const isApagado  = apagados.includes(prov.id)
 
           let dotColor = 'gray', statusLabel = 'No configurado'
           if (configured && !result)   { dotColor = 'amber'; statusLabel = 'Configurado' }
           if (result?.ok)              { dotColor = 'green'; statusLabel = 'Conectado' }
           if (result && !result.ok)    { dotColor = 'red';   statusLabel = result.error || 'Error' }
           if (isTesting)               { statusLabel = 'Probando…' }
+          if (isApagado)               { dotColor = 'gray';  statusLabel = 'Apagado por el administrador' }
 
           return (
-            <div key={prov.id} className={`aim-prov-card${!configured ? ' aim-prov-card--off' : ''}${result?.ok ? ' aim-prov-card--ok' : ''}`}>
+            <div
+              key={prov.id}
+              className={`aim-prov-card${!configured ? ' aim-prov-card--off' : ''}${result?.ok && !isApagado ? ' aim-prov-card--ok' : ''}`}
+              style={isApagado ? { opacity: 0.55, filter: 'grayscale(0.6)' } : undefined}
+            >
               <div className="aim-prov-top">
                 <div className="aim-prov-identity">
                   <span className="aim-prov-logo">{prov.logo}</span>
@@ -437,7 +455,8 @@ function TabResumen({
                   </div>
                 </div>
                 <div className="aim-prov-badges">
-                  {isPrimary && configured && <Badge label="Principal" variant="blue" />}
+                  {isApagado && <Badge label="Apagado" variant="red" />}
+                  {isPrimary && configured && !isApagado && <Badge label="Principal" variant="blue" />}
                 </div>
               </div>
 
@@ -497,21 +516,31 @@ function TabResumen({
                 </button>
                 <button
                   className={`aim-btn ${isPrimary ? 'aim-btn-ghost' : 'aim-btn-primary'}`}
-                  disabled={isTesting || isPrimary}
+                  disabled={isTesting || isPrimary || isApagado}
                   onClick={() => onActivar(prov.id)}
-                  title={isPrimary ? 'Ya es el proveedor principal' : 'Activar como proveedor principal'}
+                  title={isApagado ? 'Enciende el proveedor primero' : isPrimary ? 'Ya es el proveedor principal' : 'Activar como proveedor principal'}
                   style={{ width: 'auto', fontSize: 12 }}
                 >
-                  {isPrimary ? '✓ Principal' : 'Activar'}
+                  {isPrimary && !isApagado ? '✓ Principal' : 'Activar'}
                 </button>
                 <button
                   className="aim-btn aim-btn-ghost"
-                  disabled={isLast}
+                  onClick={() => onToggleApagado?.(prov.id)}
+                  title={isApagado
+                    ? 'Encender: vuelve a estar disponible para el sistema'
+                    : 'Apagar: NO se usará en ninguna generación, ni como fallback'}
+                  style={{ fontSize: 12, color: isApagado ? 'var(--adm-success)' : 'var(--adm-danger)' }}
+                >
+                  {isApagado ? '🟢 Encender' : '⏻ Apagar'}
+                </button>
+                <button
+                  className="aim-btn aim-btn-ghost"
+                  disabled={isLast || isApagado}
                   onClick={() => onDesactivar(prov.id)}
-                  title="Mover al final de la cola de fallback"
+                  title="Bajar prioridad: mover al final de la cola de fallback (sigue disponible)"
                   style={{ fontSize: 12 }}
                 >
-                  Desactivar
+                  ⬇ Al final
                 </button>
                 <button
                   className="aim-btn aim-btn-ghost"
@@ -978,7 +1007,7 @@ export default function AdminIA() {
   const { data: cacheData, loading: cacheLoading, clearing, reload: cacheReload, clearAll } = useCacheStats()
 
   // Provider priority + models (Firestore config/ia-gateway)
-  const { priority, savePriority, models, saveModels, saving } = useProviderPriority()
+  const { priority, savePriority, models, saveModels, saving, apagados, toggleApagado } = useProviderPriority()
 
   // Load provider status (env var check via /api/ai/status)
   useEffect(() => {
@@ -1050,7 +1079,8 @@ export default function AdminIA() {
 
   const configuredCount = providerStatus
     ? Object.values(providerStatus.providers||{}).filter(p => p.configured).length : 0
-  const activeProv     = priority.find(id => providerStatus?.providers?.[id]?.configured) || providerStatus?.primaryProvider
+  const activeProv     = priority.find(id => !apagados.includes(id) && providerStatus?.providers?.[id]?.configured)
+    || (!apagados.includes(providerStatus?.primaryProvider) ? providerStatus?.primaryProvider : null)
   const activeProvName = PROVIDER_CATALOG.find(p => p.id === activeProv)?.name || activeProv || '—'
 
   return (
@@ -1088,6 +1118,7 @@ export default function AdminIA() {
           configuredCount={configuredCount} activeProvName={activeProvName}
           priority={priority} models={models}
           onActivar={activar} onDesactivar={desactivar} onEditarModelo={setModalModelo}
+          apagados={apagados} onToggleApagado={toggleApagado}
           activacionOk={activacionOk}
         />
       )}

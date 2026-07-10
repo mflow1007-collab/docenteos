@@ -14,6 +14,7 @@
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
 import { db }                                   from '../firebase.js';
+import { loadGatewayConfig }                    from './ai/AIService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -70,13 +71,26 @@ async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS) {
   let idToken;
   try { idToken = await user.getIdToken(false); } catch { idToken = null; }
 
+  // Config del admin (prioridad, modelos y APAGADOS): la generación de
+  // unidades respeta el mismo interruptor de proveedores que el resto
+  let gwConfig = {};
+  try { gwConfig = await loadGatewayConfig(); } catch { /* no-fatal */ }
+
   const response = await fetch('/api/ai/generate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
     },
-    body: JSON.stringify({ module: MODULE_NAME, prompt, system, maxTokens }),
+    body: JSON.stringify({
+      module: MODULE_NAME,
+      prompt,
+      system,
+      maxTokens,
+      providerOrder: gwConfig.priority || undefined,
+      modelOverrides: gwConfig.models || undefined,
+      providersDisabled: Array.isArray(gwConfig.disabled) ? gwConfig.disabled : undefined,
+    }),
   });
 
   if (!response.ok) {

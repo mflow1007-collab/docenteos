@@ -5,7 +5,7 @@
  * costo estimado, tiempo de respuesta y si vino del cache.
  */
 
-import { db } from "../../firebase";
+import { db } from "../../firebase.js";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 

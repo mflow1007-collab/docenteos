@@ -5,7 +5,7 @@
  * únicamente los campos necesarios para cada tipo de acción.
  *
  * USO:
- *   import { buildAIContext } from "./ContextBuilder";
+ *   import { buildAIContext } from "./ContextBuilder.js";
  *
  *   const ctx = await buildAIContext("mejorar_actividades", { grado, tema, actividades, ... });
  *   AIService.generate({ module: "planificacion-ia", ...ctx });
