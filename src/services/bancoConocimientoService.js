@@ -1,5 +1,5 @@
 import {
-  collection, addDoc, getDocs, getDoc, doc, updateDoc,
+  collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc,
   serverTimestamp, query, where, orderBy, limit, writeBatch,
 } from 'firebase/firestore';
 import {
@@ -403,6 +403,42 @@ export const deleteKnowledgeSource = async (id) => {
   const deletedCurricularContent = await archiveRefsInBatches(refsCurricular, `cascada de fuente ${id}`);
   // Nombres de retorno conservados por compatibilidad: son ARCHIVADOS
   return { deletedSources, deletedCurricularContent };
+};
+
+// Borrado DEFINITIVO (no reversible): elimina la fuente y su curricularContent
+// de Firestore. Para cuando el admin quiere reemplazar una malla y NO dejar
+// residuos archivados que confundan. Distinto de deleteKnowledgeSource (que
+// archiva). Solo la fuente elegida y su contenido propio — sin cascada.
+export const purgeKnowledgeSource = async (id) => {
+  if (!db || !id) throw new Error('Parámetros inválidos');
+  const sourceRef = doc(db, COL, id);
+  const sourceSnap = await getDoc(sourceRef);
+  if (!sourceSnap.exists()) return { deletedSources: 0, deletedCurricularContent: 0 };
+  const source = { id: sourceSnap.id, ...sourceSnap.data() };
+
+  const contentRefs = [];
+  if (source.curricularContentId) {
+    contentRefs.push(doc(db, 'curricularContent', String(source.curricularContentId)));
+  }
+  // También el contenido que nació de esta fuente (por si el backlink faltó)
+  try {
+    const own = await getDocs(query(
+      collection(db, 'curricularContent'),
+      where('sourceId', '==', id),
+      limit(200),
+    ));
+    own.docs.forEach((d) => contentRefs.push(d.ref));
+  } catch { /* no-fatal */ }
+
+  let deletedCurricularContent = 0;
+  const vistos = new Set();
+  for (const ref of contentRefs) {
+    if (vistos.has(ref.path)) continue;
+    vistos.add(ref.path);
+    try { await deleteDoc(ref); deletedCurricularContent += 1; } catch { /* ignora */ }
+  }
+  await deleteDoc(sourceRef);
+  return { deletedSources: 1, deletedCurricularContent };
 };
 
 // ─── Contenido curricular estructurado (JSON) ─────────────────────────────────

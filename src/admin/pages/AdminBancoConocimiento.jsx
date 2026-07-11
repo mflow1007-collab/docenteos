@@ -3,7 +3,7 @@ import {
   BC_SOURCE_TYPES, BC_BANK_TYPES, BC_LEVELS, BC_GRADES, BC_AREAS,
   BC_SUBJECTS_BY_AREA,
   BC_ORIGIN_TYPES, BC_STATUSES, BC_CONTENT_FORMATS,
-  getKnowledgeSources, createKnowledgeSource, updateKnowledgeSource,
+  getKnowledgeSources, createKnowledgeSource, updateKnowledgeSource, purgeKnowledgeSource,
   updateKnowledgeSourceStatus, deleteKnowledgeSource, uploadKnowledgePDF,
   validateJsonSobre, createCurricularContent, attachJsonToSource,
   construirPaqueteCurricularJson, resumenPayloadCurricular,
@@ -3092,7 +3092,7 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
 
 // ─── Fila de la tabla ─────────────────────────────────────────────────────────
 
-function FuenteRow({ f, onEdit, onStatusChange, onDelete, onAdjuntarJson, onInspeccionManual }) {
+function FuenteRow({ f, onEdit, onStatusChange, onDelete, onPurge, onAdjuntarJson, onInspeccionManual }) {
   const siguientes = STATUS_FLOW[f.status] || [];
   const esEstructurada = (f.contentFormat || 'unstructured') === 'structured';
   const puedeAdjuntar  = f.originType !== 'json' && !esEstructurada;
@@ -3161,9 +3161,16 @@ function FuenteRow({ f, onEdit, onStatusChange, onDelete, onAdjuntarJson, onInsp
             </select>
           )}
 
-          <button onClick={() => { if (window.confirm('¿Eliminar esta fuente?')) onDelete(f.id); }}
-            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fee2e2', background: '#fff', color: '#dc2626', fontSize: 12, cursor: 'pointer' }}>
-            ✕
+          <button onClick={() => { if (window.confirm('¿Archivar esta fuente? (reversible: queda en la pestaña Archivadas)')) onDelete(f.id); }}
+            title="Archivar (reversible)"
+            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fde68a', background: '#fffbeb', color: '#b45309', fontSize: 12, cursor: 'pointer' }}>
+            Archivar
+          </button>
+
+          <button onClick={() => { if (window.confirm(`¿ELIMINAR DEFINITIVAMENTE "${f.title || 'esta malla'}"?\n\nEsto borra la fuente y su contenido curricular de forma NO reversible. Úsalo para reemplazar una malla.`)) onPurge?.(f.id); }}
+            title="Eliminar definitivamente (no reversible)"
+            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
+            Eliminar
           </button>
         </div>
       </td>
@@ -3303,12 +3310,24 @@ export default function AdminBancoConocimiento({ onIrPotenteIA = null }) {
     }
   };
 
+  // Archivar (reversible) — se conserva por compatibilidad
   const handleDelete = async (id) => {
     try {
       await deleteKnowledgeSource(id);
       await cargar();
     } catch (err) {
       setError('Error al eliminar: ' + err.message);
+    }
+  };
+
+  // Borrado DEFINITIVO (no reversible) — para reemplazar mallas sin dejar
+  // residuos que confundan la búsqueda del generador.
+  const handlePurge = async (id) => {
+    try {
+      await purgeKnowledgeSource(id);
+      await cargar();
+    } catch (err) {
+      setError('Error al eliminar definitivamente: ' + err.message);
     }
   };
 
@@ -3481,6 +3500,7 @@ export default function AdminBancoConocimiento({ onIrPotenteIA = null }) {
                   onEdit={abrirEditar}
                   onStatusChange={handleStatusChange}
                   onDelete={handleDelete}
+                  onPurge={handlePurge}
                   onAdjuntarJson={abrirAdjuntarJson}
                   onInspeccionManual={abrirInspeccionManual}
                 />
