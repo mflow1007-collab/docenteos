@@ -664,7 +664,13 @@ const localizarContextoAreaCiclo = (paginas, contexto = {}, rangoMalla = null) =
       }
     }
   }
-  if (inicioContexto < 0) return [];
+  // Fallback: aunque no se halle un ancla explícita, incluir hasta 6 páginas
+  // ANTES de la malla como contexto. La "Contextualización del Área" (y otras
+  // matrices del área) suele vivir en esas páginas previas; sin este piso, la
+  // sección de contextualización se queda sin texto que leer.
+  if (inicioContexto < 0) {
+    inicioContexto = Math.max(0, rangoMalla.inicioIndex - 6);
+  }
 
   let finContexto = rangoMalla.inicioIndex;
   for (let i = inicioContexto + 1; i < rangoMalla.inicioIndex; i += 1) {
@@ -2033,17 +2039,22 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
     // MISMO texto pero devuelve solo su parte, así que el tope no fragmenta.
     const textoParaSecciones = (textoLiteralMalla || texto).slice(0, PDF_TEXT_MAX_CHARS);
     // La Contextualización del Área vive en las PÁGINAS DE CONTEXTO (antes de la
-    // malla). Esa sección necesita leer contexto + malla, no solo la malla.
-    const textoContextoMasMalla = [textoContextoAreaCiclo, textoLiteralMalla || texto]
-      .filter(Boolean).join('\n\n').slice(0, PDF_TEXT_MAX_CHARS);
+    // malla). Esa sección lee PRINCIPALMENTE el contexto (la narrativa está
+    // ahí); solo si no hay contexto cae al texto de la malla. Se evita mandar
+    // contexto + malla completa: ese texto gigante hacía que la IA se enfocara
+    // en la malla e ignorara la narrativa de contextualización.
+    const textoContextoMasMalla = (textoContextoAreaCiclo && textoContextoAreaCiclo.trim())
+      ? textoContextoAreaCiclo.slice(0, PDF_TEXT_MAX_CHARS)
+      : (textoLiteralMalla || texto).slice(0, PDF_TEXT_MAX_CHARS);
     const advertenciaTope = (textoLiteralMalla || texto).length > PDF_TEXT_MAX_CHARS
       ? `El texto de la malla supera ${PDF_TEXT_MAX_CHARS} caracteres; se leyó el inicio. Si falta contenido, sube un PDF solo de la asignatura.`
       : null;
 
-    // FASE 0 — auditoría estructural: contar el "piso esperado" en el texto,
-    // ANTES de extraer, para comparar en la Fase 8 y no dar por buena una
-    // extracción que perdió elementos.
-    const auditoria0 = auditarEstructuraMalla(textoContextoMasMalla);
+    // FASE 0 — auditoría estructural: contar el "piso esperado" en el texto de
+    // la malla (indicadores, conceptuales, procedimentales, actitudes viven
+    // ahí), ANTES de extraer, para comparar en la Fase 8 y no dar por buena
+    // una extracción que perdió elementos.
+    const auditoria0 = auditarEstructuraMalla(textoLiteralMalla || texto);
     if (onProgress) {
       onProgress(`Auditoría estructural: ${auditoria0.indicadoresEsperados} indicadores, ~${auditoria0.conceptualesEsperados} conceptuales, ~${auditoria0.procedimentalesEsperados} procedimentales, ~${auditoria0.actitudesEsperadas} actitudes esperadas.`);
     }
