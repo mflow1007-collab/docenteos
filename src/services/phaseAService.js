@@ -276,10 +276,20 @@ export function normalizarVozActividadMINERD(texto) {
   // Palabras funcionales que terminan en vocal pero NO son verbos: nunca
   // pluralizar (Se/El/La ya son arranques prohibidos; De/Le/Se/Lo evitan
   // falsos "Sen/Len"). Exigimos además un verbo de ≥4 letras.
-  const NO_VERBOS = /^(se|el|la|lo|le|de|una?|su|sus)$/i;
-  if (primera.length >= 4 && /^[A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ]+$/.test(primera)
-    && /[aeáéo]$/.test(primera) && !/n$/.test(primera) && !NO_VERBOS.test(primera)
-    && !ARRANQUES_PROHIBIDOS.test(t) && !ARRANQUES_NOMINALES.test(t)) {
+  const NO_VERBOS = /^(se|el|la|lo|le|de|una?|su|sus|los|las|sus|dos|tres)$/i;
+  const arranqueVerbal = /^[A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ]+$/.test(primera)
+    && !NO_VERBOS.test(primera) && !ARRANQUES_PROHIBIDOS.test(t) && !ARRANQUES_NOMINALES.test(t);
+  // Caso A: 2ª persona singular ("Guardas", "Escribes", "Completas") → -an/-en.
+  // Se quita la -s final y se pluraliza el verbo resultante. Va PRIMERO porque
+  // termina en -s (no en vocal) y el caso B no lo capturaría.
+  if (primera.length >= 5 && arranqueVerbal && /[aeáé]s$/.test(primera)) {
+    const base = primera.replace(/s$/, '').replace(/á$/, 'a').replace(/é$/, 'e');
+    const resto = t.slice(primera.length).replace(/^[.,:;!¡¿?]+/, '');
+    return capitalizar(base + 'n' + resto);
+  }
+  // Caso B: singular/imperativo terminado en vocal ("Etiqueta", "Escribe") → +n.
+  if (primera.length >= 4 && arranqueVerbal
+    && /[aeáéo]$/.test(primera) && !/n$/.test(primera)) {
     const pluralizado = primera.replace(/á$/, 'a').replace(/é$/, 'e') + 'n';
     const resto = t.slice(primera.length).replace(/^[.,:;!¡¿?]+/, '');
     return capitalizar(pluralizado + resto);
