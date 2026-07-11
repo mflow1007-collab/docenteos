@@ -721,7 +721,11 @@ check("guards: backlink correcto pasa; huérfano con sourceId hacia fuente-malla
   if (!hasActiveMallaSource({ id: "content-1", sourceId: "src-A" }, guards)) throw new Error("backlink correcto rechazado");
   if (hasActiveMallaSource({ id: "content-1", sourceId: "src-X" }, guards)) throw new Error("backlink a otra fuente aceptado");
   if (!hasActiveMallaSource({ id: "content-2", sourceId: "src-B" }, guards)) throw new Error("huérfano con sourceId válido no rescatado");
-  if (hasActiveMallaSource({ id: "content-3", sourceId: "src-Z" }, guards)) throw new Error("contenido sin vínculo alguno aceptado");
+  if (hasActiveMallaSource({ id: "content-3", sourceId: "src-Z" }, guards)) throw new Error("contenido cuya fuente fue ARCHIVADA (src-Z) debe ocultarse");
+  // Malla activa SIN sourceId registrado (creada por conversión de PDF cuyo
+  // backlink no quedó en guards): fail-open, es utilizable — nunca se oculta
+  // una malla activa por plomería interna.
+  if (!hasActiveMallaSource({ id: "content-4", sourceId: "" }, guards)) throw new Error("malla activa sin sourceId fue ocultada (falso bloqueo)");
 });
 
 check("guards null (fuentes ilegibles) → no filtra, nunca bloquea", () => {

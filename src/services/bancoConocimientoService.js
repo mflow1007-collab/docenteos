@@ -195,15 +195,32 @@ const getActiveMallaSourceGuards = async () => {
 // activa lo referencia por curricularContentId (backlink), o (b) HUÉRFANO
 // RESCATADO: su propio sourceId apunta a una fuente-malla activa (docs
 // creados antes de que existiera el backlink). guards null → no filtrar.
+//
+// FAIL-OPEN por diseño: este guard es una capa de HIGIENE (ocultar mallas
+// cuya fuente fue archivada), NO un candado de seguridad. Una malla que está
+// active:true y no está vinculada a NINGUNA fuente archivada es utilizable —
+// jamás se oculta una malla activa por un backlink imperfecto (bloquear al
+// docente por plomería interna contradice "nunca bloquear"). Solo se filtra
+// cuando la evidencia es CLARA: el backlink apunta a una fuente distinta de
+// la activa esperada.
 export const hasActiveMallaSource = (docItem = {}, guards) => {
   if (!guards) return true;
   const id = String(docItem.id || '');
   const sourceId = String(docItem.sourceId || '');
+  // (a) Backlink desde una fuente activa: visible (salvo conflicto explícito).
   if (id && guards.contentIds.has(id)) {
     const expectedSourceId = guards.contentToSource.get(id);
     return !expectedSourceId || !sourceId || sourceId === expectedSourceId;
   }
-  return Boolean(sourceId && guards.sourceIds.has(sourceId));
+  // (b) Huérfano rescatado: su sourceId apunta a una fuente-malla activa.
+  if (sourceId && guards.sourceIds.has(sourceId)) return true;
+  // (c) La malla apunta a una fuente que NO está activa (fue archivada) →
+  // ocultar: es la higiene que este guard existe para hacer.
+  if (sourceId && !guards.sourceIds.has(sourceId)) return false;
+  // (d) Malla activa SIN sourceId (o sin fuente registrada): no hay evidencia
+  // de que esté archivada → fail-open, es utilizable. Cubre mallas creadas por
+  // conversión de PDF cuyo backlink de fuente no se registró en los guards.
+  return true;
 };
 
 export const getAvailableCurricularScopes = async () => {
