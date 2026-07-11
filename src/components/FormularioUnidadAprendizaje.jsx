@@ -137,7 +137,14 @@ const COLOR_NIVEL = {
   muyAlta: { bg: "#fff1f2", border: "#fda4af", badge: "#dc2626", text: "#7f1d1d" },
 };
 
-export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar, cargando, temasTrabajados = [] }) {
+export default function FormularioUnidadAprendizaje({
+  datos,
+  onChange,
+  onGenerar,
+  cargando,
+  temasTrabajados = [],
+  progresoGeneracion = "",
+}) {
   const {
     grado = "", seccion = "", area = "", asignatura = "",
     titulo = "", numSemanas = 4,
@@ -1147,6 +1154,16 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
             {camposFaltantes.map((campo) => (
               <span key={campo} className="pd-campo-badge">{campo}</span>
             ))}
+          </div>
+        </div>
+      )}
+
+      {cargando && progresoGeneracion && (
+        <div className="generation-progress-banner" role="status" aria-live="polite">
+          <span className="generation-progress-dot" />
+          <div className="generation-progress-copy">
+            <span>DocenteOS está trabajando</span>
+            <strong>{progresoGeneracion}</strong>
           </div>
         </div>
       )}

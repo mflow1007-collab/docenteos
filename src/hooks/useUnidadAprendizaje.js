@@ -39,30 +39,33 @@ export function useUnidadAprendizaje() {
   useEffect(() => { guardarSesion("unidad:resultado", unidad); }, [unidad]);
 
   const manejarGenerarUnidad = async () => {
-    const { estadoTemas, setDialogoTema, cargarHistorial } = depsRef.current;
+    const { estadoTemas, setDialogoTema } = depsRef.current;
     const temaUnidad = (unidadDatos.tema || unidadDatos.titulo)?.trim();
-    if (temaUnidad) {
-      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaUnidad });
-      if (!verificacion?.permitido || verificacion?.requiereCredito) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "unidad",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaUnidad,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-            },
-          },
-        });
-        return;
-      }
-      await registrarUsoTemaPlanificacion({ tituloTema: temaUnidad, forzarNuevoTema: false, contexto: "generacion" });
-    }
     setCargandoUnidad(true);
-    setMensajeUnidad(null);
+    setMensajeUnidad({
+      tipo: "loading",
+      texto: "🔍 Verificando malla oficial, tema y permisos de generación...",
+    });
     try {
+      if (temaUnidad) {
+        const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaUnidad });
+        if (!verificacion?.permitido || verificacion?.requiereCredito) {
+          setDialogoTema({
+            abierto: true,
+            contexto: "unidad",
+            payload: {
+              ...verificacion,
+              temaIngresado: temaUnidad,
+              temas: {
+                temaActivo: estadoTemas.temaActivo,
+                temaSecundario: estadoTemas.temaSecundario,
+              },
+            },
+          });
+          return;
+        }
+        await registrarUsoTemaPlanificacion({ tituloTema: temaUnidad, forzarNuevoTema: false, contexto: "generacion" });
+      }
       const resultado = await generarUnidadAprendizaje({
         ...unidadDatos,
         // Rótulo del documento según el tipo elegido en la página
@@ -174,6 +177,10 @@ export function useUnidadAprendizaje() {
 
   const manejarGenerarUnidadForzado = async (temaIngresado) => {
     setCargandoUnidad(true);
+    setMensajeUnidad({
+      tipo: "loading",
+      texto: `🔍 Preparando malla oficial y tema "${temaIngresado || unidadDatos.titulo || "seleccionado"}"...`,
+    });
     try {
       await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
       const resultado = await generarUnidadAprendizaje({

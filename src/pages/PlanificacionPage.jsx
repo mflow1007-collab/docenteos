@@ -713,7 +713,10 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
    */
   const manejarGenerar = async () => {
     setCargando(true);
-    setMensaje(null);
+    setMensaje({
+      tipo: "loading",
+      texto: "🔍 Verificando tema, grado y malla curricular antes de generar...",
+    });
 
     try {
       const verificacionTema = await verificarTemaAntesDeGenerar({ tituloTema: tema });
@@ -765,6 +768,13 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
       const diasActivos = configuracionTipo.mostrarDiasClase ? diasClase : [];
       const encuentrosSemana = diasActivos.length || 1;
       const encuentrosEstimados = totalSemanas * encuentrosSemana;
+      const rangoInicial = encuentrosEstimados > 1
+        ? `las clases 1 y ${Math.min(2, encuentrosEstimados)} de ${encuentrosEstimados}`
+        : "la clase 1 de 1";
+      setMensaje({
+        tipo: "loading",
+        texto: `✍️ Semana 1 de ${totalSemanas} — escribiendo ${rangoInicial} · Trabajando: ${tema?.trim() || "tema seleccionado"}`,
+      });
 
       // Minutos reales: cada día puede tener 1 ó 2 períodos
       const minutosSemanales = diasActivos.length > 0
@@ -1759,6 +1769,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             onChange={setPlanDiarioDatos}
             onGenerar={manejarGenerarDiario}
             cargando={cargandoDiario}
+            progresoGeneracion={mensajeDiario?.tipo === "loading" ? mensajeDiario.texto : ""}
           />
         ) : (tipoPlanificacion === "Unidad de Aprendizaje" || tipoPlanificacion === "Secuencia Didáctica") ? (
           <FormularioUnidadAprendizaje
@@ -1767,6 +1778,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             onGenerar={manejarGenerarUnidad}
             cargando={cargandoUnidad}
             temasTrabajados={temasTrabajados}
+            progresoGeneracion={mensajeUnidad?.tipo === "loading" ? mensajeUnidad.texto : ""}
           />
         ) : tipoPlanificacion ? (
           <FormularioPlanificacion
@@ -1826,6 +1838,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             setMinutosHoraClase={setMinutosHoraClase}
             periodosClasePorDia={periodosClasePorDia}
             setPeriodosClasePorDia={setPeriodosClasePorDia}
+            progresoGeneracion={mensaje?.tipo === "loading" ? mensaje.texto : ""}
           />
         ) : (
           <section className="planning-form-card">
@@ -1850,7 +1863,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
         ) : ES_TIPO_UNIDAD(tipoPlanificacion) ? (
           <>
             {/* Mensaje de error visible incluso antes de generar */}
-            {mensajeUnidad && !unidad && (
+            {mensajeUnidad && mensajeUnidad.tipo !== "loading" && !unidad && (
               <div className={`mensaje ${mensajeUnidad.tipo}`} style={{ marginTop: 0 }}>
                 {mensajeUnidad.texto}
               </div>

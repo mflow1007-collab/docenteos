@@ -4335,6 +4335,81 @@
   flex-shrink: 0;
 }
 
+.generation-progress-banner {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(79, 70, 229, .22);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(238, 242, 255, .96), rgba(240, 253, 250, .92)),
+    #ffffff;
+  color: #1e293b;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
+}
+
+.generation-progress-banner::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 3px;
+  background: linear-gradient(90deg, #2563eb, #7c3aed, #14b8a6, #2563eb);
+  background-size: 220% 100%;
+  animation: generationProgressFlow 1.6s linear infinite;
+}
+
+.generation-progress-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: #7c3aed;
+  box-shadow: 0 0 0 0 rgba(124, 58, 237, .35);
+  animation: generationProgressPulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.generation-progress-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.generation-progress-copy span {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #475569;
+}
+
+.generation-progress-copy strong {
+  font-size: 15px;
+  line-height: 1.35;
+  font-weight: 850;
+  color: #111827;
+}
+
+@keyframes generationProgressFlow {
+  from { background-position: 0% 50%; }
+  to { background-position: 220% 50%; }
+}
+
+@keyframes generationProgressPulse {
+  0%, 100% {
+    transform: scale(.9);
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, .35);
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 8px rgba(124, 58, 237, 0);
+  }
+}
+
 .planning-result {
   animation: slideIn 0.4s ease-out;
 }

@@ -52,30 +52,37 @@ export function usePlanDiario() {
   };
 
   const manejarGenerarDiario = async () => {
-    const { estadoTemas, setDialogoTema, cargarHistorial } = depsRef.current;
+    const { estadoTemas, setDialogoTema } = depsRef.current;
     const temaDiario = planDiarioDatos.tema?.trim();
-    if (temaDiario) {
-      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaDiario });
-      if (!verificacion?.permitido || verificacion?.requiereCredito) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "diario",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaDiario,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-            },
-          },
-        });
-        return;
-      }
-      await registrarUsoTemaPlanificacion({ tituloTema: temaDiario, forzarNuevoTema: false, contexto: "generacion" });
-    }
     setCargandoDiario(true);
-    setMensajeDiario(null);
+    setMensajeDiario({
+      tipo: "loading",
+      texto: "🔍 Verificando tema, grado y datos de la clase...",
+    });
     try {
+      if (temaDiario) {
+        const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaDiario });
+        if (!verificacion?.permitido || verificacion?.requiereCredito) {
+          setDialogoTema({
+            abierto: true,
+            contexto: "diario",
+            payload: {
+              ...verificacion,
+              temaIngresado: temaDiario,
+              temas: {
+                temaActivo: estadoTemas.temaActivo,
+                temaSecundario: estadoTemas.temaSecundario,
+              },
+            },
+          });
+          return;
+        }
+        await registrarUsoTemaPlanificacion({ tituloTema: temaDiario, forzarNuevoTema: false, contexto: "generacion" });
+      }
+      setMensajeDiario({
+        tipo: "loading",
+        texto: `✍️ Plan diario — escribiendo inicio, desarrollo y cierre · Trabajando: ${temaDiario || "tema de la clase"}`,
+      });
       ejecutarGenerarDiario();
     } catch (error) {
       setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
@@ -134,6 +141,10 @@ export function usePlanDiario() {
 
   const manejarGenerarDiarioForzado = async (temaIngresado) => {
     setCargandoDiario(true);
+    setMensajeDiario({
+      tipo: "loading",
+      texto: `✍️ Plan diario — escribiendo inicio, desarrollo y cierre · Trabajando: ${temaIngresado || planDiarioDatos.tema || "tema de la clase"}`,
+    });
     try {
       await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
       ejecutarGenerarDiario();

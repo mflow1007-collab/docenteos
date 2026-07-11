@@ -42,6 +42,7 @@ export default function FormularioPlanificacion({
   onLimpiarImagenTematica,
   onGenerar,
   cargando,
+  progresoGeneracion = "",
   grados,
   secciones,
   areas,
@@ -672,6 +673,16 @@ export default function FormularioPlanificacion({
       </div>
 
       {/* Botón Generar */}
+      {cargando && progresoGeneracion && (
+        <div className="generation-progress-banner" role="status" aria-live="polite">
+          <span className="generation-progress-dot" />
+          <div className="generation-progress-copy">
+            <span>DocenteOS está trabajando</span>
+            <strong>{progresoGeneracion}</strong>
+          </div>
+        </div>
+      )}
+
       <button
         className="generate-btn"
         onClick={onGenerar}

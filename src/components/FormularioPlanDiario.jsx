@@ -47,6 +47,7 @@ export default function FormularioPlanDiario({
   onChange,
   onGenerar,
   cargando,
+  progresoGeneracion = "",
 }) {
   const {
     grado = "", seccion = "", area = "", asignatura = "",
@@ -269,6 +270,16 @@ export default function FormularioPlanDiario({
 
       {!puedoGenerar && (
         <p className="pd-hint">Completa los campos marcados con <span className="pd-req">*</span> para generar el plan.</p>
+      )}
+
+      {cargando && progresoGeneracion && (
+        <div className="generation-progress-banner" role="status" aria-live="polite">
+          <span className="generation-progress-dot" />
+          <div className="generation-progress-copy">
+            <span>DocenteOS está trabajando</span>
+            <strong>{progresoGeneracion}</strong>
+          </div>
+        </div>
       )}
 
       <button
