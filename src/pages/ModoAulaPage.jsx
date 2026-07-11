@@ -1539,28 +1539,26 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         <div style={{ width:54, height:2, background:'#cbd5e1', flexShrink:0 }} />
         <button
           type="button"
-          onClick={estadoClase === 'iniciada' ? finalizarClase : undefined}
-          disabled={estadoClase !== 'iniciada' || guardandoFin}
-          title={estadoClase === 'pendiente' ? 'Inicia la clase antes de finalizar' : estadoClase === 'finalizada' ? 'Clase finalizada' : 'Finalizar y guardar clase'}
+          onClick={estadoClase !== 'finalizada' ? finalizarClase : undefined}
+          disabled={estadoClase === 'finalizada' || guardandoFin}
+          title={estadoClase === 'finalizada' ? 'Clase finalizada' : 'Finalizar y guardar clase'}
           style={{
           display:'flex',
           alignItems:'center',
           gap:8,
           padding:'13px 22px',
-          color: estadoClase === 'iniciada' ? '#fff' : estadoClase === 'finalizada' ? '#15803d' : '#4f46e5',
+          color: estadoClase === 'finalizada' ? '#15803d' : '#fff',
           border: estadoClase === 'finalizada' ? '1px solid #86efac' : '1px solid #e5e7eb',
           borderRadius:999,
-          background: estadoClase === 'iniciada'
-            ? 'linear-gradient(135deg,#16a34a,#15803d)'
-            : estadoClase === 'finalizada'
+          background: estadoClase === 'finalizada'
               ? '#f0fdf4'
-              : '#fafaff',
+              : 'linear-gradient(135deg,#16a34a,#15803d)',
           fontSize:12,
           fontWeight:800,
           minWidth:180,
           justifyContent:'center',
-          cursor: estadoClase === 'iniciada' && !guardandoFin ? 'pointer' : 'default',
-          boxShadow: estadoClase === 'iniciada' ? '0 8px 20px rgba(21,128,61,.22)' : 'none',
+          cursor: estadoClase !== 'finalizada' && !guardandoFin ? 'pointer' : 'default',
+          boxShadow: estadoClase !== 'finalizada' ? '0 8px 20px rgba(21,128,61,.22)' : 'none',
         }}
         >
           {guardandoFin ? '⏳ Guardando…' : estadoClase === 'finalizada' ? '✓ Finalizada' : '🏁 Finalizar'}
