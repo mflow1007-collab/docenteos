@@ -167,15 +167,39 @@ const NIVELES_RUBRICA_MINERD = [
   { key: "nivel4", label: "Estratégico", factor: 1 },
 ];
 
+const TOTALES_RUBRICA_MINERD = [50, 75, 100];
+const PESOS_BASE_RUBRICA_MINERD = [15, 17, 18];
+
 const puntajesPorNivel = (puntajeMaximo) => Object.fromEntries(
   NIVELES_RUBRICA_MINERD.map((nivel) => [nivel.key, Number((puntajeMaximo * nivel.factor).toFixed(2))])
 );
 
-const crearRubricaModeloMINERD = (curriculo = null) => {
+const distribuirPonderacionRubrica = (total = 50) => {
+  const totalSeguro = Number(total) || 50;
+  const baseTotal = PESOS_BASE_RUBRICA_MINERD.reduce((sum, valor) => sum + valor, 0);
+  let acumulado = 0;
+  return PESOS_BASE_RUBRICA_MINERD.map((peso, index) => {
+    if (index === PESOS_BASE_RUBRICA_MINERD.length - 1) {
+      return Number((totalSeguro - acumulado).toFixed(2));
+    }
+    const escalado = Number(((peso / baseTotal) * totalSeguro).toFixed(2));
+    acumulado += escalado;
+    return escalado;
+  });
+};
+
+const nombreRubricaMINERD = (curriculo = null, total = 50) =>
+  `Rúbrica MINERD ${total} pts — ${curriculo?.actividad || curriculo?.competencia || "Producto o desempeño"}`;
+
+const descripcionRubricaMINERD = (total = 50) =>
+  `Modelo de rúbrica por niveles Receptivo, Resolutivo, Autónomo y Estratégico, con ponderación total de ${total} puntos.`;
+
+const crearRubricaModeloMINERD = (curriculo = null, total = 50) => {
+  const ponderacion = distribuirPonderacionRubrica(total);
   const criterios = [
     {
       criterio: "Dominio del contenido y uso del vocabulario en situaciones comunicativas",
-      puntajeMaximo: 15,
+      puntajeMaximo: ponderacion[0],
       nivel1: "Reconoce vocabulario básico relacionado con el tema, pero presenta limitaciones para usarlo.",
       nivel2: "Responde preguntas simples usando frases cortas y vocabulario practicado.",
       nivel3: "Intercambia información sobre el tema con iniciativa, claridad y cierta fluidez.",
@@ -183,7 +207,7 @@ const crearRubricaModeloMINERD = (curriculo = null) => {
     },
     {
       criterio: "Comprensión del tema, su utilidad e importancia en contextos reales",
-      puntajeMaximo: 17,
+      puntajeMaximo: ponderacion[1],
       nivel1: "Identifica ideas básicas del tema, aunque con errores frecuentes y poca claridad.",
       nivel2: "Explica aspectos sencillos del tema y los relaciona con ejemplos guiados.",
       nivel3: "Relaciona el tema con experiencias, contextos o intercambios culturales de manera comprensible.",
@@ -191,7 +215,7 @@ const crearRubricaModeloMINERD = (curriculo = null) => {
     },
     {
       criterio: "Representación, producto o desempeño en diversos contextos",
-      puntajeMaximo: 18,
+      puntajeMaximo: ponderacion[2],
       nivel1: "Presenta una representación inicial del tema; el razonamiento o producto puede estar incompleto.",
       nivel2: "Responde o produce evidencias relacionadas con el tema y su uso en contextos conocidos.",
       nivel3: "Analiza situaciones donde el tema influye en la interacción, el producto o el desempeño esperado.",
@@ -206,14 +230,45 @@ const crearRubricaModeloMINERD = (curriculo = null) => {
   return {
     ...crearDraft("Rúbrica", curriculo),
     tipo: "Rúbrica",
-    nombre: `Rúbrica MINERD 50 pts — ${curriculo?.actividad || curriculo?.competencia || "Producto o desempeño"}`,
-    descripcion: "Modelo de rúbrica por niveles Receptivo, Resolutivo, Autónomo y Estratégico, con ponderación total de 50 puntos.",
-    valorMaximo: 50,
+    nombre: nombreRubricaMINERD(curriculo, total),
+    descripcion: descripcionRubricaMINERD(total),
+    valorMaximo: Number(total) || 50,
     estado: "Borrador",
     estructura: {
-      modelo: "rubrica_minerd_50",
+      modelo: "rubrica_minerd_ponderada",
+      totalPuntos: Number(total) || 50,
+      proporcionBase: PESOS_BASE_RUBRICA_MINERD,
       niveles: NIVELES_RUBRICA_MINERD,
       criterios,
+    },
+  };
+};
+
+const escalarRubricaMINERD = (draft, total, curriculo = null) => {
+  const ponderacion = distribuirPonderacionRubrica(total);
+  return {
+    ...draft,
+    nombre: draft?.estructura?.modelo === "rubrica_minerd_ponderada"
+      ? nombreRubricaMINERD(curriculo, total)
+      : draft.nombre,
+    descripcion: draft?.estructura?.modelo === "rubrica_minerd_ponderada"
+      ? descripcionRubricaMINERD(total)
+      : draft.descripcion,
+    valorMaximo: Number(total) || 50,
+    estructura: {
+      ...draft.estructura,
+      modelo: draft?.estructura?.modelo || "rubrica_minerd_ponderada",
+      totalPuntos: Number(total) || 50,
+      proporcionBase: PESOS_BASE_RUBRICA_MINERD,
+      niveles: draft?.estructura?.niveles || NIVELES_RUBRICA_MINERD,
+      criterios: (draft?.estructura?.criterios || []).map((criterio, index) => {
+        const puntajeMaximo = ponderacion[index] ?? 0;
+        return {
+          ...criterio,
+          puntajeMaximo,
+          puntajesNiveles: puntajesPorNivel(puntajeMaximo),
+        };
+      }),
     },
   };
 };
@@ -953,6 +1008,10 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
     setModal("crear");
   };
 
+  const cambiarTotalRubricaMINERD = (total) => {
+    setDraft((prev) => escalarRubricaMINERD(prev, total, curriculoActivo));
+  };
+
   const estudiantesAplicacion = instrumentoAplicar
     ? obtenerEstudiantesPorInstrumento(instrumentoAplicar)
     : ESTUDIANTES_FALLBACK.map((nombre, index) => ({ id: `fb-${index + 1}`, nombre }));
@@ -1296,7 +1355,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
                 <button onClick={() => abrirNuevoConTipo(tipo)}>Usar plantilla</button>
                 {tipo === "Rúbrica" && (
                   <button className="template-secondary-btn" onClick={abrirModeloRubricaMINERD}>
-                    Modelo 50 pts
+                    Modelo MINERD
                   </button>
                 )}
               </div>
@@ -1417,6 +1476,27 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
                   <strong>Constructor visual</strong>
                   <span>{draft.tipo}</span>
                 </div>
+
+                {TIPOS_CRITERIOS.includes(draft.tipo) && draft.estructura?.modelo === "rubrica_minerd_ponderada" && (
+                  <div className="rubrica-total-selector">
+                    <div>
+                      <strong>Ponderación total</strong>
+                      <small>Escala el modelo base 15/17/18 sin cambiar su lógica.</small>
+                    </div>
+                    <div className="rubrica-total-options">
+                      {TOTALES_RUBRICA_MINERD.map((total) => (
+                        <button
+                          key={total}
+                          type="button"
+                          className={Number(draft.valorMaximo) === total ? "active" : ""}
+                          onClick={() => cambiarTotalRubricaMINERD(total)}
+                        >
+                          {total} pts
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {TIPOS_CRITERIOS.includes(draft.tipo) && (
                   <table className="builder-table">
