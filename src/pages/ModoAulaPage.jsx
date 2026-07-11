@@ -9,8 +9,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
-import { useAuth } from '../context/AuthContext.jsx'
+import { actualizarPlanificacionDetallada, obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
 import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula } from '../services/modoAulaService.js'
 import { obtenerClaseDeHoy, crearAspectoId } from '../services/hiloPedagogico.js'
 import { crearEvidencia } from '../services/evidenciasService.js'
@@ -457,6 +456,65 @@ function guardarEvidenciasLocal(planId, diaNum, arr) {
   catch {}
 }
 
+function textoRecursoPreparado(recurso = {}) {
+  return [recurso.item, recurso.url ? `(${recurso.url})` : ''].filter(Boolean).join(' ').trim()
+}
+
+function recursosPreparadosComoBloque(recursos = []) {
+  const didacticos = []
+  const tecnologicos = []
+  recursos.forEach((recurso) => {
+    const texto = textoRecursoPreparado(recurso)
+    if (!texto) return
+    if (String(recurso.tipo || '').includes('💻') || recurso.accion === 'video' || recurso.accion === 'audio') {
+      tecnologicos.push(texto)
+      return
+    }
+    if (!String(recurso.tipo || '').includes('👥')) didacticos.push(texto)
+  })
+  return {
+    didacticos: [...new Set(didacticos)].join(', '),
+    tecnologicos: [...new Set(tecnologicos)].join(', '),
+  }
+}
+
+function aplicarRecursosPreparadosAlDia(contenido = {}, diaNum, recursos = []) {
+  const bloque = recursosPreparadosComoBloque(recursos)
+  const aplicarMomento = (momento = {}) => ({
+    ...momento,
+    recursos: {
+      ...(momento.recursos || {}),
+      humanos: momento.recursos?.humanos || 'Docente y estudiantes',
+      didacticos: bloque.didacticos || momento.recursos?.didacticos || '',
+      tecnologicos: bloque.tecnologicos || momento.recursos?.tecnologicos || '',
+    },
+  })
+  const actualizarDias = (fase) => ({
+    ...fase,
+    dias: (fase.dias || []).map((dia) => {
+      if (String(obtenerNumeroDia(dia)) !== String(diaNum)) return dia
+      return {
+        ...dia,
+        recursosPreparados: recursos,
+        momentos: (dia.momentos || []).map(aplicarMomento),
+      }
+    }),
+  })
+  const siguiente = { ...contenido }
+  if (Array.isArray(siguiente.fasesSemanales)) {
+    siguiente.fasesSemanales = siguiente.fasesSemanales.map(actualizarDias)
+  }
+  if (Array.isArray(siguiente.fases)) {
+    siguiente.fases = siguiente.fases.map(actualizarDias)
+  }
+  if (siguiente.desarrolloClase && Number(diaNum) === 1) {
+    siguiente.desarrolloClase = Object.fromEntries(
+      Object.entries(siguiente.desarrolloClase).map(([key, momento]) => [key, aplicarMomento(momento)])
+    )
+  }
+  return siguiente
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECCIÓN 2 — CONSTANTES DE DISEÑO
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -573,23 +631,46 @@ function InstrCard({ inst, onAplicar }) {
   )
 }
 
-function RecursoItem({ tipo, item, busqueda, accion }) {
+function RecursoItem({ tipo, item, busqueda, accion, url, onGuardar }) {
+  const [editando, setEditando] = useState(false)
+  const [tituloLocal, setTituloLocal] = useState(item || '')
+  const [busquedaLocal, setBusquedaLocal] = useState(busqueda || '')
+  const [urlLocal, setUrlLocal] = useState(url || '')
   const puedePreparar = !tipo.includes('👥')
   const abrirBusquedaRecurso = () => {
-    const query = encodeURIComponent(busqueda || item)
+    if (urlLocal && /^https?:\/\//i.test(urlLocal)) {
+      window.open(urlLocal, '_blank', 'noopener,noreferrer')
+      return
+    }
+    const query = encodeURIComponent(busquedaLocal || tituloLocal || item)
     let url = `https://www.google.com/search?q=${query}`
-    if (accion === 'video' || (tipo.includes('💻') && /video/i.test(item))) {
+    if (accion === 'video' || (tipo.includes('💻') && /video/i.test(tituloLocal || item))) {
       url = `https://www.youtube.com/results?search_query=${query}`
     }
-    if (accion === 'imagenes' || /imagen/i.test(item)) {
+    if (accion === 'imagenes' || /imagen/i.test(tituloLocal || item)) {
       url = `https://www.google.com/search?tbm=isch&q=${query}`
     }
     window.open(url, '_blank', 'noopener,noreferrer')
   }
+  const guardar = () => {
+    onGuardar?.({
+      tipo,
+      item: tituloLocal.trim() || item,
+      busqueda: busquedaLocal.trim(),
+      accion,
+      url: urlLocal.trim(),
+      ajustadoPorDocente: true,
+      actualizadoEn: new Date().toISOString(),
+    })
+    setEditando(false)
+  }
 
   return (
     <div style={{
-      display:'flex', alignItems:'center', gap:8,
+      display:'grid',
+      gridTemplateColumns:'auto minmax(0,1fr) auto',
+      alignItems:'center',
+      gap:8,
       padding:'10px 12px', background:'#fff', borderRadius:8,
       border:'1px solid #e5e7eb', marginBottom:0,
       boxShadow:'0 1px 0 rgba(15,23,42,.02)',
@@ -606,30 +687,76 @@ function RecursoItem({ tipo, item, busqueda, accion }) {
         flexShrink:0,
       }}>{tipo.slice(0,2)}</span>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontSize:13, color:'#0f172a', fontWeight:900, lineHeight:1.2 }}>{item}</div>
-        <div style={{ fontSize:11, color:'#64748b', fontWeight:600, marginTop:2 }}>
-          {tipo.replace(/^..\s/, '')}{busqueda ? ` · ${busqueda}` : ''}
-        </div>
+        {editando ? (
+          <div style={{ display:'grid', gap:6 }}>
+            <input
+              value={tituloLocal}
+              onChange={(e) => setTituloLocal(e.target.value)}
+              placeholder="Nombre del recurso"
+              style={{ width:'100%', border:'1px solid #dbeafe', borderRadius:7, padding:'7px 8px', fontSize:12.5, fontWeight:800 }}
+            />
+            <input
+              value={busquedaLocal}
+              onChange={(e) => setBusquedaLocal(e.target.value)}
+              placeholder="Búsqueda específica"
+              style={{ width:'100%', border:'1px solid #e2e8f0', borderRadius:7, padding:'7px 8px', fontSize:12 }}
+            />
+            <input
+              value={urlLocal}
+              onChange={(e) => setUrlLocal(e.target.value)}
+              placeholder="URL pegada por el docente, opcional"
+              style={{ width:'100%', border:'1px solid #e2e8f0', borderRadius:7, padding:'7px 8px', fontSize:12 }}
+            />
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize:13, color:'#0f172a', fontWeight:900, lineHeight:1.2 }}>{tituloLocal || item}</div>
+            <div style={{ fontSize:11, color:'#64748b', fontWeight:600, marginTop:2 }}>
+              {tipo.replace(/^..\s/, '')}{busquedaLocal ? ` · ${busquedaLocal}` : ''}{urlLocal ? ' · enlace listo' : ''}
+            </div>
+          </>
+        )}
       </div>
-      {puedePreparar && (
-        <button
-          onClick={abrirBusquedaRecurso}
-          title="Buscar/preparar este recurso"
-          style={{
-            flexShrink:0,
-            border:'1px solid #bbf7d0',
-            background:'#f0fdf4',
-            color:'#15803d',
-            borderRadius:7,
-            padding:'6px 8px',
-            fontSize:11,
-            fontWeight:900,
-            cursor:'pointer',
-          }}
-        >
-          Preparar
-        </button>
-      )}
+      <div style={{ display:'flex', flexDirection:'column', gap:5, alignItems:'stretch' }}>
+        {puedePreparar && (
+          <button
+            onClick={abrirBusquedaRecurso}
+            title="Buscar/preparar este recurso"
+            style={{
+              flexShrink:0,
+              border:'1px solid #bbf7d0',
+              background:'#f0fdf4',
+              color:'#15803d',
+              borderRadius:7,
+              padding:'6px 8px',
+              fontSize:11,
+              fontWeight:900,
+              cursor:'pointer',
+            }}
+          >
+            Preparar
+          </button>
+        )}
+        {onGuardar && (
+          <button
+            onClick={editando ? guardar : () => setEditando(true)}
+            title={editando ? 'Guardar recurso en la planificación' : 'Ajustar este recurso'}
+            style={{
+              flexShrink:0,
+              border:'1px solid #c7d2fe',
+              background: editando ? '#eef2ff' : '#fff',
+              color:'#4f46e5',
+              borderRadius:7,
+              padding:'6px 8px',
+              fontSize:11,
+              fontWeight:900,
+              cursor:'pointer',
+            }}
+          >
+            {editando ? 'Guardar' : 'Ajustar'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -676,8 +803,6 @@ function TimerCircle({ segundos, total, on, onToggle, onReset, nombre }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, onVerPlanCompleto }) {
-  const { formulario } = useAuth()
-
   // ── Estado global
   const [cargando,   setCargando]   = useState(true)
   const [planes,     setPlanes]     = useState(() => cargarPlanesLocales())
@@ -715,6 +840,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const [notasDocente, setNotasDocente] = useState('')
   const [guardandoFin, setGuardandoFin] = useState(false)
   const [finOk,        setFinOk]        = useState(false)
+  const [guardandoRecursos, setGuardandoRecursos] = useState(false)
 
   // ── Aplicación de instrumentos
   const [instrumentoModal, setInstrumentoModal] = useState(null)
@@ -1033,15 +1159,18 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     instrumentosRaw: claseNorm?.instrumentosRaw,
     maximoInstrumentosPorDia: claseNorm?.resumenEval?.maximoInstrumentosPorDia || claseNorm?.instrumentosRaw?.maximoInstrumentosPorDia || 3,
   }), [diaActivo, planActivo, claseNorm, cursoParaAula, periodoRegistro])
-  const recursos     = useMemo(() => extraerRecursos(diaActivo, diaActivo?.titulo || claseNorm?.tituloUnidad || ''), [diaActivo, claseNorm?.tituloUnidad])
+  const recursos     = useMemo(() => {
+    const diaKey = String(diaActivo?.diaNum || 1)
+    const ajustados = planActivo?.contenido?.recursosModoAula?.[diaKey]
+    if (Array.isArray(ajustados) && ajustados.length) return ajustados
+    return extraerRecursos(diaActivo, diaActivo?.titulo || claseNorm?.tituloUnidad || '')
+  }, [diaActivo, claseNorm?.tituloUnidad, planActivo?.contenido?.recursosModoAula])
   const momentos     = diaActivo?.momentos || []
   const totalActs    = momentos.reduce((s, m) => s + (m.actividades?.length || 0), 0)
   const hechas       = Object.values(actChecks).reduce((s, set) => s + set.size, 0)
   const pctClase     = totalActs > 0 ? Math.round(hechas / totalActs * 100) : 0
   const momActual    = momentos[momentoOpen] || {}
   const checksActual = actChecks[momActual.nombre] || new Set()
-  const primerNombre = (formulario?.nombreDocente || '').split(' ')[0] || 'Docente'
-
   const abrirInstrumento = (inst) => {
     const baseNotas = Object.fromEntries(estudiantesAula.map((estudiante) => [estudiante.id, '']))
     setNotasInstrumento(baseNotas)
@@ -1049,6 +1178,31 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     setObsInstrumento('')
     setMensajeInstrumento(null)
     setInstrumentoModal(inst)
+  }
+
+  const guardarRecursoPlan = async (index, recursoActualizado) => {
+    if (!planActivo?.id || diaActivo?.diaNum == null || guardandoRecursos) return
+    const diaKey = String(diaActivo.diaNum)
+    const nuevosRecursos = recursos.map((recurso, i) => (i === index ? { ...recurso, ...recursoActualizado } : recurso))
+    const contenidoConRecursos = aplicarRecursosPreparadosAlDia(planActivo.contenido || {}, diaActivo.diaNum, nuevosRecursos)
+    const contenidoActualizado = {
+      ...contenidoConRecursos,
+      recursosModoAula: {
+        ...(contenidoConRecursos.recursosModoAula || {}),
+        [diaKey]: nuevosRecursos,
+      },
+    }
+    const planActualizado = { ...planActivo, contenido: contenidoActualizado }
+    setGuardandoRecursos(true)
+    setPlanActivo(planActualizado)
+    setPlanes(prev => prev.map((plan) => String(plan.id) === String(planActivo.id) ? planActualizado : plan))
+    try {
+      await actualizarPlanificacionDetallada(planActivo.id, { contenido: contenidoActualizado })
+    } catch (error) {
+      console.error('[ModoAula] No se pudo actualizar el recurso en la planificación:', error)
+    } finally {
+      setGuardandoRecursos(false)
+    }
   }
 
   const actualizarPuntajeInstrumento = (valor) => {
@@ -1540,7 +1694,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   // WORKSPACE PRINCIPAL
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div style={{
+    <div className="modo-aula-workspace" style={{
       display:'flex',
       flexDirection:'column',
       minHeight:'calc(100vh - 92px)',
@@ -1553,7 +1707,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
 
       {/* ══ AVISO: hoy no hay clase planificada → se muestra la próxima ══ */}
       {avisoClase && (
-        <div style={{
+        <div className="modo-aula-aviso" style={{
           margin:'16px 24px 0',
           padding:'10px 18px',
           background:'#fffbeb',
@@ -1576,7 +1730,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       )}
 
       {/* ══ RESUMEN DE LA CLASE ══ */}
-      <div style={{
+      <div className="modo-aula-resumen-clase" style={{
         background:'#fff',
         margin:'16px 24px 0',
         padding:'20px 22px',
@@ -1647,7 +1801,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       </div>
 
       {/* ══ TIMELINE MOMENTOS ══ */}
-      <div style={{
+      <div className="modo-aula-timeline" style={{
         background:'#fff',
         border:'1px solid #e5e7eb',
         borderRadius:'0 0 18px 18px',
@@ -1763,7 +1917,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       </div>
 
       {/* ══ WORKSPACE 3 COLUMNAS ══ */}
-      <div style={{
+      <div className="modo-aula-grid" style={{
         flex:1,
         overflow:'visible',
         display:'grid',
@@ -1776,7 +1930,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         {/* ╔═══════════════════════╗
             ║   PLAN DE CLASE       ║
             ╚═══════════════════════╝ */}
-        <div style={{
+        <div className="modo-aula-panel modo-aula-plan-panel" style={{
           overflow:'auto',
           padding:'18px 18px 16px',
           background:'#fff',
@@ -2080,7 +2234,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         {/* ╔═══════════════════════════╗
             ║  INSTRUMENTOS + COACH IA  ║
             ╚═══════════════════════════╝ */}
-        <div style={{
+        <div className="modo-aula-panel modo-aula-middle-panel" style={{
           overflow:'auto',
           padding:'18px',
           background:'#fff',
@@ -2200,7 +2354,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         {/* ╔═══════════════════════════╗
             ║  RECURSOS + EVIDENCIAS    ║
             ╚═══════════════════════════╝ */}
-        <div style={{
+        <div className="modo-aula-side-panel" style={{
           overflow:'auto',
           padding:0,
           background:'transparent',
@@ -2213,7 +2367,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         }}>
 
           {/* Recursos */}
-          <div style={{
+          <div className="modo-aula-card-panel" style={{
             background:'#fff',
             border:'1px solid #e5e7eb',
             borderRadius:12,
@@ -2224,20 +2378,30 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
               <div style={{ width:28, height:28, borderRadius:7, background:'#f0fdf4', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>🎒</div>
               <div>
                 <div style={{ fontSize:10, fontWeight:800, color:'#15803d', textTransform:'uppercase', letterSpacing:'.4px' }}>Recursos</div>
-                <div style={{ fontSize:11, color:'#64748b' }}>para la clase</div>
+                <div style={{ fontSize:11, color:'#64748b' }}>{guardandoRecursos ? 'guardando ajustes...' : 'para la clase'}</div>
               </div>
             </div>
             {recursos.length === 0 ? (
               <div style={{ textAlign:'center', padding:'14px 0', color:'#94a3b8', fontSize:11.5 }}>Sin recursos definidos</div>
             ) : (
               <div style={{ display:'grid', gap:8 }}>
-                {recursos.map((r, i) => <RecursoItem key={i} tipo={r.tipo} item={r.item} busqueda={r.busqueda} accion={r.accion} />)}
+                {recursos.map((r, i) => (
+                  <RecursoItem
+                    key={`${r.tipo}-${r.item}-${i}`}
+                    tipo={r.tipo}
+                    item={r.item}
+                    busqueda={r.busqueda}
+                    accion={r.accion}
+                    url={r.url}
+                    onGuardar={(actualizado) => guardarRecursoPlan(i, actualizado)}
+                  />
+                ))}
               </div>
             )}
           </div>
 
           {/* Banco de Evidencias */}
-          <div style={{
+          <div className="modo-aula-card-panel" style={{
             flex:1,
             background:'#fff',
             border:'1px solid #e5e7eb',

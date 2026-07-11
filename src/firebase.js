@@ -271,6 +271,47 @@ export const obtenerPlanificacionesDetalladas = async () => {
   }
 };
 
+export const actualizarPlanificacionDetallada = async (planificacionId, patch = {}) => {
+  if (!planificacionId) throw new Error("El id de planificación es obligatorio");
+  if (!patch || typeof patch !== "object") throw new Error("Los datos de actualización son obligatorios");
+
+  try {
+    if (isFirebaseConfigured && auth && db && auth.currentUser && !String(planificacionId).startsWith("local_")) {
+      const user = auth.currentUser;
+      const ref = doc(db, "planificaciones", String(planificacionId));
+      const snap = await getDoc(ref);
+      if (!snap.exists()) throw new Error("La planificación no existe");
+      if (snap.data()?.usuario !== user.uid) {
+        throw new Error("No tienes permiso para modificar esta planificación");
+      }
+      await setDoc(ref, {
+        ...patch,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      return { success: true, mode: "firebase", id: planificacionId };
+    }
+
+    const userId = auth?.currentUser?.uid || "local-anon";
+    const existentes = obtenerPlanificacionesLocales();
+    let actualizado = false;
+    const siguientes = existentes.map((item) => {
+      if (String(item.id) !== String(planificacionId) || item.usuario !== userId) return item;
+      actualizado = true;
+      return {
+        ...item,
+        ...patch,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    if (!actualizado) throw new Error("La planificación local no existe");
+    guardarPlanificacionesLocales(siguientes);
+    return { success: true, mode: "local", id: planificacionId };
+  } catch (error) {
+    console.error("Error al actualizar planificación detallada:", error);
+    throw error;
+  }
+};
+
 export const eliminarPlanificacionDetallada = async (planificacionId) => {
   if (!planificacionId) throw new Error("El id de planificación es obligatorio");
 

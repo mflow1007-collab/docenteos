@@ -826,8 +826,21 @@
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .admin-sidebar { display: none; }
+  .admin-shell { height: 100dvh; }
+  .admin-main { width: 100%; min-width: 0; }
   .admin-content { padding: 16px; }
-  .admin-topbar  { padding: 0 16px; }
+  .admin-topbar  { padding: 0 16px; gap: 10px; }
+  .admin-topbar-left,
+  .admin-topbar-right { min-width: 0; }
+  .admin-topbar-email { display: none; }
+  .admin-page { max-width: 100%; }
+  .admin-card,
+  .admin-panel,
+  .admin-section,
+  .admin-table-wrap,
+  .aim-table-wrap { max-width: 100%; }
+  .admin-table,
+  .aim-table { min-width: 680px; }
   .adminbar-link { display: none; }
   .admin-form-grid { grid-template-columns: 1fr; }
   .admin-stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -835,6 +848,9 @@
 }
 
 @media (max-width: 500px) {
+  .admin-content { padding: 12px; }
+  .admin-topbar-title { font-size: 13px; }
+  .admin-topbar-back { padding: 6px 9px; }
   .admin-stats-grid { grid-template-columns: 1fr; }
 }
 

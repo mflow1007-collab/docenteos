@@ -13,4 +13,20 @@ body,
 body {
   font-family: Inter, Arial, sans-serif;
   background: #f4f7fb;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }

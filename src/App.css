@@ -6181,6 +6181,256 @@
   .content { padding: 24px; }
 }
 
+/* ── Responsive safety layer: app-wide ───────────────────────────────────── */
+@media (max-width: 900px) {
+  .app {
+    height: 100dvh;
+  }
+
+  .main {
+    min-width: 0;
+  }
+
+  .content {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .panel,
+  .card,
+  .assistant-ai-card,
+  .curso-saas-card,
+  .resultado,
+  .result-panel {
+    max-width: 100%;
+  }
+
+  .stats,
+  .grid,
+  .actions,
+  .cursos-grid.tarjetas,
+  .curso-metricas,
+  .assistant-actions .actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cursos-header,
+  .curso-card-main,
+  .curso-card-footer,
+  .curso-auto-aviso,
+  .historial-item-acciones {
+    flex-wrap: wrap;
+  }
+
+  .topbar-modo-aula {
+    height: auto;
+    min-height: 74px;
+    padding: 10px 16px;
+    align-items: flex-start;
+  }
+
+  .modo-aula-top-title {
+    min-width: 0;
+  }
+
+  .modo-aula-top-title h1 {
+    font-size: 20px;
+  }
+
+  .modo-aula-top-title p {
+    display: none;
+  }
+
+  .modo-aula-top-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .modo-aula-course-chip {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .modo-aula-workspace {
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  .modo-aula-aviso,
+  .modo-aula-resumen-clase,
+  .modo-aula-timeline {
+    margin-left: 14px !important;
+    margin-right: 14px !important;
+  }
+
+  .modo-aula-resumen-clase {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    padding: 16px !important;
+  }
+
+  .modo-aula-timeline {
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+
+  .modo-aula-grid {
+    grid-template-columns: 1fr !important;
+    padding: 0 14px 14px !important;
+  }
+
+  .modo-aula-panel,
+  .modo-aula-side-panel,
+  .modo-aula-card-panel {
+    overflow: visible !important;
+  }
+
+  .modo-aula-side-panel {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    min-height: 58px;
+    height: auto;
+    padding: 9px 12px;
+  }
+
+  .topbar input,
+  .user strong,
+  .modo-aula-top-icon,
+  .modo-aula-bell {
+    display: none;
+  }
+
+  .content {
+    padding: 14px 12px;
+  }
+
+  .content-modo-aula {
+    padding: 0;
+  }
+
+  .panel,
+  .card {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .stats,
+  .grid,
+  .actions,
+  .assistant-actions .actions,
+  .cursos-grid.tarjetas,
+  .curso-metricas,
+  .hero-col-indicadores,
+  .flujo-docenteos .flujo-linea,
+  .resumen-pendientes-grid,
+  .indicadores-pedagogicos .indicadores-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .btn-nueva-planificacion {
+    border-radius: 16px;
+    padding: 18px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .btn-nueva-planificacion strong,
+  .cursos-header h1 {
+    font-size: 26px;
+  }
+
+  .filtros-cursos,
+  .selector-vista {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 14px;
+  }
+
+  .filtros-cursos button,
+  .selector-vista button {
+    white-space: nowrap;
+  }
+
+  .acciones-mini,
+  .historial-item-acciones {
+    width: 100%;
+  }
+
+  .acciones-mini button,
+  .historial-item-acciones button,
+  .btn-nuevo-curso,
+  .hero-plan-card-btn {
+    flex: 1 1 auto;
+    min-height: 40px;
+  }
+
+  .class-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .modo-aula-resumen-clase {
+    grid-template-columns: 1fr !important;
+    border-radius: 14px 14px 0 0 !important;
+  }
+
+  .modo-aula-timeline {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+
+  .modo-aula-timeline button {
+    min-width: 164px !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .modo-aula-grid {
+    gap: 12px !important;
+  }
+
+  .modo-aula-side-panel {
+    grid-template-columns: 1fr !important;
+  }
+
+  .modo-aula-plan-panel,
+  .modo-aula-middle-panel,
+  .modo-aula-card-panel {
+    padding: 14px !important;
+    border-radius: 12px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .content {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .modo-aula-aviso,
+  .modo-aula-resumen-clase,
+  .modo-aula-timeline {
+    margin-left: 10px !important;
+    margin-right: 10px !important;
+  }
+
+  .modo-aula-grid {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+}
+
 .result-panel {
   margin-top: 22px;
 }
