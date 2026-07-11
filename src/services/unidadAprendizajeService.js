@@ -1829,13 +1829,20 @@ export const generarUnidadAprendizaje = async (datos) => {
   // mismo corpus — nunca strings de plantilla.
   const contenidos = (() => {
     const sintesis = modeloCurricularSuperior.contenidosSintesis || {};
+    // La malla es contenido oficial curado: se muestran TODOS los contenidos, no
+    // un recorte (el documento modelo lista ~20 actitudinales completos). Los
+    // conceptuales se ETIQUETAN por tipo — "Vocabulario:" y "Gramática:" — como
+    // las págs. 5-7 del modelo, en vez de una lista plana mezclada.
+    const vocab = textosUnicos(mallaContenidos.vocabulario || []);
+    const gram  = textosUnicos(mallaContenidos.gramatica || []);
+    const expr  = textosUnicos(mallaContenidos.expresiones || []);
     const conceptualesTema = textosUnicos([
-      ...(mallaContenidos.vocabulario || []).slice(0, 12),
-      ...(mallaContenidos.gramatica || []).slice(0, 5),
-      ...(mallaContenidos.expresiones || []).slice(0, 5),
+      ...vocab.map((v) => `Vocabulario: ${v}`),
+      ...gram.map((g) => `Gramática: ${g}`),
+      ...expr.map((e) => `Expresión: ${e}`),
     ]);
-    const procedimentalesTema = textosUnicos(mallaContenidos.funcionales || []).slice(0, 8);
-    const actitudinalesTema = textosUnicos(mallaContenidos.actitudinales || []).slice(0, 8);
+    const procedimentalesTema = textosUnicos(mallaContenidos.funcionales || []);
+    const actitudinalesTema = textosUnicos(mallaContenidos.actitudinales || []);
     const conceptuales = conceptualesTema.length ? conceptualesTema : textosUnicos(sintesis.conceptuales);
     const procedimentales = procedimentalesTema.length ? procedimentalesTema : textosUnicos(sintesis.procedimentales);
     const actitudinales = actitudinalesTema.length ? actitudinalesTema : textosUnicos(sintesis.actitudinales);
@@ -2470,7 +2477,12 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
   <div class="section-head">CONTENIDOS</div>
   <div class="contenidos">
-    <div class="cont-col"><div class="cont-head">Conceptuales</div><ul class="cont-list">${(unidad.contenidos?.conceptuales || []).map((c) => `<li>${c}</li>`).join("")}</ul></div>
+    <div class="cont-col"><div class="cont-head">Conceptuales</div><ul class="cont-list">${(unidad.contenidos?.conceptuales || []).map((c) => {
+      // Resalta la etiqueta de tipo ("Vocabulario:", "Gramática:", "Expresión:")
+      // en negrita, como los subtítulos del documento modelo.
+      const m = String(c).match(/^(Vocabulario|Gramática|Expresión):\s*(.*)$/s);
+      return m ? `<li><strong>${m[1]}:</strong> ${m[2]}</li>` : `<li>${c}</li>`;
+    }).join("")}</ul></div>
     <div class="cont-col"><div class="cont-head">Procedimentales</div><ul class="cont-list">${(unidad.contenidos?.procedimentales || []).map((c) => `<li>${c}</li>`).join("")}</ul></div>
     <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${(unidad.contenidos?.actitudinales || []).map((c) => `<li>${c}</li>`).join("")}</ul></div>
   </div>
