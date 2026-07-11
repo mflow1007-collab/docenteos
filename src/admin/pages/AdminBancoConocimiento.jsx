@@ -1413,6 +1413,38 @@ ${fragmento}`;
 // (varias llamadas) pero completo y confiable. Orden pensado para que lo más
 // crítico (competencias/indicadores) salga primero.
 
+// ─── FASE 0: Auditoría estructural (contar antes de extraer) ─────────────────
+// Cuenta en el TEXTO cuántos elementos hay de cada tipo, para tener un
+// "contrato de validación" contra el cual comparar lo que la IA extrajo
+// (Fase 8). No es exacto al 100% (el texto de PDF es ruidoso), pero da un piso
+// esperado: si la extracción trae MUCHO menos que el texto, hubo pérdida.
+const auditarEstructuraMalla = (texto = '') => {
+  const t = String(texto || '');
+  // Indicadores: patrones "IL-1", "IL 1", "IL1" o viñetas bajo Indicadores
+  const codigosIL = new Set((t.match(/\bIL[\s-]?\d{1,2}\b/gi) || []).map((m) => m.replace(/\s/g, '').toUpperCase()));
+  // Actitudes/procedimentales/conceptuales: se estiman por viñetas dentro de
+  // sus columnas — se cuenta grueso por líneas que empiezan con • o - o número
+  const contarVinetas = (bloque) => (bloque.match(/(?:^|\n)\s*(?:[•·▪-]|\d+[.)])\s+\S/gm) || []).length;
+  // Aislar columnas por encabezado (aprox): tomamos desde el encabezado hasta
+  // el siguiente encabezado conocido
+  const seccionEntre = (desde, hasta) => {
+    const re = new RegExp(`${desde}([\\s\\S]*?)(?:${hasta}|$)`, 'i');
+    const m = t.match(re);
+    return m ? m[1] : '';
+  };
+  const bloqueConcep = seccionEntre('conceptual', 'procedimental|procedimiento');
+  const bloqueProced = seccionEntre('procedimental|procedimiento', 'actitud');
+  const bloqueActit = seccionEntre('actitud', 'fase 1|componente|eje tem');
+
+  return {
+    indicadoresEsperados: codigosIL.size,               // p.ej. IL-1..IL-21 → 21
+    conceptualesEsperados: contarVinetas(bloqueConcep),
+    procedimentalesEsperados: contarVinetas(bloqueProced),
+    actitudesEsperadas: contarVinetas(bloqueActit),
+    contextualizacion: /contextualizacion del area|contextualizaci[oó]n del [aá]rea/i.test(t),
+  };
+};
+
 const SECCIONES_MALLA = {
   competenciasIndicadores: {
     etiqueta: 'Competencias e Indicadores de Logro',
@@ -1485,8 +1517,16 @@ SELECCIÓN (extrae SOLO esto): Nivel ${contexto.level || ''} · Ciclo ${ciclo ||
 
 SECCIÓN A EXTRAER: ${cfg.etiqueta}
 ${cfg.instruccion}
+
+PROTOCOLO DE FIDELIDAD (obligatorio):
+1. LEE el texto completo de esta sección antes de extraer.
+2. CUENTA cuántos elementos hay en el texto para esta sección.
+3. EXTRAE los elementos uno por uno, LITERAL — no resumas, no parafrasees, no combines, no inventes.
+4. COMPARA tu extracción con el texto: ¿coincide la cantidad? ¿copiaste cada palabra?
+5. Si falta alguno, agrégalo. La extracción debe ser IDÉNTICA al documento. NO omitas ninguno.
+
 Las Competencias Específicas pueden estar definidas POR CICLO (Primer Ciclo cubre 1ro-3ro): si aparecen del ${ciclo || 'ciclo del grado'}, aplican al grado seleccionado.
-No inventes ni parafrasees: copia el texto oficial. Si algo no aparece, deja el arreglo vacío.
+Si de verdad algo no aparece en el texto, deja el arreglo vacío (no lo inventes).
 
 Devuelve EXACTAMENTE este JSON (sin markdown): ${cfg.esquema}
 
@@ -1999,6 +2039,15 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
     const advertenciaTope = (textoLiteralMalla || texto).length > PDF_TEXT_MAX_CHARS
       ? `El texto de la malla supera ${PDF_TEXT_MAX_CHARS} caracteres; se leyó el inicio. Si falta contenido, sube un PDF solo de la asignatura.`
       : null;
+
+    // FASE 0 — auditoría estructural: contar el "piso esperado" en el texto,
+    // ANTES de extraer, para comparar en la Fase 8 y no dar por buena una
+    // extracción que perdió elementos.
+    const auditoria0 = auditarEstructuraMalla(textoContextoMasMalla);
+    if (onProgress) {
+      onProgress(`Auditoría estructural: ${auditoria0.indicadoresEsperados} indicadores, ~${auditoria0.conceptualesEsperados} conceptuales, ~${auditoria0.procedimentalesEsperados} procedimentales, ~${auditoria0.actitudesEsperadas} actitudes esperadas.`);
+    }
+
     // Extracción CON CALMA: cada sección se intenta hasta 2 veces (si la
     // primera no trae datos o falla, se reintenta tras una pausa), y hay una
     // pausa larga entre secciones para no saturar el gateway. Prioriza que
@@ -2044,36 +2093,52 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
     if (onProgress) onProgress('Fusionando las secciones extraídas...');
     let merged = fusionarExtraccionesCurriculares(parciales, contexto);
 
-    // VERIFICAR / COMPARAR / CONFIRMAR: tras la fusión, si una sección crítica
-    // quedó vacía o floja, se pide de nuevo (una pasada más). Detecta las tres
-    // pérdidas que hemos visto: competencias/indicadores, conceptos,
-    // procedimentales.
-    const anidadosMerged = (merged.competencias || []).reduce(
-      (n, c) => n + ((c.indicadoresLogro || c.indicadores || []).length || 0), 0);
-    const totalProc = (merged.contenidosPorTema || []).reduce(
-      (n, b) => n + Object.values(b.procedimientos || {}).reduce((m, a) => m + ((a || []).length), 0), 0)
-      + (merged.procedimentales || []).length;
-    const totalConcep = (merged.contenidosPorTema || []).reduce(
-      (n, b) => n + Object.values(b.conceptos || {}).reduce((m, a) => m + ((a || []).length), 0), 0)
-      + (merged.conceptuales || []).length;
-    const faltantes = [];
-    if (!(merged.competencias || []).length || (!(merged.indicadoresLogro || []).length && !anidadosMerged)) {
-      faltantes.push('competenciasIndicadores');
-    }
-    if (totalConcep === 0) faltantes.push('contenidosConceptuales');
-    if (totalProc === 0) faltantes.push('contenidosProcedimentales');
+    // ── FASE 8: auditoría final — comparar lo extraído contra el piso de la
+    // Fase 0. Si una sección viene por debajo de lo esperado, se reintenta esa
+    // sección (hasta 2 pasadas más) y se re-fusiona. Umbral tolerante (60% del
+    // piso) porque el conteo del texto es aproximado, pero atrapa pérdidas
+    // grandes (procedimentales en 0, temas 6→1, etc.).
+    const contarConcep = (m) => (m.contenidosPorTema || []).reduce(
+      (n, b) => n + Object.values(b.conceptos || {}).reduce((x, a) => x + ((a || []).length), 0), 0)
+      + (m.conceptuales || []).length;
+    const contarProc = (m) => (m.contenidosPorTema || []).reduce(
+      (n, b) => n + Object.values(b.procedimientos || {}).reduce((x, a) => x + ((a || []).length), 0), 0)
+      + (m.procedimentales || []).length;
+    const contarActit = (m) => (m.actitudinales || []).length || (m.actitudesValores || []).length;
+    const contarInd = (m) => (m.indicadoresLogro || []).length
+      + (m.competencias || []).reduce((n, c) => n + ((c.indicadoresLogro || c.indicadores || []).length || 0), 0);
 
-    for (const seccion of faltantes) {
-      const cfg = SECCIONES_MALLA[seccion];
-      if (onProgress) onProgress(`Reintento de sección crítica: ${cfg.etiqueta}…`);
-      try {
-        const rescatado = await extraerSeccionCurricular({ seccion, textoMalla: textoParaSecciones, contexto });
-        if (cfg.tieneDatos(rescatado)) {
-          merged = fusionarExtraccionesCurriculares([...parciales, rescatado], contexto);
+    // Cada verificación: sección a reintentar + si el resultado actual está por
+    // debajo del piso esperado (60%). Se corren hasta 2 rondas.
+    const verificaciones = [
+      { seccion: 'competenciasIndicadores', actual: contarInd, piso: () => auditoria0.indicadoresEsperados },
+      { seccion: 'contenidosConceptuales',  actual: contarConcep, piso: () => auditoria0.conceptualesEsperados },
+      { seccion: 'contenidosProcedimentales', actual: contarProc, piso: () => auditoria0.procedimentalesEsperados },
+      { seccion: 'actitudes', actual: contarActit, piso: () => auditoria0.actitudesEsperadas },
+    ];
+    for (let ronda = 1; ronda <= 2; ronda += 1) {
+      let huboReintento = false;
+      for (const v of verificaciones) {
+        const piso = v.piso();
+        const actual = v.actual(merged);
+        const insuficiente = piso > 0 ? actual < Math.ceil(piso * 0.6) : actual === 0;
+        if (!insuficiente) continue;
+        const cfg = SECCIONES_MALLA[v.seccion];
+        if (onProgress) onProgress(`Auditoría final (ronda ${ronda}): "${cfg.etiqueta}" trae ${actual} (esperado ~${piso}). Reextrayendo…`);
+        huboReintento = true;
+        try {
+          const textoSeccion = cfg.usaContexto ? textoContextoMasMalla : textoParaSecciones;
+          const reextraido = await extraerSeccionCurricular({ seccion: v.seccion, textoMalla: textoSeccion, contexto });
+          if (cfg.tieneDatos(reextraido)) {
+            parciales.push(reextraido);
+            merged = fusionarExtraccionesCurriculares(parciales, contexto);
+          }
+        } catch (err) {
+          fallidos.push(`Auditoría ${cfg.etiqueta}: ${err.message}`);
         }
-      } catch (err) {
-        fallidos.push(`Reintento ${cfg.etiqueta}: ${err.message}`);
+        await pausar(PAUSA_ENTRE_REINTENTOS);
       }
+      if (!huboReintento) break; // Fase 0 == Fase 8: todo coincide, terminar
     }
     return { merged, info: {
       cobertura,
