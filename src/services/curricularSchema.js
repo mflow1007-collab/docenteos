@@ -103,16 +103,18 @@ export const validateCurricularDoc = (docOrPayload) => {
   // Competencias con específica y CF
   const comps = Array.isArray(payload.competencias) ? payload.competencias : [];
   if (!comps.length) v('competencias', 'obligatorio: las competencias específicas del grado');
+  // El código (ING-1-C01) es OPCIONAL: el diseño MINERD oficial identifica las
+  // competencias por su NOMBRE (Comunicativa, Ética y Ciudadana…), no por un
+  // código; el código lo deriva el sistema desde el nombre cuando el PDF no lo
+  // trae. Lo obligatorio es que la competencia tenga TEXTO (nombre/específica).
   const idsComps = new Set();
   comps.forEach((c, i) => {
     const id = texto(c?.id || c?.codigo);
-    if (!id) v(`competencias[${i}].id`, 'código oficial obligatorio (ej. ING-1-C01)');
-    else idsComps.add(id);
-    if (!texto(c?.especificaGrado || c?.especifica || c?.descripcion)) {
-      v(`competencias[${i}].especifica`, 'competencia sin texto de específica (fila basura de conversión)');
-    }
-    if (!texto(c?.competenciaFundamental || c?.fundamental)) {
-      v(`competencias[${i}].competenciaFundamental`, 'sin Competencia Fundamental');
+    const nombre = texto(c?.competenciaFundamental || c?.fundamental || c?.nombre);
+    if (id) idsComps.add(id);
+    else if (nombre) idsComps.add(nombre); // el nombre sirve de clave de vínculo
+    if (!texto(c?.especificaGrado || c?.especifica || c?.descripcion) && !nombre) {
+      v(`competencias[${i}]`, 'competencia sin nombre ni texto de específica (fila basura de conversión)');
     }
   });
 
@@ -124,15 +126,20 @@ export const validateCurricularDoc = (docOrPayload) => {
   if (!anidadosTotal && !planos.length) {
     v('indicadoresLogro', 'la malla debe traer indicadores de logro');
   }
+  // Indicadores PLANOS: solo se exige vínculo si NO hay anidados (los anidados
+  // ya cuelgan de su competencia). Un indicador string suelto no bloquea la
+  // malla mientras exista texto — el generador lo reparte por división exacta;
+  // el candado de "sin indicadores asociables" vive aguas abajo, no aquí.
   if (!anidadosTotal) {
     planos.forEach((ind, j) => {
-      if (typeof ind === 'string') {
-        v(`indicadoresLogro[${j}]`, 'string plano sin competenciaId — el contrato exige {id, descripcion, competenciaId}');
+      const desc = typeof ind === 'string' ? ind : texto(ind?.descripcion || ind?.texto);
+      if (!desc) {
+        v(`indicadoresLogro[${j}]`, 'indicador sin descripción');
         return;
       }
-      const compId = texto(ind?.competenciaId || ind?.competencia);
-      if (!compId) v(`indicadoresLogro[${j}].competenciaId`, 'sin vínculo a su competencia');
-      else if (idsComps.size && !idsComps.has(compId)) {
+      // Si trae competenciaId, debe apuntar a una competencia existente
+      const compId = typeof ind === 'string' ? '' : texto(ind?.competenciaId || ind?.competencia);
+      if (compId && idsComps.size && !idsComps.has(compId)) {
         v(`indicadoresLogro[${j}].competenciaId`, `apunta a "${compId}" que no existe en competencias[]`);
       }
     });

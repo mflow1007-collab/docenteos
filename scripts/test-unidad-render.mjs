@@ -855,15 +855,41 @@ check("corpus sin campo categoria + Capa 2 → fallback al grado (expresiones = 
 
 const casoRealV2 = JSON.parse(readFileSync(join(__dir, "fixtures", "caso-real-v2.json"), "utf8"));
 
-check("caso real v2.0: el contrato lo RECHAZA y nombra cada violación con ruta", () => {
+check("caso real v2.0: el contrato lo RECHAZA por la versión desconocida", () => {
   const r = validateCurricularDoc(casoRealV2);
   if (r.ok) throw new Error("aceptó el doc v2.0 que rompió la generación real");
-  const rutas = r.violaciones.map((h) => h.ruta);
+  // La violación dura es la versión: el código nunca acepta un schemaVersion
+  // que no conoce. (El código de competencia ya NO es obligatorio — el diseño
+  // MINERD real no lo trae; se deriva del nombre.)
   if (!r.violaciones.some((h) => h.ruta === "schemaVersion" && h.mensaje.includes('"2.0"'))) {
     throw new Error("no marcó schemaVersion 2.0 como versión desconocida");
   }
-  if (!rutas.includes("competencias[7].especifica")) throw new Error("no marcó la fila basura sin específica");
-  if (!rutas.includes("indicadoresLogro[0]")) throw new Error("no marcó los indicadores planos string sin competenciaId");
+});
+
+check("competencias con NOMBRE pero sin código ING-1-C0x → válidas (diseño MINERD real)", () => {
+  const doc = {
+    schemaVersion: SCHEMA_VERSION_CANONICA, level: "Secundaria", grade: "1ro",
+    area: "Lenguas Extranjeras", subject: "Inglés", contentType: "malla_curricular",
+    temas: ["Vivienda, entorno y ciudad"],
+    competencias: [
+      { competenciaFundamental: "Comunicativa", especificaGrado: "Comprende y expresa ideas…" },
+      { competenciaFundamental: "Ética y Ciudadana", especificaGrado: "Se comunica con cortesía…" },
+    ],
+    indicadoresLogro: [
+      { id: "IL-1", descripcion: "Responde a preguntas breves." },
+      { id: "IL-2", descripcion: "Se expresa con frases sencillas." },
+    ],
+    contenidos: {
+      conceptos: { vocabulario: [{ categoria: "Vivienda", ejemplos: ["lobby"] }], gramatica: [{ estructura: "There + be" }] },
+      procedimientos: { funcionales: ["Describir lugares"] },
+      actitudinales: ["Valoración del hogar"],
+    },
+  };
+  const r = validateCurricularDoc(doc);
+  const compViol = r.violaciones.filter((h) => h.ruta.startsWith("competencias"));
+  if (compViol.length) throw new Error(`rechazó competencias sin código: ${JSON.stringify(compViol)}`);
+  const indViol = r.violaciones.filter((h) => h.ruta.startsWith("indicadoresLogro"));
+  if (indViol.length) throw new Error(`rechazó indicadores anidables sin competenciaId: ${JSON.stringify(indViol)}`);
 });
 
 check("el MISMO doc corregido (lo que Potente IA debe lograr) → contrato ok", () => {
