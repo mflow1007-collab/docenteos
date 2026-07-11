@@ -131,10 +131,29 @@ check("nombre metodológico genérico ('práctica') → rechazo", () => {
   esperaError(() => validateBatch(loteValido([clase]), DUR, 1, foco, { semanaNum: 2 }), "nombre metodológico");
 });
 
-check("la técnica debe nombrarse en la primera actividad del Desarrollo", () => {
+check("la técnica debe nombrarse en ALGUNA actividad del Desarrollo", () => {
   const clase = claseValida();
-  clase.momentos[1].actividades[0] = "Observan un modelo del docente sobre el presente simple.";
+  // Ninguna actividad menciona "Listen and Solve" → rechazo (tolerante a la
+  // posición, pero la técnica debe estar presente en el Desarrollo)
+  clase.momentos[1].actividades = [
+    "Observan un modelo del docente sobre el presente simple.",
+    "Practican formando oraciones con apoyo del docente.",
+    "Comparan sus oraciones en parejas.",
+    "Elaboran cinco oraciones sobre su rutina.",
+  ];
   esperaError(() => validateBatch(loteValido([clase]), DUR, 1, foco, { semanaNum: 2 }), "no nombra su técnica");
+});
+
+check("la técnica puede ir en cualquier actividad, no solo la primera", () => {
+  const clase = claseValida();
+  clase.momentos[1].actividades = [
+    "Observan un modelo del docente sobre el presente simple.",
+    "Participan en Listen and Solve: escuchan y deciden a qué momento pertenece cada acción.",
+    "Comparan sus respuestas en parejas.",
+    "Elaboran cinco oraciones sobre su rutina.",
+    "Socializan y reciben retroalimentación.",
+  ];
+  validateBatch(loteValido([clase]), DUR, 1, foco, { semanaNum: 2 }); // no debe lanzar
 });
 
 check("dos clases del lote con la misma técnica → rechazo", () => {

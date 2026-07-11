@@ -294,14 +294,16 @@ function normalizarVozBatch(data) {
 
 // ─── Intención directa + foco anclado (documento modelo del docente) ─────────
 
+// Relleno REALMENTE vago: "mediante una serie de actividades" sin nombrar
+// cuáles. NO se listan términos que suelen ir acompañados de contenido
+// concreto ("vocabulario específico de las partes de la casa" es válido);
+// esos generaban falsos positivos que detenían lotes buenos.
 const FRASES_VAGAS_INTENCION = [
   'una serie de actividades',
-  'actividades interactivas',
   'diversas actividades',
   'diferentes actividades',
   'varias actividades',
   'actividades variadas',
-  'vocabulario específico',
 ];
 
 const _normTextoFoco = (s) => String(s || '')
@@ -473,8 +475,12 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       throw new Error(`R12: clase ${idx + 1} repite la técnica "${clt.nombre}" de la clase ${cltEnLote.get(cltNombreNorm)} del mismo lote`);
     }
     cltEnLote.set(cltNombreNorm, idx + 1);
-    if (!_normTextoFoco((clase.momentos.find((m) => m.nombre === 'Desarrollo')?.actividades || [])[0]).includes(cltNombreNorm)) {
-      throw new Error(`R12: clase ${idx + 1} — la primera actividad del Desarrollo no nombra su técnica ("Participan en ${clt.nombre}: …")`);
+    // La técnica debe aparecer en ALGUNA actividad del Desarrollo (no
+    // necesariamente la primera ni literal en la misma posición): tolerante a
+    // que la IA la parafrasee alrededor, pero exige que esté presente.
+    const actsDesarrollo = (clase.momentos.find((m) => m.nombre === 'Desarrollo')?.actividades || []);
+    if (!actsDesarrollo.some((a) => _normTextoFoco(a).includes(cltNombreNorm))) {
+      throw new Error(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad ("Participan en ${clt.nombre}: …")`);
     }
 
     // 3A — aporte concreto y NOMBRADO al producto final
@@ -684,7 +690,7 @@ REGLAS:
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
 8. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
-9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], utilizando [la estructura gramatical o el vocabulario del día], [evidencia de logro observable]." PROHIBIDO el relleno vago: "una serie de actividades", "actividades interactivas", "diversas actividades", "vocabulario específico" — nombra el contenido real (ej.: "describirán sus hábitos saludables y la frecuencia con la que realizan actividades cotidianas mediante comprensión oral, interacción y producción escrita, utilizando presente simple y adverbios de frecuencia").
+9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], utilizando [la estructura gramatical o el vocabulario del día], [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — si dices "vocabulario", nombra CUÁL ("vocabulario de las partes de la casa: kitchen, bedroom") — nombra siempre el contenido real (ej.: "describirán sus hábitos saludables y la frecuencia con la que realizan actividades cotidianas mediante comprensión oral, interacción y producción escrita, utilizando presente simple y adverbios de frecuencia").
 10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo de la semana según la progresión), "focoLinguistico" (copia EXACTA de UNA estructura del FOCO GRAMATICAL indicado arriba, incluidos sus ejemplos entre paréntesis; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla, y la intención pedagógica de cada clase nombra su foco del día.
 11. CADA clase incluye "aporteProducto": el artefacto CONCRETO Y NOMBRADO que esa clase deposita al producto final (ej. "Inventario del espacio favorito con posesivos", "Weekly schedule con horarios en inglés"). PROHIBIDO "avance del producto", "trabajo en el proyecto".${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
 12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica del Desarrollo (Listen and Act / Listen and Solve / Listen and Compare / Information Gap / Role Play con roles / Interview en parejas / Frequency Walk / Gallery Walk / Describe and Draw / TPR / Speaking Circle...), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en Listen and Solve: escuchan… y resuelven…"). No repitas una técnica ya usada en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: listening con propósito O misión comunicativa → producción → verificación entre pares.
