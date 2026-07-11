@@ -1208,6 +1208,22 @@ export const attachJsonToSource = async (sourceId, jsonText) => {
   const esRegistro = validation.parsed.contentType === 'registro_minerd';
   let contentId = null;
   if (!esRegistro) {
+    // Cada guardado crea un curricularContent NUEVO (addDoc). Antes de crear el
+    // nuevo, DESACTIVAR los anteriores de esta misma fuente: si no, quedan varios
+    // docs active:true con el mismo sourceId y el generador (getCurricular-
+    // ContentForUnit) puede leer el VIEJO — el usuario ve "el JSON no se
+    // actualiza" aunque su guardado sí subió. Fix reemplazo de malla desde Potente IA.
+    try {
+      const previos = await getDocs(query(
+        collection(db, 'curricularContent'),
+        where('sourceId', '==', sourceId),
+        limit(200),
+      ));
+      await Promise.all(previos.docs
+        .filter((d) => d.data()?.active !== false)
+        .map((d) => updateDoc(d.ref, { active: false, supersededAt: serverTimestamp() }).catch(() => {})));
+    } catch { /* si falla la desactivación, seguimos: el nuevo será el más reciente */ }
+
     contentId = await createCurricularContent({ sourceId, parsed: validation.parsed });
   }
 

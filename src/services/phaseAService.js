@@ -346,6 +346,12 @@ const APORTE_GENERICO = [
   'avance del producto', 'avance del proyecto', 'trabajo en el proyecto',
   'trabajo en el producto', 'aporte al producto', 'aporte al proyecto',
   'continúan el producto', 'avanzan en el producto',
+  // La UBICACIÓN no es el artefacto: "Entrada N del Portafolio" describe DÓNDE
+  // se guarda, no QUÉ se entregó. El aporte debe nombrar el entregable.
+  'entrada del portafolio', 'entrada al portafolio',
+  'entrada 1 del portafolio', 'entrada 2 del portafolio', 'entrada 3 del portafolio',
+  'entrada 4 del portafolio', 'entrada 5 del portafolio', 'entrada 6 del portafolio',
+  'entrada 7 del portafolio', 'entrada 8 del portafolio',
 ];
 
 const CLT_GENERICO = [
@@ -654,7 +660,17 @@ export function getFocoGramatical(gramaticaArray, semanaNum, numSemanas) {
   const semanasConGramatica = Math.max(numSemanas - 1, 1);
   const perWeek = Math.ceil(gramaticaArray.length / semanasConGramatica);
   const start   = (semanaNum - 2) * perWeek;
-  return gramaticaArray.slice(start, start + perWeek);
+  const foco = gramaticaArray.slice(start, start + perWeek);
+  // Si a esta semana no le tocó estructura NUEVA (hay más semanas que
+  // estructuras), NO caer en "solo vocabulario": reciclar una estructura ya
+  // vista para APLICARLA a vocabulario nuevo — como el documento modelo, donde
+  // las últimas semanas reaplican presente simple a muebles/historia en vez de
+  // repetir "describir la casa". Evita el estancamiento temático.
+  if (!foco.length && gramaticaArray.length) {
+    const idxReciclado = (semanaNum - 2) % gramaticaArray.length;
+    return [gramaticaArray[idxReciclado]];
+  }
+  return foco;
 }
 
 // ─── Prompt de lote ───────────────────────────────────────────────────────────
@@ -728,7 +744,7 @@ ${reglaInicio}
 8. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
 9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], utilizando [la estructura gramatical o el vocabulario del día — o su equivalente "con la estructura…", "a través del vocabulario…"], [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — si dices "vocabulario", nombra CUÁL ("vocabulario de las partes de la casa: kitchen, bedroom") — nombra siempre el contenido real (ej.: "describirán sus hábitos saludables y la frecuencia con la que realizan actividades cotidianas mediante comprensión oral, interacción y producción escrita, utilizando presente simple y adverbios de frecuencia").
 10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo de la semana según la progresión), "focoLinguistico" (copia EXACTA de UNA estructura del FOCO GRAMATICAL indicado arriba, incluidos sus ejemplos entre paréntesis; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla, y la intención pedagógica de cada clase nombra su foco del día.
-11. CADA clase incluye "aporteProducto": el artefacto CONCRETO Y NOMBRADO que esa clase deposita al producto final (ej. "Inventario del espacio favorito con posesivos", "Weekly schedule con horarios en inglés"). PROHIBIDO "avance del producto", "trabajo en el proyecto".${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
+11. CADA clase incluye "aporteProducto": el artefacto CONCRETO con NOMBRE PROPIO ÚNICO que esa clase deposita al producto final — como un paso de checklist del producto (ej. "My Daily Schedule con horarios", "Weekend Routine Mini-Map", "Chore Chart de responsabilidades", "Inventario del espacio favorito con posesivos"). Debe ser DISTINTO en cada clase y describir el ENTREGABLE, no la ubicación: PROHIBIDO "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto". El nombre del artefacto puede incluir inglés.${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
 12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica del Desarrollo (Listen and Act / Listen and Solve / Listen and Compare / Information Gap / Role Play con roles / Interview en parejas / Frequency Walk / Gallery Walk / Describe and Draw / TPR / Speaking Circle...), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en Listen and Solve: escuchan… y resuelven…"). USA una técnica CONCRETA de esa lista — NO un enfoque amplio como "Project-Based Learning", "Aprendizaje colaborativo" o "Communicative Approach" (esos son marcos, no técnicas de actividad). No repitas una técnica ya usada en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: listening con propósito O misión comunicativa → producción → verificación entre pares.
 13. NO copies los ejemplos de estilo del sistema como actividades: son referencia de VOZ. Cada actividad es específica del contenido de ESTA clase.
 14. El LOTE incluye "adaptacionesSemana": {"acceso", "metodologicas", "evaluacion"} — adecuaciones NEAE LIGADAS AL FOCO de la semana (ej. semana de 3ra persona → "banco de verbos en tercera persona visible") — y "observacionesSemana": qué observar/registrar esta semana según su foco. Nunca genéricas.
