@@ -23,15 +23,16 @@ const MAX_TOKENS   = 12000;  // por lote (contrato incluye evidencias/metacognic
 const RETRY_TOKENS = 20000;  // reintento tras truncamiento — techo generoso para modelos verbosos (deepseek, etc.)
 
 // COSTO PRIMERO, CALIDAD DE RESPALDO. Una unidad son ~10-12 lotes de ~12K tokens
-// de salida cada uno; con gpt-4o de primero (out $10/M) el gasto era alto. Con
-// todos los validadores de contrato (voz, R9/R12, evidencias, anti-repetición)
-// blindados, un modelo económico que produzca JSON válido cuesta igual de bien:
-// gemini y nvidia generan primero, gpt-4o-mini como puente barato, y openai/
-// anthropic (gpt-4o/opus) SOLO como red de seguridad si los baratos fallan la
-// validación. Ahorro ~10-15x sin degradar el contrato (si el barato produce
-// basura, el validador lo rechaza y escala solo). Salida por millón de tokens:
-// gemini/nvidia ≈ económicos · gpt-4o-mini $0.60 · gpt-4o $10 · opus $75.
-const PHASE_A_PROVIDER_ORDER = ['gemini', 'nvidia', 'openai', 'anthropic', 'abacus'];
+// de salida cada uno. Con todos los validadores de contrato (voz, R9/R12,
+// evidencias, anti-repetición) blindados, un modelo ECONÓMICO que produzca JSON
+// válido cuesta igual de bien (si produce basura, el validador lo rechaza y
+// escala solo al siguiente). Por eso openai va primero con gpt-4o-mini forzado
+// ($0.60/M salida — 17x más barato que gpt-4o) — es el proveedor con crédito
+// disponible y el mini es confiable en JSON. gemini/nvidia como respaldo cuando
+// tengan crédito; anthropic (opus, caro) al final. El modelo de OpenAI se fuerza
+// a gpt-4o-mini abajo (modelOverrides), salvo que el admin lo sobrescriba.
+// Salida por millón: gpt-4o-mini $0.60 · gpt-4o $10 · opus $75.
+const PHASE_A_PROVIDER_ORDER = ['openai', 'gemini', 'nvidia', 'anthropic', 'abacus'];
 
 // Exemplars de estilo: MÁXIMO uno por concepto (saludo, retroalimentación,
 // producción). Se listan aparte porque también alimentan la validación
