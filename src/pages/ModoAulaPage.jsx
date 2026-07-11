@@ -13,6 +13,7 @@ import { obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase
 import { useAuth } from '../context/AuthContext.jsx'
 import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula } from '../services/modoAulaService.js'
 import { obtenerClaseDeHoy, crearAspectoId } from '../services/hiloPedagogico.js'
+import { crearEvidencia } from '../services/evidenciasService.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECCIÓN 1 — ADAPTADORES Y UTILIDADES DE DATOS
@@ -134,6 +135,14 @@ const TIPO_INSTRUMENTO_VALOR = {
 function nombreEstudiante(estudiante = {}) {
   if (typeof estudiante === 'string') return estudiante
   return estudiante.nombre || estudiante.nombreCompleto || estudiante.name || estudiante.fullName || estudiante.apellidos || ''
+}
+
+function detalleEstudiante(estudiante = {}) {
+  return [
+    estudiante.matricula ? `Matrícula ${estudiante.matricula}` : '',
+    estudiante.grado,
+    estudiante.seccion ? `Sección ${estudiante.seccion}` : '',
+  ].filter(Boolean).join(' · ')
 }
 
 function normalizarTipoInstrumento(valor = '') {
@@ -597,6 +606,10 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const [inputEvidencia, setInputEvidencia] = useState('')
   const [categoriaEv,    setCategoriaEv]    = useState('Observación')
   const [agregandoEv,    setAgregandoEv]    = useState(false)
+  const [busquedaEstudianteEv, setBusquedaEstudianteEv] = useState('')
+  const [estudianteEv, setEstudianteEv] = useState(null)
+  const [guardandoEv, setGuardandoEv] = useState(false)
+  const [errorEv, setErrorEv] = useState('')
 
   // ── Coach IA
   const [coachSug, setCoachSug] = useState(null)
@@ -767,20 +780,75 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   }
 
   // ─── Agregar evidencia
-  const agregarEvidencia = () => {
-    if (!inputEvidencia.trim() || !planActivo || diaActivo?.diaNum == null) return
-    const ev = {
-      id: Date.now(),
-      texto: inputEvidencia.trim(),
-      categoria: categoriaEv,
-      hora: new Date().toLocaleTimeString('es-DO', { hour:'2-digit', minute:'2-digit' }),
-      momento: diaActivo.momentos?.[momentoOpen]?.nombre || '',
+  const agregarEvidencia = async () => {
+    if (!inputEvidencia.trim() || !planActivo || diaActivo?.diaNum == null || guardandoEv) return
+    if (!estudianteEv?.id) {
+      setErrorEv('Selecciona un estudiante del curso actual antes de guardar la evidencia.')
+      return
     }
-    const arr = [ev, ...evidencias]
-    setEvidencias(arr)
-    guardarEvidenciasLocal(planActivo.id, diaActivo.diaNum, arr)
-    setInputEvidencia('')
-    setAgregandoEv(false)
+    const cursoId = cursoParaAula?.id || ''
+    if (!cursoId) {
+      setErrorEv('No pude identificar el curso activo. Cambia o abre la planificación desde su curso.')
+      return
+    }
+    setGuardandoEv(true)
+    setErrorEv('')
+    const ahora = new Date()
+    const capa = planActivo?.capaCurricular || null
+    const claseCapa = capa?.clases?.find(c => c.numeroClase === diaActivo?.diaNum) || null
+    const indicadorIds = claseCapa?.indicadoresTrabajados
+      || (capa?.indicadoresSeleccionados || []).map(ind => ind.id).filter(Boolean)
+    const evidenciaId = `modo-aula-${ahora.getTime()}`
+    const ev = {
+      id: evidenciaId,
+      evidenciaId,
+      texto: inputEvidencia.trim(),
+      descripcion: inputEvidencia.trim(),
+      categoria: categoriaEv,
+      tipo: categoriaEv,
+      origen: 'modo_aula',
+      estudianteId: estudianteEv.id,
+      estudianteNombre: estudianteEv.nombre,
+      estudianteMatricula: estudianteEv.matricula || '',
+      cursoId,
+      curso: cursoParaAula?.nombre || cursoParaAula?.name || cursoParaAula?.grado || '',
+      grado: claseNorm?.grado || cursoParaAula?.grado || estudianteEv.grado || '',
+      seccion: cursoParaAula?.seccion || estudianteEv.seccion || '',
+      area: claseNorm?.area || '',
+      planificacionId: planActivo.id,
+      planId: planActivo.id,
+      claseId: claseCapa?.claseId || `${planActivo.id}-dia-${diaActivo.diaNum}`,
+      claseTitulo: diaActivo?.titulo || '',
+      temaUnidad: claseNorm?.tituloUnidad || '',
+      diaNum: diaActivo.diaNum,
+      semana: diaActivo.semana || null,
+      fecha: ahora.toISOString(),
+      hora: ahora.toLocaleTimeString('es-DO', { hour:'2-digit', minute:'2-digit' }),
+      momento: diaActivo.momentos?.[momentoOpen]?.nombre || '',
+      indicadorIds,
+      indicadoresRelacionados: diaActivo?.criteriosExito || [],
+    }
+    try {
+      const guardada = await crearEvidencia(ev)
+      const arr = [guardada || ev, ...evidencias]
+      setEvidencias(arr)
+      guardarEvidenciasLocal(planActivo.id, diaActivo.diaNum, arr)
+      setInputEvidencia('')
+      setBusquedaEstudianteEv('')
+      setEstudianteEv(null)
+      setAgregandoEv(false)
+    } catch (error) {
+      console.error('[ModoAula] No se pudo guardar la evidencia:', error)
+      const arr = [{ ...ev, pendienteSync: true }, ...evidencias]
+      setEvidencias(arr)
+      guardarEvidenciasLocal(planActivo.id, diaActivo.diaNum, arr)
+      setInputEvidencia('')
+      setBusquedaEstudianteEv('')
+      setEstudianteEv(null)
+      setErrorEv('La evidencia quedó guardada localmente, pero no pude sincronizarla con Firestore todavía.')
+    } finally {
+      setGuardandoEv(false)
+    }
   }
 
   // ─── Iniciar clase
@@ -807,7 +875,13 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       diaNum: diaActivo?.diaNum, semana: diaActivo?.semana,
       observaciones: notasDocente,
       resumenActividades: resumen,
-      evidencias: evidencias.map(e => ({ texto: e.texto, categoria: e.categoria, hora: e.hora })),
+      evidencias: evidencias.map(e => ({
+        texto: e.texto,
+        categoria: e.categoria,
+        hora: e.hora,
+        estudianteId: e.estudianteId || '',
+        estudianteNombre: e.estudianteNombre || '',
+      })),
       estadoClase: 'finalizada',
     }).catch(() => {})
     persistir({ estadoClase: 'finalizada' })
@@ -829,9 +903,24 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       .map((estudiante, index) => ({
         id: estudiante?.id || estudiante?.matricula || `est-${index + 1}`,
         nombre: nombreEstudiante(estudiante) || `Estudiante ${index + 1}`,
+        matricula: estudiante?.matricula || estudiante?.codigo || estudiante?.codigoEstudiante || '',
+        grado: estudiante?.grado || claseNorm?.grado || cursoParaAula?.grado || '',
+        seccion: estudiante?.seccion || cursoParaAula?.seccion || '',
       }))
       .filter((estudiante) => estudiante.nombre)
-  }, [cursoParaAula])
+  }, [cursoParaAula, claseNorm?.grado])
+  const sugerenciasEstudiantesEv = useMemo(() => {
+    const q = normalizarClave(busquedaEstudianteEv)
+    if (!q) return estudiantesAula.slice(0, 6)
+    return estudiantesAula
+      .filter((estudiante) => {
+        const nombre = normalizarClave(estudiante.nombre)
+        const tokens = nombre.split(' ').filter(Boolean)
+        const detalle = normalizarClave([estudiante.nombre, estudiante.matricula, estudiante.grado, estudiante.seccion].filter(Boolean).join(' '))
+        return nombre.startsWith(q) || tokens.some(token => token.startsWith(q)) || detalle.includes(q)
+      })
+      .slice(0, 8)
+  }, [busquedaEstudianteEv, estudiantesAula])
   const instrumentos = useMemo(() => extraerInstrumentos(diaActivo, {
     planId: planActivo?.id,
     cursoId: cursoParaAula?.id,
@@ -2069,6 +2158,76 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                 background:'#fffbeb', border:'1px solid #fde68a',
                 borderRadius:10, padding:'12px', marginBottom:12,
               }}>
+                <div style={{ position:'relative', marginBottom:8 }}>
+                  <label style={{ display:'block', fontSize:10.5, fontWeight:900, color:'#92400e', textTransform:'uppercase', marginBottom:5 }}>
+                    Estudiante del curso
+                  </label>
+                  <input
+                    value={busquedaEstudianteEv}
+                    onChange={e => {
+                      setBusquedaEstudianteEv(e.target.value)
+                      setEstudianteEv(null)
+                      setErrorEv('')
+                    }}
+                    placeholder="Escribe el nombre, ej. Pedro"
+                    style={{
+                      width:'100%', border:'1px solid #e2e8f0', borderRadius:7,
+                      padding:'8px 10px', fontSize:12.5, color:'#374151',
+                      background:'#fff', outline:'none', boxSizing:'border-box',
+                    }}
+                  />
+                  {estudianteEv && (
+                    <div style={{ marginTop:6, fontSize:11.5, color:'#15803d', fontWeight:800 }}>
+                      ✓ Seleccionado: {estudianteEv.nombre}
+                    </div>
+                  )}
+                  {!estudianteEv && busquedaEstudianteEv.trim() && (
+                    <div style={{
+                      position:'absolute',
+                      left:0,
+                      right:0,
+                      top:'100%',
+                      zIndex:5,
+                      marginTop:4,
+                      background:'#fff',
+                      border:'1px solid #fde68a',
+                      borderRadius:9,
+                      boxShadow:'0 10px 24px rgba(15,23,42,.12)',
+                      maxHeight:180,
+                      overflow:'auto',
+                    }}>
+                      {sugerenciasEstudiantesEv.length === 0 ? (
+                        <div style={{ padding:'10px 12px', fontSize:11.5, color:'#92400e' }}>
+                          No hay estudiantes del curso actual con ese nombre.
+                        </div>
+                      ) : sugerenciasEstudiantesEv.map((estudiante) => (
+                        <button
+                          key={estudiante.id}
+                          onClick={() => {
+                            setEstudianteEv(estudiante)
+                            setBusquedaEstudianteEv(estudiante.nombre)
+                            setErrorEv('')
+                          }}
+                          style={{
+                            display:'block',
+                            width:'100%',
+                            textAlign:'left',
+                            background:'#fff',
+                            border:0,
+                            borderBottom:'1px solid #fef3c7',
+                            padding:'9px 12px',
+                            cursor:'pointer',
+                          }}
+                        >
+                          <div style={{ fontSize:12.5, fontWeight:900, color:'#111827' }}>{estudiante.nombre}</div>
+                          {detalleEstudiante(estudiante) && (
+                            <div style={{ fontSize:10.5, color:'#64748b', marginTop:2 }}>{detalleEstudiante(estudiante)}</div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <select value={categoriaEv} onChange={e => setCategoriaEv(e.target.value)} style={{
                   width:'100%', border:'1px solid #e2e8f0', borderRadius:7,
                   padding:'6px 10px', fontSize:12, marginBottom:8, color:'#374151',
@@ -2086,12 +2245,27 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                     outline:'none', boxSizing:'border-box', fontFamily:'inherit',
                   }}
                 />
-                <button onClick={agregarEvidencia} disabled={!inputEvidencia.trim()} style={{
+                {errorEv && (
+                  <div style={{
+                    marginTop:8,
+                    padding:'8px 10px',
+                    border:'1px solid #fecaca',
+                    background:'#fef2f2',
+                    color:'#b91c1c',
+                    borderRadius:7,
+                    fontSize:11.5,
+                    fontWeight:800,
+                    lineHeight:1.35,
+                  }}>
+                    {errorEv}
+                  </div>
+                )}
+                <button onClick={agregarEvidencia} disabled={!inputEvidencia.trim() || !estudianteEv?.id || guardandoEv} style={{
                   width:'100%', marginTop:8, background:'#c2410c', color:'#fff',
                   border:0, borderRadius:7, padding:'8px', fontSize:12, fontWeight:700,
-                  cursor: inputEvidencia.trim() ? 'pointer' : 'default',
-                  opacity: inputEvidencia.trim() ? 1 : .5,
-                }}>Guardar evidencia</button>
+                  cursor: inputEvidencia.trim() && estudianteEv?.id && !guardandoEv ? 'pointer' : 'default',
+                  opacity: inputEvidencia.trim() && estudianteEv?.id && !guardandoEv ? 1 : .5,
+                }}>{guardandoEv ? 'Guardando...' : 'Guardar evidencia'}</button>
               </div>
             )}
 
@@ -2119,6 +2293,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                         <span style={{ fontSize:10.5, fontWeight:700, color:'#c2410c' }}>{ev.hora}</span>
                         <span style={{ fontSize:10.5, color:'#94a3b8' }}>{ev.momento}</span>
                       </div>
+                      {ev.estudianteNombre && (
+                        <div style={{ fontSize:11.5, fontWeight:900, color:'#111827', marginBottom:2 }}>
+                          {ev.estudianteNombre}
+                        </div>
+                      )}
                       <div style={{ fontSize:12, fontWeight:700, color:'#374151', marginBottom:2 }}>{ev.categoria}</div>
                       <div style={{ fontSize:11.5, color:'#6b7280', lineHeight:1.4 }}>{ev.texto}</div>
                     </div>
