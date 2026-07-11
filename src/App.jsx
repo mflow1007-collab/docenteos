@@ -40,6 +40,61 @@ const ModoAulaPage            = lazy(() => import("./pages/ModoAulaPage"));
 const BancoEvidenciasPage     = lazy(() => import("./pages/BancoEvidenciasPage"));
 const EstudianteDetallePage   = lazy(() => import("./pages/EstudianteDetallePage"));
 
+const CURSO_ACTIVO_KEY = "docenteos_curso_activo_id";
+
+function leerCursoActivoId() {
+  try { return localStorage.getItem(CURSO_ACTIVO_KEY) || null; }
+  catch { return null; }
+}
+
+function guardarCursoActivoId(id) {
+  try {
+    if (id) localStorage.setItem(CURSO_ACTIVO_KEY, String(id));
+    else localStorage.removeItem(CURSO_ACTIVO_KEY);
+  } catch {
+    // storage no disponible
+  }
+}
+
+function normalizarCursoTexto(valor = "") {
+  return String(valor || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function cursoTieneMatriculaReal(curso = {}) {
+  return curso.matriculaOficial === true
+    || curso.estudiantesFuente === "oficial"
+    || curso.estudiantesFuente === "grupo_academico"
+    || Boolean(curso.grupoAcademicoId);
+}
+
+function puntuarCursoFallback(curso = {}, indice = 0) {
+  const texto = normalizarCursoTexto([curso.nivel, curso.grado, curso.nombre, curso.area].filter(Boolean).join(" "));
+  let puntaje = 0;
+  if (cursoTieneMatriculaReal(curso)) puntaje += 1000;
+  if (!curso.esAutoGenerado && curso.estudiantesFuente !== "demo") puntaje += 120;
+  if ((curso.estudiantesDetalle || []).length > 0) puntaje += 80;
+  if (texto.includes("secundaria") || texto.includes("secundario")) puntaje += 20;
+  if (texto.includes("1ro") || texto.includes("primero")) puntaje += 10;
+  const ultimo = Date.parse(curso.ultimoAcceso || curso.fechaUltimoAcceso || curso.fechaActualizacion || "");
+  if (Number.isFinite(ultimo)) puntaje += Math.min(50, Math.floor(ultimo / 100000000000));
+  return puntaje - indice;
+}
+
+function resolverCursoActivoGlobal(cursos = [], cursoActivoId = null) {
+  if (!Array.isArray(cursos) || cursos.length === 0) return null;
+  const seleccionado = cursoActivoId
+    ? cursos.find((curso) => String(curso.id) === String(cursoActivoId))
+    : null;
+  if (seleccionado) return seleccionado;
+  return [...cursos]
+    .map((curso, indice) => ({ curso, puntaje: puntuarCursoFallback(curso, indice) }))
+    .sort((a, b) => b.puntaje - a.puntaje)[0]?.curso || cursos[0] || null;
+}
+
 export default function App() {
   return <AppInner />
 }
@@ -90,7 +145,7 @@ function AppInner() {
       return [];
     }
   });
-  const [cursoSeleccionadoId, setCursoSeleccionadoId] = useState(null);
+  const [cursoSeleccionadoId, setCursoSeleccionadoId] = useState(() => leerCursoActivoId());
   const [cursoAEditar, setCursoAEditar] = useState(null);
   const [tabDetalleInicial, setTabDetalleInicial] = useState("Resumen");
   const [detalleEstudianteTab, setDetalleEstudianteTab] = useState("Resumen");
@@ -98,11 +153,21 @@ function AppInner() {
   const [navegacionLista, setNavegacionLista] = useState(false);
   const inicializoNavegacion = useRef(false);
 
-  const abrirDetalleCurso = (curso) => {
+  const seleccionarCursoActivo = useCallback((cursoOrId) => {
+    const curso = typeof cursoOrId === "object" && cursoOrId
+      ? cursoOrId
+      : cursos.find((item) => String(item.id) === String(cursoOrId));
+    if (!curso?.id) return null;
+    setCursoSeleccionadoId(curso.id);
+    guardarCursoActivoId(curso.id);
+    return curso;
+  }, [cursos]);
+
+  const abrirDetalleCurso = (cursoOrId) => {
+    const curso = seleccionarCursoActivo(cursoOrId);
     if (!curso) return;
     const fechaAcceso = new Date().toISOString();
     setCursos((prev) => prev.map((item) => (item.id === curso.id ? { ...item, ultimoAcceso: fechaAcceso } : item)));
-    setCursoSeleccionadoId(curso.id);
     setTabDetalleInicial("Resumen");
     navegar("detalle-curso");
   };
@@ -114,6 +179,10 @@ function AppInner() {
 
   const crearCurso = (nuevoCurso) => {
     setCursos((prev) => [nuevoCurso, ...prev]);
+    if (!cursoSeleccionadoId) {
+      setCursoSeleccionadoId(nuevoCurso.id);
+      guardarCursoActivoId(nuevoCurso.id);
+    }
     sincronizarCursoConGrupoAcademico(nuevoCurso)
       .then((cursoSync) => {
         setCursos((prev) => prev.map((curso) => curso.id === cursoSync.id ? enriquecerCursoInicial(cursoSync) : curso));
@@ -126,7 +195,7 @@ function AppInner() {
   };
 
   const abrirHorarioCurso = (cursoId) => {
-    setCursoSeleccionadoId(cursoId);
+    seleccionarCursoActivo(cursoId);
     setTabDetalleInicial("Horario");
     navegar("detalle-curso");
   };
@@ -152,12 +221,14 @@ function AppInner() {
     if (cursoSeleccionadoId === idCurso) {
       navegar("cursos");
       setCursoSeleccionadoId(null);
+      guardarCursoActivoId(null);
     }
     eliminarCursoFS(idCurso).catch((err) => console.error("[App] Error al eliminar curso:", err));
   };
 
   const abrirDetalleEstudiante = (estudiante) => {
     if (!estudiante) return;
+    if (estudiante.cursoId) seleccionarCursoActivo(estudiante.cursoId);
     setEstudianteDetalle(estudiante);
     navegar("detalle-estudiante");
   };
@@ -168,7 +239,7 @@ function AppInner() {
 
   const cursoSeleccionado =
     cursos.find((curso) => curso.id === cursoSeleccionadoId) || null;
-  const cursoRegistro = cursoSeleccionado || cursos[0] || null;
+  const cursoRegistro = resolverCursoActivoGlobal(cursos, cursoSeleccionadoId);
 
   const sincronizarCursosConRegistros = useCallback(async (listaCursos) => {
     return Promise.all(
@@ -277,6 +348,22 @@ function AppInner() {
       localStorage.setItem("docenteos_cursos_v2", JSON.stringify(cursos));
     }
   }, [cursos, cursosLoaded]);
+
+  useEffect(() => {
+    if (!cursosLoaded || !cursos.length) return;
+    const activoActual = cursoSeleccionadoId
+      ? cursos.find((curso) => String(curso.id) === String(cursoSeleccionadoId))
+      : null;
+    if (activoActual) {
+      guardarCursoActivoId(activoActual.id);
+      return;
+    }
+    const fallback = resolverCursoActivoGlobal(cursos, null);
+    if (fallback?.id) {
+      setCursoSeleccionadoId(fallback.id);
+      guardarCursoActivoId(fallback.id);
+    }
+  }, [cursos, cursosLoaded, cursoSeleccionadoId]);
 
   useEffect(() => {
     if (pagina === "detalle-estudiante" && !estudianteDetalle) {

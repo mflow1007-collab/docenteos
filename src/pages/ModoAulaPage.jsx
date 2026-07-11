@@ -317,10 +317,55 @@ function extraerInstrumentos(dia, contexto = {}) {
     .sort((a, b) => (Number(a.orden) || 99) - (Number(b.orden) || 99))
 }
 
-function extraerRecursos(dia) {
+function recursoInferidoDesdeActividad(texto = '', tema = '') {
+  const t = String(texto || '').toLowerCase()
+  const contexto = tema || 'el tema de la clase'
+  if (/\b(video|audiovisual|youtube)\b/.test(t)) {
+    return {
+      tipo: '💻 Tecnológicos',
+      item: `Video breve sobre ${contexto}`,
+      accion: 'video',
+      busqueda: `${contexto} video educativo`,
+    }
+  }
+  if (/\b(imagen|imagenes|lámina|lamina|fotografía|fotografia|ilustración|ilustracion)\b/.test(t)) {
+    return {
+      tipo: '📦 Didácticos',
+      item: `Imágenes de apoyo sobre ${contexto}`,
+      accion: 'imagenes',
+      busqueda: `${contexto} imagenes educativas`,
+    }
+  }
+  if (/\b(audio|canción|cancion|escuchan)\b/.test(t)) {
+    return {
+      tipo: '💻 Tecnológicos',
+      item: `Audio de apoyo sobre ${contexto}`,
+      accion: 'audio',
+      busqueda: `${contexto} audio educativo`,
+    }
+  }
+  if (/\b(flashcard|tarjeta|tarjetas)\b/.test(t)) {
+    return {
+      tipo: '📦 Didácticos',
+      item: `Tarjetas didácticas sobre ${contexto}`,
+      accion: 'material',
+      busqueda: `${contexto} flashcards`,
+    }
+  }
+  return null
+}
+
+function extraerRecursos(dia, tema = '') {
   if (!dia) return []
   const seen = new Set()
   const resultado = []
+  const push = (tipo, item, extra = {}) => {
+    if (!item) return
+    const key = `${tipo}-${item}`.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    resultado.push({ tipo, item, ...extra })
+  }
   ;(dia.momentos || []).forEach(mom => {
     const r = mom.recursos || {}
     ;[
@@ -330,11 +375,12 @@ function extraerRecursos(dia) {
     ].forEach(({ tipo, val }) => {
       if (!val) return
       String(val).split(/[,;]/).map(s => s.trim()).filter(Boolean).forEach(item => {
-        if (!seen.has(item.toLowerCase())) {
-          seen.add(item.toLowerCase())
-          resultado.push({ tipo, item })
-        }
+        push(tipo, item)
       })
+    })
+    ;(mom.actividades || []).forEach((actividad) => {
+      const inferido = recursoInferidoDesdeActividad(actividad, tema || dia.titulo)
+      if (inferido) push(inferido.tipo, inferido.item, inferido)
     })
   })
   return resultado
@@ -512,6 +558,15 @@ function InstrCard({ inst, onAplicar }) {
 }
 
 function RecursoItem({ tipo, item }) {
+  const puedePreparar = !tipo.includes('👥')
+  const abrirBusquedaRecurso = () => {
+    const query = encodeURIComponent(item)
+    let url = `https://www.google.com/search?q=${query}`
+    if (tipo.includes('💻') && /video/i.test(item)) url = `https://www.youtube.com/results?search_query=${query}`
+    if (/imagen/i.test(item)) url = `https://www.google.com/search?tbm=isch&q=${query}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
   return (
     <div style={{
       display:'flex', alignItems:'center', gap:8,
@@ -534,6 +589,25 @@ function RecursoItem({ tipo, item }) {
         <div style={{ fontSize:13, color:'#0f172a', fontWeight:900, lineHeight:1.2 }}>{item}</div>
         <div style={{ fontSize:11, color:'#64748b', fontWeight:600, marginTop:2 }}>{tipo.replace(/^..\s/, '')}</div>
       </div>
+      {puedePreparar && (
+        <button
+          onClick={abrirBusquedaRecurso}
+          title="Buscar/preparar este recurso"
+          style={{
+            flexShrink:0,
+            border:'1px solid #bbf7d0',
+            background:'#f0fdf4',
+            color:'#15803d',
+            borderRadius:7,
+            padding:'6px 8px',
+            fontSize:11,
+            fontWeight:900,
+            cursor:'pointer',
+          }}
+        >
+          Preparar
+        </button>
+      )}
     </div>
   )
 }
@@ -937,7 +1011,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     instrumentosRaw: claseNorm?.instrumentosRaw,
     maximoInstrumentosPorDia: claseNorm?.resumenEval?.maximoInstrumentosPorDia || claseNorm?.instrumentosRaw?.maximoInstrumentosPorDia || 3,
   }), [diaActivo, planActivo, claseNorm, cursoParaAula, periodoRegistro])
-  const recursos     = useMemo(() => extraerRecursos(diaActivo), [diaActivo])
+  const recursos     = useMemo(() => extraerRecursos(diaActivo, diaActivo?.titulo || claseNorm?.tituloUnidad || ''), [diaActivo, claseNorm?.tituloUnidad])
   const momentos     = diaActivo?.momentos || []
   const totalActs    = momentos.reduce((s, m) => s + (m.actividades?.length || 0), 0)
   const hechas       = Object.values(actChecks).reduce((s, set) => s + set.size, 0)
