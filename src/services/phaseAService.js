@@ -27,16 +27,23 @@ const RETRY_TOKENS = 16000;
 // para Phase A aunque el admin lo tenga arriba para tareas conversacionales.
 const PHASE_A_PROVIDER_ORDER = ['openai', 'anthropic', 'gemini', 'nvidia', 'abacus'];
 
+// Exemplars de estilo: MÁXIMO uno por concepto (saludo, retroalimentación,
+// producción). Se listan aparte porque también alimentan la validación
+// anti-copia: un Desarrollo que calque un exemplar del prompt se rechaza.
+export const EXEMPLARS_ESTILO = [
+  'Responden al saludo e indicaciones iniciales. (Good morning! How are you today? Are you ready for the class?)',
+  'Retroalimentación del vocabulario trabajado en la clase anterior. (Do you remember the last class? What words do you remember about daily routines?)',
+  'Elaboran un mapa de ideas sobre las actividades que consideran más importantes dentro de su rutina diaria. Socializan sus respuestas explicando brevemente por qué esas actividades son importantes para su vida.',
+];
+
 const SYSTEM_PROMPT =
   'Eres un planificador curricular experto del formato oficial MINERD. ' +
   'Redactas cada actividad iniciando con un VERBO en tercera persona plural del presente ' +
   '(Responden, Observan, Escuchan, Elaboran, Socializan, Practican, Identifican, Comparan, Guardan...) ' +
   'y NUNCA inicias con "Los estudiantes", "El docente", "La docente", "Se", "Ticket", "Reflexión" ni nombres de recursos. ' +
   'El inglés va incrustado entre paréntesis dentro de la actividad. ' +
-  'Estilo oficial de referencia: ' +
-  '"Responden al saludo e indicaciones iniciales. (Good morning! How are you today? Are you ready for the class?)" · ' +
-  '"Retroalimentación del vocabulario trabajado en la clase anterior. (Do you remember the last class? What words do you remember about daily routines?)" · ' +
-  '"Elaboran un mapa de ideas sobre las actividades que consideran más importantes dentro de su rutina diaria. Socializan sus respuestas explicando brevemente por qué esas actividades son importantes para su vida." ' +
+  'Estilo oficial de referencia (referencia de VOZ, jamás los copies como actividades): ' +
+  EXEMPLARS_ESTILO.map((e) => `"${e}"`).join(' · ') + ' ' +
   'Respondes ÚNICAMENTE con JSON válido, sin texto adicional ni bloques markdown.';
 
 const JSON_REMINDER =
@@ -307,7 +314,85 @@ const _normTextoFoco = (s) => String(s || '')
 export const nombreCortoEstructura = (estructura) =>
   String(estructura || '').split(/\s+para\s+|\(/)[0].replace(/[:.]+$/, '').trim();
 
-function validateBatch(data, durMin, count, focoGram = []) {
+// ─── Producto nombrado, aportes, técnica CLT y evidencias evaluables ─────────
+
+const PRODUCTO_GENERICO = [
+  'presentación final', 'producción final', 'producto final sobre',
+  'presentación/producción', 'que evidencie el dominio',
+];
+
+const APORTE_GENERICO = [
+  'avance del producto', 'avance del proyecto', 'trabajo en el proyecto',
+  'trabajo en el producto', 'aporte al producto', 'aporte al proyecto',
+  'continúan el producto', 'avanzan en el producto',
+];
+
+const CLT_GENERICO = [
+  'actividad', 'práctica', 'ejercicio', 'dinámica', 'juego',
+  'trabajo en grupo', 'trabajo colaborativo', 'trabajo en parejas',
+];
+
+const EVIDENCIA_NO_EVALUABLE = [
+  'participación activa en el saludo', 'participación en el saludo',
+  'atención y reacción al saludo', 'interacción activa con el saludo',
+  'respuestas al saludo', 'interés mostrado en el video',
+  'participación activa en la clase', 'atención a la explicación',
+];
+
+// Evidencias DESAGREGADAS (documento modelo): {conocimientos, desempeno,
+// producto} — al menos una clave con contenido; el Desarrollo exige desempeño
+// o producto; nada de "participación activa en el saludo".
+const CLAVES_EVIDENCIA = ['conocimientos', 'desempeno', 'producto'];
+function validarEvidenciasMomento(ev, esDesarrollo, etiqueta) {
+  if (!ev || typeof ev !== 'object' || Array.isArray(ev)) {
+    throw new Error(`R4: ${etiqueta} — "evidencias" debe ser objeto {conocimientos/desempeno/producto} con arrays, no lista plana`);
+  }
+  const presentes = CLAVES_EVIDENCIA.filter(
+    (k) => Array.isArray(ev[k]) && ev[k].filter((x) => String(x || '').trim()).length,
+  );
+  if (!presentes.length) {
+    throw new Error(`R4: ${etiqueta} — evidencias sin ninguna clave con contenido`);
+  }
+  if (esDesarrollo && !presentes.includes('desempeno') && !presentes.includes('producto')) {
+    throw new Error(`R4: ${etiqueta} — el Desarrollo exige evidencias de desempeño o de producto`);
+  }
+  for (const k of presentes) {
+    for (const e of ev[k]) {
+      const vaga = EVIDENCIA_NO_EVALUABLE.find((b) => _normTextoFoco(e).includes(_normTextoFoco(b)));
+      if (vaga) throw new Error(`R4: ${etiqueta} — evidencia no evaluable ("${vaga}"): describe un desempeño o producto observable`);
+    }
+  }
+}
+
+const textoDesarrollo = (clase) =>
+  ((clase?.momentos || []).find((m) => m.nombre === 'Desarrollo')?.actividades || []).join(' ');
+
+export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
+  const memoria = Array.isArray(opts.memoria) ? opts.memoria : [];
+
+  // 3A — nombre propio del producto final (solo el primer lote de la unidad)
+  if (opts.exigirNombreProducto) {
+    const nombreProd = String(data?.productoFinalNombre || '').trim();
+    if (!nombreProd) {
+      throw new Error('R11: falta "productoFinalNombre" — el primer lote propone el nombre propio del producto final');
+    }
+    const generico = PRODUCTO_GENERICO.find((g) => _normTextoFoco(nombreProd).includes(_normTextoFoco(g)));
+    if (generico || nombreProd.length > 80) {
+      throw new Error(`R11: productoFinalNombre genérico o excesivo ("${nombreProd.slice(0, 60)}…") — nombre propio y concreto (ej. "My House Map & Tour")`);
+    }
+  }
+
+  // 4 — Adaptaciones NEAE y observaciones DEL BLOQUE, ligadas al foco. Sin
+  // fallback genérico: si faltan, el lote se rechaza y se regenera.
+  const ad = data?.adaptacionesSemana;
+  for (const k of ['acceso', 'metodologicas', 'evaluacion']) {
+    if (!String(ad?.[k] || '').trim()) {
+      throw new Error(`R14: falta adaptacionesSemana.${k} (adecuaciones NEAE ligadas al foco de la semana)`);
+    }
+  }
+  if (!String(data?.observacionesSemana || '').trim()) {
+    throw new Error('R14: falta observacionesSemana (qué observar/registrar esta semana según su foco)');
+  }
   if (!data?.clases || !Array.isArray(data.clases)) throw new Error('R1: falta clases[]');
   if (data.clases.length < count) throw new Error(`R1: se esperaban ${count} clases, llegaron ${data.clases.length}`);
 
@@ -318,6 +403,7 @@ function validateBatch(data, durMin, count, focoGram = []) {
 
   const listaNoVacia = (v) => Array.isArray(v) && v.filter((x) => String(x || '').trim()).length > 0;
   const textoNoVacio = (v) => String(v || '').trim().length > 0;
+  const cltEnLote = new Map(); // técnica → clase que la usó (no repetir en el mismo lote)
 
   for (let idx = 0; idx < count; idx++) {
     const clase = data.clases[idx];
@@ -372,6 +458,70 @@ function validateBatch(data, durMin, count, focoGram = []) {
       }
     }
 
+    // 3B — técnica metodológica NOMBRADA (el "sabor" del documento modelo):
+    // Listen and Act/Solve/Compare, Information Gap, Role Play, Gallery Walk,
+    // Interview Stations, Frequency Walk, Speaking Circle, Describe and Draw…
+    const clt = clase.actividadCLT;
+    if (!clt || !textoNoVacio(clt.nombre) || !textoNoVacio(clt.mecanica)) {
+      throw new Error(`R12: clase ${idx + 1} sin actividadCLT {nombre, mecanica} (técnica metodológica del Desarrollo)`);
+    }
+    const cltNombreNorm = _normTextoFoco(clt.nombre);
+    if (CLT_GENERICO.map(_normTextoFoco).includes(cltNombreNorm)) {
+      throw new Error(`R12: clase ${idx + 1} — "${clt.nombre}" no es un nombre metodológico (usa Listen and Solve, Information Gap, Role Play, Gallery Walk…)`);
+    }
+    if (cltEnLote.has(cltNombreNorm)) {
+      throw new Error(`R12: clase ${idx + 1} repite la técnica "${clt.nombre}" de la clase ${cltEnLote.get(cltNombreNorm)} del mismo lote`);
+    }
+    cltEnLote.set(cltNombreNorm, idx + 1);
+    if (!_normTextoFoco((clase.momentos.find((m) => m.nombre === 'Desarrollo')?.actividades || [])[0]).includes(cltNombreNorm)) {
+      throw new Error(`R12: clase ${idx + 1} — la primera actividad del Desarrollo no nombra su técnica ("Participan en ${clt.nombre}: …")`);
+    }
+
+    // 3A — aporte concreto y NOMBRADO al producto final
+    const aporte = String(clase.aporteProducto || '').trim();
+    if (!aporte) {
+      throw new Error(`R11: clase ${idx + 1} sin aporteProducto (el artefacto que esta clase deposita al producto final)`);
+    }
+    const aporteVago = APORTE_GENERICO.find((g) => _normTextoFoco(aporte).includes(_normTextoFoco(g)));
+    if (aporteVago) {
+      throw new Error(`R11: clase ${idx + 1} — aporteProducto genérico ("${aporteVago}"): nombra el artefacto concreto (ej. "Inventario del espacio favorito con posesivos")`);
+    }
+
+    // 3C — anti-repetición GLOBAL: contra TODAS las clases previas de la
+    // unidad (memoria acumulada), no solo las adyacentes del lote
+    const nuevoDesarrollo = textoDesarrollo(clase);
+    for (const prev of memoria) {
+      if (prev.desarrolloTexto) {
+        const sim = jaccardSimilarity(nuevoDesarrollo, prev.desarrolloTexto);
+        if (sim > 0.6) {
+          throw new Error(`R2: clase ${idx + 1} repite el Desarrollo de S${prev.semana}/C${prev.dia} "${prev.titulo}" (${(sim * 100).toFixed(0)}%)`);
+        }
+      }
+      if (prev.actividadCLT && _normTextoFoco(prev.actividadCLT) === cltNombreNorm) {
+        const mismoBloque = prev.semana === (data.semana ?? opts.semanaNum);
+        const mecanicaSimilar = prev.mecanicaCLT
+          ? jaccardSimilarity(String(clt.mecanica), String(prev.mecanicaCLT)) > 0.6
+          : true;
+        if (mismoBloque || mecanicaSimilar) {
+          throw new Error(
+            `R12: clase ${idx + 1} — técnica "${clt.nombre}" ya usada en S${prev.semana}/C${prev.dia}` +
+            `${mismoBloque ? ' (mismo bloque)' : ' con mecánica similar'} — usa otra técnica o cambia la mecánica`,
+          );
+        }
+      }
+    }
+
+    // 3C — anti-copia de los exemplars del propio prompt (falla F4)
+    for (const m of clase.momentos) {
+      for (const act of (m.actividades || [])) {
+        for (const ex of EXEMPLARS_ESTILO) {
+          if (jaccardSimilarity(String(act), ex) > 0.7) {
+            throw new Error(`R2: clase ${idx + 1} — actividad copiada del ejemplo del prompt ("${String(act).slice(0, 50)}…")`);
+          }
+        }
+      }
+    }
+
     // Piezas del Inicio canónico (el merge las coloca en posiciones fijas)
     for (const campo of ['saludoInicial', 'retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
       if (!textoNoVacio(clase[campo])) {
@@ -400,9 +550,7 @@ function validateBatch(data, durMin, count, focoGram = []) {
           if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} "${m.nombre}" — ${voz.motivo}`);
         }
       }
-      if (!listaNoVacia(m.evidencias)) {
-        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin evidencias`);
-      }
+      validarEvidenciasMomento(m.evidencias, m.nombre === 'Desarrollo', `clase ${idx + 1} momento "${m.nombre}"`);
       if (!listaNoVacia(m.metacognicion)) {
         throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin metacognicion`);
       }
@@ -441,9 +589,13 @@ function validateWeekPlan(data, durMin, numClases) {
 function formatearMemoria(memoria) {
   if (!memoria.length) return '';
   const lines = memoria.map(e =>
-    `- [S${e.semana}/C${e.dia} "${e.titulo}"]: ${e.desarrolloResumen}`,
+    `- [S${e.semana}/C${e.dia} "${e.titulo}"${e.actividadCLT ? ` · Técnica: ${e.actividadCLT}` : ''}]: ${e.desarrolloResumen}`,
   );
-  return `\nACTIVIDADES YA PROGRAMADAS EN ESTA UNIDAD (no repetir las mismas):\n${lines.join('\n')}\n`;
+  const tecnicas = [...new Set(memoria.map((e) => e.actividadCLT).filter(Boolean))];
+  const tecnicasTx = tecnicas.length
+    ? `\nTÉCNICAS YA USADAS (no repetirlas; en otra fase solo con mecánica DISTINTA): ${tecnicas.join(' · ')}`
+    : '';
+  return `\nACTIVIDADES YA PROGRAMADAS EN ESTA UNIDAD (no repetir las mismas):\n${lines.join('\n')}${tecnicasTx}\n`;
 }
 
 // ─── Plan gramatical pre-repartido ────────────────────────────────────────────
@@ -465,7 +617,7 @@ export function getFocoGramatical(gramaticaArray, semanaNum, numSemanas) {
 
 // ─── Prompt de lote ───────────────────────────────────────────────────────────
 
-function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
+function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, pedirNombreProducto = false) {
   const tInicio     = durMin <= 50 ? 10 : 15;
   const tCierre     = durMin <= 50 ? 5  : 10;
   const tDesarrollo = durMin - tInicio - tCierre;
@@ -492,6 +644,17 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const rango   = count === 1 ? `Clase ${startDia}` : `Clases ${startDia}-${endDia}`;
   const esPrimeraClaseUnidad = semanaNum === 1 && startDia === 1;
 
+  // 3A — producto final NOMBRADO: el primer lote lo propone; los siguientes
+  // lo reciben fijado y cada clase deposita un aporte concreto a ese producto
+  const productoLinea = spec.productoFinalNombre
+    ? `- PRODUCTO FINAL DE LA UNIDAD: «${spec.productoFinalNombre}» — cada "aporteProducto" alimenta ESTE producto.`
+    : (pedirNombreProducto
+      ? `- PRODUCTO FINAL: propón "productoFinalNombre" — nombre PROPIO y concreto derivado del tema y los discursivos de la malla (ej. tema Vivienda + croquis → "My House Map & Tour"). PROHIBIDO el genérico "Presentación/producción final sobre el tema".`
+      : (spec.productoFinal ? `- PRODUCTO FINAL DE LA UNIDAD: ${spec.productoFinal}` : ''));
+  const contextoLinea = spec.contextoComunitario
+    ? `- CONTEXTO COMUNITARIO REAL (palabras del docente — úsalo en situaciones y actividades; NO inventes otros datos locales): ${spec.contextoComunitario}`
+    : '';
+
   const reglaInicio = esPrimeraClaseUnidad
     ? `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el saludo en inglés, variado por clase: "Good morning! ..."), "retroalimentacionPrevia", "saberesPrevios" y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). Para la PRIMERA clase de la unidad no hay clase anterior: "retroalimentacionPrevia" inicia con "Retroalimentación de experiencias relacionadas con..." (exploración diagnóstica del tema con preguntas EN INGLÉS entre paréntesis) y "saberesPrevios" (inicia con "Recuperación o exploración de saberes previos sobre...") puede versar sobre el tema o sobre cómo serán evaluados en la unidad. NO repitas saludo ni retroalimentación dentro de los momentos.`
     : `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el saludo en inglés, variado por clase: "Good morning! ..."), "retroalimentacionPrevia" (oración completa que inicia con "Retroalimentación de..." recordando lo trabajado en la clase anterior — usa las actividades ya programadas listadas arriba — con preguntas de recuerdo EN INGLÉS entre paréntesis), "saberesPrevios" (oración completa que inicia con "Recuperación o exploración de saberes previos sobre..." el contenido de ESTE día) y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). NO repitas saludo ni retroalimentación dentro de los momentos.`;
@@ -507,7 +670,7 @@ ESPECIFICACIÓN CURRICULAR:
 - Vocabulario disponible: ${vocab}
 - FOCO GRAMATICAL ESTA SEMANA (usar en Desarrollo): ${focoGramTx}
 - Funciones comunicativas: ${funcs}
-${exprs ? `- Expresiones oficiales del tema (incrústalas en las situaciones comunicativas): ${exprs}\n` : ''}${formatearMemoria(memoria)}
+${productoLinea ? `${productoLinea}\n` : ''}${contextoLinea ? `${contextoLinea}\n` : ''}${exprs ? `- Expresiones oficiales del tema (incrústalas en las situaciones comunicativas): ${exprs}\n` : ''}${formatearMemoria(memoria)}
 TAREA: Genera exactamente ${count} clase(s) — ${rango} de la Semana ${semanaNum}.
 Clases con PROGRESIÓN PEDAGÓGICA, DISTINTAS de las ya programadas.
 El foco gramatical asignado debe trabajarse explícitamente en el Desarrollo.
@@ -519,12 +682,16 @@ REGLAS:
 4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con "Los estudiantes", "El docente", "La docente" o "Se". El inglés va incrustado entre paréntesis dentro de la actividad. Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
 5. Desarrollo: 4 o 5 actividades concretas y progresivas, según la complejidad del foco: modelado o explicación guiada → práctica guiada → práctica colaborativa → producción individual o grupal → retroalimentación breve si aplica. Cierre: 3 o 4 actividades, según el cierre natural de la clase: socialización de producciones → reflexión sobre un aspecto específico → organización del artefacto en el portafolio → pregunta/ticket final.
 ${reglaInicio}
-7. CADA momento (incluido Inicio) incluye: "evidencias" (2-3 evidencias observables y evaluables de ESE momento, en español), "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
+7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
 8. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
 9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], utilizando [la estructura gramatical o el vocabulario del día], [evidencia de logro observable]." PROHIBIDO el relleno vago: "una serie de actividades", "actividades interactivas", "diversas actividades", "vocabulario específico" — nombra el contenido real (ej.: "describirán sus hábitos saludables y la frecuencia con la que realizan actividades cotidianas mediante comprensión oral, interacción y producción escrita, utilizando presente simple y adverbios de frecuencia").
 10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo de la semana según la progresión), "focoLinguistico" (copia EXACTA de UNA estructura del FOCO GRAMATICAL indicado arriba, incluidos sus ejemplos entre paréntesis; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla, y la intención pedagógica de cada clase nombra su foco del día.
+11. CADA clase incluye "aporteProducto": el artefacto CONCRETO Y NOMBRADO que esa clase deposita al producto final (ej. "Inventario del espacio favorito con posesivos", "Weekly schedule con horarios en inglés"). PROHIBIDO "avance del producto", "trabajo en el proyecto".${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
+12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica del Desarrollo (Listen and Act / Listen and Solve / Listen and Compare / Information Gap / Role Play con roles / Interview en parejas / Frequency Walk / Gallery Walk / Describe and Draw / TPR / Speaking Circle...), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en Listen and Solve: escuchan… y resuelven…"). No repitas una técnica ya usada en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: listening con propósito O misión comunicativa → producción → verificación entre pares.
+13. NO copies los ejemplos de estilo del sistema como actividades: son referencia de VOZ. Cada actividad es específica del contenido de ESTA clase.
+14. El LOTE incluye "adaptacionesSemana": {"acceso", "metodologicas", "evaluacion"} — adecuaciones NEAE LIGADAS AL FOCO de la semana (ej. semana de 3ra persona → "banco de verbos en tercera persona visible") — y "observacionesSemana": qué observar/registrar esta semana según su foco. Nunca genéricas.
 
-{"outputSchemaVersion":"1.2","semana":${semanaNum},"clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Observan un modelo guiado del contenido del día.","Practican el vocabulario o la estructura con apoyo del docente.","Comparan respuestas en parejas o equipos pequeños.","Elaboran una producción oral o escrita relacionada con el tema.","Socializan avances y reciben retroalimentación breve."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["Socializan una producción breve de la clase.","Reflexionan sobre el aprendizaje logrado y una dificultad encontrada.","Guardan la evidencia en el portafolio.","Completan un ticket de salida con una pregunta final."],"evidencias":["...","..."],"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.3","semana":${semanaNum},${pedirNombreProducto ? '"productoFinalNombre":"...",' : ''}"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"...","saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en [técnica]: ...","...","...","...","..."],"evidencias":{"desempeno":["...","..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote (2 intentos por lote) ─────────────────────────────
@@ -540,9 +707,13 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   let lastModel    = 'desconocido';
   let lastRaw      = '';
 
+  // El primer lote de la unidad propone el nombre propio del producto final;
+  // una vez fijado en la spec, todos los lotes siguientes lo reciben.
+  const pedirNombreProducto = semanaNum === 1 && startDia === 1 && !spec.productoFinalNombre;
+
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria);
+      const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, pedirNombreProducto);
       const t0 = Date.now();
       const { text: raw, provider, model, usage } = await callGatewayCollect(prompt, SYSTEM_PROMPT, maxTokens);
       lastProvider = provider;
@@ -574,7 +745,16 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       }
 
       normalizarVozBatch(result.data);
-      validateBatch(result.data, durMin, count, focoGram);
+      validateBatch(result.data, durMin, count, focoGram, {
+        memoria,
+        exigirNombreProducto: pedirNombreProducto,
+        semanaNum,
+      });
+
+      // 3A — fijar el nombre del producto propuesto por el primer lote
+      if (pedirNombreProducto && result.data.productoFinalNombre) {
+        spec.productoFinalNombre = String(result.data.productoFinalNombre).trim();
+      }
       return result.data;
 
     } catch (err) {
@@ -602,13 +782,18 @@ const esFalloRecuperablePorTamano = (err) =>
 
 function agregarClasesAMemoria(clases = [], semanaNum, memoriaAcumulada) {
   clases.forEach(c => {
-    const desarrolloResumen =
-      c.momentos?.find(m => m.nombre === 'Desarrollo')?.actividades?.[0] || '';
+    const actividades = c.momentos?.find(m => m.nombre === 'Desarrollo')?.actividades || [];
     memoriaAcumulada.push({
       semana: semanaNum,
       dia:    c.dia,
       titulo: c.titulo || `Clase ${c.dia}`,
-      desarrolloResumen,
+      desarrolloResumen: actividades[0] || '',
+      // Texto COMPLETO y técnica para la anti-repetición GLOBAL (3C): cada
+      // lote nuevo se valida contra todo lo ya generado, no solo lo adyacente
+      desarrolloTexto: actividades.join(' '),
+      actividadCLT: c.actividadCLT?.nombre || '',
+      mecanicaCLT: c.actividadCLT?.mecanica || '',
+      aporteProducto: c.aporteProducto || '',
     });
   });
 }
@@ -621,6 +806,8 @@ export const generateWeekPlan = async (
 ) => {
   const batches    = Math.ceil(numClases / BATCH_SIZE);
   const allClases  = [];
+  let adaptacionesSemana = null;   // NEAE ligadas al foco (contrato R14)
+  let observacionesSemana = '';
 
   for (let b = 0; b < batches; b++) {
     const startDia   = b * BATCH_SIZE + 1;
@@ -639,6 +826,10 @@ export const generateWeekPlan = async (
       nuevasClases = batchData.clases.slice(0, count).map((c, i) => ({
         ...c, dia: startDia + i,
       }));
+      if (!adaptacionesSemana && batchData.adaptacionesSemana) {
+        adaptacionesSemana = batchData.adaptacionesSemana;
+        observacionesSemana = String(batchData.observacionesSemana || '').trim();
+      }
     } catch (err) {
       if (count <= 1 || !esFalloRecuperablePorTamano(err)) throw err;
       console.warn(`[FaseA] ${contextoLog}: lote truncado; reintentando clase por clase.`);
@@ -650,6 +841,10 @@ export const generateWeekPlan = async (
         const clase = singleData.clases?.[0];
         nuevasClases.push({ ...clase, dia });
         agregarClasesAMemoria([{ ...clase, dia }], semanaNum, memoriaAcumulada);
+        if (!adaptacionesSemana && singleData.adaptacionesSemana) {
+          adaptacionesSemana = singleData.adaptacionesSemana;
+          observacionesSemana = String(singleData.observacionesSemana || '').trim();
+        }
       }
       memoriaActualizada = true;
     }
@@ -660,7 +855,14 @@ export const generateWeekPlan = async (
     }
   }
 
-  const combined = { outputSchemaVersion: '1.0', semana: semanaNum, clases: allClases };
+  const combined = {
+    outputSchemaVersion: '1.3',
+    semana: semanaNum,
+    clases: allClases,
+    adaptacionesSemana,
+    observacionesSemana,
+    productoFinalNombre: spec.productoFinalNombre || '',
+  };
   validateWeekPlan(combined, durMin, numClases);
   return combined;
 };
@@ -669,6 +871,7 @@ export const generateWeekPlan = async (
 
 export const buildEspecificacionCurricular = ({
   mallaPayload, titulo, allInds, allComps, mallaContenidos, area, grado,
+  producto = '', contextoComunitario = '',
 }) => {
   const ces = (allComps || []).slice(0, 4).map(c => ({
     id:            c.id || '',
@@ -702,6 +905,11 @@ export const buildEspecificacionCurricular = ({
       // situaciones comunicativas
       expresiones: mallaContenidos?.expresiones?.slice(0, 6) || [],
     },
-    outputSchemaVersion: '1.2',
+    // 3A/5 — producto del docente (base para el nombre propio que propone la
+    // IA en el primer lote) y contexto comunitario en SUS palabras (opcional)
+    productoFinal: String(producto || '').trim(),
+    productoFinalNombre: '',
+    contextoComunitario: String(contextoComunitario || '').trim(),
+    outputSchemaVersion: '1.3',
   };
 };

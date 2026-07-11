@@ -967,6 +967,52 @@ check("nombreCortoEstructura extrae el nombre de la estructura oficial", () => {
   }
 });
 
+// ─── Checkpoint único + Anexo H desde aportes reales ─────────────────────────
+
+console.log("\nCheckpoint y Anexo H:");
+
+check("el checkpoint de mitad se imprime UNA sola vez aunque dos fases compartan la semana de frontera", () => {
+  const u = JSON.parse(JSON.stringify(unidadFixture));
+  const mkDia = (glob, sem) => {
+    const d = JSON.parse(JSON.stringify(unidadFixture.fasesSemanales[0].dias[0]));
+    d.numeroGlobal = glob; d.semana = sem; d.numeroEnSemana = ((glob - 1) % 4) + 1;
+    return d;
+  };
+  // Fase A cubre semanas 2-3, Fase B cubre semanas 3-4 → ambas contienen la 3
+  u.fasesSemanales = [
+    { numero: 1, nombre: "Fase A", estrategia: "x", indicadoresAvance: ["ok"], dias: [mkDia(1, 2), mkDia(2, 3)] },
+    { numero: 2, nombre: "Fase B", estrategia: "x", indicadoresAvance: ["ok"], dias: [mkDia(3, 3), mkDia(4, 4)] },
+  ];
+  u.checkpointFormativo = { semana: 3, indicador: "Ind CP", evidencia: "Evi CP", accion: "Acc CP" };
+  const h = formatearUnidadHTML(u, "");
+  const veces = (h.match(/CHECKPOINT FORMATIVO/g) || []).length;
+  if (veces !== 1) throw new Error(`el checkpoint aparece ${veces} veces (debe ser 1)`);
+});
+
+check("Anexo H usa los aporteProducto reales por semana calendario", () => {
+  const u = JSON.parse(JSON.stringify(unidadFixture));
+  u.anexos = {
+    checklistProducto: [
+      { paso: "Inventario del espacio favorito con posesivos", semana: "Semana 2" },
+      { paso: "Presentación final: My House Map & Tour", semana: "Semana 5" },
+    ],
+  };
+  const h = formatearUnidadHTML(u, "");
+  if (!h.includes("Inventario del espacio favorito con posesivos")) {
+    throw new Error("el Anexo H no muestra el aporte real de la clase");
+  }
+});
+
+check("evidencias etiquetadas (Conocimientos/Desempeño/Producto) se renderizan en la celda", () => {
+  const u = JSON.parse(JSON.stringify(unidadFixture));
+  // Simula el resultado del merge: evidencias ya formateadas con etiquetas
+  u.fasesSemanales[0].dias[0].momentos[1].evidencias =
+    "**Desempeño:**\n1. Construye oraciones en presente simple.\n**Producto:**\n1. Cinco oraciones escritas.";
+  const h = formatearUnidadHTML(u, "");
+  if (!h.includes("<strong>Desempeño:</strong>")) throw new Error("no renderizó la etiqueta Desempeño");
+  if (!h.includes("Cinco oraciones escritas")) throw new Error("no renderizó el ítem de producto");
+});
+
 // ─── Banco de Aprendizaje: refs exactas contra la malla ACTIVA ────────────────
 
 const { verificarRefsContraMalla, construirSecuenciaCosechada, cosecharSecuenciaDeUnidad } =

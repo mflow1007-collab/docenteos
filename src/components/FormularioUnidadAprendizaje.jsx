@@ -143,6 +143,7 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
     titulo = "", numSemanas = 4,
     diasClase = ["Lunes", "Martes", "Miércoles"], horasPorDia = 1, duracionHoraClase = 45,
     estrategiaTexto = "", situacionTexto = "", productoFinalTexto = "",
+    contextoComunitario = "",
     asignaturasVinculadasTexto = "",
     nombreDocente = "", cedula = "", regional = "",
     distrito = "", centro = "", codigoCentro = "",
@@ -1119,6 +1120,21 @@ export default function FormularioUnidadAprendizaje({ datos, onChange, onGenerar
             onChange={set("productoFinalTexto")}
             placeholder="Ej: Presentación oral, proyecto, portafolio, mural..."
           />
+        </div>
+      </details>
+
+      <details className="pd-detalles">
+        <summary>Tu comunidad y tu centro (opcional · aterriza la situación de aprendizaje)</summary>
+        <div className="pd-field pd-field-full">
+          <textarea
+            rows={3}
+            value={contextoComunitario}
+            onChange={set("contextoComunitario")}
+            placeholder="En 2-3 líneas y con TUS palabras: cómo es la comunidad y el centro, realidades de tus estudiantes (ej. zona rural, trabajan en el conuco, llegan cansados). La IA lo usa en la situación y las actividades — no inventa datos locales que no escribas aquí."
+          />
+          <p className="pd-hint" style={{ marginTop: 4 }}>
+            Se guarda en tu perfil para reutilizarlo en próximas unidades.
+          </p>
         </div>
       </details>
 

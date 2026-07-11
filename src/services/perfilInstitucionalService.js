@@ -101,5 +101,8 @@ export function normalizarPerfilParaFormulario(perfil) {
     ciclos:          ciclosArr,
     jornada:         perfil.jornadaEscolar  ?? '',
     periodo:         perfil.periodoEscolar  ?? '',
+    // Contexto de la comunidad/centro en palabras del docente: se reutiliza
+    // como base de la situación de aprendizaje en cada unidad
+    contextoComunitario: perfil.contextoComunitario ?? '',
   }
 }

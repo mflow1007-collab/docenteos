@@ -13,6 +13,7 @@ const DATOS_INICIALES = {
   grado: "", seccion: "", area: "", asignatura: "",
   titulo: "", numSemanas: 4, diasPorSemana: 5,
   estrategiaTexto: "", situacionTexto: "", productoFinalTexto: "",
+  contextoComunitario: "",
   asignaturasVinculadasTexto: "",
   nombreDocente: "", regional: "", distrito: "",
   centro: "", codigoCentro: "",

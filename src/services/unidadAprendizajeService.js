@@ -123,12 +123,22 @@ Las sesiones flexibles permiten responder a los hallazgos de la evaluación diag
 Nota: ante fallas de electricidad, internet o equipos, las actividades que usan TV, proyector o audio se realizan con las alternativas físicas del Anexo L — Plan B tecnológico (imágenes impresas, flashcards, lectura en voz alta y dramatización).`;
 
 // Checkpoint formativo de mitad de unidad (modelo: Semana 3)
-const construirCheckpointFormativo = ({ tema, producto, numSemanas }) => ({
-  semana: Math.ceil((numSemanas || 4) / 2),
-  indicador: `El estudiante comprende y comunica los aprendizajes centrales de "${tema}" trabajados hasta la mitad de la unidad, de forma oral y escrita.`,
-  evidencia: `Producciones del portafolio de las primeras semanas y primer avance del producto final (${String(producto).replace(/\.$/, "")}).`,
-  accion: "Para quienes aún no logran el indicador: reforzar con frases y ejemplos modelo, práctica guiada en parejas y revisión acompañada del avance del producto antes de la siguiente fase.",
-});
+const construirCheckpointFormativo = ({ tema, producto, numSemanas, aportesHastaMitad = [] }) => {
+  // Evidencia derivada de los aportes REALES al producto hasta la mitad de la
+  // unidad (contrato de la IA), no de una frase de plantilla. Se inserta UNA
+  // sola vez, en la mitad real (ver formatearUnidadHTML, que exige que la
+  // semana del checkpoint caiga dentro del grupo calendario que la contiene).
+  const aportes = aportesHastaMitad.filter(Boolean);
+  const evidenciaAportes = aportes.length
+    ? `Producciones del portafolio: ${aportes.slice(0, 4).map((a) => String(a).replace(/\.$/, "")).join("; ")}.`
+    : `Producciones del portafolio de las primeras semanas y primer avance del producto final (${String(producto).replace(/\.$/, "")}).`;
+  return {
+    semana: Math.ceil((numSemanas || 4) / 2),
+    indicador: `El estudiante comprende y comunica los aprendizajes centrales de "${tema}" trabajados hasta la mitad de la unidad, de forma oral y escrita.`,
+    evidencia: evidenciaAportes,
+    accion: "Para quienes aún no logran el indicador: reforzar con frases y ejemplos modelo, práctica guiada en parejas y revisión acompañada del avance del producto antes de la siguiente fase.",
+  };
+};
 
 // ─── Modelo curricular superior ──────────────────────────────────────────────
 // Antes de entrar a las fases, DocenteOS arma una antesala curricular desde la
@@ -338,7 +348,7 @@ const construirModeloCurricularSuperior = ({
 
 // ─── Anexos A-L (parametrizados según el documento modelo) ───────────────────
 
-const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases = [], numSemanas = 4 }) => {
+const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases = [], numSemanas = 4, aportesProducto = [] }) => {
   const idioma = ES_IDIOMA(area);
   const nombreIdioma = NOMBRE_IDIOMA(area);
   const productoCorto = String(producto).replace(/\.$/, "");
@@ -424,13 +434,25 @@ const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases =
     const max = Math.max(...semanas);
     return min === max ? `Semana ${min}` : `Semanas ${min}-${max}`;
   };
-  const checklistProducto = [
-    ...(fases || []).map((fase) => ({
-      paso: `Aporte de la Fase ${fase.numero}: ${fase.nombre}`,
-      semana: rangoSemanas(fase),
-    })),
-    { paso: `Presentación final: ${productoCorto}`, semana: `Semana ${numSemanas}` },
-  ];
+  // Anexo H — checklist de progreso del producto: los aportes REALES que cada
+  // clase depositó (contrato de la IA), mapeados por semana calendario. Si no
+  // llegaron aportes (unidad legacy), se cae al mapeo por fase.
+  const aportes = Array.isArray(aportesProducto) ? aportesProducto.filter((a) => a?.texto) : [];
+  const checklistProducto = aportes.length
+    ? [
+        ...aportes.map((a) => ({
+          paso: String(a.texto).replace(/\.$/, ""),
+          semana: `Semana ${a.semana}`,
+        })),
+        { paso: `Presentación final: ${productoCorto}`, semana: `Semana ${numSemanas}` },
+      ]
+    : [
+        ...(fases || []).map((fase) => ({
+          paso: `Aporte de la Fase ${fase.numero}: ${fase.nombre}`,
+          semana: rangoSemanas(fase),
+        })),
+        { paso: `Presentación final: ${productoCorto}`, semana: `Semana ${numSemanas}` },
+      ];
 
   const organizadorProducto = [
     { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).` },
@@ -1436,7 +1458,11 @@ const _generarFasesConIA = async (
 
   const spec = buildEspecificacionCurricular({
     mallaPayload, titulo: tema, allInds, allComps, mallaContenidos, area, grado,
+    producto: productoFinal,
+    contextoComunitario: contexto.contextoComunitario || "",
   });
+  // Producto escrito por el docente = nombre fijado; la IA no propone otro
+  if (contexto.productoPropio) spec.productoFinalNombre = contexto.productoPropio;
 
   const memoriaAcumulada = [];
   const totalClases = fases.reduce((sum, f) => sum + f.dias.length, 0);
@@ -1490,6 +1516,17 @@ const _generarFasesConIA = async (
       dia.focoLinguistico = String(aiClase.focoLinguistico || "").trim();
       dia.estrategiasDia = String(aiClase.estrategiasDia || "").trim();
       dia.intencionPedagogica = String(aiClase.intencionPedagogica || "").trim();
+      // 3A/3B — aporte concreto al producto y técnica metodológica del día
+      dia.aporteProducto = String(aiClase.aporteProducto || "").trim();
+      dia.actividadCLT = aiClase.actividadCLT
+        ? {
+            nombre: String(aiClase.actividadCLT.nombre || "").trim(),
+            mecanica: String(aiClase.actividadCLT.mecanica || "").trim(),
+          }
+        : null;
+      dia.indicadoresTrabajados = Array.isArray(aiClase.indicadoresTrabajados)
+        ? aiClase.indicadoresTrabajados
+        : [];
 
       // MERGE: la estructura base (generarDia) aporta SOLO forma (momentos,
       // tiempos, calendario). TODO el contenido semántico del momento viene
@@ -1505,8 +1542,12 @@ const _generarFasesConIA = async (
         const esInicio = mi === 0;
         const etiqueta = `semana ${fase.numero}, clase ${dia.dia || i + 1}, "${orig.nombre || `momento ${mi + 1}`}"`;
         const listaOk = (v) => Array.isArray(v) && v.filter((x) => String(x || "").trim()).length > 0;
+        // Evidencias DESAGREGADAS {conocimientos/desempeno/producto} — al
+        // menos una clave con contenido (contrato v1.3)
+        const evidenciasOk = (ev) => ev && typeof ev === "object" && !Array.isArray(ev)
+          && ["conocimientos", "desempeno", "producto"].some((k) => listaOk(ev[k]));
         if (!esInicio && !listaOk(aiMom.actividades)) throw new Error(`R3: ${etiqueta} — la IA no aportó actividades (plantillas vetadas como respaldo)`);
-        if (!listaOk(aiMom.evidencias)) throw new Error(`R3: ${etiqueta} — la IA no aportó evidencias (plantillas vetadas como respaldo)`);
+        if (!evidenciasOk(aiMom.evidencias)) throw new Error(`R3: ${etiqueta} — la IA no aportó evidencias desagregadas (plantillas vetadas como respaldo)`);
         if (!listaOk(aiMom.metacognicion)) throw new Error(`R3: ${etiqueta} — la IA no aportó metacognición (plantillas vetadas como respaldo)`);
         if (!listaOk(aiMom.recursos)) throw new Error(`R3: ${etiqueta} — la IA no aportó recursos (plantillas vetadas como respaldo)`);
 
@@ -1515,7 +1556,19 @@ const _generarFasesConIA = async (
         // anterior, saberes previos, enganche, intención pedagógica).
         orig.actividades = esInicio ? construirInicioCanonico(aiClase) : aiMom.actividades;
         if (aiMom.tiempo) orig.tiempo = aiMom.tiempo;
-        orig.evidencias = aiMom.evidencias.map((e) => `• ${String(e).trim()}`).join("\n");
+        // Render desagregado DENTRO de la celda Evidencias existente
+        // (contenido, no columnas nuevas): **Conocimientos:** / **Desempeño:**
+        // / **Producto:** con numeración — como el documento modelo
+        orig.evidencias = [
+          ["conocimientos", "Conocimientos"],
+          ["desempeno", "Desempeño"],
+          ["producto", "Producto"],
+        ].map(([clave, etiquetaEv]) => {
+          const items = (aiMom.evidencias?.[clave] || []).map((e) => String(e).trim()).filter(Boolean);
+          return items.length
+            ? `**${etiquetaEv}:**\n${items.map((e, n) => `${n + 1}. ${e}`).join("\n")}`
+            : "";
+        }).filter(Boolean).join("\n");
         orig.metacognicion = aiMom.metacognicion;
         orig.recursos = {
           humanos: "Docente y estudiantes",
@@ -1525,11 +1578,16 @@ const _generarFasesConIA = async (
         };
       });
 
-      // "Hoy tendrás éxito si…": derivado de las evidencias reales de la clase
-      // (Desarrollo + Cierre), no de un checklist fijo idéntico entre clases.
+      // "Hoy tendrás éxito si…": derivado de las evidencias de DESEMPEÑO y
+      // PRODUCTO reales de la clase (Desarrollo + Cierre), no de un checklist
+      // fijo idéntico entre clases.
+      const evDesempenoProducto = (ev) => [
+        ...(ev?.desempeno || []),
+        ...(ev?.producto || []),
+      ];
       const evidenciasClase = [
-        ...(aiClase.momentos[1]?.evidencias || []).slice(0, 3),
-        ...(aiClase.momentos[2]?.evidencias || []).slice(0, 1),
+        ...evDesempenoProducto(aiClase.momentos[1]?.evidencias).slice(0, 3),
+        ...evDesempenoProducto(aiClase.momentos[2]?.evidencias).slice(0, 1),
       ].map((e) => String(e).trim()).filter(Boolean);
       if (evidenciasClase.length) {
         dia.criteriosExito = evidenciasClase.map((e) => `☐ ${e.replace(/\.$/, "")}.`);
@@ -1565,10 +1623,23 @@ const _generarFasesConIA = async (
       ? indicadoresFase
       : (spec.indicadores || []).slice(0, 4).map((ind) => ind.descripcion).filter(Boolean);
 
+    // 4 — NEAE y observaciones del bloque LIGADAS AL FOCO (contrato R14):
+    // sustituyen el bloque genérico repetido de la plantilla
+    if (weekPlan.adaptacionesSemana) {
+      fase.adaptacionesNEAE = {
+        acceso: String(weekPlan.adaptacionesSemana.acceso || "").trim(),
+        metodologicas: String(weekPlan.adaptacionesSemana.metodologicas || "").trim(),
+        evaluacion: String(weekPlan.adaptacionesSemana.evaluacion || "").trim(),
+      };
+    }
+    if (weekPlan.observacionesSemana) {
+      fase.observacionesSemana = String(weekPlan.observacionesSemana).trim();
+    }
+
     globalOffset += numClases;
   }
 
-  return fases;
+  return { fases, productoFinalNombre: spec.productoFinalNombre || "" };
 };
 
 // ─── Exportación principal ────────────────────────────────────────────────────
@@ -1583,6 +1654,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     centro = "", codigoCentro = "", nivel = "Secundaria", ciclo = "Primer Ciclo",
     modalidad = "Académica", periodo = "", fechaInicio = "",
     asignaturasVinculadasTexto = "",
+    contextoComunitario = "",
     jornada = "Extendida",
     competenciasFundamentalesSeleccionadas = [],
     temasSeleccionados = [],
@@ -1784,12 +1856,27 @@ export const generarUnidadAprendizaje = async (datos) => {
     return { conceptuales, procedimentales, actitudinales };
   })();
 
-  const fasesSemanalesGeneradas = await _generarFasesConIA(
+  const { fases: fasesSemanalesGeneradas, productoFinalNombre } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
-    { grado, nivel }, mallaContenidos,
+    {
+      grado, nivel,
+      contextoComunitario,
+      // Si el docente escribió su propio producto, ese nombre MANDA y la IA
+      // no propone otro; el nombre generado solo sustituye el genérico.
+      productoPropio: productoFinalTexto ? producto : "",
+    },
+    mallaContenidos,
     mallaPayload, allInds, allComps, durMinEf, grado,
     onProgress,
   );
+
+  // 3A — producto final NOMBRADO: sustituye el rótulo genérico en todo el
+  // documento (datos generales, situación, nota institucional y anexos)
+  const productoNombrado = String(productoFinalNombre || "").trim() || producto;
+  const situacionFinal = productoNombrado !== producto
+    ? String(situacion).split(producto).join(productoNombrado)
+    : situacion;
+
   const indicadoresActuales = codigosIndicadoresTrabajados(fasesSemanalesGeneradas);
   const indicadoresPrevios = new Set(
     (Array.isArray(indicadoresTrabajadosAntes) ? indicadoresTrabajadosAntes : [])
@@ -1817,13 +1904,13 @@ export const generarUnidadAprendizaje = async (datos) => {
       asignaturasVinculadas: asignaturasVinculadasTexto
         ? asignaturasVinculadasTexto.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
-      productoFinal: producto,
+      productoFinal: productoNombrado,
       // Temas curriculares que el docente eligió integrar en la unidad
       // (vacío = trabaja solo el tema del título)
       temasIntegrados: Array.isArray(temasSeleccionados) ? temasSeleccionados : [],
     },
     ejesTematicos: ejesFinal,
-    situacionAprendizaje: situacion,
+    situacionAprendizaje: situacionFinal,
     ambienteAprendizaje: ambiente,
     modeloCurricularSuperior,
     competencias: (() => {
@@ -1887,21 +1974,34 @@ export const generarUnidadAprendizaje = async (datos) => {
   unidadResult.ejesTematicosDetalle = construirEjesContextualizados(ejesFinal, {
     area: claveContenido, tema: titulo,
   });
+  // 3A/6 — aportes REALES al producto (contrato de la IA) mapeados por semana
+  // calendario: alimentan el checkpoint y el Anexo H, nunca plantilla
+  const aportesProducto = (fasesSemanalesGeneradas || [])
+    .flatMap((f) => f.dias || [])
+    .filter((d) => d.aporteProducto)
+    .map((d) => ({ semana: d.semana || 1, texto: d.aporteProducto }));
+
   unidadResult.notaInstitucional = construirNotaInstitucional({
     clasesPorSemana: diasClaseFinal.length,
     durMin: durMinEf,
-    producto,
+    producto: productoNombrado,
   });
   unidadResult.checkpointFormativo = construirCheckpointFormativo({
-    tema: titulo, producto, numSemanas,
+    tema: titulo, producto: productoNombrado, numSemanas,
+    aportesHastaMitad: aportesProducto
+      .filter((a) => a.semana <= Math.ceil(numSemanas / 2))
+      .map((a) => a.texto),
   });
   unidadResult.anexos = construirAnexosUnidad({
     area: claveContenido,
     tema: titulo,
-    producto,
-    vocabulario: mallaContenidos.vocabulario || [],
+    producto: productoNombrado,
+    // 6 — glosario SOLO con el vocabulario del tema servido a la IA, nunca
+    // la lista completa del grado
+    vocabulario: (mallaContenidos.vocabulario || []).slice(0, 20),
     fases: unidadResult.fasesSemanales || [],
     numSemanas,
+    aportesProducto,
   });
 
   // R1 FINAL sobre el DOCUMENTO RENDERIZADO completo (no solo el JSON de la
@@ -2122,6 +2222,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     return t.replace(/^(\s*)(\S+)/, (_m, esp, palabra) => `${esp}<strong>${palabra}</strong>`);
   };
 
+  // El checkpoint de mitad se imprime UNA sola vez, aunque dos fases compartan
+  // la semana de frontera (bug del duplicado del documento generado).
+  let checkpointEmitido = false;
+
   const fasesHtml = (unidad.fasesSemanales || []).map((fase) => {
     // Una FASE puede abarcar varias semanas calendario (su tamaño es decisión
     // pedagógica). Para el documento, sus días se agrupan por la semana REAL
@@ -2203,29 +2307,37 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       return banda + g.dias.map(diaHtml).join("");
     }).join("");
 
-    const neaeHtml = (fase.dias[0]?.adaptacionesNEAE) ? `
+    // ADAPTACIONES NEAE del bloque, LIGADAS AL FOCO (contrato R14). Fallback a
+    // las del primer día para unidades guardadas legacy.
+    const neae = fase.adaptacionesNEAE || fase.dias[0]?.adaptacionesNEAE;
+    const neaeHtml = neae ? `
       <div class="section-head">ADAPTACIONES (NEAE — si aplica)</div>
       <div class="neae-grid">
-        <div class="neae-col"><div class="neae-head">De acceso</div><div class="neae-body">${fase.dias[0].adaptacionesNEAE.acceso}</div></div>
-        <div class="neae-col"><div class="neae-head">Metodológicas</div><div class="neae-body">${fase.dias[0].adaptacionesNEAE.metodologicas}</div></div>
-        <div class="neae-col"><div class="neae-head">De evaluación</div><div class="neae-body">${fase.dias[0].adaptacionesNEAE.evaluacion}</div></div>
+        <div class="neae-col"><div class="neae-head">De acceso</div><div class="neae-body">${neae.acceso}</div></div>
+        <div class="neae-col"><div class="neae-head">Metodológicas</div><div class="neae-body">${neae.metodologicas}</div></div>
+        <div class="neae-col"><div class="neae-head">De evaluación</div><div class="neae-body">${neae.evaluacion}</div></div>
       </div>` : "";
 
+    // RESUMEN: observaciones ligadas al foco de la semana (contrato R14),
+    // con fallback al resumen legacy del primer día.
     const resEv = fase.dias[0]?.resumenEvaluacion;
-    const resumenHtml = resEv ? `
+    const obsSemana = String(fase.observacionesSemana || resEv?.observaciones || "").trim();
+    const resumenHtml = (resEv || obsSemana) ? `
       <div class="section-head">RESUMEN DE EVALUACIÓN Y OBSERVACIONES</div>
       <div class="neae-grid">
-        <div class="neae-col"><div class="neae-head">Técnicas</div><div class="neae-body">${(resEv.tecnicas || []).join(", ")}</div></div>
-        <div class="neae-col"><div class="neae-head">Instrumentos</div><div class="neae-body">${(resEv.instrumentos || []).join(", ")}</div></div>
-        <div class="neae-col"><div class="neae-head">Observaciones</div><div class="neae-body">${resEv.observaciones}</div></div>
+        <div class="neae-col"><div class="neae-head">Técnicas</div><div class="neae-body">${(resEv?.tecnicas || []).join(", ") || "Observación directa, revisión de producciones y ticket de salida."}</div></div>
+        <div class="neae-col"><div class="neae-head">Instrumentos</div><div class="neae-body">${(resEv?.instrumentos || []).join(", ") || "Lista de cotejo, rúbrica analítica, escala de valoración."}</div></div>
+        <div class="neae-col"><div class="neae-head">Observaciones</div><div class="neae-body">${obsSemana}</div></div>
       </div>` : "";
 
-    // Checkpoint formativo de mitad de unidad: se inserta al cerrar la fase
-    // que contiene la semana señalada (documento modelo: Semana 3)
+    // Checkpoint formativo de mitad de unidad: UNA sola vez. Se emite en la
+    // PRIMERA fase cuyo rango calendario contenga la semana señalada (el flag
+    // evita el duplicado cuando dos fases comparten esa semana de frontera).
     const cp = unidad.checkpointFormativo;
     const semanasFase = (fase.dias || []).map((d) => d.semana).filter(Boolean);
-    const contieneCheckpoint = cp && semanasFase.length
+    const contieneCheckpoint = cp && !checkpointEmitido && semanasFase.length
       && Math.min(...semanasFase) <= cp.semana && cp.semana <= Math.max(...semanasFase);
+    if (contieneCheckpoint) checkpointEmitido = true;
     const checkpointHtml = contieneCheckpoint ? `
       <div class="section-head" style="background:#b45309">SEMANA ${cp.semana} — CHECKPOINT FORMATIVO (Mitad de la unidad)</div>
       <table class="checkpoint-table">
