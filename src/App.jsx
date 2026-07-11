@@ -411,11 +411,11 @@ function AppInner() {
             activo={grupoDePageID(pagina) === "docencia"}
           >
             <SidebarItem id="modo-aula"              label="🏫 Modo Aula"          pagina={pagina} onClick={() => irA("modo-aula")} />
-            <SidebarItem id="banco-evidencias"       label="📸 Banco de Evidencias" pagina={pagina} onClick={() => irA("banco-evidencias")} />
             {cargoTieneModulo(rol, "cursos")       && <SidebarItem id="cursos"        label="📘 Cursos"            pagina={pagina} onClick={() => irA("cursos")} />}
             <SidebarItem id="planificacion"          label="📝 Planificación"     pagina={pagina} onClick={() => irA("planificacion")} />
             {cargoTieneModulo(rol, "instrumentos") && <SidebarItem id="instrumentos"  label="📋 Instrumentos"      pagina={pagina} onClick={() => irA("instrumentos")} />}
             <SidebarItem id="mi-registro"            label="📓 Mi Registro"       pagina={pagina} onClick={() => irA("mi-registro")} />
+            <SidebarItem id="banco-evidencias"       label="📸 Banco de Evidencias" pagina={pagina} onClick={() => irA("banco-evidencias")} />
             <SidebarItem id="libro-abierto"          label="📚 Libro Abierto"     pagina={pagina} onClick={() => irA("libro-abierto")} />
             <SidebarItem id="curricular"             label="📖 Diseño Curricular" pagina={pagina} onClick={() => irA("curricular")} />
             <SidebarItem id="formatos-minerd"        label="📒 Registro del MINERD" pagina={pagina} onClick={() => irA("formatos-minerd")} />

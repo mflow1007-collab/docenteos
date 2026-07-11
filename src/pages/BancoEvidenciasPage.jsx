@@ -32,16 +32,64 @@ function normalizar(valor = "") {
     .trim();
 }
 
+function esPrimerGradoSecundaria(curso = {}) {
+  const texto = normalizar([
+    curso.nivel,
+    curso.grado,
+    curso.nombre,
+    curso.seccion,
+  ].filter(Boolean).join(" "));
+  const esSecundaria = texto.includes("secundaria") || texto.includes("secundario");
+  const esPrimero = /\b1(ro|ero)?\b/.test(texto) || texto.includes("primero");
+  return esSecundaria && esPrimero;
+}
+
+function esCursoConMatriculaReal(curso = {}) {
+  return curso.matriculaOficial === true
+    || curso.estudiantesFuente === "oficial"
+    || curso.estudiantesFuente === "grupo_academico"
+    || Boolean(curso.grupoAcademicoId);
+}
+
+function resolverCursoInicial(cursos = [], cursoActivo = null) {
+  if (cursoActivo?.id && esPrimerGradoSecundaria(cursoActivo)) return cursoActivo;
+  const oficiales = cursos.filter(esCursoConMatriculaReal);
+  return oficiales.find(esPrimerGradoSecundaria)
+    || cursos.find(esPrimerGradoSecundaria)
+    || oficiales[0]
+    || cursoActivo
+    || cursos[0]
+    || null;
+}
+
+function etiquetaCurso(curso = {}) {
+  return [
+    curso.grado || curso.nombre,
+    curso.seccion ? `Sección ${curso.seccion}` : "",
+    curso.nivel,
+    curso.area || curso.asignatura,
+  ].filter(Boolean).join(" · ");
+}
+
 export default function BancoEvidenciasPage({ cursos = [], cursoActivo = null, onIrA, onAbrirPerfil }) {
-  const [cursoId, setCursoId] = useState(() => String(cursoActivo?.id || cursos[0]?.id || ""));
+  const [cursoId, setCursoId] = useState(() => String(resolverCursoInicial(cursos, cursoActivo)?.id || ""));
   const [evidencias, setEvidencias] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
-    if (!cursoId && cursos[0]?.id) setCursoId(String(cursos[0].id));
-  }, [cursoId, cursos]);
+    const sugerido = resolverCursoInicial(cursos, cursoActivo);
+    if (!cursoId && sugerido?.id) {
+      setCursoId(String(sugerido.id));
+      return;
+    }
+    const actual = cursos.find((item) => String(item.id) === String(cursoId));
+    if (actual && !esPrimerGradoSecundaria(actual)) {
+      const primero = cursos.find(esPrimerGradoSecundaria);
+      if (primero?.id) setCursoId(String(primero.id));
+    }
+  }, [cursoId, cursos, cursoActivo]);
 
   const curso = useMemo(
     () => cursos.find((item) => String(item.id) === String(cursoId)) || cursoActivo || cursos[0] || null,
@@ -178,7 +226,7 @@ export default function BancoEvidenciasPage({ cursos = [], cursoActivo = null, o
             {cursos.length === 0 && <option value="">Sin cursos</option>}
             {cursos.map((item) => (
               <option key={item.id} value={String(item.id)}>
-                {item.nombre || item.grado} · {item.area || "Área"}
+                {etiquetaCurso(item) || item.id}
               </option>
             ))}
           </select>
