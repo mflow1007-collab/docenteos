@@ -629,7 +629,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const tDesarrollo = durMin - tInicio - tCierre;
 
   const vocab      = spec.contenidosClaves?.vocabulario?.slice(0, 16).join(', ') || '';
-  const funcs      = spec.contenidosClaves?.funcionales?.slice(0, 3).join('; ')  || '';
+  const funcs      = spec.contenidosClaves?.funcionales?.slice(0, 8).join('; ')  || '';
   // Indicadores CON código oficial: la IA reporta en indicadoresTrabajados
   // cuáles trabajó cada clase (usando exactamente esos códigos)
   const indText    = (spec.indicadores || []).slice(0, 3)
@@ -675,7 +675,7 @@ ESPECIFICACIÓN CURRICULAR:
 - Indicadores (con código): ${indText}
 - Vocabulario disponible: ${vocab}
 - FOCO GRAMATICAL ESTA SEMANA (usar en Desarrollo): ${focoGramTx}
-- Funciones comunicativas: ${funcs}
+- Funciones comunicativas (PROCEDIMENTALES afines al tema — trabájalas TODAS a lo largo de la unidad, distribuidas entre las clases; no las omitas): ${funcs}
 ${productoLinea ? `${productoLinea}\n` : ''}${contextoLinea ? `${contextoLinea}\n` : ''}${exprs ? `- Expresiones oficiales del tema (incrústalas en las situaciones comunicativas): ${exprs}\n` : ''}${formatearMemoria(memoria)}
 TAREA: Genera exactamente ${count} clase(s) — ${rango} de la Semana ${semanaNum}.
 Clases con PROGRESIÓN PEDAGÓGICA, DISTINTAS de las ya programadas.
@@ -906,7 +906,9 @@ export const buildEspecificacionCurricular = ({
     contenidosClaves: {
       vocabulario: mallaContenidos?.vocabulario?.slice(0, 20) || [],
       gramatica:   mallaContenidos?.gramatica?.slice(0, 6)   || [],
-      funcionales: mallaContenidos?.funcionales?.slice(0, 5) || [],
+      // Procedimentales/funcionales AFINES al tema: todos los que trajo la
+      // malla (hasta 10), no un recorte que pierda contenidos oficiales
+      funcionales: mallaContenidos?.funcionales?.slice(0, 10) || [],
       // Expresiones oficiales del tema (Capa 2) — la IA las incrusta en las
       // situaciones comunicativas
       expresiones: mallaContenidos?.expresiones?.slice(0, 6) || [],
