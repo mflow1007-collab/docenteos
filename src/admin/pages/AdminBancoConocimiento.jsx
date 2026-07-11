@@ -1453,10 +1453,11 @@ const SECCIONES_MALLA = {
   },
   contextualizacion: {
     etiqueta: 'Contextualización del Área',
-    instruccion: 'Extrae el texto narrativo de "Contextualización del Área de Lenguas Extranjeras (inglés y francés) en el Nivel Secundario" (suele estar VARIAS PÁGINAS ANTES de la malla). Es el enfoque/propósito del área. Cópialo literal, no lo resumas.',
+    instruccion: 'Extrae el texto narrativo de "Contextualización del Área de Lenguas Extranjeras (inglés y francés) en el Nivel Secundario" (o encabezado equivalente que introduzca el enfoque del área — suele estar VARIAS PÁGINAS ANTES de la malla, al inicio de la sección del área). Es el enfoque/propósito/justificación del área. Cópialo literal (varios párrafos), no lo resumas. Si de verdad no aparece, deja el string vacío.',
     esquema: '{"contextualizacionArea":""}',
     tieneDatos: (r) => String(r?.contextualizacionArea || '').trim().length > 0,
     critica: false,
+    usaContexto: true, // lee las páginas previas a la malla, no solo la malla
   },
 };
 
@@ -1984,6 +1985,10 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
     // un tope que el modelo procesa cómodo por sección. Cada sección lee el
     // MISMO texto pero devuelve solo su parte, así que el tope no fragmenta.
     const textoParaSecciones = (textoLiteralMalla || texto).slice(0, PDF_TEXT_MAX_CHARS);
+    // La Contextualización del Área vive en las PÁGINAS DE CONTEXTO (antes de la
+    // malla). Esa sección necesita leer contexto + malla, no solo la malla.
+    const textoContextoMasMalla = [textoContextoAreaCiclo, textoLiteralMalla || texto]
+      .filter(Boolean).join('\n\n').slice(0, PDF_TEXT_MAX_CHARS);
     const advertenciaTope = (textoLiteralMalla || texto).length > PDF_TEXT_MAX_CHARS
       ? `El texto de la malla supera ${PDF_TEXT_MAX_CHARS} caracteres; se leyó el inicio. Si falta contenido, sube un PDF solo de la asignatura.`
       : null;
@@ -2009,7 +2014,9 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
           onProgress(`Extrayendo por sección ${s + 1}/${seccionesOrden.length}: ${cfg.etiqueta}${sufijo}… (con calma, para que no se pierda nada)`);
         }
         try {
-          const parte = await extraerSeccionCurricular({ seccion, textoMalla: textoParaSecciones, contexto });
+          // La contextualización lee también las páginas previas a la malla
+          const textoSeccion = cfg.usaContexto ? textoContextoMasMalla : textoParaSecciones;
+          const parte = await extraerSeccionCurricular({ seccion, textoMalla: textoSeccion, contexto });
           if (cfg.tieneDatos(parte)) { obtenido = parte; break; }
           ultimoFallo = 'la IA no devolvió datos';
         } catch (err) {
