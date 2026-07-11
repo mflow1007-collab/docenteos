@@ -317,39 +317,55 @@ function extraerInstrumentos(dia, contexto = {}) {
     .sort((a, b) => (Number(a.orden) || 99) - (Number(b.orden) || 99))
 }
 
+function limpiarTemaRecurso(valor = '') {
+  return String(valor || '')
+    .replace(/["“”]/g, '')
+    .replace(/^exploraci[oó]n del tema:\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function extraerDetalleVisual(texto = '') {
+  const clean = limpiarTemaRecurso(texto)
+  const match = clean.match(/(?:de|del|sobre|relacionad[ao]s? con)\s+([^.,;:]+)/i)
+  return limpiarTemaRecurso(match?.[1] || clean).slice(0, 90)
+}
+
 function recursoInferidoDesdeActividad(texto = '', tema = '') {
   const t = String(texto || '').toLowerCase()
-  const contexto = tema || 'el tema de la clase'
+  const contexto = limpiarTemaRecurso(tema) || 'el tema de la clase'
+  const detalle = extraerDetalleVisual(texto)
+  const busquedaBase = limpiarTemaRecurso([contexto, detalle && detalle !== contexto ? detalle : ''].filter(Boolean).join(' '))
   if (/\b(video|audiovisual|youtube)\b/.test(t)) {
     return {
       tipo: '💻 Tecnológicos',
-      item: `Video breve sobre ${contexto}`,
+      item: `Video en YouTube: ${busquedaBase}`,
       accion: 'video',
-      busqueda: `${contexto} video educativo`,
+      busqueda: `${busquedaBase} video educativo corto para clase`,
     }
   }
   if (/\b(imagen|imagenes|lámina|lamina|fotografía|fotografia|ilustración|ilustracion)\b/.test(t)) {
     return {
       tipo: '📦 Didácticos',
-      item: `Imágenes de apoyo sobre ${contexto}`,
+      item: `Imágenes específicas: ${busquedaBase}`,
       accion: 'imagenes',
-      busqueda: `${contexto} imagenes educativas`,
+      busqueda: `${busquedaBase} imagenes educativas claras`,
     }
   }
   if (/\b(audio|canción|cancion|escuchan)\b/.test(t)) {
     return {
       tipo: '💻 Tecnológicos',
-      item: `Audio de apoyo sobre ${contexto}`,
+      item: `Audio específico: ${busquedaBase}`,
       accion: 'audio',
-      busqueda: `${contexto} audio educativo`,
+      busqueda: `${busquedaBase} audio educativo`,
     }
   }
   if (/\b(flashcard|tarjeta|tarjetas)\b/.test(t)) {
     return {
       tipo: '📦 Didácticos',
-      item: `Tarjetas didácticas sobre ${contexto}`,
+      item: `Tarjetas didácticas: ${busquedaBase}`,
       accion: 'material',
-      busqueda: `${contexto} flashcards`,
+      busqueda: `${busquedaBase} flashcards classroom`,
     }
   }
   return null
@@ -557,13 +573,17 @@ function InstrCard({ inst, onAplicar }) {
   )
 }
 
-function RecursoItem({ tipo, item }) {
+function RecursoItem({ tipo, item, busqueda, accion }) {
   const puedePreparar = !tipo.includes('👥')
   const abrirBusquedaRecurso = () => {
-    const query = encodeURIComponent(item)
+    const query = encodeURIComponent(busqueda || item)
     let url = `https://www.google.com/search?q=${query}`
-    if (tipo.includes('💻') && /video/i.test(item)) url = `https://www.youtube.com/results?search_query=${query}`
-    if (/imagen/i.test(item)) url = `https://www.google.com/search?tbm=isch&q=${query}`
+    if (accion === 'video' || (tipo.includes('💻') && /video/i.test(item))) {
+      url = `https://www.youtube.com/results?search_query=${query}`
+    }
+    if (accion === 'imagenes' || /imagen/i.test(item)) {
+      url = `https://www.google.com/search?tbm=isch&q=${query}`
+    }
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
@@ -587,7 +607,9 @@ function RecursoItem({ tipo, item }) {
       }}>{tipo.slice(0,2)}</span>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:13, color:'#0f172a', fontWeight:900, lineHeight:1.2 }}>{item}</div>
-        <div style={{ fontSize:11, color:'#64748b', fontWeight:600, marginTop:2 }}>{tipo.replace(/^..\s/, '')}</div>
+        <div style={{ fontSize:11, color:'#64748b', fontWeight:600, marginTop:2 }}>
+          {tipo.replace(/^..\s/, '')}{busqueda ? ` · ${busqueda}` : ''}
+        </div>
       </div>
       {puedePreparar && (
         <button
@@ -1622,19 +1644,6 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           <div style={{ width:7, height:7, borderRadius:'50%', background:estadoBadge.dot }} />
           {estadoBadge.label}
         </div>
-        <button onClick={() => setMostrarSelector(true)} style={{
-          gridColumn:'1 / -1',
-          justifySelf:'end',
-          marginTop:-8,
-          background:'#fff',
-          color:'#4f46e5',
-          border:'1px solid #c7d2fe',
-          borderRadius:10,
-          padding:'8px 12px',
-          fontSize:12,
-          fontWeight:900,
-          cursor:'pointer',
-        }}>⇄ Cambiar planificación</button>
       </div>
 
       {/* ══ TIMELINE MOMENTOS ══ */}
@@ -1699,7 +1708,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
             </div>
           )
         })}
-        <div style={{ width:54, height:2, background:'#cbd5e1', flexShrink:0 }} />
+        <div style={{ width:36, height:2, background:'#cbd5e1', flexShrink:0 }} />
         <button
           type="button"
           onClick={estadoClase !== 'finalizada' ? finalizarClase : undefined}
@@ -1725,6 +1734,31 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         }}
         >
           {guardandoFin ? '⏳ Guardando…' : estadoClase === 'finalizada' ? '✓ Finalizada' : '🏁 Finalizar'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMostrarSelector(true)}
+          title="Cambiar planificación"
+          style={{
+            display:'flex',
+            alignItems:'center',
+            justifyContent:'center',
+            gap:8,
+            padding:'13px 20px',
+            color:'#4f46e5',
+            border:'1px solid #c7d2fe',
+            borderRadius:999,
+            background:'#fff',
+            fontSize:12,
+            fontWeight:900,
+            minWidth:190,
+            cursor:'pointer',
+            boxShadow:'inset 0 0 0 1px rgba(79,70,229,.04)',
+            marginLeft:10,
+            flexShrink:0,
+          }}
+        >
+          ⇄ Cambiar planificación
         </button>
       </div>
 
@@ -2197,7 +2231,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
               <div style={{ textAlign:'center', padding:'14px 0', color:'#94a3b8', fontSize:11.5 }}>Sin recursos definidos</div>
             ) : (
               <div style={{ display:'grid', gap:8 }}>
-                {recursos.map((r, i) => <RecursoItem key={i} tipo={r.tipo} item={r.item} />)}
+                {recursos.map((r, i) => <RecursoItem key={i} tipo={r.tipo} item={r.item} busqueda={r.busqueda} accion={r.accion} />)}
               </div>
             )}
           </div>
