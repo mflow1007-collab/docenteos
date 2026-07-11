@@ -727,10 +727,15 @@ export default function AdminPotenteIA() {
         setMensajeCorreccion(`No se aplicó: el JSON viola el contrato curricular. ${recheck.error || ''}`)
         return
       }
-      await attachJsonToSource(fuenteId, JSON.stringify(jsonCorregido))
+      const res = await attachJsonToSource(fuenteId, JSON.stringify(jsonCorregido))
       await cargarFuentes()
       await cargarJsonFuente(fuenteId)
-      setMensajeCorreccion('Corrección aplicada al Banco de Conocimiento. La fuente ahora apunta al JSON corregido.')
+      const reemplazadas = res?.versionesReemplazadas || 0
+      setMensajeCorreccion(
+        `Malla actualizada. El generador ahora usa esta versión del JSON` +
+        (reemplazadas ? ` (se retiró ${reemplazadas} versión${reemplazadas > 1 ? 'es' : ''} anterior${reemplazadas > 1 ? 'es' : ''} para que no compita).` : '.') +
+        ' Ya puedes generar la planificación con estos cambios.',
+      )
     } catch (err) {
       setMensajeCorreccion(`No se pudo aplicar: ${err.message || err}`)
     } finally {
@@ -1019,8 +1024,8 @@ export default function AdminPotenteIA() {
               <button className="admin-btn admin-btn-secondary" onClick={repararVozMINERDAhora} disabled={corrigiendoJson || (!fuenteId && !textoCorreccion.trim())}>
                 Reparar voz MINERD ahora
               </button>
-              <button className="admin-btn admin-btn-secondary" onClick={aplicarCorreccionJson} disabled={!jsonCorregido || aplicandoJson || violacionesContrato.length > 0}>
-                {aplicandoJson ? 'Aplicando...' : 'Aplicar al Banco'}
+              <button className="admin-btn admin-btn-secondary" onClick={aplicarCorreccionJson} disabled={!jsonCorregido || aplicandoJson || violacionesContrato.length > 0} title="Guarda este JSON como la malla vigente y retira las versiones anteriores">
+                {aplicandoJson ? 'Actualizando...' : 'Actualizar malla'}
               </button>
             </div>
 

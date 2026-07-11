@@ -1207,6 +1207,7 @@ export const attachJsonToSource = async (sourceId, jsonText) => {
 
   const esRegistro = validation.parsed.contentType === 'registro_minerd';
   let contentId = null;
+  let versionesReemplazadas = 0;
   if (!esRegistro) {
     // Cada guardado crea un curricularContent NUEVO (addDoc). Antes de crear el
     // nuevo, DESACTIVAR los anteriores de esta misma fuente: si no, quedan varios
@@ -1219,8 +1220,9 @@ export const attachJsonToSource = async (sourceId, jsonText) => {
         where('sourceId', '==', sourceId),
         limit(200),
       ));
-      await Promise.all(previos.docs
-        .filter((d) => d.data()?.active !== false)
+      const activos = previos.docs.filter((d) => d.data()?.active !== false);
+      versionesReemplazadas = activos.length;
+      await Promise.all(activos
         .map((d) => updateDoc(d.ref, { active: false, supersededAt: serverTimestamp() }).catch(() => {})));
     } catch { /* si falla la desactivación, seguimos: el nuevo será el más reciente */ }
 
@@ -1241,7 +1243,7 @@ export const attachJsonToSource = async (sourceId, jsonText) => {
     updatedAt: serverTimestamp(),
   });
 
-  return contentId;
+  return { contentId, versionesReemplazadas };
 };
 
 // ─── Coincidencia de grado escolar (scope del banco ↔ catálogo de la UI) ─────
