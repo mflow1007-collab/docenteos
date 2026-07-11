@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { actualizarPlanificacionDetallada, obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
-import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula } from '../services/modoAulaService.js'
+import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula, obtenerInstrumentosDelDia } from '../services/modoAulaService.js'
 import { obtenerClaseDeHoy, crearAspectoId } from '../services/hiloPedagogico.js'
 import { crearEvidencia } from '../services/evidenciasService.js'
 
@@ -129,6 +129,8 @@ const TIPO_INSTRUMENTO_VALOR = {
   'Rúbrica': 100,
   'Lista de cotejo': 100,
   'Escala de estimación': 100,
+  'Guía de observación': 100,
+  'Registro anecdótico': 100,
 }
 
 function nombreEstudiante(estudiante = {}) {
@@ -148,12 +150,24 @@ function normalizarTipoInstrumento(valor = '') {
   const texto = String(valor).toLowerCase()
   if (texto.includes('rúbrica') || texto.includes('rubrica')) return 'Rúbrica'
   if (texto.includes('cotejo')) return 'Lista de cotejo'
-  if (texto.includes('escala')) return 'Escala de estimación'
+  if (texto.includes('escala') || texto.includes('valoración') || texto.includes('valoracion')) return 'Escala de estimación'
+  if (texto.includes('guía') || texto.includes('guia')) return 'Guía de observación'
+  if (texto.includes('anecd')) return 'Registro anecdótico'
   return valor || 'Instrumento'
 }
 
 function valorInstrumento(tipo) {
   return TIPO_INSTRUMENTO_VALOR[normalizarTipoInstrumento(tipo)] || 100
+}
+
+function valorMaximoInstrumento(inst = {}) {
+  return Number(inst.valorMaximo || inst.puntos || inst.puntajeMaximo || valorInstrumento(inst.tipo)) || 100
+}
+
+function claseCapaDelDia(planActivo, diaActivo) {
+  const capa = planActivo?.capaCurricular || null
+  if (!capa || diaActivo?.diaNum == null) return null
+  return (capa.clases || []).find(c => Number(c.numeroClase) === Number(diaActivo.diaNum)) || null
 }
 
 function normalizarPeriodoRegistro(valor = '') {
@@ -314,6 +328,52 @@ function extraerInstrumentos(dia, contexto = {}) {
   })
   return [...seen.values()]
     .sort((a, b) => (Number(a.orden) || 99) - (Number(b.orden) || 99))
+}
+
+function normalizarInstrumentoAula(inst = {}, contexto = {}) {
+  const tipo = normalizarTipoInstrumento(inst.tipo || inst.tipoInstrumento || inst.nombre)
+  const valorMaximo = valorMaximoInstrumento({ ...inst, tipo })
+  return {
+    ...inst,
+    planificacionId: inst.planificacionId || contexto.planId || '',
+    cursoId: inst.cursoId || contexto.cursoId || '',
+    curso: inst.curso || contexto.curso || '',
+    grado: inst.grado || contexto.grado || '',
+    seccion: inst.seccion || contexto.seccion || '',
+    area: inst.area || contexto.area || '',
+    periodo: inst.periodo || contexto.periodo || 'Periodo 1',
+    competencia: inst.competencia || contexto.competencia || '',
+    actividad: inst.actividad || contexto.tema || '',
+    unidad: inst.unidad || contexto.unidad || contexto.tema || '',
+    tipo,
+    nombre: inst.nombre || inst.titulo || `${tipo} - ${contexto.tema || 'Clase'}`,
+    puntos: valorMaximo,
+    valorMaximo,
+    momento: inst.momento || (inst.claseId ? 'Clase actual' : 'Día'),
+    indicadores: inst.indicadores?.length
+      ? inst.indicadores
+      : (inst.estructura?.indicadores || inst.estructura?.criterios || [])
+        .map((item, index) => textoCriterio(item, `Criterio ${index + 1}`))
+        .filter(Boolean),
+  }
+}
+
+function combinarInstrumentosAula(instrumentosGuardados = [], instrumentosInferidos = [], contexto = {}) {
+  const vistos = new Set()
+  const combinados = []
+  const agregar = (inst, origen) => {
+    const normalizado = normalizarInstrumentoAula({ ...inst, origenAula: origen }, contexto)
+    const key = String(normalizado.id || `${normalizado.tipo}-${normalizado.nombre}-${normalizado.claseId || ''}`).toLowerCase()
+    if (vistos.has(key)) return
+    vistos.add(key)
+    combinados.push(normalizado)
+  }
+  instrumentosGuardados.forEach((inst) => agregar(inst, 'guardado'))
+  instrumentosInferidos.forEach((inst) => agregar(inst, 'inferido'))
+  return combinados.sort((a, b) => {
+    if (a.origenAula !== b.origenAula) return a.origenAula === 'guardado' ? -1 : 1
+    return (Number(a.orden) || 99) - (Number(b.orden) || 99)
+  })
 }
 
 function limpiarTemaRecurso(valor = '') {
@@ -575,10 +635,15 @@ function InstrCard({ inst, onAplicar }) {
     'Rúbrica':           { bg:'#faf5ff', borde:'#a78bfa', txt:'#6d28d9' },
     'Lista de cotejo':   { bg:'#eff6ff', borde:'#60a5fa', txt:'#1d4ed8' },
     'Escala estimativa': { bg:'#fef9c3', borde:'#fbbf24', txt:'#92400e' },
+    'Escala de estimación': { bg:'#fef9c3', borde:'#fbbf24', txt:'#92400e' },
+    'Guía de observación': { bg:'#fff7ed', borde:'#fb923c', txt:'#c2410c' },
+    'Registro anecdótico': { bg:'#f0fdf4', borde:'#4ade80', txt:'#15803d' },
     'Portafolio':        { bg:'#f0fdf4', borde:'#4ade80', txt:'#15803d' },
     'Observación':       { bg:'#fff7ed', borde:'#fb923c', txt:'#c2410c' },
   }
   const c = colores[inst.tipo] || colores[inst.nombre] || { bg:'#f8fafc', borde:'#cbd5e1', txt:'#475569' }
+  const maximo = valorMaximoInstrumento(inst)
+  const esGuardado = inst.origenAula === 'guardado'
   return (
     <div style={{
       background:c.bg,
@@ -593,11 +658,12 @@ function InstrCard({ inst, onAplicar }) {
             {inst.nombre}
           </div>
           <div style={{ fontSize:12, color:'#0f172a', marginBottom:6 }}>
-            Evalúa la actividad en el momento {inst.momento}.
+            {esGuardado ? 'Instrumento vinculado a esta clase.' : `Evalúa la actividad en el momento ${inst.momento}.`}
           </div>
           <div style={{ fontSize:12, color:'#475569', lineHeight:1.6 }}>
             <div>Tipo: {inst.tipo}</div>
-            <div>Puntaje máx.: {inst.puntos}</div>
+            <div>Puntaje máx.: {maximo}</div>
+            {inst.claseId && <div>Clase: {inst.claseId}</div>}
           </div>
         </div>
         <div style={{
@@ -609,7 +675,7 @@ function InstrCard({ inst, onAplicar }) {
           padding:'5px 9px',
           display:'flex', alignItems:'center', justifyContent:'center',
           fontSize:12, fontWeight:900,
-        }}>{inst.puntos} pts</div>
+        }}>{maximo} pts</div>
       </div>
       <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:10 }}>
         <button onClick={onAplicar} style={{
@@ -843,6 +909,8 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const [guardandoRecursos, setGuardandoRecursos] = useState(false)
 
   // ── Aplicación de instrumentos
+  const [instrumentosGuardadosDia, setInstrumentosGuardadosDia] = useState([])
+  const [cargandoInstrumentosDia, setCargandoInstrumentosDia] = useState(false)
   const [instrumentoModal, setInstrumentoModal] = useState(null)
   const [notasInstrumento, setNotasInstrumento] = useState({})
   const [puntajeInstrumento, setPuntajeInstrumento] = useState(100)
@@ -876,6 +944,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           const norm = normalizarClase(ctx.plan.contenido)
           const dia = norm?.dias.find(d => d.diaNum === ctx.clase.numeroClase) || norm?.dias[0]
           det = { plan: ctx.plan, norm, dia }
+          setInstrumentosGuardadosDia(Array.isArray(ctx.instrumentos) ? ctx.instrumentos : [])
           setAvisoClase(ctx.esHoy ? null : {
             motivo: ctx.motivo,
             fecha: ctx.clase.fechaSugerida || '',
@@ -937,6 +1006,30 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planActivo?.id])
 
+  useEffect(() => {
+    let vigente = true
+    const claseCapa = claseCapaDelDia(planActivo, diaActivo)
+    if (!planActivo?.id || !claseCapa?.claseId || String(planActivo.id).startsWith('local_')) {
+      setInstrumentosGuardadosDia([])
+      setCargandoInstrumentosDia(false)
+      return () => { vigente = false }
+    }
+    setCargandoInstrumentosDia(true)
+    obtenerInstrumentosDelDia(planActivo.id, claseCapa.claseId)
+      .then((items) => {
+        if (vigente) setInstrumentosGuardadosDia(Array.isArray(items) ? items : [])
+      })
+      .catch((error) => {
+        console.warn('[ModoAula] No se pudieron cargar instrumentos de la clase:', error)
+        if (vigente) setInstrumentosGuardadosDia([])
+      })
+      .finally(() => {
+        if (vigente) setCargandoInstrumentosDia(false)
+      })
+    return () => { vigente = false }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planActivo?.id, planActivo?.capaCurricular, diaActivo?.diaNum])
+
   // ─── Timer interval
   useEffect(() => {
     if (timerOn) {
@@ -975,6 +1068,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     const norm = normalizarClase(plan.contenido)
     setPlanActivo(plan)
     setClaseNorm(norm)
+    setInstrumentosGuardadosDia([])
+    setInstrumentoModal(null)
+    setMensajeInstrumento(null)
     const diaOk = norm?.dias.find(d => d.diaNum === dia.diaNum) || norm?.dias[0]
     setDiaActivo(diaOk)
     const prev = leerProgresoLocal(plan.id, diaOk?.diaNum)
@@ -1143,7 +1239,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       })
       .slice(0, 8)
   }, [busquedaEstudianteEv, estudiantesAula])
-  const instrumentos = useMemo(() => extraerInstrumentos(diaActivo, {
+  const contextoInstrumentos = useMemo(() => ({
     planId: planActivo?.id,
     cursoId: cursoParaAula?.id,
     curso: cursoParaAula?.nombre || cursoParaAula?.name || cursoParaAula?.grado || '',
@@ -1158,7 +1254,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       || '',
     instrumentosRaw: claseNorm?.instrumentosRaw,
     maximoInstrumentosPorDia: claseNorm?.resumenEval?.maximoInstrumentosPorDia || claseNorm?.instrumentosRaw?.maximoInstrumentosPorDia || 3,
-  }), [diaActivo, planActivo, claseNorm, cursoParaAula, periodoRegistro])
+  }), [diaActivo?.titulo, planActivo, claseNorm, cursoParaAula, periodoRegistro])
+  const instrumentos = useMemo(() => {
+    const inferidos = extraerInstrumentos(diaActivo, contextoInstrumentos)
+    return combinarInstrumentosAula(instrumentosGuardadosDia, inferidos, contextoInstrumentos)
+  }, [diaActivo, contextoInstrumentos, instrumentosGuardadosDia])
   const recursos     = useMemo(() => {
     const diaKey = String(diaActivo?.diaNum || 1)
     const ajustados = planActivo?.contenido?.recursosModoAula?.[diaKey]
@@ -1251,7 +1351,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       // Enriquecer el instrumento del día con el vínculo curricular del plan
       // (indicadores y aspectos del registro) para el hilo pedagógico completo.
       const capa = planActivo?.capaCurricular || null
-      const claseCapa = capa?.clases?.find(c => c.numeroClase === diaActivo?.diaNum) || null
+      const claseCapa = claseCapaDelDia(planActivo, diaActivo)
       const indicadorIds = claseCapa?.indicadoresTrabajados
         || (capa?.indicadoresSeleccionados || []).map(ind => ind.id)
       const valorMaximoModal = Number(puntajeInstrumento || instrumentoModal.valorMaximo || instrumentoModal.puntos || 100)
@@ -1260,7 +1360,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         cursoId: cursoParaAula?.id || instrumentoModal.cursoId,
         curso: cursoParaAula?.nombre || cursoParaAula?.name || instrumentoModal.curso || '',
         planificacionId: planActivo?.id || instrumentoModal.planificacionId || '',
-        claseId: claseCapa?.claseId || '',
+        claseId: instrumentoModal.claseId || claseCapa?.claseId || '',
         periodo: instrumentoModal.periodo || periodoRegistro,
         valorMaximo: valorMaximoModal,
         indicadorIds,
@@ -1435,6 +1535,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
             <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:10 }}>
               <Pill color="#4f46e5" bg="#eef2ff">{instrumentoModal.tipo}</Pill>
               <Pill color="#15803d" bg="#ecfdf5">{instrumentoModal.momento || 'Momento del día'}</Pill>
+              <Pill color="#0369a1" bg="#e0f2fe">{diaActivo?.semana ? `Semana ${diaActivo.semana} · ` : ''}Clase {diaActivo?.diaNum || '—'}</Pill>
               <Pill color="#b45309" bg="#fffbeb">Máx. {puntajeInstrumento} pts</Pill>
             </div>
           </div>
@@ -2261,7 +2362,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
               }}>+</button>
             </div>
 
-            {instrumentos.length === 0 ? (
+            {cargandoInstrumentosDia ? (
+              <div style={{ textAlign:'center', padding:'20px 0', color:'#64748b', fontSize:12, fontWeight:800 }}>
+                Cargando instrumentos de esta clase…
+              </div>
+            ) : instrumentos.length === 0 ? (
               <div style={{ textAlign:'center', padding:'20px 0', color:'#94a3b8', fontSize:12 }}>
                 <div style={{ fontSize:28, marginBottom:8 }}>📊</div>
                 Sin instrumentos definidos
@@ -2279,7 +2384,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
               }}>
                 <span style={{ fontSize:13, fontWeight:700, color:'#15803d' }}>Puntuación</span>
                 <span style={{ fontSize:12, fontWeight:900, color:'#15803d', textAlign:'right' }}>
-                  El docente la define al aplicar
+                  {instrumentosGuardadosDia.length ? 'Instrumentos de la clase actual' : 'El docente la define al aplicar'}
                 </span>
               </div>
             )}
