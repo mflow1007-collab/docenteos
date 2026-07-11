@@ -266,6 +266,25 @@ export function normalizarVozActividadMINERD(texto) {
 
   const primera = (t.split(/\s+/)[0] || '').replace(/[.,:;!¡¿?]+$/, '');
   if (VERBOS_VOZ_MINERD.includes(primera)) return t;
+
+  // Verbo en SINGULAR o imperativo ("Etiqueta", "Observa", "Escribe", "Completa"):
+  // el caso más común que se le escapa a la IA. Se pluraliza a 3ª persona plural
+  // agregando/ajustando la desinencia -n, que es lo único que exige la voz MINERD.
+  // -a/-e/-o → +n (Etiqueta→Etiquetan, Escribe→Escriben, Dibujo→Dibujan);
+  // -á/-é acentuada (imperativo raro) → base + n. Solo si arranca en mayúscula y
+  // no cae en arranques prohibidos/nominales (ya filtrados arriba).
+  // Palabras funcionales que terminan en vocal pero NO son verbos: nunca
+  // pluralizar (Se/El/La ya son arranques prohibidos; De/Le/Se/Lo evitan
+  // falsos "Sen/Len"). Exigimos además un verbo de ≥4 letras.
+  const NO_VERBOS = /^(se|el|la|lo|le|de|una?|su|sus)$/i;
+  if (primera.length >= 4 && /^[A-ZÁÉÍÓÚÜÑ][a-záéíóúüñ]+$/.test(primera)
+    && /[aeáéo]$/.test(primera) && !/n$/.test(primera) && !NO_VERBOS.test(primera)
+    && !ARRANQUES_PROHIBIDOS.test(t) && !ARRANQUES_NOMINALES.test(t)) {
+    const pluralizado = primera.replace(/á$/, 'a').replace(/é$/, 'e') + 'n';
+    const resto = t.slice(primera.length).replace(/^[.,:;!¡¿?]+/, '');
+    return capitalizar(pluralizado + resto);
+  }
+
   return original;
 }
 
