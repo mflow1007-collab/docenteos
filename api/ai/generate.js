@@ -194,14 +194,18 @@ function getModel(provider, modelOverrides) {
   return (modelOverrides?.[provider]) || DEFAULT_MODELS[provider] || provider;
 }
 
-function getProviderTimeoutMs(provider) {
+function getProviderTimeoutMs(provider, mod) {
+  // La extracción de PDF curricular es más pesada (fragmento largo + JSON
+  // grande): se le da más margen que a una generación normal, porque un
+  // corte a mitad pierde los indicadores del fragmento entero.
+  const esExtraccionPdf = typeof mod === "string" && mod.includes("curriculo_pdf_json");
   switch (provider) {
-    case "abacus":    return 12_000;
-    case "nvidia":    return 18_000;
-    case "gemini":    return 20_000;
-    case "openai":    return 25_000;
-    case "anthropic": return 25_000;
-    default:          return 18_000;
+    case "abacus":    return esExtraccionPdf ? 30_000 : 12_000;
+    case "nvidia":    return esExtraccionPdf ? 35_000 : 18_000;
+    case "gemini":    return esExtraccionPdf ? 40_000 : 20_000;
+    case "openai":    return esExtraccionPdf ? 45_000 : 25_000;
+    case "anthropic": return esExtraccionPdf ? 45_000 : 25_000;
+    default:          return esExtraccionPdf ? 35_000 : 18_000;
   }
 }
 
@@ -478,7 +482,7 @@ export default async function handler(request) {
   for (const provider of queue) {
     const apiKey = getApiKey(provider);
     const model  = getModel(provider, modelOverrides);
-    const signal = timeoutSignal(getProviderTimeoutMs(provider));
+    const signal = timeoutSignal(getProviderTimeoutMs(provider, mod));
 
     try {
       let providerResponse;

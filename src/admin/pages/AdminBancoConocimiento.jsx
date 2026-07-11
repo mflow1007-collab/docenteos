@@ -396,8 +396,12 @@ const extraerPaginasPdf = async (file, onProgress = null) => {
 // (4) los resultados se fusionan con dedupe y (5) el sobre final se ensambla
 // LOCALMENTE (la IA ya no redacta el envelope, solo extrae contenido literal).
 
-const FRAGMENTO_CHARS = 14000;   // lectura más lenta y quirúrgica por llamada
-const FRAGMENTO_SOLAPE = 2200;   // para no cortar tablas por la mitad
+// Fragmentos más pequeños: la Edge Function corta a ~25s. Un fragmento de
+// 14 000 chars con muchos indicadores agotaba el tiempo (timeout → 0
+// indicadores). 9 000 chars procesa más rápido y cabe en el presupuesto;
+// el solape mayor evita cortar tablas de competencia-indicador por la mitad.
+const FRAGMENTO_CHARS = 9000;    // lectura quirúrgica que cabe en el timeout del edge
+const FRAGMENTO_SOLAPE = 2500;   // para no cortar tablas por la mitad
 const MAX_FRAGMENTOS_PDF = 28;   // el administrador puede esperar una conversión más completa
 
 const MARCO_PEDAGOGICO_SECUNDARIA_MINERD_2023 = {
@@ -1365,12 +1369,30 @@ Reglas:
 TEXTO DEL FRAGMENTO:
 ${fragmento}`;
 
-  // Un reintento por fragmento: los fragmentos buenos no se pierden
-  try {
-    return await llamarIAExtraccion({ system: SYSTEM_EXTRACCION_FRAGMENTO, prompt });
-  } catch {
-    return await llamarIAExtraccion({ system: SYSTEM_EXTRACCION_FRAGMENTO, prompt });
+  // Reintentos por fragmento: los fragmentos buenos no se pierden. Ante
+  // TIMEOUT (fragmento grande que agota el tiempo de la Edge Function), se
+  // baja maxTokens en cada intento — una respuesta más corta cabe en el
+  // tiempo disponible. 3 intentos: 9000 → 6000 → 4000 tokens.
+  const presupuestos = [9000, 6000, 4000];
+  let ultimoError = null;
+  for (const maxTokens of presupuestos) {
+    try {
+      return await llamarIAExtraccion({ system: SYSTEM_EXTRACCION_FRAGMENTO, prompt, maxTokens });
+    } catch (err) {
+      ultimoError = err;
+      const esTimeout = /timeout|aborted|abort/i.test(String(err?.message || err));
+      // Si NO es timeout (p.ej. error de parseo), un solo reintento basta:
+      // repetir con menos tokens no ayuda a un JSON malformado.
+      if (!esTimeout) {
+        try {
+          return await llamarIAExtraccion({ system: SYSTEM_EXTRACCION_FRAGMENTO, prompt, maxTokens });
+        } catch (err2) { ultimoError = err2; }
+        break;
+      }
+      // Es timeout: continúa el bucle con menos tokens
+    }
   }
+  throw ultimoError || new Error('extracción de fragmento falló');
 };
 
 const dedupePorTexto = (items = [], getTexto = (x) => x) => {
