@@ -1423,11 +1423,18 @@ const SECCIONES_MALLA = {
     tieneDatos: (r) => (r?.competencias || []).length,
     critica: true,
   },
-  contenidos: {
-    etiqueta: 'Contenidos conceptuales y procedimentales por tema',
-    instruccion: 'Extrae de la tabla de CONTENIDOS las columnas CONCEPTOS y PROCEDIMIENTOS, organizadas POR TEMA. Crea un bloque contenidosPorTema por CADA tema con sus conceptos (temas, vocabulario, gramática, frases) y procedimientos (funcionales, discursivos, comprensión y producción). NO extraigas aquí las Actitudes (van en su propia sección). REGLAS DE SEPARACIÓN: el CLIMA (will/be going to, presente continuo atmosférico, sunny/windy, "dar/pedir información sobre condiciones atmosféricas") va en SU PROPIO tema, JAMÁS en vivienda/rutinas/partes de la casa. El pasado simple y el presente perfecto de experiencias van en el tema de experiencias. Si el PDF trae los procedimentales en una columna general, repártelos a sus temas afines SIN perder ninguno: la unión de todos los bloques debe traer TODOS los procedimentales del PDF.',
-    esquema: '{"contenidosPorTema":[{"tema":"","conceptos":{"temas":[],"vocabulario":[],"gramatica":[],"frases":[],"sociolinguisticos":[]},"procedimientos":{"funcionales":[],"discursivos":[],"comprensionOralEscrita":[],"produccionOral":[],"produccionEscrita":[]}}],"temas":[]}',
+  contenidosConceptuales: {
+    etiqueta: 'Contenidos CONCEPTUALES por tema',
+    instruccion: 'Extrae SOLO la columna CONCEPTOS de la tabla de Contenidos, organizada POR TEMA. Crea un bloque contenidosPorTema por CADA tema con sus conceptos (temas, vocabulario, gramática, frases, sociolingüísticos). NO extraigas aquí Procedimientos ni Actitudes (van en sus propias secciones). SEPARACIÓN: el CLIMA (will/be going to, presente continuo atmosférico, sunny/windy) va en SU PROPIO tema, JAMÁS en vivienda/partes de la casa. El pasado simple y el presente perfecto de experiencias van en el tema de experiencias. Copia TODOS los temas y TODO el vocabulario/gramática, sin omitir.',
+    esquema: '{"contenidosPorTema":[{"tema":"","conceptos":{"temas":[],"vocabulario":[],"gramatica":[],"frases":[],"sociolinguisticos":[]}}],"temas":[]}',
     tieneDatos: (r) => (r?.contenidosPorTema || []).some((b) => b.tema) || (r?.temas || []).length,
+    critica: true,
+  },
+  contenidosProcedimentales: {
+    etiqueta: 'Contenidos PROCEDIMENTALES por tema',
+    instruccion: 'Extrae SOLO la columna PROCEDIMIENTOS de la tabla de Contenidos. Cada procedimental (funcionales, discursivos, comprensión oral/escrita, producción oral/escrita) va en el bloque del tema al que aplica. Si el PDF trae los procedimentales en UNA columna general (no divididos por tema), repártelos a sus temas afines por su significado, SIN perder ninguno: la unión de todos los bloques debe traer TODOS los procedimentales del PDF. "Dar/pedir información sobre condiciones atmosféricas" va en el tema de clima. Copia TODOS los procedimentales, uno por uno.',
+    esquema: '{"contenidosPorTema":[{"tema":"","procedimientos":{"funcionales":[],"discursivos":[],"comprensionOralEscrita":[],"produccionOral":[],"produccionEscrita":[]}}],"procedimentales":[]}',
+    tieneDatos: (r) => (r?.contenidosPorTema || []).some((b) => (b.procedimientos && Object.values(b.procedimientos).some((a) => (a || []).length))) || (r?.procedimentales || []).length,
     critica: true,
   },
   actitudes: {
@@ -1465,7 +1472,7 @@ const SECCIONES_MALLA = {
 const SECCIONES_RESCATE = {
   indicadores: SECCIONES_MALLA.competenciasIndicadores,
   competencias: SECCIONES_MALLA.competenciasIndicadores,
-  contenidos: SECCIONES_MALLA.contenidos,
+  contenidos: SECCIONES_MALLA.contenidosConceptuales,
 };
 
 const extraerSeccionCurricular = async ({ seccion, textoMalla, contexto }) => {
@@ -2008,9 +2015,11 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
       const cfg = SECCIONES_MALLA[seccion];
       let obtenido = null;
       let ultimoFallo = null;
-      for (let intento = 1; intento <= 2; intento += 1) {
+      // Hasta 3 intentos por sección crítica, 2 para las opcionales.
+      const maxIntentos = cfg.critica ? 3 : 2;
+      for (let intento = 1; intento <= maxIntentos; intento += 1) {
         if (onProgress) {
-          const sufijo = intento > 1 ? ` (reintento ${intento})` : '';
+          const sufijo = intento > 1 ? ` (intento ${intento}/${maxIntentos})` : '';
           onProgress(`Extrayendo por sección ${s + 1}/${seccionesOrden.length}: ${cfg.etiqueta}${sufijo}… (con calma, para que no se pierda nada)`);
         }
         try {
@@ -2022,7 +2031,7 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
         } catch (err) {
           ultimoFallo = err.message;
         }
-        if (intento < 2) await pausar(PAUSA_ENTRE_REINTENTOS);
+        if (intento < maxIntentos) await pausar(PAUSA_ENTRE_REINTENTOS);
       }
       if (obtenido) parciales.push(obtenido);
       else if (cfg.critica || ultimoFallo) fallidos.push(`${cfg.etiqueta}: ${ultimoFallo || 'sin datos'}`);
@@ -2035,15 +2044,24 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
     if (onProgress) onProgress('Fusionando las secciones extraídas...');
     let merged = fusionarExtraccionesCurriculares(parciales, contexto);
 
-    // Segundo intento SOLO de las secciones críticas que quedaron vacías
-    // (competencias/indicadores o contenidos): se reintenta una vez más.
+    // VERIFICAR / COMPARAR / CONFIRMAR: tras la fusión, si una sección crítica
+    // quedó vacía o floja, se pide de nuevo (una pasada más). Detecta las tres
+    // pérdidas que hemos visto: competencias/indicadores, conceptos,
+    // procedimentales.
     const anidadosMerged = (merged.competencias || []).reduce(
       (n, c) => n + ((c.indicadoresLogro || c.indicadores || []).length || 0), 0);
+    const totalProc = (merged.contenidosPorTema || []).reduce(
+      (n, b) => n + Object.values(b.procedimientos || {}).reduce((m, a) => m + ((a || []).length), 0), 0)
+      + (merged.procedimentales || []).length;
+    const totalConcep = (merged.contenidosPorTema || []).reduce(
+      (n, b) => n + Object.values(b.conceptos || {}).reduce((m, a) => m + ((a || []).length), 0), 0)
+      + (merged.conceptuales || []).length;
     const faltantes = [];
     if (!(merged.competencias || []).length || (!(merged.indicadoresLogro || []).length && !anidadosMerged)) {
       faltantes.push('competenciasIndicadores');
     }
-    if (!(merged.contenidosPorTema || []).length && !(merged.conceptuales || []).length) faltantes.push('contenidos');
+    if (totalConcep === 0) faltantes.push('contenidosConceptuales');
+    if (totalProc === 0) faltantes.push('contenidosProcedimentales');
 
     for (const seccion of faltantes) {
       const cfg = SECCIONES_MALLA[seccion];
