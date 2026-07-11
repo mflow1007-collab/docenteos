@@ -3059,6 +3059,10 @@ export default function AdminBancoConocimiento({ onIrPotenteIA = null }) {
 
   const fuentesFiltradas = fuentes.filter(f => {
     const tabStatuses = TAB_STATUSES[tab];
+    // "Eliminar" archiva (active:false, status:'archived') — reversible. Las
+    // pestañas que NO son "archivadas" ocultan lo archivado; si no, el doc
+    // recién eliminado reaparece en "todas" y parece que no se pudo borrar.
+    if (tab !== 'archivadas' && (f.active === false || f.status === 'archived' || f.status === 'rejected')) return false;
     if (tabStatuses && !tabStatuses.includes(f.status)) return false;
     if (filtros.nivel         && f.level    !== filtros.nivel)                               return false;
     if (filtros.grado         && f.grade    !== filtros.grado)                               return false;
