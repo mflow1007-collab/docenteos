@@ -1424,15 +1424,22 @@ const SECCIONES_MALLA = {
     critica: true,
   },
   contenidos: {
-    etiqueta: 'Contenidos por tema (Conceptos / Procedimientos / Actitudes)',
-    instruccion: 'Extrae la tabla de CONTENIDOS organizada POR TEMA. Crea un bloque contenidosPorTema por CADA tema con sus conceptos (temas, vocabulario, gramática, frases), procedimientos (funcionales, discursivos, comprensión y producción) y actitudes. REGLAS DE SEPARACIÓN: el CLIMA (will/be going to, presente continuo atmosférico, sunny/windy, "dar/pedir información sobre condiciones atmosféricas") va en SU PROPIO tema, JAMÁS en vivienda/rutinas/partes de la casa. El pasado simple y el presente perfecto de experiencias van en el tema de experiencias. Si el PDF trae los procedimentales en una columna general (no por tema), repártelos a sus temas afines SIN perder ninguno: la unión de todos los bloques debe traer TODOS los procedimentales del PDF.',
-    esquema: '{"contenidosPorTema":[{"tema":"","conceptos":{"temas":[],"vocabulario":[],"gramatica":[],"frases":[],"sociolinguisticos":[]},"procedimientos":{"funcionales":[],"discursivos":[],"comprensionOralEscrita":[],"produccionOral":[],"produccionEscrita":[]},"actitudinales":[],"actitudesValores":[]}],"temas":[]}',
+    etiqueta: 'Contenidos conceptuales y procedimentales por tema',
+    instruccion: 'Extrae de la tabla de CONTENIDOS las columnas CONCEPTOS y PROCEDIMIENTOS, organizadas POR TEMA. Crea un bloque contenidosPorTema por CADA tema con sus conceptos (temas, vocabulario, gramática, frases) y procedimientos (funcionales, discursivos, comprensión y producción). NO extraigas aquí las Actitudes (van en su propia sección). REGLAS DE SEPARACIÓN: el CLIMA (will/be going to, presente continuo atmosférico, sunny/windy, "dar/pedir información sobre condiciones atmosféricas") va en SU PROPIO tema, JAMÁS en vivienda/rutinas/partes de la casa. El pasado simple y el presente perfecto de experiencias van en el tema de experiencias. Si el PDF trae los procedimentales en una columna general, repártelos a sus temas afines SIN perder ninguno: la unión de todos los bloques debe traer TODOS los procedimentales del PDF.',
+    esquema: '{"contenidosPorTema":[{"tema":"","conceptos":{"temas":[],"vocabulario":[],"gramatica":[],"frases":[],"sociolinguisticos":[]},"procedimientos":{"funcionales":[],"discursivos":[],"comprensionOralEscrita":[],"produccionOral":[],"produccionEscrita":[]}}],"temas":[]}',
     tieneDatos: (r) => (r?.contenidosPorTema || []).some((b) => b.tema) || (r?.temas || []).length,
     critica: true,
   },
+  actitudes: {
+    etiqueta: 'Contenidos actitudinales (Actitudes y valores)',
+    instruccion: 'Extrae la columna COMPLETA de "Actitudes y valores" de la tabla de Contenidos. Copia TODAS las actitudes literal, una por una — suelen ser muchas (respeto, cortesía, motivación, cuidado del medioambiente, etc.). No las resumas ni omitas ninguna.',
+    esquema: '{"actitudesValores":[],"actitudinales":[]}',
+    tieneDatos: (r) => (r?.actitudesValores || []).length || (r?.actitudinales || []).length,
+    critica: false,
+  },
   ejesTransversales: {
     etiqueta: 'Conexión con los Ejes Transversales',
-    instruccion: 'Extrae la matriz "Conexión con los Ejes Transversales: problemáticas sociales y comunitarias y su asociación con los contenidos del Área en el Ciclo y Grados". Para cada eje toma la descripción de la columna del grado seleccionado. No lo confundas con "Eje temático".',
+    instruccion: 'Extrae la matriz "Conexión con los Ejes Transversales: problemáticas sociales y comunitarias y su asociación con los contenidos del Área en el Ciclo y Grados" (o encabezado equivalente con "Ejes Transversales"). Suele traer ejes como: Desarrollo Sostenible, Salud y Bienestar, Ciudadanía y Convivencia, Alfabetización Imprescindible, Desarrollo Personal. Para cada eje toma la descripción de la columna del grado seleccionado. No lo confundas con "Eje temático transversal" de una unidad.',
     esquema: '{"ejesTransversales":[{"eje":"","grado":"","descripcion":"","origen":"conexion_ejes_transversales"}]}',
     tieneDatos: (r) => (r?.ejesTransversales || []).length,
     critica: false,
@@ -1980,22 +1987,39 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
     const advertenciaTope = (textoLiteralMalla || texto).length > PDF_TEXT_MAX_CHARS
       ? `El texto de la malla supera ${PDF_TEXT_MAX_CHARS} caracteres; se leyó el inicio. Si falta contenido, sube un PDF solo de la asignatura.`
       : null;
+    // Extracción CON CALMA: cada sección se intenta hasta 2 veces (si la
+    // primera no trae datos o falla, se reintenta tras una pausa), y hay una
+    // pausa larga entre secciones para no saturar el gateway. Prioriza que
+    // NADA se pierda por encima de la velocidad.
+    const PAUSA_ENTRE_SECCIONES = 1500;
+    const PAUSA_ENTRE_REINTENTOS = 1200;
+    const pausar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
     const parciales = [];
     const fallidos = [];
     const seccionesOrden = Object.keys(SECCIONES_MALLA);
     for (let s = 0; s < seccionesOrden.length; s += 1) {
       const seccion = seccionesOrden[s];
       const cfg = SECCIONES_MALLA[seccion];
-      if (onProgress) onProgress(`Extrayendo por sección ${s + 1}/${seccionesOrden.length}: ${cfg.etiqueta}… (más lento, pero sin cortes)`);
-      try {
-        const parte = await extraerSeccionCurricular({ seccion, textoMalla: textoParaSecciones, contexto });
-        if (cfg.tieneDatos(parte)) parciales.push(parte);
-        else if (cfg.critica) fallidos.push(`${cfg.etiqueta}: la IA no devolvió datos`);
-        // pausa breve entre secciones para no saturar el gateway
-        if (s < seccionesOrden.length - 1) await new Promise(resolve => setTimeout(resolve, 300));
-      } catch (err) {
-        fallidos.push(`${cfg.etiqueta}: ${err.message}`);
+      let obtenido = null;
+      let ultimoFallo = null;
+      for (let intento = 1; intento <= 2; intento += 1) {
+        if (onProgress) {
+          const sufijo = intento > 1 ? ` (reintento ${intento})` : '';
+          onProgress(`Extrayendo por sección ${s + 1}/${seccionesOrden.length}: ${cfg.etiqueta}${sufijo}… (con calma, para que no se pierda nada)`);
+        }
+        try {
+          const parte = await extraerSeccionCurricular({ seccion, textoMalla: textoParaSecciones, contexto });
+          if (cfg.tieneDatos(parte)) { obtenido = parte; break; }
+          ultimoFallo = 'la IA no devolvió datos';
+        } catch (err) {
+          ultimoFallo = err.message;
+        }
+        if (intento < 2) await pausar(PAUSA_ENTRE_REINTENTOS);
       }
+      if (obtenido) parciales.push(obtenido);
+      else if (cfg.critica || ultimoFallo) fallidos.push(`${cfg.etiqueta}: ${ultimoFallo || 'sin datos'}`);
+      if (s < seccionesOrden.length - 1) await pausar(PAUSA_ENTRE_SECCIONES);
     }
     if (!parciales.length) {
       throw new Error(`La IA no pudo extraer ninguna sección. ${fallidos[0] || ''}`);
