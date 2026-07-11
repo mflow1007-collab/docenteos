@@ -92,7 +92,7 @@ const TIPOS_INSTRUMENTO = [
 
 const ESTADOS = ["Borrador", "Activo", "En uso", "Archivado"];
 const TIPOS_BINARIOS = ["Lista de cotejo", "Autoevaluación"];
-const TIPOS_ESCALA = ["Escala de estimación"];
+const TIPOS_ESCALA = ["Escala de estimación", "Guía de observación"];
 const TIPOS_CRITERIOS = ["Rúbrica", "Registro anecdótico", "Prueba escrita", "Coevaluación"];
 const TIPOS_CON_BLOQUE = [...TIPOS_BINARIOS, ...TIPOS_ESCALA, ...TIPOS_CRITERIOS];
 const VALOR_INSTRUMENTO = {

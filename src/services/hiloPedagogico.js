@@ -496,7 +496,7 @@ export const generarAspectosDesdeCapa = (capa, { planificacionId, cursoId, ahora
 // ─── Fase 3 — Instrumentos ligados a la planificación ────────────────────────
 
 export const TIPOS_INSTRUMENTO = [
-  "rubrica", "lista_cotejo", "escala_estimativa", "registro_anecdotico", "otro",
+  "rubrica", "lista_cotejo", "escala_estimativa", "registro_anecdotico", "guia_observacion", "otro",
 ];
 
 // Mapeo tipo nuevo ↔ etiqueta legacy usada por InstrumentosPage / Modo Aula
@@ -505,6 +505,7 @@ export const ETIQUETA_TIPO_INSTRUMENTO = {
   lista_cotejo: "Lista de cotejo",
   escala_estimativa: "Escala de estimación",
   registro_anecdotico: "Registro anecdótico",
+  guia_observacion: "Guía de observación",
   otro: "Otro",
 };
 
@@ -512,8 +513,9 @@ export const normalizarTipoInstrumento = (valor = "") => {
   const texto = normalizarTexto(valor);
   if (texto.includes("rubrica")) return "rubrica";
   if (texto.includes("cotejo")) return "lista_cotejo";
-  if (texto.includes("escala")) return "escala_estimativa";
+  if (texto.includes("escala") || texto.includes("valoracion") || texto.includes("estimacion")) return "escala_estimativa";
   if (texto.includes("anecdot")) return "registro_anecdotico";
+  if (texto.includes("guia") && texto.includes("observacion")) return "guia_observacion";
   return TIPOS_INSTRUMENTO.includes(texto) ? texto : "otro";
 };
 

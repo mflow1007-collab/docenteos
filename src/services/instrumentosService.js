@@ -48,6 +48,165 @@ const colInstrumentos = () => collection(db, "usuarios", uid(), "instrumentos");
 const refResultado = (id) => doc(db, "usuarios", uid(), "instrumentoResultados", String(id));
 const colResultados = () => collection(db, "usuarios", uid(), "instrumentoResultados");
 
+const NIVELES_RUBRICA_MINERD = [
+  { key: "nivel1", label: "Receptivo", factor: 0.55 },
+  { key: "nivel2", label: "Resolutivo", factor: 0.7 },
+  { key: "nivel3", label: "Autónomo", factor: 0.85 },
+  { key: "nivel4", label: "Estratégico", factor: 1 },
+];
+
+const puntajesPorNivel = (puntajeMaximo) => Object.fromEntries(
+  NIVELES_RUBRICA_MINERD.map((nivel) => [nivel.key, Number((puntajeMaximo * nivel.factor).toFixed(2))])
+);
+
+const textoCorto = (texto = "", max = 90) => {
+  const limpio = String(texto || "").replace(/\s+/g, " ").trim();
+  if (limpio.length <= max) return limpio;
+  return `${limpio.slice(0, max).replace(/\s+\S*$/, "")}…`;
+};
+
+const listaUnica = (items = []) => [...new Set(items.map((item) => String(item || "").trim()).filter(Boolean))];
+
+const evidenciasDeClase = (clase = {}) => ({
+  conocimiento: listaUnica(clase.evidencias?.conocimiento || []),
+  desempeno: listaUnica(clase.evidencias?.desempeno || []),
+  producto: listaUnica(clase.evidencias?.producto || []),
+  planas: listaUnica(clase.evidenciasEsperadas || []),
+});
+
+const tieneEvidenciaEvaluable = (clase = {}) => {
+  const ev = evidenciasDeClase(clase);
+  return Boolean(ev.conocimiento.length || ev.desempeno.length || ev.producto.length || ev.planas.length || clase.instrumentosPlaneados?.length);
+};
+
+const tipoSugeridoPorEvidencia = (clase = {}) => {
+  const explicit = clase.instrumentosPlaneados?.find(Boolean);
+  if (explicit) return normalizarTipoInstrumento(explicit);
+  const ev = evidenciasDeClase(clase);
+  if (ev.producto.length) return "rubrica";
+  if (ev.desempeno.length) return "escala_estimativa";
+  if (ev.conocimiento.length) return "lista_cotejo";
+  return "lista_cotejo";
+};
+
+const valorPorTipo = (tipoNorm) => {
+  if (tipoNorm === "rubrica") return 50;
+  if (tipoNorm === "lista_cotejo" || tipoNorm === "escala_estimativa" || tipoNorm === "guia_observacion") return 25;
+  return 100;
+};
+
+const indicadoresParaInstrumento = (clase = {}, capa = {}) => {
+  const indicadorIds = clase.indicadoresTrabajados?.length
+    ? clase.indicadoresTrabajados
+    : (capa.indicadoresSeleccionados || []).map((ind) => ind.id);
+  return (capa.indicadoresSeleccionados || [])
+    .filter((ind) => indicadorIds.includes(ind.id))
+    .map((ind) => ind.descripcion)
+    .filter(Boolean);
+};
+
+const estructuraParaInstrumentoPlaneado = ({ tipoNorm, clase = {}, capa = {} }) => {
+  const ev = evidenciasDeClase(clase);
+  const evidencias = listaUnica([
+    ...ev.producto,
+    ...ev.desempeno,
+    ...ev.conocimiento,
+    ...ev.planas,
+  ]);
+  const indicadores = indicadoresParaInstrumento(clase, capa);
+  const baseItems = listaUnica([...evidencias, ...indicadores]).slice(0, 6);
+
+  if (tipoNorm === "rubrica") {
+    const pesos = [15, 17, 18];
+    const criteriosBase = [
+      {
+        criterio: textoCorto(ev.producto[0] || evidencias[0] || "Producto o desempeño esperado"),
+        nivel1: "Presenta evidencias iniciales, incompletas o con apoyo constante.",
+        nivel2: "Presenta evidencias básicas y responde a la consigna con apoyo parcial.",
+        nivel3: "Presenta evidencias claras, organizadas y coherentes con el indicador trabajado.",
+        nivel4: "Presenta evidencias completas, precisas y transferibles a una situación comunicativa o práctica.",
+      },
+      {
+        criterio: textoCorto(ev.desempeno[0] || indicadores[0] || "Desempeño observable durante la actividad"),
+        nivel1: "Realiza la actividad con dificultad y requiere guía frecuente.",
+        nivel2: "Realiza parte de la actividad con apoyo y evidencia comprensión básica.",
+        nivel3: "Realiza la actividad con autonomía, claridad y participación pertinente.",
+        nivel4: "Realiza la actividad con autonomía, seguridad, creatividad y uso pertinente de los aprendizajes.",
+      },
+      {
+        criterio: textoCorto(indicadores[1] || ev.conocimiento[0] || "Aplicación del indicador de logro"),
+        nivel1: "Reconoce elementos aislados del contenido o indicador.",
+        nivel2: "Aplica elementos básicos del contenido en situaciones guiadas.",
+        nivel3: "Aplica el contenido de manera adecuada en la situación propuesta.",
+        nivel4: "Integra el contenido con precisión, reflexión y pertinencia en nuevos contextos.",
+      },
+    ];
+    return {
+      modelo: "rubrica_minerd_ponderada",
+      totalPuntos: 50,
+      proporcionBase: pesos,
+      niveles: NIVELES_RUBRICA_MINERD,
+      criterios: criteriosBase.map((criterio, index) => ({
+        id: `crit-${index + 1}`,
+        ...criterio,
+        puntajeMaximo: pesos[index],
+        puntajesNiveles: puntajesPorNivel(pesos[index]),
+      })),
+    };
+  }
+
+  if (tipoNorm === "registro_anecdotico") {
+    const criteriosBase = (baseItems.length ? baseItems : ["Conducta, desempeño o evidencia observada"]).slice(0, 4);
+    return {
+      criterios: criteriosBase.map((item, index) => ({
+        id: `crit-anec-${index + 1}`,
+        criterio: textoCorto(item, 120),
+        puntajeMaximo: 0,
+        nivel4: "Se observa de manera clara, autónoma y consistente.",
+        nivel3: "Se observa de manera adecuada durante la actividad.",
+        nivel2: "Se observa parcialmente o con apoyo.",
+        nivel1: "Se observa de forma inicial o requiere seguimiento.",
+        puntajesNiveles: null,
+      })),
+    };
+  }
+
+  if (tipoNorm === "escala_estimativa" || tipoNorm === "guia_observacion") {
+    return {
+      indicadores: (baseItems.length ? baseItems : ["Participa y evidencia el desempeño esperado"]).slice(0, 6).map((item, index) => ({
+        id: `esc-${index + 1}`,
+        indicador: textoCorto(item, 120),
+        excelente: "Siempre y con precisión",
+        bueno: "Casi siempre",
+        regular: "Ocasionalmente",
+        necesitaApoyo: "Requiere guía",
+      })),
+    };
+  }
+
+  return {
+    indicadores: (baseItems.length ? baseItems : ["Evidencia el aprendizaje esperado"]).slice(0, 8).map((item, index) => ({
+      id: `ind-${index + 1}`,
+      indicador: textoCorto(item, 120),
+      si: true,
+      no: false,
+    })),
+  };
+};
+
+const descripcionInstrumentoClase = ({ clase = {}, capa = {}, tipoNorm }) => {
+  const ev = evidenciasDeClase(clase);
+  const partes = [
+    `Borrador generado desde la planificación "${capa.secuencia || "Plan"}".`,
+    clase.titulo ? `Clase: ${clase.titulo}.` : "",
+    ev.producto.length ? `Producto: ${textoCorto(ev.producto.join("; "), 160)}.` : "",
+    ev.desempeno.length ? `Desempeño: ${textoCorto(ev.desempeno.join("; "), 160)}.` : "",
+    ev.conocimiento.length ? `Conocimiento: ${textoCorto(ev.conocimiento.join("; "), 160)}.` : "",
+    tipoNorm === "rubrica" ? "Revisar criterios y ponderación antes de activar." : "Revisar indicadores antes de activar.",
+  ];
+  return partes.filter(Boolean).join(" ");
+};
+
 // ─── Fase 3 — Instrumentos ───────────────────────────────────────────────────
 
 /**
@@ -134,20 +293,65 @@ export const crearInstrumentosPlaneadosDesdePlan = async (registroPlan) => {
   const planificacionId = String(registroPlan?.id || registroPlan?.planificacionId || "");
   if (!capa || !planificacionId) return { instrumentos: [], tipos: [] };
 
-  const tiposPlaneados = capa.evaluacionPlanificada?.instrumentosPlaneadosGlobales || [];
-  // Deduplicar por tipo normalizado (varios nombres crudos → un instrumento)
-  const tipos = [...new Set(tiposPlaneados.map((t) => normalizarTipoInstrumento(t)))]
-    .filter((t) => t !== "otro" || tiposPlaneados.length === 0);
-  if (!tipos.length) tipos.push("lista_cotejo");
-
   const instrumentos = [];
-  for (const tipo of tipos) {
-    instrumentos.push(await crearInstrumentoDesdePlanificacion(registroPlan, {
+  const tipos = new Set();
+  const clasesEvaluables = (capa.clases || []).filter(tieneEvidenciaEvaluable);
+
+  for (const clase of clasesEvaluables) {
+    const tipo = tipoSugeridoPorEvidencia(clase);
+    tipos.add(tipo);
+    const etiqueta = ETIQUETA_TIPO_INSTRUMENTO[tipo] || "Instrumento";
+    const instrumento = await crearInstrumentoDesdePlanificacion(registroPlan, {
       tipo,
-      titulo: `${ETIQUETA_TIPO_INSTRUMENTO[tipo] || "Instrumento"} — ${capa.secuencia || "Plan"}`,
-    }));
+      claseId: clase.claseId,
+      titulo: `${etiqueta} — ${clase.titulo || capa.secuencia || "Clase"}`,
+      descripcion: descripcionInstrumentoClase({ clase, capa, tipoNorm: tipo }),
+      valorMaximo: valorPorTipo(tipo),
+    });
+    instrumentos.push({
+      ...instrumento,
+      estructura: estructuraParaInstrumentoPlaneado({ tipoNorm: tipo, clase, capa }),
+      origenGeneracion: "planificacion_clase",
+      evidenciaTipo: clase.evidencias?.producto?.length
+        ? "producto"
+        : clase.evidencias?.desempeno?.length
+          ? "desempeno"
+          : clase.evidencias?.conocimiento?.length
+            ? "conocimiento"
+            : "general",
+    });
   }
-  return { instrumentos, tipos };
+
+  if (!instrumentos.length) {
+    const tiposPlaneados = capa.evaluacionPlanificada?.instrumentosPlaneadosGlobales || [];
+    const tiposGlobales = [...new Set(tiposPlaneados.map((t) => normalizarTipoInstrumento(t)))]
+      .filter((t) => t !== "otro" || tiposPlaneados.length === 0);
+    if (!tiposGlobales.length) tiposGlobales.push("lista_cotejo");
+
+    for (const tipo of tiposGlobales) {
+      tipos.add(tipo);
+      const instrumento = await crearInstrumentoDesdePlanificacion(registroPlan, {
+        tipo,
+        titulo: `${ETIQUETA_TIPO_INSTRUMENTO[tipo] || "Instrumento"} — ${capa.secuencia || "Plan"}`,
+        valorMaximo: valorPorTipo(tipo),
+      });
+      instrumentos.push({
+        ...instrumento,
+        estructura: estructuraParaInstrumentoPlaneado({ tipoNorm: tipo, clase: {}, capa }),
+        origenGeneracion: "planificacion_global",
+      });
+    }
+  }
+
+  for (const instrumento of instrumentos) {
+    await setDoc(refInstrumento(instrumento.id), {
+      ...instrumento,
+      uid: uid(),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  }
+
+  return { instrumentos, tipos: [...tipos] };
 };
 
 export const obtenerInstrumentosPorPlanificacion = async (planificacionId) => {

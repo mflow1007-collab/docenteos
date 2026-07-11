@@ -926,6 +926,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
 
       await cargarHistorial({ mostrarMensajeRecuperacion: false });
       const aspectosCreados = resultado.aspectos?.creados?.length || 0;
+      const instrumentosCreados = resultado.instrumentos?.instrumentos?.length || 0;
       const advertencias = resultado.advertencias || [];
       const textoBase = resultado.mode === "firebase"
         ? "✅ Planificación guardada en Firebase"
@@ -933,11 +934,14 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
       const textoAspectos = aspectosCreados > 0
         ? ` · ${aspectosCreados} aspecto(s) creados en Mi Registro`
         : "";
+      const textoInstrumentos = instrumentosCreados > 0
+        ? ` · ${instrumentosCreados} instrumento(s) borrador creados`
+        : "";
       setMensaje({
         tipo: advertencias.length ? "warning" : "success",
         texto: advertencias.length
-          ? `${textoBase}${textoAspectos} · ⚠️ ${advertencias[0]}`
-          : `${textoBase}${textoAspectos}`,
+          ? `${textoBase}${textoAspectos}${textoInstrumentos} · ⚠️ ${advertencias[0]}`
+          : `${textoBase}${textoAspectos}${textoInstrumentos}`,
       });
     } catch (error) {
       setMensaje({
