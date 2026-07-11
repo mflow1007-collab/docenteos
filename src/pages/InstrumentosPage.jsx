@@ -119,10 +119,12 @@ const ESTUDIANTES_FALLBACK = [
 const crearCriterio = (index = 0) => ({
   id: `crit-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
   criterio: ["Pronunciación", "Fluidez", "Vocabulario", "Comprensión", "Participación"][index % 5],
+  puntajeMaximo: [15, 17, 18][index % 3],
   nivel4: "Logro sobresaliente",
   nivel3: "Logro adecuado",
   nivel2: "Logro básico",
   nivel1: "En proceso",
+  puntajesNiveles: null,
 });
 
 const crearIndicador = (index = 0) => ({
@@ -157,6 +159,67 @@ const crearDraft = (tipo = "Rúbrica", curriculo = null) => ({
   competenciaIndex: 0,
   estructura: crearEstructuraPorTipo(tipo),
 });
+
+const NIVELES_RUBRICA_MINERD = [
+  { key: "nivel1", label: "Receptivo", factor: 0.55 },
+  { key: "nivel2", label: "Resolutivo", factor: 0.7 },
+  { key: "nivel3", label: "Autónomo", factor: 0.85 },
+  { key: "nivel4", label: "Estratégico", factor: 1 },
+];
+
+const puntajesPorNivel = (puntajeMaximo) => Object.fromEntries(
+  NIVELES_RUBRICA_MINERD.map((nivel) => [nivel.key, Number((puntajeMaximo * nivel.factor).toFixed(2))])
+);
+
+const crearRubricaModeloMINERD = (curriculo = null) => {
+  const criterios = [
+    {
+      criterio: "Dominio del contenido y uso del vocabulario en situaciones comunicativas",
+      puntajeMaximo: 15,
+      nivel1: "Reconoce vocabulario básico relacionado con el tema, pero presenta limitaciones para usarlo.",
+      nivel2: "Responde preguntas simples usando frases cortas y vocabulario practicado.",
+      nivel3: "Intercambia información sobre el tema con iniciativa, claridad y cierta fluidez.",
+      nivel4: "Crea y maneja situaciones de interacción más complejas, mostrando creatividad y uso adecuado del idioma o contenido.",
+    },
+    {
+      criterio: "Comprensión del tema, su utilidad e importancia en contextos reales",
+      puntajeMaximo: 17,
+      nivel1: "Identifica ideas básicas del tema, aunque con errores frecuentes y poca claridad.",
+      nivel2: "Explica aspectos sencillos del tema y los relaciona con ejemplos guiados.",
+      nivel3: "Relaciona el tema con experiencias, contextos o intercambios culturales de manera comprensible.",
+      nivel4: "Demuestra comprensión profunda del tema y lo aplica con pertinencia en situaciones reales o simuladas.",
+    },
+    {
+      criterio: "Representación, producto o desempeño en diversos contextos",
+      puntajeMaximo: 18,
+      nivel1: "Presenta una representación inicial del tema; el razonamiento o producto puede estar incompleto.",
+      nivel2: "Responde o produce evidencias relacionadas con el tema y su uso en contextos conocidos.",
+      nivel3: "Analiza situaciones donde el tema influye en la interacción, el producto o el desempeño esperado.",
+      nivel4: "Diseña o presenta situaciones complejas que integran el tema, el contexto y la intención comunicativa o pedagógica.",
+    },
+  ].map((criterio, index) => ({
+    ...crearCriterio(index),
+    ...criterio,
+    puntajesNiveles: puntajesPorNivel(criterio.puntajeMaximo),
+  }));
+
+  return {
+    ...crearDraft("Rúbrica", curriculo),
+    tipo: "Rúbrica",
+    nombre: `Rúbrica MINERD 50 pts — ${curriculo?.actividad || curriculo?.competencia || "Producto o desempeño"}`,
+    descripcion: "Modelo de rúbrica por niveles Receptivo, Resolutivo, Autónomo y Estratégico, con ponderación total de 50 puntos.",
+    valorMaximo: 50,
+    estado: "Borrador",
+    estructura: {
+      modelo: "rubrica_minerd_50",
+      niveles: NIVELES_RUBRICA_MINERD,
+      criterios,
+    },
+  };
+};
+
+const etiquetaNivel = (estructura, key, fallback) =>
+  estructura?.niveles?.find((nivel) => nivel.key === key)?.label || fallback;
 
 const guardarLocal = (clave, valor) => localStorage.setItem(clave, JSON.stringify(valor));
 
@@ -740,6 +803,21 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
     }
 
     if (TIPOS_CRITERIOS.includes(tipo)) {
+      const criterios = instrumento.estructura?.criterios || [];
+      const tienePonderacion = criterios.some((criterio) => Number(criterio.puntajeMaximo) > 0 || criterio.puntajesNiveles);
+      if (tienePonderacion) {
+        const maximo = criterios.reduce((sum, criterio) => sum + (Number(criterio.puntajeMaximo) || 0), 0);
+        const obtenido = criterios.reduce((sum, criterio) => {
+          const nivel = Number(evaluacion[criterio.id]);
+          if (!Number.isFinite(nivel)) return sum;
+          const key = `nivel${nivel}`;
+          const puntajeNivel = Number(criterio.puntajesNiveles?.[key]);
+          if (Number.isFinite(puntajeNivel)) return sum + puntajeNivel;
+          const puntajeMaximo = Number(criterio.puntajeMaximo) || 0;
+          return sum + (puntajeMaximo * (nivel / 4));
+        }, 0);
+        return maximo ? Math.round((obtenido / maximo) * 100) : 0;
+      }
       const valores = Object.values(evaluacion).map(Number).filter((valor) => Number.isFinite(valor));
       return valores.length ? Math.round((valores.reduce((a, b) => a + b, 0) / valores.length) * 25) : 0;
     }
@@ -869,6 +947,12 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
     abrirNuevo(tipo);
   };
 
+  const abrirModeloRubricaMINERD = () => {
+    setDraft(crearRubricaModeloMINERD(curriculoActivo));
+    setCurriculoId(curriculoActivo?.id || curriculosDisponibles[0]?.id || "");
+    setModal("crear");
+  };
+
   const estudiantesAplicacion = instrumentoAplicar
     ? obtenerEstudiantesPorInstrumento(instrumentoAplicar)
     : ESTUDIANTES_FALLBACK.map((nombre, index) => ({ id: `fb-${index + 1}`, nombre }));
@@ -899,7 +983,15 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
         ...prev,
         estructura: {
           ...prev.estructura,
-          criterios: prev.estructura.criterios.map((item, filaIndex) => (filaIndex === index ? { ...item, [clave]: valor } : item)),
+          criterios: prev.estructura.criterios.map((item, filaIndex) => {
+            if (filaIndex !== index) return item;
+            const actualizado = { ...item, [clave]: valor };
+            if (clave === "puntajeMaximo") {
+              const puntaje = Number(valor) || 0;
+              actualizado.puntajesNiveles = puntajesPorNivel(puntaje);
+            }
+            return actualizado;
+          }),
         },
       };
     });
@@ -1200,7 +1292,14 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
           <article key={tipo} className={`template-card ${claseTipoInstrumento(tipo)}`}>
             <div className="template-top">
               <span>{tipo}</span>
-              <button onClick={() => abrirNuevoConTipo(tipo)}>Usar plantilla</button>
+              <div className="template-actions">
+                <button onClick={() => abrirNuevoConTipo(tipo)}>Usar plantilla</button>
+                {tipo === "Rúbrica" && (
+                  <button className="template-secondary-btn" onClick={abrirModeloRubricaMINERD}>
+                    Modelo 50 pts
+                  </button>
+                )}
+              </div>
             </div>
             <p>
               {tipo === "Rúbrica" && "Tabla editable de criterios y niveles para evaluar desempeño."}
@@ -1324,10 +1423,11 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
                     <thead>
                       <tr>
                         <th>Criterio</th>
-                        <th>Nivel 4</th>
-                        <th>Nivel 3</th>
-                        <th>Nivel 2</th>
-                        <th>Nivel 1</th>
+                        <th>Puntos</th>
+                        <th>{etiquetaNivel(draft.estructura, "nivel4", "Nivel 4")}</th>
+                        <th>{etiquetaNivel(draft.estructura, "nivel3", "Nivel 3")}</th>
+                        <th>{etiquetaNivel(draft.estructura, "nivel2", "Nivel 2")}</th>
+                        <th>{etiquetaNivel(draft.estructura, "nivel1", "Nivel 1")}</th>
                         <th></th>
                       </tr>
                     </thead>
@@ -1335,6 +1435,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
                       {filasConstructor.map((fila, index) => (
                         <tr key={fila.id}>
                           <td><input value={fila.criterio} onChange={(e) => modificarFila(index, "criterio", e.target.value)} /></td>
+                          <td><input type="number" min="0" value={fila.puntajeMaximo || ""} onChange={(e) => modificarFila(index, "puntajeMaximo", e.target.value)} /></td>
                           <td><input value={fila.nivel4} onChange={(e) => modificarFila(index, "nivel4", e.target.value)} /></td>
                           <td><input value={fila.nivel3} onChange={(e) => modificarFila(index, "nivel3", e.target.value)} /></td>
                           <td><input value={fila.nivel2} onChange={(e) => modificarFila(index, "nivel2", e.target.value)} /></td>
@@ -1492,11 +1593,15 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
                       <article key={criterio.id} className="rubrica-row">
                         <div>
                           <strong>{criterio.criterio}</strong>
+                          {Number(criterio.puntajeMaximo) > 0 && (
+                            <small>{criterio.puntajeMaximo} pts</small>
+                          )}
                         </div>
                         <div className="niveles">
                           {[4, 3, 2, 1].map((nivel) => (
                             <button key={nivel} className={Number(evaluacionAplicar[criterio.id]) === nivel ? "nivel active" : "nivel"} onClick={() => setEvaluacionAplicar((prev) => ({ ...prev, [criterio.id]: nivel }))}>
-                              Nivel {nivel}
+                              {etiquetaNivel(instrumentoAplicar.estructura, `nivel${nivel}`, `Nivel ${nivel}`)}
+                              {criterio.puntajesNiveles?.[`nivel${nivel}`] ? ` · ${criterio.puntajesNiveles[`nivel${nivel}`]} pts` : ""}
                             </button>
                           ))}
                         </div>

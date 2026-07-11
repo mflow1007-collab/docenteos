@@ -706,6 +706,19 @@
   align-items: center;
 }
 
+.template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.template-secondary-btn {
+  background: #fff;
+  color: #1e3a8a;
+  border-color: #bfdbfe;
+}
+
 .template-top span {
   font-weight: 800;
   color: var(--pill-fg);
@@ -1051,6 +1064,14 @@
   background: white;
   border: 1px solid #dbeafe;
   border-radius: 16px;
+}
+
+.rubrica-row small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .aplicar-item > div,
