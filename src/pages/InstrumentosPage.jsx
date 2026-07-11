@@ -10,15 +10,12 @@ import {
   enviarNotaAlRegistro,
 } from "../firebase";
 import { sincronizarEvaluacionPedagogica } from "../services/nucleoPedagogicoService.js";
+import { evaluarYRegistrar } from "../services/modoAulaService.js";
 import { AIService } from "../services/ai/AIService";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import "./InstrumentosPage.css";
-
-const SYSTEM_INSTRUMENTOS = `Eres un experto en evaluación educativa del sistema dominicano (MINERD).
-Diseñas instrumentos de evaluación precisos, alineados al enfoque por competencias del Diseño Curricular Dominicano.
-Cuando el usuario pide un instrumento, respondes ÚNICAMENTE con un objeto JSON válido, sin texto adicional, sin markdown, sin explicaciones.`;
 
 const TIPOS_IA_PRIORITARIOS = [
   "Rúbrica",
@@ -29,30 +26,6 @@ const TIPOS_IA_PRIORITARIOS = [
   "Autoevaluación",
   "Coevaluación",
 ];
-
-const buildInstrumentPrompt = (tema, curriculo, tipo = "Rúbrica") => {
-  const ctx = curriculo
-    ? `Área: ${curriculo.area || "—"} | Grado: ${curriculo.grado || "—"}\nCompetencia: ${curriculo.competencia || "—"}\nIndicador: ${curriculo.indicador || "—"}`
-    : "";
-
-  const prompts = {
-    "Rúbrica": `Genera una rúbrica de evaluación para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","criterios":[{"criterio":"Nombre criterio","nivel4":"Logro sobresaliente","nivel3":"Logro adecuado","nivel2":"Logro básico","nivel1":"En proceso"}]}\nIncluye 4 a 6 criterios específicos y observables.`,
-
-    "Lista de cotejo": `Genera una lista de cotejo para evaluar: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","indicadores":[{"indicador":"Descripción observable del indicador"}]}\nIncluye 6 a 8 indicadores observables y verificables.`,
-
-    "Escala de estimación": `Genera una escala de estimación para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","indicadores":[{"indicador":"Descripción del criterio","excelente":"Siempre y con precisión","bueno":"Casi siempre","regular":"Ocasionalmente","necesitaApoyo":"Requiere guía"}]}\nIncluye 5 a 7 indicadores.`,
-
-    "Registro anecdótico": `Genera una guía de registro anecdótico para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito del registro","criterios":[{"criterio":"Aspecto a observar","nivel4":"Descripción detallada","nivel3":"Descripción adecuada","nivel2":"Descripción básica","nivel1":"Descripción inicial"}]}\nIncluye 4 aspectos cualitativos clave para observar y registrar.`,
-
-    "Prueba escrita": `Genera una prueba escrita para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre de la prueba","descripcion":"Instrucciones generales","criterios":[{"criterio":"Ítem o pregunta","nivel4":"Respuesta completa (4 pts)","nivel3":"Respuesta adecuada (3 pts)","nivel2":"Respuesta parcial (2 pts)","nivel1":"Respuesta incompleta (1 pt)"}]}\nIncluye 5 a 8 ítems o preguntas.`,
-
-    "Autoevaluación": `Genera un instrumento de autoevaluación para que el estudiante evalúe su propio proceso en: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","indicadores":[{"indicador":"Reflexión sobre mi proceso o desempeño"}]}\nIncluye 6 a 8 preguntas reflexivas en primera persona (¿Logré...? ¿Pude...? ¿Participé...?).`,
-
-    "Coevaluación": `Genera un instrumento de coevaluación entre pares para: "${tema}"\n${ctx}\n\nResponde ÚNICAMENTE con este JSON:\n{"nombre":"Nombre descriptivo","descripcion":"Propósito breve","criterios":[{"criterio":"Aspecto a evaluar del compañero","nivel4":"Excelente","nivel3":"Muy bien","nivel2":"Bien","nivel1":"Necesita mejorar"}]}\nIncluye 4 a 6 criterios observables para evaluar al compañero.`,
-  };
-
-  return prompts[tipo] || prompts["Rúbrica"];
-};
 
 const parseInstrumentJSON = (text, prompt, curriculo, crearDraftFn, crearCriterioFn, tipo = "Rúbrica") => {
   try {
@@ -203,9 +176,11 @@ const cargarInstrumentosLocales = () => {
 };
 
 const normalizarPlanificacion = (item, index) => {
-  const meta = item?.metadatos || {};
-  const data = item?.datosGenerales || {};
-  const semanas = item?.semanas || item?.fasesSemanales || data?.semanas || [];
+  const contenido = item?.contenido || item || {};
+  const meta = contenido?.metadatos || item?.metadatos || {};
+  const data = contenido?.datosGenerales || item?.datosGenerales || {};
+  const capa = item?.capaCurricular || contenido?.capaCurricular || {};
+  const semanas = contenido?.semanas || contenido?.fasesSemanales || data?.semanas || [];
   const primeraFase = semanas[0] || {};
   const primeraActividad = primeraFase.actividades?.[0] || primeraFase.dias?.[0]?.momentos?.[0]?.actividades?.[0] || "";
   const productoEsperado = meta.productoEsperado
@@ -225,28 +200,36 @@ const normalizarPlanificacion = (item, index) => {
     ? meta.indicadoresOficiales
     : Array.isArray(data.indicadoresOficiales)
       ? data.indicadoresOficiales
-      : [];
+      : Array.isArray(capa.indicadoresSeleccionados)
+        ? capa.indicadoresSeleccionados.map((ind) => ind.descripcion || ind.indicador || ind.id).filter(Boolean)
+        : [];
+  const competenciaCapa = Array.isArray(capa.competenciasSeleccionadas) && capa.competenciasSeleccionadas.length
+    ? capa.competenciasSeleccionadas[0]?.descripcion || capa.competenciasSeleccionadas[0]?.nombre
+    : "";
 
   return {
     id: item?.id || `plan-${index}`,
-    curso: meta.curso || [meta.grado, meta.seccion].filter(Boolean).join(" ") || item?.curso || "Curso",
-    area: meta.area || data.area || item?.area || "Área",
-    asignatura: data.area || meta.area || item?.area || "Asignatura",
-    grado: meta.grado || item?.grado || "Grado",
-    periodo: meta.periodo || item?.periodo || "Periodo 1",
-    competencia: meta.competenciaSeleccionada || data.competencia || item?.competencia || "Competencia específica",
+    curso: meta.curso || [meta.grado || capa.grado, meta.seccion || capa.seccion].filter(Boolean).join(" ") || item?.curso || "Curso",
+    area: meta.area || data.area || capa.area || item?.area || "Área",
+    asignatura: meta.asignatura || data.asignatura || capa.asignatura || data.area || meta.area || item?.area || "Asignatura",
+    grado: meta.grado || capa.grado || item?.grado || "Grado",
+    periodo: meta.periodo || capa.periodo || item?.periodo || "Periodo 1",
+    competencia: meta.competenciaSeleccionada || data.competencia || competenciaCapa || item?.competencia || "Competencia específica",
     indicador: indicadores[0] || item?.indicador || "Indicador de logro",
     indicadores,
+    indicadorIds: Array.isArray(capa.indicadoresSeleccionados) ? capa.indicadoresSeleccionados.map((ind) => ind.id).filter(Boolean) : [],
+    aspectoRegistroIds: Array.isArray(capa.indicadoresSeleccionados) ? capa.indicadoresSeleccionados.map((ind) => [item?.id || `plan-${index}`, ind.id].filter(Boolean).join("_")).filter(Boolean) : [],
+    capaCurricular: capa,
     planificacionId: item?.id || `plan-${index}`,
-    cursoId: item?.cursoId || meta.cursoId || data.cursoId || "",
-    seccion: meta.seccion || data.seccion || item?.seccion || "",
+    cursoId: item?.cursoId || meta.cursoId || data.cursoId || capa.cursoId || "",
+    seccion: meta.seccion || data.seccion || capa.seccion || item?.seccion || "",
     estrategia: meta.estrategiaTexto || data.estrategiaTexto || data.estrategia || primeraFase.estrategia || "Estrategia no especificada",
     actividad: typeof primeraActividad === "string"
       ? primeraActividad
       : primeraActividad?.titulo || primeraActividad?.nombre || primeraActividad?.descripcion || "Actividad no especificada",
     productoEsperado,
     evidenciasEsperadas,
-    titulo: `${meta.grado || item?.curso || "Curso"} · ${meta.area || data.area || item?.area || "Área"}`,
+    titulo: `${meta.grado || capa.grado || item?.curso || "Curso"} · ${meta.area || data.area || capa.area || item?.area || "Área"}`,
   };
 };
 
@@ -317,6 +300,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
   const [instrumentoAplicar, setInstrumentoAplicar] = useState(null);
   const [estudianteAplicar, setEstudianteAplicar] = useState("fb-1");
   const [evaluacionAplicar, setEvaluacionAplicar] = useState({});
+  const [guardandoAplicacion, setGuardandoAplicacion] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiTipo, setAiTipo] = useState("Rúbrica");
   const [aiDraft, setAiDraft] = useState(null);
@@ -336,7 +320,14 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
     obtenerCompetencias(nivel, grado, area).then((comps) => {
       setCompetenciasCurso(comps?.length ? comps : []);
     });
-  }, [cursoActivo?.id]);
+  }, [
+    cursoActivo?.id,
+    cursoActivo?.nivel,
+    cursoActivo?.grado,
+    cursoActivo?.nombre,
+    cursoActivo?.area,
+    cursoActivo?.asignatura,
+  ]);
   const bancoRef = useRef(null);
 
   useEffect(() => {
@@ -425,11 +416,18 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
       referencia.curriculoId,
       referencia.id,
       referencia.curso,
+      referencia.nombre,
+      referencia.grado,
     ].filter(Boolean).map(String);
 
     return cursos.find((curso) => {
-      const nombres = [curso.id, curso.nombre, curso.name].filter(Boolean).map(String);
-      return referencias.some((ref) => nombres.includes(ref));
+      const nombres = [curso.id, curso.nombre, curso.name, curso.grado].filter(Boolean).map(String);
+      const matchExacto = referencias.some((ref) => nombres.includes(ref));
+      if (matchExacto) return true;
+      const mismoGrado = referencia.grado && curso.grado && String(referencia.grado).toLowerCase() === String(curso.grado).toLowerCase();
+      const mismaSeccion = !referencia.seccion || !curso.seccion || String(referencia.seccion).toLowerCase() === String(curso.seccion).toLowerCase();
+      const mismaArea = !referencia.area || !curso.area || String(referencia.area).toLowerCase() === String(curso.area).toLowerCase();
+      return mismoGrado && mismaSeccion && mismaArea;
     }) || null;
   };
 
@@ -443,8 +441,9 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
         nombre: nombreEstudiante(estudiante),
       }))
       .filter((estudiante) => estudiante.nombre);
-    return estudiantesNormalizados.length > 0
-      ? estudiantesNormalizados
+    if (cursoRelacionado) return estudiantesNormalizados;
+    return cursos.length > 0
+      ? []
       : ESTUDIANTES_FALLBACK.map((nombre, index) => ({ id: `fb-${index + 1}`, nombre }));
   };
 
@@ -626,6 +625,9 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
       competencia: curriculoActivo?.competencia || "Competencia específica",
       indicador: curriculoActivo?.indicador || "Indicador de logro",
       indicadores: curriculoActivo?.indicadores?.length ? curriculoActivo.indicadores : [curriculoActivo?.indicador || "Indicador de logro"],
+      indicadorIds: curriculoActivo?.indicadorIds || [],
+      aspectoRegistroIds: curriculoActivo?.aspectoRegistroIds || [],
+      claseId: draft.claseId || curriculoActivo?.claseId || "",
       estrategia: curriculoActivo?.estrategia || "Estrategia no especificada",
       actividad: curriculoActivo?.actividad || "Actividad no especificada",
       productoEsperado: curriculoActivo?.productoEsperado || "",
@@ -647,6 +649,8 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
         competenciaEspecifica: curriculoActivo?.competencia || "",
         indicadorLogro: curriculoActivo?.indicador || "",
         indicadoresLogro: curriculoActivo?.indicadores?.length ? curriculoActivo.indicadores : [curriculoActivo?.indicador || ""].filter(Boolean),
+        indicadorIds: curriculoActivo?.indicadorIds || [],
+        aspectoRegistroIds: curriculoActivo?.aspectoRegistroIds || [],
         estrategia: curriculoActivo?.estrategia || "",
         actividad: curriculoActivo?.actividad || "",
         productoEsperado: curriculoActivo?.productoEsperado || "",
@@ -744,12 +748,16 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
     return Number.isFinite(calificacion) ? calificacion : 0;
   };
 
-  const guardarAplicacion = () => {
-    if (!instrumentoAplicar) return;
+  const guardarAplicacion = async () => {
+    if (!instrumentoAplicar || guardandoAplicacion) return;
 
     const estudianteSeleccionado = estudiantesAplicacion.find((estudiante) => estudiante.id === estudianteAplicar)
-      || estudiantesAplicacion[0]
-      || { id: estudianteAplicar, nombre: "Estudiante" };
+      || estudiantesAplicacion[0];
+    if (!estudianteSeleccionado?.id) {
+      setMensaje({ tipo: "error", texto: "Este curso no tiene estudiantes reales cargados para aplicar el instrumento." });
+      setTimeout(() => setMensaje(null), 3000);
+      return;
+    }
     const porcentaje = calcularResultado(instrumentoAplicar, evaluacionAplicar);
     const valorMaximo = Number(instrumentoAplicar.valorMaximo) || VALOR_INSTRUMENTO[instrumentoAplicar.tipo] || 100;
     const calificacion = Math.round((porcentaje / 100) * valorMaximo);
@@ -790,28 +798,60 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
       },
     };
 
+    setGuardandoAplicacion(true);
     setInstrumentos((prev) => {
       return prev.map((item) => (item.id === instrumentoAplicar.id ? instrumentoActualizado : item));
     });
-    guardarInstrumentoFirestore(instrumentoActualizado).catch((err) => console.error("[Instrumentos] Error al guardar aplicación:", err));
-    enviarNotaAlRegistro({
-      cursoId:     instrumentoActualizado.cursoId || instrumentoActualizado.vinculacion?.cursoId || "",
-      area:        instrumentoActualizado.area    || instrumentoActualizado.vinculacion?.area    || "",
-      estId:       registro.estudianteId,
-      estNombre:   registro.estudiante,
-      competencia: instrumentoActualizado.competencia || instrumentoActualizado.vinculacion?.competenciaEspecifica || "",
-      periodoStr:  instrumentoActualizado.periodo,
-      nota:        registro.calificacionObtenida,
-    }).catch((err) => console.warn("[Bridge2] Error al enviar nota al registro:", err));
-    sincronizarEvaluacionPedagogica({
-      instrumento: instrumentoActualizado,
-      aplicacion: registro,
-      cursoId: instrumentoActualizado.cursoId || obtenerCursoRelacionado(instrumentoActualizado)?.id,
-    }).catch((err) => console.error("[Instrumentos] Error al sincronizar núcleo pedagógico:", err));
-
-    setModal(null);
-    setMensaje({ tipo: "success", texto: "Evaluación guardada, evidencia creada y Registro actualizado." });
-    setTimeout(() => setMensaje(null), 2500);
+    try {
+      await guardarInstrumentoFirestore(instrumentoActualizado);
+      const instrumentoHilo = {
+        ...instrumentoActualizado,
+        indicadorIds: instrumentoActualizado.indicadorIds || instrumentoActualizado.vinculacion?.indicadorIds || [],
+        aspectoRegistroIds: instrumentoActualizado.aspectoRegistroIds || instrumentoActualizado.vinculacion?.aspectoRegistroIds || [],
+        valorMaximo,
+      };
+      const resultadoHilo = await evaluarYRegistrar({
+        instrumento: instrumentoHilo,
+        claseTitulo: instrumentoActualizado.actividad || instrumentoActualizado.nombre,
+        aplicaciones: [{
+          estudianteId: registro.estudianteId,
+          estudianteNombre: registro.estudiante,
+          puntajeObtenido: calificacion,
+          estado: "evaluado",
+          observacionDocente: registro.observacion,
+        }],
+      }).catch(async (error) => {
+        console.warn("[Instrumentos] Hilo pedagógico no disponible, usando puente legacy:", error);
+        await enviarNotaAlRegistro({
+          cursoId:     instrumentoActualizado.cursoId || instrumentoActualizado.vinculacion?.cursoId || "",
+          area:        instrumentoActualizado.area    || instrumentoActualizado.vinculacion?.area    || "",
+          estId:       registro.estudianteId,
+          estNombre:   registro.estudiante,
+          competencia: instrumentoActualizado.competencia || instrumentoActualizado.vinculacion?.competenciaEspecifica || "",
+          periodoStr:  instrumentoActualizado.periodo,
+          nota:        registro.calificacionObtenida,
+        });
+        await sincronizarEvaluacionPedagogica({
+          instrumento: instrumentoActualizado,
+          aplicacion: registro,
+          cursoId: instrumentoActualizado.cursoId || obtenerCursoRelacionado(instrumentoActualizado)?.id,
+        });
+        return { exitosos: [{ modo: "legacy" }], errores: [] };
+      });
+      if (resultadoHilo?.errores?.length) {
+        setMensaje({ tipo: "error", texto: resultadoHilo.errores[0].mensaje });
+      } else {
+        setMensaje({ tipo: "success", texto: "Evaluación guardada, evidencia creada y Registro actualizado." });
+      }
+      setModal(null);
+      setTimeout(() => setMensaje(null), 2500);
+    } catch (error) {
+      console.error("[Instrumentos] Error al guardar aplicación:", error);
+      setMensaje({ tipo: "error", texto: `No se pudo guardar la evaluación: ${error.message || "revisa la conexión."}` });
+      setTimeout(() => setMensaje(null), 3500);
+    } finally {
+      setGuardandoAplicacion(false);
+    }
   };
 
   const filasConstructor = useMemo(() => {
@@ -1393,11 +1433,17 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
             <div className="aplicar-grid">
               <aside className="estudiantes-panel">
                 <h3>Estudiantes</h3>
-                {estudiantesAplicacion.map((estudiante) => (
-                  <button key={estudiante.id} className={estudianteAplicar === estudiante.id ? "estudiante-item active" : "estudiante-item"} onClick={() => setEstudianteAplicar(estudiante.id)}>
-                    {estudiante.nombre}
-                  </button>
-                ))}
+                {estudiantesAplicacion.length === 0 ? (
+                  <p className="sin-estudiantes-instrumento">
+                    Este curso no tiene estudiantes cargados. Agrega la matrícula del curso antes de aplicar el instrumento.
+                  </p>
+                ) : (
+                  estudiantesAplicacion.map((estudiante) => (
+                    <button key={estudiante.id} className={estudianteAplicar === estudiante.id ? "estudiante-item active" : "estudiante-item"} onClick={() => setEstudianteAplicar(estudiante.id)}>
+                      {estudiante.nombre}
+                    </button>
+                  ))
+                )}
               </aside>
 
               <section className="evaluacion-panel">
@@ -1474,7 +1520,9 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
 
                 <div className="evaluacion-actions">
                   <button className="ghost-btn" onClick={() => setModal(null)}>Cancelar</button>
-                  <button className="primary-btn" onClick={guardarAplicacion}>Guardar resultado</button>
+                  <button className="primary-btn" onClick={guardarAplicacion} disabled={guardandoAplicacion || estudiantesAplicacion.length === 0}>
+                    {guardandoAplicacion ? "Guardando..." : "Guardar resultado"}
+                  </button>
                 </div>
               </section>
             </div>
