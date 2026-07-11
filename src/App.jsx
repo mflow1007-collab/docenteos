@@ -37,6 +37,7 @@ const ReportesPage            = lazy(() => import("./pages/ReportesPage"));
 const ConfiguracionPage       = lazy(() => import("./pages/ConfiguracionPage"));
 const EstudiantesPage         = lazy(() => import("./pages/EstudiantesPage"));
 const ModoAulaPage            = lazy(() => import("./pages/ModoAulaPage"));
+const BancoEvidenciasPage     = lazy(() => import("./pages/BancoEvidenciasPage"));
 const EstudianteDetallePage   = lazy(() => import("./pages/EstudianteDetallePage"));
 
 export default function App() {
@@ -299,7 +300,7 @@ function AppInner() {
 
   const [seccionIA,        setSeccionIA]        = useState("bienvenida");
   const [grupoExpandido,   setGrupoExpandido]   = useState(() => {
-    if (["cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(pagina)) return "docencia";
+    if (["modo-aula","banco-evidencias","cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(pagina)) return "docencia";
     if (["estudiantes","detalle-estudiante"].includes(pagina)) return "estudiantes";
     if (pagina === "ia" || pagina === "curriculo") return "inteligencia";
     if (["suscripcion","configuracion","asistente-personal"].includes(pagina)) return "configuracion";
@@ -312,7 +313,7 @@ function AppInner() {
   // Determina qué grupo sidebar debe estar abierto según la página activa
   const grupoDePageID = (id) => {
     if (id === "inicio")                                        return "inicio";
-    if (["modo-aula","cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(id)) return "docencia";
+    if (["modo-aula","banco-evidencias","cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(id)) return "docencia";
     if (["estudiantes","detalle-estudiante"].includes(id))      return "estudiantes";
     if (id === "ia" || id === "curriculo")                      return "inteligencia";
     if (id === "suscripcion" || id === "configuracion")         return "configuracion";
@@ -340,7 +341,7 @@ function AppInner() {
   }, [cursos, cursosLoaded, sincronizarCursosConRegistros]);
 
   const irA = (id) => {
-    if (["inicio", "cursos", "estudiantes"].includes(id)) {
+    if (["inicio", "cursos", "estudiantes", "banco-evidencias"].includes(id)) {
       refrescarCursosDesdeRegistros();
     }
     navegar(id);
@@ -410,6 +411,7 @@ function AppInner() {
             activo={grupoDePageID(pagina) === "docencia"}
           >
             <SidebarItem id="modo-aula"              label="🏫 Modo Aula"          pagina={pagina} onClick={() => irA("modo-aula")} />
+            <SidebarItem id="banco-evidencias"       label="📸 Banco de Evidencias" pagina={pagina} onClick={() => irA("banco-evidencias")} />
             {cargoTieneModulo(rol, "cursos")       && <SidebarItem id="cursos"        label="📘 Cursos"            pagina={pagina} onClick={() => irA("cursos")} />}
             <SidebarItem id="planificacion"          label="📝 Planificación"     pagina={pagina} onClick={() => irA("planificacion")} />
             {cargoTieneModulo(rol, "instrumentos") && <SidebarItem id="instrumentos"  label="📋 Instrumentos"      pagina={pagina} onClick={() => irA("instrumentos")} />}
@@ -599,6 +601,14 @@ function AppInner() {
                 abrirPlanificacionDesdeHistorial(plan);
                 navegar("planificacion");
               }}
+            />
+          )}
+          {pagina === "banco-evidencias" && (
+            <BancoEvidenciasPage
+              cursos={cursos}
+              cursoActivo={cursoRegistro}
+              onIrA={(destino) => navegar(destino)}
+              onAbrirPerfil={abrirDetalleEstudiante}
             />
           )}
           {pagina === "planificacion" && (
