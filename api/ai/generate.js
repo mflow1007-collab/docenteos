@@ -143,7 +143,7 @@ async function verifyFirebaseToken(token) {
 // La restricción "solo admin" del convertidor PDF→JSON era solo de UI:
 // cualquier usuario autenticado podía invocar el módulo con 12K tokens.
 const ADMIN_ONLY_MODULES = new Set(["planificacion.curriculo_pdf_json"]);
-const MAX_TOKENS_CAP = 16000;
+const MAX_TOKENS_CAP = 24000; // techo del edge; el reintento de Fase A pide hasta 20000 tras truncamiento con modelos verbosos
 
 // Cuenta administradora principal: acceso completo por email EXACTO, sin
 // exigir verificación (la cuenta ya existe en Firebase Auth — nadie más puede
@@ -199,13 +199,17 @@ function getProviderTimeoutMs(provider, mod) {
   // grande): se le da más margen que a una generación normal, porque un
   // corte a mitad pierde los indicadores del fragmento entero.
   const esExtraccionPdf = typeof mod === "string" && mod.includes("curriculo_pdf_json");
+  // Timeouts de generación subidos: el contrato de Fase A es largo y los modelos
+  // verbosos (deepseek, etc.) se truncaban al agotar el tiempo antes que los
+  // tokens. Un lote completo de 2 clases con evidencias/metacognición/recursos
+  // puede tardar >18s en modelos lentos.
   switch (provider) {
-    case "abacus":    return esExtraccionPdf ? 30_000 : 12_000;
-    case "nvidia":    return esExtraccionPdf ? 35_000 : 18_000;
-    case "gemini":    return esExtraccionPdf ? 40_000 : 20_000;
-    case "openai":    return esExtraccionPdf ? 45_000 : 25_000;
-    case "anthropic": return esExtraccionPdf ? 45_000 : 25_000;
-    default:          return esExtraccionPdf ? 35_000 : 18_000;
+    case "abacus":    return esExtraccionPdf ? 30_000 : 20_000;
+    case "nvidia":    return esExtraccionPdf ? 35_000 : 26_000;
+    case "gemini":    return esExtraccionPdf ? 40_000 : 26_000;
+    case "openai":    return esExtraccionPdf ? 45_000 : 28_000;
+    case "anthropic": return esExtraccionPdf ? 45_000 : 28_000;
+    default:          return esExtraccionPdf ? 35_000 : 26_000;
   }
 }
 

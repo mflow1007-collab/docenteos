@@ -19,8 +19,8 @@ import { logUsage }                             from './ai/usage.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
-const MAX_TOKENS   = 9000;   // por lote (contrato incluye evidencias/metacognición/recursos); escala a 12000 si hay truncamiento
-const RETRY_TOKENS = 16000;
+const MAX_TOKENS   = 12000;  // por lote (contrato incluye evidencias/metacognición/recursos por momento × clases; modelos verbosos se truncaban a 9000)
+const RETRY_TOKENS = 20000;  // reintento tras truncamiento — techo generoso para modelos verbosos (deepseek, etc.)
 
 // Para JSON curricular estricto conviene priorizar proveedores con salida
 // estructurada estable. NVIDIA queda disponible, pero no como primera opción
@@ -779,7 +779,13 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // una vez fijado en la spec, todos los lotes siguientes lo reciben.
   const pedirNombreProducto = semanaNum === 1 && startDia === 1 && !spec.productoFinalNombre;
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  // Hasta 3 intentos, pero el 3º SOLO se concede si el fallo previo fue
+  // truncamiento (falta de tokens, no de calidad): es puramente cuestión de
+  // subir el techo, así que darle una vuelta más con RETRY_TOKENS no dilata la
+  // generación por errores de contenido. Un error de calidad agota en 2.
+  let truncadoPrevio = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    if (attempt === 3 && !truncadoPrevio) break;
     try {
       const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, pedirNombreProducto);
       const t0 = Date.now();
@@ -807,8 +813,8 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${result.motivo}`,
           { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
         lastError = new Error(result.motivo);
-        if (result.motivo.includes('TRUNCADO')) maxTokens = RETRY_TOKENS;
-        else prefix = JSON_REMINDER;
+        if (result.motivo.includes('TRUNCADO')) { maxTokens = RETRY_TOKENS; truncadoPrevio = true; }
+        else { prefix = JSON_REMINDER; truncadoPrevio = false; }
         continue;
       }
 
@@ -839,7 +845,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // FUTURO: cuando exista el Banco de Secuencias, el respaldo legítimo es
   // servir una secuencia cosechada y validada — nunca plantillas.
   throw new Error(
-    `${contextoLog} falló tras 2 intentos [${lastProvider}/${lastModel}]. ` +
+    `${contextoLog} falló tras ${truncadoPrevio ? 3 : 2} intentos [${lastProvider}/${lastModel}]. ` +
     `Motivo: ${lastError?.message}. ` +
     `Raw inicio: "${lastRaw.slice(0, 200)}" … fin: "${lastRaw.slice(-200)}"`,
   );
