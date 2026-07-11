@@ -1405,39 +1405,64 @@ ${fragmento}`;
   throw ultimoError || new Error('extracción de fragmento falló');
 };
 
-// ─── Rescate por SECCIÓN (una a la vez) ──────────────────────────────────────
-// Cuando la extracción por fragmentos deja una sección crítica incompleta
-// (típicamente los Indicadores, cuya tabla es grande y agota el tiempo), se
-// pide ESA sección SOLA sobre el texto completo de la malla. La respuesta es
-// mucho más corta (solo una sección) → cabe holgada en el timeout y no se
-// corta. Más lento (una llamada por sección faltante) pero confiable.
+// ─── Extracción POR SECCIÓN (una sección por llamada) ────────────────────────
+// Método principal de extracción de mallas: en vez de partir el PDF por
+// caracteres a ciegas (donde una tabla grande agota el tiempo y se corta), se
+// pide UNA sección semántica por llamada — competencias, luego indicadores,
+// luego contenidos, etc. Cada respuesta es corta → nunca se corta. Más lento
+// (varias llamadas) pero completo y confiable. Orden pensado para que lo más
+// crítico (competencias/indicadores) salga primero.
 
-const SECCIONES_RESCATE = {
-  indicadores: {
-    etiqueta: 'Indicadores de Logro',
-    // Devuelve competencias con sus indicadores ANIDADOS (así queda la
-    // alineación competencia→indicador tal como el diseño la muestra).
-    instruccion: 'Extrae SOLO las Competencias con sus Indicadores de Logro ANIDADOS. Cada indicador va dentro de la competencia a la que pertenece según la tabla (columna izquierda = competencia, columna derecha = sus indicadores). Copia el texto oficial literal.',
+const SECCIONES_MALLA = {
+  competenciasIndicadores: {
+    etiqueta: 'Competencias e Indicadores de Logro',
+    // Indicadores ANIDADOS en su competencia (preserva la alineación
+    // competencia→indicador tal como el diseño la muestra en dos columnas).
+    instruccion: 'Extrae las Competencias (Fundamentales y Específicas del grado/ciclo) CON sus Indicadores de Logro ANIDADOS. Cada indicador va DENTRO de la competencia a la que pertenece según la tabla (columna izquierda = competencia, columna derecha = sus indicadores). No pierdas ningún indicador ni ninguna competencia. Copia el texto oficial literal.',
     esquema: '{"competencias":[{"id":"","competenciaFundamental":"","descripcion":"","indicadoresLogro":[{"id":"","descripcion":""}]}]}',
-    tieneDatos: (r) => (r?.competencias || []).some((c) => (c.indicadoresLogro || c.indicadores || []).length),
-  },
-  competencias: {
-    etiqueta: 'Competencias',
-    instruccion: 'Extrae SOLO las Competencias (Fundamentales y Específicas del grado). Copia el nombre y el texto oficial de cada una.',
-    esquema: '{"competencias":[{"id":"","competenciaFundamental":"","descripcion":""}]}',
     tieneDatos: (r) => (r?.competencias || []).length,
+    critica: true,
   },
   contenidos: {
-    etiqueta: 'Contenidos (Conceptos/Procedimientos/Actitudes) por tema',
-    instruccion: 'Extrae SOLO la tabla de CONTENIDOS, organizada POR TEMA. Crea un bloque contenidosPorTema por cada tema con sus conceptos (vocabulario, gramática, frases), procedimientos (funcionales, discursivos, producción) y actitudes. El clima va en su propio tema, no en vivienda; los procedimentales deben quedar completos.',
-    esquema: '{"contenidosPorTema":[{"tema":"","conceptos":{"temas":[],"vocabulario":[],"gramatica":[],"frases":[]},"procedimientos":{"funcionales":[],"discursivos":[],"produccionEscrita":[]},"actitudesValores":[]}]}',
-    tieneDatos: (r) => (r?.contenidosPorTema || []).some((b) => b.tema),
+    etiqueta: 'Contenidos por tema (Conceptos / Procedimientos / Actitudes)',
+    instruccion: 'Extrae la tabla de CONTENIDOS organizada POR TEMA. Crea un bloque contenidosPorTema por CADA tema con sus conceptos (temas, vocabulario, gramática, frases), procedimientos (funcionales, discursivos, comprensión y producción) y actitudes. REGLAS DE SEPARACIÓN: el CLIMA (will/be going to, presente continuo atmosférico, sunny/windy, "dar/pedir información sobre condiciones atmosféricas") va en SU PROPIO tema, JAMÁS en vivienda/rutinas/partes de la casa. El pasado simple y el presente perfecto de experiencias van en el tema de experiencias. Si el PDF trae los procedimentales en una columna general (no por tema), repártelos a sus temas afines SIN perder ninguno: la unión de todos los bloques debe traer TODOS los procedimentales del PDF.',
+    esquema: '{"contenidosPorTema":[{"tema":"","conceptos":{"temas":[],"vocabulario":[],"gramatica":[],"frases":[],"sociolinguisticos":[]},"procedimientos":{"funcionales":[],"discursivos":[],"comprensionOralEscrita":[],"produccionOral":[],"produccionEscrita":[]},"actitudinales":[],"actitudesValores":[]}],"temas":[]}',
+    tieneDatos: (r) => (r?.contenidosPorTema || []).some((b) => b.tema) || (r?.temas || []).length,
+    critica: true,
+  },
+  ejesTransversales: {
+    etiqueta: 'Conexión con los Ejes Transversales',
+    instruccion: 'Extrae la matriz "Conexión con los Ejes Transversales: problemáticas sociales y comunitarias y su asociación con los contenidos del Área en el Ciclo y Grados". Para cada eje toma la descripción de la columna del grado seleccionado. No lo confundas con "Eje temático".',
+    esquema: '{"ejesTransversales":[{"eje":"","grado":"","descripcion":"","origen":"conexion_ejes_transversales"}]}',
+    tieneDatos: (r) => (r?.ejesTransversales || []).length,
+    critica: false,
+  },
+  aportesArea: {
+    etiqueta: 'Aportes del Área a las Competencias Fundamentales',
+    instruccion: 'Extrae la matriz "Aportes del Área de Lenguas Extranjeras / Inglés al desarrollo de las Competencias Fundamentales en el [Ciclo]". Para cada Competencia Fundamental toma la específica del ciclo, las específicas por grado y los criterios de evaluación.',
+    esquema: '{"aportesCompetenciasFundamentales":[{"competenciaFundamental":"","competenciaEspecificaCiclo":"","competenciasEspecificasPorGrado":{"1ro":"","2do":"","3ro":""},"criteriosEvaluacion":[]}]}',
+    tieneDatos: (r) => (r?.aportesCompetenciasFundamentales || []).length,
+    critica: false,
+  },
+  contextualizacion: {
+    etiqueta: 'Contextualización del Área',
+    instruccion: 'Extrae el texto narrativo de "Contextualización del Área de Lenguas Extranjeras (inglés y francés) en el Nivel Secundario" (suele estar VARIAS PÁGINAS ANTES de la malla). Es el enfoque/propósito del área. Cópialo literal, no lo resumas.',
+    esquema: '{"contextualizacionArea":""}',
+    tieneDatos: (r) => String(r?.contextualizacionArea || '').trim().length > 0,
+    critica: false,
   },
 };
 
+// Alias de compatibilidad para el rescate (mismas definiciones).
+const SECCIONES_RESCATE = {
+  indicadores: SECCIONES_MALLA.competenciasIndicadores,
+  competencias: SECCIONES_MALLA.competenciasIndicadores,
+  contenidos: SECCIONES_MALLA.contenidos,
+};
+
 const extraerSeccionCurricular = async ({ seccion, textoMalla, contexto }) => {
-  const cfg = SECCIONES_RESCATE[seccion];
-  if (!cfg) throw new Error(`sección de rescate desconocida: ${seccion}`);
+  const cfg = SECCIONES_MALLA[seccion] || SECCIONES_RESCATE[seccion];
+  if (!cfg) throw new Error(`sección desconocida: ${seccion}`);
   const ciclo = contexto.cycle || cicloDelGrado(contexto.grade);
   const prompt = `Extracción FOCALIZADA de una sola sección del PDF curricular MINERD.
 
@@ -1944,55 +1969,61 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
     if (!auditoriaPreExtraccion.literalExacto) {
       throw new Error('Auditoría previa fallida: la reconstrucción local de páginas no coincide con el texto seleccionado del PDF.');
     }
-    let fragmentos = partirEnFragmentos(texto);
-    let advertenciaTope = null;
-    if (fragmentos.length > MAX_FRAGMENTOS_PDF) {
-      advertenciaTope = `El PDF es muy extenso: se procesaron ${MAX_FRAGMENTOS_PDF} de ${fragmentos.length} fragmentos. Considera subir un PDF solo de la asignatura.`;
-      fragmentos = fragmentos.slice(0, MAX_FRAGMENTOS_PDF);
-    }
-
+    // EXTRACCIÓN POR SECCIÓN (una sección por llamada). En vez de partir el PDF
+    // por caracteres a ciegas, se pide cada sección semántica por separado
+    // sobre el texto completo de la malla. Cada respuesta es corta → no se
+    // corta. Más lento, pero completo y confiable (petición del docente).
+    // El texto completo de la malla (+ contexto) puede ser largo; se acota a
+    // un tope que el modelo procesa cómodo por sección. Cada sección lee el
+    // MISMO texto pero devuelve solo su parte, así que el tope no fragmenta.
+    const textoParaSecciones = (textoLiteralMalla || texto).slice(0, PDF_TEXT_MAX_CHARS);
+    const advertenciaTope = (textoLiteralMalla || texto).length > PDF_TEXT_MAX_CHARS
+      ? `El texto de la malla supera ${PDF_TEXT_MAX_CHARS} caracteres; se leyó el inicio. Si falta contenido, sube un PDF solo de la asignatura.`
+      : null;
     const parciales = [];
     const fallidos = [];
-    for (let i = 0; i < fragmentos.length; i += 1) {
-      if (onProgress) onProgress(`Paso 4/4: extrayendo literal con IA, fragmento ${i + 1} de ${fragmentos.length} (${cobertura === 'rango_malla' ? 'contexto + malla exacta' : cobertura === 'seccion' ? 'sección de la asignatura' : 'documento completo'})...`);
+    const seccionesOrden = Object.keys(SECCIONES_MALLA);
+    for (let s = 0; s < seccionesOrden.length; s += 1) {
+      const seccion = seccionesOrden[s];
+      const cfg = SECCIONES_MALLA[seccion];
+      if (onProgress) onProgress(`Extrayendo por sección ${s + 1}/${seccionesOrden.length}: ${cfg.etiqueta}… (más lento, pero sin cortes)`);
       try {
-        parciales.push(await extraerFragmentoCurricular({
-          fragmento: fragmentos[i], contexto, indice: i + 1, total: fragmentos.length,
-        }));
-        if (i < fragmentos.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
+        const parte = await extraerSeccionCurricular({ seccion, textoMalla: textoParaSecciones, contexto });
+        if (cfg.tieneDatos(parte)) parciales.push(parte);
+        else if (cfg.critica) fallidos.push(`${cfg.etiqueta}: la IA no devolvió datos`);
+        // pausa breve entre secciones para no saturar el gateway
+        if (s < seccionesOrden.length - 1) await new Promise(resolve => setTimeout(resolve, 300));
       } catch (err) {
-        fallidos.push(`Fragmento ${i + 1}/${fragmentos.length}: ${err.message}`);
+        fallidos.push(`${cfg.etiqueta}: ${err.message}`);
       }
     }
     if (!parciales.length) {
-      throw new Error(`La IA no pudo procesar ningún fragmento. ${fallidos[0] || ''}`);
+      throw new Error(`La IA no pudo extraer ninguna sección. ${fallidos[0] || ''}`);
     }
 
-    if (onProgress) onProgress('Fusionando resultados de todos los fragmentos...');
+    if (onProgress) onProgress('Fusionando las secciones extraídas...');
     let merged = fusionarExtraccionesCurriculares(parciales, contexto);
 
-    // Rescate POR SECCIÓN: si la fusión dejó una sección crítica vacía (un
-    // fragmento se cortó por timeout), se pide ESA sección sola sobre el texto
-    // completo de la malla. Respuesta corta → no se corta. Se fusiona lo
-    // rescatado con lo ya extraído.
+    // Segundo intento SOLO de las secciones críticas que quedaron vacías
+    // (competencias/indicadores o contenidos): se reintenta una vez más.
     const anidadosMerged = (merged.competencias || []).reduce(
       (n, c) => n + ((c.indicadoresLogro || c.indicadores || []).length || 0), 0);
     const faltantes = [];
-    if (!(merged.indicadoresLogro || []).length && !anidadosMerged) faltantes.push('indicadores');
-    if (!(merged.competencias || []).length) faltantes.push('competencias');
+    if (!(merged.competencias || []).length || (!(merged.indicadoresLogro || []).length && !anidadosMerged)) {
+      faltantes.push('competenciasIndicadores');
+    }
     if (!(merged.contenidosPorTema || []).length && !(merged.conceptuales || []).length) faltantes.push('contenidos');
 
     for (const seccion of faltantes) {
-      if (onProgress) onProgress(`Rescate por sección: extrayendo "${SECCIONES_RESCATE[seccion].etiqueta}" por separado (más lento, pero sin cortes)...`);
+      const cfg = SECCIONES_MALLA[seccion];
+      if (onProgress) onProgress(`Reintento de sección crítica: ${cfg.etiqueta}…`);
       try {
-        const rescatado = await extraerSeccionCurricular({ seccion, textoMalla: textoLiteralMalla || texto, contexto });
-        if (SECCIONES_RESCATE[seccion].tieneDatos(rescatado)) {
+        const rescatado = await extraerSeccionCurricular({ seccion, textoMalla: textoParaSecciones, contexto });
+        if (cfg.tieneDatos(rescatado)) {
           merged = fusionarExtraccionesCurriculares([...parciales, rescatado], contexto);
         }
       } catch (err) {
-        fallidos.push(`Rescate ${SECCIONES_RESCATE[seccion].etiqueta}: ${err.message}`);
+        fallidos.push(`Reintento ${cfg.etiqueta}: ${err.message}`);
       }
     }
     return { merged, info: {
@@ -2011,7 +2042,7 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
       tamanoTextoLiteralMalla: textoLiteralMalla.length,
       tamanoTextoLiteralSeleccionado: texto.length,
       revisionSecciones,
-      fragmentos: fragmentos.length,
+      fragmentos: seccionesOrden.length,
       fragmentosFallidos: fallidos.length,
       errores: [
         ...advertenciasRevision,
