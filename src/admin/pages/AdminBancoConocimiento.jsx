@@ -633,10 +633,17 @@ const localizarRangoMallaCurricular = (paginas, contexto = {}) => {
 
 const esInicioContextoAreaCiclo = (pagina, contexto = {}) => {
   const texto = normalizarMalla(pagina?.texto || '');
-  const tieneAportes = texto.includes('aportes del area') || texto.includes('aporte del area');
   const tieneArea = paginaContieneAsignatura(texto, terminosAsignaturaContexto(contexto))
     || texto.includes(normalizarMalla(contexto.area || ''));
   const ciclo = normalizarMalla(contexto.cycle || cicloDelGrado(contexto.grade));
+  // La "Contextualización del Área…" abre la sección del área (varias páginas
+  // ANTES de la malla) y trae la narrativa del enfoque que la IA debe leer.
+  // Es el ancla más TEMPRANA — antes que "Aportes del Área".
+  const tieneContextualizacion = texto.includes('contextualizacion del area')
+    || texto.includes('contextualizacion de los aprendizajes')
+    || (texto.includes('contextualizacion') && tieneArea);
+  const tieneAportes = texto.includes('aportes del area') || texto.includes('aporte del area');
+  if (tieneContextualizacion) return true;
   return tieneAportes && tieneArea && (!ciclo || texto.includes(ciclo));
 };
 
@@ -1314,6 +1321,7 @@ Devuelve exactamente este JSON (agrega elementos solo si aparecen textualmente e
   ],
   "indicadoresLogro": [ { "id": "", "descripcion": "", "competenciaId": "" } ],
   "temas": [],
+  "contextualizacionArea": "",
   "contenidosPorTema": [
     {
       "tema": "",
@@ -1353,7 +1361,9 @@ Reglas:
 - Competencias: solo texto bajo títulos "Competencias Fundamentales/Específicas (del Grado)" o tablas equivalentes.
 - Si una competencia sale de la matriz "Aportes del Área...", pon origen: "aportes_area" y conserva la competenciaFundamental.
 - No mezcles criterios de evaluación dentro de competencias ni indicadores; guárdalos en criteriosEvaluacion dentro de aportesCompetenciasFundamentales.
-- Ejes transversales: extrae solo desde "Conexión con los Ejes Transversales" o encabezado equivalente; no lo confundas con "Eje temático".
+- Ejes transversales: extrae desde "Conexión con los Ejes Transversales: problemáticas sociales y comunitarias y su asociación con los contenidos del Área en el Ciclo y Grados" (o encabezado equivalente); no lo confundas con "Eje temático". De la tabla toma la descripción de la columna del grado seleccionado.
+- Aportes del Área: extrae desde "Aportes del Área de [Lenguas Extranjeras / Inglés] al desarrollo de las Competencias Fundamentales en el ${cicloDelGrado(contexto.grade) || 'Ciclo'}" — la matriz que relaciona cada Competencia Fundamental con la específica del ciclo y del grado.
+- Contextualización del Área: si aparece "Contextualización del Área de Lenguas Extranjeras (inglés y francés) en el Nivel Secundario" (suele estar VARIAS PÁGINAS ANTES de la malla), copia su texto narrativo en "contextualizacionArea". Es el enfoque/propósito del área que orienta la planificación — cópialo literal, no lo resumas.
 - Si la tabla de ejes trae columnas Primero/Segundo/Tercero o Cuarto/Quinto/Sexto, devuelve solo la descripción de la columna del grado seleccionado.
 - Indicadores: solo frases bajo "Indicadores de logro" o equivalentes; vincula competenciaId solo si es evidente.
 - Contenidos: respeta la organización de la tabla MINERD. Si aparece "Contenidos / Conceptos / Procedimientos / Actitudes y valores", crea un bloque en contenidosPorTema por cada tema o fila temática.
@@ -1592,6 +1602,7 @@ const fusionarExtraccionesCurriculares = (parciales = [], contexto = {}) => {
   const contenidosPorTemaMap = new Map();
   const ejesTransversales = [];
   const indicadoresSueltos = [];
+  let contextualizacionArea = '';
   const listas = {
     temas: [], vocabulario: [], gramatica: [], frases: [], funcionesComunicativas: [],
     conceptuales: [], procedimentales: [], actitudinales: [], actitudesValores: [],
@@ -1600,6 +1611,11 @@ const fusionarExtraccionesCurriculares = (parciales = [], contexto = {}) => {
 
   for (const parcial of parciales) {
     if (!parcial || typeof parcial !== 'object') continue;
+
+    // Contextualización del área: se queda con el texto más largo hallado
+    // (un fragmento la trae completa, otros vacía)
+    const ctx = String(parcial.contextualizacionArea || '').trim();
+    if (ctx.length > contextualizacionArea.length) contextualizacionArea = ctx;
 
     for (const comp of (Array.isArray(parcial.competencias) ? parcial.competencias : [])) {
       const descripcion = String(comp?.descripcion || comp?.texto || '').trim();
@@ -1717,6 +1733,7 @@ const fusionarExtraccionesCurriculares = (parciales = [], contexto = {}) => {
     ejesTransversales: dedupePorTexto(ejesTransversales, (eje) => `${eje.eje} ${eje.descripcion}`),
     indicadoresLogro,
     contenidosPorTema: [...contenidosPorTemaMap.values()],
+    contextualizacionArea,
     ...Object.fromEntries(Object.entries(listas).map(([clave, items]) => [clave, listaLimpia(items)])),
   };
 };
@@ -1798,6 +1815,9 @@ const construirSobreDesdeExtraccion = ({ merged, contexto, fileName, info = {} }
     fuente: 'MINERD',
     versionCurriculo: '',
     marcoPedagogico: MARCO_PEDAGOGICO_SECUNDARIA_MINERD_2023,
+    // Contextualización real del área extraída del PDF (enfoque del área que
+    // orienta la unidad); vacío si el diseño no la trae
+    contextualizacionArea: merged.contextualizacionArea || '',
     aportesCompetenciasFundamentales: merged.aportesCompetenciasFundamentales,
     competenciasFundamentales: merged.aportesCompetenciasFundamentales
       .map(aporte => aporte.competenciaFundamental)
