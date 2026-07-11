@@ -1395,6 +1395,68 @@ ${fragmento}`;
   throw ultimoError || new Error('extracción de fragmento falló');
 };
 
+// ─── Rescate por SECCIÓN (una a la vez) ──────────────────────────────────────
+// Cuando la extracción por fragmentos deja una sección crítica incompleta
+// (típicamente los Indicadores, cuya tabla es grande y agota el tiempo), se
+// pide ESA sección SOLA sobre el texto completo de la malla. La respuesta es
+// mucho más corta (solo una sección) → cabe holgada en el timeout y no se
+// corta. Más lento (una llamada por sección faltante) pero confiable.
+
+const SECCIONES_RESCATE = {
+  indicadores: {
+    etiqueta: 'Indicadores de Logro',
+    // Devuelve competencias con sus indicadores ANIDADOS (así queda la
+    // alineación competencia→indicador tal como el diseño la muestra).
+    instruccion: 'Extrae SOLO las Competencias con sus Indicadores de Logro ANIDADOS. Cada indicador va dentro de la competencia a la que pertenece según la tabla (columna izquierda = competencia, columna derecha = sus indicadores). Copia el texto oficial literal.',
+    esquema: '{"competencias":[{"id":"","competenciaFundamental":"","descripcion":"","indicadoresLogro":[{"id":"","descripcion":""}]}]}',
+    tieneDatos: (r) => (r?.competencias || []).some((c) => (c.indicadoresLogro || c.indicadores || []).length),
+  },
+  competencias: {
+    etiqueta: 'Competencias',
+    instruccion: 'Extrae SOLO las Competencias (Fundamentales y Específicas del grado). Copia el nombre y el texto oficial de cada una.',
+    esquema: '{"competencias":[{"id":"","competenciaFundamental":"","descripcion":""}]}',
+    tieneDatos: (r) => (r?.competencias || []).length,
+  },
+  contenidos: {
+    etiqueta: 'Contenidos (Conceptos/Procedimientos/Actitudes) por tema',
+    instruccion: 'Extrae SOLO la tabla de CONTENIDOS, organizada POR TEMA. Crea un bloque contenidosPorTema por cada tema con sus conceptos (vocabulario, gramática, frases), procedimientos (funcionales, discursivos, producción) y actitudes. El clima va en su propio tema, no en vivienda; los procedimentales deben quedar completos.',
+    esquema: '{"contenidosPorTema":[{"tema":"","conceptos":{"temas":[],"vocabulario":[],"gramatica":[],"frases":[]},"procedimientos":{"funcionales":[],"discursivos":[],"produccionEscrita":[]},"actitudesValores":[]}]}',
+    tieneDatos: (r) => (r?.contenidosPorTema || []).some((b) => b.tema),
+  },
+};
+
+const extraerSeccionCurricular = async ({ seccion, textoMalla, contexto }) => {
+  const cfg = SECCIONES_RESCATE[seccion];
+  if (!cfg) throw new Error(`sección de rescate desconocida: ${seccion}`);
+  const ciclo = contexto.cycle || cicloDelGrado(contexto.grade);
+  const prompt = `Extracción FOCALIZADA de una sola sección del PDF curricular MINERD.
+
+SELECCIÓN (extrae SOLO esto): Nivel ${contexto.level || ''} · Ciclo ${ciclo || ''} · Grado ${contexto.grade || ''} · Área ${contexto.area || ''} · Asignatura ${contexto.subject || ''}
+
+SECCIÓN A EXTRAER: ${cfg.etiqueta}
+${cfg.instruccion}
+Las Competencias Específicas pueden estar definidas POR CICLO (Primer Ciclo cubre 1ro-3ro): si aparecen del ${ciclo || 'ciclo del grado'}, aplican al grado seleccionado.
+No inventes ni parafrasees: copia el texto oficial. Si algo no aparece, deja el arreglo vacío.
+
+Devuelve EXACTAMENTE este JSON (sin markdown): ${cfg.esquema}
+
+TEXTO DE LA MALLA:
+${textoMalla}`;
+
+  // Presupuestos decrecientes ante timeout, igual que el fragmento
+  const presupuestos = [9000, 6000, 4000];
+  let ultimoError = null;
+  for (const maxTokens of presupuestos) {
+    try {
+      return await llamarIAExtraccion({ system: SYSTEM_EXTRACCION_FRAGMENTO, prompt, maxTokens });
+    } catch (err) {
+      ultimoError = err;
+      if (!/timeout|aborted|abort/i.test(String(err?.message || err))) break;
+    }
+  }
+  throw ultimoError || new Error(`rescate de sección "${seccion}" falló`);
+};
+
 const dedupePorTexto = (items = [], getTexto = (x) => x) => {
   const vistos = new Set();
   return items.filter((item) => {
@@ -1889,7 +1951,30 @@ const convertirMallaPdfCompleto = async ({ fileName, paginas, contexto, onProgre
     }
 
     if (onProgress) onProgress('Fusionando resultados de todos los fragmentos...');
-    const merged = fusionarExtraccionesCurriculares(parciales, contexto);
+    let merged = fusionarExtraccionesCurriculares(parciales, contexto);
+
+    // Rescate POR SECCIÓN: si la fusión dejó una sección crítica vacía (un
+    // fragmento se cortó por timeout), se pide ESA sección sola sobre el texto
+    // completo de la malla. Respuesta corta → no se corta. Se fusiona lo
+    // rescatado con lo ya extraído.
+    const anidadosMerged = (merged.competencias || []).reduce(
+      (n, c) => n + ((c.indicadoresLogro || c.indicadores || []).length || 0), 0);
+    const faltantes = [];
+    if (!(merged.indicadoresLogro || []).length && !anidadosMerged) faltantes.push('indicadores');
+    if (!(merged.competencias || []).length) faltantes.push('competencias');
+    if (!(merged.contenidosPorTema || []).length && !(merged.conceptuales || []).length) faltantes.push('contenidos');
+
+    for (const seccion of faltantes) {
+      if (onProgress) onProgress(`Rescate por sección: extrayendo "${SECCIONES_RESCATE[seccion].etiqueta}" por separado (más lento, pero sin cortes)...`);
+      try {
+        const rescatado = await extraerSeccionCurricular({ seccion, textoMalla: textoLiteralMalla || texto, contexto });
+        if (SECCIONES_RESCATE[seccion].tieneDatos(rescatado)) {
+          merged = fusionarExtraccionesCurriculares([...parciales, rescatado], contexto);
+        }
+      } catch (err) {
+        fallidos.push(`Rescate ${SECCIONES_RESCATE[seccion].etiqueta}: ${err.message}`);
+      }
+    }
     return { merged, info: {
       cobertura,
       paginasLeidas: paginasAUsar.length,
