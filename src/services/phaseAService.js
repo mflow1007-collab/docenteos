@@ -351,6 +351,10 @@ const APORTE_GENERICO = [
 const CLT_GENERICO = [
   'actividad', 'práctica', 'ejercicio', 'dinámica', 'juego',
   'trabajo en grupo', 'trabajo colaborativo', 'trabajo en parejas',
+  // Enfoques/marcos amplios que NO son técnicas de actividad accionables:
+  'project-based learning', 'aprendizaje basado en proyectos', 'abp',
+  'aprendizaje colaborativo', 'aprendizaje cooperativo',
+  'communicative approach', 'enfoque comunicativo', 'task-based learning',
 ];
 
 const EVIDENCIA_NO_EVALUABLE = [
@@ -502,9 +506,16 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     cltEnLote.set(cltNombreNorm, idx + 1);
     // La técnica debe aparecer en ALGUNA actividad del Desarrollo (no
     // necesariamente la primera ni literal en la misma posición): tolerante a
-    // que la IA la parafrasee alrededor, pero exige que esté presente.
+    // que la IA la parafrasee alrededor, pero exige que esté presente. Para
+    // nombres multi-palabra (ej. "Project-Based Learning", "Information Gap")
+    // basta con que aparezca el TÉRMINO DISTINTIVO (la palabra más larga del
+    // nombre), no la frase completa — la IA suele traducir/parafrasear el resto.
     const actsDesarrollo = (clase.momentos.find((m) => m.nombre === 'Desarrollo')?.actividades || []);
-    if (!actsDesarrollo.some((a) => _normTextoFoco(a).includes(cltNombreNorm))) {
+    const desarrolloNorm = actsDesarrollo.map(_normTextoFoco);
+    const nucleoCLT = cltNombreNorm.split(/\s+/).filter((w) => w.length >= 4).sort((a, b) => b.length - a.length)[0] || cltNombreNorm;
+    const cltPresente = desarrolloNorm.some((a) => a.includes(cltNombreNorm))
+      || desarrolloNorm.some((a) => a.includes(nucleoCLT));
+    if (!cltPresente) {
       throw new Error(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad ("Participan en ${clt.nombre}: …")`);
     }
 
@@ -718,7 +729,7 @@ ${reglaInicio}
 9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], utilizando [la estructura gramatical o el vocabulario del día — o su equivalente "con la estructura…", "a través del vocabulario…"], [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — si dices "vocabulario", nombra CUÁL ("vocabulario de las partes de la casa: kitchen, bedroom") — nombra siempre el contenido real (ej.: "describirán sus hábitos saludables y la frecuencia con la que realizan actividades cotidianas mediante comprensión oral, interacción y producción escrita, utilizando presente simple y adverbios de frecuencia").
 10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo de la semana según la progresión), "focoLinguistico" (copia EXACTA de UNA estructura del FOCO GRAMATICAL indicado arriba, incluidos sus ejemplos entre paréntesis; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla, y la intención pedagógica de cada clase nombra su foco del día.
 11. CADA clase incluye "aporteProducto": el artefacto CONCRETO Y NOMBRADO que esa clase deposita al producto final (ej. "Inventario del espacio favorito con posesivos", "Weekly schedule con horarios en inglés"). PROHIBIDO "avance del producto", "trabajo en el proyecto".${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
-12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica del Desarrollo (Listen and Act / Listen and Solve / Listen and Compare / Information Gap / Role Play con roles / Interview en parejas / Frequency Walk / Gallery Walk / Describe and Draw / TPR / Speaking Circle...), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en Listen and Solve: escuchan… y resuelven…"). No repitas una técnica ya usada en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: listening con propósito O misión comunicativa → producción → verificación entre pares.
+12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica del Desarrollo (Listen and Act / Listen and Solve / Listen and Compare / Information Gap / Role Play con roles / Interview en parejas / Frequency Walk / Gallery Walk / Describe and Draw / TPR / Speaking Circle...), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en Listen and Solve: escuchan… y resuelven…"). USA una técnica CONCRETA de esa lista — NO un enfoque amplio como "Project-Based Learning", "Aprendizaje colaborativo" o "Communicative Approach" (esos son marcos, no técnicas de actividad). No repitas una técnica ya usada en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: listening con propósito O misión comunicativa → producción → verificación entre pares.
 13. NO copies los ejemplos de estilo del sistema como actividades: son referencia de VOZ. Cada actividad es específica del contenido de ESTA clase.
 14. El LOTE incluye "adaptacionesSemana": {"acceso", "metodologicas", "evaluacion"} — adecuaciones NEAE LIGADAS AL FOCO de la semana (ej. semana de 3ra persona → "banco de verbos en tercera persona visible") — y "observacionesSemana": qué observar/registrar esta semana según su foco. Nunca genéricas.
 
