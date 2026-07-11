@@ -482,8 +482,14 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     if (!/^Desde el inicio hasta el final de la clase/i.test(intencion)) {
       throw new Error(`R9: clase ${idx + 1} — la intención no usa el formato oficial ("Desde el inicio hasta el final de la clase, los estudiantes…")`);
     }
-    if (!/\bmediante\b/i.test(intencion)) {
-      throw new Error(`R9: clase ${idx + 1} — la intención no dice el CÓMO ("mediante [actividades concretas del día]")`);
+    // El CÓMO (las actividades concretas): se acepta cualquier conector
+    // equivalente natural, no solo "mediante". Rechazar "a través de una
+    // exploración…"/"realizando actividades de…" era un falso positivo por
+    // rigidez léxica — lo que importa es que las actividades estén DECLARADAS.
+    const declaraComo = /\bmediante\b/i.test(intencion)
+      || /\b(a través de|por medio de|realizando|participando en|desarrollando|con actividades de)\b/i.test(intencion);
+    if (!declaraComo) {
+      throw new Error(`R9: clase ${idx + 1} — la intención no dice el CÓMO (las actividades: "mediante [actividades del día]", "a través de…", "realizando…")`);
     }
     // El CON QUÉ (el instrumento lingüístico): se acepta cualquier conector
     // equivalente natural, no solo el gerundio "utilizando". Rechazar "con la
