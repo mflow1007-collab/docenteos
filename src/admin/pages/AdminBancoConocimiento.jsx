@@ -1093,6 +1093,28 @@ Estructura requerida:
   ],
   "temas": [],
   "temasCurriculares": [],
+  "contenidosPorTema": [
+    {
+      "tema": "",
+      "conceptos": {
+        "temas": [],
+        "vocabulario": [],
+        "gramatica": [],
+        "frases": [],
+        "sociolinguisticos": []
+      },
+      "procedimientos": {
+        "funcionales": [],
+        "discursivos": [],
+        "comprensionOralEscrita": [],
+        "produccionOral": [],
+        "produccionEscrita": [],
+        "items": []
+      },
+      "actitudinales": [],
+      "actitudesValores": []
+    }
+  ],
   "contenidosGenerales": {
     "conceptuales": [],
     "procedimentales": [],
@@ -1136,6 +1158,9 @@ Reglas:
 - Genera IDs estables solo si el texto no los trae; el ID no reemplaza el texto oficial.
 - Relaciona cada indicador con competenciaId solo cuando la relación sea evidente en el PDF.
 - Si aparecen frases bajo títulos "Indicadores", "Indicadores de logro" o similares, deben ir en indicadoresLogro.
+- CRÍTICO — contenidosPorTema: la tabla de Contenidos del diseño MINERD está organizada POR TEMA (cada fila/bloque comienza con "Temas" seguido del nombre del tema y sus propios Conceptos/Procedimientos/Actitudes). Crea UN bloque en contenidosPorTema por CADA tema, y coloca en él SOLO el vocabulario, la gramática, las frases, los funcionales, etc. que pertenecen a ESE tema. NO mezcles la gramática de todos los temas en una sola lista: si "Rutinas" trae presente simple y "Clima" trae will/be going to, cada estructura va en el bloque de su tema. Esta separación es la que permite planificar cada tema con SU gramática y no arrastrar contenido de otros temas.
+- En contenidosPorTema[].conceptos coloca solo la columna Conceptos del tema (tema, vocabulario, gramatica, frases, sociolinguisticos). En procedimientos, solo la columna Procedimientos (funcionales, discursivos, comprensión y producción). En actitudesValores, solo la columna Actitudes y valores del tema (cópialas también en actitudinales).
+- Además de contenidosPorTema, llena las listas planas de compatibilidad (temas, vocabulario, gramatica, frases, funcionesComunicativas) con la UNIÓN de todos los temas, y contenidos.conceptos / contenidos.procedimientos igual. contenidosPorTema es la fuente enfocada; las listas planas son el respaldo.
 - En contenidos conceptuales usa SOLO la sección "Conceptos" del diseño; dentro separa temas, frases, vocabulario y gramatica cuando el texto lo permita.
 - En contenidos procedimentales usa SOLO la sección "Procedimientos".
 - En contenidos actitudinales usa SOLO la sección "Actitudes y valores" y copia esa misma columna en actitudesValores.
@@ -1327,6 +1352,7 @@ Reglas:
 - Si la tabla de ejes trae columnas Primero/Segundo/Tercero o Cuarto/Quinto/Sexto, devuelve solo la descripción de la columna del grado seleccionado.
 - Indicadores: solo frases bajo "Indicadores de logro" o equivalentes; vincula competenciaId solo si es evidente.
 - Contenidos: respeta la organización de la tabla MINERD. Si aparece "Contenidos / Conceptos / Procedimientos / Actitudes y valores", crea un bloque en contenidosPorTema por cada tema o fila temática.
+- CRÍTICO: cada estructura gramatical, vocabulario o función debe quedar en el bloque del tema al que pertenece — NUNCA junta toda la gramática del grado en un solo bloque. Si el PDF lista los contenidos SIN separarlos visiblemente por tema (una sola columna Conceptos con muchas estructuras seguidas), infiere a qué tema pertenece cada una por sus EJEMPLOS y su significado: "I wake up at 6:00 / I go to school every morning" → tema de rutinas/actividades cotidianas; "It's hot and sunny / It's going to snow" → tema de clima/condiciones atmosféricas; "I've been to Spain / Have you ever..." → tema de experiencias personales; "There is a kitchen / My house has..." → tema de vivienda/partes de la casa. Crea un bloque contenidosPorTema por cada tema que identifiques y reparte cada estructura a SU tema. Si una estructura es transversal y aplica a varios temas, colócala en el tema más cercano por sus ejemplos, no en todos.
 - En contenidosPorTema[].conceptos coloca solo la columna Conceptos del tema: tema, vocabulario, gramática, frases y sociolingüísticos/socioculturales si aparecen.
 - En contenidosPorTema[].procedimientos coloca solo la columna Procedimientos del tema: funcionales, discursivos, comprensión oral/escrita, producción oral y producción escrita.
 - En contenidosPorTema[].actitudesValores coloca solo la columna Actitudes y valores del tema. Copia también esos textos en actitudinales.
