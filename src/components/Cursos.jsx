@@ -81,18 +81,7 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
     const jornadaTipo = formCurso.nivel === "Primaria" ? "Primaria" : duracionClaseMinutos === 45 ? "Primaria" : "Secundaria";
     const promedioBase = baseCurso.promedio ?? (formCurso.area === "Inglés" ? 84 : 80);
     const promedio = cursoEnEdicion ? promedioBase : Math.max(60, Math.min(96, formCurso.area === "Inglés" ? 84 : 82));
-    const estudiantesDetalle = cursoEnEdicion
-      ? generarEstudiantesDetalle({
-          ...baseCurso,
-          nombre,
-          nivel: formCurso.nivel,
-          area: formCurso.area,
-          promedio,
-          estudiantes,
-          destacados: baseCurso.destacados || [],
-          enRiesgo: baseCurso.enRiesgo || [],
-        })
-      : baseCurso.estudiantesDetalle?.length
+    const estudiantesDetalle = baseCurso.estudiantesDetalle?.length
         ? baseCurso.estudiantesDetalle
         : generarEstudiantesDetalle({
             ...(baseCurso || {}),
@@ -129,6 +118,8 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
       instrumentosRecientes: baseCurso.instrumentosRecientes || [],
       proximasAcciones: baseCurso.proximasAcciones || ["Configurar planificación", "Crear instrumento", "Registrar primera clase"],
       estudiantesDetalle,
+      estudiantesFuente: baseCurso.estudiantesFuente || (baseCurso.matriculaOficial ? "oficial" : "demo"),
+      matriculaOficial: baseCurso.matriculaOficial || false,
       horario: normalizarHorarioCurso(
         cursoEnEdicion
           ? baseCurso.horario || crearHorarioPorJornada(jornadaTipo, formCurso.nivel)

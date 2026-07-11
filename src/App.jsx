@@ -15,6 +15,7 @@ import SubscriptionBanner from "./components/SubscriptionBanner.jsx";
 import { esUsuarioDocenteOS, cargoTieneModulo } from "./utils/permisos.js";
 import { useLocation, useNavigate } from "react-router-dom";
 import { enriquecerCursoInicial, aplicarRegistroACurso } from "./utils/cursoUtils.js";
+import { sincronizarCursoConGrupoAcademico, sincronizarCursosConGruposAcademicos } from "./services/gruposAcademicosService.js";
 import { SidebarGrupo, SidebarItem } from "./components/AppSidebar.jsx";
 import Inicio from "./components/Inicio.jsx";
 import Cursos from "./components/Cursos.jsx";
@@ -112,7 +113,15 @@ function AppInner() {
 
   const crearCurso = (nuevoCurso) => {
     setCursos((prev) => [nuevoCurso, ...prev]);
-    guardarCursoFS(nuevoCurso).catch((err) => console.error("[App] Error al guardar curso:", err));
+    sincronizarCursoConGrupoAcademico(nuevoCurso)
+      .then((cursoSync) => {
+        setCursos((prev) => prev.map((curso) => curso.id === cursoSync.id ? enriquecerCursoInicial(cursoSync) : curso));
+        return guardarCursoFS(cursoSync);
+      })
+      .catch((err) => {
+        console.error("[App] Error al sincronizar/guardar curso:", err);
+        guardarCursoFS(nuevoCurso).catch((error) => console.error("[App] Error al guardar curso:", error));
+      });
   };
 
   const abrirHorarioCurso = (cursoId) => {
@@ -126,7 +135,15 @@ function AppInner() {
     if (cursoSeleccionadoId === cursoActualizado.id) {
       setCursoSeleccionadoId(cursoActualizado.id);
     }
-    guardarCursoFS(cursoActualizado).catch((err) => console.error("[App] Error al actualizar curso:", err));
+    sincronizarCursoConGrupoAcademico(cursoActualizado)
+      .then((cursoSync) => {
+        setCursos((prev) => prev.map((curso) => curso.id === cursoSync.id ? enriquecerCursoInicial(cursoSync) : curso));
+        return guardarCursoFS(cursoSync);
+      })
+      .catch((err) => {
+        console.error("[App] Error al sincronizar/actualizar curso:", err);
+        guardarCursoFS(cursoActualizado).catch((error) => console.error("[App] Error al actualizar curso:", error));
+      });
   };
 
   const eliminarCurso = (idCurso) => {
@@ -236,7 +253,8 @@ function AppInner() {
         if (!activo) return;
         if (resultado.success && resultado.data.length > 0) {
           const base = resultado.data.map((c, i) => enriquecerCursoInicial(c, i));
-          const enriquecidos = await sincronizarCursosConRegistros(base);
+          const conGrupo = await sincronizarCursosConGruposAcademicos(base);
+          const enriquecidos = await sincronizarCursosConRegistros(conGrupo.map((c, i) => enriquecerCursoInicial(c, i)));
           if (!activo) return;
           setCursos(enriquecidos);
           localStorage.setItem("docenteos_cursos_v2", JSON.stringify(enriquecidos));
@@ -315,8 +333,9 @@ function AppInner() {
   const refrescarCursosDesdeRegistros = useCallback(() => {
     if (!cursosLoaded || !cursos.length) return;
 
-    sincronizarCursosConRegistros(cursos)
-      .then((sincronizados) => setCursos(sincronizados))
+    sincronizarCursosConGruposAcademicos(cursos)
+      .then((conGrupo) => sincronizarCursosConRegistros(conGrupo))
+      .then((sincronizados) => setCursos(sincronizados.map((curso, indice) => enriquecerCursoInicial(curso, indice))))
       .catch((err) => console.error("[App] Error al refrescar cursos desde registros:", err));
   }, [cursos, cursosLoaded, sincronizarCursosConRegistros]);
 

@@ -257,7 +257,13 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
       // Agregar al curso existente y persistir en Firestore
       const nuevoEst = { id: `est-${Date.now()}`, nombre: nombreFinal, promedio: null };
       const detalle = [...(cursoExistente.estudiantesDetalle || []), nuevoEst];
-      onActualizarCurso({ ...cursoExistente, estudiantesDetalle: detalle, estudiantes: detalle.length });
+      onActualizarCurso({
+        ...cursoExistente,
+        estudiantesDetalle: detalle,
+        estudiantes: detalle.length,
+        estudiantesFuente: "oficial",
+        matriculaOficial: true,
+      });
     } else if (formNuevo.cursoId === "_nuevo_" && formNuevo.nombreCursoNuevo.trim()) {
       // Crear curso nuevo con el estudiante incluido
       const nombreCurso = formNuevo.nombreCursoNuevo.trim();
@@ -275,6 +281,8 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
         acento: "#2563eb",
         temaActual: "Tema por definir",
         estudiantesDetalle: [{ id: `est-${Date.now()}`, nombre: nombreFinal, promedio: null }],
+        estudiantesFuente: "oficial",
+        matriculaOficial: true,
         esAutoGenerado: true,
         flujo: [], enRiesgo: [], destacados: [],
         historialPromedio: [],
@@ -361,7 +369,13 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
         promedio: null,
       }));
       const detalle = [...(cursoExistente.estudiantesDetalle || []), ...nuevosEst];
-      onActualizarCurso({ ...cursoExistente, estudiantesDetalle: detalle, estudiantes: detalle.length });
+      onActualizarCurso({
+        ...cursoExistente,
+        estudiantesDetalle: detalle,
+        estudiantes: detalle.length,
+        estudiantesFuente: "oficial",
+        matriculaOficial: true,
+      });
       guardarEstudiantesEnSubcoleccion(cursoExistente.id, nombres).catch(() => {});
     } else {
       setEstudiantesExtra((prev) => [...prev, ...nombres.map((n) => crearEstudianteExtra(n))]);
