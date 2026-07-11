@@ -2268,7 +2268,18 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           </tr>`;
       }).join("");
 
-      const focoHtml = dia.focoLinguistico ? ` <span style="font-weight:400">· ${dia.focoLinguistico}</span>` : "";
+      // El "apartado a trabajar" del día (estructura gramatical / foco lingüístico)
+      // se muestra ETIQUETADO y destacado en el encabezado, como el documento
+      // modelo: 'Día 4: "School and Family Routines" (Estructura gramatical:
+      // WH-questions + tercera persona…)'. En Semana 1 el foco es la apropiación
+      // de la unidad, no una estructura; ahí se muestra sin la etiqueta gramatical.
+      const foco = dia.focoLinguistico || "";
+      const esApropiacion = /apropiaci[oó]n|producto|evaluaci[oó]n/i.test(foco) && !/\(/.test(foco);
+      const focoHtml = foco
+        ? (esApropiacion
+          ? ` <span style="font-weight:400">· ${foco}</span>`
+          : ` <span style="font-weight:600;font-size:11pt">(Estructura gramatical: ${foco})</span>`)
+        : "";
       const estrategiaDiaHtml = dia.estrategiasDia
         ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${dia.estrategiasDia}</div>`
         : "";
