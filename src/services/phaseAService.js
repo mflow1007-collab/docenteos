@@ -22,10 +22,16 @@ const BATCH_SIZE   = 2;
 const MAX_TOKENS   = 12000;  // por lote (contrato incluye evidencias/metacognición/recursos por momento × clases; modelos verbosos se truncaban a 9000)
 const RETRY_TOKENS = 20000;  // reintento tras truncamiento — techo generoso para modelos verbosos (deepseek, etc.)
 
-// Para JSON curricular estricto conviene priorizar proveedores con salida
-// estructurada estable. NVIDIA queda disponible, pero no como primera opción
-// para Phase A aunque el admin lo tenga arriba para tareas conversacionales.
-const PHASE_A_PROVIDER_ORDER = ['openai', 'anthropic', 'gemini', 'nvidia', 'abacus'];
+// COSTO PRIMERO, CALIDAD DE RESPALDO. Una unidad son ~10-12 lotes de ~12K tokens
+// de salida cada uno; con gpt-4o de primero (out $10/M) el gasto era alto. Con
+// todos los validadores de contrato (voz, R9/R12, evidencias, anti-repetición)
+// blindados, un modelo económico que produzca JSON válido cuesta igual de bien:
+// gemini y nvidia generan primero, gpt-4o-mini como puente barato, y openai/
+// anthropic (gpt-4o/opus) SOLO como red de seguridad si los baratos fallan la
+// validación. Ahorro ~10-15x sin degradar el contrato (si el barato produce
+// basura, el validador lo rechaza y escala solo). Salida por millón de tokens:
+// gemini/nvidia ≈ económicos · gpt-4o-mini $0.60 · gpt-4o $10 · opus $75.
+const PHASE_A_PROVIDER_ORDER = ['gemini', 'nvidia', 'openai', 'anthropic', 'abacus'];
 
 // Exemplars de estilo: MÁXIMO uno por concepto (saludo, retroalimentación,
 // producción). Se listan aparte porque también alimentan la validación
@@ -102,7 +108,10 @@ async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS, provid
       system,
       maxTokens,
       providerOrder,
-      modelOverrides: gwConfig.models || undefined,
+      // Ahorro: si el respaldo cae en OpenAI (3er lugar de la cola), usar el mini
+      // ($0.60/M salida) en vez de gpt-4o ($10/M) salvo que el admin lo sobrescriba
+      // explícitamente. El mini produce JSON válido; el contrato lo valida igual.
+      modelOverrides: { openai: 'gpt-4o-mini', ...(gwConfig.models || {}) },
       providersDisabled: Array.isArray(gwConfig.disabled) ? gwConfig.disabled : undefined,
     }),
   });
