@@ -296,3 +296,52 @@ export const obtenerPlanificacionActiva = async (cursoId = "", { planes = null }
     || lista[0]
     || null;
 };
+
+// ─── Indicadores ya trabajados en planes anteriores (para tachar) ─────────────
+// Recolecta los CÓDIGOS de indicadores que planes PREVIOS del mismo grado +
+// asignatura ya trabajaron. El generador los usa como "trabajadosAntes" para
+// mostrarlos tachados en el nuevo plan (el docente igual puede re-elegirlos).
+// Fuentes por plan: (a) competenciasDetalle[].indicadores[] con aplicaTemaActual,
+// (b) fasesSemanales[].dias[].indicadoresTrabajados[] (códigos reportados por IA).
+
+const _normCodInd = (c) =>
+  String(c || "").replaceAll("[", "").replaceAll("]", "").replace(/\s/g, "").toUpperCase().trim();
+
+export const obtenerIndicadoresTrabajadosPrevios = async (grado = "", asignatura = "", { planes = null, excluirId = "" } = {}) => {
+  const lista = Array.isArray(planes)
+    ? planes
+    : (await obtenerPlanificacionesDetalladas()).data || [];
+  const g = normalizarTexto(grado).split(" ")[0]; // "1ro Secundaria" → "1ro"
+  const a = normalizarTexto(asignatura);
+  const codigos = new Set();
+
+  for (const plan of lista) {
+    if (excluirId && String(plan.id || "") === String(excluirId)) continue;
+    const meta = plan.metadatos || plan;
+    const pg = normalizarTexto(meta.grado || meta.grade || "").split(" ")[0];
+    const pa = normalizarTexto(meta.asignatura || meta.subject || meta.area || "");
+    // Mismo grado y misma asignatura (o área) — no mezclar entre asignaturas
+    if (g && pg && g !== pg) continue;
+    if (a && pa && a !== pa && !pa.includes(a) && !a.includes(pa)) continue;
+
+    // (a) competenciasDetalle con aplicaTemaActual
+    for (const comp of (plan.competenciasDetalle || [])) {
+      for (const ind of (comp.indicadores || [])) {
+        if (ind?.aplicaTemaActual) {
+          const cod = _normCodInd(ind.codigo || ind.id || ind.codigoOficial);
+          if (cod) codigos.add(cod);
+        }
+      }
+    }
+    // (b) indicadoresTrabajados reportados en cada clase
+    for (const fase of (plan.fasesSemanales || [])) {
+      for (const dia of (fase.dias || [])) {
+        for (const cod of (dia.indicadoresTrabajados || [])) {
+          const n = _normCodInd(cod);
+          if (n) codigos.add(n);
+        }
+      }
+    }
+  }
+  return Array.from(codigos);
+};

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { generarUnidadAprendizaje, formatearUnidadHTML } from "../services/unidadAprendizajeService";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
-import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
+import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
 import { applyAuditAction } from "../services/auditAcciones.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
@@ -66,8 +66,19 @@ export function useUnidadAprendizaje() {
         }
         await registrarUsoTemaPlanificacion({ tituloTema: temaUnidad, forzarNuevoTema: false, contexto: "generacion" });
       }
+      // Indicadores ya trabajados en planes anteriores del mismo grado +
+      // asignatura → se muestran TACHADOS en el nuevo plan (el docente igual
+      // puede re-elegirlos). No es fatal si falla la lectura del historial.
+      let indicadoresTrabajadosAntes = [];
+      try {
+        indicadoresTrabajadosAntes = await obtenerIndicadoresTrabajadosPrevios(
+          unidadDatos.grado, unidadDatos.asignatura,
+        );
+      } catch { /* sin historial, se genera sin tachados */ }
+
       const resultado = await generarUnidadAprendizaje({
         ...unidadDatos,
+        indicadoresTrabajadosAntes,
         // Rótulo del documento según el tipo elegido en la página
         // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
         tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
