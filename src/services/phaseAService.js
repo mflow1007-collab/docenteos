@@ -708,13 +708,17 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
 
   const vocab      = spec.contenidosClaves?.vocabulario?.slice(0, 16).join(', ') || '';
   const funcs      = spec.contenidosClaves?.funcionales?.slice(0, 8).join('; ')  || '';
-  // Indicadores CON código oficial: la IA reporta en indicadoresTrabajados
-  // cuáles trabajó cada clase (usando exactamente esos códigos)
-  const indText    = (spec.indicadores || []).slice(0, 3)
+  // TODOS los indicadores oficiales del grado con su código (el registro trae
+  // 21: 3 por competencia). La IA los VE completos y elige en cada clase, en
+  // "indicadoresTrabajados", SOLO los códigos que ese día trabaja de verdad
+  // según el tema — ese es el criterio de resaltado del registro oficial
+  // ("se agrega solo los aspectos específicos trabajados").
+  const indText    = (spec.indicadores || [])
     .map(i => `[${i.codigoOficial || i.id || 's/c'}] ${i.descripcion || i.texto || ''}`)
-    .filter(l => !l.endsWith('] ')).join(' | ');
-  const ceText     = (spec.ces || []).slice(0, 2)
-    .map(c => c.descripcion || '').filter(Boolean).join(' | ');
+    .filter(l => !l.endsWith('] ')).join('\n');
+  const ceText     = (spec.ces || [])
+    .map(c => `${c.fundamental ? c.fundamental + ' — ' : ''}${c.descripcion || ''}`.trim())
+    .filter(Boolean).join(' | ');
   const focoGram   = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas);
   const focoGramTx = focoGram.length
     ? focoGram.join('; ')
@@ -749,8 +753,9 @@ TEMA: "${spec.temaOficial}"
 ÁREA: ${spec.area} | GRADO: ${spec.grado} | SEMANA: ${semanaNum} de ${numSemanas} (${rango})
 
 ESPECIFICACIÓN CURRICULAR:
-- Competencias: ${ceText || '(ver indicadores)'}
-- Indicadores (con código): ${indText}
+- Competencias del grado: ${ceText || '(ver indicadores)'}
+- TODOS los indicadores de logro del grado (con código — de aquí eliges en cada clase SOLO los que el tema trabaja de verdad):
+${indText}
 - Vocabulario disponible: ${vocab}
 - FOCO GRAMATICAL ESTA SEMANA (usar en Desarrollo): ${focoGramTx}
 - Funciones comunicativas (PROCEDIMENTALES afines al tema — trabájalas TODAS a lo largo de la unidad, distribuidas entre las clases; no las omitas): ${funcs}
@@ -767,7 +772,7 @@ REGLAS:
 5. Desarrollo: 4 o 5 actividades concretas y progresivas, según la complejidad del foco: modelado o explicación guiada → práctica guiada → práctica colaborativa → producción individual o grupal → retroalimentación breve si aplica. Cierre: 3 o 4 actividades, según el cierre natural de la clase: socialización de producciones → reflexión sobre un aspecto específico → organización del artefacto en el portafolio → pregunta/ticket final.
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
-8. CADA clase incluye "indicadoresTrabajados": los códigos de los indicadores de la especificación que esa clase trabaja realmente (mínimo 1).
+8. CADA clase incluye "indicadoresTrabajados": de la lista COMPLETA de indicadores del grado (arriba), copia los CÓDIGOS EXACTOS de los que esa clase trabaja de verdad según el tema y las actividades reales del día (1 a 3 por clase). NO los inventes ni pongas todos: el docente verá las 7 competencias con sus indicadores y estos códigos son los que se resaltan como "trabajados". A lo largo de la unidad procura cubrir indicadores de VARIAS competencias (comunicativa, pensamiento, resolución, ética, etc.), no solo una — como haría un docente que reparte el logro entre las semanas.
 9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], utilizando [la estructura gramatical o el vocabulario del día — o su equivalente "con la estructura…", "a través del vocabulario…"], [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — si dices "vocabulario", nombra CUÁL ("vocabulario de las partes de la casa: kitchen, bedroom") — nombra siempre el contenido real (ej.: "describirán sus hábitos saludables y la frecuencia con la que realizan actividades cotidianas mediante comprensión oral, interacción y producción escrita, utilizando presente simple y adverbios de frecuencia").
 10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo que refleja la FASE de la unidad esa semana y AVANZA — como "Exploración y descripción", luego "Profundización", luego "Integración y producto final"; no repitas el mismo título en semanas distintas), "focoLinguistico" (copia EXACTA de UNA estructura del FOCO GRAMATICAL indicado arriba, incluidos sus ejemplos entre paréntesis; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla, y la intención pedagógica de cada clase nombra su foco del día.
 11. CADA clase incluye "aporteProducto": el artefacto CONCRETO con NOMBRE PROPIO ÚNICO que esa clase deposita al producto final — como un paso de checklist del producto (ej. "My Daily Schedule con horarios", "Weekend Routine Mini-Map", "Chore Chart de responsabilidades", "Inventario del espacio favorito con posesivos"). Debe ser DISTINTO en cada clase y describir el ENTREGABLE, no la ubicación: PROHIBIDO "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto". El nombre del artefacto puede incluir inglés.${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
@@ -963,16 +968,26 @@ export const buildEspecificacionCurricular = ({
   mallaPayload, titulo, allInds, allComps, mallaContenidos, area, grado,
   producto = '', contextoComunitario = '',
 }) => {
-  const ces = (allComps || []).slice(0, 4).map(c => ({
-    id:            c.id || '',
-    codigoOficial: c.id || '',
-    descripcion:   c.especificaGrado || c.especifica || '',
-  })).filter(c => c.descripcion);
+  // TODAS las competencias del grado (el registro oficial trae 7 con nombre y
+  // específica). Antes se recortaba a 4 y la IA no veía el panorama completo
+  // para asociar indicadores auténticamente al tema.
+  const ces = (allComps || []).map(c => ({
+    id:            c.id || c.codigo || '',
+    codigoOficial: c.id || c.codigo || '',
+    fundamental:   c.competenciaFundamental || c.fundamental || '',
+    descripcion:   c.especificaGrado || c.especifica || c.descripcion || '',
+  })).filter(c => c.descripcion || c.fundamental);
 
-  const indicadores = (allInds || []).slice(0, 9).map(ind => ({
-    id:            ind.id || '',
-    codigoOficial: ind.id || '',
+  // TODOS los indicadores del grado (el registro oficial trae 21: 3 por
+  // competencia). La IA debe VER los 21 para elegir cuáles trabaja el tema —
+  // ese es el "cerebro" que decide qué se resalta. Antes veía solo 9 y no podía
+  // proponer con criterio real. Se conserva la competencia de cada indicador
+  // para que el reparto y el resaltado sean fieles al registro.
+  const indicadores = (allInds || []).map(ind => ({
+    id:            ind.id || ind.codigo || '',
+    codigoOficial: ind.id || ind.codigo || '',
     descripcion:   ind.descripcion || ind.texto || '',
+    competenciaId: ind.competenciaId || ind.competencia || '',
     aspecto:       '',
   })).filter(i => i.descripcion);
 
