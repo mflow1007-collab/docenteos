@@ -1875,6 +1875,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
               onVer={manejarVerUnidad}
               onNueva={manejarNuevaUnidad}
               onAplicarAcciones={manejarAplicarAcciones}
+              onEditarUnidad={setUnidad}
               guardando={guardandoUnidad}
               mensaje={mensajeUnidad}
               onIrAModoAula={() => onIrA?.('modo-aula')}

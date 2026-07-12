@@ -7,10 +7,31 @@
 import { useState } from "react";
 import AuditoriaModal from "./AuditoriaModal.jsx";
 
-export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onNueva, onAplicarAcciones, guardando, mensaje, onIrAModoAula }) {
+export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onNueva, onAplicarAcciones, onEditarUnidad, guardando, mensaje, onIrAModoAula }) {
   const [mostrarAuditoria, setMostrarAuditoria] = useState(false);
+  // Modo edición (Bloque 1): permite al docente elegir qué indicadores trabaja
+  // el plan. Los cambios se elevan al padre vía onEditarUnidad para persistirlos.
+  const [editando, setEditando] = useState(false);
 
   if (!unidad) return null;
+
+  // Alterna "trabajado" (aplicaTemaActual) de un indicador dentro de una
+  // competencia y eleva la unidad modificada al padre. Un indicador ya trabajado
+  // en un plan ANTERIOR (trabajadoAntes) se puede re-elegir: el docente decide.
+  const toggleIndicadorTrabajado = (compIdx, indIdx) => {
+    if (!onEditarUnidad) return;
+    const detalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
+    const nuevoDetalle = detalle.map((comp, ci) => {
+      if (ci !== compIdx) return comp;
+      const inds = (comp.indicadores || []).map((ind, ii) => {
+        if (ii !== indIdx) return ind;
+        const item = typeof ind === "string" ? { descripcion: ind } : { ...ind };
+        return { ...item, aplicaTemaActual: !item.aplicaTemaActual };
+      });
+      return { ...comp, indicadores: inds };
+    });
+    onEditarUnidad({ ...unidad, competenciasDetalle: nuevoDetalle });
+  };
 
   const { metadatos: m, competencias, contenidos, fasesSemanales = [] } = unidad;
   const modeloSuperior = unidad.modeloCurricularSuperior || {};
@@ -24,8 +45,8 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
     if (!item || typeof item !== "object") return "";
     return item.descripcion || item.texto || item.nombre || item.titulo || item.codigo || "";
   };
-  const renderIndicador = (ind) => {
-    if (typeof ind === "string") return ind;
+  const renderIndicador = (ind, compIdx = null, indIdx = null) => {
+    if (typeof ind === "string") ind = { descripcion: ind };
     const codigo = ind?.codigo || ind?.id || ind?.codigoOficial || "";
     const descripcion = ind?.descripcion || ind?.texto || "";
     const style = {
@@ -33,16 +54,33 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       textDecoration: ind?.trabajadoAntes ? "line-through" : undefined,
       opacity: ind?.trabajadoAntes ? 0.72 : undefined,
     };
-    return (
+    const texto = (
       <span style={style}>
         {codigo && <><strong>{codigo}</strong> — </>}
         {descripcion}
       </span>
     );
+    // En modo edición: checkbox para marcar/desmarcar si el plan trabaja este
+    // indicador. Marcado = negrita. El docente elige de los 21, aunque estén
+    // tachados por haberse trabajado antes.
+    if (editando && compIdx !== null && indIdx !== null) {
+      return (
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 6, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={!!ind?.aplicaTemaActual}
+            onChange={() => toggleIndicadorTrabajado(compIdx, indIdx)}
+            style={{ marginTop: 3, flexShrink: 0 }}
+          />
+          {texto}
+        </label>
+      );
+    }
+    return texto;
   };
-  const renderIndicadores = (items = [], empty = "No registrado en la malla.") => (
+  const renderIndicadores = (items = [], empty = "No registrado en la malla.", compIdx = null) => (
     items?.length ? (
-      <ul className="ua-list">{items.map((item, i) => <li key={i}>{renderIndicador(item)}</li>)}</ul>
+      <ul className="ua-list">{items.map((item, i) => <li key={i}>{renderIndicador(item, compIdx, i)}</li>)}</ul>
     ) : <em>{empty}</em>
   );
   const competenciasDetalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
@@ -55,11 +93,26 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 
       {mensaje && <div className={`mensaje ${mensaje.tipo}`}>{mensaje.texto}</div>}
 
+      {editando && (
+        <div className="mensaje info" style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e40af" }}>
+          ✏️ <strong>Modo edición:</strong> marca o desmarca los indicadores que trabaja este plan. Los marcados salen en <strong>negrita</strong>; los ya trabajados en un plan anterior aparecen <span style={{ textDecoration: "line-through" }}>tachados</span> pero puedes volver a elegirlos. Pulsa <strong>Listo</strong> y luego <strong>Guardar</strong> para conservar los cambios.
+        </div>
+      )}
+
       {/* Acciones superiores */}
       <div className="minerd-acciones top">
         <button className="save-btn" onClick={onGuardar} disabled={guardando}>
           {guardando ? "⏳ Guardando..." : "💾 Guardar"}
         </button>
+        {onEditarUnidad && (
+          <button
+            className="export-btn"
+            onClick={() => setEditando((v) => !v)}
+            style={editando ? { background: "#1e40af", color: "#fff" } : undefined}
+          >
+            {editando ? "✓ Listo" : "✏️ Editar"}
+          </button>
+        )}
         <button className="export-btn" onClick={onDescargar}>🖨️ Guardar como PDF</button>
         <button className="export-btn ua-ver-btn" onClick={onVer}>👁️ Ver PDF</button>
         <button className="audit-trigger-btn" onClick={() => setMostrarAuditoria(true)}>🔍 Auditar con IA</button>
@@ -205,7 +258,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
                     {comp.codigo && <><br /><strong style={{ color: "#1e3a8a" }}>{comp.codigo}</strong></>}
                     {comp.especifica && <><br /><em>{comp.especifica}</em></>}
                   </td>
-                  <td>{renderIndicadores(comp.indicadores)}</td>
+                  <td>{renderIndicadores(comp.indicadores, "No registrado en la malla.", i)}</td>
                 </tr>
               ))}
             </tbody>
