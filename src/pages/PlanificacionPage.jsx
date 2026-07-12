@@ -56,6 +56,8 @@ import {
 import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
 
 const LIMITE_HISTORIAL_DOCENTE = 3;
+const ES_TIPO_UNIDAD = (t) =>
+  t === "Unidad de Aprendizaje" || t === "Secuencia Didáctica";
 
 export default function PlanificacionPage({ planificacionPreCargada = null, onConsumirPreCargada = () => {}, onIrA }) {
   const hoyISO = new Date().toISOString().slice(0, 10);
@@ -329,21 +331,45 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
 
     const contenidoNormalizado = contenido.contenido || contenido;
     const meta = contenidoNormalizado.metadatos || contenido.metadatos || {};
+    const tipoGuardado = meta.tipoPlanificacion || contenidoNormalizado.tipoPlanificacion || "";
+    const esUnidadGuardada = ES_TIPO_UNIDAD(tipoGuardado)
+      || Array.isArray(contenidoNormalizado.fasesSemanales)
+      || Boolean(contenidoNormalizado.modeloCurricularSuperior);
+    const temaGuardado = meta.tema || meta.titulo || contenidoNormalizado?.metadatos?.titulo || "";
 
-    if (!duplicar) {
+    if (esUnidadGuardada) {
+      if (!duplicar) {
+        setUnidad(contenidoNormalizado);
+        setPlanificacion(null);
+      } else {
+        setUnidad(null);
+        setPlanificacion(null);
+      }
+      setMensajeUnidad({
+        tipo: "success",
+        texto: duplicar
+          ? "🧬 Configuración de unidad duplicada en el formulario"
+          : "📂 Unidad cargada completa desde historial",
+      });
+      setTimeout(() => setMensajeUnidad(null), 2500);
+    } else if (!duplicar) {
       setPlanificacion(contenidoNormalizado);
+      setUnidad(null);
     } else {
       setPlanificacion(null);
+      setUnidad(null);
     }
+
     setGrado(meta.grado || "");
     setSeccion(meta.seccion || "");
     setArea(meta.area || "");
+    setAsignatura(meta.asignatura || "");
     setPeriodo(meta.periodo || "");
     setFechaInicio(meta.fechaInicio || hoyISO);
     setDuracion(meta.duracion || "");
-    setTipoPlanificacion(meta.tipoPlanificacion || "");
+    setTipoPlanificacion(tipoGuardado);
     setDiasClase(Array.isArray(meta.diasClase) && meta.diasClase.length ? meta.diasClase : ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]);
-    setTema(meta.tema || "");
+    setTema(temaGuardado);
     setCompetencia(meta.competenciaSeleccionada || "");
     setIndicadoresOficiales((meta.indicadoresOficiales || []).join("\n"));
     setImagenTematicaSrc(meta.imagenTematicaSrc || "");
@@ -356,12 +382,42 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     setTemasIntegrados(Array.isArray(meta.temasIntegrados) && meta.temasIntegrados.length > 1 ? meta.temasIntegrados : []);
     setCombinacionSugerida(null);
 
+    if (esUnidadGuardada) {
+      const semanasDetectadas = Number(String(meta.duracion || "").match(/(\d+)\s*seman/i)?.[1] || 0);
+      setUnidadDatos((prev) => ({
+        ...prev,
+        grado: meta.grado || prev.grado || "",
+        seccion: meta.seccion || prev.seccion || "",
+        area: meta.area || prev.area || "",
+        asignatura: meta.asignatura || prev.asignatura || "",
+        titulo: temaGuardado || prev.titulo || "",
+        periodo: meta.periodo || prev.periodo || "",
+        fechaInicio: meta.fechaInicio || prev.fechaInicio || hoyISO,
+        numSemanas: semanasDetectadas || prev.numSemanas || 4,
+        nombreDocente: meta.nombreDocente || prev.nombreDocente || "",
+        cedula: meta.cedula || prev.cedula || "",
+        regional: meta.regional || prev.regional || "",
+        distrito: meta.distrito || prev.distrito || "",
+        centro: meta.centro || prev.centro || "",
+        codigoCentro: meta.codigoCentro || prev.codigoCentro || "",
+        nivel: meta.nivel || prev.nivel || "",
+        ciclo: meta.ciclo || prev.ciclo || "",
+        modalidad: meta.modalidad || prev.modalidad || "",
+        jornada: meta.jornada || prev.jornada || "",
+        productoFinalTexto: meta.productoFinal || prev.productoFinalTexto || "",
+        situacionTexto: contenidoNormalizado.situacionAprendizaje || prev.situacionTexto || "",
+        temasSeleccionados: Array.isArray(meta.temasIntegrados) ? meta.temasIntegrados : [],
+      }));
+    }
+
     const texto = duplicar
       ? "🧬 Configuración duplicada en el formulario"
       : "📂 Planificación cargada desde historial";
 
-    setMensaje({ tipo: "success", texto });
-    setTimeout(() => setMensaje(null), 2000);
+    if (!esUnidadGuardada) {
+      setMensaje({ tipo: "success", texto });
+      setTimeout(() => setMensaje(null), 2000);
+    }
   };
 
   // Carga una planificación desde el historial reciente del Dashboard
@@ -548,9 +604,6 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     })
     .slice(0, 2)
     .map((item) => item.value);
-
-  const ES_TIPO_UNIDAD = (t) =>
-    t === "Unidad de Aprendizaje" || t === "Secuencia Didáctica";
 
   const seleccionarTipoPlanificacion = (tipo) => {
     setTipoPlanificacion(tipo);
