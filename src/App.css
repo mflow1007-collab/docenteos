@@ -4362,6 +4362,21 @@
   animation: generationProgressFlow 1.6s linear infinite;
 }
 
+.generation-progress-banner--sticky {
+  position: sticky;
+  top: 12px;
+  z-index: 30;
+  margin: 0 0 18px;
+  border-color: rgba(37, 99, 235, .28);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, .12);
+}
+
+.generation-progress-banner--sticky .generation-progress-copy strong {
+  display: block;
+  max-width: 100%;
+  font-size: 14.5px;
+}
+
 .generation-progress-dot {
   width: 13px;
   height: 13px;

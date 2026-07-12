@@ -1605,6 +1605,12 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
     });
   };
 
+  const progresoGeneracionActivo =
+    cargandoDiario && mensajeDiario?.tipo === "loading" ? mensajeDiario.texto :
+    cargandoUnidad && mensajeUnidad?.tipo === "loading" ? mensajeUnidad.texto :
+    cargando && mensaje?.tipo === "loading" ? mensaje.texto :
+    "";
+
   return (
     <>
       <h1>✨ Planificación Inteligente</h1>
@@ -1647,6 +1653,16 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
       )}
 
       <div className="planning-container">
+        {progresoGeneracionActivo && (
+          <div className="generation-progress-banner generation-progress-banner--sticky" role="status" aria-live="polite">
+            <span className="generation-progress-dot" />
+            <div className="generation-progress-copy">
+              <span>DocenteOS está trabajando</span>
+              <strong>{progresoGeneracionActivo}</strong>
+            </div>
+          </div>
+        )}
+
         {materialPlanificacion && (
           <section className="planning-resource-card">
             <div>
