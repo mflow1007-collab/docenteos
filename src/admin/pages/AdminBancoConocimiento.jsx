@@ -1077,7 +1077,7 @@ Instrucción crítica:
 - Si el PDF tiene varios grados, usa únicamente el grado seleccionado.
 - Si el PDF tiene varias áreas, usa únicamente el área/asignatura seleccionada.
 - Debes buscar estas secciones oficiales del diseño MINERD: Eje Temático transversal, Competencias fundamentales y específicas, Indicadores de Logro, Contenidos: Conceptos, Procedimientos, Actitudes y valores.
-- Si encuentras una tabla con encabezados "Competencias" e "Indicadores de Logro", extrae la competencia de la columna izquierda y sus indicadores de la columna derecha.
+- Si encuentras una tabla con encabezados "Competencias" e "Indicadores de Logro", extrae la competencia de la columna izquierda (con su nombre de Competencia Fundamental — Comunicativa, Pensamiento Lógico, Resolución de Problemas, Ética y Ciudadana, Científica y Tecnológica, Ambiental y de la Salud, Desarrollo Personal y Espiritual — y su descripción específica del grado) y TODOS sus indicadores de la columna derecha, anidados en indicadoresLogro. Preserva el código de cada indicador tal como aparece (IL-1, IL-2, IL-3…) en el campo "id". No omitas indicadores: si una competencia tiene 3 indicadores en el PDF, deben salir los 3.
 - Si encuentras una tabla con encabezados "Contenidos", "Conceptos", "Procedimientos" y "Actitudes y valores", extrae cada columna en su categoría correspondiente.
 
 Estructura requerida:
