@@ -1356,6 +1356,12 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
     ? indsPlanos.length / compsValidas.length
     : 0;
 
+  // Numeración GLOBAL corrida (IL-1…IL-21) — el registro oficial numera los
+  // indicadores de forma consecutiva a lo largo de TODAS las competencias, sin
+  // reiniciar en cada una (Comunicativa: IL-1/2/3, Pensamiento: IL-4/5/6…).
+  // Cuando la malla no trae el código propio del indicador, se genera aquí con
+  // el contador global, no con la posición dentro de la competencia.
+  let contadorGlobal = 0;
   return compsValidas.map((comp, i) => {
     const anidados = Array.isArray(comp.indicadoresLogro) && comp.indicadoresLogro.length
       ? comp.indicadoresLogro
@@ -1380,13 +1386,19 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
       : vinculados.length
         ? vinculados
         : porFundamental.length ? porFundamental : porBloque;
+    const indicadores = fuente.map(aIndicador).filter((ind) => ind.descripcion)
+      .map((ind) => {
+        contadorGlobal += 1;
+        // Respeta el código real de la malla; si no hay, genera IL-N corrido.
+        return { ...ind, codigo: ind.codigo || `IL-${contadorGlobal}` };
+      });
     return {
       // Código oficial de la competencia específica (ej. CE-LEI-1 / ING-1-C01)
       codigo: compId,
       competenciaFundamental: compFund || compFundEf[i] || compFundEf[i % compFundEf.length] || "",
       especifica: comp.especificaGrado || comp.especifica || comp.descripcion || "",
       // El formatter acepta también strings (unidades guardadas antes)
-      indicadores: fuente.map(aIndicador).filter((ind) => ind.descripcion),
+      indicadores,
     };
   });
 };
@@ -1666,13 +1678,19 @@ const _generarFasesConIA = async (
       weekPlan.clases.flatMap((c) => (Array.isArray(c.indicadoresTrabajados) ? c.indicadoresTrabajados : []))
         .map(normCodigo).filter(Boolean)
     );
-    const indicadoresFase = (spec.indicadores || [])
+    // Cada indicador de la spec con su código IL-N corrido (posición global +1),
+    // para que "Indicadores de avance" los muestre con código, como el registro.
+    const conCodigoGlobal = (spec.indicadores || []).map((ind, gi) => {
+      const cod = String(ind.codigoOficial || ind.id || "").trim() || `IL-${gi + 1}`;
+      return { cod, descripcion: ind.descripcion, codigoOficial: ind.codigoOficial, id: ind.id };
+    });
+    const indicadoresFase = conCodigoGlobal
       .filter((ind) => codigosTrabajados.has(normCodigo(ind.codigoOficial || ind.id)))
-      .map((ind) => ind.descripcion)
-      .filter(Boolean);
+      .map((ind) => `${ind.cod} — ${ind.descripcion}`)
+      .filter((s) => s.includes(" — ") && s.split(" — ")[1]);
     fase.indicadoresAvance = indicadoresFase.length
       ? indicadoresFase
-      : (spec.indicadores || []).slice(0, 4).map((ind) => ind.descripcion).filter(Boolean);
+      : conCodigoGlobal.slice(0, 4).map((ind) => `${ind.cod} — ${ind.descripcion}`).filter((s) => s.split(" — ")[1]);
 
     // 4 — NEAE y observaciones del bloque LIGADAS AL FOCO (contrato R14):
     // sustituyen el bloque genérico repetido de la plantilla
