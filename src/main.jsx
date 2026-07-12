@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import './index.css'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import AppErrorBoundary from './components/AppErrorBoundary.jsx'
 
 const App = lazy(() => import('./App.jsx'))
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'))
@@ -19,6 +20,7 @@ function DocenteOSRouter() {
   const destino = !user ? '/login' : perfilCompleto ? '/' : '/bienvenida'
 
   return (
+    <AppErrorBoundary resetKey={user?.uid || 'anon'} autoReloadOnChunkError>
     <Suspense fallback={<PantallaCarga />}>
       <Routes>
         <Route
@@ -55,6 +57,7 @@ function DocenteOSRouter() {
         />
       </Routes>
     </Suspense>
+    </AppErrorBoundary>
   )
 }
 

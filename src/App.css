@@ -6168,6 +6168,67 @@
   flex-shrink: 0;
 }
 
+.app-recovery-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  width: min(760px, 100%);
+  margin: 24px auto;
+  padding: 22px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, .08);
+  color: #1e293b;
+}
+
+.app-recovery-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.app-recovery-card h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.app-recovery-card p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.app-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.app-recovery-actions button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.app-recovery-actions button.secondary {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
 .content {
   flex: 1;
   min-height: 0;

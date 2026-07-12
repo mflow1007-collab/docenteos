@@ -21,6 +21,7 @@ import Inicio from "./components/Inicio.jsx";
 import Cursos from "./components/Cursos.jsx";
 import DetalleCurso from "./components/DetalleCurso.jsx";
 import CoachIA from "./components/CoachIA.jsx";
+import AppErrorBoundary from "./components/AppErrorBoundary.jsx";
 
 const PlanificacionPage       = lazy(() => import("./pages/PlanificacionPage"));
 const InstrumentosPage        = lazy(() => import("./pages/InstrumentosPage"));
@@ -41,6 +42,30 @@ const BancoEvidenciasPage     = lazy(() => import("./pages/BancoEvidenciasPage")
 const EstudianteDetallePage   = lazy(() => import("./pages/EstudianteDetallePage"));
 
 const CURSO_ACTIVO_KEY = "docenteos_curso_activo_id";
+const PAGINAS_APP = new Set([
+  "inicio",
+  "modo-aula",
+  "banco-evidencias",
+  "cursos",
+  "detalle-curso",
+  "estudiantes",
+  "detalle-estudiante",
+  "planificacion",
+  "instrumentos",
+  "mi-registro",
+  "registro",
+  "curricular",
+  "libro-abierto",
+  "biblioteca",
+  "formatos-minerd",
+  "registros-minerd",
+  "reportes",
+  "ia",
+  "curriculo",
+  "suscripcion",
+  "asistente-personal",
+  "configuracion",
+]);
 
 function leerCursoActivoId() {
   try { return localStorage.getItem(CURSO_ACTIVO_KEY) || null; }
@@ -105,7 +130,9 @@ function AppInner() {
   const { pathname } = useLocation()
   // Derive current page from URL — no state needed
   const pagina = pathname.replace(/^\//, '') || 'inicio'
-  const navegar = (id) => navigate('/' + (id === 'inicio' ? '' : id))
+  const navegar = useCallback((id, options = {}) => {
+    navigate('/' + (id === 'inicio' ? '' : id), options);
+  }, [navigate]);
 
   const esDocenteOS = esUsuarioDocenteOS(user?.email)
   const esAdmin = esDocenteOS
@@ -123,6 +150,12 @@ function AppInner() {
       setCerrando(false)
     }
   }
+
+  useEffect(() => {
+    if (!PAGINAS_APP.has(pagina)) {
+      navegar("inicio", { replace: true });
+    }
+  }, [pagina, navegar]);
 
   // Derivados del perfil para sidebar y topbar
   const nombreDocente   = formulario.nombreDocente || ''
@@ -276,7 +309,8 @@ function AppInner() {
         const restaurarPagina = (datos) => {
           if (!datos?.pagina || datos.pagina === 'inicio') return;
           // Only redirect if on root — deep links take priority
-          if (pathname === '/' || pathname === '') {
+          const rutaActual = window.location.pathname || "/";
+          if (rutaActual === '/' || rutaActual === '') {
             navegar(datos.pagina);
           }
         };
@@ -312,7 +346,7 @@ function AppInner() {
     return () => {
       activo = false;
     };
-  }, [user?.uid]);
+  }, [user?.uid, navegar]);
 
   const [errorCarga, setErrorCarga] = useState(null);
 
@@ -369,7 +403,7 @@ function AppInner() {
     if (pagina === "detalle-estudiante" && !estudianteDetalle) {
       navegar("estudiantes");
     }
-  }, [pagina, estudianteDetalle]);
+  }, [pagina, estudianteDetalle, navegar]);
 
   useEffect(() => {
     if (!inicializoNavegacion.current || !navegacionLista) return;
@@ -664,6 +698,11 @@ function AppInner() {
           </div>
         )}
         <section className={`content${pagina === "modo-aula" ? " content-modo-aula" : ""}`}>
+          <AppErrorBoundary
+            resetKey={pathname}
+            autoReloadOnChunkError
+            onGoHome={() => navegar("inicio", { replace: true })}
+          >
           <Suspense fallback={<div className="card">Cargando módulo...</div>}>
           {pagina === "inicio" && navegacionLista && (
             <Inicio
@@ -678,6 +717,9 @@ function AppInner() {
               onAbrirHistorial={abrirPlanificacionDesdeHistorial}
               onDuplicarHistorial={duplicarPlanificacionDesdeHistorial}
             />
+          )}
+          {pagina === "inicio" && !navegacionLista && (
+            <div className="card">Preparando tu navegación...</div>
           )}
           {pagina === "modo-aula" && (
             <ModoAulaPage
@@ -773,6 +815,20 @@ function AppInner() {
           {pagina === "reportes" && <ReportesPage cursos={cursos} />}
           {pagina === "ia"       && esDocenteOS && <CentroIAPage seccion={seccionIA} />}
           {pagina === "curriculo" && esDocenteOS && <CurriculumImportPage />}
+          {(pagina === "ia" || pagina === "curriculo") && !esDocenteOS && (
+            <div className="app-recovery-card" role="alert">
+              <div className="app-recovery-icon">i</div>
+              <div>
+                <h2>Módulo no disponible</h2>
+                <p>Esta sección pertenece al equipo de administración de DocenteOS.</p>
+                <div className="app-recovery-actions">
+                  <button type="button" onClick={() => navegar("inicio", { replace: true })}>
+                    Volver al inicio
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {pagina === "suscripcion" && <SubscriptionPage />}
           {pagina === "asistente-personal" && (
             <AsistentePersonalPage
@@ -782,6 +838,7 @@ function AppInner() {
           )}
           {pagina === "configuracion" && <ConfiguracionPage />}
           </Suspense>
+          </AppErrorBoundary>
         </section>
       </main>
       <CoachIA pagina={pagina} formulario={formulario} />
