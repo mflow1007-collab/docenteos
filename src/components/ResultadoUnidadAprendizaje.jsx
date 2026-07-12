@@ -33,6 +33,37 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
     onEditarUnidad({ ...unidad, competenciasDetalle: nuevoDetalle });
   };
 
+  // Escribe un valor en una ruta anidada del objeto unidad (ej. "metadatos.titulo"
+  // o "fasesSemanales.0.dias.1.titulo") y eleva la unidad modificada al padre.
+  const setEnRuta = (ruta, valor) => {
+    if (!onEditarUnidad) return;
+    const partes = ruta.split(".");
+    const clon = JSON.parse(JSON.stringify(unidad));
+    let ref = clon;
+    for (let i = 0; i < partes.length - 1; i++) {
+      const k = /^\d+$/.test(partes[i]) ? Number(partes[i]) : partes[i];
+      if (ref[k] == null) ref[k] = /^\d+$/.test(partes[i + 1]) ? [] : {};
+      ref = ref[k];
+    }
+    const ultima = partes[partes.length - 1];
+    ref[/^\d+$/.test(ultima) ? Number(ultima) : ultima] = valor;
+    onEditarUnidad(clon);
+  };
+
+  // Texto normal, o input/textarea editable cuando editando===true.
+  // Es una FUNCIÓN que devuelve JSX (no un componente) para no recrear el nodo
+  // en cada render — así los inputs conservan el foco mientras se escribe.
+  const editable = ({ ruta, valor, multilinea = false, negrita = false, placeholder = "" }) => {
+    if (!editando) {
+      if (!valor) return multilinea ? null : <span>{valor}</span>;
+      return negrita ? <strong>{valor}</strong> : <span>{valor}</span>;
+    }
+    const estilo = { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: "inherit", padding: "3px 6px", border: "1px solid #93c5fd", borderRadius: 4, background: "#f8fafc" };
+    return multilinea
+      ? <textarea style={{ ...estilo, minHeight: 60, resize: "vertical" }} defaultValue={valor || ""} placeholder={placeholder} onBlur={(e) => setEnRuta(ruta, e.target.value)} />
+      : <input style={estilo} defaultValue={valor || ""} placeholder={placeholder} onBlur={(e) => setEnRuta(ruta, e.target.value)} />;
+  };
+
   const { metadatos: m, competencias, contenidos, fasesSemanales = [] } = unidad;
   const modeloSuperior = unidad.modeloCurricularSuperior || {};
   const renderList = (items = [], empty = "No registrado en la malla.") => (
@@ -175,7 +206,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
             </tr>
             <tr>
               <td className="ua-lbl">Título de la Unidad</td>
-              <td colSpan={3}><strong>{m.titulo}</strong></td>
+              <td colSpan={3}>{editable({ ruta: "metadatos.titulo", valor: m.titulo, negrita: true })}</td>
             </tr>
             <tr>
               <td className="ua-lbl">Duración</td><td>{m.duracion}</td>
@@ -193,7 +224,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
             </tr>
             <tr>
               <td className="ua-lbl ua-lbl-top">Producto final</td>
-              <td colSpan={3}>{m.productoFinal}</td>
+              <td colSpan={3}>{editable({ ruta: "metadatos.productoFinal", valor: m.productoFinal, multilinea: true })}</td>
             </tr>
           </tbody>
         </table>
@@ -219,9 +250,9 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       {/* ── SITUACIÓN Y AMBIENTE ── */}
       <section className="ua-section">
         <div className="ua-section-head">SITUACIÓN DE APRENDIZAJE</div>
-        <p className="ua-text-block">{unidad.situacionAprendizaje}</p>
+        <p className="ua-text-block">{editable({ ruta: "situacionAprendizaje", valor: unidad.situacionAprendizaje, multilinea: true })}</p>
         <div className="ua-section-head" style={{ marginTop: 8 }}>AMBIENTE DE APRENDIZAJE</div>
-        <p className="ua-text-block">{unidad.ambienteAprendizaje}</p>
+        <p className="ua-text-block">{editable({ ruta: "ambienteAprendizaje", valor: unidad.ambienteAprendizaje, multilinea: true })}</p>
         {unidad.notaInstitucional && (
           <>
             <div className="ua-section-head" style={{ marginTop: 8 }}>NOTA INSTITUCIONAL DE ORGANIZACIÓN TEMPORAL</div>
@@ -311,7 +342,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       {/* ══════════════════════════════════════
           FASES / SEMANAS
       ══════════════════════════════════════ */}
-      {fasesSemanales.map((fase) => (
+      {fasesSemanales.map((fase, fi) => (
         <section key={fase.numero} className="ua-fase-block">
 
           {/* FASE header */}
@@ -339,25 +370,33 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
           )}
 
           {/* DÍAs */}
-          {(fase.dias || []).map((dia) => (
+          {(fase.dias || []).map((dia, di) => (
             <div key={dia.numero} className="ua-dia-block">
 
               <div className="ua-semana-header">
-                Día {dia.dia || dia.numero || dia.numeroGlobal}: &ldquo;{dia.titulo}&rdquo;
-                {dia.focoLinguistico && (
-                  <span> · {dia.focoLinguistico}</span>
+                Día {dia.dia || dia.numero || dia.numeroGlobal}: &ldquo;{editando
+                  ? editable({ ruta: `fasesSemanales.${fi}.dias.${di}.titulo`, valor: dia.titulo })
+                  : dia.titulo}&rdquo;
+                {(dia.focoLinguistico || editando) && (
+                  <span> · {editando
+                    ? editable({ ruta: `fasesSemanales.${fi}.dias.${di}.focoLinguistico`, valor: dia.focoLinguistico, placeholder: "Foco lingüístico / estructura" })
+                    : dia.focoLinguistico}</span>
                 )}
                 {dia.etapaProgresion && (
                   <span className="ua-etapa-badge">{dia.etapaProgresion}</span>
                 )}
               </div>
-              {dia.estrategiasDia && (
+              {(dia.estrategiasDia || editando) && (
                 <div className="ua-estrategia-band">
-                  <strong>Estrategia de enseñanza y aprendizaje:</strong> {dia.estrategiasDia}
+                  <strong>Estrategia de enseñanza y aprendizaje:</strong> {editando
+                    ? editable({ ruta: `fasesSemanales.${fi}.dias.${di}.estrategiasDia`, valor: dia.estrategiasDia })
+                    : dia.estrategiasDia}
                 </div>
               )}
               <div className="ua-intencion-band">
-                <strong>Intención pedagógica del día:</strong> {dia.intencionPedagogica}
+                <strong>Intención pedagógica del día:</strong> {editando
+                  ? editable({ ruta: `fasesSemanales.${fi}.dias.${di}.intencionPedagogica`, valor: dia.intencionPedagogica, multilinea: true })
+                  : dia.intencionPedagogica}
               </div>
 
               {/* CRITERIOS DE ÉXITO + APORTE AL PRODUCTO */}
@@ -370,10 +409,12 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
                     </ul>
                   </div>
                 )}
-                {dia.aporteProducto && (
+                {(dia.aporteProducto || editando) && (
                   <div className="ua-aporte-block">
                     <div className="ua-aporte-head">Aporte al producto final</div>
-                    <p className="ua-aporte-text">{dia.aporteProducto}</p>
+                    <p className="ua-aporte-text">{editando
+                      ? editable({ ruta: `fasesSemanales.${fi}.dias.${di}.aporteProducto`, valor: dia.aporteProducto, placeholder: "Artefacto que esta clase aporta" })
+                      : dia.aporteProducto}</p>
                   </div>
                 )}
               </div>
@@ -392,8 +433,14 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
                     </tr>
                   </thead>
                   <tbody>
-                    {(dia.momentos || []).map((mom) => (
-                      <MomentoRows key={mom.nombre} mom={mom} />
+                    {(dia.momentos || []).map((mom, mi) => (
+                      <MomentoRows
+                        key={mom.nombre}
+                        mom={mom}
+                        editando={editando}
+                        setEnRuta={setEnRuta}
+                        rutaBase={`fasesSemanales.${fi}.dias.${di}.momentos.${mi}`}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -487,9 +534,10 @@ function parseFormatting(text) {
 /**
  * Renderiza las 2 filas por momento: datos + fila verde de metacognición
  */
-function MomentoRows({ mom }) {
+function MomentoRows({ mom, editando = false, rutaBase = "", setEnRuta = null }) {
   const ev = mom.evaluacion || {};
   const rec = mom.recursos || {};
+  const inputEstilo = { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: "inherit", padding: "3px 6px", border: "1px solid #93c5fd", borderRadius: 4, background: "#f8fafc" };
 
   return (
     <>
@@ -502,7 +550,14 @@ function MomentoRows({ mom }) {
         <td className="ua-td-acts" rowSpan={2}>
           {(mom.actividades || []).map((act, i) => (
             <p key={i} className="ua-act-item">
-              <strong>{i + 1}{")"}</strong> {parseFormatting(act)}
+              <strong>{i + 1}{")"}</strong>{" "}
+              {editando && setEnRuta
+                ? <textarea
+                    style={{ ...inputEstilo, minHeight: 44, resize: "vertical" }}
+                    defaultValue={act}
+                    onBlur={(e) => setEnRuta(`${rutaBase}.actividades.${i}`, e.target.value)}
+                  />
+                : parseFormatting(act)}
             </p>
           ))}
         </td>
@@ -526,9 +581,13 @@ function MomentoRows({ mom }) {
       <tr>
         <td className="ua-td-meta" colSpan={2}>
           <span className="ua-meta-label">Metacognición: </span>
-          <span className="ua-meta-text">
-            {(mom.metacognicion || []).join(" · ")}
-          </span>
+          {editando && setEnRuta
+            ? <textarea
+                style={{ ...inputEstilo, minHeight: 44, resize: "vertical" }}
+                defaultValue={(mom.metacognicion || []).join(" · ")}
+                onBlur={(e) => setEnRuta(`${rutaBase}.metacognicion`, e.target.value.split(/\s*·\s*/).filter(Boolean))}
+              />
+            : <span className="ua-meta-text">{(mom.metacognicion || []).join(" · ")}</span>}
         </td>
       </tr>
     </>
