@@ -1468,11 +1468,55 @@ const _generarFasesConIA = async (
   const totalClases = fases.reduce((sum, f) => sum + f.dias.length, 0);
   let globalOffset = 0;
 
+  const tomarVentana = (items = [], indice = 0, cantidad = 2) => {
+    const lista = (items || []).map((x) => String(x || "").trim()).filter(Boolean);
+    if (!lista.length) return [];
+    const start = (Math.max(indice, 0) * cantidad) % lista.length;
+    return Array.from({ length: Math.min(cantidad, lista.length) }, (_, i) => lista[(start + i) % lista.length]);
+  };
+
+  const recortar = (texto = "", max = 82) => {
+    const limpio = String(texto || "").replace(/\s+/g, " ").trim();
+    return limpio.length > max ? `${limpio.slice(0, max - 1)}…` : limpio;
+  };
+
+  const resolverTopicoDia = (dia, indiceEnFase) => {
+    const indiceGlobal = Math.max((dia?.numeroGlobal || (globalOffset + indiceEnFase + 1)) - 1, 0);
+    const semanaReal = Math.max(1, Math.min(numSemanas, dia?.semana || 1));
+    const etapa = String(dia?.etapaProgresion || "").trim();
+    const gramaticaSemana = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaReal, numSemanas);
+    const vocab = tomarVentana(spec.contenidosClaves?.vocabulario, indiceGlobal, 3);
+    const expresiones = tomarVentana(spec.contenidosClaves?.expresiones, indiceGlobal, 1);
+    const funcionales = tomarVentana(spec.contenidosClaves?.funcionales, indiceGlobal, 1);
+
+    if (etapa && /presentaci[oó]n|exploraci[oó]n|diagn[oó]stico/i.test(etapa)) {
+      return recortar(`${etapa}: apropiación del tema "${spec.temaOficial}"${vocab.length ? ` con vocabulario (${vocab.join(", ")})` : ""}`);
+    }
+
+    if (gramaticaSemana.length) {
+      return recortar(`${etapa || "Aplicación"}: ${gramaticaSemana[0]}${vocab.length ? ` + vocabulario (${vocab.slice(0, 2).join(", ")})` : ""}`);
+    }
+
+    if (funcionales.length) {
+      return recortar(`${etapa || "Desarrollo"}: ${funcionales[0]}${expresiones.length ? ` · ${expresiones[0]}` : ""}`);
+    }
+
+    if (expresiones.length) {
+      return recortar(`${etapa || "Práctica"}: expresiones del tema (${expresiones[0]})`);
+    }
+
+    if (vocab.length) {
+      return recortar(`${etapa || "Práctica"}: vocabulario del tema (${vocab.join(", ")})`);
+    }
+
+    return recortar(`${etapa || "Trabajo guiado"} sobre "${spec.temaOficial}"`);
+  };
+
   for (const fase of fases) {
     const numClases = fase.dias.length;
 
-    // Progreso narrado para el docente: semana, clases y el contenido que se
-    // está redactando en ese momento (foco oficial de la semana)
+    // Progreso narrado para el docente: fase pedagógica, semana calendario y
+    // tópico real por día según la malla/contenidos oficiales ya seleccionados.
     const progressWrapper = onProgress
       ? (startDia, endDia) => {
           const globalStart = globalOffset + startDia;
@@ -1480,13 +1524,20 @@ const _generarFasesConIA = async (
           const rango = globalStart === globalEnd
             ? `la clase ${globalStart}`
             : `las clases ${globalStart} y ${globalEnd}`;
-          const foco = getFocoGramatical(spec.contenidosClaves?.gramatica, fase.numero, numSemanas);
-          const focoCompleto = foco.length
-            ? foco.join(" · ")
-            : "vocabulario y expresiones del tema";
-          const focoTx = focoCompleto.length > 90 ? `${focoCompleto.slice(0, 90)}…` : focoCompleto;
+          const diasLote = fase.dias.slice(startDia - 1, endDia);
+          const semanasLote = [...new Set(diasLote.map((d) => d.semana).filter(Boolean))];
+          const semanaTxt = semanasLote.length === 1
+            ? `Semana ${semanasLote[0]} de ${numSemanas}`
+            : `Semanas ${semanasLote.join(" y ")} de ${numSemanas}`;
+          const topicos = diasLote.map((dia, idx) => {
+            const etiquetaDia = [
+              `Día ${dia.numeroGlobal || globalStart + idx}`,
+              dia.diaCalendario ? dia.diaCalendario : "",
+            ].filter(Boolean).join(" · ");
+            return `${etiquetaDia}: ${resolverTopicoDia(dia, startDia - 1 + idx)}`;
+          });
           onProgress(
-            `✍️ Semana ${fase.numero} de ${numSemanas} — escribiendo ${rango} de ${totalClases} · Trabajando: ${focoTx}`
+            `✍️ ${semanaTxt} · Fase ${fase.numero}: ${fase.nombre} — escribiendo ${rango} de ${totalClases} · ${topicos.join(" | ")}`
           );
         }
       : null;
