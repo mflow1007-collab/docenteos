@@ -1218,13 +1218,22 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
       ...(conceptos.expresiones || []),
       ...(conceptos.sociolinguisticos || []),
     ]);
-    const funcionales = textosUnicos([
-      ...(procedimientos.funcionales || []),
+    // Procedimentales del modelo MINERD: subdivididos en FUNCIONALES (lo que el
+    // estudiante hace comunicativamente) y DISCURSIVOS (comprensión y producción
+    // de textos). Se etiquetan por tipo para que el render los muestre separados
+    // como las págs. 5-7 del modelo, en vez de una lista plana mezclada.
+    const _func = textosUnicos(procedimientos.funcionales || []);
+    const _disc = textosUnicos([
       ...(procedimientos.discursivos || []),
       ...(procedimientos.comprensionOralEscrita || []),
       ...(procedimientos.produccionOral || []),
       ...(procedimientos.produccionEscrita || []),
-      ...(procedimientos.items || []),
+    ]);
+    const _otros = textosUnicos(procedimientos.items || []);
+    const funcionales = textosUnicos([
+      ..._func.map((f) => `Funcional: ${f}`),
+      ..._disc.map((d) => `Discursivo: ${d}`),
+      ..._otros,
     ]);
     const actitudinales = textosUnicos([
       ...(bloqueTema.actitudinales || []),
@@ -2552,7 +2561,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       const m = String(c).match(/^(Vocabulario|Gramática|Expresión):\s*(.*)$/s);
       return m ? `<li><strong>${m[1]}:</strong> ${m[2]}</li>` : `<li>${c}</li>`;
     }).join("")}</ul></div>
-    <div class="cont-col"><div class="cont-head">Procedimentales</div><ul class="cont-list">${(unidad.contenidos?.procedimentales || []).map((c) => `<li>${c}</li>`).join("")}</ul></div>
+    <div class="cont-col"><div class="cont-head">Procedimentales</div><ul class="cont-list">${(unidad.contenidos?.procedimentales || []).map((c) => {
+      const m = String(c).match(/^(Funcional|Discursivo):\s*(.*)$/s);
+      return m ? `<li><strong>${m[1]}:</strong> ${m[2]}</li>` : `<li>${c}</li>`;
+    }).join("")}</ul></div>
     <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${(unidad.contenidos?.actitudinales || []).map((c) => `<li>${c}</li>`).join("")}</ul></div>
   </div>
 

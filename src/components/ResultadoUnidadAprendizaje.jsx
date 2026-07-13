@@ -326,11 +326,17 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
         <div className="ua-contenidos-grid">
           <div className="ua-cont-col ua-cont-conceptual">
             <div className="ua-cont-head">Conceptuales</div>
-            <ul>{(contenidos?.conceptuales || []).map((c, i) => <li key={i}>{c}</li>)}</ul>
+            <ul>{(contenidos?.conceptuales || []).map((c, i) => {
+              const m = String(c).match(/^(Vocabulario|Gramática|Expresión):\s*(.*)$/s);
+              return m ? <li key={i}><strong>{m[1]}:</strong> {m[2]}</li> : <li key={i}>{c}</li>;
+            })}</ul>
           </div>
           <div className="ua-cont-col ua-cont-procedimental">
             <div className="ua-cont-head">Procedimentales</div>
-            <ul>{(contenidos?.procedimentales || []).map((c, i) => <li key={i}>{c}</li>)}</ul>
+            <ul>{(contenidos?.procedimentales || []).map((c, i) => {
+              const m = String(c).match(/^(Funcional|Discursivo):\s*(.*)$/s);
+              return m ? <li key={i}><strong>{m[1]}:</strong> {m[2]}</li> : <li key={i}>{c}</li>;
+            })}</ul>
           </div>
           <div className="ua-cont-col ua-cont-actitudinal">
             <div className="ua-cont-head">Actitudinales</div>
