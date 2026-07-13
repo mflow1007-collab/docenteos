@@ -1838,7 +1838,6 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             onChange={setPlanDiarioDatos}
             onGenerar={manejarGenerarDiario}
             cargando={cargandoDiario}
-            progresoGeneracion={mensajeDiario?.tipo === "loading" ? mensajeDiario.texto : ""}
           />
         ) : (tipoPlanificacion === "Unidad de Aprendizaje" || tipoPlanificacion === "Secuencia Didáctica") ? (
           <FormularioUnidadAprendizaje
@@ -1847,7 +1846,6 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             onGenerar={manejarGenerarUnidad}
             cargando={cargandoUnidad}
             temasTrabajados={temasTrabajados}
-            progresoGeneracion={mensajeUnidad?.tipo === "loading" ? mensajeUnidad.texto : ""}
           />
         ) : tipoPlanificacion ? (
           <FormularioPlanificacion
@@ -1907,7 +1905,6 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             setMinutosHoraClase={setMinutosHoraClase}
             periodosClasePorDia={periodosClasePorDia}
             setPeriodosClasePorDia={setPeriodosClasePorDia}
-            progresoGeneracion={mensaje?.tipo === "loading" ? mensaje.texto : ""}
           />
         ) : (
           <section className="planning-form-card">
