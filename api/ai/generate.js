@@ -538,7 +538,7 @@ export default async function handler(request) {
   console.error(`[AI Gateway] Todos los proveedores fallaron. Último error: ${lastError}`);
   return new Response(
     JSON.stringify({
-      error: "No hay ningún servicio de Inteligencia Artificial disponible en este momento. Verifica la configuración del administrador o intenta nuevamente más tarde.",
+      error: `No hay ningún servicio de Inteligencia Artificial disponible en este momento. Último error: ${lastError || "sin detalle del proveedor"}. Verifica la configuración del administrador o intenta nuevamente más tarde.`,
     }),
     { status: 503, headers: { "Content-Type": "application/json" } }
   );

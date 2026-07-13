@@ -888,6 +888,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   let lastProvider = 'desconocido';
   let lastModel    = 'desconocido';
   let lastRaw      = '';
+  let lastTruncationError = null;
 
   // El primer lote de la unidad propone el nombre propio del producto final;
   // una vez fijado en la spec, todos los lotes siguientes lo reciben.
@@ -927,7 +928,11 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${result.motivo}`,
           { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
         lastError = new Error(result.motivo);
-        if (result.motivo.includes('TRUNCADO')) { maxTokens = RETRY_TOKENS; truncadoPrevio = true; }
+        if (result.motivo.includes('TRUNCADO')) {
+          maxTokens = RETRY_TOKENS;
+          truncadoPrevio = true;
+          lastTruncationError = lastError;
+        }
         else { prefix = JSON_REMINDER; truncadoPrevio = false; }
         continue;
       }
@@ -946,7 +951,12 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       return result.data;
 
     } catch (err) {
-      lastError = err;
+      const msg = String(err?.message || err || '');
+      if (truncadoPrevio && lastTruncationError && /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|503|tiempo de espera/i.test(msg)) {
+        lastError = new Error(`${lastTruncationError.message}. Reintento no disponible: ${msg}`);
+      } else {
+        lastError = err;
+      }
       console.error(`[FaseA] ${contextoLog} intento ${attempt} (${lastProvider}/${lastModel}):`, err.message);
       await logParseError({
         contexto: contextoLog, attempt, motivo: err.message,
