@@ -234,6 +234,18 @@ function getByPath(obj, path) {
   return String(path || '').split('.').filter(Boolean).reduce((acc, key) => acc?.[key], obj)
 }
 
+function resolverRutaSeccion(base, path) {
+  const requested = String(path || '')
+  if (!requested.startsWith('contenidos.')) return requested
+  const [, key] = requested.split('.')
+  if (!key) return requested
+  const rutaGenerales = `contenidosGenerales.${key}`
+  if (base?.contenidosGenerales || getByPath(base, rutaGenerales) !== undefined || getByPath(base, requested) === undefined) {
+    return rutaGenerales
+  }
+  return requested
+}
+
 function setByPath(obj, path, value) {
   const keys = String(path || '').split('.').filter(Boolean)
   const clone = structuredClone(obj || {})
@@ -258,6 +270,38 @@ function extraerJson(texto = '') {
   const end = Math.max(raw.lastIndexOf('}'), raw.lastIndexOf(']'))
   if (start >= 0 && end > start) return JSON.parse(raw.slice(start, end + 1))
   throw new Error('La respuesta no contiene JSON válido.')
+}
+
+function limpiarLineaArrayCurricular(linea = '') {
+  let value = String(linea || '').trim()
+  if (!value || value === '[' || value === ']') return ''
+  if (value.startsWith('---') && value.endsWith('---')) return ''
+  value = value.replace(/,$/, '').trim()
+  if (!value) return ''
+  try {
+    const parsed = JSON.parse(value)
+    if (typeof parsed === 'string') return parsed.trim()
+  } catch {
+    // Puede ser una línea de texto oficial, no un string JSON aislado.
+  }
+  value = value.replace(/^["']/, '').replace(/["']$/, '').trim()
+  return value
+}
+
+function textoAArrayCurricular(texto = '') {
+  const raw = String(texto || '').trim()
+  if (!raw) return []
+  try {
+    const parsed = extraerJson(raw)
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item ?? '').trim()).filter(Boolean)
+    if (typeof parsed === 'string') return [parsed.trim()].filter(Boolean)
+  } catch {
+    // Se permite pegar listas textuales con comillas/comas sin envolverlas en JSON.
+  }
+  return raw
+    .split(/\n+/)
+    .map(limpiarLineaArrayCurricular)
+    .filter(Boolean)
 }
 
 const ARRANQUES_NOMINALES_MINERD = /^(ticket|exit\s+ticket|reflexi[oó]n|metacognici[oó]n|socializaci[oó]n|portafolio|evaluaci[oó]n|pregunta|recurso|hoja|ficha|pizarra|pr[aá]ctica|modelado|producci[oó]n|lectura|escritura|trabajo|din[aá]mica|juego|di[aá]logo|conversaci[oó]n|presentaci[oó]n|retroalimentaci[oó]n\s+breve)\b/i
@@ -346,7 +390,7 @@ function textoAValorCorreccion(texto = '') {
   const t = String(texto || '').trim()
   if (!t) return null
   try { return extraerJson(t) } catch {}
-  return t.split(/\n+/).map((line) => line.trim()).filter(Boolean)
+  return textoAArrayCurricular(t)
 }
 
 async function cargarGatewayConfig() {
@@ -639,7 +683,26 @@ export default function AdminPotenteIA() {
       const base = jsonActual || await cargarJsonFuente(fuenteId)
       const fuente = fuentes.find((f) => f.id === fuenteId)
       const seccion = SECCIONES_CORREGIBLES.find((s) => s.id === seccionCorreccion) || SECCIONES_CORREGIBLES[0]
-      const actual = getByPath(base, seccion.id)
+      const rutaSeccion = resolverRutaSeccion(base, seccion.id)
+      const actual = getByPath(base, rutaSeccion)
+
+      if (seccion.espera === 'array') {
+        const nuevoValorDirecto = textoAArrayCurricular(textoCorreccion)
+        if (nuevoValorDirecto.length) {
+          const nextJson = setByPath(base, rutaSeccion, nuevoValorDirecto)
+          const validacion = validateJsonSobre(JSON.stringify(nextJson))
+          if (!validacion.parsed) throw new Error(validacion.error || 'No se pudo validar el JSON corregido.')
+          setValorCorregido(nuevoValorDirecto)
+          setSalidaCorreccion(JSON.stringify(nuevoValorDirecto, null, 2))
+          setJsonCorregido(validacion.parsed)
+          setViolacionesContrato(validacion.violaciones || [])
+          setMensajeCorreccion(validacion.ok
+            ? `Corrección lista sin usar IA. Se prepararon ${nuevoValorDirecto.length} elemento(s) para ${seccion.label} en la ruta ${rutaSeccion}. Revisa y pulsa "Actualizar malla".`
+            : `La corrección textual se preparó (${nuevoValorDirecto.length} elemento(s)), pero el JSON aún viola el contrato curricular (${(validacion.violaciones || []).length || '?'} violaciones — ver detalle abajo).`)
+          return
+        }
+      }
+
       const gw = await cargarGatewayConfig()
       let respuesta = ''
       await AIService.generate({
@@ -662,7 +725,7 @@ export default function AdminPotenteIA() {
         onError: (msg) => { throw new Error(msg) },
       })
       const nuevoValor = extraerJson(respuesta)
-      const nextJson = setByPath(base, seccion.id, nuevoValor)
+      const nextJson = setByPath(base, rutaSeccion, nuevoValor)
       const validacion = validateJsonSobre(JSON.stringify(nextJson))
       if (!validacion.parsed) throw new Error(validacion.error || 'No se pudo validar el JSON corregido.')
       setValorCorregido(nuevoValor)
@@ -687,7 +750,8 @@ export default function AdminPotenteIA() {
     setViolacionesContrato([])
     try {
       const base = fuenteId ? (jsonActual || await cargarJsonFuente(fuenteId)) : null
-      const valorEntrada = textoAValorCorreccion(textoCorreccion) ?? (base ? getByPath(base, seccionCorreccion) : null)
+      const rutaSeccion = base ? resolverRutaSeccion(base, seccionCorreccion) : seccionCorreccion
+      const valorEntrada = textoAValorCorreccion(textoCorreccion) ?? (base ? getByPath(base, rutaSeccion) : null)
       if (valorEntrada == null) {
         throw new Error('Carga una fuente o pega actividades/JSON para reparar.')
       }
@@ -700,7 +764,7 @@ export default function AdminPotenteIA() {
         return
       }
 
-      const nextJson = setByPath(base, seccionCorreccion, reparado.value)
+      const nextJson = setByPath(base, rutaSeccion, reparado.value)
       const validacion = validateJsonSobre(JSON.stringify(nextJson))
       if (!validacion.parsed) throw new Error(validacion.error || 'No se pudo validar el JSON corregido.')
       setJsonCorregido(validacion.parsed)
@@ -996,9 +1060,11 @@ export default function AdminPotenteIA() {
 
             {jsonActual && (
               <div style={{ border: '1px solid var(--adm-border)', borderRadius: 8, padding: 10, background: 'var(--adm-surface)' }}>
-                <strong style={{ display: 'block', marginBottom: 6 }}>Valor actual</strong>
+                <strong style={{ display: 'block', marginBottom: 6 }}>
+                  Valor actual · {resolverRutaSeccion(jsonActual, seccionCorreccion)}
+                </strong>
                 <pre style={{ margin: 0, maxHeight: 220, overflow: 'auto', fontSize: 12, color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
-                  {JSON.stringify(getByPath(jsonActual, seccionCorreccion) ?? null, null, 2)}
+                  {JSON.stringify(getByPath(jsonActual, resolverRutaSeccion(jsonActual, seccionCorreccion)) ?? null, null, 2)}
                 </pre>
               </div>
             )}
@@ -1012,7 +1078,7 @@ export default function AdminPotenteIA() {
                 rows={8}
                 value={textoCorreccion}
                 onChange={(e) => setTextoCorreccion(e.target.value)}
-                placeholder="Pega aquí los indicadores correctos, competencias, actividades, estrategias o el fragmento oficial que debe reemplazar la sección seleccionada."
+                placeholder={`Pega aquí el texto oficial. Para secciones tipo lista puedes pegar JSON, líneas con comillas y comas, o texto por renglones. Ej.: "Vocabulario", "• Actividades cotidianas...", etc.`}
               />
             </div>
 
@@ -1051,7 +1117,7 @@ export default function AdminPotenteIA() {
             {(valorCorregido || salidaCorreccion) && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div style={{ border: '1px solid var(--adm-border)', borderRadius: 8, padding: 10, background: 'var(--adm-surface)' }}>
-                  <strong style={{ display: 'block', marginBottom: 6 }}>Respuesta IA</strong>
+                  <strong style={{ display: 'block', marginBottom: 6 }}>Valor preparado</strong>
                   <pre style={{ margin: 0, maxHeight: 300, overflow: 'auto', fontSize: 12, color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
                     {salidaCorreccion}
                   </pre>
