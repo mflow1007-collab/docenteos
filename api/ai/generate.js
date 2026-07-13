@@ -401,6 +401,82 @@ function buildNormalizedStream(providerResponse, provider, model) {
   });
 }
 
+async function collectNormalizedProviderText(providerResponse, provider) {
+  const reader  = providerResponse.body?.getReader?.();
+  if (!reader) return { text: "", usage: null };
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+  let usageIn  = 0;
+  let usageOut = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (!raw || raw === "[DONE]") continue;
+
+      try {
+        const parsed = JSON.parse(raw);
+
+        if (provider === "anthropic") {
+          if (
+            parsed.type === "content_block_delta" &&
+            parsed.delta?.type === "text_delta"
+          ) {
+            text += parsed.delta.text || "";
+          }
+          if (parsed.type === "message_start" && parsed.message?.usage?.input_tokens) {
+            usageIn = parsed.message.usage.input_tokens;
+          }
+          if (parsed.usage?.output_tokens) {
+            usageOut = parsed.usage.output_tokens;
+          }
+        } else {
+          text += parsed.choices?.[0]?.delta?.content || "";
+          if (parsed.usage) {
+            if (parsed.usage.prompt_tokens)     usageIn  = parsed.usage.prompt_tokens;
+            if (parsed.usage.completion_tokens) usageOut = parsed.usage.completion_tokens;
+          }
+        }
+      } catch {
+        // línea SSE no parseable — ignorar
+      }
+    }
+  }
+
+  return {
+    text,
+    usage: usageIn || usageOut ? { in: usageIn, out: usageOut, exact: true } : null,
+  };
+}
+
+function buildCollectedTextStream(text, provider, model, usage) {
+  const encoder = new TextEncoder();
+
+  return new ReadableStream({
+    start(controller) {
+      if (text) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+      }
+      if (usage) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ usage })}\n\n`));
+      }
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ meta: { provider, model } })}\n\n`));
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      controller.close();
+    },
+  });
+}
+
 // ─── Handler principal ────────────────────────────────────────────────────────
 
 export default async function handler(request) {
@@ -447,6 +523,7 @@ export default async function handler(request) {
     modelOverrides,    // { openai: "gpt-4.1", ... } desde Firestore vía AIService
     providersDisabled, // string[] — proveedores APAGADOS por el admin (jamás se usan, ni como fallback)
     strictProvider = false,
+    requireNonEmpty = false,
     imageBase64,       // base64 image for vision (Anthropic only)
     imageMediaType,    // e.g. "image/jpeg"
   } = body;
@@ -511,6 +588,26 @@ export default async function handler(request) {
         lastError = `${provider} HTTP ${providerResponse.status}: ${errText.slice(0, 300)}`;
         console.error(`[AI Gateway] ${lastError}`);
         continue; // intentar siguiente proveedor
+      }
+
+      if (requireNonEmpty) {
+        const collected = await collectNormalizedProviderText(providerResponse, provider);
+        if (!collected.text.trim()) {
+          lastError = `${provider}: respuesta vacía`;
+          console.error(`[AI Gateway] ${lastError}`);
+          continue;
+        }
+
+        return new Response(buildCollectedTextStream(collected.text, provider, model, collected.usage), {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "Connection":    "keep-alive",
+            "X-AI-Provider": provider,
+            "X-AI-Model":    model,
+            "X-AI-Module":   mod,
+          },
+        });
       }
 
       const stream = buildNormalizedStream(providerResponse, provider, model);

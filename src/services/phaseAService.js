@@ -5,7 +5,7 @@
  *   - 4 clases/semana = 2 lotes; 5 clases = 3 lotes (2+2+1)
  *   - ~3-4K tokens de salida por lote → TTFT <10s incluso con NVIDIA
  *   - Cada lote lleva MEMORIA de todo lo generado para anti-duplicación
- *   - Reintentos: 2 intentos POR LOTE (lotes buenos no se descartan)
+ *   - Reintentos: rota proveedores y conserva los lotes buenos
  *   - R1+R7 se validan por lote; R2 se valida sobre la semana fusionada
  *
  * PROHIBIDO: fallback a templates JS.
@@ -133,6 +133,7 @@ async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS, provid
       // explícitamente. El mini produce JSON válido; el contrato lo valida igual.
       modelOverrides: { openai: 'gpt-4o-mini', ...(gwConfig.models || {}) },
       providersDisabled: providersDisabled.length ? providersDisabled : undefined,
+      requireNonEmpty: true,
     }),
   });
 
