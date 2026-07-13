@@ -2046,6 +2046,9 @@ export const generarUnidadAprendizaje = async (datos) => {
     indicadoresActuales,
     indicadoresPrevios,
   );
+  const especificacionCurricularUnidad = buildEspecificacionCurricular({
+    mallaPayload, titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
+  });
 
   const unidadResult = {
     tipoPlanificacion,
@@ -2102,14 +2105,14 @@ export const generarUnidadAprendizaje = async (datos) => {
       temaOficial: temaMallaStr || titulo,
       indicadoresTrabajadosUnidad: Array.from(indicadoresActuales),
       indicadoresTrabajadosAntes: Array.from(indicadoresPrevios),
+      indicadoresPrecargadosTema: (especificacionCurricularUnidad.indicadoresTrabajo || []).map((ind) => ind.codigoOficial || ind.id || ind.codigo).filter(Boolean),
+      fuenteIndicadoresPrecargados: especificacionCurricularUnidad.indicadoresTrabajoFuente || '',
       competencias: competenciasDetalleEnriquecidas,
       progresionCurricular: modeloCurricularSuperior.progresion || [],
     },
     contenidos,
     fasesSemanales: fasesSemanalesGeneradas,
-    especificacionCurricular: buildEspecificacionCurricular({
-      mallaPayload, titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
-    }),
+    especificacionCurricular: especificacionCurricularUnidad,
     // Trazabilidad: la malla EXACTA que produjo esta unidad. Ancla obligatoria
     // para la cosecha del Banco de Aprendizaje (verificarRefsContraMalla exige
     // igualdad de id/contentId contra la malla activa al servir).

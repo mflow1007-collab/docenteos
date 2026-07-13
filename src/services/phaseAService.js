@@ -447,8 +447,30 @@ function validarEvidenciasMomento(ev, esDesarrollo, etiqueta) {
 const textoDesarrollo = (clase) =>
   ((clase?.momentos || []).find((m) => m.nombre === 'Desarrollo')?.actividades || []).join(' ');
 
+const normalizarCodigo = (codigo) =>
+  String(codigo || '').replaceAll('[', '').replaceAll(']', '').replace(/\s/g, '').toUpperCase().trim();
+
+const textosUnicos = (items = []) => {
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(items) ? items : [items]).forEach((item) => {
+    const texto = String(item || '').replace(/\s+/g, ' ').trim();
+    const key = _normTextoFoco(texto);
+    if (texto && !seen.has(key)) {
+      seen.add(key);
+      out.push(texto);
+    }
+  });
+  return out;
+};
+
 export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
   const memoria = Array.isArray(opts.memoria) ? opts.memoria : [];
+  const indicadoresPermitidos = new Set(
+    (Array.isArray(opts.indicadoresPermitidos) ? opts.indicadoresPermitidos : [])
+      .map(normalizarCodigo)
+      .filter(Boolean),
+  );
 
   // 3A — nombre propio del producto final (solo el primer lote de la unidad)
   if (opts.exigirNombreProducto) {
@@ -492,6 +514,16 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     }
     if (!Array.isArray(clase.indicadoresTrabajados)) {
       throw new Error(`R1: clase ${idx + 1} sin indicadoresTrabajados[] (usa los códigos de la especificación)`);
+    }
+    const codigosIndicadores = clase.indicadoresTrabajados.map(normalizarCodigo).filter(Boolean);
+    if (codigosIndicadores.length < 1 || codigosIndicadores.length > 3) {
+      throw new Error(`R1: clase ${idx + 1} debe usar de 1 a 3 indicadores precargados, recibió ${codigosIndicadores.length}`);
+    }
+    if (indicadoresPermitidos.size) {
+      const inventados = codigosIndicadores.filter((codigo) => !indicadoresPermitidos.has(codigo));
+      if (inventados.length) {
+        throw new Error(`R1: clase ${idx + 1} usa indicadores no precargados (${inventados.join(', ')}). La IA no puede inventar currículo.`);
+      }
     }
     if (!textoNoVacio(clase.titulo)) {
       throw new Error(`R1: clase ${idx + 1} sin titulo`);
@@ -759,17 +791,16 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
 
   const vocab      = spec.contenidosClaves?.vocabulario?.slice(0, 16).join(', ') || '';
   const funcs      = spec.contenidosClaves?.funcionales?.slice(0, 8).join('; ')  || '';
-  // TODOS los indicadores oficiales del grado con su código (el registro trae
-  // 21: 3 por competencia). La IA los VE completos y elige en cada clase, en
-  // "indicadoresTrabajados", SOLO los códigos que ese día trabaja de verdad
-  // según el tema — ese es el criterio de resaltado del registro oficial
-  // ("se agrega solo los aspectos específicos trabajados").
+  // Indicadores precargados por DocenteOS desde la malla. La IA NO decide la
+  // malla ni reconstruye currículo: solo copia códigos de esta lista al crear
+  // la secuencia didáctica.
   // Descripción RECORTADA (~90 chars): la IA solo necesita reconocer el
   // indicador para copiar su código, no leer el párrafo completo. Recortar aquí
   // baja los tokens de entrada del prompt (los 21 indicadores completos lo
   // engordaban y ralentizaban la respuesta hasta rozar el muro de 504 en Edge).
   const recorta = (t) => { const s = String(t || '').trim(); return s.length > 90 ? s.slice(0, 90).replace(/\s+\S*$/, '') + '…' : s; };
-  const indText    = (spec.indicadores || [])
+  const indicadoresTrabajo = spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : (spec.indicadores || []);
+  const indText    = indicadoresTrabajo
     .map(i => `[${i.codigoOficial || i.id || 's/c'}] ${recorta(i.descripcion || i.texto)}`)
     .filter(l => !l.endsWith('] ')).join('\n');
   const ceText     = (spec.ces || [])
@@ -848,7 +879,7 @@ TEMA: "${spec.temaOficial}"
 
 ESPECIFICACIÓN CURRICULAR:
 - Competencias del grado: ${ceText || '(ver indicadores)'}
-- TODOS los indicadores de logro del grado (con código — de aquí eliges en cada clase SOLO los que el tema trabaja de verdad):
+- Indicadores PRECARGADOS por DocenteOS para esta secuencia (copia SOLO estos códigos en "indicadoresTrabajados"; no inventes ni uses indicadores fuera de esta lista):
 ${indText}
 - Vocabulario disponible: ${vocab}
 - FOCO GRAMATICAL ESTA SEMANA (usar en Desarrollo): ${focoGramTx}
@@ -867,7 +898,7 @@ ${patronDesarrollo}
    Cierre: 3 actividades — socialización de lo producido → reflexión sobre UN aspecto específico del aprendizaje del día → guardar el artefacto en el portafolio o exit ticket con una producción nueva ("Guardan … en el portafolio para el producto final.").
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
-8. CADA clase incluye "indicadoresTrabajados": de la lista COMPLETA de indicadores del grado (arriba), copia los CÓDIGOS EXACTOS de los que esa clase trabaja de verdad según el tema y las actividades reales del día (1 a 3 por clase). NO los inventes ni pongas todos: el docente verá las 7 competencias con sus indicadores y estos códigos son los que se resaltan como "trabajados". A lo largo de la unidad procura cubrir indicadores de VARIAS competencias (comunicativa, pensamiento, resolución, ética, etc.), no solo una — como haría un docente que reparte el logro entre las semanas.
+8. CADA clase incluye "indicadoresTrabajados": copia de 1 a 3 CÓDIGOS EXACTOS de la lista PRECARGADA arriba. PROHIBIDO inventar indicadores, cambiar códigos o usar indicadores fuera de esa lista. DocenteOS ya renderiza la malla completa: negrita = trabajado en esta secuencia, tachado = trabajado antes, normal = no trabajado.
 9. CADA clase incluye "titulo" (título llamativo de la clase) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], ${conQueEjem} — o su equivalente "con…", "a través de…", "comprendiendo…", [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — nombra siempre el contenido real de la malla (ej. idioma: "describirán sus hábitos y su frecuencia mediante comprensión oral y producción escrita, utilizando presente simple y adverbios de frecuencia"; ej. otra área: "clasificarán los tipos de ecosistemas de su comunidad mediante observación y comparación de casos, utilizando los criterios de biodiversidad y clima").
 10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo que refleja la FASE de la unidad esa semana y AVANZA — como "Exploración y descripción", luego "Profundización", luego "Integración y producto final"; no repitas el mismo título en semanas distintas), "focoLinguistico" (copia EXACTA de UNO de los focos indicados arriba${spec.esIdioma ? ' — una estructura del FOCO GRAMATICAL, incluidos sus ejemplos entre paréntesis' : ' — el concepto o procedimiento central del día tomado de la malla'}; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por los contenidos de la malla (conceptuales → procedimentales → producción), y la intención pedagógica de cada clase nombra su foco del día.
 11. CADA clase incluye "aporteProducto": el artefacto CONCRETO con NOMBRE PROPIO ÚNICO que esa clase deposita al producto final — como un paso de checklist del producto (ej. idioma: "My Daily Schedule con horarios", "Chore Chart de responsabilidades"; ej. otra área: "Ficha comparativa de dos ecosistemas", "Croquis del acueducto con medidas"). Debe ser DISTINTO en cada clase y describir el ENTREGABLE, no la ubicación: PROHIBIDO "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto".${spec.esIdioma ? ' El nombre del artefacto puede incluir el idioma meta.' : ''}${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
@@ -940,10 +971,14 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       }
 
       normalizarVozBatch(result.data);
+      const indicadoresPermitidos = (spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
+        .map((ind) => ind.codigoOficial || ind.id || ind.codigo)
+        .filter(Boolean);
       validateBatch(result.data, durMin, count, focoGram, {
         memoria,
         exigirNombreProducto: pedirNombreProducto,
         semanaNum,
+        indicadoresPermitidos,
       });
 
       // 3A — fijar el nombre del producto propuesto por el primer lote
@@ -1028,6 +1063,7 @@ function checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas) {
     numSemanas,
     contenidosClaves: spec.contenidosClaves,
     indicadores: (spec.indicadores || []).map((i) => [i.id, i.descripcion, i.competenciaId]),
+    indicadoresTrabajo: (spec.indicadoresTrabajo || []).map((i) => [i.id, i.descripcion, i.competenciaId]),
   };
   return `${CHECKPOINT_PREFIX}:${hashString(JSON.stringify(firma))}`;
 }
@@ -1074,6 +1110,79 @@ function esBatchCacheValido(data, durMin, count, focoGram, opts) {
   }
 }
 
+const _normCurricular = (t) => String(t || '')
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[̀-ͯ]/g, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+function _textoIndicadorRef(item) {
+  if (typeof item === 'string') return item;
+  if (!item || typeof item !== 'object') return '';
+  return item.id || item.codigo || item.codigoOficial || item.indicadorId || item.descripcion || item.texto || '';
+}
+
+function _recolectarRefsIndicadores(node, out = []) {
+  if (!node) return out;
+  if (Array.isArray(node)) {
+    node.forEach((item) => _recolectarRefsIndicadores(item, out));
+    return out;
+  }
+  if (typeof node === 'string') {
+    out.push(node);
+    return out;
+  }
+  if (typeof node !== 'object') return out;
+  const campos = [
+    'indicadores', 'indicadoresLogro', 'indicadoresRelacionados',
+    'indicadorIds', 'indicadoresIds', 'indicadoresTrabajados',
+  ];
+  campos.forEach((campo) => {
+    if (node[campo]) _recolectarRefsIndicadores(node[campo], out);
+  });
+  const ref = _textoIndicadorRef(node);
+  if (ref) out.push(ref);
+  return out;
+}
+
+function _bloquesTemaCurricular(mallaPayload, titulo) {
+  const objetivo = _normCurricular(titulo);
+  if (!objetivo) return [];
+  const coincide = (bloque) => {
+    const nombre = _normCurricular(
+      bloque?.tema || bloque?.temaOficial || bloque?.nombre || bloque?.topico || bloque?.conceptos?.temas?.[0],
+    );
+    return nombre && (nombre === objetivo || nombre.includes(objetivo) || objetivo.includes(nombre));
+  };
+  return [
+    ...(Array.isArray(mallaPayload?.temas) ? mallaPayload.temas.filter((t) => t && typeof t === 'object' && coincide(t)) : []),
+    ...(Array.isArray(mallaPayload?.contenidosPorTema) ? mallaPayload.contenidosPorTema.filter(coincide) : []),
+  ];
+}
+
+function seleccionarIndicadoresTrabajo({ mallaPayload, titulo, indicadores }) {
+  const refs = textosUnicos(_bloquesTemaCurricular(mallaPayload, titulo).flatMap((bloque) => _recolectarRefsIndicadores(bloque)));
+  if (!refs.length) {
+    return { indicadoresTrabajo: indicadores, fuente: 'malla_completa_sin_relacion_tema' };
+  }
+  const refsNorm = refs.map((r) => ({
+    codigo: normalizarCodigo(r),
+    texto: _normCurricular(r),
+  })).filter((r) => r.codigo || r.texto);
+  const seleccionados = indicadores.filter((ind) => {
+    const codigo = normalizarCodigo(ind.codigoOficial || ind.id);
+    const desc = _normCurricular(ind.descripcion || ind.texto);
+    return refsNorm.some((ref) =>
+      (ref.codigo && codigo && ref.codigo === codigo)
+      || (ref.texto && desc && (ref.texto === desc || desc.includes(ref.texto) || ref.texto.includes(desc)))
+    );
+  });
+  return seleccionados.length
+    ? { indicadoresTrabajo: seleccionados, fuente: 'malla_relacion_tema' }
+    : { indicadoresTrabajo: indicadores, fuente: 'malla_completa_relacion_no_resuelta' };
+}
+
 // ─── generateWeekPlan — exportación principal ─────────────────────────────────
 
 export const generateWeekPlan = async (
@@ -1085,6 +1194,9 @@ export const generateWeekPlan = async (
   let adaptacionesSemana = null;   // NEAE ligadas al foco (contrato R14)
   let observacionesSemana = '';
   const focoGram = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas);
+  const indicadoresPermitidos = (spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
+    .map((ind) => ind.codigoOficial || ind.id || ind.codigo)
+    .filter(Boolean);
   const baseCheckpointKey = checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas);
 
   for (let b = 0; b < batches; b++) {
@@ -1101,6 +1213,7 @@ export const generateWeekPlan = async (
     const cachedBatch = leerCheckpoint(batchKey);
     if (esBatchCacheValido(cachedBatch, durMin, count, focoGram, {
       memoria: memoriaAcumulada,
+      indicadoresPermitidos,
       exigirNombreProducto: semanaNum === 1 && startDia === 1 && !spec.productoFinalNombre,
       semanaNum,
     })) {
@@ -1125,7 +1238,7 @@ export const generateWeekPlan = async (
     if (hayCacheParcial) {
       for (const item of singleKeys) {
         onProgress?.(item.dia, item.dia);
-        if (esBatchCacheValido(item.data, durMin, 1, focoGram, { memoria: memoriaAcumulada, exigirNombreProducto: false, semanaNum })) {
+        if (esBatchCacheValido(item.data, durMin, 1, focoGram, { memoria: memoriaAcumulada, indicadoresPermitidos, exigirNombreProducto: false, semanaNum })) {
           const claseCache = { ...item.data.clases?.[0], dia: item.dia };
           nuevasClases.push(claseCache);
           agregarClasesAMemoria([claseCache], semanaNum, memoriaAcumulada);
@@ -1178,7 +1291,7 @@ export const generateWeekPlan = async (
         onProgress?.(dia, dia);
         const singleKey = checkpointKey(baseCheckpointKey, dia, 1);
         const cachedSingle = leerCheckpoint(singleKey);
-        if (esBatchCacheValido(cachedSingle, durMin, 1, focoGram, { memoria: memoriaAcumulada, exigirNombreProducto: false, semanaNum })) {
+        if (esBatchCacheValido(cachedSingle, durMin, 1, focoGram, { memoria: memoriaAcumulada, indicadoresPermitidos, exigirNombreProducto: false, semanaNum })) {
           const claseCache = { ...cachedSingle.clases?.[0], dia };
           nuevasClases.push(claseCache);
           agregarClasesAMemoria([claseCache], semanaNum, memoriaAcumulada);
@@ -1267,6 +1380,7 @@ export const buildEspecificacionCurricular = ({
       const cod = conservar ? ind._codOriginal : `IL-${gi + 1}`;
       return { id: cod, codigoOficial: cod, descripcion: ind.descripcion, competenciaId: ind.competenciaId, aspecto: '' };
     });
+  const seleccionIndicadores = seleccionarIndicadoresTrabajo({ mallaPayload, titulo, indicadores });
 
   const esIdioma = area === 'Inglés' || area === 'Francés';
 
@@ -1279,6 +1393,8 @@ export const buildEspecificacionCurricular = ({
     idiomaNombre: esIdioma ? (area === 'Francés' ? 'francés' : 'inglés') : null,
     ces,
     indicadores,
+    indicadoresTrabajo: seleccionIndicadores.indicadoresTrabajo,
+    indicadoresTrabajoFuente: seleccionIndicadores.fuente,
     contenidosClaves: {
       vocabulario: mallaContenidos?.vocabulario?.slice(0, 20) || [],
       gramatica:   mallaContenidos?.gramatica?.slice(0, 6)   || [],
