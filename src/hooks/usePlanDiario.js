@@ -61,7 +61,7 @@ export function usePlanDiario() {
     });
     try {
       if (temaDiario) {
-        const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaDiario });
+        const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaDiario, contexto: "generacion" });
         if (!verificacion?.permitido || verificacion?.requiereCredito) {
           setDialogoTema({
             abierto: true,
@@ -72,6 +72,8 @@ export function usePlanDiario() {
               temas: {
                 temaActivo: estadoTemas.temaActivo,
                 temaSecundario: estadoTemas.temaSecundario,
+                temaTercero: estadoTemas.temaTercero,
+                temaCuarto: estadoTemas.temaCuarto,
               },
             },
           });

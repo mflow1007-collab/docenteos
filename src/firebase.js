@@ -1180,16 +1180,6 @@ const resolverCreditosDisponibles = (usuarioData = {}) => {
   return Number.isFinite(Number(numero)) ? Number(numero) : 0;
 };
 
-const tieneSuscripcionIlimitada = (usuarioData = {}) => {
-  const texto = String(
-    usuarioData?.suscripcion?.plan ||
-    usuarioData?.suscripcion ||
-    ""
-  ).toLowerCase();
-
-  return ["ilimit", "premium", "pro", "admin"].some((token) => texto.includes(token));
-};
-
 const temaKey = (titulo) => {
   const base = normalizarTema(titulo);
   return base || "sin-tema";
@@ -1265,6 +1255,26 @@ const actualizarTemaFirestore = (titulo, slot = "activo") => ({
   estado: slot,
 });
 
+const TEMA_PLANIFICACION_SLOTS = [
+  { key: "temaActivo", estado: "activo", label: "Tema 1" },
+  { key: "temaSecundario", estado: "secundario", label: "Tema 2" },
+  { key: "temaTercero", estado: "tercero", label: "Tema 3" },
+  { key: "temaCuarto", estado: "cuarto", label: "Tema 4" },
+];
+
+const limiteTemasPlanificacion = (email) => (esUsuarioDocenteOS(email) ? 4 : 2);
+
+const temasPlanificacionDesdeData = (data = {}, email = "") => {
+  const limite = limiteTemasPlanificacion(email);
+  return TEMA_PLANIFICACION_SLOTS
+    .slice(0, limite)
+    .map((slot) => {
+      const value = data?.[slot.key] || null;
+      const titulo = value?.titulo || value || "";
+      return { ...slot, value, titulo, normalizado: normalizarTema(titulo) };
+    });
+};
+
 export const obtenerEstadoTemasPlanificacion = async () => {
   try {
     const user = getCurrentUserOrThrow();
@@ -1276,6 +1286,8 @@ export const obtenerEstadoTemasPlanificacion = async () => {
       data: {
         temaActivo: data?.temaActivo || null,
         temaSecundario: data?.temaSecundario || null,
+        temaTercero: data?.temaTercero || null,
+        temaCuarto: data?.temaCuarto || null,
         suscripcion: data?.suscripcion ?? "Pendiente de completar",
         usoMensual: data?.usoMensual ?? "Pendiente de completar",
         creditosDisponibles: resolverCreditosDisponibles(data),
@@ -1288,6 +1300,8 @@ export const obtenerEstadoTemasPlanificacion = async () => {
       data: {
         temaActivo: null,
         temaSecundario: null,
+        temaTercero: null,
+        temaCuarto: null,
         suscripcion: "Pendiente de completar",
         usoMensual: "Pendiente de completar",
         creditosDisponibles: 0,
@@ -1308,6 +1322,8 @@ export const suscribirseEstadoTemasPlanificacion = (onChange, onError) => {
         onChange?.({
           temaActivo: data?.temaActivo || null,
           temaSecundario: data?.temaSecundario || null,
+          temaTercero: data?.temaTercero || null,
+          temaCuarto: data?.temaCuarto || null,
           suscripcion: data?.suscripcion ?? "Pendiente de completar",
           usoMensual: data?.usoMensual ?? "Pendiente de completar",
           creditosDisponibles: resolverCreditosDisponibles(data),
@@ -1324,7 +1340,7 @@ export const suscribirseEstadoTemasPlanificacion = (onChange, onError) => {
   }
 };
 
-export const verificarTemaAntesDeGenerar = async ({ tituloTema }) => {
+export const verificarTemaAntesDeGenerar = async ({ tituloTema, contexto = "generacion" }) => {
   if (!tituloTema || !String(tituloTema).trim()) {
     return {
       success: false,
@@ -1341,34 +1357,38 @@ export const verificarTemaAntesDeGenerar = async ({ tituloTema }) => {
     const data = snap.exists() ? snap.data() : {};
 
     const normalizado = normalizarTema(tituloTema);
-    const activoNorm = normalizarTema(data?.temaActivo?.titulo || data?.temaActivo || "");
-    const secundarioNorm = normalizarTema(data?.temaSecundario?.titulo || data?.temaSecundario || "");
-
     const isAdmin = esUsuarioDocenteOS(user.email);
+    const limite = limiteTemasPlanificacion(user.email);
     const creditos = resolverCreditosDisponibles(data);
-    const ilimitado = tieneSuscripcionIlimitada(data);
+    const slots = temasPlanificacionDesdeData(data, user.email);
+    const usados = slots.filter((slot) => slot.normalizado);
+    const coincidencia = slots.find((slot) => normalizado && normalizado === slot.normalizado);
 
-    if (normalizado && normalizado === activoNorm) {
-      return { success: true, permitido: true, tipoCoincidencia: "activo", requiereCredito: false };
+    if (coincidencia) {
+      if (!isAdmin && contexto === "generacion") {
+        return {
+          success: true,
+          permitido: false,
+          motivo: "tema_repetido_reusar_banco",
+          mensaje:
+            "Este tema ya fue generado antes. Para evitar consumo repetido de IA, reutiliza la planificación guardada o una secuencia validada del Banco de Aprendizaje.",
+          tipoCoincidencia: coincidencia.estado,
+          requiereCredito: false,
+          temas: {
+            temaActivo: data?.temaActivo || null,
+            temaSecundario: data?.temaSecundario || null,
+            temaTercero: data?.temaTercero || null,
+            temaCuarto: data?.temaCuarto || null,
+          },
+          puedeCrearNuevoTema: false,
+          creditosDisponibles: creditos,
+        };
+      }
+      return { success: true, permitido: true, tipoCoincidencia: coincidencia.estado, requiereCredito: false };
     }
 
-    if (normalizado && normalizado === secundarioNorm) {
-      return { success: true, permitido: true, tipoCoincidencia: "secundario", requiereCredito: false };
-    }
-
-    if (!activoNorm || !secundarioNorm) {
+    if (usados.length < limite) {
       return { success: true, permitido: true, tipoCoincidencia: "nuevo", requiereCredito: false };
-    }
-
-    if (isAdmin || ilimitado || creditos > 0) {
-      return {
-        success: true,
-        permitido: true,
-        tipoCoincidencia: "nuevo",
-        requiereCredito: true,
-        puedeCrearNuevoTema: true,
-        creditosDisponibles: creditos,
-      };
     }
 
     return {
@@ -1376,10 +1396,14 @@ export const verificarTemaAntesDeGenerar = async ({ tituloTema }) => {
       permitido: false,
       motivo: "tercer_tema_sin_credito",
       mensaje:
-        "Ya tienes dos temas activos. Puedes seguir editándolos sin límites. Para iniciar un nuevo tema debes usar un nuevo crédito o disponer de una suscripción compatible.",
+        isAdmin
+          ? "El administrador ya tiene cuatro temas activos. Para controlar consumo, reutiliza o actualiza uno de esos temas antes de iniciar otro."
+          : "Ya tienes dos temas activos. Para controlar consumo, reutiliza una planificación guardada o una secuencia validada del Banco de Aprendizaje.",
       temas: {
         temaActivo: data?.temaActivo || null,
         temaSecundario: data?.temaSecundario || null,
+        temaTercero: data?.temaTercero || null,
+        temaCuarto: data?.temaCuarto || null,
       },
       puedeCrearNuevoTema: false,
       creditosDisponibles: creditos,
@@ -1418,101 +1442,45 @@ export const registrarUsoTemaPlanificacion = async ({
     const userSnap = await tx.get(userRef);
     const userData = userSnap.exists() ? userSnap.data() : {};
 
-    const temaActivo = userData?.temaActivo || null;
-    const temaSecundario = userData?.temaSecundario || null;
-    const activoNorm = normalizarTema(temaActivo?.titulo || temaActivo || "");
-    const secundarioNorm = normalizarTema(temaSecundario?.titulo || temaSecundario || "");
+    const slots = temasPlanificacionDesdeData(userData, user.email);
+    const coincidencia = slots.find((slot) => normalizado && normalizado === slot.normalizado);
+    const libre = slots.find((slot) => !slot.normalizado);
 
-    const creditos = resolverCreditosDisponibles(userData);
-    const ilimitado = tieneSuscripcionIlimitada(userData);
-    const puedeNuevoTema = isAdmin || ilimitado || creditos > 0;
-
-    if (normalizado === activoNorm) {
+    if (coincidencia) {
+      if (!isAdmin && contexto === "generacion") {
+        throw new Error("Este tema ya fue generado antes. Reutiliza la planificación guardada o el Banco de Aprendizaje para evitar consumo repetido de IA.");
+      }
       tx.update(userRef, {
-        temaActivo: {
-          ...temaActivo,
-          ...actualizarTemaFirestore(titulo, "activo"),
+        [coincidencia.key]: {
+          ...(coincidencia.value || {}),
+          ...actualizarTemaFirestore(titulo, coincidencia.estado),
         },
         actualizadoEn: serverTimestamp(),
       });
-      return { slot: "activo", consumioCredito: false, reemplazo: false };
+      return { slot: coincidencia.estado, consumioCredito: false, reemplazo: false };
     }
 
-    if (normalizado === secundarioNorm) {
-      tx.update(userRef, {
-        temaSecundario: {
-          ...temaSecundario,
-          ...actualizarTemaFirestore(titulo, "secundario"),
-        },
-        actualizadoEn: serverTimestamp(),
-      });
-      return { slot: "secundario", consumioCredito: false, reemplazo: false };
-    }
-
-    if (!activoNorm) {
+    if (libre) {
       tx.set(
         userRef,
         {
-          temaActivo: crearTemaFirestore(titulo, "activo"),
+          [libre.key]: crearTemaFirestore(titulo, libre.estado),
           actualizadoEn: serverTimestamp(),
         },
         { merge: true }
       );
-      return { slot: "activo", consumioCredito: false, reemplazo: false };
-    }
-
-    if (!secundarioNorm) {
-      tx.set(
-        userRef,
-        {
-          temaSecundario: crearTemaFirestore(titulo, "secundario"),
-          actualizadoEn: serverTimestamp(),
-        },
-        { merge: true }
-      );
-      return { slot: "secundario", consumioCredito: false, reemplazo: false };
+      return { slot: libre.estado, consumioCredito: false, reemplazo: false };
     }
 
     if (!forzarNuevoTema) {
-      throw new Error("Ya tienes dos temas activos. Para crear un tercer tema debes usar un nuevo crédito.");
+      throw new Error(isAdmin
+        ? "Ya tienes cuatro temas activos. Reutiliza o actualiza uno antes de iniciar otro."
+        : "Ya tienes dos temas activos. Reutiliza una planificación guardada o el Banco de Aprendizaje.");
     }
 
-    if (!puedeNuevoTema) {
-      throw new Error("No hay créditos ni suscripción habilitada para crear un nuevo tema.");
-    }
-
-    const nuevoActivo = crearTemaFirestore(titulo, "activo");
-    const nuevoSecundario = {
-      ...(temaActivo || {}),
-      ...actualizarTemaFirestore(temaActivo?.titulo || "", "secundario"),
-    };
-
-    const patch = {
-      temaActivo: nuevoActivo,
-      temaSecundario: nuevoSecundario,
-      actualizadoEn: serverTimestamp(),
-    };
-
-    // Compatibilidad con esquemas históricos de créditos.
-    if (!isAdmin && !ilimitado) {
-      if (Number.isFinite(Number(userData?.creditosPlanificacionDisponibles))) {
-        patch.creditosPlanificacionDisponibles = Math.max(0, Number(userData.creditosPlanificacionDisponibles) - 1);
-      } else if (Number.isFinite(Number(userData?.creditosDisponibles))) {
-        patch.creditosDisponibles = Math.max(0, Number(userData.creditosDisponibles) - 1);
-      } else if (Number.isFinite(Number(userData?.creditos))) {
-        patch.creditos = Math.max(0, Number(userData.creditos) - 1);
-      }
-    }
-
-    tx.set(userRef, patch, { merge: true });
-
-    return {
-      slot: "activo",
-      consumioCredito: !isAdmin && !ilimitado,
-      reemplazo: true,
-      temaReemplazado: temaSecundario?.titulo || null,
-      temaMovidoSecundario: temaActivo?.titulo || null,
-    };
+    throw new Error(isAdmin
+      ? "Límite administrativo alcanzado: cuatro temas activos."
+      : "Límite alcanzado: los usuarios regulares mantienen dos temas activos para controlar consumo.");
   });
 
   // Historial fuera de transacción (fire-and-forget). try-catch para que un

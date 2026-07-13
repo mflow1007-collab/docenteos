@@ -48,7 +48,7 @@ export function useUnidadAprendizaje() {
     });
     try {
       if (temaUnidad) {
-        const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaUnidad });
+        const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaUnidad, contexto: "generacion" });
         if (!verificacion?.permitido || verificacion?.requiereCredito) {
           setDialogoTema({
             abierto: true,
@@ -59,6 +59,8 @@ export function useUnidadAprendizaje() {
               temas: {
                 temaActivo: estadoTemas.temaActivo,
                 temaSecundario: estadoTemas.temaSecundario,
+                temaTercero: estadoTemas.temaTercero,
+                temaCuarto: estadoTemas.temaCuarto,
               },
             },
           });

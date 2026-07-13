@@ -218,6 +218,8 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
   const [estadoTemas, setEstadoTemas] = useState({
     temaActivo: null,
     temaSecundario: null,
+    temaTercero: null,
+    temaCuarto: null,
     suscripcion: "Pendiente de completar",
     usoMensual: "Pendiente de completar",
     creditosDisponibles: 0,
@@ -436,6 +438,8 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
         setEstadoTemas({
           temaActivo: data?.temaActivo || null,
           temaSecundario: data?.temaSecundario || null,
+          temaTercero: data?.temaTercero || null,
+          temaCuarto: data?.temaCuarto || null,
           suscripcion: data?.suscripcion ?? "Pendiente de completar",
           usoMensual: data?.usoMensual ?? "Pendiente de completar",
           creditosDisponibles: Number(data?.creditosDisponibles || 0),
@@ -772,7 +776,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     });
 
     try {
-      const verificacionTema = await verificarTemaAntesDeGenerar({ tituloTema: tema });
+      const verificacionTema = await verificarTemaAntesDeGenerar({ tituloTema: tema, contexto: "generacion" });
       if (!verificacionTema?.permitido) {
         if (verificacionTema?.motivo === "tercer_tema_sin_credito") {
           setDialogoTema({
@@ -798,6 +802,8 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
             temas: {
               temaActivo: estadoTemas.temaActivo,
               temaSecundario: estadoTemas.temaSecundario,
+              temaTercero: estadoTemas.temaTercero,
+              temaCuarto: estadoTemas.temaCuarto,
             },
           },
         });
@@ -917,7 +923,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     const temaParaControl = planificacion?.metadatos?.tema || tema;
 
     if (temaParaControl) {
-      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaParaControl });
+      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaParaControl, contexto: "edicion" });
       if (!verificacion?.permitido) {
         setDialogoTema({
           abierto: true,
@@ -928,6 +934,8 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
             temas: {
               temaActivo: estadoTemas.temaActivo,
               temaSecundario: estadoTemas.temaSecundario,
+              temaTercero: estadoTemas.temaTercero,
+              temaCuarto: estadoTemas.temaCuarto,
             },
           },
         });
@@ -943,6 +951,8 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
             temas: {
               temaActivo: estadoTemas.temaActivo,
               temaSecundario: estadoTemas.temaSecundario,
+              temaTercero: estadoTemas.temaTercero,
+              temaCuarto: estadoTemas.temaCuarto,
             },
           },
         });
@@ -1664,6 +1674,21 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
     cargando && mensaje?.tipo === "loading" ? mensaje.texto :
     "";
 
+  const temasDialogoActivos = dialogoTema?.payload?.temas
+    ? [
+        dialogoTema.payload.temas.temaActivo,
+        dialogoTema.payload.temas.temaSecundario,
+        dialogoTema.payload.temas.temaTercero,
+        dialogoTema.payload.temas.temaCuarto,
+      ].filter(Boolean)
+    : [];
+  const esBloqueoTemaRepetido = dialogoTema?.payload?.motivo === "tema_repetido_reusar_banco";
+  const tituloDialogoTema = esBloqueoTemaRepetido
+    ? "Tema ya generado"
+    : temasDialogoActivos.length >= 4
+      ? "Ya tienes cuatro temas activos"
+      : "Ya tienes dos temas activos";
+
   return (
     <>
       <h1>✨ Planificación Inteligente</h1>
@@ -1674,13 +1699,21 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
       {dialogoTema.abierto && (
         <div className="tema-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tema-modal-titulo">
           <div className="tema-modal">
-            <h2 id="tema-modal-titulo">Ya tienes dos temas activos</h2>
+            <h2 id="tema-modal-titulo">{tituloDialogoTema}</h2>
             <p>
               {dialogoTema?.payload?.mensaje || "Puedes seguir editándolos sin límites. Para iniciar un nuevo tema debes usar un nuevo crédito de planificación o disponer de una suscripción que lo permita."}
             </p>
             <div className="tema-modal-temas">
-              <span><strong>Tema 1:</strong> {dialogoTema?.payload?.temas?.temaActivo?.titulo || "No definido"}</span>
-              <span><strong>Tema 2:</strong> {dialogoTema?.payload?.temas?.temaSecundario?.titulo || "No definido"}</span>
+              {temasDialogoActivos.length ? temasDialogoActivos.map((temaItem, index) => (
+                <span key={`${temaItem?.titulo || "tema"}-${index}`}>
+                  <strong>Tema {index + 1}:</strong> {temaItem?.titulo || "No definido"}
+                </span>
+              )) : (
+                <>
+                  <span><strong>Tema 1:</strong> {dialogoTema?.payload?.temas?.temaActivo?.titulo || "No definido"}</span>
+                  <span><strong>Tema 2:</strong> {dialogoTema?.payload?.temas?.temaSecundario?.titulo || "No definido"}</span>
+                </>
+              )}
               <span className="tema-modal-creditos">
                 Créditos disponibles: <strong>{Number(dialogoTema?.payload?.creditosDisponibles || 0)}</strong>
               </span>
@@ -1692,14 +1725,16 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
               <button type="button" className="tema-modal-btn-cancelar" onClick={manejarDialogoTemaCancelar}>
                 Cancelar
               </button>
-              <button
-                type="button"
-                className="tema-modal-btn-credito"
-                onClick={manejarDialogoTemaUsarCredito}
-                disabled={dialogoTema?.payload?.puedeCrearNuevoTema === false}
-              >
-                Usar nuevo crédito
-              </button>
+              {!esBloqueoTemaRepetido && (
+                <button
+                  type="button"
+                  className="tema-modal-btn-credito"
+                  onClick={manejarDialogoTemaUsarCredito}
+                  disabled={dialogoTema?.payload?.puedeCrearNuevoTema === false}
+                >
+                  Usar nuevo crédito
+                </button>
+              )}
             </div>
           </div>
         </div>
