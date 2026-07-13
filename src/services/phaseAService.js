@@ -806,7 +806,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const patronDesarrollo = spec.esIdioma
     ? `5. Desarrollo: 4 actividades concretas y progresivas con ESTE patrón:
    (a) LISTENING CON PROPÓSITO NOMBRADO: una actividad de escucha con nombre propio según la tarea — "Listen and Act" (mímica), "Listen and Decide" (True/False), "Listen and Compare", "Listen and Solve", "Listen and Complete", "Listen and Create", "Listen and Organize", "Listen and Choose", "Listen and Evaluate". Nombra la actividad y di QUÉ hace el estudiante al escuchar.
-   (b) DESCUBRIMIENTO de la estructura del día con ejemplos contextualizados reales entre paréntesis (I wake up at 6:00. She studies in the afternoon.).
+   (b) DESCUBRIMIENTO de la estructura del día con ejemplos contextualizados reales EN CURSIVA y entre paréntesis, markdown _..._ (ej.: _(I wake up at 6:00. She studies in the afternoon.)_). Tienes libertad de dar oraciones de ejemplo completas para modelar el uso.
    (c) MISIÓN/PRODUCCIÓN con NOMBRE PROPIO (ej.: "My Day, Your Day", "Family Interview", "Chore Chart", "Weekend Mini-Map", "My Daily Vlog", "Who does what?") — el estudiante crea un artefacto concreto.
    (d) SOCIALIZACIÓN con APORTE AL PRODUCTO: comparten y el artefacto se guarda para el producto final.`
     : `5. Desarrollo: 4 actividades concretas y progresivas con ESTE patrón (adáptalo a la naturaleza de ${spec.area}):
@@ -816,8 +816,12 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
    (d) SOCIALIZACIÓN con APORTE AL PRODUCTO: comparten, verifican entre pares y el artefacto se guarda para el producto final.`;
 
   // Instrucciones sensibles al idioma. En asignaturas de idioma el término va en
-  // el idioma meta entre paréntesis; en las demás, todo en español.
-  const notaIdioma  = spec.esIdioma ? ` El término en ${spec.idiomaNombre || 'el idioma'} va incrustado entre paréntesis dentro de la actividad.` : '';
+  // el idioma meta EN CURSIVA y entre paréntesis, con LIBERTAD de dar oraciones
+  // de ejemplo (regla del docente: en las actividades tienes margen para modelar
+  // el uso real con oraciones completas, aunque la estructura no esté en la
+  // malla — la malla es un ejemplo; la coherencia de la secuencia manda AQUÍ,
+  // no en la tabla de contenidos). Cursiva markdown: _texto_ → el render la pinta.
+  const notaIdioma  = spec.esIdioma ? ` El término en ${spec.idiomaNombre || 'el idioma'} va EN CURSIVA y entre paréntesis dentro de la actividad, usando markdown de subrayado (ej.: _(This is the kitchen.)_ , _(I wake up at 7:00. She studies in the afternoon.)_). Tienes LIBERTAD de escribir oraciones de ejemplo completas y contextualizadas para modelar el uso real, aunque la estructura no aparezca literal en la malla.` : '';
   const saludoNota  = spec.esIdioma ? 'saludo en el idioma meta, variado por clase' : 'saludo variado por clase';
   const saludoEjem  = spec.esIdioma ? '"Good morning! ..."' : '"¡Buenos días! ..."';
   const preguntaLoc = spec.esIdioma ? 'EN EL IDIOMA META entre paréntesis' : 'entre paréntesis';

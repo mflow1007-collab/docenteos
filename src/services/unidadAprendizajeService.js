@@ -1186,6 +1186,11 @@ const _resolverTemaMalla = (tituloDocente, temas) => {
 
 // Filtra ítems del corpus por tema (campo tema/topico) cuando el corpus
 // segmenta; si ninguno coincide o no hay segmentación, devuelve todos.
+// Filtra items por tema (tolerante: nunca deja vacío). Si los items llevan
+// etiqueta de tema, devuelve los del tema; si no la llevan o ninguno casa,
+// devuelve todos. La pertenencia real al tema se resuelve en la capa de marcado
+// (negrita = del tema, tachado = ya trabajado), no descartando contenido aquí:
+// el modelo LLAMA TODO el contenido del grado, como los 21 indicadores.
 const _filtrarPorTema = (items, temaFiltro) => {
   if (!Array.isArray(items) || !items.length || !temaFiltro) return items || [];
   const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
@@ -1308,6 +1313,11 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
   // de vocabulario + estructuras exactas); si no aplica, la segmentación por
   // campo tema/topico; si tampoco, nivel-grado completo (siempre malla
   // oficial, nunca plantilla)
+  // Se llama TODO el contenido del grado (como el modelo llama los 21
+  // indicadores): el generador luego marca cuál pertenece a ESTE tema (negrita)
+  // y el histórico marca lo ya trabajado (tachado). Por eso el filtro es
+  // TOLERANTE: nunca deja vacío; la pertenencia al tema se resuelve en la capa
+  // de marcado, no descartando contenido aquí.
   const vocabRaw = _filtrarPorCategoria(c.vocabulario, temaEnriquecido?.vocabularioCategorias)
     ?? _filtrarPorTema(Array.isArray(c.vocabulario) ? c.vocabulario : [], temaFiltro);
   let vocabulario = vocabRaw.flatMap(v =>
@@ -1332,9 +1342,19 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
         .map((f) => (typeof f === 'string' ? f : (f.descripcion || f.texto || f.funcion || '')))
         .filter(Boolean);
 
-  // v1.1 fallback: per-tema arrays (vocabulario/gramatica/funcionales at temas[i] level)
+  // v1.1 fallback: per-tema arrays (vocabulario/gramatica/funcionales at temas[i]
+  // level). Prefiere el bloque del tema que CORRESPONDE al temaFiltro; si no lo
+  // encuentra, cae al primer tema (legado) — se llama todo el contenido y la
+  // pertenencia se resuelve en la capa de marcado (negrita/tachado).
   if (!vocabulario.length && Array.isArray(mallaPayload.temas)) {
-    const temaObj = mallaPayload.temas.find(t => typeof t === 'object' && t !== null);
+    const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    const objetivo = norm(temaFiltro);
+    const delTema = objetivo && mallaPayload.temas.find((t) => {
+      if (!t || typeof t !== 'object') return false;
+      const nombre = norm(t.tema || t.temaOficial || t.topico);
+      return nombre === objetivo || nombre.includes(objetivo) || objetivo.includes(nombre);
+    });
+    const temaObj = delTema || mallaPayload.temas.find((t) => typeof t === 'object' && t !== null);
     if (temaObj) {
       vocabulario = Array.isArray(temaObj.vocabulario) ? temaObj.vocabulario : [];
       if (!gramatica.length) gramatica = Array.isArray(temaObj.gramatica) ? temaObj.gramatica : [];
