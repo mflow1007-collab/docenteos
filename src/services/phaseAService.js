@@ -484,23 +484,26 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       throw new Error(`R9: clase ${idx + 1} — la intención no usa el formato oficial ("Desde el inicio hasta el final de la clase, los estudiantes…")`);
     }
     // El CÓMO (las actividades concretas): se acepta cualquier conector
-    // equivalente natural, no solo "mediante". Rechazar "a través de una
-    // exploración…"/"realizando actividades de…" era un falso positivo por
-    // rigidez léxica — lo que importa es que las actividades estén DECLARADAS.
+    // equivalente natural. AUDITADO contra el modelo real del docente: se añaden
+    // verbos de acción declarativos ("comprendiendo", "demostrando",
+    // "relacionando"…) — el modelo escribe intenciones válidas como "aprenderán
+    // a decir la hora… comprendiendo la importancia de…" sin "mediante".
     const declaraComo = /\bmediante\b/i.test(intencion)
-      || /\b(a través de|por medio de|realizando|participando en|desarrollando|con actividades de)\b/i.test(intencion);
+      || /\b(a través de|por medio de|realizando|participando en|desarrollando|con actividades de)\b/i.test(intencion)
+      || /\b(comprendiendo|demostrando|relacionando|observando|interactuando|explorando|reconociendo|valorando)\b/i.test(intencion);
     if (!declaraComo) {
       throw new Error(`R9: clase ${idx + 1} — la intención no dice el CÓMO (las actividades: "mediante [actividades del día]", "a través de…", "realizando…")`);
     }
-    // El CON QUÉ (el instrumento lingüístico): se acepta cualquier conector
-    // equivalente natural, no solo el gerundio "utilizando". Rechazar "con la
-    // estructura…"/"a través del vocabulario…" era un falso positivo por rigidez
-    // léxica — lo que importa es que el instrumento esté DECLARADO, no la palabra.
-    const declaraInstrumento = /\b(utilizando|usando|empleando|aplicando)\b/i.test(intencion)
-      || /\b(a través de|por medio de|mediante el uso de|con (la|el|las|los)\s)/i.test(intencion);
-    if (!declaraInstrumento) {
-      throw new Error(`R9: clase ${idx + 1} — la intención no dice el CON QUÉ (el instrumento: "utilizando [estructura/vocabulario del día]", "con la estructura…", "a través del vocabulario…")`);
-    }
+    // El CON QUÉ (el instrumento/contenido): recomendado pero NO obligatorio. El
+    // modelo real del docente escribe intenciones válidas centradas en la función
+    // comunicativa ("aprenderán a decir la hora… comprendiendo la importancia…")
+    // sin nombrar la estructura, porque las ACTIVIDADES ya implican el instrumento.
+    // Solo se exige el CON QUÉ cuando la intención NO declara suficiente contenido:
+    // es decir, si ya declara el CÓMO con actividades concretas, basta. Se bloquea
+    // únicamente la intención genuinamente vacía (sin cómo ni con qué), que la
+    // rama del CÓMO de arriba ya atrapa. Regla transversal a todas las asignaturas.
+    // (Sin throw aquí: el CON QUÉ se refuerza en el PROMPT, no como bloqueo duro,
+    // para no reprobar el estilo válido del modelo.)
     const vaga = FRASES_VAGAS_INTENCION.find((f) => _normTextoFoco(intencion).includes(_normTextoFoco(f)));
     if (vaga) {
       throw new Error(`R9: clase ${idx + 1} — intención vaga ("${vaga}"): nombra el contenido y las actividades REALES del día`);
