@@ -99,7 +99,7 @@ async function logParseError({ contexto, attempt, motivo, raw, provider, model }
 
 // ─── SSE collector ────────────────────────────────────────────────────────────
 
-async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS, providerOrder = PHASE_A_PROVIDER_ORDER) {
+async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS, providerOrder = PHASE_A_PROVIDER_ORDER, providersDisabledExtra = []) {
   const user = getAuth().currentUser;
   if (!user) throw new Error('Usuario no autenticado');
 
@@ -110,6 +110,11 @@ async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS, provid
   // unidades respeta el mismo interruptor de proveedores que el resto
   let gwConfig = {};
   try { gwConfig = await loadGatewayConfig(); } catch { /* no-fatal */ }
+
+  const providersDisabled = [
+    ...(Array.isArray(gwConfig.disabled) ? gwConfig.disabled : []),
+    ...(Array.isArray(providersDisabledExtra) ? providersDisabledExtra : []),
+  ].filter((v, i, arr) => v && arr.indexOf(v) === i);
 
   const response = await fetch('/api/ai/generate', {
     method: 'POST',
@@ -127,7 +132,7 @@ async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS, provid
       // ($0.60/M salida) en vez de gpt-4o ($10/M) salvo que el admin lo sobrescriba
       // explícitamente. El mini produce JSON válido; el contrato lo valida igual.
       modelOverrides: { openai: 'gpt-4o-mini', ...(gwConfig.models || {}) },
-      providersDisabled: Array.isArray(gwConfig.disabled) ? gwConfig.disabled : undefined,
+      providersDisabled: providersDisabled.length ? providersDisabled : undefined,
     }),
   });
 
@@ -909,7 +914,7 @@ ${reglaInicio}
 {"outputSchemaVersion":"1.3","semana":${semanaNum},${pedirNombreProducto ? '"productoFinalNombre":"...",' : ''}"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"...","saludoInicial":${spec.esIdioma ? '"Good morning! ..."' : '"¡Buenos días! ..."'},"retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en [técnica]: ...","...","...","...","..."],"evidencias":{"desempeno":["...","..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
-// ─── Generación de un lote (2 intentos por lote) ─────────────────────────────
+// ─── Generación de un lote con rotación de proveedores ───────────────────────
 
 async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, contextoLog) {
   // El foco del bloque es el MISMO que recibió el prompt: la validación exige
@@ -922,22 +927,31 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   let lastModel    = 'desconocido';
   let lastRaw      = '';
   let lastTruncationError = null;
+  let attemptsUsed = 0;
+  const proveedoresFallidosCiclo = new Set();
 
   // El primer lote de la unidad propone el nombre propio del producto final;
   // una vez fijado en la spec, todos los lotes siguientes lo reciben.
   const pedirNombreProducto = semanaNum === 1 && startDia === 1 && !spec.productoFinalNombre;
 
-  // Hasta 3 intentos, pero el 3º SOLO se concede si el fallo previo fue
-  // truncamiento (falta de tokens, no de calidad): es puramente cuestión de
-  // subir el techo, así que darle una vuelta más con RETRY_TOKENS no dilata la
-  // generación por errores de contenido. Un error de calidad agota en 2.
+  // Reintentos por proveedor: si un proveedor abre stream pero devuelve vacío,
+  // JSON roto o falla la calidad del contrato, el siguiente intento excluye
+  // temporalmente ese proveedor y deja que el gateway pruebe otro. Al agotar la
+  // cola configurada se limpia el ciclo y se concede una segunda vuelta.
   let truncadoPrevio = false;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    if (attempt === 3 && !truncadoPrevio) break;
+  const maxAttempts = Math.max(3, PHASE_A_PROVIDER_ORDER.length * 2);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    attemptsUsed = attempt;
     try {
       const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, pedirNombreProducto);
       const t0 = Date.now();
-      const { text: raw, provider, model, usage } = await callGatewayCollect(prompt, SYSTEM_PROMPT, maxTokens);
+      const { text: raw, provider, model, usage } = await callGatewayCollect(
+        prompt,
+        SYSTEM_PROMPT,
+        maxTokens,
+        PHASE_A_PROVIDER_ORDER,
+        Array.from(proveedoresFallidosCiclo),
+      );
       lastProvider = provider;
       lastModel    = model;
       lastRaw      = raw;
@@ -967,6 +981,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
           lastTruncationError = lastError;
         }
         else { prefix = JSON_REMINDER; truncadoPrevio = false; }
+        if (provider && provider !== 'desconocido') proveedoresFallidosCiclo.add(provider);
         continue;
       }
 
@@ -989,11 +1004,17 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
 
     } catch (err) {
       const msg = String(err?.message || err || '');
+      if (/No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|Cola vacía/i.test(msg) && proveedoresFallidosCiclo.size) {
+        proveedoresFallidosCiclo.clear();
+        lastError = err;
+        continue;
+      }
       if (truncadoPrevio && lastTruncationError && /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|503|tiempo de espera/i.test(msg)) {
         lastError = new Error(`${lastTruncationError.message}. Reintento no disponible: ${msg}`);
       } else {
         lastError = err;
       }
+      if (lastProvider && lastProvider !== 'desconocido') proveedoresFallidosCiclo.add(lastProvider);
       console.error(`[FaseA] ${contextoLog} intento ${attempt} (${lastProvider}/${lastModel}):`, err.message);
       await logParseError({
         contexto: contextoLog, attempt, motivo: err.message,
@@ -1006,14 +1027,14 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // FUTURO: cuando exista el Banco de Secuencias, el respaldo legítimo es
   // servir una secuencia cosechada y validada — nunca plantillas.
   throw new Error(
-    `${contextoLog} falló tras ${truncadoPrevio ? 3 : 2} intentos [${lastProvider}/${lastModel}]. ` +
+    `${contextoLog} falló tras ${attemptsUsed} intentos [${lastProvider}/${lastModel}]. ` +
     `Motivo: ${lastError?.message}. ` +
     `Raw inicio: "${lastRaw.slice(0, 200)}" … fin: "${lastRaw.slice(-200)}"`,
   );
 }
 
 const esFalloRecuperablePorTamano = (err) =>
-  /JSON TRUNCADO|respuesta truncada|malformad|Unexpected end/i.test(String(err?.message || err || ''));
+  /JSON TRUNCADO|respuesta truncada|malformad|Unexpected end|respuesta vacía|Failed to fetch|No hay ningún servicio de Inteligencia Artificial/i.test(String(err?.message || err || ''));
 
 function agregarClasesAMemoria(clases = [], semanaNum, memoriaAcumulada) {
   clases.forEach(c => {
