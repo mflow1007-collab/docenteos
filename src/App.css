@@ -12043,3 +12043,108 @@
   border-color: #94a3b8;
   color: #0f172a;
 }
+
+.planning-bg-job {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1200;
+  width: min(420px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: 12px 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  color: #0f172a;
+}
+
+.planning-bg-job__pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #2563eb;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.14);
+}
+
+.planning-bg-job--running .planning-bg-job__pulse {
+  animation: planning-bg-pulse 1.2s ease-in-out infinite;
+}
+
+.planning-bg-job--success {
+  border-color: #bbf7d0;
+}
+
+.planning-bg-job--success .planning-bg-job__pulse {
+  background: #16a34a;
+  box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.14);
+}
+
+.planning-bg-job--error {
+  border-color: #fecaca;
+}
+
+.planning-bg-job--error .planning-bg-job__pulse {
+  background: #dc2626;
+  box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.14);
+}
+
+.planning-bg-job__copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.planning-bg-job__copy span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.planning-bg-job__copy strong {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.planning-bg-job button {
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.planning-bg-job__close {
+  width: 34px;
+  height: 34px;
+  padding: 0 !important;
+  border-color: #e2e8f0 !important;
+  background: #fff !important;
+  color: #64748b !important;
+  font-size: 18px !important;
+}
+
+@keyframes planning-bg-pulse {
+  0%, 100% { transform: scale(0.95); opacity: 0.75; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .planning-bg-job {
+    right: 12px;
+    bottom: 12px;
+    grid-template-columns: 10px 1fr auto;
+  }
+
+  .planning-bg-job__close {
+    display: none;
+  }
+}

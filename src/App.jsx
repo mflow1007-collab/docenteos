@@ -22,6 +22,7 @@ import Cursos from "./components/Cursos.jsx";
 import DetalleCurso from "./components/DetalleCurso.jsx";
 import CoachIA from "./components/CoachIA.jsx";
 import AppErrorBoundary from "./components/AppErrorBoundary.jsx";
+import PlanningGenerationStatus from "./components/PlanningGenerationStatus.jsx";
 
 const PlanificacionPage       = lazy(() => import("./pages/PlanificacionPage"));
 const InstrumentosPage        = lazy(() => import("./pages/InstrumentosPage"));
@@ -432,14 +433,14 @@ function AppInner() {
   const cerrarMenu = () => setMenuAbierto(false);
 
   // Determina qué grupo sidebar debe estar abierto según la página activa
-  const grupoDePageID = (id) => {
+  const grupoDePageID = useCallback((id) => {
     if (id === "inicio")                                        return "inicio";
     if (["modo-aula","banco-evidencias","cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(id)) return "docencia";
     if (["estudiantes","detalle-estudiante"].includes(id))      return "estudiantes";
     if (id === "ia" || id === "curriculo")                      return "inteligencia";
     if (id === "suscripcion" || id === "configuracion")         return "configuracion";
     return grupoExpandido;
-  };
+  }, [grupoExpandido]);
 
   // Secciones del módulo Inteligencia que mapean a CentroIAPage
   const IA_SECCIONES = [
@@ -469,6 +470,19 @@ function AppInner() {
     setGrupoExpandido(grupoDePageID(id));
     cerrarMenu();
   };
+
+  useEffect(() => {
+    const manejarNavegacionGlobal = (event) => {
+      const destino = event?.detail;
+      if (typeof destino === "string" && PAGINAS_APP.has(destino)) {
+        navegar(destino);
+        setGrupoExpandido(grupoDePageID(destino));
+        cerrarMenu();
+      }
+    };
+    window.addEventListener("irA", manejarNavegacionGlobal);
+    return () => window.removeEventListener("irA", manejarNavegacionGlobal);
+  }, [grupoDePageID, navegar]);
 
   const irASeccionIA = (seccionId) => {
     setSeccionIA(seccionId);
@@ -841,6 +855,7 @@ function AppInner() {
           </AppErrorBoundary>
         </section>
       </main>
+      <PlanningGenerationStatus />
       <CoachIA pagina={pagina} formulario={formulario} />
     </div>
   );

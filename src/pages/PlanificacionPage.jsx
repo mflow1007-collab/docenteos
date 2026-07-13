@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
+import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import CentroDecisionesKE from "../components/CentroDecisionesKE.jsx";
 import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
@@ -56,6 +57,7 @@ import {
 import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
 
 const LIMITE_HISTORIAL_DOCENTE = 3;
+const PLAN_JOB_ID = "planificacion-inteligente";
 const ES_TIPO_UNIDAD = (t) =>
   t === "Unidad de Aprendizaje" || t === "Secuencia Didáctica";
 
@@ -230,6 +232,41 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
   // encuentra su planificación generada y el tipo que estaba trabajando.
   useEffect(() => { guardarSesion("plan:resultado", planificacion); }, [planificacion]);
   useEffect(() => { guardarSesion("tipo", tipoPlanificacion); }, [tipoPlanificacion]);
+
+  useEffect(() => subscribeGenerationJobs((jobs) => {
+    const job = jobs.find((item) => item.id === PLAN_JOB_ID);
+    if (!job) return;
+    if (job.status === "running") {
+      setCargando(true);
+      setMensaje({ tipo: "loading", texto: job.mensaje });
+      return;
+    }
+    if (job.status === "success") {
+      setCargando(false);
+      const respuesta = job.result;
+      if (respuesta?.tipo === "bic_hit") {
+        setBicDatosValidados(respuesta.datosValidados || null);
+        setBicBanner({
+          abierto: true,
+          nivel: respuesta.bicHit?.nivel,
+          candidato: respuesta.bicHit?.mejor,
+          score: respuesta.bicHit?.score,
+        });
+      } else if (respuesta?.resultado) {
+        setPlanificacion(respuesta.resultado);
+        setBicFuente("generado");
+        setBicId(null);
+        _mostrarBannerEntrenar();
+      }
+      setMensaje({ tipo: "success", texto: "✅ Planificación generada. Puedes revisarla completa." });
+      setTimeout(() => document.querySelector(".resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+      return;
+    }
+    if (job.status === "error") {
+      setCargando(false);
+      setMensaje({ tipo: "error", texto: job.mensaje });
+    }
+  }), [_mostrarBannerEntrenar]);
 
   // Temas ya trabajados por el docente (según su historial guardado).
   // Se usan para marcar visualmente — nunca para bloquear.
@@ -786,6 +823,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
               temaIngresado: tema,
             },
           });
+          setCargando(false);
           return;
         }
         throw new Error(verificacionTema?.mensaje || "No se pudo validar el tema actual");
@@ -807,6 +845,7 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
             },
           },
         });
+        setCargando(false);
         return;
       }
 
@@ -878,38 +917,29 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
         },
       };
 
-      // ── KE + BIC: flujo inteligente completo (pasos 1-7) ────────────────
-      const respuesta = await generarPlanificacionInteligente(datosValidados);
-
-      if (respuesta.tipo === "bic_hit") {
-        setBicDatosValidados(datosValidados);
-        setBicBanner({
-          abierto: true,
-          nivel:      respuesta.bicHit.nivel,
-          candidato:  respuesta.bicHit.mejor,
-          score:      respuesta.bicHit.score,
-        });
-        return; // finally → setCargando(false) sigue corriendo
-      }
-
-      setPlanificacion(respuesta.resultado);
-      setBicFuente("generado");
-      setBicId(null);
-      _mostrarBannerEntrenar();
-
-      // Scroll al resultado
-      setTimeout(() => {
-        document.querySelector(".resultado")?.scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-      }, 100);
+      // ── KE + BIC: flujo inteligente completo en segundo plano ───────────
+      startGenerationJob({
+        id: PLAN_JOB_ID,
+        tipo: "planificacion",
+        titulo: tema?.trim() || "Planificación inteligente",
+        initialMessage: `✍️ Semana 1 de ${totalSemanas} — preparando ${rangoInicial} · Trabajando: ${tema?.trim() || "tema seleccionado"}`,
+        run: async () => {
+          const respuesta = await generarPlanificacionInteligente(datosValidados);
+          return { ...respuesta, datosValidados };
+        },
+        onSuccess: (respuesta) => {
+          if (respuesta?.resultado) guardarSesion("plan:resultado", respuesta.resultado);
+        },
+      });
+      setMensaje({
+        tipo: "loading",
+        texto: "✍️ DocenteOS seguirá generando aunque cambies de módulo.",
+      });
     } catch (error) {
       setMensaje({
         tipo: "error",
         texto: `❌ ${error.message}`
       });
-    } finally {
       setCargando(false);
     }
   };
@@ -1257,39 +1287,28 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
         },
       };
 
-      const respuesta = await generarPlanificacionInteligente(datosValidados);
-
-      if (respuesta.tipo === "bic_hit") {
-        setBicDatosValidados(datosValidados);
-        setBicBanner({
-          abierto: true,
-          nivel:     respuesta.bicHit.nivel,
-          candidato: respuesta.bicHit.mejor,
-          score:     respuesta.bicHit.score,
-        });
-      } else {
-        setPlanificacion(respuesta.resultado);
-        setBicFuente("generado");
-        setBicId(null);
-        _mostrarBannerEntrenar();
-      }
-      setMensaje({
-        tipo: "success",
-        texto: "✅ Nuevo tema registrado y planificación generada",
+      startGenerationJob({
+        id: PLAN_JOB_ID,
+        tipo: "planificacion",
+        titulo: temaIngresado || tema || "Planificación inteligente",
+        initialMessage: `✍️ Generando nuevo tema: ${temaIngresado || tema || "tema seleccionado"}`,
+        run: async () => {
+          const respuesta = await generarPlanificacionInteligente(datosValidados);
+          return { ...respuesta, datosValidados };
+        },
+        onSuccess: (respuesta) => {
+          if (respuesta?.resultado) guardarSesion("plan:resultado", respuesta.resultado);
+        },
       });
-      setTimeout(() => setMensaje(null), 2800);
-      setTimeout(() => {
-        document.querySelector(".resultado")?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 100);
+      setMensaje({
+        tipo: "loading",
+        texto: "✍️ DocenteOS seguirá generando aunque cambies de módulo.",
+      });
     } catch (error) {
       setMensaje({
         tipo: "error",
         texto: `❌ ${error.message || "No fue posible crear el nuevo tema"}`,
       });
-    } finally {
       setCargando(false);
     }
   };
@@ -1653,6 +1672,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
    * Maneja la creación de nueva planificación
    */
   const manejarNueva = () => {
+    clearGenerationJob(PLAN_JOB_ID);
     setGrado("");
     setSeccion("");
     setArea("");

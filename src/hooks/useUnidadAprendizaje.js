@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { generarUnidadAprendizaje, formatearUnidadHTML } from "../services/unidadAprendizajeService";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
+import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
 import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
 import { applyAuditAction } from "../services/auditAcciones.js";
@@ -8,6 +9,7 @@ import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 
 const hoyISO = new Date().toISOString().slice(0, 10);
+const UNIDAD_JOB_ID = "unidad-aprendizaje";
 
 const DATOS_INICIALES = {
   grado: "", seccion: "", area: "", asignatura: "",
@@ -38,6 +40,26 @@ export function useUnidadAprendizaje() {
   useEffect(() => { guardarSesion("unidad:datos", unidadDatos); }, [unidadDatos]);
   useEffect(() => { guardarSesion("unidad:resultado", unidad); }, [unidad]);
 
+  useEffect(() => subscribeGenerationJobs((jobs) => {
+    const job = jobs.find((item) => item.id === UNIDAD_JOB_ID);
+    if (!job) return;
+    if (job.status === "running") {
+      setCargandoUnidad(true);
+      setMensajeUnidad({ tipo: "loading", texto: job.mensaje });
+      return;
+    }
+    if (job.status === "success") {
+      setCargandoUnidad(false);
+      if (job.result) setUnidad(job.result);
+      setMensajeUnidad({ tipo: "success", texto: job.mensaje });
+      return;
+    }
+    if (job.status === "error") {
+      setCargandoUnidad(false);
+      setMensajeUnidad({ tipo: "error", texto: job.mensaje });
+    }
+  }), []);
+
   const manejarGenerarUnidad = async () => {
     const { estadoTemas, setDialogoTema } = depsRef.current;
     const temaUnidad = (unidadDatos.tema || unidadDatos.titulo)?.trim();
@@ -64,6 +86,7 @@ export function useUnidadAprendizaje() {
               },
             },
           });
+          setCargandoUnidad(false);
           return;
         }
         await registrarUsoTemaPlanificacion({ tituloTema: temaUnidad, forzarNuevoTema: false, contexto: "generacion" });
@@ -78,21 +101,24 @@ export function useUnidadAprendizaje() {
         );
       } catch { /* sin historial, se genera sin tachados */ }
 
-      const resultado = await generarUnidadAprendizaje({
-        ...unidadDatos,
-        indicadoresTrabajadosAntes,
-        // Rótulo del documento según el tipo elegido en la página
-        // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
-        tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
-        onProgress: (msg) => setMensajeUnidad({ tipo: "loading", texto: msg }),
+      startGenerationJob({
+        id: UNIDAD_JOB_ID,
+        tipo: "unidad",
+        titulo: temaUnidad || unidadDatos.titulo || "Unidad de aprendizaje",
+        initialMessage: "✍️ Preparando la unidad con la malla oficial...",
+        run: ({ setProgress }) => generarUnidadAprendizaje({
+          ...unidadDatos,
+          indicadoresTrabajadosAntes,
+          // Rótulo del documento según el tipo elegido en la página
+          // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
+          tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
+          onProgress: setProgress,
+        }),
+        onSuccess: (resultado) => guardarSesion("unidad:resultado", resultado),
       });
-      setUnidad(resultado);
-      setTimeout(() => {
-        document.querySelector(".ua-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
+      setMensajeUnidad({ tipo: "loading", texto: "✍️ DocenteOS seguirá generando aunque cambies de módulo." });
     } catch (error) {
       setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
-    } finally {
       setCargandoUnidad(false);
     }
   };
@@ -183,6 +209,7 @@ export function useUnidadAprendizaje() {
   };
 
   const manejarNuevaUnidad = () => {
+    clearGenerationJob(UNIDAD_JOB_ID);
     setUnidad(null);
     setMensajeUnidad(null);
     document.querySelector(".pd-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -196,16 +223,21 @@ export function useUnidadAprendizaje() {
     });
     try {
       await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
-      const resultado = await generarUnidadAprendizaje({
-        ...unidadDatos,
-        tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
-        onProgress: (msg) => setMensajeUnidad({ tipo: "loading", texto: msg }),
+      startGenerationJob({
+        id: UNIDAD_JOB_ID,
+        tipo: "unidad",
+        titulo: temaIngresado || unidadDatos.titulo || "Unidad de aprendizaje",
+        initialMessage: `✍️ Preparando malla oficial y tema "${temaIngresado || unidadDatos.titulo || "seleccionado"}"...`,
+        run: ({ setProgress }) => generarUnidadAprendizaje({
+          ...unidadDatos,
+          tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
+          onProgress: setProgress,
+        }),
+        onSuccess: (resultado) => guardarSesion("unidad:resultado", resultado),
       });
-      setUnidad(resultado);
-      setTimeout(() => document.querySelector(".ua-resultado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+      setMensajeUnidad({ tipo: "loading", texto: "✍️ DocenteOS seguirá generando aunque cambies de módulo." });
     } catch (error) {
       setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
-    } finally {
       setCargandoUnidad(false);
     }
   };
