@@ -21,6 +21,8 @@ const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
 const MAX_TOKENS   = 12000;  // por lote (contrato incluye evidencias/metacognición/recursos por momento × clases; modelos verbosos se truncaban a 9000)
 const RETRY_TOKENS = 20000;  // reintento tras truncamiento — techo generoso para modelos verbosos (deepseek, etc.)
+const CHECKPOINT_PREFIX = 'docenteos_phase_a_checkpoint_v1';
+const CHECKPOINT_TTL_MS = 12 * 60 * 60 * 1000;
 
 // COSTO PRIMERO, CALIDAD DE RESPALDO. Una unidad son ~10-12 lotes de ~12K tokens
 // de salida cada uno. Con todos los validadores de contrato (voz, R9/R12,
@@ -996,6 +998,82 @@ function agregarClasesAMemoria(clases = [], semanaNum, memoriaAcumulada) {
   });
 }
 
+function storageDisponible() {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+}
+
+function hashString(input = '') {
+  let h = 2166136261;
+  const s = String(input || '');
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+}
+
+function checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas) {
+  const firma = {
+    schema: spec.outputSchemaVersion || '1.3',
+    tema: spec.temaOficial,
+    area: spec.area,
+    grado: spec.grado,
+    nivelMCERL: spec.nivelMCERL,
+    productoFinal: spec.productoFinal,
+    productoFinalNombre: spec.productoFinalNombre,
+    contextoComunitario: spec.contextoComunitario,
+    semanaNum,
+    durMin,
+    numClases,
+    numSemanas,
+    contenidosClaves: spec.contenidosClaves,
+    indicadores: (spec.indicadores || []).map((i) => [i.id, i.descripcion, i.competenciaId]),
+  };
+  return `${CHECKPOINT_PREFIX}:${hashString(JSON.stringify(firma))}`;
+}
+
+function checkpointKey(baseKey, startDia, count) {
+  return `${baseKey}:C${startDia}-${startDia + count - 1}`;
+}
+
+function leerCheckpoint(key) {
+  if (!storageDisponible()) return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.createdAt || Date.now() - parsed.createdAt > CHECKPOINT_TTL_MS) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+    return parsed.data || null;
+  } catch {
+    return null;
+  }
+}
+
+function guardarCheckpoint(key, data) {
+  if (!storageDisponible() || !data) return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify({
+      createdAt: Date.now(),
+      data,
+    }));
+  } catch {
+    // No fatal: si el navegador no puede guardar, la generación sigue normal.
+  }
+}
+
+function esBatchCacheValido(data, durMin, count, focoGram, opts) {
+  if (!data || !Array.isArray(data.clases)) return false;
+  try {
+    validateBatch(data, durMin, count, focoGram, opts);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ─── generateWeekPlan — exportación principal ─────────────────────────────────
 
 export const generateWeekPlan = async (
@@ -1006,6 +1084,8 @@ export const generateWeekPlan = async (
   const allClases  = [];
   let adaptacionesSemana = null;   // NEAE ligadas al foco (contrato R14)
   let observacionesSemana = '';
+  const focoGram = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas);
+  const baseCheckpointKey = checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas);
 
   for (let b = 0; b < batches; b++) {
     const startDia   = b * BATCH_SIZE + 1;
@@ -1017,6 +1097,64 @@ export const generateWeekPlan = async (
 
     let nuevasClases = [];
     let memoriaActualizada = false;
+    const batchKey = checkpointKey(baseCheckpointKey, startDia, count);
+    const cachedBatch = leerCheckpoint(batchKey);
+    if (esBatchCacheValido(cachedBatch, durMin, count, focoGram, {
+      memoria: memoriaAcumulada,
+      exigirNombreProducto: semanaNum === 1 && startDia === 1 && !spec.productoFinalNombre,
+      semanaNum,
+    })) {
+      nuevasClases = cachedBatch.clases.slice(0, count).map((c, i) => ({ ...c, dia: startDia + i }));
+      if (!adaptacionesSemana && cachedBatch.adaptacionesSemana) {
+        adaptacionesSemana = cachedBatch.adaptacionesSemana;
+        observacionesSemana = String(cachedBatch.observacionesSemana || '').trim();
+      }
+      if (!spec.productoFinalNombre && cachedBatch.productoFinalNombre) {
+        spec.productoFinalNombre = String(cachedBatch.productoFinalNombre || '').trim();
+      }
+      allClases.push(...nuevasClases);
+      agregarClasesAMemoria(nuevasClases, semanaNum, memoriaAcumulada);
+      continue;
+    }
+
+    const singleKeys = Array.from({ length: count }, (_, i) => {
+      const dia = startDia + i;
+      return { dia, key: checkpointKey(baseCheckpointKey, dia, 1), data: leerCheckpoint(checkpointKey(baseCheckpointKey, dia, 1)) };
+    });
+    const hayCacheParcial = count > 1 && singleKeys.some((item) => item.data);
+    if (hayCacheParcial) {
+      for (const item of singleKeys) {
+        onProgress?.(item.dia, item.dia);
+        if (esBatchCacheValido(item.data, durMin, 1, focoGram, { memoria: memoriaAcumulada, exigirNombreProducto: false, semanaNum })) {
+          const claseCache = { ...item.data.clases?.[0], dia: item.dia };
+          nuevasClases.push(claseCache);
+          agregarClasesAMemoria([claseCache], semanaNum, memoriaAcumulada);
+          if (!adaptacionesSemana && item.data.adaptacionesSemana) {
+            adaptacionesSemana = item.data.adaptacionesSemana;
+            observacionesSemana = String(item.data.observacionesSemana || '').trim();
+          }
+          continue;
+        }
+        const singleData = await generateWeekBatch(
+          spec, semanaNum, item.dia, 1, durMin, numSemanas, memoriaAcumulada, `S${semanaNum}/C${item.dia}`,
+        );
+        const clase = { ...singleData.clases?.[0], dia: item.dia };
+        nuevasClases.push(clase);
+        agregarClasesAMemoria([clase], semanaNum, memoriaAcumulada);
+        if (!adaptacionesSemana && singleData.adaptacionesSemana) {
+          adaptacionesSemana = singleData.adaptacionesSemana;
+          observacionesSemana = String(singleData.observacionesSemana || '').trim();
+        }
+        guardarCheckpoint(item.key, {
+          ...singleData,
+          clases: [clase],
+          productoFinalNombre: spec.productoFinalNombre || singleData.productoFinalNombre || '',
+        });
+      }
+      allClases.push(...nuevasClases);
+      continue;
+    }
+
     try {
       const batchData = await generateWeekBatch(
         spec, semanaNum, startDia, count, durMin, numSemanas, memoriaAcumulada, contextoLog,
@@ -1028,21 +1166,44 @@ export const generateWeekPlan = async (
         adaptacionesSemana = batchData.adaptacionesSemana;
         observacionesSemana = String(batchData.observacionesSemana || '').trim();
       }
+      guardarCheckpoint(batchKey, {
+        ...batchData,
+        clases: nuevasClases,
+        productoFinalNombre: spec.productoFinalNombre || batchData.productoFinalNombre || '',
+      });
     } catch (err) {
       if (count <= 1 || !esFalloRecuperablePorTamano(err)) throw err;
       console.warn(`[FaseA] ${contextoLog}: lote truncado; reintentando clase por clase.`);
       for (let dia = startDia; dia <= endDia; dia++) {
         onProgress?.(dia, dia);
+        const singleKey = checkpointKey(baseCheckpointKey, dia, 1);
+        const cachedSingle = leerCheckpoint(singleKey);
+        if (esBatchCacheValido(cachedSingle, durMin, 1, focoGram, { memoria: memoriaAcumulada, exigirNombreProducto: false, semanaNum })) {
+          const claseCache = { ...cachedSingle.clases?.[0], dia };
+          nuevasClases.push(claseCache);
+          agregarClasesAMemoria([claseCache], semanaNum, memoriaAcumulada);
+          if (!adaptacionesSemana && cachedSingle.adaptacionesSemana) {
+            adaptacionesSemana = cachedSingle.adaptacionesSemana;
+            observacionesSemana = String(cachedSingle.observacionesSemana || '').trim();
+          }
+          continue;
+        }
         const singleData = await generateWeekBatch(
           spec, semanaNum, dia, 1, durMin, numSemanas, memoriaAcumulada, `S${semanaNum}/C${dia}`,
         );
         const clase = singleData.clases?.[0];
-        nuevasClases.push({ ...clase, dia });
-        agregarClasesAMemoria([{ ...clase, dia }], semanaNum, memoriaAcumulada);
+        const claseNormalizada = { ...clase, dia };
+        nuevasClases.push(claseNormalizada);
+        agregarClasesAMemoria([claseNormalizada], semanaNum, memoriaAcumulada);
         if (!adaptacionesSemana && singleData.adaptacionesSemana) {
           adaptacionesSemana = singleData.adaptacionesSemana;
           observacionesSemana = String(singleData.observacionesSemana || '').trim();
         }
+        guardarCheckpoint(singleKey, {
+          ...singleData,
+          clases: [claseNormalizada],
+          productoFinalNombre: spec.productoFinalNombre || singleData.productoFinalNombre || '',
+        });
       }
       memoriaActualizada = true;
     }
