@@ -713,8 +713,13 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   // "indicadoresTrabajados", SOLO los códigos que ese día trabaja de verdad
   // según el tema — ese es el criterio de resaltado del registro oficial
   // ("se agrega solo los aspectos específicos trabajados").
+  // Descripción RECORTADA (~90 chars): la IA solo necesita reconocer el
+  // indicador para copiar su código, no leer el párrafo completo. Recortar aquí
+  // baja los tokens de entrada del prompt (los 21 indicadores completos lo
+  // engordaban y ralentizaban la respuesta hasta rozar el muro de 504 en Edge).
+  const recorta = (t) => { const s = String(t || '').trim(); return s.length > 90 ? s.slice(0, 90).replace(/\s+\S*$/, '') + '…' : s; };
   const indText    = (spec.indicadores || [])
-    .map(i => `[${i.codigoOficial || i.id || 's/c'}] ${i.descripcion || i.texto || ''}`)
+    .map(i => `[${i.codigoOficial || i.id || 's/c'}] ${recorta(i.descripcion || i.texto)}`)
     .filter(l => !l.endsWith('] ')).join('\n');
   const ceText     = (spec.ces || [])
     .map(c => `${c.fundamental ? c.fundamental + ' — ' : ''}${c.descripcion || ''}`.trim())

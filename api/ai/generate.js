@@ -203,13 +203,19 @@ function getProviderTimeoutMs(provider, mod) {
   // verbosos (deepseek, etc.) se truncaban al agotar el tiempo antes que los
   // tokens. Un lote completo de 2 clases con evidencias/metacognición/recursos
   // puede tardar >18s en modelos lentos.
+  // El runtime Edge de Vercel corta la respuesta ~25s: si nuestro timeout
+  // interno es MAYOR, Vercel devuelve 504 (gateway) antes de que podamos abortar
+  // limpio y reintentar. Por eso la generación normal se mantiene POR DEBAJO de
+  // ese muro (24s) — así un lote lento aborta con TimeoutError nuestro y se
+  // reintenta, en vez de morir con 504. La extracción de PDF no pasa por este
+  // muro del mismo modo (respuesta en streaming distinto), conserva su margen.
   switch (provider) {
     case "abacus":    return esExtraccionPdf ? 30_000 : 20_000;
-    case "nvidia":    return esExtraccionPdf ? 35_000 : 26_000;
-    case "gemini":    return esExtraccionPdf ? 40_000 : 26_000;
-    case "openai":    return esExtraccionPdf ? 45_000 : 28_000;
-    case "anthropic": return esExtraccionPdf ? 45_000 : 28_000;
-    default:          return esExtraccionPdf ? 35_000 : 26_000;
+    case "nvidia":    return esExtraccionPdf ? 35_000 : 24_000;
+    case "gemini":    return esExtraccionPdf ? 40_000 : 24_000;
+    case "openai":    return esExtraccionPdf ? 45_000 : 24_000;
+    case "anthropic": return esExtraccionPdf ? 45_000 : 24_000;
+    default:          return esExtraccionPdf ? 35_000 : 24_000;
   }
 }
 
