@@ -1391,6 +1391,21 @@ export const verificarTemaAntesDeGenerar = async ({ tituloTema, contexto = "gene
       return { success: true, permitido: true, tipoCoincidencia: "nuevo", requiereCredito: false };
     }
 
+    if (!isAdmin && creditos > 0) {
+      return {
+        success: true,
+        permitido: true,
+        tipoCoincidencia: "nuevo",
+        requiereCredito: true,
+        puedeCrearNuevoTema: true,
+        creditosDisponibles: creditos,
+        temas: {
+          temaActivo: data?.temaActivo || null,
+          temaSecundario: data?.temaSecundario || null,
+        },
+      };
+    }
+
     return {
       success: true,
       permitido: false,
@@ -1398,7 +1413,7 @@ export const verificarTemaAntesDeGenerar = async ({ tituloTema, contexto = "gene
       mensaje:
         isAdmin
           ? "El administrador ya tiene cuatro temas activos. Para controlar consumo, reutiliza o actualiza uno de esos temas antes de iniciar otro."
-          : "Ya tienes dos temas activos. Para controlar consumo, reutiliza una planificación guardada o una secuencia validada del Banco de Aprendizaje.",
+          : "Ya tienes dos temas activos. Para iniciar otro tema debes comprar un crédito; también puedes reutilizar una planificación guardada o una secuencia validada del Banco de Aprendizaje.",
       temas: {
         temaActivo: data?.temaActivo || null,
         temaSecundario: data?.temaSecundario || null,
@@ -1478,9 +1493,40 @@ export const registrarUsoTemaPlanificacion = async ({
         : "Ya tienes dos temas activos. Reutiliza una planificación guardada o el Banco de Aprendizaje.");
     }
 
+    const creditos = resolverCreditosDisponibles(userData);
+    if (!isAdmin && creditos > 0) {
+      const temaActivo = userData?.temaActivo || null;
+      const temaSecundario = userData?.temaSecundario || null;
+      const patch = {
+        temaActivo: crearTemaFirestore(titulo, "activo"),
+        temaSecundario: {
+          ...(temaActivo || {}),
+          ...actualizarTemaFirestore(temaActivo?.titulo || temaActivo || "", "secundario"),
+        },
+        actualizadoEn: serverTimestamp(),
+      };
+
+      if (Number.isFinite(Number(userData?.creditosPlanificacionDisponibles))) {
+        patch.creditosPlanificacionDisponibles = Math.max(0, Number(userData.creditosPlanificacionDisponibles) - 1);
+      } else if (Number.isFinite(Number(userData?.creditosDisponibles))) {
+        patch.creditosDisponibles = Math.max(0, Number(userData.creditosDisponibles) - 1);
+      } else if (Number.isFinite(Number(userData?.creditos))) {
+        patch.creditos = Math.max(0, Number(userData.creditos) - 1);
+      }
+
+      tx.set(userRef, patch, { merge: true });
+      return {
+        slot: "activo",
+        consumioCredito: true,
+        reemplazo: true,
+        temaReemplazado: temaSecundario?.titulo || null,
+        temaMovidoSecundario: temaActivo?.titulo || null,
+      };
+    }
+
     throw new Error(isAdmin
       ? "Límite administrativo alcanzado: cuatro temas activos."
-      : "Límite alcanzado: los usuarios regulares mantienen dos temas activos para controlar consumo.");
+      : "No tienes créditos disponibles. Compra un crédito para iniciar otro tema o reutiliza una planificación guardada.");
   });
 
   // Historial fuera de transacción (fire-and-forget). try-catch para que un

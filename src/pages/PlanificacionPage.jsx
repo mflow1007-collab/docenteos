@@ -1135,11 +1135,26 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     setTimeout(() => setMensaje(null), 3000);
   };
 
+  const manejarComprarCreditos = () => {
+    setDialogoTema({ abierto: false, payload: null, contexto: "planificacion" });
+    setMensaje({
+      tipo: "warning",
+      texto: "No tienes créditos disponibles para iniciar otro tema. Compra un crédito o reutiliza una planificación guardada.",
+    });
+    window.dispatchEvent(new CustomEvent("irA", { detail: "suscripcion" }));
+    setTimeout(() => setMensaje(null), 7000);
+  };
+
   const manejarDialogoTemaUsarCredito = async () => {
     const temaIngresado = dialogoTema?.payload?.temaIngresado;
     const contextoDialogo = dialogoTema?.contexto || "planificacion";
+    const creditosDisponibles = Number(dialogoTema?.payload?.creditosDisponibles || 0);
     if (!temaIngresado) {
       setDialogoTema({ abierto: false, payload: null, contexto: "planificacion" });
+      return;
+    }
+    if (creditosDisponibles <= 0) {
+      manejarComprarCreditos();
       return;
     }
 
@@ -1683,6 +1698,8 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
       ].filter(Boolean)
     : [];
   const esBloqueoTemaRepetido = dialogoTema?.payload?.motivo === "tema_repetido_reusar_banco";
+  const creditosDialogo = Number(dialogoTema?.payload?.creditosDisponibles || 0);
+  const puedeUsarCreditoDialogo = dialogoTema?.payload?.puedeCrearNuevoTema !== false && creditosDialogo > 0;
   const tituloDialogoTema = esBloqueoTemaRepetido
     ? "Tema ya generado"
     : temasDialogoActivos.length >= 4
@@ -1729,10 +1746,9 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
                 <button
                   type="button"
                   className="tema-modal-btn-credito"
-                  onClick={manejarDialogoTemaUsarCredito}
-                  disabled={dialogoTema?.payload?.puedeCrearNuevoTema === false}
+                  onClick={puedeUsarCreditoDialogo ? manejarDialogoTemaUsarCredito : manejarComprarCreditos}
                 >
-                  Usar nuevo crédito
+                  {puedeUsarCreditoDialogo ? "Usar 1 crédito" : "Comprar créditos"}
                 </button>
               )}
             </div>
