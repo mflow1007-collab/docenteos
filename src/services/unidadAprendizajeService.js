@@ -959,10 +959,40 @@ const PESOS_FASE = {
 const calcularDistribucion = (total, productoFinal = "", nivelComplejidad = "media") => {
   const tieneProductoComplejo = /exposici[oó]n|proyecto|portafolio|presentaci[oó]n|obra|debate|experimento|mural|informe|podcast|video\b/i.test(productoFinal);
 
-  // Fase 1 siempre corta — solo diagnóstico y activación inicial
-  const f1 = total <= 5 ? 1 : 2;
-  const rem = total - f1;
+  // ── Techo duro: la suma de las fases NUNCA puede exceder el total real de
+  // horas de la unidad (numSemanas × horas/semana). El bug histórico: con 4
+  // fases de mínimo 2h el piso sumaba 8h aunque el docente pidiera 6h (3 sem ×
+  // 2h) → se generaba una SEMANA de más. La distribución se adapta al total.
+  //
+  // Cuando el total es corto no caben 4 fases con 2h cada una. Se decide el
+  // número de fases por el presupuesto real y se reparte SIN pasarse:
+  //   total ≤ 3  → 1 fase   (unidad mínima)
+  //   total ≤ 5  → 2 fases  (activación + desarrollo/cierre)
+  //   total ≤ 7  → 3 fases  (activación + desarrollo + integración)
+  //   total ≥ 8  → 4 fases  (el diseño completo por pesos)
+  const t = Math.max(1, Math.round(total));
 
+  if (t <= 3) return [t];
+  if (t <= 5) {
+    // 2 fases: f1 corta (1), el resto al desarrollo
+    const f1 = 1;
+    return [f1, t - f1];
+  }
+  if (t <= 7) {
+    // 3 fases sin exceder el total: f1=2, y reparte el resto entre f2 y f3
+    const f1 = 2;
+    const rem = t - f1;
+    const f3 = Math.max(2, Math.round(rem * 0.45)); // integración/producto
+    const f2 = Math.max(2, rem - f3);
+    // Ajuste final para cuadrar EXACTO con el total
+    const suma = f1 + f2 + f3;
+    const diff = t - suma;
+    return [f1, f2 + Math.max(0, diff), Math.max(1, f3 + Math.min(0, diff))];
+  }
+
+  // total ≥ 8 → diseño completo de 4 fases por pesos (comportamiento original)
+  const f1 = 2;
+  const rem = t - f1;
   const peso = PESOS_FASE[nivelComplejidad] || PESOS_FASE.media;
   const f4Bonus = tieneProductoComplejo ? 0.06 : 0;
 
@@ -999,9 +1029,21 @@ const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFina
   });
   const distribucion = calcularDistribucion(totalHorasClase, productoFinal, compx.nivelClave);
 
+  // Nombres de fase adaptados al número real de fases: la PRIMERA siempre es
+  // presentación/apropiación y la ÚLTIMA siempre integración/producto final,
+  // sin importar cuántas fases haya (1 a 4). Con 4 se usan los 4 nombres
+  // canónicos; con menos se colapsa manteniendo apertura y cierre coherentes.
+  const nombreFase = (faseIdx, totalFases) => {
+    if (totalFases === 1) return NOMBRES_FASES[0];
+    if (faseIdx === 0) return NOMBRES_FASES[0];
+    if (faseIdx === totalFases - 1) return NOMBRES_FASES[3]; // Integración y consolidación
+    if (totalFases === 4) return NOMBRES_FASES[faseIdx];
+    return NOMBRES_FASES[faseIdx === 1 ? 1 : 2]; // Desarrollo / Profundización
+  };
+
   const fases = distribucion.map((numHoras, faseIdx) => ({
     numero: faseIdx + 1,
-    nombre: NOMBRES_FASES[faseIdx],
+    nombre: nombreFase(faseIdx, distribucion.length),
     estrategia,
     indicadoresAvance: [], // derivados de los indicadores trabajados reales en el merge
     dias: Array.from({ length: numHoras }, (_, d) =>
