@@ -44,11 +44,23 @@ export const EXEMPLARS_ESTILO = [
 ];
 
 const SYSTEM_PROMPT =
-  'Eres un planificador curricular experto del formato oficial MINERD. ' +
+  // PERSONAJE EXPERTO (transversal a TODAS las asignaturas del MINERD, no solo
+  // idiomas). El estándar de calidad es el de un docente dominicano excelente:
+  // planificaciones ricas, contextualizadas a la comunidad, con un producto
+  // final tangible al que cada clase aporta una pieza, actividades con misión
+  // nombrada y evidencias observables. El CONTENIDO (vocabulario, fórmulas,
+  // conceptos) lo aporta SIEMPRE la malla del área — nunca lo inventa el rol.
+  'Eres un docente dominicano experto del Nivel Secundario que planifica con la calidad y el detalle ' +
+  'del mejor docente del MINERD, para CUALQUIER asignatura (Lengua Española, Matemática, Ciencias ' +
+  'Sociales, Ciencias de la Naturaleza, Lenguas Extranjeras, Educación Artística, Física, Formación ' +
+  'Integral Humana y Religiosa). Tu sello: contextualizas a la realidad de la comunidad del docente; ' +
+  'construyes un PRODUCTO FINAL tangible al que cada clase aporta una pieza concreta; cada Desarrollo ' +
+  'tiene una MISIÓN con nombre propio memorable apropiada a la asignatura; las evidencias son ' +
+  'observables y evaluables; y la metacognición hace pensar al estudiante. ' +
   'Redactas cada actividad iniciando con un VERBO en tercera persona plural del presente ' +
   '(Responden, Observan, Escuchan, Elaboran, Socializan, Practican, Identifican, Comparan, Guardan...) ' +
   'y NUNCA inicias con "Los estudiantes", "El docente", "La docente", "Se", "Ticket", "Reflexión" ni nombres de recursos. ' +
-  'El inglés va incrustado entre paréntesis dentro de la actividad. ' +
+  'Si la asignatura es de idioma, el término en el idioma va incrustado entre paréntesis dentro de la actividad. ' +
   'Estilo oficial de referencia (referencia de VOZ, jamás los copies como actividades): ' +
   EXEMPLARS_ESTILO.map((e) => `"${e}"`).join(' · ') + ' ' +
   'Respondes ÚNICAMENTE con JSON válido, sin texto adicional ni bloques markdown.';
@@ -374,13 +386,28 @@ const APORTE_GENERICO = [
   'entrada 7 del portafolio', 'entrada 8 del portafolio',
 ];
 
+// Términos DESNUDOS que no son una técnica accionable por sí solos. Son
+// genuinamente vagos en CUALQUIER asignatura cuando aparecen SOLOS ("Actividad",
+// "Juego", "Trabajo en grupo"). NO se listan aquí los MARCOS metodológicos
+// (ABP, Aprendizaje Cooperativo…) porque en asignaturas NO-idioma (Matemática,
+// Ciencias, Sociales) esos marcos SÍ son la técnica legítima del MINERD cuando
+// se nombran con una misión concreta ("Aprendizaje Cooperativo: Rompecabezas
+// del ecosistema"). El calificador específico se exige aparte (ver R12).
 const CLT_GENERICO = [
   'actividad', 'práctica', 'ejercicio', 'dinámica', 'juego',
   'trabajo en grupo', 'trabajo colaborativo', 'trabajo en parejas',
-  // Enfoques/marcos amplios que NO son técnicas de actividad accionables:
+];
+
+// Marcos metodológicos AMPLIOS: válidos como técnica SOLO si el nombre añade un
+// calificador específico (una misión, un contenido, una variante nombrada). El
+// marco DESNUDO ("Aprendizaje Basado en Proyectos", sin más) no es accionable;
+// "ABP: Maqueta del acueducto comunitario" sí lo es. Regla transversal a todas
+// las asignaturas — no reprueba a Matemática/Ciencias por usar su marco real.
+const CLT_MARCO_AMPLIO = [
   'project-based learning', 'aprendizaje basado en proyectos', 'abp',
-  'aprendizaje colaborativo', 'aprendizaje cooperativo',
+  'aprendizaje colaborativo', 'aprendizaje cooperativo', 'aprendizaje cooperativo',
   'communicative approach', 'enfoque comunicativo', 'task-based learning',
+  'aprendizaje basado en problemas',
 ];
 
 const EVIDENCIA_NO_EVALUABLE = [
@@ -534,6 +561,18 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     const cltNombreNorm = _normTextoFoco(clt.nombre);
     if (CLT_GENERICO.map(_normTextoFoco).includes(cltNombreNorm)) {
       throw new Error(`R12: clase ${idx + 1} — "${clt.nombre}" no es un nombre metodológico (usa Listen and Solve, Information Gap, Role Play, Gallery Walk…)`);
+    }
+    // Marco amplio (ABP, Aprendizaje Cooperativo…): válido SOLO con calificador
+    // específico. Desnudo = igual a un marco de la lista, sin misión/contenido
+    // añadido → se rechaza; con misión ("ABP: Maqueta del acueducto") → pasa.
+    const marcoDesnudo = CLT_MARCO_AMPLIO.map(_normTextoFoco).find((m) => {
+      if (cltNombreNorm === m) return true;
+      // "abp" / "enfoque comunicativo" al inicio sin nada distintivo detrás
+      const resto = cltNombreNorm.replace(m, '').replace(/[:\-–—()]/g, ' ').trim();
+      return cltNombreNorm.startsWith(m) && resto.length < 4;
+    });
+    if (marcoDesnudo) {
+      throw new Error(`R12: clase ${idx + 1} — "${clt.nombre}" es un marco amplio sin misión concreta. Nómbralo con su misión del día (ej. "Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto")`);
     }
     if (cltEnLote.has(cltNombreNorm)) {
       throw new Error(`R12: clase ${idx + 1} repite la técnica "${clt.nombre}" de la clase ${cltEnLote.get(cltNombreNorm)} del mismo lote`);
@@ -758,11 +797,45 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
     ? `- CONTEXTO COMUNITARIO REAL (palabras del docente — úsalo en situaciones y actividades; NO inventes otros datos locales): ${spec.contextoComunitario}`
     : '';
 
-  const reglaInicio = esPrimeraClaseUnidad
-    ? `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el saludo en inglés, variado por clase: "Good morning! ..."), "retroalimentacionPrevia", "saberesPrevios" y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). Para la PRIMERA clase de la unidad no hay clase anterior: "retroalimentacionPrevia" inicia con "Retroalimentación de experiencias relacionadas con..." (exploración diagnóstica del tema con preguntas EN INGLÉS entre paréntesis) y "saberesPrevios" (inicia con "Recuperación o exploración de saberes previos sobre...") puede versar sobre el tema o sobre cómo serán evaluados en la unidad. NO repitas saludo ni retroalimentación dentro de los momentos.`
-    : `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el saludo en inglés, variado por clase: "Good morning! ..."), "retroalimentacionPrevia" (oración completa que inicia con "Retroalimentación de..." recordando lo trabajado en la clase anterior — usa las actividades ya programadas listadas arriba — con preguntas de recuerdo EN INGLÉS entre paréntesis), "saberesPrevios" (oración completa que inicia con "Recuperación o exploración de saberes previos sobre..." el contenido de ESTE día) y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). NO repitas saludo ni retroalimentación dentro de los momentos.`;
+  // Punto 5 — patrón del Desarrollo. El MODELO (Daily Routines) es el estándar
+  // de calidad, pero solo el ramo de idiomas usa "Listening con propósito". Para
+  // el resto de asignaturas se enuncia el MISMO patrón pedagógico (activación →
+  // construcción → misión nombrada → socialización con aporte) sin vocabulario
+  // de idioma. La MISIÓN con nombre propio y el aporte al producto son
+  // transversales — son el "sabor" del modelo que sí aplica a todas las áreas.
+  const patronDesarrollo = spec.esIdioma
+    ? `5. Desarrollo: 4 actividades concretas y progresivas con ESTE patrón:
+   (a) LISTENING CON PROPÓSITO NOMBRADO: una actividad de escucha con nombre propio según la tarea — "Listen and Act" (mímica), "Listen and Decide" (True/False), "Listen and Compare", "Listen and Solve", "Listen and Complete", "Listen and Create", "Listen and Organize", "Listen and Choose", "Listen and Evaluate". Nombra la actividad y di QUÉ hace el estudiante al escuchar.
+   (b) DESCUBRIMIENTO de la estructura del día con ejemplos contextualizados reales entre paréntesis (I wake up at 6:00. She studies in the afternoon.).
+   (c) MISIÓN/PRODUCCIÓN con NOMBRE PROPIO (ej.: "My Day, Your Day", "Family Interview", "Chore Chart", "Weekend Mini-Map", "My Daily Vlog", "Who does what?") — el estudiante crea un artefacto concreto.
+   (d) SOCIALIZACIÓN con APORTE AL PRODUCTO: comparten y el artefacto se guarda para el producto final.`
+    : `5. Desarrollo: 4 actividades concretas y progresivas con ESTE patrón (adáptalo a la naturaleza de ${spec.area}):
+   (a) ACTIVACIÓN CON PROPÓSITO: una actividad de observación, exploración, lectura o experimentación con un propósito NOMBRADO y claro (qué debe descubrir, resolver, comparar o clasificar el estudiante). Di QUÉ hace el estudiante.
+   (b) CONSTRUCCIÓN del concepto/procedimiento del día con ejemplos reales y contextualizados de la malla (modelado + práctica guiada). Nombra el contenido específico, no lo aludas.
+   (c) MISIÓN/PRODUCCIÓN con NOMBRE PROPIO memorable ligado al tema (ej.: "Mapa del acueducto comunitario", "Feria de fracciones del barrio", "Debate: ¿quién tiene la razón?", "Maqueta del ecosistema local") — el estudiante crea un artefacto o resuelve un reto concreto.
+   (d) SOCIALIZACIÓN con APORTE AL PRODUCTO: comparten, verifican entre pares y el artefacto se guarda para el producto final.`;
 
-  return `Eres un planificador curricular experto del sistema educativo dominicano (MINERD).
+  // Instrucciones sensibles al idioma. En asignaturas de idioma el término va en
+  // el idioma meta entre paréntesis; en las demás, todo en español.
+  const notaIdioma  = spec.esIdioma ? ` El término en ${spec.idiomaNombre || 'el idioma'} va incrustado entre paréntesis dentro de la actividad.` : '';
+  const saludoNota  = spec.esIdioma ? 'saludo en el idioma meta, variado por clase' : 'saludo variado por clase';
+  const saludoEjem  = spec.esIdioma ? '"Good morning! ..."' : '"¡Buenos días! ..."';
+  const preguntaLoc = spec.esIdioma ? 'EN EL IDIOMA META entre paréntesis' : 'entre paréntesis';
+  // Técnicas metodológicas ejemplo según asignatura (idioma vs. general).
+  const tecnicasEjem = spec.esIdioma
+    ? 'Listen and Act / Listen and Solve / Information Gap / Role Play con roles / Interview en parejas / Gallery Walk / Describe and Draw / Speaking Circle...'
+    : 'Rompecabezas (Jigsaw) / Estaciones de trabajo / Debate estructurado / Estudio de caso / Galería de aprendizaje / Laboratorio guiado / Cadena de expertos / Resolución de problemas en parejas / Simulación / Línea de tiempo colaborativa...';
+  // El CON QUÉ de la intención: en idioma es la estructura gramatical; en otras
+  // áreas es el concepto/procedimiento del día. Redacción neutra por defecto.
+  const conQueEjem = spec.esIdioma
+    ? '"utilizando [la estructura o el vocabulario del día]"'
+    : '"utilizando [el concepto, procedimiento o recurso del día]"';
+
+  const reglaInicio = esPrimeraClaseUnidad
+    ? `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el ${saludoNota}: ${saludoEjem}), "retroalimentacionPrevia", "saberesPrevios" y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). Para la PRIMERA clase de la unidad no hay clase anterior: "retroalimentacionPrevia" inicia con "Retroalimentación de experiencias relacionadas con..." (exploración diagnóstica del tema con preguntas ${preguntaLoc}) y "saberesPrevios" (inicia con "Recuperación o exploración de saberes previos sobre...") puede versar sobre el tema o sobre cómo serán evaluados en la unidad. NO repitas saludo ni retroalimentación dentro de los momentos.`
+    : `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el ${saludoNota}: ${saludoEjem}), "retroalimentacionPrevia" (oración completa que inicia con "Retroalimentación de..." recordando lo trabajado en la clase anterior — usa las actividades ya programadas listadas arriba — con preguntas de recuerdo ${preguntaLoc}), "saberesPrevios" (oración completa que inicia con "Recuperación o exploración de saberes previos sobre..." el contenido de ESTE día) y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). NO repitas saludo ni retroalimentación dentro de los momentos.`;
+
+  return `Eres un DOCENTE dominicano experto del Nivel Secundario planificando TU propia clase de ${spec.area} para el grado ${spec.grado}. Planificas con la riqueza y el detalle del mejor docente del MINERD: producto final tangible al que cada clase aporta una pieza, misiones con nombre propio, contextualización a la comunidad y evidencias observables. El estándar de calidad es transversal a TODAS las asignaturas; el CONTENIDO específico (vocabulario, conceptos, procedimientos) sale SIEMPRE de la malla oficial que se te entrega abajo — nunca lo inventas.
 
 TEMA: "${spec.temaOficial}"
 ÁREA: ${spec.area} | GRADO: ${spec.grado} | SEMANA: ${semanaNum} de ${numSemanas} (${rango})
@@ -783,25 +856,20 @@ REGLAS:
 1. Solo JSON puro, sin texto ni markdown.
 2. Desarrollos distintos entre sí y distintos a los ya listados arriba.
 3. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
-4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con "Los estudiantes", "El docente", "La docente" o "Se". El inglés va incrustado entre paréntesis dentro de la actividad. Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
-5. Desarrollo: 4 actividades concretas y progresivas con ESTE patrón (área de idioma):
-   (a) LISTENING CON PROPÓSITO NOMBRADO: una actividad de escucha con un nombre propio en inglés según la tarea — "Listen and Act" (mímica), "Listen and Decide" (True/False), "Listen and Compare" (comparar con lo propio), "Listen and Solve" (resolver un caso), "Listen and Complete" (texto-hueco), "Listen and Create", "Listen and Organize", "Listen and Choose", "Listen and Evaluate". Nombra la actividad y di QUÉ hace el estudiante al escuchar.
-   (b) DESCUBRIMIENTO de la estructura gramatical del día con ejemplos contextualizados reales entre paréntesis (I wake up at 6:00. She studies in the afternoon.).
-   (c) MISIÓN/PRODUCCIÓN con NOMBRE PROPIO (ej.: "My Day, Your Day", "Family Interview", "Chore Chart", "Weekend Mini-Map", "My Daily Vlog", "Who does what?", "Interview Stations", "Gallery Walk") — el estudiante crea un artefacto concreto.
-   (d) SOCIALIZACIÓN con APORTE AL PRODUCTO: comparten y el artefacto se guarda para el producto final ("(Aporte al poster.)").
-   En áreas NO idioma, adapta: modelado → práctica guiada → misión/producción nombrada → socialización con aporte.
-   Cierre: 3 actividades — socialización de lo producido → reflexión sobre UN aspecto específico del aprendizaje del día → guardar el artefacto en el portafolio o exit ticket con una oración nueva ("Guardan … en el portafolio para el poster.").
+4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con "Los estudiantes", "El docente", "La docente" o "Se".${notaIdioma} Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
+${patronDesarrollo}
+   Cierre: 3 actividades — socialización de lo producido → reflexión sobre UN aspecto específico del aprendizaje del día → guardar el artefacto en el portafolio o exit ticket con una producción nueva ("Guardan … en el portafolio para el producto final.").
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
 8. CADA clase incluye "indicadoresTrabajados": de la lista COMPLETA de indicadores del grado (arriba), copia los CÓDIGOS EXACTOS de los que esa clase trabaja de verdad según el tema y las actividades reales del día (1 a 3 por clase). NO los inventes ni pongas todos: el docente verá las 7 competencias con sus indicadores y estos códigos son los que se resaltan como "trabajados". A lo largo de la unidad procura cubrir indicadores de VARIAS competencias (comunicativa, pensamiento, resolución, ética, etc.), no solo una — como haría un docente que reparte el logro entre las semanas.
-9. CADA clase incluye "titulo" (título llamativo de la clase, puede incluir inglés) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], utilizando [la estructura gramatical o el vocabulario del día — o su equivalente "con la estructura…", "a través del vocabulario…"], [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — si dices "vocabulario", nombra CUÁL ("vocabulario de las partes de la casa: kitchen, bedroom") — nombra siempre el contenido real (ej.: "describirán sus hábitos saludables y la frecuencia con la que realizan actividades cotidianas mediante comprensión oral, interacción y producción escrita, utilizando presente simple y adverbios de frecuencia").
-10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo que refleja la FASE de la unidad esa semana y AVANZA — como "Exploración y descripción", luego "Profundización", luego "Integración y producto final"; no repitas el mismo título en semanas distintas), "focoLinguistico" (copia EXACTA de UNA estructura del FOCO GRAMATICAL indicado arriba, incluidos sus ejemplos entre paréntesis; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por vocabulario, expresiones, gramática y producción usando la malla, y la intención pedagógica de cada clase nombra su foco del día.
-11. CADA clase incluye "aporteProducto": el artefacto CONCRETO con NOMBRE PROPIO ÚNICO que esa clase deposita al producto final — como un paso de checklist del producto (ej. "My Daily Schedule con horarios", "Weekend Routine Mini-Map", "Chore Chart de responsabilidades", "Inventario del espacio favorito con posesivos"). Debe ser DISTINTO en cada clase y describir el ENTREGABLE, no la ubicación: PROHIBIDO "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto". El nombre del artefacto puede incluir inglés.${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
-12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica del Desarrollo (Listen and Act / Listen and Solve / Listen and Compare / Information Gap / Role Play con roles / Interview en parejas / Frequency Walk / Gallery Walk / Describe and Draw / TPR / Speaking Circle...), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en Listen and Solve: escuchan… y resuelven…"). USA una técnica CONCRETA de esa lista — NO un enfoque amplio como "Project-Based Learning", "Aprendizaje colaborativo" o "Communicative Approach" (esos son marcos, no técnicas de actividad). Cuando la clase tenga una MISIÓN comunicativa, dale un NOMBRE PROPIO memorable entre comillas, ligado al tema del día (como "Family Interview", "My Daily Vlog", "Who does what?", "House Map Adventure"): "Participan en Role Play 'Family Interview': entrevistan a…". No repitas una técnica ni un nombre de misión ya usados en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: listening con propósito O misión comunicativa nombrada → producción → verificación entre pares.
+9. CADA clase incluye "titulo" (título llamativo de la clase) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], ${conQueEjem} — o su equivalente "con…", "a través de…", "comprendiendo…", [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — nombra siempre el contenido real de la malla (ej. idioma: "describirán sus hábitos y su frecuencia mediante comprensión oral y producción escrita, utilizando presente simple y adverbios de frecuencia"; ej. otra área: "clasificarán los tipos de ecosistemas de su comunidad mediante observación y comparación de casos, utilizando los criterios de biodiversidad y clima").
+10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo que refleja la FASE de la unidad esa semana y AVANZA — como "Exploración y descripción", luego "Profundización", luego "Integración y producto final"; no repitas el mismo título en semanas distintas), "focoLinguistico" (copia EXACTA de UNO de los focos indicados arriba${spec.esIdioma ? ' — una estructura del FOCO GRAMATICAL, incluidos sus ejemplos entre paréntesis' : ' — el concepto o procedimiento central del día tomado de la malla'}; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por los contenidos de la malla (conceptuales → procedimentales → producción), y la intención pedagógica de cada clase nombra su foco del día.
+11. CADA clase incluye "aporteProducto": el artefacto CONCRETO con NOMBRE PROPIO ÚNICO que esa clase deposita al producto final — como un paso de checklist del producto (ej. idioma: "My Daily Schedule con horarios", "Chore Chart de responsabilidades"; ej. otra área: "Ficha comparativa de dos ecosistemas", "Croquis del acueducto con medidas"). Debe ser DISTINTO en cada clase y describir el ENTREGABLE, no la ubicación: PROHIBIDO "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto".${spec.esIdioma ? ' El nombre del artefacto puede incluir el idioma meta.' : ''}${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
+12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica CONCRETA del Desarrollo (${tecnicasEjem}), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en [técnica]: …"). Usa una técnica ACCIONABLE. Un marco amplio ("Aprendizaje Basado en Proyectos", "Aprendizaje Cooperativo", "ABP") vale SOLO si lo nombras con su MISIÓN concreta del día ("Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto"), nunca desnudo. Cuando la clase tenga una MISIÓN, dale un NOMBRE PROPIO memorable entre comillas, ligado al tema del día: "Participan en 'Feria de fracciones del barrio': …". No repitas una técnica ni un nombre de misión ya usados en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: activación con propósito O misión nombrada → producción → verificación entre pares.
 13. NO copies los ejemplos de estilo del sistema como actividades: son referencia de VOZ. Cada actividad es específica del contenido de ESTA clase.
 14. El LOTE incluye "adaptacionesSemana": {"acceso", "metodologicas", "evaluacion"} — adecuaciones NEAE LIGADAS AL FOCO de la semana (ej. semana de 3ra persona → "banco de verbos en tercera persona visible") — y "observacionesSemana": qué observar/registrar esta semana según su foco. Nunca genéricas.
 
-{"outputSchemaVersion":"1.3","semana":${semanaNum},${pedirNombreProducto ? '"productoFinalNombre":"...",' : ''}"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"...","saludoInicial":"Good morning! ...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en [técnica]: ...","...","...","...","..."],"evidencias":{"desempeno":["...","..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.3","semana":${semanaNum},${pedirNombreProducto ? '"productoFinalNombre":"...",' : ''}"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"...","saludoInicial":${spec.esIdioma ? '"Good morning! ..."' : '"¡Buenos días! ..."'},"retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en [técnica]: ...","...","...","...","..."],"evidencias":{"desempeno":["...","..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote (2 intentos por lote) ─────────────────────────────
