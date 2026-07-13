@@ -1076,13 +1076,26 @@ export const buildEspecificacionCurricular = ({
   // ese es el "cerebro" que decide qué se resalta. Antes veía solo 9 y no podía
   // proponer con criterio real. Se conserva la competencia de cada indicador
   // para que el reparto y el resaltado sean fieles al registro.
-  const indicadores = (allInds || []).map(ind => ({
-    id:            ind.id || ind.codigo || '',
-    codigoOficial: ind.id || ind.codigo || '',
-    descripcion:   ind.descripcion || ind.texto || '',
-    competenciaId: ind.competenciaId || ind.competencia || '',
-    aspecto:       '',
-  })).filter(i => i.descripcion);
+  //
+  // Numeración CORRIDA IL-1…IL-21: el registro oficial numera consecutivo, no
+  // reiniciando por competencia. Si la malla trae "IL-N" REPETIDO (error de
+  // conversión), la IA vería códigos duplicados y no podría elegir con criterio;
+  // por eso se renumera corrido por posición global. Un código único no-IL
+  // (genuino) se respeta. Debe coincidir con construirCompetenciasDetalle.
+  const _esCodigoRegistroIL = (cod) => /^il[-\s]?\d+$/i.test(String(cod || '').trim());
+  const indicadores = (allInds || [])
+    .map(ind => ({
+      _codOriginal:  ind.id || ind.codigo || '',
+      descripcion:   ind.descripcion || ind.texto || '',
+      competenciaId: ind.competenciaId || ind.competencia || '',
+      aspecto:       '',
+    }))
+    .filter(i => i.descripcion)
+    .map((ind, gi) => {
+      const conservar = ind._codOriginal && !_esCodigoRegistroIL(ind._codOriginal);
+      const cod = conservar ? ind._codOriginal : `IL-${gi + 1}`;
+      return { id: cod, codigoOficial: cod, descripcion: ind.descripcion, competenciaId: ind.competenciaId, aspecto: '' };
+    });
 
   const esIdioma = area === 'Inglés' || area === 'Francés';
 

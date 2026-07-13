@@ -1427,12 +1427,19 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
     ? indsPlanos.length / compsValidas.length
     : 0;
 
-  // Numeración GLOBAL corrida (IL-1…IL-21) — el registro oficial numera los
-  // indicadores de forma consecutiva a lo largo de TODAS las competencias, sin
-  // reiniciar en cada una (Comunicativa: IL-1/2/3, Pensamiento: IL-4/5/6…).
-  // Cuando la malla no trae el código propio del indicador, se genera aquí con
-  // el contador global, no con la posición dentro de la competencia.
+  // Numeración GLOBAL corrida (IL-1…IL-21) — el registro OFICIAL del MINERD
+  // numera los indicadores de forma consecutiva a lo largo de TODAS las
+  // competencias, sin reiniciar en cada una (Comunicativa: IL-1/2/3,
+  // Pensamiento: IL-4/5/6…). La malla NO es la fuente de esta numeración: aunque
+  // traiga IL-1/2/3 REPETIDO por competencia (error común de conversión), aquí
+  // se RENUMERA SIEMPRE corrido por posición global. El código propio de la
+  // malla que se conserva es SOLO el de indicadores no-IL genuinamente únicos
+  // (ver más abajo): un "IL-N" repetido se descarta y se reemplaza por el
+  // corrido, para coincidir con el registro oficial.
   let contadorGlobal = 0;
+  // Detecta si los códigos son del tipo "IL-N" (registro), que deben renumerarse
+  // corridos, vs. códigos oficiales únicos de otra naturaleza que se respetan.
+  const esCodigoRegistroIL = (cod) => /^il[-\s]?\d+$/i.test(String(cod || "").trim());
   return compsValidas.map((comp, i) => {
     const anidados = Array.isArray(comp.indicadoresLogro) && comp.indicadoresLogro.length
       ? comp.indicadoresLogro
@@ -1460,8 +1467,12 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
     const indicadores = fuente.map(aIndicador).filter((ind) => ind.descripcion)
       .map((ind) => {
         contadorGlobal += 1;
-        // Respeta el código real de la malla; si no hay, genera IL-N corrido.
-        return { ...ind, codigo: ind.codigo || `IL-${contadorGlobal}` };
+        // Si el código es un "IL-N" del registro (repetido por competencia) o no
+        // hay código, se RENUMERA corrido con el contador global. Solo se respeta
+        // un código propio de otra naturaleza (único, no del patrón IL-N).
+        const codigoCorrido = `IL-${contadorGlobal}`;
+        const conservarCodigo = ind.codigo && !esCodigoRegistroIL(ind.codigo);
+        return { ...ind, codigo: conservarCodigo ? ind.codigo : codigoCorrido };
       });
     return {
       // Código oficial de la competencia específica (ej. CE-LEI-1 / ING-1-C01)
