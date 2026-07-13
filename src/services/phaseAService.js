@@ -544,9 +544,16 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     // nombre), no la frase completa — la IA suele traducir/parafrasear el resto.
     const actsDesarrollo = (clase.momentos.find((m) => m.nombre === 'Desarrollo')?.actividades || []);
     const desarrolloNorm = actsDesarrollo.map(_normTextoFoco);
-    const nucleoCLT = cltNombreNorm.split(/\s+/).filter((w) => w.length >= 4).sort((a, b) => b.length - a.length)[0] || cltNombreNorm;
+    // Palabras distintivas del nombre (≥4 letras). La IA suele parafrasear o
+    // traducir alrededor de la misión (Room Presentation → "presentan su
+    // cuarto"), así que basta con que aparezca la RAÍZ (primeros 5 caracteres)
+    // de CUALQUIER palabra distintiva del nombre — no la frase literal ni las
+    // comillas exactas. Antes se exigía la palabra más larga completa y daba
+    // falsos positivos cuando esa palabra se traducía (presentation→presentación).
+    const palabrasCLT = cltNombreNorm.split(/\s+/).filter((w) => w.length >= 4);
+    const raices = palabrasCLT.map((w) => w.slice(0, 5)).filter(Boolean);
     const cltPresente = desarrolloNorm.some((a) => a.includes(cltNombreNorm))
-      || desarrolloNorm.some((a) => a.includes(nucleoCLT));
+      || raices.some((r) => desarrolloNorm.some((a) => a.includes(r)));
     if (!cltPresente) {
       throw new Error(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad ("Participan en ${clt.nombre}: …")`);
     }
