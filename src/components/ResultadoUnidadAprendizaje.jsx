@@ -73,8 +73,22 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
   );
   const textoItem = (item) => {
     if (typeof item === "string") return item;
+    if (typeof item === "number") return String(item);
     if (!item || typeof item !== "object") return "";
-    return item.descripcion || item.texto || item.nombre || item.titulo || item.codigo || "";
+    if (item.estructura) {
+      const ejemplos = Array.isArray(item.ejemplos) && item.ejemplos.length
+        ? `: ${item.ejemplos.join("; ")}`
+        : "";
+      return `${item.estructura}${ejemplos}`;
+    }
+    if (item.categoria || item.funcion) {
+      const nombre = item.categoria || item.funcion;
+      const ejemplos = Array.isArray(item.ejemplos) && item.ejemplos.length
+        ? `: ${item.ejemplos.join(", ")}`
+        : "";
+      return `${nombre}${ejemplos}`;
+    }
+    return item.descripcion || item.texto || item.nombre || item.titulo || item.codigo || JSON.stringify(item);
   };
   const renderIndicador = (ind, compIdx = null, indIdx = null) => {
     if (typeof ind === "string") ind = { descripcion: ind };
@@ -327,20 +341,22 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
           <div className="ua-cont-col ua-cont-conceptual">
             <div className="ua-cont-head">Conceptuales</div>
             <ul>{(contenidos?.conceptuales || []).map((c, i) => {
-              const m = String(c).match(/^(Vocabulario|Gramática|Expresión):\s*(.*)$/s);
-              return m ? <li key={i}><strong>{m[1]}:</strong> {m[2]}</li> : <li key={i}>{c}</li>;
+              const texto = textoItem(c);
+              const m = String(texto).match(/^(Vocabulario|Gramática|Expresión):\s*(.*)$/s);
+              return m ? <li key={i}><strong>{m[1]}:</strong> {m[2]}</li> : <li key={i}>{texto}</li>;
             })}</ul>
           </div>
           <div className="ua-cont-col ua-cont-procedimental">
             <div className="ua-cont-head">Procedimentales</div>
             <ul>{(contenidos?.procedimentales || []).map((c, i) => {
-              const m = String(c).match(/^(Funcional|Discursivo):\s*(.*)$/s);
-              return m ? <li key={i}><strong>{m[1]}:</strong> {m[2]}</li> : <li key={i}>{c}</li>;
+              const texto = textoItem(c);
+              const m = String(texto).match(/^(Funcional|Discursivo):\s*(.*)$/s);
+              return m ? <li key={i}><strong>{m[1]}:</strong> {m[2]}</li> : <li key={i}>{texto}</li>;
             })}</ul>
           </div>
           <div className="ua-cont-col ua-cont-actitudinal">
             <div className="ua-cont-head">Actitudinales</div>
-            <ul>{(contenidos?.actitudinales || []).map((c, i) => <li key={i}>{c}</li>)}</ul>
+            <ul>{(contenidos?.actitudinales || []).map((c, i) => <li key={i}>{textoItem(c)}</li>)}</ul>
           </div>
         </div>
       </section>
@@ -370,7 +386,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
             <div className="ua-avance-block">
               <div className="ua-avance-head">INDICADORES DE AVANCE — FASE {fase.numero}</div>
               <ol className="ua-avance-list">
-                {fase.indicadoresAvance.map((ind, i) => <li key={i}>{ind}</li>)}
+                {fase.indicadoresAvance.map((ind, i) => <li key={i}>{textoItem(ind)}</li>)}
               </ol>
             </div>
           )}
@@ -411,7 +427,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
                   <div className="ua-exito-block">
                     <div className="ua-exito-head">Hoy tendrás éxito si…</div>
                     <ul className="ua-exito-list">
-                      {dia.criteriosExito.map((c, i) => <li key={i}>{c}</li>)}
+                      {dia.criteriosExito.map((c, i) => <li key={i}>{textoItem(c)}</li>)}
                     </ul>
                   </div>
                 )}
@@ -529,7 +545,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 /**
 /** Convierte **negrita** y _cursiva_ dentro de una cadena en nodos React */
 function parseFormatting(text) {
-  const parts = text.split(/(\*\*[^*]+\*\*|_[^_]+_)/g);
+  const parts = String(text ?? "").split(/(\*\*[^*]+\*\*|_[^_]+_)/g);
   return parts.map((p, i) => {
     if (p.startsWith("**") && p.endsWith("**")) return <strong key={i}>{p.slice(2, -2)}</strong>;
     if (p.startsWith("_") && p.endsWith("_")) return <em key={i}>{p.slice(1, -1)}</em>;
@@ -537,12 +553,81 @@ function parseFormatting(text) {
   });
 }
 
+function textoPlano(valor) {
+  if (valor == null) return "";
+  if (typeof valor === "string" || typeof valor === "number") return String(valor);
+  if (Array.isArray(valor)) return valor.map(textoPlano).filter(Boolean).join(" · ");
+  if (typeof valor === "object") {
+    return valor.descripcion || valor.texto || valor.nombre || valor.titulo || valor.criterio || valor.indicador || JSON.stringify(valor);
+  }
+  return String(valor);
+}
+
+function renderEvidencias(evidencias) {
+  if (!evidencias) return <em>No registradas.</em>;
+  if (typeof evidencias === "string" || typeof evidencias === "number") return parseFormatting(evidencias);
+  if (Array.isArray(evidencias)) {
+    return (
+      <ul className="ua-list">
+        {evidencias.map((item, i) => <li key={i}>{parseFormatting(textoPlano(item))}</li>)}
+      </ul>
+    );
+  }
+  if (typeof evidencias === "object") {
+    const etiquetas = {
+      conocimientos: "Conocimientos",
+      conocimiento: "Conocimiento",
+      desempeno: "Desempeño",
+      desempeño: "Desempeño",
+      producto: "Producto",
+    };
+    const entradas = Object.entries(evidencias)
+      .map(([clave, valor]) => ({ clave, valor: Array.isArray(valor) ? valor : [valor].filter(Boolean) }))
+      .filter(({ valor }) => valor.length);
+    if (!entradas.length) return <em>No registradas.</em>;
+    return (
+      <div>
+        {entradas.map(({ clave, valor }) => (
+          <div key={clave} style={{ marginBottom: 4 }}>
+            <strong>{etiquetas[clave] || clave}:</strong>
+            <ul className="ua-list">
+              {valor.map((item, i) => <li key={i}>{parseFormatting(textoPlano(item))}</li>)}
+            </ul>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return parseFormatting(evidencias);
+}
+
+function normalizarRecursos(recursos) {
+  if (!recursos) return { humanos: "", didacticos: "", tecnologicos: "" };
+  if (typeof recursos === "string" || Array.isArray(recursos)) {
+    return { humanos: "", didacticos: textoPlano(recursos), tecnologicos: "" };
+  }
+  if (typeof recursos === "object") {
+    return {
+      humanos: textoPlano(recursos.humanos || recursos.humano || ""),
+      didacticos: textoPlano(recursos.didacticos || recursos.didácticos || recursos.materiales || recursos.recursos || recursos.items || ""),
+      tecnologicos: textoPlano(recursos.tecnologicos || recursos.tecnológicos || recursos.digitales || ""),
+    };
+  }
+  return { humanos: "", didacticos: textoPlano(recursos), tecnologicos: "" };
+}
+
 /**
  * Renderiza las 2 filas por momento: datos + fila verde de metacognición
  */
 function MomentoRows({ mom, editando = false, rutaBase = "", setEnRuta = null }) {
   const ev = mom.evaluacion || {};
-  const rec = mom.recursos || {};
+  const rec = normalizarRecursos(mom.recursos || {});
+  const actividades = Array.isArray(mom.actividades)
+    ? mom.actividades
+    : [mom.actividades].filter(Boolean);
+  const metacognicion = Array.isArray(mom.metacognicion)
+    ? mom.metacognicion
+    : [mom.metacognicion].filter(Boolean);
   const inputEstilo = { width: "100%", boxSizing: "border-box", fontFamily: "inherit", fontSize: "inherit", padding: "3px 6px", border: "1px solid #93c5fd", borderRadius: 4, background: "#f8fafc" };
 
   return (
@@ -554,27 +639,27 @@ function MomentoRows({ mom, editando = false, rutaBase = "", setEnRuta = null })
         </td>
         <td className="ua-td-tiempo" rowSpan={2}>{mom.tiempo}</td>
         <td className="ua-td-acts" rowSpan={2}>
-          {(mom.actividades || []).map((act, i) => (
+          {actividades.map((act, i) => (
             <p key={i} className="ua-act-item">
               <strong>{i + 1}{")"}</strong>{" "}
               {editando && setEnRuta
                 ? <textarea
                     style={{ ...inputEstilo, minHeight: 44, resize: "vertical" }}
-                    defaultValue={act}
+                    defaultValue={textoPlano(act)}
                     onBlur={(e) => setEnRuta(`${rutaBase}.actividades.${i}`, e.target.value)}
                   />
-                : parseFormatting(act)}
+                : parseFormatting(textoPlano(act))}
             </p>
           ))}
         </td>
         <td className="ua-td-evid" style={{ whiteSpace: "pre-line" }}>
-          {parseFormatting(mom.evidencias || "")}
+          {renderEvidencias(mom.evidencias)}
         </td>
         <td className="ua-td-eval">
-          <p><strong>Tipo:</strong> {ev.tipo}.</p>
-          <p><strong>Agente:</strong> {ev.agente}.</p>
-          <p><strong>Técnica:</strong> {ev.tecnica}.</p>
-          <p><strong>Instrumento:</strong> {ev.instrumento}.</p>
+          <p><strong>Tipo:</strong> {textoPlano(ev.tipo)}.</p>
+          <p><strong>Agente:</strong> {textoPlano(ev.agente)}.</p>
+          <p><strong>Técnica:</strong> {textoPlano(ev.tecnica)}.</p>
+          <p><strong>Instrumento:</strong> {textoPlano(ev.instrumento)}.</p>
         </td>
         <td className="ua-td-recurs" rowSpan={2}>
           <p><strong>Humanos:</strong><br />{rec.humanos}</p>
@@ -590,10 +675,10 @@ function MomentoRows({ mom, editando = false, rutaBase = "", setEnRuta = null })
           {editando && setEnRuta
             ? <textarea
                 style={{ ...inputEstilo, minHeight: 44, resize: "vertical" }}
-                defaultValue={(mom.metacognicion || []).join(" · ")}
+                defaultValue={metacognicion.map(textoPlano).join(" · ")}
                 onBlur={(e) => setEnRuta(`${rutaBase}.metacognicion`, e.target.value.split(/\s*·\s*/).filter(Boolean))}
               />
-            : <span className="ua-meta-text">{(mom.metacognicion || []).join(" · ")}</span>}
+            : <span className="ua-meta-text">{metacognicion.map(textoPlano).join(" · ")}</span>}
         </td>
       </tr>
     </>
