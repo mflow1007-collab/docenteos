@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../firebase.js'
 import { AIConfig } from '../../services/ai/AIConfig.js'
-import { invalidateGatewayConfig } from '../../services/ai/AIService.js'
+import { invalidateGatewayConfig, normalizeGatewayModels } from '../../services/ai/AIService.js'
 
 // ─── Catálogo de proveedores ──────────────────────────────────────────────────
 const PROVIDER_CATALOG = [
@@ -221,7 +221,13 @@ function useProviderPriority() {
         if (!snap.exists()) return
         const d = snap.data()
         if (d.priority) setPriority(d.priority)
-        if (d.models)   setModels({ ...DEF_MODELS, ...d.models })
+        if (d.models) {
+          const normalizedModels = normalizeGatewayModels({ ...DEF_MODELS, ...d.models })
+          setModels(normalizedModels)
+          if (JSON.stringify(normalizedModels) !== JSON.stringify({ ...DEF_MODELS, ...d.models })) {
+            setDoc(doc(db, 'config', 'ia-gateway'), { models: normalizedModels }, { merge: true }).catch(() => {})
+          }
+        }
         if (Array.isArray(d.disabled)) setApagados(d.disabled)
       })
       .catch(() => {})
@@ -464,8 +470,8 @@ function TabResumen({
       <div className="aim-prov-grid">
         {ACTIVE_PROVIDERS.map((prov) => {
           const info       = providerStatus?.providers?.[prov.id] ?? null
-          const configured = info?.configured ?? false
           const result     = testResults[prov.id]
+          const configured = (info?.configured ?? false) || Boolean(result?.ok)
           const isTesting  = testing[prov.id] ?? false
           const ts         = ultimaPrueba[prov.id]
           const ps         = providerStats[prov.id]

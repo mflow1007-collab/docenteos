@@ -33,6 +33,21 @@ let _gwConfig    = null;
 let _gwLoadedAt  = 0;
 const GW_TTL_MS  = 5 * 60 * 1000; // 5 minutos
 
+const LEGACY_MODEL_REPLACEMENTS = {
+  anthropic: {
+    "claude-sonnet-4-6": "claude-sonnet-5",
+  },
+};
+
+export function normalizeGatewayModels(models = {}) {
+  const next = { ...(models || {}) };
+  for (const [provider, replacements] of Object.entries(LEGACY_MODEL_REPLACEMENTS)) {
+    const current = next[provider];
+    if (current && replacements[current]) next[provider] = replacements[current];
+  }
+  return next;
+}
+
 export async function loadGatewayConfig() {
   const now = Date.now();
   if (_gwConfig !== null && now - _gwLoadedAt < GW_TTL_MS) return _gwConfig;
@@ -41,6 +56,9 @@ export async function loadGatewayConfig() {
     if (!db) { _gwConfig = {}; _gwLoadedAt = now; return _gwConfig; }
     const snap = await getDoc(doc(db, "config", "ia-gateway"));
     _gwConfig   = snap.exists() ? snap.data() : {};
+    if (_gwConfig?.models) {
+      _gwConfig = { ..._gwConfig, models: normalizeGatewayModels(_gwConfig.models) };
+    }
     _gwLoadedAt = now;
   } catch {
     // No fatal — sin config usaremos el orden por defecto del servidor
