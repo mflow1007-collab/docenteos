@@ -68,9 +68,19 @@ const textoCorto = (texto = "", max = 90) => {
 const listaUnica = (items = []) => [...new Set(items.map((item) => String(item || "").trim()).filter(Boolean))];
 
 const evidenciasDeClase = (clase = {}) => ({
-  conocimiento: listaUnica(clase.evidencias?.conocimiento || []),
-  desempeno: listaUnica(clase.evidencias?.desempeno || []),
-  producto: listaUnica(clase.evidencias?.producto || []),
+  conocimiento: listaUnica([
+    ...(clase.evidencias?.conocimiento || []),
+    ...(clase.evidencias?.conocimientos || []),
+    ...(clase.mapaEvaluacion?.evidencias?.conocimiento || []),
+  ]),
+  desempeno: listaUnica([
+    ...(clase.evidencias?.desempeno || []),
+    ...(clase.mapaEvaluacion?.evidencias?.desempeno || []),
+  ]),
+  producto: listaUnica([
+    ...(clase.evidencias?.producto || []),
+    ...(clase.mapaEvaluacion?.evidencias?.producto || []),
+  ]),
   planas: listaUnica(clase.evidenciasEsperadas || []),
 });
 
@@ -80,6 +90,8 @@ const tieneEvidenciaEvaluable = (clase = {}) => {
 };
 
 const tipoSugeridoPorEvidencia = (clase = {}) => {
+  const desdeMapa = clase.mapaEvaluacion?.instrumentoSugerido?.tipo;
+  if (desdeMapa) return normalizarTipoInstrumento(desdeMapa);
   const explicit = clase.instrumentosPlaneados?.find(Boolean);
   if (explicit) return normalizarTipoInstrumento(explicit);
   const ev = evidenciasDeClase(clase);
@@ -94,6 +106,9 @@ const valorPorTipo = (tipoNorm) => {
   if (tipoNorm === "lista_cotejo" || tipoNorm === "escala_estimativa" || tipoNorm === "guia_observacion") return 25;
   return 100;
 };
+
+const valorSugeridoClase = (clase = {}, tipoNorm) =>
+  Number(clase.mapaEvaluacion?.instrumentoSugerido?.valorSugerido) || valorPorTipo(tipoNorm);
 
 const indicadoresParaInstrumento = (clase = {}, capa = {}) => {
   const indicadorIds = clase.indicadoresTrabajados?.length
@@ -114,7 +129,8 @@ const estructuraParaInstrumentoPlaneado = ({ tipoNorm, clase = {}, capa = {} }) 
     ...ev.planas,
   ]);
   const indicadores = indicadoresParaInstrumento(clase, capa);
-  const baseItems = listaUnica([...evidencias, ...indicadores]).slice(0, 6);
+  const criteriosMapa = listaUnica(clase.mapaEvaluacion?.criteriosExito || []);
+  const baseItems = listaUnica([...criteriosMapa, ...evidencias, ...indicadores]).slice(0, 6);
 
   if (tipoNorm === "rubrica") {
     const pesos = [15, 17, 18];
@@ -301,25 +317,25 @@ export const crearInstrumentosPlaneadosDesdePlan = async (registroPlan) => {
     const tipo = tipoSugeridoPorEvidencia(clase);
     tipos.add(tipo);
     const etiqueta = ETIQUETA_TIPO_INSTRUMENTO[tipo] || "Instrumento";
+    const estructura = estructuraParaInstrumentoPlaneado({ tipoNorm: tipo, clase, capa });
+    const evidenciaTipo = clase.evidencias?.producto?.length
+      ? "producto"
+      : clase.evidencias?.desempeno?.length
+        ? "desempeno"
+        : clase.evidencias?.conocimiento?.length
+          ? "conocimiento"
+          : "general";
     const instrumento = await crearInstrumentoDesdePlanificacion(registroPlan, {
       tipo,
       claseId: clase.claseId,
       titulo: `${etiqueta} — ${clase.titulo || capa.secuencia || "Clase"}`,
       descripcion: descripcionInstrumentoClase({ clase, capa, tipoNorm: tipo }),
-      valorMaximo: valorPorTipo(tipo),
-    });
-    instrumentos.push({
-      ...instrumento,
-      estructura: estructuraParaInstrumentoPlaneado({ tipoNorm: tipo, clase, capa }),
+      valorMaximo: valorSugeridoClase(clase, tipo),
+      estructura,
       origenGeneracion: "planificacion_clase",
-      evidenciaTipo: clase.evidencias?.producto?.length
-        ? "producto"
-        : clase.evidencias?.desempeno?.length
-          ? "desempeno"
-          : clase.evidencias?.conocimiento?.length
-            ? "conocimiento"
-            : "general",
+      evidenciaTipo,
     });
+    instrumentos.push(instrumento);
   }
 
   if (!instrumentos.length) {
@@ -334,12 +350,10 @@ export const crearInstrumentosPlaneadosDesdePlan = async (registroPlan) => {
         tipo,
         titulo: `${ETIQUETA_TIPO_INSTRUMENTO[tipo] || "Instrumento"} — ${capa.secuencia || "Plan"}`,
         valorMaximo: valorPorTipo(tipo),
-      });
-      instrumentos.push({
-        ...instrumento,
         estructura: estructuraParaInstrumentoPlaneado({ tipoNorm: tipo, clase: {}, capa }),
         origenGeneracion: "planificacion_global",
       });
+      instrumentos.push(instrumento);
     }
   }
 

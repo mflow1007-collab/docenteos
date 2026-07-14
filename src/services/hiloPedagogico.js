@@ -123,6 +123,112 @@ const instrumentosDeMomentos = (momentos = []) => {
   return [...tipos];
 };
 
+const instrumentoPorTipoEvidencia = (evidencias = {}) => {
+  const conocimiento = evidencias.conocimiento || [];
+  const desempeno = evidencias.desempeno || [];
+  const producto = evidencias.producto || [];
+
+  if (producto.length) {
+    return {
+      tipo: "rubrica",
+      etiqueta: "Rúbrica analítica",
+      tecnica: "Revisión de producciones y observación del desempeño",
+      agente: "Heteroevaluación / Coevaluación",
+      momento: "Formativa o sumativa según la fase",
+      valorSugerido: 50,
+      razon: "La evidencia principal es un producto evaluable con criterios de calidad.",
+    };
+  }
+  if (desempeno.length) {
+    return {
+      tipo: "escala_estimativa",
+      etiqueta: "Escala de estimación",
+      tecnica: "Observación directa del desempeño",
+      agente: "Heteroevaluación",
+      momento: "Formativa",
+      valorSugerido: 25,
+      razon: "La evidencia principal es un desempeño observable durante la actividad.",
+    };
+  }
+  if (conocimiento.length) {
+    return {
+      tipo: "lista_cotejo",
+      etiqueta: "Lista de cotejo",
+      tecnica: "Preguntas orales, revisión breve y observación",
+      agente: "Heteroevaluación",
+      momento: "Diagnóstica o formativa",
+      valorSugerido: 25,
+      razon: "La evidencia principal permite verificar conocimientos puntuales.",
+    };
+  }
+  return {
+    tipo: "guia_observacion",
+    etiqueta: "Guía de observación",
+    tecnica: "Observación directa",
+    agente: "Heteroevaluación",
+    momento: "Formativa",
+    valorSugerido: 25,
+    razon: "No hay producto clasificado; se observa el proceso de aprendizaje.",
+  };
+};
+
+export const construirMapaEvaluacionClase = ({
+  claseId = "",
+  indicadores = [],
+  evidencias = {},
+  evidenciasEsperadas = [],
+  actividades = {},
+  focoCurricular = "",
+  criteriosExito = [],
+} = {}) => {
+  const instrumento = instrumentoPorTipoEvidencia(evidencias);
+  const indicadorIds = indicadores.map((ind) => ind.id).filter(Boolean);
+  const indicadorTextos = indicadores.map((ind) => ind.descripcion).filter(Boolean);
+  const evidenciasClasificadas = {
+    conocimiento: [...new Set(evidencias.conocimiento || [])],
+    desempeno: [...new Set(evidencias.desempeno || [])],
+    producto: [...new Set(evidencias.producto || [])],
+  };
+
+  return {
+    version: 1,
+    claseId,
+    focoCurricular,
+    indicadorIds,
+    indicadores: indicadorTextos,
+    evidencias: evidenciasClasificadas,
+    evidenciasEsperadas,
+    actividadBase: {
+      inicio: actividades.inicio?.[0] || "",
+      desarrollo: actividades.desarrollo?.[0] || "",
+      cierre: actividades.cierre?.[0] || "",
+    },
+    instrumentoSugerido: instrumento,
+    criteriosExito: criteriosExito.length
+      ? criteriosExito
+      : [...evidenciasClasificadas.producto, ...evidenciasClasificadas.desempeno, ...evidenciasClasificadas.conocimiento]
+        .slice(0, 4)
+        .map((ev) => `Evidencia: ${ev}`),
+    registro: {
+      origen: "indicadores_de_logro",
+      aspectoIdsPendientes: indicadorIds,
+      actualizaRegistro: indicadorIds.length > 0,
+      regla: "El instrumento califica evidencias de la clase y consolida los aspectos vinculados a sus indicadores.",
+    },
+    modoAula: {
+      mostrarInstrumento: true,
+      capturarEvidencia: true,
+      tipoEvidenciaPrincipal: evidenciasClasificadas.producto.length
+        ? "producto"
+        : evidenciasClasificadas.desempeno.length
+          ? "desempeno"
+          : evidenciasClasificadas.conocimiento.length
+            ? "conocimiento"
+            : "observacion",
+    },
+  };
+};
+
 const aplanarRecursos = (materialesSemana) => {
   if (!materialesSemana) return [];
   if (Array.isArray(materialesSemana)) return materialesSemana;
@@ -195,13 +301,31 @@ const construirClase = ({
 }) => {
   const momentos = dia.momentos || [];
   const actividades = momentosAActividades(momentos);
-  const indicadorPrincipal = indicadores.length
-    ? indicadores[(numeroClase - 1) % indicadores.length]
+  const indicadoresDiaIds = Array.isArray(dia.indicadoresTrabajados)
+    ? dia.indicadoresTrabajados.map((id) => String(id || "").trim()).filter(Boolean)
+    : [];
+  const indicadoresClase = indicadoresDiaIds.length
+    ? indicadores.filter((ind) => indicadoresDiaIds.includes(ind.id))
+    : indicadores;
+  const indicadoresParaClase = indicadoresClase.length ? indicadoresClase : indicadores;
+  const indicadorPrincipal = indicadoresParaClase.length
+    ? indicadoresParaClase[(numeroClase - 1) % indicadoresParaClase.length]
     : null;
   const { evidencias, evidenciasEsperadas } = clasificarEvidencias(fuenteEvidencias, momentos);
+  const claseId = `clase-s${semana}-d${dia.n || dia.numeroGlobal || numeroClase}`;
+  const focoCurricular = dia.focoLinguistico || dia.focoCurricular || dia.etapaProgresion || "";
+  const mapaEvaluacion = construirMapaEvaluacionClase({
+    claseId,
+    indicadores: indicadoresParaClase,
+    evidencias,
+    evidenciasEsperadas,
+    actividades,
+    focoCurricular,
+    criteriosExito: Array.isArray(dia.criteriosExito) ? dia.criteriosExito : criteriosExito,
+  });
 
   return {
-    claseId: `clase-s${semana}-d${dia.n || dia.numeroGlobal || numeroClase}`,
+    claseId,
     numeroClase,
     semana,
     nombreDia: dia.nombre || "",
@@ -215,9 +339,11 @@ const construirClase = ({
     recursos,
     evidencias,           // A5.1: clasificación MINERD { conocimiento, desempeno, producto }
     evidenciasEsperadas,  // derivado (compatibilidad con consumidores del Bloque B)
-    instrumentosPlaneados: instrumentosDeMomentos(momentos),
+    mapaEvaluacion,
+    instrumentosPlaneados: [mapaEvaluacion.instrumentoSugerido.etiqueta],
+    instrumentosReferenciaMomentos: instrumentosDeMomentos(momentos),
     indicadorPrincipalId: indicadorPrincipal?.id || "",
-    indicadoresTrabajados: indicadores.map((ind) => ind.id),
+    indicadoresTrabajados: indicadoresParaClase.map((ind) => ind.id),
     criteriosExito: Array.isArray(dia.criteriosExito) && dia.criteriosExito.length
       ? dia.criteriosExito
       : criteriosExito,
@@ -375,6 +501,7 @@ export const construirCapaCurricular = (planificacion, { curriculo = null, curso
   // — Evaluación planificada (apartado D) —
   const instrumentosGlobales = [...new Set(clases.flatMap((c) => c.instrumentosPlaneados))];
   const evidenciasGlobales = [...new Set(clases.flatMap((c) => c.evidenciasEsperadas))];
+  const mapasEvaluacion = clases.map((c) => c.mapaEvaluacion).filter(Boolean);
   // A5.1: globales clasificados MINERD (unión sin duplicados por categoría)
   const evidenciasGlobalesClasificadas = {
     conocimiento: [...new Set(clases.flatMap((c) => c.evidencias?.conocimiento || []))],
@@ -413,6 +540,12 @@ export const construirCapaCurricular = (planificacion, { curriculo = null, curso
       ponderacionGlobal: null, // se completa al vincular instrumentos con ponderación
       evidencias: evidenciasGlobalesClasificadas, // A5.1: { conocimiento, desempeno, producto }
       evidenciasEsperadasGlobales: evidenciasGlobales, // derivado (compatibilidad)
+      mapaEvaluacion: {
+        version: 1,
+        clases: mapasEvaluacion,
+        instrumentosSugeridos: [...new Set(mapasEvaluacion.map((m) => m.instrumentoSugerido?.etiqueta).filter(Boolean))],
+        regla: "Cada clase vincula indicadores, evidencias MINERD, instrumento sugerido, aspecto de registro y captura en Modo Aula.",
+      },
     },
   };
 };
@@ -541,6 +674,9 @@ export const construirInstrumentoDesdePlan = ({
   ponderacion = null,
   claseId = "",
   docenteId = "",
+  estructura = null,
+  origenGeneracion = "",
+  evidenciaTipo = "",
   ahora = new Date().toISOString(),
 }) => {
   if (!planificacionId) throw new Error("planificacionId es obligatorio para crear el instrumento");
@@ -593,7 +729,9 @@ export const construirInstrumentoDesdePlan = ({
     estado: "Borrador",           // legacy: Borrador | Activo | Inactivo
     usos: 0,
     aplicaciones: [],
-    estructura: { criterios: [], indicadores: [] },
+    estructura: estructura || { criterios: [], indicadores: [] },
+    origenGeneracion,
+    evidenciaTipo,
     vinculacion: {
       area: capa.area || "",
       asignatura: capa.asignatura || "",

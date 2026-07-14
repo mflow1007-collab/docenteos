@@ -16,13 +16,20 @@ import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
 import { db }                                   from '../firebase.js';
 import { loadGatewayConfig }                    from './ai/AIService.js';
 import { logUsage }                             from './ai/usage.js';
+import {
+  construirArquitecturaUnidadMINERD,
+  resolverFocosCurriculares,
+  resumirArquitecturaParaPrompt,
+} from './curriculumBrainService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
 const MAX_TOKENS   = 12000;  // por lote (contrato incluye evidencias/metacognición/recursos por momento × clases; modelos verbosos se truncaban a 9000)
 const RETRY_TOKENS = 20000;  // reintento tras truncamiento — techo generoso para modelos verbosos (deepseek, etc.)
-const CHECKPOINT_PREFIX = 'docenteos_phase_a_checkpoint_v1';
+const CHECKPOINT_PREFIX = 'docenteos_phase_a_checkpoint_v2';
 const CHECKPOINT_TTL_MS = 12 * 60 * 60 * 1000;
+const MAX_INDICADORES_TRABAJO_UNIDAD = 6;
+const PHASE_A_FETCH_TIMEOUT_MS = 90_000;
 
 // COSTO PRIMERO, CALIDAD DE RESPALDO. Una unidad son ~10-12 lotes de ~12K tokens
 // de salida cada uno. Con todos los validadores de contrato (voz, R9/R12,
@@ -99,7 +106,29 @@ async function logParseError({ contexto, attempt, motivo, raw, provider, model }
 
 // ─── SSE collector ────────────────────────────────────────────────────────────
 
-async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS, providerOrder = PHASE_A_PROVIDER_ORDER, providersDisabledExtra = []) {
+async function resolvePhaseAProviderOrder() {
+  try {
+    const gwConfig = await loadGatewayConfig();
+    const priority = Array.isArray(gwConfig.priority) && gwConfig.priority.length
+      ? gwConfig.priority
+      : PHASE_A_PROVIDER_ORDER;
+    return [
+      ...priority,
+      ...PHASE_A_PROVIDER_ORDER.filter((p) => !priority.includes(p)),
+    ].filter((p, i, arr) => p && arr.indexOf(p) === i);
+  } catch {
+    return PHASE_A_PROVIDER_ORDER;
+  }
+}
+
+async function callGatewayCollect(
+  prompt,
+  system,
+  maxTokens = MAX_TOKENS,
+  providerOrder = PHASE_A_PROVIDER_ORDER,
+  providersDisabledExtra = [],
+  strictProvider = false,
+) {
   const user = getAuth().currentUser;
   if (!user) throw new Error('Usuario no autenticado');
 
@@ -116,31 +145,49 @@ async function callGatewayCollect(prompt, system, maxTokens = MAX_TOKENS, provid
     ...(Array.isArray(providersDisabledExtra) ? providersDisabledExtra : []),
   ].filter((v, i, arr) => v && arr.indexOf(v) === i);
 
-  const response = await fetch('/api/ai/generate', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-    },
-    body: JSON.stringify({
-      module: MODULE_NAME,
-      prompt,
-      system,
-      maxTokens,
-      providerOrder,
-      // Ahorro: si el respaldo cae en OpenAI (3er lugar de la cola), usar el mini
-      // ($0.60/M salida) en vez de gpt-4o ($10/M) salvo que el admin lo sobrescriba
-      // explícitamente. El mini produce JSON válido; el contrato lo valida igual.
-      modelOverrides: { openai: 'gpt-4o-mini', ...(gwConfig.models || {}) },
-      providersDisabled: providersDisabled.length ? providersDisabled : undefined,
-      requireNonEmpty: true,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PHASE_A_FETCH_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch('/api/ai/generate', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+      },
+      body: JSON.stringify({
+        module: MODULE_NAME,
+        prompt,
+        system,
+        maxTokens,
+        providerOrder,
+        // Ahorro: si el respaldo cae en OpenAI (3er lugar de la cola), usar el mini
+        // ($0.60/M salida) en vez de gpt-4o ($10/M) salvo que el admin lo sobrescriba
+        // explícitamente. El mini produce JSON válido; el contrato lo valida igual.
+        modelOverrides: { openai: 'gpt-4o-mini', ...(gwConfig.models || {}) },
+        providersDisabled: providersDisabled.length ? providersDisabled : undefined,
+        strictProvider,
+        requireNonEmpty: true,
+      }),
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`tiempo de espera agotado (${Math.round(PHASE_A_FETCH_TIMEOUT_MS / 1000)}s)`, { cause: err });
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let msg = `HTTP ${response.status}`;
     try { const b = await response.json(); msg = b.error || msg; } catch {}
-    throw new Error(msg);
+    const error = new Error(msg);
+    error.provider = response.headers.get('X-AI-Provider') || providerOrder?.[0] || 'desconocido';
+    error.model = response.headers.get('X-AI-Model') || 'desconocido';
+    error.status = response.status;
+    throw error;
   }
 
   const usedProvider = response.headers.get('X-AI-Provider') || 'desconocido';
@@ -812,14 +859,21 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const ceText     = (spec.ces || [])
     .map(c => `${c.fundamental ? c.fundamental + ' — ' : ''}${c.descripcion || ''}`.trim())
     .filter(Boolean).join(' | ');
-  const focoGram   = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas);
-  const focoGramTx = focoGram.length
-    ? focoGram.join('; ')
-    : 'SOLO vocabulario y expresiones del tema (semana introductoria: sin estructuras gramaticales nuevas)';
+  const focoCurricular = resolverFocosCurriculares({
+    arquitectura: spec.arquitecturaCurricular,
+    contenidosClaves: spec.contenidosClaves,
+    semanaNum,
+    diaGlobal: startDia,
+    numSemanas,
+  });
+  const focoCurricularTx = focoCurricular.detalles?.length
+    ? focoCurricular.detalles.join('; ')
+    : 'Apropiación de la unidad, situación de aprendizaje, producto y evaluación';
   const exprs      = spec.contenidosClaves?.expresiones?.slice(0, 6).join('; ') || '';
   const idiomaMeta = spec.esIdioma
     ? `en ${spec.idiomaNombre || 'inglés'} sencillo (nivel del estudiante)`
     : 'en español';
+  const arquitecturaTx = resumirArquitecturaParaPrompt(spec.arquitecturaCurricular);
 
   const endDia  = startDia + count - 1;
   const rango   = count === 1 ? `Clase ${startDia}` : `Clases ${startDia}-${endDia}`;
@@ -873,6 +927,11 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const conQueEjem = spec.esIdioma
     ? '"utilizando [la estructura o el vocabulario del día]"'
     : '"utilizando [el concepto, procedimiento o recurso del día]"';
+  const rutaTx = spec.rutaCurricular?.distribucion?.length
+    ? spec.rutaCurricular.distribucion
+      .map((b) => `Semana ${b.semanaInicio}${b.semanaInicio !== b.semanaFin ? `-${b.semanaFin}` : ''}: ${b.tema}`)
+      .join(' | ')
+    : '';
 
   const reglaInicio = esPrimeraClaseUnidad
     ? `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el ${saludoNota}: ${saludoEjem}), "retroalimentacionPrevia", "saberesPrevios" y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). Para la PRIMERA clase de la unidad no hay clase anterior: "retroalimentacionPrevia" inicia con "Retroalimentación de experiencias relacionadas con..." (exploración diagnóstica del tema con preguntas ${preguntaLoc}) y "saberesPrevios" (inicia con "Recuperación o exploración de saberes previos sobre...") puede versar sobre el tema o sobre cómo serán evaluados en la unidad. NO repitas saludo ni retroalimentación dentro de los momentos.`
@@ -882,18 +941,20 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
 
 TEMA: "${spec.temaOficial}"
 ÁREA: ${spec.area} | GRADO: ${spec.grado} | SEMANA: ${semanaNum} de ${numSemanas} (${rango})
+${rutaTx ? `RUTA CURRICULAR DE LA UNIDAD: ${rutaTx}\n` : ''}
 
 ESPECIFICACIÓN CURRICULAR:
 - Competencias del grado: ${ceText || '(ver indicadores)'}
 - Indicadores PRECARGADOS por DocenteOS para esta secuencia (copia SOLO estos códigos en "indicadoresTrabajados"; no inventes ni uses indicadores fuera de esta lista):
 ${indText}
-- Vocabulario disponible: ${vocab}
-- FOCO GRAMATICAL ESTA SEMANA (usar en Desarrollo): ${focoGramTx}
-- Funciones comunicativas (PROCEDIMENTALES afines al tema — trabájalas TODAS a lo largo de la unidad, distribuidas entre las clases; no las omitas): ${funcs}
+- Conceptos/vocabulario disponible: ${vocab}
+- FOCO CURRICULAR DEL BLOQUE (usar en Desarrollo): ${focoCurricularTx}
+- Procedimientos/funciones afines al tema — trabájalos a lo largo de la unidad, distribuidos entre las clases, sin omitirlos cuando apliquen: ${funcs}
+${arquitecturaTx ? `${arquitecturaTx}\n` : ''}
 ${productoLinea ? `${productoLinea}\n` : ''}${contextoLinea ? `${contextoLinea}\n` : ''}${exprs ? `- Expresiones oficiales del tema (incrústalas en las situaciones comunicativas): ${exprs}\n` : ''}${formatearMemoria(memoria)}
 TAREA: Genera exactamente ${count} clase(s) — ${rango} de la Semana ${semanaNum}.
 Clases con PROGRESIÓN PEDAGÓGICA, DISTINTAS de las ya programadas.
-El foco gramatical asignado debe trabajarse explícitamente en el Desarrollo.
+El foco curricular asignado debe trabajarse explícitamente en el Desarrollo.
 
 REGLAS:
 1. Solo JSON puro, sin texto ni markdown.
@@ -906,7 +967,7 @@ ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
 8. CADA clase incluye "indicadoresTrabajados": copia de 1 a 3 CÓDIGOS EXACTOS de la lista PRECARGADA arriba. PROHIBIDO inventar indicadores, cambiar códigos o usar indicadores fuera de esa lista. DocenteOS ya renderiza la malla completa: negrita = trabajado en esta secuencia, tachado = trabajado antes, normal = no trabajado.
 9. CADA clase incluye "titulo" (título llamativo de la clase) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], ${conQueEjem} — o su equivalente "con…", "a través de…", "comprendiendo…", [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — nombra siempre el contenido real de la malla (ej. idioma: "describirán sus hábitos y su frecuencia mediante comprensión oral y producción escrita, utilizando presente simple y adverbios de frecuencia"; ej. otra área: "clasificarán los tipos de ecosistemas de su comunidad mediante observación y comparación de casos, utilizando los criterios de biodiversidad y clima").
-10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo que refleja la FASE de la unidad esa semana y AVANZA — como "Exploración y descripción", luego "Profundización", luego "Integración y producto final"; no repitas el mismo título en semanas distintas), "focoLinguistico" (copia EXACTA de UNO de los focos indicados arriba${spec.esIdioma ? ' — una estructura del FOCO GRAMATICAL, incluidos sus ejemplos entre paréntesis' : ' — el concepto o procedimiento central del día tomado de la malla'}; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por los contenidos de la malla (conceptuales → procedimentales → producción), y la intención pedagógica de cada clase nombra su foco del día.
+10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo que refleja la FASE de la unidad esa semana y AVANZA — como "Exploración y descripción", luego "Profundización", luego "Integración y producto final"; no repitas el mismo título en semanas distintas), "focoLinguistico" (por compatibilidad del template: escribe aquí el FOCO CURRICULAR del día; copia o adapta UNO de los focos indicados arriba${spec.esIdioma ? ' — una estructura, vocabulario o función comunicativa del bloque, incluidos ejemplos entre paréntesis cuando aplique' : ' — el concepto, procedimiento, evidencia o criterio central del día tomado de la malla y del cerebro curricular'}; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por los contenidos de la malla (conceptuales → procedimentales → producción), y la intención pedagógica de cada clase nombra su foco del día.
 11. CADA clase incluye "aporteProducto": el artefacto CONCRETO con NOMBRE PROPIO ÚNICO que esa clase deposita al producto final — como un paso de checklist del producto (ej. idioma: "My Daily Schedule con horarios", "Chore Chart de responsabilidades"; ej. otra área: "Ficha comparativa de dos ecosistemas", "Croquis del acueducto con medidas"). Debe ser DISTINTO en cada clase y describir el ENTREGABLE, no la ubicación: PROHIBIDO "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto".${spec.esIdioma ? ' El nombre del artefacto puede incluir el idioma meta.' : ''}${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
 12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica CONCRETA del Desarrollo (${tecnicasEjem}), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en [técnica]: …"). Usa una técnica ACCIONABLE. Un marco amplio ("Aprendizaje Basado en Proyectos", "Aprendizaje Cooperativo", "ABP") vale SOLO si lo nombras con su MISIÓN concreta del día ("Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto"), nunca desnudo. Cuando la clase tenga una MISIÓN, dale un NOMBRE PROPIO memorable entre comillas, ligado al tema del día: "Participan en 'Feria de fracciones del barrio': …". No repitas una técnica ni un nombre de misión ya usados en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: activación con propósito O misión nombrada → producción → verificación entre pares.
 13. NO copies los ejemplos de estilo del sistema como actividades: son referencia de VOZ. Cada actividad es específica del contenido de ESTA clase.
@@ -918,9 +979,10 @@ ${reglaInicio}
 // ─── Generación de un lote con rotación de proveedores ───────────────────────
 
 async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, contextoLog) {
-  // El foco del bloque es el MISMO que recibió el prompt: la validación exige
-  // que cada focoLinguistico del día sea una estructura oficial de este set.
-  const focoGram = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas);
+  // En idiomas se mantiene el candado duro de estructuras. En las demas areas
+  // el foco curricular puede ser procedimiento/concepto/evidencia, por lo que
+  // se valida por contrato general y no por igualdad gramatical.
+  const focoGram = spec.esIdioma ? getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas) : [];
   let maxTokens = MAX_TOKENS;
   let prefix    = '';
   let lastError = null;
@@ -940,18 +1002,29 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // temporalmente ese proveedor y deja que el gateway pruebe otro. Al agotar la
   // cola configurada se limpia el ciclo y se concede una segunda vuelta.
   let truncadoPrevio = false;
-  const maxAttempts = Math.max(3, PHASE_A_PROVIDER_ORDER.length * 2);
+  const providerOrderBase = await resolvePhaseAProviderOrder();
+  const maxAttempts = Math.max(3, providerOrderBase.length * 2);
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     attemptsUsed = attempt;
     try {
+      let proveedoresActivos = providerOrderBase.filter((p) => !proveedoresFallidosCiclo.has(p));
+      if (!proveedoresActivos.length) {
+        proveedoresFallidosCiclo.clear();
+        proveedoresActivos = providerOrderBase;
+      }
+      const providerIntento = proveedoresActivos[0];
       const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, pedirNombreProducto);
       const t0 = Date.now();
+      lastRaw = '';
+      lastProvider = providerIntento || 'desconocido';
+      lastModel = 'desconocido';
       const { text: raw, provider, model, usage } = await callGatewayCollect(
         prompt,
         SYSTEM_PROMPT,
         maxTokens,
-        PHASE_A_PROVIDER_ORDER,
+        [providerIntento],
         Array.from(proveedoresFallidosCiclo),
+        true,
       );
       lastProvider = provider;
       lastModel    = model;
@@ -1015,7 +1088,12 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       } else {
         lastError = err;
       }
-      if (lastProvider && lastProvider !== 'desconocido') proveedoresFallidosCiclo.add(lastProvider);
+      const failedProvider = err?.provider || lastProvider;
+      if (failedProvider && failedProvider !== 'desconocido') {
+        proveedoresFallidosCiclo.add(failedProvider);
+        lastProvider = failedProvider;
+      }
+      if (err?.model) lastModel = err.model;
       console.error(`[FaseA] ${contextoLog} intento ${attempt} (${lastProvider}/${lastModel}):`, err.message);
       await logParseError({
         contexto: contextoLog, attempt, motivo: err.message,
@@ -1171,11 +1249,16 @@ function _recolectarRefsIndicadores(node, out = []) {
 function _bloquesTemaCurricular(mallaPayload, titulo) {
   const objetivo = _normCurricular(titulo);
   if (!objetivo) return [];
+  const objetivos = objetivo
+    .split(/\s+(?:\+|\/|\|)\s+|\s*·\s*/i)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 2);
+  const objetivosFinales = objetivos.length ? objetivos : [objetivo];
   const coincide = (bloque) => {
     const nombre = _normCurricular(
       bloque?.tema || bloque?.temaOficial || bloque?.nombre || bloque?.topico || bloque?.conceptos?.temas?.[0],
     );
-    return nombre && (nombre === objetivo || nombre.includes(objetivo) || objetivo.includes(nombre));
+    return nombre && objetivosFinales.some((obj) => nombre === obj || nombre.includes(obj) || obj.includes(nombre));
   };
   return [
     ...(Array.isArray(mallaPayload?.temas) ? mallaPayload.temas.filter((t) => t && typeof t === 'object' && coincide(t)) : []),
@@ -1183,10 +1266,109 @@ function _bloquesTemaCurricular(mallaPayload, titulo) {
   ];
 }
 
+function _tokensCurriculares(texto) {
+  const stop = new Set([
+    'de', 'del', 'la', 'las', 'el', 'los', 'y', 'o', 'u', 'en', 'con', 'para', 'por', 'a', 'al',
+    'the', 'and', 'or', 'of', 'to', 'in', 'at', 'on', 'my', 'our', 'your', 'is', 'are',
+    'tema', 'unidad', 'actividad', 'actividades', 'informacion', 'expresar', 'solicitar', 'ofrecer',
+  ]);
+  return _normCurricular(texto)
+    .split(/[^a-z0-9]+/i)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 3 && !stop.has(t));
+}
+
+function _textoAfinidadBloque(bloques = []) {
+  const piezas = [];
+  const visitar = (node, profundidad = 0) => {
+    if (!node || profundidad > 4) return;
+    if (typeof node === 'string' || typeof node === 'number') {
+      piezas.push(String(node));
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((item) => visitar(item, profundidad + 1));
+      return;
+    }
+    if (typeof node !== 'object') return;
+    [
+      'tema', 'temaOficial', 'nombre', 'topico', 'descripcion',
+      'conceptos', 'conceptuales', 'procedimientos', 'procedimentales',
+      'actitudes', 'actitudinales', 'vocabulario', 'gramatica',
+      'funcionesComunicativas', 'frases', 'situaciones',
+    ].forEach((campo) => visitar(node[campo], profundidad + 1));
+  };
+  bloques.forEach((bloque) => visitar(bloque));
+  return textosUnicos(piezas).join(' ');
+}
+
+function _limitarYOrdenarIndicadoresTrabajo(items = [], max = MAX_INDICADORES_TRABAJO_UNIDAD) {
+  const vistos = new Set();
+  const unicos = [];
+  items.forEach((item) => {
+    const codigo = normalizarCodigo(item?.codigoOficial || item?.id || item?.codigo || item?.descripcion);
+    if (!codigo || vistos.has(codigo)) return;
+    vistos.add(codigo);
+    unicos.push(item);
+  });
+  if (unicos.length <= max) return unicos;
+
+  const porCompetencia = new Map();
+  unicos.forEach((item) => {
+    const comp = String(item?.competenciaId || item?.competencia || 'sin_competencia').trim() || 'sin_competencia';
+    if (!porCompetencia.has(comp)) porCompetencia.set(comp, []);
+    porCompetencia.get(comp).push(item);
+  });
+
+  const salida = [];
+  let ronda = 0;
+  while (salida.length < max) {
+    let agrego = false;
+    for (const grupo of porCompetencia.values()) {
+      if (grupo[ronda] && salida.length < max) {
+        salida.push(grupo[ronda]);
+        agrego = true;
+      }
+    }
+    if (!agrego) break;
+    ronda += 1;
+  }
+  return salida;
+}
+
+function _seleccionarIndicadoresPorAfinidad({ indicadores = [], titulo = '', bloques = [] }) {
+  const textoTema = `${titulo} ${_textoAfinidadBloque(bloques)}`;
+  const tokensTema = new Set(_tokensCurriculares(textoTema));
+  if (!tokensTema.size) return _limitarYOrdenarIndicadoresTrabajo(indicadores);
+
+  const puntuados = indicadores
+    .map((ind, index) => {
+      const textoInd = `${ind?.descripcion || ind?.texto || ''} ${ind?.aspecto || ''}`;
+      const tokensInd = new Set(_tokensCurriculares(textoInd));
+      let score = 0;
+      tokensInd.forEach((token) => {
+        if (tokensTema.has(token)) score += 2;
+      });
+      const desc = _normCurricular(textoInd);
+      const tema = _normCurricular(textoTema);
+      if (desc && tema && (tema.includes(desc) || desc.includes(tema))) score += 6;
+      return { ind, score, index };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.index - b.index);
+
+  const base = puntuados.length ? puntuados.map((item) => item.ind) : indicadores;
+  return _limitarYOrdenarIndicadoresTrabajo(base);
+}
+
 function seleccionarIndicadoresTrabajo({ mallaPayload, titulo, indicadores }) {
-  const refs = textosUnicos(_bloquesTemaCurricular(mallaPayload, titulo).flatMap((bloque) => _recolectarRefsIndicadores(bloque)));
+  const bloques = _bloquesTemaCurricular(mallaPayload, titulo);
+  const refs = textosUnicos(bloques.flatMap((bloque) => _recolectarRefsIndicadores(bloque)));
   if (!refs.length) {
-    return { indicadoresTrabajo: indicadores, fuente: 'malla_completa_sin_relacion_tema' };
+    return {
+      indicadoresTrabajo: _seleccionarIndicadoresPorAfinidad({ indicadores, titulo, bloques }),
+      fuente: 'afinidad_tema_sin_relacion_explicita',
+    };
   }
   const refsNorm = refs.map((r) => ({
     codigo: normalizarCodigo(r),
@@ -1200,9 +1382,16 @@ function seleccionarIndicadoresTrabajo({ mallaPayload, titulo, indicadores }) {
       || (ref.texto && desc && (ref.texto === desc || desc.includes(ref.texto) || ref.texto.includes(desc)))
     );
   });
-  return seleccionados.length
-    ? { indicadoresTrabajo: seleccionados, fuente: 'malla_relacion_tema' }
-    : { indicadoresTrabajo: indicadores, fuente: 'malla_completa_relacion_no_resuelta' };
+  if (seleccionados.length) {
+    return {
+      indicadoresTrabajo: _limitarYOrdenarIndicadoresTrabajo(seleccionados),
+      fuente: seleccionados.length > MAX_INDICADORES_TRABAJO_UNIDAD ? 'malla_relacion_tema_capada' : 'malla_relacion_tema',
+    };
+  }
+  return {
+    indicadoresTrabajo: _seleccionarIndicadoresPorAfinidad({ indicadores, titulo, bloques }),
+    fuente: 'afinidad_tema_relacion_no_resuelta',
+  };
 }
 
 // ─── generateWeekPlan — exportación principal ─────────────────────────────────
@@ -1215,7 +1404,7 @@ export const generateWeekPlan = async (
   const allClases  = [];
   let adaptacionesSemana = null;   // NEAE ligadas al foco (contrato R14)
   let observacionesSemana = '';
-  const focoGram = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas);
+  const focoGram = spec.esIdioma ? getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas) : [];
   const indicadoresPermitidos = (spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
     .map((ind) => ind.codigoOficial || ind.id || ind.codigo)
     .filter(Boolean);
@@ -1405,6 +1594,22 @@ export const buildEspecificacionCurricular = ({
   const seleccionIndicadores = seleccionarIndicadoresTrabajo({ mallaPayload, titulo, indicadores });
 
   const esIdioma = area === 'Inglés' || area === 'Francés';
+  const arquitecturaCurricular = construirArquitecturaUnidadMINERD({
+    mallaPayload,
+    titulo,
+    area,
+    asignatura: mallaPayload?.asignatura || mallaPayload?.metadata?.asignatura || area,
+    grado,
+    ciclo: mallaPayload?.ciclo || mallaPayload?.metadata?.ciclo || '',
+    nivel: mallaPayload?.nivel || mallaPayload?.metadata?.nivel || '',
+    producto,
+    contextoComunitario,
+    mallaContenidos,
+    competencias: allComps || [],
+    indicadores,
+    indicadoresTrabajo: seleccionIndicadores.indicadoresTrabajo,
+    estrategia: mallaPayload?.estrategiasSugeridas?.[0]?.nombre || mallaPayload?.estrategiasSugeridas?.[0] || '',
+  });
 
   return {
     temaOficial: titulo,
@@ -1417,6 +1622,7 @@ export const buildEspecificacionCurricular = ({
     indicadores,
     indicadoresTrabajo: seleccionIndicadores.indicadoresTrabajo,
     indicadoresTrabajoFuente: seleccionIndicadores.fuente,
+    arquitecturaCurricular,
     contenidosClaves: {
       vocabulario: mallaContenidos?.vocabulario?.slice(0, 20) || [],
       gramatica:   mallaContenidos?.gramatica?.slice(0, 6)   || [],

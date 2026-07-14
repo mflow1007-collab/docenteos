@@ -5,6 +5,12 @@
 import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { getCurricularContentForUnit, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "./bancoConocimientoService.js";
 import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical } from "./phaseAService.js";
+import { resolverFocosCurriculares } from "./curriculumBrainService.js";
+import {
+  distribuirTemasEnSemanas,
+  obtenerTemaSemana,
+  sugerirTemaOficial,
+} from "./curriculumCombinacionService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -1166,22 +1172,25 @@ export const analizarComplejidad = ({ area = "", grado = "", nivel = "", titulo 
 const _resolverTemaMalla = (tituloDocente, temas) => {
   if (!Array.isArray(temas) || !temas.length) return null;
   const getText = (t) => (typeof t === 'string' ? t : (t.titulo || t.nombre || t.topico || ''));
-  const lower   = (tituloDocente || '').toLowerCase();
-  let match = temas.find(t => getText(t).toLowerCase() === lower);
+  const lower   = _normTexto(tituloDocente);
+  const sugerido = sugerirTemaOficial(tituloDocente, temas);
+  if (sugerido?.tema) return sugerido.tema;
+  let match = temas.find(t => _normTexto(getText(t)) === lower);
   if (!match) {
-    match = temas.find(t => lower.includes(getText(t).toLowerCase()) && getText(t))
-         || temas.find(t => getText(t).toLowerCase().includes(lower) && lower.length > 3);
+    match = temas.find(t => lower.includes(_normTexto(getText(t))) && getText(t))
+         || temas.find(t => _normTexto(getText(t)).includes(lower) && lower.length > 3);
   }
   if (!match) {
     const words = lower.split(/\s+/).filter(w => w.length > 3);
     let bestScore = 0;
     for (const t of temas) {
-      const score = words.filter(w => getText(t).toLowerCase().includes(w)).length;
+      const score = words.filter(w => _normTexto(getText(t)).includes(w)).length;
       if (score > bestScore) { bestScore = score; match = t; }
     }
+    if (bestScore === 0) match = null;
   }
   // Siempre devuelve el texto del tema (string), no el objeto
-  return match ? getText(match) : getText(temas[0]);
+  return match ? getText(match) : null;
 };
 
 // Filtra ítems del corpus por tema (campo tema/topico) cuando el corpus
@@ -1207,10 +1216,24 @@ const _filtrarPorTema = (items, temaFiltro) => {
 const _resolverContenidoPorTema = (contenidosPorTema = [], temaFiltro = '') => {
   if (!Array.isArray(contenidosPorTema) || !contenidosPorTema.length || !temaFiltro) return null;
   const objetivo = _normTexto(temaFiltro);
-  return contenidosPorTema.find((bloque) => {
+  const directo = contenidosPorTema.find((bloque) => {
     const tema = _normTexto(bloque?.tema || bloque?.conceptos?.temas?.[0]);
     return tema && (tema === objetivo || tema.includes(objetivo) || objetivo.includes(tema));
-  }) || null;
+  });
+  if (directo) return directo;
+
+  const nombresBloques = contenidosPorTema
+    .map((bloque) => bloque?.tema || bloque?.conceptos?.temas?.[0])
+    .filter(Boolean);
+  const sugerido = sugerirTemaOficial(temaFiltro, nombresBloques);
+  if (sugerido?.tema) {
+    const temaSugerido = _normTexto(sugerido.tema);
+    return contenidosPorTema.find((bloque) => {
+      const tema = _normTexto(bloque?.tema || bloque?.conceptos?.temas?.[0]);
+      return tema && tema === temaSugerido;
+    }) || null;
+  }
+  return null;
 };
 
 // ─── Capa 2 opcional: enriquecimiento_tema (tema oficial → subconjunto) ──────
@@ -1366,6 +1389,141 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
   const procedimentales = funcionales.slice(0, 6).filter(Boolean);
 
   return { vocabulario, gramatica, expresiones, funcionales, conceptuales, procedimentales };
+};
+
+const _unirContenidosTema = (contenidos = []) => {
+  const unir = (campo) => textosUnicos(contenidos.flatMap((c) => c?.[campo] || []));
+  const temas = textosUnicos(contenidos.map((c) => c?.temaContenido).filter(Boolean));
+  return {
+    vocabulario: unir("vocabulario"),
+    gramatica: unir("gramatica"),
+    expresiones: unir("expresiones"),
+    funcionales: unir("funcionales"),
+    actitudinales: unir("actitudinales"),
+    conceptuales: unir("conceptuales"),
+    procedimentales: unir("procedimentales"),
+    fuenteContenido: contenidos.every((c) => c?.fuenteContenido === "contenidosPorTema")
+      ? "contenidosPorTema"
+      : "contenidosPorTema_multiple",
+    temaContenido: temas.join(" · "),
+    temasContenido: temas,
+    contenidosPorTemaResueltos: contenidos,
+  };
+};
+
+const _resolverTemaOficialSeguro = (tema, temasOficiales = []) =>
+  _resolverTemaMalla(tema, temasOficiales) || String(tema || "").trim();
+
+const construirRutaCurricularUnidad = ({
+  titulo,
+  temaBase,
+  temasSeleccionados = [],
+  temasOficiales = [],
+  numSemanas = 1,
+}) => {
+  const base = _resolverTemaOficialSeguro(temaBase || titulo, temasOficiales);
+  const seleccion = Array.isArray(temasSeleccionados) && temasSeleccionados.length
+    ? temasSeleccionados
+    : [base];
+  const temas = textosUnicos(
+    seleccion
+      .map((tema) => _resolverTemaOficialSeguro(tema, temasOficiales))
+      .filter(Boolean)
+  );
+  const temasFinales = temas.length ? temas : [base].filter(Boolean);
+  const distribucion = distribuirTemasEnSemanas(temasFinales, Math.max(1, Number(numSemanas) || 1))
+    .map((bloque, index) => ({
+      ...bloque,
+      orden: index + 1,
+      proposito: index === 0
+        ? "Apropiación, exploración inicial y vocabulario/conceptos base"
+        : index === temasFinales.length - 1
+          ? "Integración, aplicación y aporte al producto final"
+          : "Desarrollo y profundización del tema curricular asignado",
+    }));
+  return {
+    version: 1,
+    temaBase: base,
+    temas: temasFinales,
+    esCombinada: temasFinales.length > 1,
+    distribucion,
+  };
+};
+
+const _temasDeSemanas = (rutaCurricular, semanas = []) => {
+  const set = new Set();
+  semanas.forEach((semana) => {
+    const tema = obtenerTemaSemana(Number(semana), rutaCurricular?.distribucion);
+    if (tema) set.add(tema);
+  });
+  return [...set];
+};
+
+const _esLenguasExtranjeras = (mallaPayload = {}) => {
+  const texto = _normTexto([
+    mallaPayload.area,
+    mallaPayload.subject,
+    mallaPayload.asignatura,
+    mallaPayload.metadata?.area,
+    mallaPayload.metadata?.asignatura,
+  ].filter(Boolean).join(" "));
+  return /lenguas extranjeras|ingles|frances|ingl[eé]s|franc[eé]s/.test(texto);
+};
+
+const _textoContenidoParaAfinidad = (contenido = {}) =>
+  textosUnicos([
+    ...(contenido.vocabulario || []),
+    ...(contenido.gramatica || []),
+    ...(contenido.expresiones || []),
+    ...(contenido.funcionales || []),
+    ...(contenido.conceptuales || []),
+  ]).join(" ");
+
+const _validarAfinidadContenidoTema = ({ mallaPayload, tema, contenido }) => {
+  // Guard quirúrgico para Lenguas Extranjeras: el currículo suele tener temas
+  // amplios en español y contenidos en inglés/francés. Usamos el mismo asesor
+  // léxico para detectar bloques mal clasificados (ej. "vivienda" con sir/ma'am).
+  if (!_esLenguasExtranjeras(mallaPayload)) return;
+  const textoContenido = _textoContenidoParaAfinidad(contenido);
+  if (textoContenido.length < 20) return;
+  const senal = sugerirTemaOficial(textoContenido, [tema]);
+  if (senal?.tema && _normTexto(senal.tema) === _normTexto(tema)) return;
+  throw new Error(
+    `El bloque contenidosPorTema de "${tema}" existe, pero sus contenidos no parecen pertenecer a ese tema. ` +
+    `Ejemplos detectados: ${textosUnicos(contenido.vocabulario || contenido.conceptuales || []).slice(0, 6).join(", ") || "sin vocabulario claro"}. ` +
+    `DocenteOS canceló la generación para evitar una planificación contaminada. Corrige ese bloque en Potente IA/Banco de Conocimiento.`
+  );
+};
+
+const _resolverContenidoTemaEstricto = ({ mallaPayload, curricularDoc, tema }) => {
+  const temaEnriquecido = resolverTemaEnriquecido(curricularDoc?.enriquecimientoTema, tema);
+  const contenido = _extraerContenidosMallaCorpus(mallaPayload, tema, temaEnriquecido);
+  if (!temaEnriquecido && contenido.fuenteContenido !== "contenidosPorTema") {
+    throw new Error(
+      `La malla no tiene contenidosPorTema confiables para "${tema}". ` +
+      `DocenteOS canceló la generación para evitar mezclar contenidos globales del grado. ` +
+      `Corrige el JSON en Administración → Potente IA/Banco de Conocimiento.`
+    );
+  }
+  _validarAfinidadContenidoTema({ mallaPayload, tema, contenido });
+  return {
+    ...contenido,
+    temaContenido: contenido.temaContenido || tema,
+    temaOficial: tema,
+    enriquecido: Boolean(temaEnriquecido),
+  };
+};
+
+const _construirContenidosPorRuta = ({ mallaPayload, curricularDoc, rutaCurricular }) => {
+  const porTema = new Map();
+  for (const tema of rutaCurricular?.temas || []) {
+    porTema.set(tema, _resolverContenidoTemaEstricto({ mallaPayload, curricularDoc, tema }));
+  }
+  const todos = [...porTema.values()];
+  return {
+    porTema,
+    union: _unirContenidosTema(todos),
+  };
 };
 
 // ─── Tabla curricular por competencia (códigos CE/IL del corpus) ─────────────
@@ -1546,21 +1704,31 @@ const _generarFasesConIA = async (
   numSemanas, schedule, area, tema, estrategia, productoFinal,
   contexto, mallaContenidos,
   mallaPayload, allInds, allComps, durMin, grado,
+  rutaCurricular = null,
+  contenidosRuta = null,
   onProgress = null,
 ) => {
   const fases = generarFases(numSemanas, schedule, area, tema, estrategia, productoFinal, contexto, mallaContenidos);
 
-  const spec = buildEspecificacionCurricular({
+  const specBase = buildEspecificacionCurricular({
     mallaPayload, titulo: tema, allInds, allComps, mallaContenidos, area, grado,
     producto: productoFinal,
     contextoComunitario: contexto.contextoComunitario || "",
   });
   // Producto escrito por el docente = nombre fijado; la IA no propone otro
-  if (contexto.productoPropio) spec.productoFinalNombre = contexto.productoPropio;
+  if (contexto.productoPropio) specBase.productoFinalNombre = contexto.productoPropio;
 
   const memoriaAcumulada = [];
   const totalClases = fases.reduce((sum, f) => sum + f.dias.length, 0);
   let globalOffset = 0;
+  let productoFinalNombreActual = specBase.productoFinalNombre || "";
+
+  fases.forEach((fase) => {
+    fase.dias.forEach((dia) => {
+      const temaSemana = obtenerTemaSemana(Number(dia.semana || 1), rutaCurricular?.distribucion);
+      if (temaSemana) dia.temaCurricular = temaSemana;
+    });
+  });
 
   const tomarVentana = (items = [], indice = 0, cantidad = 2) => {
     const lista = (items || []).map((x) => String(x || "").trim()).filter(Boolean);
@@ -1574,17 +1742,29 @@ const _generarFasesConIA = async (
     return limpio.length > max ? `${limpio.slice(0, max - 1)}…` : limpio;
   };
 
-  const resolverTopicoDia = (dia, indiceEnFase) => {
+  const resolverTopicoDia = (dia, indiceEnFase, specActual = specBase) => {
     const indiceGlobal = Math.max((dia?.numeroGlobal || (globalOffset + indiceEnFase + 1)) - 1, 0);
     const semanaReal = Math.max(1, Math.min(numSemanas, dia?.semana || 1));
     const etapa = String(dia?.etapaProgresion || "").trim();
-    const gramaticaSemana = getFocoGramatical(spec.contenidosClaves?.gramatica, semanaReal, numSemanas);
-    const vocab = tomarVentana(spec.contenidosClaves?.vocabulario, indiceGlobal, 3);
-    const expresiones = tomarVentana(spec.contenidosClaves?.expresiones, indiceGlobal, 1);
-    const funcionales = tomarVentana(spec.contenidosClaves?.funcionales, indiceGlobal, 1);
+    const focoCurricular = resolverFocosCurriculares({
+      arquitectura: specActual.arquitecturaCurricular,
+      contenidosClaves: specActual.contenidosClaves,
+      semanaNum: semanaReal,
+      diaGlobal: indiceGlobal + 1,
+      numSemanas,
+    });
+    const focoPrincipal = focoCurricular?.principal ? String(focoCurricular.principal).trim() : "";
+    const focoDetalle = (focoCurricular?.detalles || []).filter(Boolean).slice(0, 2).join(" · ");
+    if (focoPrincipal) {
+      return recortar(`${etapa || "Foco curricular"}: ${focoPrincipal}${focoDetalle && focoDetalle !== focoPrincipal ? ` · ${focoDetalle}` : ""}`);
+    }
+    const gramaticaSemana = getFocoGramatical(specActual.contenidosClaves?.gramatica, semanaReal, numSemanas);
+    const vocab = tomarVentana(specActual.contenidosClaves?.vocabulario, indiceGlobal, 3);
+    const expresiones = tomarVentana(specActual.contenidosClaves?.expresiones, indiceGlobal, 1);
+    const funcionales = tomarVentana(specActual.contenidosClaves?.funcionales, indiceGlobal, 1);
 
     if (etapa && /presentaci[oó]n|exploraci[oó]n|diagn[oó]stico/i.test(etapa)) {
-      return recortar(`${etapa}: apropiación del tema "${spec.temaOficial}"${vocab.length ? ` con vocabulario (${vocab.join(", ")})` : ""}`);
+      return recortar(`${etapa}: apropiación del tema "${dia?.temaCurricular || specActual.temaOficial}"${vocab.length ? ` con vocabulario (${vocab.join(", ")})` : ""}`);
     }
 
     if (gramaticaSemana.length) {
@@ -1603,11 +1783,33 @@ const _generarFasesConIA = async (
       return recortar(`${etapa || "Práctica"}: vocabulario del tema (${vocab.join(", ")})`);
     }
 
-    return recortar(`${etapa || "Trabajo guiado"} sobre "${spec.temaOficial}"`);
+    return recortar(`${etapa || "Trabajo guiado"} sobre "${dia?.temaCurricular || specActual.temaOficial}"`);
   };
 
   for (const fase of fases) {
     const numClases = fase.dias.length;
+    const semanasFase = [...new Set(fase.dias.map((d) => d.semana).filter(Boolean))];
+    const temasFase = _temasDeSemanas(rutaCurricular, semanasFase);
+    const semanaGeneracion = semanasFase[0] || fase.numero;
+    const contenidosFase = temasFase.length && contenidosRuta?.porTema
+      ? _unirContenidosTema(temasFase.map((t) => contenidosRuta.porTema.get(t)).filter(Boolean))
+      : mallaContenidos;
+    const tituloFaseCurricular = temasFase.length ? temasFase.join(" · ") : tema;
+    const specFase = buildEspecificacionCurricular({
+      mallaPayload,
+      titulo: tituloFaseCurricular,
+      allInds,
+      allComps,
+      mallaContenidos: contenidosFase,
+      area,
+      grado,
+      producto: productoFinal,
+      contextoComunitario: contexto.contextoComunitario || "",
+    });
+    specFase.rutaCurricular = rutaCurricular;
+    specFase.temasSemana = temasFase;
+    specFase.productoFinalNombre = productoFinalNombreActual;
+    if (contexto.productoPropio) specFase.productoFinalNombre = contexto.productoPropio;
 
     // Progreso narrado para el docente: fase pedagógica, semana calendario y
     // tópico real por día según la malla/contenidos oficiales ya seleccionados.
@@ -1628,7 +1830,7 @@ const _generarFasesConIA = async (
               `Día ${dia.numeroGlobal || globalStart + idx}`,
               dia.diaCalendario ? dia.diaCalendario : "",
             ].filter(Boolean).join(" · ");
-            return `${etiquetaDia}: ${resolverTopicoDia(dia, startDia - 1 + idx)}`;
+            return `${etiquetaDia}: ${resolverTopicoDia(dia, startDia - 1 + idx, specFase)}`;
           });
           onProgress(
             `✍️ ${semanaTxt} · Fase ${fase.numero}: ${fase.nombre} — escribiendo ${rango} de ${totalClases} · ${topicos.join(" | ")}`
@@ -1643,9 +1845,10 @@ const _generarFasesConIA = async (
     // FUTURO: cuando exista el Banco de Secuencias, el respaldo legítimo es
     // servir una secuencia cosechada y validada — nunca plantillas.
     const weekPlan = await generateWeekPlan(
-      spec, fase.numero, durMin, numClases, numSemanas,
+      specFase, semanaGeneracion, durMin, numClases, numSemanas,
       memoriaAcumulada, progressWrapper,
     );
+    productoFinalNombreActual = specFase.productoFinalNombre || weekPlan.productoFinalNombre || productoFinalNombreActual;
 
     weekPlan.clases.slice(0, numClases).forEach((aiClase, i) => {
       const dia = fase.dias[i];
@@ -1714,6 +1917,15 @@ const _generarFasesConIA = async (
             ? `**${etiquetaEv}:**\n${items.map((e, n) => `${n + 1}. ${e}`).join("\n")}`
             : "";
         }).filter(Boolean).join("\n");
+        // Dato estructurado para el hilo pedagógico:
+        // planificación → instrumentos → registro → evidencias. El texto
+        // renderizado de arriba queda intacto para el template/PDF.
+        orig.evidenciasDetalle = {
+          conocimientos: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
+          conocimiento: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
+          desempeno: (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean),
+          producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean),
+        };
         orig.metacognicion = aiMom.metacognicion;
         orig.recursos = {
           humanos: "Docente y estudiantes",
@@ -1762,7 +1974,7 @@ const _generarFasesConIA = async (
     );
     // Cada indicador de la spec con su código IL-N corrido (posición global +1),
     // para que "Indicadores de avance" los muestre con código, como el registro.
-    const conCodigoGlobal = (spec.indicadores || []).map((ind, gi) => {
+    const conCodigoGlobal = (specFase.indicadores || []).map((ind, gi) => {
       const cod = String(ind.codigoOficial || ind.id || "").trim() || `IL-${gi + 1}`;
       return { cod, descripcion: ind.descripcion, codigoOficial: ind.codigoOficial, id: ind.id };
     });
@@ -1790,7 +2002,7 @@ const _generarFasesConIA = async (
     globalOffset += numClases;
   }
 
-  return { fases, productoFinalNombre: spec.productoFinalNombre || "" };
+  return { fases, productoFinalNombre: productoFinalNombreActual || "" };
 };
 
 // ─── Exportación principal ────────────────────────────────────────────────────
@@ -1919,6 +2131,13 @@ export const generarUnidadAprendizaje = async (datos) => {
   const temasOficiales = temasOficialesDeMalla(mallaPayload);
   // Resuelve el título del docente contra los temas oficiales → devuelve string
   const temaMallaStr   = _resolverTemaMalla(titulo, temasOficiales);
+  if (temasOficiales.length && !temaMallaStr) {
+    throw new Error(
+      `El tema "${titulo}" no coincide con un tema oficial de la malla de ${claveContenido} — ${grado}. ` +
+      `DocenteOS canceló la generación para evitar mezclar contenidos de otro tema. ` +
+      `Selecciona un tema oficial desde el Asesor Pedagógico o corrige los temas de la malla en el Banco de Conocimiento.`
+    );
+  }
 
   onProgress?.(`📚 Malla oficial verificada — preparando los contenidos de "${temaMallaStr || titulo}"...`);
 
@@ -1935,33 +2154,20 @@ export const generarUnidadAprendizaje = async (datos) => {
     : [];
   const ejesFinal = ejesOficiales.length ? ejesOficiales : ejes;
 
-  // Capa 2 opcional: entrada del tema en el doc enriquecimiento_tema derivado
-  // de esta malla (adjuntado por getCurricularContentForUnit); null = sin capa
-  const temaEnriquecido = resolverTemaEnriquecido(
-    curricularDoc.enriquecimientoTema,
-    temaMallaStr || titulo,
-  );
-
-  // Extrae vocabulario, gramática y funcionales del corpus, filtrados al tema
-  // de la unidad (Capa 2 por categorías/estructuras exactas; fallback:
-  // segmentación por tema del corpus; fallback: nivel-grado completo)
-  const mallaContenidos = _extraerContenidosMallaCorpus(mallaPayload, temaMallaStr || titulo, temaEnriquecido);
-
-  // Cobertura temática VISIBLE para el docente: sin Capa 2 (enriquecimiento_
-  // tema) ni bloque contenidosPorTema para este tema, la gramática y el
-  // vocabulario salen del grado COMPLETO y la unidad puede arrastrar
-  // estructuras de otros temas (ej. clima en una unidad de la casa). No
-  // bloquea — la Capa 2 es opcional por diseño — pero se avisa, no se calla.
+  const rutaCurricular = construirRutaCurricularUnidad({
+    titulo,
+    temaBase: temaMallaStr || titulo,
+    temasSeleccionados,
+    temasOficiales,
+    numSemanas,
+  });
+  const contenidosRuta = _construirContenidosPorRuta({
+    mallaPayload,
+    curricularDoc,
+    rutaCurricular,
+  });
+  const mallaContenidos = contenidosRuta.union;
   const advertencias = [];
-  if (!temaEnriquecido && mallaContenidos.fuenteContenido !== "contenidosPorTema") {
-    const aviso =
-      `El tema "${temaMallaStr || titulo}" no tiene contenidos propios en la malla del Banco ` +
-      `(enriquecimiento_tema o contenidosPorTema): la gramática y el vocabulario provienen del grado completo, ` +
-      `y la unidad puede incluir estructuras de otros temas. Carga el enriquecimiento de este tema en el Banco de Conocimiento para una unidad 100% enfocada.`;
-    advertencias.push(aviso);
-    console.warn(`[Unidad] ⚠️ ${aviso}`);
-    onProgress?.(`⚠️ ${aviso}`);
-  }
 
   const modeloCurricularSuperior = construirModeloCurricularSuperior({
     payload: mallaPayload,
@@ -2025,6 +2231,8 @@ export const generarUnidadAprendizaje = async (datos) => {
     },
     mallaContenidos,
     mallaPayload, allInds, allComps, durMinEf, grado,
+    rutaCurricular,
+    contenidosRuta,
     onProgress,
   );
 
@@ -2047,7 +2255,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     indicadoresPrevios,
   );
   const especificacionCurricularUnidad = buildEspecificacionCurricular({
-    mallaPayload, titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
+    mallaPayload, titulo: rutaCurricular.temas.join(" · ") || titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
   });
 
   const unidadResult = {
@@ -2068,7 +2276,8 @@ export const generarUnidadAprendizaje = async (datos) => {
       productoFinal: productoNombrado,
       // Temas curriculares que el docente eligió integrar en la unidad
       // (vacío = trabaja solo el tema del título)
-      temasIntegrados: Array.isArray(temasSeleccionados) ? temasSeleccionados : [],
+      temasIntegrados: rutaCurricular.temas,
+      rutaCurricular,
     },
     ejesTematicos: ejesFinal,
     situacionAprendizaje: situacionFinal,
@@ -2103,12 +2312,14 @@ export const generarUnidadAprendizaje = async (datos) => {
     matrizCurricularInterna: {
       visibleParaDocente: false,
       temaOficial: temaMallaStr || titulo,
+      rutaCurricular,
       indicadoresTrabajadosUnidad: Array.from(indicadoresActuales),
       indicadoresTrabajadosAntes: Array.from(indicadoresPrevios),
       indicadoresPrecargadosTema: (especificacionCurricularUnidad.indicadoresTrabajo || []).map((ind) => ind.codigoOficial || ind.id || ind.codigo).filter(Boolean),
       fuenteIndicadoresPrecargados: especificacionCurricularUnidad.indicadoresTrabajoFuente || '',
       competencias: competenciasDetalleEnriquecidas,
       progresionCurricular: modeloCurricularSuperior.progresion || [],
+      arquitecturaCurricular: especificacionCurricularUnidad.arquitecturaCurricular || null,
     },
     contenidos,
     fasesSemanales: fasesSemanalesGeneradas,
@@ -2436,10 +2647,11 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       // de la unidad, no una estructura; ahí se muestra sin la etiqueta gramatical.
       const foco = dia.focoLinguistico || "";
       const esApropiacion = /apropiaci[oó]n|producto|evaluaci[oó]n/i.test(foco) && !/\(/.test(foco);
+      const etiquetaFoco = ES_IDIOMA(m.asignatura || m.area) ? "Estructura gramatical" : "Foco curricular";
       const focoHtml = foco
         ? (esApropiacion
           ? ` <span style="font-weight:400">· ${foco}</span>`
-          : ` <span style="font-weight:600;font-size:11pt">(Estructura gramatical: ${foco})</span>`)
+          : ` <span style="font-weight:600;font-size:11pt">(${etiquetaFoco}: ${foco})</span>`)
         : "";
       const estrategiaDiaHtml = dia.estrategiasDia
         ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${dia.estrategiasDia}</div>`
