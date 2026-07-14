@@ -2,7 +2,7 @@
 export const anthropic = {
   name: "anthropic",
   displayName: "Anthropic",
-  model: "claude-sonnet-4-6",
+  model: "claude-sonnet-5",
   baseURL: "https://api.anthropic.com/v1",
   serverEnvVar: "ANTHROPIC_API_KEY", // solo en servidor — NUNCA en VITE_
   supportsStreaming: true,

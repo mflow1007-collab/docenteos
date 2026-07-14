@@ -11,6 +11,10 @@ import { getAuth } from "firebase/auth";
 
 // Tarifas aproximadas en USD por 1M tokens (actualizar según cambien)
 const COST_RATES = {
+  "claude-sonnet-5":                         { in: 3.0,  out: 15.0 },
+  "claude-fable-5":                          { in: 0.80, out: 4.0  },
+  "claude-opus-4-8":                         { in: 15.0, out: 75.0 },
+  "claude-haiku-4-5-20251001":               { in: 0.80, out: 4.0  },
   "claude-sonnet-4-6":                       { in: 3.0,  out: 15.0 },
   "gpt-4o":                                  { in: 2.5,  out: 10.0 },
   "route-llm":                               { in: 1.0,  out: 3.0  },

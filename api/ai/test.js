@@ -22,7 +22,7 @@ const PROVIDER_CONFIG = {
     envVar: "ABACUS_API_KEY",
   },
   anthropic: {
-    model: "claude-sonnet-4-6",
+    model: "claude-sonnet-5",
     type: "anthropic",
     envVar: "ANTHROPIC_API_KEY",
   },

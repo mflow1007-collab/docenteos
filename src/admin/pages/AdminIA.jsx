@@ -26,9 +26,9 @@ const PROVIDER_CATALOG = [
     desc: 'Compatible OpenAI · routing externo',
   },
   {
-    id: 'anthropic',  name: 'Anthropic',         model: 'claude-sonnet-4-6',
+    id: 'anthropic',  name: 'Anthropic',         model: 'claude-sonnet-5',
     envVar: 'ANTHROPIC_API_KEY', logo: '🟠', type: 'active',
-    desc: 'Claude Sonnet 4.6 · API nativa',
+    desc: 'Claude Sonnet 5 · API nativa',
   },
   {
     id: 'nvidia',     name: 'NVIDIA NIM',        model: 'nvidia/nemotron-3-ultra-550b-a55b',
@@ -87,9 +87,11 @@ const MODEL_OPTIONS = {
     { value: 'route-llm',      label: 'RouteLLM (si tu cuenta lo soporta)' },
   ],
   anthropic: [
-    { value: 'claude-sonnet-4-6',          label: 'Claude Sonnet 4.6 (recomendado)' },
+    { value: 'claude-sonnet-5',            label: 'Claude Sonnet 5 (recomendado)' },
+    { value: 'claude-fable-5',             label: 'Claude Fable 5 (rápido y capaz)' },
     { value: 'claude-opus-4-8',            label: 'Claude Opus 4.8 (más capaz)' },
     { value: 'claude-haiku-4-5-20251001',  label: 'Claude Haiku 4.5 (económico)' },
+    { value: 'claude-sonnet-4-6',          label: 'Claude Sonnet 4.6 (legacy)' },
   ],
   gemini: [
     { value: 'gemini-2.5-flash',      label: 'Gemini 2.5 Flash (recomendado · rápido)' },
@@ -958,9 +960,11 @@ function TabCostos({ stats, loading }) {
   const m = stats?.month
 
   const RATES = {
-    'claude-sonnet-4-6':         { in: 3.0,  out: 15.0 },
+    'claude-sonnet-5':           { in: 3.0,  out: 15.0 },
+    'claude-fable-5':            { in: 0.80, out: 4.0  },
     'claude-opus-4-8':           { in: 15.0, out: 75.0 },
     'claude-haiku-4-5-20251001': { in: 0.8,  out: 4.0  },
+    'claude-sonnet-4-6':         { in: 3.0,  out: 15.0 },
     'gpt-4o':                    { in: 2.5,  out: 10.0 },
     'gpt-4o-mini':               { in: 0.15, out: 0.6  },
     'gpt-4.1':                   { in: 2.0,  out: 8.0  },

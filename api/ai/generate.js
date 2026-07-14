@@ -164,7 +164,7 @@ const DEFAULT_ORDER = ["openai", "anthropic", "gemini", "nvidia", "abacus"];
 const DEFAULT_MODELS = {
   openai:    "gpt-4o",
   abacus:    "gpt-4o-mini",
-  anthropic: "claude-sonnet-4-6",
+  anthropic: "claude-sonnet-5",
   nvidia:    "nvidia/nemotron-3-ultra-550b-a55b",
   gemini:    "gemini-2.5-flash",
 };

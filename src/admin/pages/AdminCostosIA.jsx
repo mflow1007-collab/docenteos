@@ -13,9 +13,11 @@ const PROVEEDORES = {
 };
 
 const TARIFAS = {
-  'claude-sonnet-4-6':         { in: 3.0,  out: 15.0 },
+  'claude-sonnet-5':           { in: 3.0,  out: 15.0 },
+  'claude-fable-5':            { in: 0.8,  out: 4.0  },
   'claude-opus-4-8':           { in: 15.0, out: 75.0 },
   'claude-haiku-4-5-20251001': { in: 0.8,  out: 4.0  },
+  'claude-sonnet-4-6':         { in: 3.0,  out: 15.0 },
   'gpt-4o':                    { in: 2.5,  out: 10.0 },
   'gpt-4o-mini':               { in: 0.15, out: 0.6  },
   'gpt-4.1':                   { in: 2.0,  out: 8.0  },
