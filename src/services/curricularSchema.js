@@ -145,6 +145,32 @@ export const validateCurricularDoc = (docOrPayload) => {
     });
   }
 
+  // Cardinalidad canónica del registro oficial MINERD: exactamente 7
+  // competencias con específica y 21 indicadores con descripción (3 por
+  // competencia). Un conteo distinto delata filas basura o pérdidas de
+  // conversión — es la puerta por la que entró el doc corrupto v2.0.
+  const compsConEspecifica = comps.filter(
+    (c) => texto(c?.especificaGrado || c?.especifica || c?.descripcion)).length;
+  if (comps.length !== 7 || compsConEspecifica !== 7) {
+    const detalle = comps.length !== 7
+      ? comps.length
+      : `${comps.length}, solo ${compsConEspecifica} con específica`;
+    v('competencias', `el registro oficial tiene 7 competencias; este doc trae ${detalle} — revisar filas basura de conversión`);
+  }
+  const descInd = (ind) => texto(typeof ind === 'string' ? ind : ind?.descripcion || ind?.texto);
+  // Los anidados mandan cuando existen (los planos pueden ser un espejo del
+  // mismo registro) — mismo criterio de precedencia que el chequeo de vínculo.
+  const indsTotal = anidadosTotal || planos.length;
+  const indsConDesc = anidadosTotal
+    ? comps.reduce((n, c) => n + (c?.indicadoresLogro || c?.indicadores || []).filter(descInd).length, 0)
+    : planos.filter(descInd).length;
+  if (indsTotal !== 21 || indsConDesc !== 21) {
+    const detalle = indsTotal !== 21
+      ? indsTotal
+      : `${indsTotal}, solo ${indsConDesc} con descripción`;
+    v('indicadoresLogro', `el registro oficial tiene 21 indicadores; este doc trae ${detalle} — revisar filas basura de conversión`);
+  }
+
   // Contenidos estructurados (fuente de CONTENIDOS del documento)
   const conceptos = payload.contenidos?.conceptos;
   if (!conceptos) {

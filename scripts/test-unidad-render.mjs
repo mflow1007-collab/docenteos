@@ -871,18 +871,22 @@ check("caso real v2.0: el contrato lo RECHAZA por la versión desconocida", () =
 });
 
 check("competencias con NOMBRE pero sin código ING-1-C0x → válidas (diseño MINERD real)", () => {
+  const nombresCF = [
+    "Comunicativa", "Ética y Ciudadana", "Pensamiento Lógico, Creativo y Crítico",
+    "Resolución de Problemas", "Científica y Tecnológica", "Ambiental y de la Salud",
+    "Desarrollo Personal y Espiritual",
+  ];
   const doc = {
     schemaVersion: SCHEMA_VERSION_CANONICA, level: "Secundaria", grade: "1ro",
     area: "Lenguas Extranjeras", subject: "Inglés", contentType: "malla_curricular",
     temas: ["Vivienda, entorno y ciudad"],
-    competencias: [
-      { competenciaFundamental: "Comunicativa", especificaGrado: "Comprende y expresa ideas…" },
-      { competenciaFundamental: "Ética y Ciudadana", especificaGrado: "Se comunica con cortesía…" },
-    ],
-    indicadoresLogro: [
-      { id: "IL-1", descripcion: "Responde a preguntas breves." },
-      { id: "IL-2", descripcion: "Se expresa con frases sencillas." },
-    ],
+    // Cardinalidad canónica (7/21) sin códigos: lo que trae el diseño real
+    competencias: nombresCF.map((nombre) => ({
+      competenciaFundamental: nombre, especificaGrado: `Específica de ${nombre}…`,
+    })),
+    indicadoresLogro: Array.from({ length: 21 }, (_, j) => ({
+      id: `IL-${j + 1}`, descripcion: `Indicador de logro número ${j + 1}.`,
+    })),
     contenidos: {
       conceptos: { vocabulario: [{ categoria: "Vivienda", ejemplos: ["lobby"] }], gramatica: [{ estructura: "There + be" }] },
       procedimientos: { funcionales: ["Describir lugares"] },
@@ -894,6 +898,27 @@ check("competencias con NOMBRE pero sin código ING-1-C0x → válidas (diseño 
   if (compViol.length) throw new Error(`rechazó competencias sin código: ${JSON.stringify(compViol)}`);
   const indViol = r.violaciones.filter((h) => h.ruta.startsWith("indicadoresLogro"));
   if (indViol.length) throw new Error(`rechazó indicadores anidables sin competenciaId: ${JSON.stringify(indViol)}`);
+});
+
+check("caso real v2.0 con 8 competencias → rechazo por CARDINALIDAD (aunque la versión se corrija)", () => {
+  const doc = JSON.parse(JSON.stringify(casoRealV2));
+  doc.schemaVersion = SCHEMA_VERSION_CANONICA; // aislar la cardinalidad de la versión
+  const r = validateCurricularDoc(doc);
+  if (r.ok) throw new Error("aceptó un doc con 8 competencias");
+  if (!r.violaciones.some((h) => h.ruta === "competencias" && h.mensaje.includes("trae 8"))) {
+    throw new Error(`no señaló la cardinalidad de competencias: ${JSON.stringify(r.violaciones)}`);
+  }
+});
+
+check("20 indicadores en vez de 21 → rechazo por cardinalidad", () => {
+  const doc = JSON.parse(JSON.stringify(casoRealV2));
+  doc.schemaVersion = SCHEMA_VERSION_CANONICA;
+  doc.competencias = doc.competencias.slice(0, 7);
+  doc.indicadoresLogro = doc.indicadoresLogro.slice(0, 20);
+  const r = validateCurricularDoc(doc);
+  if (!r.violaciones.some((h) => h.ruta === "indicadoresLogro" && h.mensaje.includes("trae 20"))) {
+    throw new Error(`no señaló la cardinalidad de indicadores: ${JSON.stringify(r.violaciones)}`);
+  }
 });
 
 check("el MISMO doc corregido (lo que Potente IA debe lograr) → contrato ok", () => {
