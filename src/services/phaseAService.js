@@ -1546,7 +1546,21 @@ export const generateWeekPlan = async (
     observacionesSemana,
     productoFinalNombre: spec.productoFinalNombre || '',
   };
-  validateWeekPlan(combined, durMin, numClases);
+  try {
+    validateWeekPlan(combined, durMin, numClases);
+  } catch (err) {
+    // Único camino de fallo fuera del bucle de reintentos (lotes ya aceptados,
+    // incluso de caché): sin registro aquí, el triaje en aiLogs queda ciego.
+    await logParseError({
+      contexto: `S${semanaNum}/semana-combinada`,
+      attempt:  0,
+      motivo:   err.message,
+      raw:      '',
+      provider: 'combinado',
+      model:    'combinado',
+    });
+    throw new Error(`S${semanaNum} (validación de semana combinada): ${err.message}`, { cause: err });
+  }
   return combined;
 };
 
