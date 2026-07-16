@@ -13,6 +13,7 @@ import { actualizarPlanificacionDetallada, obtenerPlanificacionesDetalladas, gua
 import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula, obtenerInstrumentosDelDia } from '../services/modoAulaService.js'
 import { obtenerClaseDeHoy, crearAspectoId } from '../services/hiloPedagogico.js'
 import { obtenerPaseLista, guardarPaseLista, ESTADOS_ASISTENCIA, ETIQUETA_ASISTENCIA } from '../services/asistenciaService.js'
+import { obtenerEstudiantesPorCurso } from '../services/estudiantesService.js'
 import { crearEvidencia } from '../services/evidenciasService.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1216,8 +1217,29 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     [cursos, cursoActivo, claseNorm]
   )
   const periodoRegistro = normalizarPeriodoRegistro(cursoParaAula?.periodo || cursoParaAula?.periodoActivo || 'Periodo 1')
+  // Los estudiantes REALES viven en usuarios/{uid}/estudiantes (subcolección);
+  // el curso solo a veces los trae embebidos. Sin este fallback, el pase de
+  // lista no aparecía para cursos sin estudiantesDetalle.
+  const [estudiantesSub, setEstudiantesSub] = useState([])
+  useEffect(() => {
+    let vigente = true
+    setEstudiantesSub([])
+    const embebidos = (cursoParaAula?.estudiantesDetalle?.length || 0)
+      + (cursoParaAula?.estudiantesLista?.length || 0)
+      + (cursoParaAula?.estudiantesNombres?.length || 0)
+    if (!cursoParaAula?.id || embebidos > 0) return undefined
+    obtenerEstudiantesPorCurso(cursoParaAula.id)
+      .then((lista) => { if (vigente) setEstudiantesSub(Array.isArray(lista) ? lista : []) })
+      .catch(() => {})
+    return () => { vigente = false }
+  }, [cursoParaAula?.id, cursoParaAula?.estudiantesDetalle?.length, cursoParaAula?.estudiantesLista?.length, cursoParaAula?.estudiantesNombres?.length])
+
   const estudiantesAula = useMemo(() => {
-    const fuente = cursoParaAula?.estudiantesDetalle || cursoParaAula?.estudiantesLista || cursoParaAula?.estudiantesNombres || []
+    // Chequeo por LONGITUD: un array vacío embebido no debe tapar la subcolección
+    const fuente = cursoParaAula?.estudiantesDetalle?.length ? cursoParaAula.estudiantesDetalle
+      : cursoParaAula?.estudiantesLista?.length ? cursoParaAula.estudiantesLista
+      : cursoParaAula?.estudiantesNombres?.length ? cursoParaAula.estudiantesNombres
+      : estudiantesSub
     return fuente
       .map((estudiante, index) => ({
         id: estudiante?.id || estudiante?.matricula || `est-${index + 1}`,
@@ -1227,7 +1249,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         seccion: estudiante?.seccion || cursoParaAula?.seccion || '',
       }))
       .filter((estudiante) => estudiante.nombre)
-  }, [cursoParaAula, claseNorm?.grado])
+  }, [cursoParaAula, claseNorm?.grado, estudiantesSub])
 
   // ═══ PASE DE LISTA (HITO 3.1) — asistencia real del día, por curso
   const [paseLista, setPaseLista] = useState({})              // estId → estado

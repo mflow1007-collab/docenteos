@@ -14,6 +14,7 @@ import {
 } from "../firebase";
 import { validarPonderacion } from "../services/hiloPedagogico.js";
 import { obtenerAvanceCurricular } from "../services/avanceCurricularService.js";
+import { obtenerAsistenciaCurso } from "../services/asistenciaService.js";
 import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -89,6 +90,25 @@ function crearCalendarioMes(mes, anioEscolar) {
       return diaMes >= 1 && diaMes <= ultimoDia ? diaMes : null;
     })
   );
+}
+
+// Fecha ISO → posición en la cuadrícula mensual (misma aritmética que
+// crearCalendarioMes). null si cae fuera del calendario escolar o en finde.
+const NOMBRE_MES_POR_NUMERO = Object.fromEntries(
+  Object.entries(MESES_NUMERO).map(([nombre, num]) => [num, nombre])
+);
+function posicionEnCuadricula(fechaISO, anioEscolar) {
+  const d = new Date(`${String(fechaISO).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const mes = NOMBRE_MES_POR_NUMERO[d.getMonth()];
+  if (!mes) return null; // julio: fuera del año escolar
+  if (obtenerAnioParaMes(mes, anioEscolar) !== d.getFullYear()) return null;
+  const diaIdx = (d.getDay() + 6) % 7;
+  if (diaIdx > 4) return null; // fin de semana
+  const desplazamientoLunes = (new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7;
+  const semanaIdx = Math.floor((d.getDate() - 1 + desplazamientoLunes) / 7);
+  if (semanaIdx < 0 || semanaIdx >= SEMANAS_ASISTENCIA) return null;
+  return { mes, semanaIdx, diaIdx };
 }
 
 const crearAsistenciaParaEstudiantes = (estudiantes) =>
@@ -381,6 +401,38 @@ function RegistroPage({
       .catch(() => { if (vivo) setAvanceCurricular({ porIndicador: [], totalResultados: 0 }); });
     return () => { vivo = false; };
   }, [tabActiva, curso?.id]);
+
+  // HITO 3.1 — enlace Modo Aula → Registro: el pase de lista guardado por día
+  // se vuelca sobre la cuadrícula mensual al abrir la pestaña Asistencia.
+  // El dato de Modo Aula MANDA sobre esas celdas (es lo más fresco); las
+  // celdas de días sin lista pasada no se tocan.
+  useEffect(() => {
+    if (tabActiva !== "Asistencia" || !curso?.id) return;
+    let vivo = true;
+    obtenerAsistenciaCurso(curso.id).then((dias) => {
+      if (!vivo || !dias.length) return;
+      const LETRA = { presente: "P", ausente: "A", tarde: "T", excusa: "E" };
+      setAsistencia((prev) => {
+        const next = prev.map((est) => ({ ...est, meses: { ...est.meses } }));
+        const filaPorId = new Map(next.map((est, i) => [String(est.id), i]));
+        for (const dia of dias) {
+          const pos = posicionEnCuadricula(dia.fecha, anioEscolar);
+          if (!pos) continue;
+          for (const [estId, estado] of Object.entries(dia.marcas || {})) {
+            const i = filaPorId.get(String(estId));
+            const letra = LETRA[estado];
+            if (i === undefined || !letra) continue;
+            const semanas = normalizarSemanasAsistencia(next[i].meses[pos.mes]);
+            semanas[pos.semanaIdx] = [...semanas[pos.semanaIdx]];
+            semanas[pos.semanaIdx][pos.diaIdx] = letra;
+            next[i].meses = { ...next[i].meses, [pos.mes]: semanas };
+          }
+        }
+        return next;
+      });
+    });
+    return () => { vivo = false; };
+  }, [tabActiva, curso?.id, anioEscolar]);
 
   // Código de indicador → texto corto, desde los aspectos ya cargados del curso
   const textosIndicador = useMemo(() => {

@@ -53,6 +53,17 @@ export const obtenerPaseLista = async (cursoId, fecha = hoyISO()) => {
   }
 };
 
+/** Todos los días con lista pasada del curso (para la cuadrícula del Registro). */
+export const obtenerAsistenciaCurso = async (cursoId) => {
+  if (!db || !uid() || !cursoId) return [];
+  try {
+    const snap = await getDocs(colAsistencia(cursoId));
+    return snap.docs.map((d) => ({ fecha: d.id, ...d.data() }));
+  } catch {
+    return [];
+  }
+};
+
 /**
  * Guarda el pase de lista del día (merge:true — regla de producción) y
  * actualiza el % de asistencia de cada estudiante marcado. La actualización
