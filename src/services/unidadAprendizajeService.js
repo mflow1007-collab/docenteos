@@ -1920,6 +1920,7 @@ const _generarFasesConIA = async (
     specFase.productoFinalNombre = productoFinalNombreActual;
     if (contexto.productoPropio) specFase.productoFinalNombre = contexto.productoPropio;
     specFase.indicadoresTrabajadosAntes = Array.isArray(contexto.indicadoresTrabajadosAntes) ? contexto.indicadoresTrabajadosAntes : [];
+    specFase.indicadoresDebiles = Array.isArray(contexto.indicadoresDebiles) ? contexto.indicadoresDebiles : [];
 
     // Progreso narrado para el docente: fase pedagógica, semana calendario y
     // tópico real por día según la malla/contenidos oficiales ya seleccionados.
@@ -2132,6 +2133,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     competenciasFundamentalesSeleccionadas = [],
     temasSeleccionados = [],
     indicadoresTrabajadosAntes = [],
+    indicadoresDebiles = [],
     // Rótulo del documento: "Unidad de Aprendizaje" o "Secuencia Didáctica"
     // (mismo esquema MINERD; solo cambia la etiqueta)
     tipoPlanificacion = "Unidad de Aprendizaje",
@@ -2358,6 +2360,8 @@ export const generarUnidadAprendizaje = async (datos) => {
       // Indicadores de unidades anteriores: alimentan el marcado ~~tachado~~
       // del prompt y la lista de permitidos del validador (R1)
       indicadoresTrabajadosAntes,
+      // Fase 9 — logro real bajo el umbral: marcado (REFORZAR) en el prompt
+      indicadoresDebiles,
     },
     mallaContenidos,
     mallaPayload, allInds, allComps, durMinEf, grado,

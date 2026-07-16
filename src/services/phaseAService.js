@@ -959,13 +959,17 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const recorta = (t) => { const s = String(t || '').trim(); return s.length > 90 ? s.slice(0, 90).replace(/\s+\S*$/, '') + '…' : s; };
   const codigosTrabajo   = new Set((spec.indicadoresTrabajo || []).map(i => i.codigoOficial || i.id || '').filter(Boolean));
   const codigosAnteriores = new Set((spec.indicadoresTrabajadosAntes || []).map(normalizarCodigo).filter(Boolean));
+  // Fase 9 — cierre del ciclo: indicadores con logro real bajo el umbral en
+  // las evaluaciones del curso. El marcado (REFORZAR) pide volver a trabajarlos.
+  const codigosDebiles = new Set((spec.indicadoresDebiles || []).map(normalizarCodigo).filter(Boolean));
   const todosIndicadores  = spec.indicadores?.length ? spec.indicadores : (spec.indicadoresTrabajo || []);
   const indText = todosIndicadores
     .map(i => {
       const cod  = i.codigoOficial || i.id || 's/c';
       const desc = recorta(i.descripcion || i.texto);
       if (!desc) return null;
-      const linea = `[${cod}] ${desc}`;
+      const refuerzo = codigosDebiles.has(normalizarCodigo(cod)) ? ' (REFORZAR)' : '';
+      const linea = `[${cod}] ${desc}${refuerzo}`;
       if (codigosTrabajo.has(cod))              return `**${linea}**`;
       if (codigosAnteriores.has(normalizarCodigo(cod))) return `~~${linea}~~`;
       return linea;
@@ -1089,7 +1093,7 @@ ${patronDesarrollo}
    Cierre: 3 actividades — socialización de lo producido → reflexión sobre UN aspecto específico del aprendizaje del día → guardar el artefacto en el portafolio o exit ticket con una producción nueva ("Guardan … en el portafolio para el producto final."). PROHIBIDO cerrar con frases genéricas como "reflexionan sobre lo aprendido"; nombra el contenido exacto y el aporte al producto.
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
-8. CADA clase incluye "indicadoresTrabajados": elige de 1 a 3 CÓDIGOS EXACTOS de los indicadores marcados en **negrita** arriba (son los que corresponden a este tema). Los ~~tachados~~ ya fueron trabajados en una unidad anterior — solo úsalos si el contenido del día los requiere directamente. Los sin marcado no aplican a esta secuencia. PROHIBIDO inventar códigos o usar indicadores fuera de la malla.
+8. CADA clase incluye "indicadoresTrabajados": elige de 1 a 3 CÓDIGOS EXACTOS de los indicadores marcados en **negrita** arriba (son los que corresponden a este tema). Los ~~tachados~~ ya fueron trabajados en una unidad anterior — solo úsalos si el contenido del día los requiere directamente. Los marcados (REFORZAR) fueron trabajados pero el curso NO los logró en las evaluaciones reales: cuando el contenido del día lo permita, retómalos con actividades NUEVAS (no repitas las anteriores) y dales prioridad al elegir. Los sin marcado no aplican a esta secuencia. PROHIBIDO inventar códigos o usar indicadores fuera de la malla.
 9. CADA clase incluye "titulo" (título llamativo de la clase) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], ${conQueEjem} — o su equivalente "con…", "a través de…", "comprendiendo…", [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — nombra siempre el contenido real de la malla (ej. idioma: "describirán sus hábitos y su frecuencia mediante comprensión oral y producción escrita, utilizando presente simple y adverbios de frecuencia"; ej. otra área: "clasificarán los tipos de ecosistemas de su comunidad mediante observación y comparación de casos, utilizando los criterios de biodiversidad y clima").
 10. CADA clase incluye encabezado pedagógico:
    • "tituloSemana": título que refleja la FASE de la unidad y AVANZA semana a semana ("Exploración y descripción" → "Profundización" → "Integración y producto final"); no repitas el mismo en semanas distintas.
@@ -1227,6 +1231,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         ...(spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
           .map((ind) => ind.codigoOficial || ind.id || ind.codigo),
         ...(spec.indicadoresTrabajadosAntes || []).map(normalizarCodigo),
+        ...(spec.indicadoresDebiles || []).map(normalizarCodigo),
       ].filter(Boolean);
       validateBatch(result.data, durMin, count, focoGram, {
         memoria,
@@ -1584,6 +1589,7 @@ export const generateWeekPlan = async (
     ...(spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
       .map((ind) => ind.codigoOficial || ind.id || ind.codigo),
     ...(spec.indicadoresTrabajadosAntes || []).map(normalizarCodigo),
+    ...(spec.indicadoresDebiles || []).map(normalizarCodigo),
   ].filter(Boolean);
   const baseCheckpointKey = checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas);
 

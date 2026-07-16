@@ -4,6 +4,7 @@ import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.
 import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
 import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
+import { obtenerIndicadoresDebiles } from "../services/avanceCurricularService.js";
 import { applyAuditAction } from "../services/auditAcciones.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
@@ -100,6 +101,15 @@ export function useUnidadAprendizaje() {
           unidadDatos.grado, unidadDatos.asignatura,
         );
       } catch { /* sin historial, se genera sin tachados */ }
+      // Fase 9 — cierre del ciclo: indicadores con logro real bajo el umbral
+      // en las evaluaciones del curso → marcado (REFORZAR) en el prompt.
+      // Nunca bloquea: sin evaluaciones, la unidad se genera igual.
+      let indicadoresDebiles = [];
+      try {
+        indicadoresDebiles = await obtenerIndicadoresDebiles(
+          unidadDatos.grado, unidadDatos.asignatura,
+        );
+      } catch { /* sin avance, se genera sin refuerzos */ }
 
       startGenerationJob({
         id: UNIDAD_JOB_ID,
@@ -109,6 +119,7 @@ export function useUnidadAprendizaje() {
         run: ({ setProgress }) => generarUnidadAprendizaje({
           ...unidadDatos,
           indicadoresTrabajadosAntes,
+          indicadoresDebiles,
           // Rótulo del documento según el tipo elegido en la página
           // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
           tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
@@ -223,6 +234,20 @@ export function useUnidadAprendizaje() {
     });
     try {
       await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
+      // Mismo hilo que la generación normal: tachados + (REFORZAR). Antes este
+      // camino generaba sin historial y el plan forzado perdía el marcado.
+      let indicadoresTrabajadosAntes = [];
+      try {
+        indicadoresTrabajadosAntes = await obtenerIndicadoresTrabajadosPrevios(
+          unidadDatos.grado, unidadDatos.asignatura,
+        );
+      } catch { /* sin historial, se genera sin tachados */ }
+      let indicadoresDebiles = [];
+      try {
+        indicadoresDebiles = await obtenerIndicadoresDebiles(
+          unidadDatos.grado, unidadDatos.asignatura,
+        );
+      } catch { /* sin avance, se genera sin refuerzos */ }
       startGenerationJob({
         id: UNIDAD_JOB_ID,
         tipo: "unidad",
@@ -230,6 +255,8 @@ export function useUnidadAprendizaje() {
         initialMessage: `✍️ Preparando malla oficial y tema "${temaIngresado || unidadDatos.titulo || "seleccionado"}"...`,
         run: ({ setProgress }) => generarUnidadAprendizaje({
           ...unidadDatos,
+          indicadoresTrabajadosAntes,
+          indicadoresDebiles,
           tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
           onProgress: setProgress,
         }),
