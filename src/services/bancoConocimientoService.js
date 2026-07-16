@@ -523,9 +523,9 @@ const flattenStringItems = (items, nestedKeys = []) => asArray(items).flatMap((i
     .filter(Boolean);
 });
 
-const flattenVocabulario = (items) => flattenStringItems(items, ['palabras', 'vocabulario', 'items']);
+const flattenVocabulario = (items) => flattenStringItems(items, ['palabras', 'vocabulario', 'ejemplos', 'items']);
 
-const flattenFrases = (items) => flattenStringItems(items, ['frases', 'expresiones', 'items']);
+const flattenFrases = (items) => flattenStringItems(items, ['frases', 'expresiones', 'ejemplos', 'items']);
 
 const flattenGramatica = (items) => asArray(items).flatMap((item) => {
   if (typeof item === 'string') return [item];
@@ -536,6 +536,16 @@ const flattenGramatica = (items) => asArray(items).flatMap((item) => {
 }).filter(Boolean);
 
 const flattenFunciones = (items) => flattenStringItems(items, ['funciones', 'funcionesComunicativas', 'items']);
+
+const flattenNestedTextValues = (value) => {
+  if (Array.isArray(value)) return value.flatMap(flattenNestedTextValues);
+  if (typeof value === 'string') return [cleanText(value)].filter(Boolean);
+  if (!value || typeof value !== 'object') return [];
+  const texto = cleanText(value.nombre || value.descripcion || value.texto || value.estructura || value.funcion);
+  return texto
+    ? [texto]
+    : Object.values(value).flatMap(flattenNestedTextValues);
+};
 
 // Fix auditoría 2026-07-04: contar SOLO campos reales del registro. Antes
 // también sumaba instrumentosSugeridos/evidenciasEsperadas (datos de malla),
@@ -773,9 +783,9 @@ const normalizeContenidoPorTema = (bloque = {}) => {
     tema,
     conceptos: {
       temas: lista(conceptos.temas?.length ? conceptos.temas : (tema ? [tema] : [])),
-      vocabulario: lista(conceptos.vocabulario),
-      gramatica: lista(conceptos.gramatica || conceptos.gramática),
-      frases: lista(conceptos.frases || conceptos.expresiones),
+      vocabulario: flattenVocabulario(conceptos.vocabulario),
+      gramatica: flattenGramatica(conceptos.gramatica || conceptos.gramática),
+      frases: flattenFrases(conceptos.frases || conceptos.expresiones),
       sociolinguisticos: lista(
         conceptos.sociolinguisticos || conceptos.sociolingüísticos || conceptos.socioculturales || conceptos.sociolinguisticosSocioculturales
       ),
@@ -783,6 +793,18 @@ const normalizeContenidoPorTema = (bloque = {}) => {
     procedimientos: {
       funcionales: lista(procedimientos.funcionales),
       discursivos: lista(procedimientos.discursivos),
+      estrategicos: procedimientos.estrategicos && typeof procedimientos.estrategicos === 'object'
+        ? Object.fromEntries(
+            Object.entries(procedimientos.estrategicos)
+              .map(([key, value]) => [key, lista(value)])
+              .filter(([, value]) => value.length)
+          )
+        : {},
+      sociolinguisticosYSocioculturales: lista(
+        procedimientos.sociolinguisticosYSocioculturales
+          || procedimientos.sociolingüísticosYSocioculturales
+          || procedimientos.socioculturales
+      ),
       comprensionOralEscrita: lista(
         procedimientos.comprensionOralEscrita || procedimientos.comprensiónOralEscrita || procedimientos.comprension || procedimientos.comprensión
       ),
@@ -805,6 +827,7 @@ export const normalizeCurricularJson = (raw) => {
   const source = Object.keys(payload).length ? payload : raw.curriculoOficial || raw;
   const sourceMetadata = source.metadata || metadata;
   const contenidosFuente = source.contenidos || raw.contenidos || {};
+  const procedimientosFuenteBase = contenidosFuente?.procedimientos || {};
   const contenidosPorTema = asArray(
     source.contenidosPorTema || raw.contenidosPorTema || contenidosFuente.contenidosPorTema
   ).map(normalizeContenidoPorTema)
@@ -816,6 +839,12 @@ export const normalizeCurricularJson = (raw) => {
   const sociolinguisticosDesdeBloques = contenidosPorTema.flatMap(bloque => bloque.conceptos.sociolinguisticos || []);
   const funcionalesDesdeBloques = contenidosPorTema.flatMap(bloque => bloque.procedimientos.funcionales || []);
   const discursivosDesdeBloques = contenidosPorTema.flatMap(bloque => bloque.procedimientos.discursivos || []);
+  const estrategicosDesdeBloques = contenidosPorTema.flatMap(bloque =>
+    flattenNestedTextValues(bloque.procedimientos.estrategicos || {})
+  );
+  const sociolinguisticosProcedimentalesDesdeBloques = contenidosPorTema.flatMap(bloque =>
+    bloque.procedimientos.sociolinguisticosYSocioculturales || []
+  );
   const comprensionDesdeBloques = contenidosPorTema.flatMap(bloque => bloque.procedimientos.comprensionOralEscrita || []);
   const produccionOralDesdeBloques = contenidosPorTema.flatMap(bloque => bloque.procedimientos.produccionOral || []);
   const produccionEscritaDesdeBloques = contenidosPorTema.flatMap(bloque => bloque.procedimientos.produccionEscrita || []);
@@ -855,6 +884,18 @@ export const normalizeCurricularJson = (raw) => {
     contenidosFuente?.procedimientos?.funcionales,
     funcionalesDesdeBloques,
   ));
+  const sociolinguisticosFuente = uniqueCleanTexts([
+    ...flattenNestedTextValues(
+      procedimientosFuenteBase.sociolinguisticosYSocioculturales
+        || procedimientosFuenteBase.sociolingüísticosYSocioculturales
+        || procedimientosFuenteBase.socioculturales
+    ),
+    ...sociolinguisticosProcedimentalesDesdeBloques,
+  ]);
+  const estrategicosFuente = uniqueCleanTexts([
+    ...flattenNestedTextValues(procedimientosFuenteBase.estrategicos),
+    ...estrategicosDesdeBloques,
+  ]);
   const contenidosBase = normalizeContentLists(source.contenidosGenerales || raw.contenidosGenerales || {});
   const temasConceptualesFuente = flattenStringItems(firstArray(
     source.temas,
@@ -872,6 +913,7 @@ export const normalizeCurricularJson = (raw) => {
       ...vocabularioFuente,
       ...gramaticaFuente,
       ...sociolinguisticosDesdeBloques,
+      ...sociolinguisticosFuente,
     ]),
     procedimentales: contenidosBase.procedimentales.length
       ? contenidosBase.procedimentales
@@ -882,6 +924,7 @@ export const normalizeCurricularJson = (raw) => {
           ...produccionOralDesdeBloques,
           ...produccionEscritaDesdeBloques,
           ...procedimientosItemsDesdeBloques,
+          ...estrategicosFuente,
         ]),
     actitudinales: uniqueCleanTexts([
       ...contenidosBase.actitudinales,
@@ -936,7 +979,7 @@ export const normalizeCurricularJson = (raw) => {
   const contentType = debeSerRegistro ? 'registro_minerd' : tipoDeclarado;
 
   const conceptosFuente = contenidosFuente?.conceptos || {};
-  const procedimientosFuente = contenidosFuente?.procedimientos || {};
+  const procedimientosFuente = procedimientosFuenteBase;
   const contenidosNormalizados = {
     ...contenidosFuente,
     conceptos: {
@@ -960,6 +1003,10 @@ export const normalizeCurricularJson = (raw) => {
       funcionales: funcionesFuente.length
         ? funcionesFuente
         : asArray(procedimientosFuente.funcionales),
+      sociolinguisticosYSocioculturales: sociolinguisticosFuente.length
+        ? sociolinguisticosFuente
+        : asArray(procedimientosFuente.sociolinguisticosYSocioculturales),
+      estrategicos: procedimientosFuente.estrategicos || {},
       items: asArray(procedimientosFuente.items).length
         ? procedimientosFuente.items
         : contenidosGenerales.procedimentales,

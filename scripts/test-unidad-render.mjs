@@ -826,8 +826,9 @@ check("con Capa 2: gramática por igualdad EXACTA de estructura", () => {
 check("con Capa 2: funcionales del tema pasan a la spec; expresiones filtradas por categoría", () => {
   const t = resolverTemaEnriquecido(enriquecimientoING1, "Vivienda, entorno y ciudad");
   const mc = _extraerContenidosMallaCorpus(corpusV13, "Vivienda, entorno y ciudad", t);
-  if (!mc.funcionales.includes("Describir y comparar lugares y objetos")) throw new Error("no pasó los funcionales del tema");
-  if (mc.funcionales.includes("Funcional genérica del grado completo")) throw new Error("mezcló funcionales del grado");
+  // Los funcionales llegan etiquetados para el prompt ("Funcional: …")
+  if (!mc.funcionales.some((f) => f.includes("Describir y comparar lugares y objetos"))) throw new Error("no pasó los funcionales del tema");
+  if (mc.funcionales.some((f) => f.includes("Funcional genérica del grado completo"))) throw new Error("mezcló funcionales del grado");
   if (!mc.expresiones.includes("That's right!")) throw new Error("no filtró expresiones por categoría");
   if (mc.expresiones.includes("Goodbye!")) throw new Error("incluyó expresiones de otra categoría");
 });
@@ -835,7 +836,7 @@ check("con Capa 2: funcionales del tema pasan a la spec; expresiones filtradas p
 check("sin Capa 2 (ausente): comportamiento actual — nivel-grado completo, nunca bloquea", () => {
   const mc = _extraerContenidosMallaCorpus(corpusV13, "Vivienda, entorno y ciudad", null);
   if (!mc.vocabulario.includes("rice")) throw new Error("sin Capa 2 debía traer el grado completo");
-  if (!mc.funcionales.includes("Funcional genérica del grado completo")) throw new Error("perdió los funcionales del grado");
+  if (!mc.funcionales.some((f) => f.includes("Funcional genérica del grado completo"))) throw new Error("perdió los funcionales del grado");
 });
 
 check("corpus sin campo categoria + Capa 2 → fallback al grado (expresiones = etiquetas del tema)", () => {

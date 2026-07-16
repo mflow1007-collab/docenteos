@@ -169,11 +169,12 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
     ) : <em>{empty}</em>
   );
   const contenidosMalla = unidad.matrizCurricularInterna?.contenidosMalla || null;
-  const contenidoVista = contenidosMalla || {
+  const contenidosActivosVista = {
     conceptuales: (contenidos?.conceptuales || []).map((texto) => ({ texto: textoItem(texto), estado: "activo" })),
     procedimentales: (contenidos?.procedimentales || []).map((texto) => ({ texto: textoItem(texto), estado: "activo" })),
     actitudinales: (contenidos?.actitudinales || []).map((texto) => ({ texto: textoItem(texto), estado: "activo" })),
   };
+  const contenidoVista = editando && contenidosMalla ? contenidosMalla : contenidosActivosVista;
   const renderContenido = (item, grupo, index) => {
     const texto = textoItem(item?.texto || item);
     const style = {

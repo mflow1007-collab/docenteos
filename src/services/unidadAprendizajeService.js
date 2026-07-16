@@ -260,10 +260,23 @@ const extraerEjemplos = (items = []) => toArray(items).flatMap((item) => {
   return [textoPlano(item)].filter(Boolean);
 });
 
+const textosDeObjetoListas = (obj = {}) =>
+  Object.values(obj || {}).flatMap((value) => toArray(value));
+
+const tieneEtiquetaContenido = (texto = "") =>
+  /^(Vocabulario|Gram[aá]tica|Expresi[oó]n|Funcional|Discursivo):\s*/i.test(String(texto || "").trim());
+
+const etiquetarContenido = (tipo, texto) => {
+  const limpio = textoPlano(texto);
+  if (!limpio) return "";
+  return tieneEtiquetaContenido(limpio) ? limpio : `${tipo}: ${limpio}`;
+};
+
 const construirBloquesContenidoMalla = (payload = {}) => {
   const conceptos = payload.contenidos?.conceptos || {};
   const procedimientos = payload.contenidos?.procedimientos || {};
   const generales = payload.contenidosGenerales || {};
+  const estrategicos = procedimientos.estrategicos || {};
   const actitudes = textosUnicos([
     ...toArray(generales.actitudinales),
     ...toArray(generales.actitudesValores),
@@ -280,6 +293,7 @@ const construirBloquesContenidoMalla = (payload = {}) => {
     frases: textosUnicos([
       ...extraerEjemplos(conceptos.frases),
       ...extraerEjemplos(conceptos.expresiones),
+      ...toArray(procedimientos.sociolinguisticosYSocioculturales),
       ...toArray(payload.frases),
       ...toArray(payload.expresiones),
     ]),
@@ -288,10 +302,10 @@ const construirBloquesContenidoMalla = (payload = {}) => {
       ...extraerEjemplos(payload.vocabulario),
     ]),
     gramatica: textosUnicos([
-      ...toArray(conceptos.gramatica),
-      ...toArray(conceptos.gramática),
-      ...toArray(payload.gramatica),
-      ...toArray(payload.gramática),
+      ...toArray(conceptos.gramatica).map((g) => typeof g === "object" ? g.estructura : g),
+      ...toArray(conceptos.gramática).map((g) => typeof g === "object" ? g.estructura : g),
+      ...toArray(payload.gramatica).map((g) => typeof g === "object" ? g.estructura : g),
+      ...toArray(payload.gramática).map((g) => typeof g === "object" ? g.estructura : g),
     ]),
     procedimientosFuncionales: textosUnicos([
       ...toArray(procedimientos.funcionales),
@@ -304,6 +318,7 @@ const construirBloquesContenidoMalla = (payload = {}) => {
       ...toArray(procedimientos.discurso),
       ...toArray(procedimientos.comprension),
       ...toArray(procedimientos.produccion),
+      ...textosDeObjetoListas(estrategicos),
     ]),
     actitudesValores: actitudes,
     conceptuales: textosUnicos([
@@ -1347,12 +1362,14 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
   if (bloqueTema) {
     const conceptos = bloqueTema.conceptos || {};
     const procedimientos = bloqueTema.procedimientos || {};
-    const vocabulario = textosUnicos(conceptos.vocabulario || []);
-    const gramatica = textosUnicos(conceptos.gramatica || conceptos.gramática || []);
+    const vocabulario = textosUnicos(extraerEjemplos(conceptos.vocabulario || []));
+    const gramatica = textosUnicos(toArray(conceptos.gramatica || conceptos.gramática)
+      .map((g) => typeof g === "object" ? g.estructura : g));
     const expresiones = textosUnicos([
-      ...(conceptos.frases || []),
-      ...(conceptos.expresiones || []),
+      ...extraerEjemplos(conceptos.frases || []),
+      ...extraerEjemplos(conceptos.expresiones || []),
       ...(conceptos.sociolinguisticos || []),
+      ...(procedimientos.sociolinguisticosYSocioculturales || []),
     ]);
     // Procedimentales del modelo MINERD: subdivididos en FUNCIONALES (lo que el
     // estudiante hace comunicativamente) y DISCURSIVOS (comprensión y producción
@@ -1364,11 +1381,12 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
       ...(procedimientos.comprensionOralEscrita || []),
       ...(procedimientos.produccionOral || []),
       ...(procedimientos.produccionEscrita || []),
+      ...textosDeObjetoListas(procedimientos.estrategicos || {}),
     ]);
     const _otros = textosUnicos(procedimientos.items || []);
     const funcionales = textosUnicos([
-      ..._func.map((f) => `Funcional: ${f}`),
-      ..._disc.map((d) => `Discursivo: ${d}`),
+      ..._func.map((f) => etiquetarContenido("Funcional", f)),
+      ..._disc.map((d) => etiquetarContenido("Discursivo", d)),
       ..._otros,
     ]);
     const actitudinales = textosUnicos([
@@ -1376,8 +1394,6 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
       ...(bloqueTema.actitudesValores || []),
     ]);
     const conceptuales = textosUnicos([
-      bloqueTema.tema,
-      ...(conceptos.temas || []),
       ...vocabulario,
       ...gramatica,
       ...expresiones,
@@ -1420,6 +1436,10 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
   let expresiones = exprRaw.flatMap(e =>
     Array.isArray(e.ejemplos) ? e.ejemplos : (typeof e === 'string' ? [e] : [])
   );
+  expresiones = textosUnicos([
+    ...expresiones,
+    ...(Array.isArray(p.sociolinguisticosYSocioculturales) ? p.sociolinguisticosYSocioculturales : []),
+  ]);
   // Expresiones/funcionales del tema enriquecido pasan directo (etiquetas
   // oficiales de la malla) cuando el corpus no permite filtrar por categoría
   if (!expresiones.length && temaEnriquecido?.expresiones?.length) {
@@ -1430,6 +1450,10 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
     : _filtrarPorTema(Array.isArray(p.funcionales) ? p.funcionales : [], temaFiltro)
         .map((f) => (typeof f === 'string' ? f : (f.descripcion || f.texto || f.funcion || '')))
         .filter(Boolean);
+  funcionales = textosUnicos([
+    ...funcionales.map((item) => etiquetarContenido("Funcional", item)),
+    ...textosDeObjetoListas(p.estrategicos || {}).map((item) => etiquetarContenido("Discursivo", item)),
+  ]);
 
   // v1.1 fallback: per-tema arrays (vocabulario/gramatica/funcionales at temas[i]
   // level). Prefiere el bloque del tema que CORRESPONDE al temaFiltro; si no lo
@@ -1545,18 +1569,35 @@ const _textoContenidoParaAfinidad = (contenido = {}) =>
     ...(contenido.conceptuales || []),
   ]).join(" ");
 
+const _temaContenidoCoincide = (contenido = {}, tema = "") => {
+  const actual = _normTexto(contenido.temaContenido || contenido.temaOficial || "");
+  const esperado = _normTexto(tema);
+  return Boolean(actual && esperado && (actual === esperado || actual.includes(esperado) || esperado.includes(actual)));
+};
+
 const _validarAfinidadContenidoTema = ({ mallaPayload, tema, contenido }) => {
-  // Guard quirúrgico para Lenguas Extranjeras: el currículo suele tener temas
-  // amplios en español y contenidos en inglés/francés. Usamos el mismo asesor
-  // léxico para detectar bloques mal clasificados (ej. "vivienda" con sir/ma'am).
+  // Guard estructural para Lenguas Extranjeras: el currículo oficial puede
+  // trabajar un tema con gramática, funciones y expresión sociocultural aunque
+  // no traiga vocabulario explícito. Por eso primero validamos que el bloque
+  // contenidosPorTema corresponda al tema oficial y que tenga contenido real.
+  // Solo usamos el asesor léxico como respaldo cuando no hay correspondencia
+  // estructural clara.
   if (!_esLenguasExtranjeras(mallaPayload)) return;
   const textoContenido = _textoContenidoParaAfinidad(contenido);
   if (textoContenido.length < 20) return;
+  if (contenido?.fuenteContenido === "contenidosPorTema" && _temaContenidoCoincide(contenido, tema)) return;
   const senal = sugerirTemaOficial(textoContenido, [tema]);
   if (senal?.tema && _normTexto(senal.tema) === _normTexto(tema)) return;
+  const muestras = textosUnicos([
+    ...(contenido.vocabulario || []),
+    ...(contenido.gramatica || []),
+    ...(contenido.expresiones || []),
+    ...(contenido.funcionales || []),
+    ...(contenido.conceptuales || []),
+  ]).slice(0, 6).join(", ");
   throw new Error(
     `El bloque contenidosPorTema de "${tema}" existe, pero sus contenidos no parecen pertenecer a ese tema. ` +
-    `Ejemplos detectados: ${textosUnicos(contenido.vocabulario || contenido.conceptuales || []).slice(0, 6).join(", ") || "sin vocabulario claro"}. ` +
+    `Ejemplos detectados: ${muestras || "sin contenido curricular claro"}. ` +
     `DocenteOS canceló la generación para evitar una planificación contaminada. Corrige ese bloque en Potente IA/Banco de Conocimiento.`
   );
 };
