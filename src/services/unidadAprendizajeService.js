@@ -57,7 +57,7 @@ const getEstrategia = (area) =>
 
 const getAmbiente = (area) => {
   const a = {
-    "Inglés": "Aula de clases acondicionada con rincón de lectura en inglés, proyector, parlantes y materiales audiovisuales. Entorno comunitario para actividades de uso del idioma.",
+    "Inglés": "Aula ordinaria organizada en estaciones comunicativas (Listening Corner, Speaking Corner, Reading Corner y Writing Corner), ambientada con vocabulario visual, flashcards, carteles de estructuras, producciones del portafolio y recursos del contexto del estudiante. Se utilizan pizarra, cartulinas, imágenes impresas, audios cortos, videos modelo, proyector o TV cuando estén disponibles, manteniendo alternativas físicas para continuar la clase sin electricidad o internet. El hogar, la escuela y la comunidad sirven como contexto auténtico para escuchar, hablar, leer y escribir en inglés.",
     "Matemática": "Aula de clases con espacio para trabajo colaborativo, área de materiales manipulativos y acceso a herramientas de cálculo. Contextos reales del entorno para aplicación de conceptos.",
     "Ciencias de la Naturaleza": "Aula de clases adaptada como laboratorio básico, espacio exterior (patio/jardín) para observación y experimentación. Acceso a materiales naturales del entorno.",
   };
@@ -117,7 +117,7 @@ const construirSituacionNarrativa = ({
 
   if (ES_IDIOMA(area)) {
     const idioma = NOMBRE_IDIOMA(area);
-    return `${quienes} En el aula, sin embargo, se observa que a muchos estudiantes les resulta difícil comprender y expresar en ${idioma} ideas relacionadas con "${tema}", a pesar de que forman parte de su vida diaria. Ante esta realidad, surge la necesidad auténtica de aprender a comunicarse sobre "${tema}" en ${idioma}, tanto para reflexionar sobre su propia experiencia como para compartirla con compañeros, familiares y otras personas. Mediante la estrategia de ${estrategia}, los estudiantes explorarán el vocabulario y las estructuras propias del tema; compararán sus experiencias con las de sus compañeros; y participarán en situaciones comunicativas reales de escucha, habla, lectura y escritura (listening, speaking, reading y writing) centradas en "${tema}". Como producto final, elaborarán de manera progresiva ${producto} A lo largo de la unidad, cada clase aportará una evidencia a ese producto, fortaleciendo su competencia comunicativa en ${idioma}, su autonomía, su responsabilidad personal y su vínculo con la realidad de su comunidad.`;
+    return `${quienes} En el aula, sin embargo, se observa que a muchos estudiantes les cuesta nombrar, describir y comparar en ${idioma} elementos cercanos de su vida diaria relacionados con "${tema}", aunque los reconocen en su hogar, la escuela y la comunidad. Esta dificultad limita su participación en conversaciones sencillas, descripciones orales, lecturas breves y producciones escritas sobre experiencias reales. Ante esta realidad, surge la necesidad auténtica de aprender a comunicarse sobre "${tema}" en ${idioma}, conectando el contenido con situaciones familiares, escolares y comunitarias. Mediante la estrategia de ${estrategia}, los estudiantes explorarán vocabulario, estructuras y funciones comunicativas del tema; escucharán modelos breves; practicarán diálogos, descripciones y producciones escritas; compararán sus experiencias con las de sus compañeros; y construirán evidencias progresivas en un portafolio. Como producto final, elaborarán de manera progresiva ${producto} Cada clase aportará una pieza concreta a ese producto, fortaleciendo su competencia comunicativa en ${idioma}, su autonomía, su responsabilidad personal y su capacidad de expresar su realidad con cortesía y claridad.`;
   }
 
   return `${quienes} En el aula, sin embargo, se observa que muchos estudiantes conocen "${tema}" desde la experiencia cotidiana, pero les resulta difícil explicarlo, representarlo y aplicarlo con las herramientas propias de ${area}. Ante esta realidad, surge la necesidad auténtica de comprender "${tema}" para interpretar situaciones del entorno y actuar sobre ellas. Mediante la estrategia de ${estrategia}, los estudiantes explorarán los conceptos centrales del tema, los aplicarán en situaciones concretas de su contexto y socializarán sus hallazgos con el grupo. Como producto final, elaborarán de manera progresiva ${producto} A lo largo de la unidad, cada clase aportará una evidencia a ese producto, fortaleciendo sus competencias, su autonomía y su compromiso con la realidad de su comunidad.`;
@@ -194,6 +194,62 @@ const textosUnicos = (items = []) => {
     out.push(texto);
   }
   return out;
+};
+
+const normalizarClaveContenido = (texto = "") =>
+  String(texto || "")
+    .replace(/^\*\*(.*?)\*\*$/g, "$1")
+    .replace(/^~~(.*?)~~$/g, "$1")
+    .replace(/^(Vocabulario|Gram[aá]tica|Expresi[oó]n|Funcional|Discursivo):\s*/i, "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const crearEstadoContenidosMalla = ({
+  mallaPayload = {},
+  contenidosActivos = {},
+  temasActivos = [],
+  contenidosTrabajadosAntes = {},
+} = {}) => {
+  const bloques = construirBloquesContenidoMalla(mallaPayload);
+  const activosSet = new Set([
+    ...textosUnicos(contenidosActivos.conceptuales || []),
+    ...textosUnicos(contenidosActivos.procedimentales || []),
+    ...textosUnicos(contenidosActivos.actitudinales || []),
+    ...textosUnicos(contenidosActivos.vocabulario || []),
+    ...textosUnicos(contenidosActivos.gramatica || []),
+    ...textosUnicos(contenidosActivos.expresiones || []),
+    ...textosUnicos(contenidosActivos.funcionales || []),
+  ].map(normalizarClaveContenido).filter(Boolean));
+  const previosSet = new Set([
+    ...textosUnicos(contenidosTrabajadosAntes.conceptuales || []),
+    ...textosUnicos(contenidosTrabajadosAntes.procedimentales || []),
+    ...textosUnicos(contenidosTrabajadosAntes.actitudinales || []),
+  ].map(normalizarClaveContenido).filter(Boolean));
+  const marcar = (items = [], tipo = "") => textosUnicos(items).map((texto) => {
+    const key = normalizarClaveContenido(texto);
+    const estado = previosSet.has(key) ? "trabajadoAntes" : activosSet.has(key) ? "activo" : "disponible";
+    return { tipo, texto, estado };
+  });
+  return {
+    version: 1,
+    fuente: "malla_curricular",
+    temasActivos: textosUnicos(temasActivos),
+    conceptuales: [
+      ...marcar(bloques.vocabulario.map((v) => `Vocabulario: ${v}`), "vocabulario"),
+      ...marcar(bloques.gramatica.map((g) => `Gramática: ${g}`), "gramatica"),
+      ...marcar(bloques.frases.map((e) => `Expresión: ${e}`), "expresion"),
+      ...marcar(bloques.conceptuales, "conceptual"),
+    ],
+    procedimentales: [
+      ...marcar(bloques.procedimientosFuncionales.map((p) => `Funcional: ${p}`), "funcional"),
+      ...marcar(bloques.procedimientosDiscursivos.map((p) => `Discursivo: ${p}`), "discursivo"),
+    ],
+    actitudinales: marcar(bloques.actitudesValores, "actitudinal"),
+    reglaImpresion: "El PDF imprime solo los contenidos con estado activo; el resto queda como trazabilidad curricular.",
+  };
 };
 
 const extraerEjemplos = (items = []) => toArray(items).flatMap((item) => {
@@ -1725,6 +1781,8 @@ const _generarFasesConIA = async (
     producto: productoFinal,
     contextoComunitario: contexto.contextoComunitario || "",
   });
+  specBase.rutaCurricular = rutaCurricular || null;
+  specBase.temasActivos = rutaCurricular?.temas || [tema].filter(Boolean);
   // Producto escrito por el docente = nombre fijado; la IA no propone otro
   if (contexto.productoPropio) specBase.productoFinalNombre = contexto.productoPropio;
 
@@ -2197,10 +2255,10 @@ export const generarUnidadAprendizaje = async (datos) => {
   // mismo corpus — nunca strings de plantilla.
   const contenidos = (() => {
     const sintesis = modeloCurricularSuperior.contenidosSintesis || {};
-    // La malla es contenido oficial curado: se muestran TODOS los contenidos, no
-    // un recorte (el documento modelo lista ~20 actitudinales completos). Los
-    // conceptuales se ETIQUETAN por tipo — "Vocabulario:" y "Gramática:" — como
-    // las págs. 5-7 del modelo, en vez de una lista plana mezclada.
+    // La malla es la fuente oficial, pero el documento imprimible muestra SOLO
+    // los contenidos activos de la ruta curricular seleccionada. Si se combinan
+    // temas, la union de esos temas es la seleccion activa; el resto de la malla
+    // queda como trazabilidad en matrizCurricularInterna.contenidosMalla.
     const vocab = textosUnicos(mallaContenidos.vocabulario || []);
     const gram  = textosUnicos(mallaContenidos.gramatica || []);
     const expr  = textosUnicos(mallaContenidos.expresiones || []);
@@ -2228,8 +2286,25 @@ export const generarUnidadAprendizaje = async (datos) => {
         `Corrige el JSON en Administración → Potente IA o recarga la versión vigente.`
       );
     }
-    return { conceptuales, procedimentales, actitudinales };
+    return {
+      conceptuales,
+      procedimentales,
+      actitudinales,
+      _seleccionPDF: true,
+      _fuente: mallaContenidos.fuenteContenido || "contenidosPorTema",
+      _temasActivos: textosUnicos(rutaCurricular.temas || mallaContenidos.temasContenido || []),
+    };
   })();
+  const contenidosMallaEstado = crearEstadoContenidosMalla({
+    mallaPayload,
+    contenidosActivos: {
+      ...mallaContenidos,
+      conceptuales: contenidos.conceptuales,
+      procedimentales: contenidos.procedimentales,
+      actitudinales: contenidos.actitudinales,
+    },
+    temasActivos: rutaCurricular.temas,
+  });
 
   const { fases: fasesSemanalesGeneradas, productoFinalNombre } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
@@ -2332,6 +2407,12 @@ export const generarUnidadAprendizaje = async (datos) => {
       indicadoresPrecargadosTema: (especificacionCurricularUnidad.indicadoresTrabajo || []).map((ind) => ind.codigoOficial || ind.id || ind.codigo).filter(Boolean),
       fuenteIndicadoresPrecargados: especificacionCurricularUnidad.indicadoresTrabajoFuente || '',
       competencias: competenciasDetalleEnriquecidas,
+      contenidosMalla: contenidosMallaEstado,
+      contenidosSeleccionadosPDF: {
+        conceptuales: contenidos.conceptuales,
+        procedimentales: contenidos.procedimentales,
+        actitudinales: contenidos.actitudinales,
+      },
       progresionCurricular: modeloCurricularSuperior.progresion || [],
       arquitecturaCurricular: especificacionCurricularUnidad.arquitecturaCurricular || null,
     },

@@ -26,7 +26,7 @@ const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
 const MAX_TOKENS   = 12000;  // por lote (contrato incluye evidencias/metacognición/recursos por momento × clases; modelos verbosos se truncaban a 9000)
 const RETRY_TOKENS = 20000;  // reintento tras truncamiento — techo generoso para modelos verbosos (deepseek, etc.)
-const CHECKPOINT_PREFIX = 'docenteos_phase_a_checkpoint_v2';
+const CHECKPOINT_PREFIX = 'docenteos_phase_a_checkpoint_v3';
 const CHECKPOINT_TTL_MS = 12 * 60 * 60 * 1000;
 const MAX_INDICADORES_TRABAJO_UNIDAD = 6;
 const PHASE_A_FETCH_TIMEOUT_MS = 90_000;
@@ -502,6 +502,24 @@ const PRODUCTO_GENERICO = [
   'presentación/producción', 'que evidencie el dominio',
 ];
 
+const PRODUCT_RULES_BY_TOPIC = [
+  {
+    test: /parts?\s+of\s+the\s+house|partes?\s+de\s+la\s+casa|house\s+parts|rooms?\s+of\s+the\s+house|habitaciones?|vivienda/i,
+    required: /house|home|room|bedroom|kitchen|living room|bathroom|floor plan|tour|casa|hogar|habitaci[oó]n|plano|maqueta|recorrido/i,
+    forbidden: /city|cities|ciudad|barrio|neighborhood|community guide|dream city/i,
+    hint: 'Para "parts of the house", el producto debe ser de casa/hogar/habitaciones/plano/recorrido, no de ciudad.',
+  },
+  {
+    test: /daily routine|daily routines|rutina|rutinas|vida diaria/i,
+    required: /routine|routines|schedule|poster|daily|habits|h[aá]bitos|rutina|horario|agenda/i,
+    forbidden: /house map|city guide|weather|food menu/i,
+    hint: 'Para rutinas diarias, el producto debe ser poster/agenda/horario/rutina/hábitos.',
+  },
+];
+
+const productRuleForTopic = (tema = '') =>
+  PRODUCT_RULES_BY_TOPIC.find((rule) => rule.test.test(String(tema || ''))) || null;
+
 const APORTE_GENERICO = [
   'avance del producto', 'avance del proyecto', 'trabajo en el proyecto',
   'trabajo en el producto', 'aporte al producto', 'aporte al proyecto',
@@ -607,6 +625,10 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     const generico = PRODUCTO_GENERICO.find((g) => _normTextoFoco(nombreProd).includes(_normTextoFoco(g)));
     if (generico || nombreProd.length > 80) {
       throw new Error(`R11: productoFinalNombre genérico o excesivo ("${nombreProd.slice(0, 60)}…") — nombre propio y concreto (ej. "My House Map & Tour")`);
+    }
+    const reglaProducto = productRuleForTopic(opts.temaOficial);
+    if (reglaProducto && (reglaProducto.forbidden.test(nombreProd) || !reglaProducto.required.test(nombreProd))) {
+      throw new Error(`R11: productoFinalNombre desconectado del tema ("${nombreProd}") — ${reglaProducto.hint}`);
     }
   }
 
@@ -969,7 +991,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const productoLinea = spec.productoFinalNombre
     ? `- PRODUCTO FINAL DE LA UNIDAD: «${spec.productoFinalNombre}». Imagina que el producto es un rompecabezas: cada "aporteProducto" es UNA PIEZA nombrada que, sumada a las demás clases, ENSAMBLA ese producto. Al final de la unidad, las piezas juntas DEBEN DAR el producto completo. Ejemplo: si el producto es "My House Map & Tour", las piezas podrían ser → C1: "Vocabulary card set de rooms", C2: "Floor plan del hogar con etiquetas", C3: "Description card de cada room", C4: "Script del House Tour", C5: "Poster de presentación". PROHIBIDO repetir piezas o dar aportes que no conecten visiblemente con el producto final.`
     : (pedirNombreProducto
-      ? `- PRODUCTO FINAL: propón "productoFinalNombre" — nombre PROPIO y concreto derivado del tema y los discursivos de la malla (ej. tema Vivienda + croquis → "My House Map & Tour"). PROHIBIDO el genérico "Presentación/producción final sobre el tema". Luego cada clase aporta UNA PIEZA que, sumada, ensambla ese producto.`
+      ? `- PRODUCTO FINAL: propón "productoFinalNombre" — nombre PROPIO y concreto derivado del TEMA EXACTO DEL DOCENTE ("${spec.temaOficial}"), no del tema amplio de la malla. Si el título dice "parts of the house", el producto debe ser de house/home/rooms/floor plan/house tour (ej. "My House Map & Tour" o "My Dream House Poster"), NO "city guide" ni "neighborhood guide" salvo que el docente haya pedido ciudad. PROHIBIDO el genérico "Presentación/producción final sobre el tema". Luego cada clase aporta UNA PIEZA que, sumada, ensambla ese producto.`
       : (spec.productoFinal ? `- PRODUCTO FINAL DE LA UNIDAD: ${spec.productoFinal} — cada "aporteProducto" es una pieza nombrada que ensambla este producto.` : ''));
   const contextoLinea = spec.contextoComunitario
     ? `- CONTEXTO COMUNITARIO REAL (palabras del docente — úsalo en situaciones y actividades; NO inventes otros datos locales): ${spec.contextoComunitario}`
@@ -1017,6 +1039,12 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
       .map((b) => `Semana ${b.semanaInicio}${b.semanaInicio !== b.semanaFin ? `-${b.semanaFin}` : ''}: ${b.tema}`)
       .join(' | ')
     : '';
+  const temasActivosTx = Array.isArray(spec.temasActivos) && spec.temasActivos.length
+    ? spec.temasActivos.join(' + ')
+    : spec.temaOficial;
+  const reglaTemasCombinados = spec.rutaCurricular?.esCombinada
+    ? `\nREGLA DE TEMAS COMBINADOS: esta unidad integra ${temasActivosTx}. NO hagas clases sueltas por tema. La situacion de aprendizaje y el producto final son el camino unico: cada clase debe explicar para que sirve el tema de esa semana dentro del producto final. Las actividades del Desarrollo y del Cierre deben nombrar la pieza del producto que se construye, revisa o guarda.`
+    : '';
 
   const reglaInicio = esPrimeraClaseUnidad
     ? `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el ${saludoNota}: ${saludoEjem}), "retroalimentacionPrevia", "saberesPrevios" y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). Para la PRIMERA clase de la unidad no hay clase anterior: "retroalimentacionPrevia" inicia con "Retroalimentación de experiencias relacionadas con..." (exploración diagnóstica del tema con preguntas ${preguntaLoc}) y "saberesPrevios" (inicia con "Recuperación o exploración de saberes previos sobre...") puede versar sobre el tema o sobre cómo serán evaluados en la unidad. NO repitas saludo ni retroalimentación dentro de los momentos.`
@@ -1027,6 +1055,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
 TEMA: "${spec.temaOficial}"
 ÁREA: ${spec.area} | GRADO: ${spec.grado} | SEMANA: ${semanaNum} de ${numSemanas} (${rango})
 ${rutaTx ? `RUTA CURRICULAR DE LA UNIDAD: ${rutaTx}\n` : ''}
+${reglaTemasCombinados}
 
 ESPECIFICACIÓN CURRICULAR:
 - Competencias del grado: ${ceText || '(ver indicadores)'}
@@ -1048,7 +1077,7 @@ REGLAS:
 3. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
 4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con sustantivos o etiquetas — escribe directamente el verbo de acción: NO "Ticket de salida: completan…" → SÍ "Completan un ticket de salida…"; NO "Reflexión: responden…" → SÍ "Reflexionan sobre…"; NO "Evaluación:" → SÍ "Completan una evaluación…". TAMBIÉN PROHIBIDO: "Los estudiantes", "El docente", "La docente", "Se".${notaIdioma} Excepciones canónicas que SÍ inician sin verbo: "Retroalimentación de…" y "Recuperación de saberes previos…". Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
 ${patronDesarrollo}
-   Cierre: 3 actividades — socialización de lo producido → reflexión sobre UN aspecto específico del aprendizaje del día → guardar el artefacto en el portafolio o exit ticket con una producción nueva ("Guardan … en el portafolio para el producto final.").
+   Cierre: 3 actividades — socialización de lo producido → reflexión sobre UN aspecto específico del aprendizaje del día → guardar el artefacto en el portafolio o exit ticket con una producción nueva ("Guardan … en el portafolio para el producto final."). PROHIBIDO cerrar con frases genéricas como "reflexionan sobre lo aprendido"; nombra el contenido exacto y el aporte al producto.
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
 8. CADA clase incluye "indicadoresTrabajados": elige de 1 a 3 CÓDIGOS EXACTOS de los indicadores marcados en **negrita** arriba (son los que corresponden a este tema). Los ~~tachados~~ ya fueron trabajados en una unidad anterior — solo úsalos si el contenido del día los requiere directamente. Los sin marcado no aplican a esta secuencia. PROHIBIDO inventar códigos o usar indicadores fuera de la malla.
@@ -1189,6 +1218,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       validateBatch(result.data, durMin, count, focoGram, {
         memoria,
         exigirNombreProducto: pedirNombreProducto,
+        temaOficial: spec.temaOficial,
         semanaNum,
         indicadoresPermitidos,
       });
