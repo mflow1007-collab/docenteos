@@ -49,6 +49,7 @@ export default function AdminPrompts() {
 
   // B2 — Fundamento doctrinal editable sin deploy (config/fundamento-doctrinal)
   const [fundamento, setFundamento] = useState({ base: '', Inicial: '', Primaria: '', Secundaria: '' })
+  const [fundActivo, setFundActivo] = useState(true)
   const [fundAbierto, setFundAbierto] = useState(false)
   const [fundGuardando, setFundGuardando] = useState(false)
   const [fundMsg, setFundMsg] = useState('')
@@ -61,6 +62,7 @@ export default function AdminPrompts() {
         setFundamento({
           base: d.base || '', Inicial: d.Inicial || '', Primaria: d.Primaria || '', Secundaria: d.Secundaria || '',
         })
+        setFundActivo(d.activo !== false)
       })
       .catch(() => {})
     return () => { vivo = false }
@@ -75,6 +77,7 @@ export default function AdminPrompts() {
         Inicial: fundamento.Inicial.trim(),
         Primaria: fundamento.Primaria.trim(),
         Secundaria: fundamento.Secundaria.trim(),
+        activo: fundActivo,
         actualizadoEn: serverTimestamp(),
       }, { merge: true })
       invalidarCacheFundamento()
@@ -184,6 +187,12 @@ export default function AdminPrompts() {
                 />
               </label>
             ))}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: fundActivo ? '#15803d' : '#b91c1c', cursor: 'pointer' }}>
+              <input type="checkbox" checked={fundActivo} onChange={(e) => setFundActivo(e.target.checked)} />
+              {fundActivo
+                ? 'Inyección ACTIVA: todas las mentes de IA anteponen esta doctrina'
+                : '⚠️ Inyección APAGADA: las mentes usan solo su rol base (interruptor de emergencia)'}
+            </label>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <button className="admin-btn admin-btn-primary" onClick={guardarFundamento} disabled={fundGuardando}>
                 {fundGuardando ? '⏳ Guardando…' : '💾 Guardar fundamento'}

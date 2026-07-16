@@ -6,6 +6,7 @@
 
 import { registrarEventoAuditoria, registrarEventoIA } from "../firebase";
 import { AIService } from "./ai/AIService";
+import { conFundamento } from "./fundamentoDoctrinalService.js";
 
 const SYSTEM_LAB = `Eres DocenteOS AI PRO, un asistente especializado en pedagogía dominicana.
 Ayudas a docentes del sistema educativo de República Dominicana a planificar, diseñar materiales,
@@ -19,9 +20,12 @@ Responde siempre en español.`;
  * @param {string}   [contextoDocente]  Bloque de contexto generado por buildTeacherContext()
  */
 export async function llamarIALab(prompt, { onChunk, onFinish, onError }, contextoDocente = "") {
-  const system = contextoDocente
+  const systemBase = contextoDocente
     ? `${SYSTEM_LAB}\n\n${contextoDocente}`
     : SYSTEM_LAB;
+  // F2.1 — doctrina por nivel antepuesta al rol (el chat no conoce el nivel:
+  // asume Secundaria); nunca lanza ni bloquea
+  const system = await conFundamento(systemBase, "");
 
   await AIService.generate({
     module: "centro-ia",

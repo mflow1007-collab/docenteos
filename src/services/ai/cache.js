@@ -74,12 +74,15 @@ function extractSemanticKey(prompt) {
 export async function getCached(module, prompt, opts = {}) {
   try {
     const useSemantic = opts.semantic !== false;
+    // F2.2 — el SYSTEM participa en la clave: editar la doctrina invalida lo
+    // cacheado (antes podían servirse respuestas pre-doctrina hasta 7 días)
+    const sys = String(opts.system || "");
     const semanticPart = useSemantic ? extractSemanticKey(prompt) : null;
-    const rawPart = await hashKey(prompt);
+    const rawPart = await hashKey(`${sys}\u00a7${prompt}`);
 
     // Intentar con clave semántica primero (mayor hit rate entre docentes)
     if (semanticPart) {
-      const semKey  = `${module}:sem:${await hashKey(semanticPart)}`;
+      const semKey  = `${module}:sem:${await hashKey(`${sys}\u00a7${semanticPart}`)}`;
       const semSnap = await getDoc(doc(db, "aiCache", semKey));
       if (semSnap.exists()) {
         const semData = semSnap.data();
@@ -113,21 +116,22 @@ export async function getCached(module, prompt, opts = {}) {
  * @param {string} response
  * @param {number} [ttlHours=24]
  */
-export async function setCached(module, prompt, response, ttlHours = 24) {
+export async function setCached(module, prompt, response, ttlHours = 24, system = "") {
   try {
+    const sys = String(system || "");
     const expiresAt   = new Date(Date.now() + ttlHours * 3_600_000);
     const basePayload = { module, response, createdAt: serverTimestamp(), expiresAt, ttlHours };
 
     const writes = [];
 
     // Clave hash completo (siempre)
-    const rawKey = `${module}:${await hashKey(prompt)}`;
+    const rawKey = `${module}:${await hashKey(`${sys}\u00a7${prompt}`)}`;
     writes.push(setDoc(doc(db, "aiCache", rawKey), basePayload, { merge: true }));
 
     // Clave semántica (cuando aplica)
     const semanticPart = extractSemanticKey(prompt);
     if (semanticPart) {
-      const semKey = `${module}:sem:${await hashKey(semanticPart)}`;
+      const semKey = `${module}:sem:${await hashKey(`${sys}\u00a7${semanticPart}`)}`;
       writes.push(setDoc(doc(db, "aiCache", semKey), { ...basePayload, semanticKey: semanticPart }, { merge: true }));
     }
 

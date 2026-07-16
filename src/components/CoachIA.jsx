@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AIService } from '../services/ai/AIService'
+import { conFundamento } from '../services/fundamentoDoctrinalService.js'
 
 // ─── Tips por sección ─────────────────────────────────────────────────────────
 const TIPS = {
@@ -144,7 +145,7 @@ export default function CoachIA({ pagina = 'inicio', formulario = {} }) {
     }
   }, [mensajes, cargando])
 
-  const enviar = () => {
+  const enviar = async () => {
     const texto = input.trim()
     if (!texto || cargando) return
 
@@ -159,7 +160,8 @@ export default function CoachIA({ pagina = 'inicio', formulario = {} }) {
     AIService.generate({
       module: 'coach-ia',
       prompt: texto,
-      system: SYSTEM_COACH + contextoPagina,
+      // F2.1 — doctrina antepuesta (Coach no conoce el nivel: asume Secundaria)
+      system: await conFundamento(SYSTEM_COACH + contextoPagina, ''),
       maxTokens: 300,
       onChunk: (chunk) => {
         respuesta += chunk

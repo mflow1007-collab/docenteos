@@ -6,6 +6,7 @@
 
 import { registrarEventoAuditoria, registrarEventoIA } from "../firebase";
 import { AIService } from "./ai/AIService";
+import { conFundamento } from "./fundamentoDoctrinalService.js";
 
 // ─── PROMPT MAESTRO ───────────────────────────────────────────────────────────
 
@@ -259,7 +260,8 @@ ${textoUnidad}`;
   await AIService.generate({
     module: "auditoria-ia",
     prompt,
-    system: PROMPT_MAESTRO,
+    // F2.1 — doctrina del nivel REAL de la unidad auditada
+    system: await conFundamento(PROMPT_MAESTRO, unidad?.metadatos?.nivel || unidad?.metadatos?.grado || ''),
     maxTokens: 12000,
     onChunk,
     onFinish: async (respuesta) => {

@@ -113,7 +113,7 @@ export const AIService = {
     // ── 1. Buscar en cache ───────────────────────────────────────────────────
     if (moduleConfig.cache) {
       try {
-        const cached = await getCached(module, prompt);
+        const cached = await getCached(module, prompt, { system });
         if (cached) {
           onChunk(cached);
           onFinish(cached);
@@ -237,7 +237,7 @@ export const AIService = {
 
     // ── 5. Guardar en cache ──────────────────────────────────────────────────
     if (moduleConfig.cache && accumulated) {
-      setCached(module, prompt, accumulated, moduleConfig.cacheTTLHours);
+      setCached(module, prompt, accumulated, moduleConfig.cacheTTLHours, system);
     }
 
     // ── 6. Registrar uso ─────────────────────────────────────────────────────
