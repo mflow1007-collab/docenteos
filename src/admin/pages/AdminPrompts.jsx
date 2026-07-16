@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
-  collection, onSnapshot, doc, setDoc, deleteDoc,
+  collection, onSnapshot, doc, getDoc, setDoc, deleteDoc,
   query, orderBy, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../../firebase.js'
+import { FUNDAMENTO_BASE, FUNDAMENTO_POR_NIVEL } from '../../data/fundamentoDoctrinalMINERD.js'
+import { FUNDAMENTO_CONFIG_DOC, invalidarCacheFundamento } from '../../services/fundamentoDoctrinalService.js'
 
 const CATEGORIAS = [
   'Planificación diaria', 'Evaluación', 'Retroalimentación', 'Comunicación',
@@ -11,6 +13,16 @@ const CATEGORIAS = [
 ]
 
 const FORM_VACIO = { nombre: '', categoria: '', prompt: '', usoPrevisto: '', estado: 'activo' }
+
+// B2 — Fundamento doctrinal: campos del doc config/fundamento-doctrinal.
+// Campo vacío = se usa el texto de fábrica (fallback local); el placeholder
+// muestra ese texto para que el admin sepa exactamente qué está vigente.
+const CAMPOS_FUNDAMENTO = [
+  { clave: 'base', etiqueta: 'Marco común (todos los niveles)', defecto: FUNDAMENTO_BASE },
+  { clave: 'Inicial', etiqueta: 'Nivel Inicial', defecto: FUNDAMENTO_POR_NIVEL.Inicial },
+  { clave: 'Primaria', etiqueta: 'Nivel Primario', defecto: FUNDAMENTO_POR_NIVEL.Primaria },
+  { clave: 'Secundaria', etiqueta: 'Nivel Secundario', defecto: FUNDAMENTO_POR_NIVEL.Secundaria },
+]
 
 export default function AdminPrompts() {
   const [prompts,   setPrompts]   = useState([])
@@ -34,6 +46,45 @@ export default function AdminPrompts() {
     )
     return unsub
   }, [])
+
+  // B2 — Fundamento doctrinal editable sin deploy (config/fundamento-doctrinal)
+  const [fundamento, setFundamento] = useState({ base: '', Inicial: '', Primaria: '', Secundaria: '' })
+  const [fundAbierto, setFundAbierto] = useState(false)
+  const [fundGuardando, setFundGuardando] = useState(false)
+  const [fundMsg, setFundMsg] = useState('')
+  useEffect(() => {
+    let vivo = true
+    getDoc(doc(db, 'config', FUNDAMENTO_CONFIG_DOC))
+      .then((snap) => {
+        if (!vivo || !snap.exists()) return
+        const d = snap.data()
+        setFundamento({
+          base: d.base || '', Inicial: d.Inicial || '', Primaria: d.Primaria || '', Secundaria: d.Secundaria || '',
+        })
+      })
+      .catch(() => {})
+    return () => { vivo = false }
+  }, [])
+
+  const guardarFundamento = async () => {
+    setFundGuardando(true)
+    setFundMsg('')
+    try {
+      await setDoc(doc(db, 'config', FUNDAMENTO_CONFIG_DOC), {
+        base: fundamento.base.trim(),
+        Inicial: fundamento.Inicial.trim(),
+        Primaria: fundamento.Primaria.trim(),
+        Secundaria: fundamento.Secundaria.trim(),
+        actualizadoEn: serverTimestamp(),
+      }, { merge: true })
+      invalidarCacheFundamento()
+      setFundMsg('✓ Fundamento guardado. Rige en las próximas generaciones (caché de 5 min).')
+    } catch (err) {
+      setFundMsg(`❌ ${err.message}`)
+    } finally {
+      setFundGuardando(false)
+    }
+  }
 
   const abrirNuevo  = () => { setForm(FORM_VACIO); setError(''); setModal('nuevo') }
   const abrirEditar = (p) => { setForm({ ...FORM_VACIO, ...p }); setError(''); setModal(p) }
@@ -100,6 +151,47 @@ export default function AdminPrompts() {
           <p>{prompts.length} prompts en el sistema.</p>
         </div>
         <button className="admin-btn admin-btn-primary" onClick={abrirNuevo}>+ Nuevo prompt</button>
+      </div>
+
+      {/* ── B2: Fundamento doctrinal por nivel (editable sin deploy) ── */}
+      <div style={{ background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 12, marginBottom: 16 }}>
+        <button
+          type="button"
+          onClick={() => setFundAbierto((v) => !v)}
+          style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left' }}
+        >
+          <span>
+            <strong style={{ fontSize: 14, color: '#1e3a8a' }}>📜 Fundamento Doctrinal MINERD (por nivel)</strong>
+            <small style={{ display: 'block', fontSize: 12, color: '#3b82f6', marginTop: 2 }}>
+              La doctrina que cada componente de IA interioriza según el nivel. Campo vacío = texto de fábrica (se muestra de fondo).
+            </small>
+          </span>
+          <span style={{ fontSize: 12, color: '#64748b' }}>{fundAbierto ? '▲ Cerrar' : '▼ Editar'}</span>
+        </button>
+        {fundAbierto && (
+          <div style={{ padding: '0 18px 16px', display: 'grid', gap: 12 }}>
+            {CAMPOS_FUNDAMENTO.map(({ clave, etiqueta, defecto }) => (
+              <label key={clave} style={{ display: 'block' }}>
+                <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#1e3a8a', marginBottom: 4 }}>
+                  {etiqueta} {fundamento[clave].trim() ? <em style={{ color: '#15803d' }}>(personalizado)</em> : <em style={{ color: '#94a3b8' }}>(texto de fábrica)</em>}
+                </span>
+                <textarea
+                  value={fundamento[clave]}
+                  onChange={(e) => setFundamento((f) => ({ ...f, [clave]: e.target.value }))}
+                  placeholder={defecto}
+                  rows={4}
+                  style={{ width: '100%', fontSize: 12.5, lineHeight: 1.5, padding: '8px 10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'vertical', fontFamily: 'inherit' }}
+                />
+              </label>
+            ))}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button className="admin-btn admin-btn-primary" onClick={guardarFundamento} disabled={fundGuardando}>
+                {fundGuardando ? '⏳ Guardando…' : '💾 Guardar fundamento'}
+              </button>
+              {fundMsg && <small style={{ fontSize: 12, fontWeight: 600, color: fundMsg.startsWith('❌') ? '#dc2626' : '#15803d' }}>{fundMsg}</small>}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="admin-toolbar">
