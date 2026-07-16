@@ -99,9 +99,11 @@ const SYSTEM_PROMPT =
 const JSON_REMINDER =
   'RECUERDA: responde ÚNICAMENTE el objeto JSON, sin texto antes ni después, sin markdown.\n\n';
 
+// Neutro a propósito: el reintento puede caer en OTRO proveedor distinto al
+// que omitió clases[], así que no afirma "tu respuesta anterior".
 const buildMissingClassesRepairPrefix = ({ semanaNum, startDia, count }) =>
-  `TU RESPUESTA ANTERIOR FUE JSON VÁLIDO PERO INVÁLIDO PARA DOCENTEOS: omitiste "clases[]".
-Ahora corrige el lote completo. Es OBLIGATORIO devolver un objeto con:
+  `ATENCIÓN: un intento anterior devolvió JSON válido pero SIN "clases[]" — eso INVALIDA el lote.
+Es OBLIGATORIO devolver un objeto con:
 - "outputSchemaVersion": "1.3"
 - "semana": ${semanaNum}
 - "adaptacionesSemana"
@@ -1136,7 +1138,10 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   const providerOrderBase = await resolvePhaseAProviderOrder();
   const sinProveedorComposicion = providerOrderBase.length === 0;
   const MAX_INTENTOS_POR_PROVEEDOR = 2;
-  const MAX_MODELOS_CON_SERVICIO = 5; // peldaños reales de la escalera
+  // Peldaños reales de la escalera: máximo 3 modelos CON SERVICIO (los
+  // proveedores sin clave/apagados no consumen peldaño). Con 4 proveedores
+  // aptos, un tope de 4+ dejaría el límite sin efecto.
+  const MAX_MODELOS_CON_SERVICIO = 3;
   const fallosPorProveedor = new Map();
   const proveedoresProbados = new Set(); // con al menos un intento REAL (no sin-servicio)
   const anotarFallo = (p) => fallosPorProveedor.set(p, (fallosPorProveedor.get(p) || 0) + 1);

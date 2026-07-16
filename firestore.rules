@@ -288,6 +288,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── Banco IA (Prompts) ────────────────────────────────────────────────────
+    // Catálogo de prompts administrado desde el sidebar admin. Sin esta regla
+    // caía en el deny por defecto y el módulo fallaba en silencio.
+    match /promptsIA/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     // ── Whitelist de admins (ID-20) ───────────────────────────────────────────
     // Los UIDs de administradores se agregan manualmente desde Firebase Console.
     // Para activar la whitelist, cambiar isAdmin() a verificar existence aquí.
