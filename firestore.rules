@@ -302,6 +302,45 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ── Barrido auditoría HITO 5 (2026-07-16): colecciones que el código usa
+    //    y caían en el deny por defecto (fallo silencioso) ────────────────────
+
+    // Sesiones de aula guardadas al finalizar clase (campo usuario: uid)
+    match /sesiones-aula/{docId} {
+      allow create: if isAuth() && request.resource.data.usuario == request.auth.uid;
+      allow read, update, delete: if isAuth() && resource.data.usuario == request.auth.uid;
+      allow read, write: if isAdmin();
+    }
+
+    // Caché compartido de respuestas IA (claves por contenido, sin datos personales)
+    match /aiCache/{docId} {
+      allow read, create, update: if isAuth();
+      allow delete: if isAdmin();
+    }
+
+    // Asistente personal: conversaciones, uso y memoria POR USUARIO
+    match /chat_personal/{userId}/{document=**} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+    match /chat_memoria/{userId}/{document=**} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // Catálogo de currículos (páginas admin) y fuentes aprobadas del monitor
+    match /curriculos/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+    match /fuentesAprobadas/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Trabajos de Potente IA (solo panel admin)
+    match /admin_potente_ia_trabajos/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     // ── Banco IA (Prompts) ────────────────────────────────────────────────────
     // Catálogo de prompts administrado desde el sidebar admin. Sin esta regla
     // caía en el deny por defecto y el módulo fallaba en silencio.
