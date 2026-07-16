@@ -18,6 +18,7 @@ import {
   esMismoGradoEscolar,
 } from "../services/bancoConocimientoService.js";
 import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema, coincideContextoTemaTrabajado } from "../services/curriculumCombinacionService";
+import { horasOficialesSecundaria } from "../data/cargaHorariaMINERD.js";
 
 const GRADOS = [
   { grado: "Pre-Kínder", nivel: "Inicial" }, { grado: "Kínder", nivel: "Inicial" }, { grado: "Preprimario", nivel: "Inicial" },
@@ -1094,6 +1095,20 @@ export default function FormularioUnidadAprendizaje({
           </span>
         )}
       </p>
+
+      {/* F1.2 — aviso suave de carga horaria oficial (Adecuación 2023, pp.46-49).
+          Solo informa: los centros en transición ajustan su horario. */}
+      {(() => {
+        const oficial = horasOficialesSecundaria(asignatura || area, `${grado} ${nivel}`, jornada);
+        if (!oficial || oficial.horas === horasSemanales) return null;
+        return (
+          <p className="pd-hint" style={{ marginTop: 2, padding: "8px 12px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, color: "#92400e", fontWeight: 600 }}>
+            📋 Carga oficial MINERD: {oficial.asignatura} en Jornada {oficial.jornada} ({oficial.ciclo}) son{" "}
+            <strong>{oficial.horas} h/semana</strong> — tienes {horasSemanales} seleccionada{horasSemanales === 1 ? "" : "s"}.
+            Puedes continuar: es solo un recordatorio del horario oficial.
+          </p>
+        );
+      })()}
 
       {/* ── Competencias fundamentales ── */}
       <div className="pd-section-title">Competencias Fundamentales</div>

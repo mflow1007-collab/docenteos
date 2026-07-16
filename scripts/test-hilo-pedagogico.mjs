@@ -745,6 +745,20 @@ assert.ok(FUNDAMENTO_POR_NIVEL.Secundaria.includes("TERCER Nivel de Dominio"), "
 assert.ok(FUNDAMENTO_POR_NIVEL.Secundaria.includes("hipotético-deductivo"), "dimensión cognitiva del adolescente");
 ok("fundamentoLocal: base + nivel diferenciado, nivelAsumido marcado, nunca vacío; Secundaria con lenguaje oficial 2023");
 
+// ─── 16. F1.2 — Carga horaria oficial (Adecuación 2023, pp.46-49) ────────────
+console.log("\n16) F1.2 — carga horaria oficial de Secundaria");
+
+const { horasOficialesSecundaria } = await import("../src/data/cargaHorariaMINERD.js");
+assert.equal(horasOficialesSecundaria("Inglés", "1ro Secundaria", "Extendida")?.horas, 4);
+assert.equal(horasOficialesSecundaria("Inglés", "1ro Secundaria", "Regular")?.horas, 3);
+assert.equal(horasOficialesSecundaria("Inglés", "2do Secundaria", "Transición")?.horas, 2);
+assert.equal(horasOficialesSecundaria("Matemática", "4to Secundaria", "Extendida")?.horas, 7);
+assert.equal(horasOficialesSecundaria("Francés", "5to Secundaria", "Regular")?.horas, 1, "JR 2do ciclo difiere del 1ro");
+assert.equal(horasOficialesSecundaria("Educación Física", "6to Secundaria", "Regular")?.horas, 1);
+assert.equal(horasOficialesSecundaria("Inglés", "4to Primaria", "Extendida"), null, "Primaria sin fuente → null, nunca adivinar");
+assert.equal(horasOficialesSecundaria("Robótica", "1ro Secundaria", "Extendida"), null, "asignatura fuera de tabla → null");
+ok("horasOficialesSecundaria: JEE/JR/Transición por ciclo; Primaria/Inicial devuelven null (pendientes de fuente)");
+
 // La capa curricular ANOTA la clase que cae en feriado (no la mueve)
 const planFeriado = {
   ...plan,
