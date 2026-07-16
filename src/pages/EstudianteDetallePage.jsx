@@ -5,6 +5,7 @@ import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
 import { obtenerEvidenciasPorEstudiante } from "../services/evidenciasService.js";
+import { obtenerAvanceEstudiante } from "../services/avanceCurricularService.js";
 
 const EVALUACIONES_BASE_DETALLE = [];
 
@@ -54,6 +55,16 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       .then((datos) => setBancoEvidencias(datos))
       .catch(() => setBancoEvidencias([]));
   }, [tabActiva, bancoEvidencias, estudiante?.id, estudiante?.cursoId]);
+
+  // Fase 9.4 — avance curricular del estudiante (sus resultados por indicador),
+  // lazy al abrir Rendimiento. null = cargando; {porIndicador: []} = sin datos.
+  const [avanceEstudiante, setAvanceEstudiante] = useState(null);
+  useEffect(() => {
+    if (tabActiva !== "Rendimiento" || avanceEstudiante !== null) return;
+    obtenerAvanceEstudiante(estudiante?.id, { cursoId: estudiante?.cursoId || "" })
+      .then((av) => setAvanceEstudiante(av))
+      .catch(() => setAvanceEstudiante({ porIndicador: [], necesitaApoyo: [], totalResultados: 0 }));
+  }, [tabActiva, avanceEstudiante, estudiante?.id, estudiante?.cursoId]);
 
   const nombre = estudiante?.nombre || "—";
   const estado = estudiante?.estado?.label || "Sin estado";
@@ -339,14 +350,39 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         </article>
       </div>
     ),
-    "Rendimiento": (
-      <div className="detalle-tab-lista">
-        <p>Matematica: reforzar operaciones y resolucion de problemas.</p>
-        <p>Lengua: mejorar argumentacion en textos cortos.</p>
-        <p>Ciencias: mantener desempeno con proyectos practicos.</p>
-        <p>Ingles: fortalecer comprension lectora con ejercicios guiados.</p>
-      </div>
-    ),
+    "Rendimiento": (() => {
+      // Fase 9.4 — avance real por indicador oficial (antes: texto de relleno)
+      if (avanceEstudiante === null) {
+        return <div className="detalle-tab-lista"><p className="detalle-sin-datos">Cargando avance curricular…</p></div>;
+      }
+      const { porIndicador, necesitaApoyo } = avanceEstudiante;
+      if (!porIndicador.length) {
+        return (
+          <div className="detalle-tab-lista">
+            <p className="detalle-sin-datos">
+              Sin evaluaciones de instrumentos registradas para este estudiante.
+              Evalúa desde Modo Aula o Instrumentos y su avance por indicador aparecerá aquí.
+            </p>
+          </div>
+        );
+      }
+      return (
+        <div className="detalle-tab-lista">
+          {necesitaApoyo.length > 0 && (
+            <p style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px" }}>
+              <strong>⚠️ Necesita apoyo en:</strong>{" "}
+              {necesitaApoyo.map((i) => `${i.codigo} (${i.promedio}%)`).join(" · ")}
+            </p>
+          )}
+          {porIndicador.map((ind) => (
+            <p key={ind.codigo}>
+              {ind.nivel === "Logrado" ? "🟢" : ind.nivel === "En proceso" ? "🟡" : "🔴"}{" "}
+              <strong>{ind.codigo}</strong> — {ind.promedio}% · {ind.nivel} · {ind.evaluaciones} evaluación{ind.evaluaciones === 1 ? "" : "es"}
+            </p>
+          ))}
+        </div>
+      );
+    })(),
     "Evaluaciones": (
       <div className="detalle-tab-lista">
         {evaluaciones.length === 0

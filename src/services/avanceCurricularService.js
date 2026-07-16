@@ -93,6 +93,30 @@ export const obtenerAvanceCurricular = async ({ cursoId = "" } = {}) => {
 };
 
 /**
+ * Avance de UN estudiante: sus propios resultados agregados por indicador
+ * (promedio personal, nivel del hilo). Para el expediente. Nunca lanza.
+ * @returns {{ porIndicador: Array, necesitaApoyo: Array, totalResultados: number }}
+ */
+export const obtenerAvanceEstudiante = async (estudianteId, { cursoId = "" } = {}) => {
+  try {
+    const id = String(estudianteId || "");
+    if (!id) return { porIndicador: [], necesitaApoyo: [], totalResultados: 0 };
+    const propios = (await leerResultados()).filter((r) =>
+      String(r.estudianteId || "") === id
+      && (!cursoId || String(r.cursoId || "") === String(cursoId)));
+    const porIndicador = agregarResultadosPorIndicador(propios);
+    return {
+      porIndicador,
+      // Con un solo estudiante, el promedio del indicador ES su promedio personal
+      necesitaApoyo: porIndicador.filter((i) => i.promedio < 70),
+      totalResultados: propios.length,
+    };
+  } catch {
+    return { porIndicador: [], necesitaApoyo: [], totalResultados: 0 };
+  }
+};
+
+/**
  * Códigos de indicador DÉBILES para el grado+asignatura (todos sus cursos).
  * La siguiente unidad los marca (REFORZAR). Nunca lanza: sin datos → [].
  */
