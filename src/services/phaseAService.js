@@ -190,7 +190,10 @@ async function callGatewayCollect(
   }
 
   const providersDisabled = [
-    ...(Array.isArray(gwConfig.disabled) ? gwConfig.disabled : []),
+    // Fase A ya usa providerOrder estricto con modelos aptos. No heredamos el
+    // apagado global del panel admin porque puede dejar la planificación sin
+    // ningún proveedor aunque existan API keys válidas. Los apagados extra sí
+    // se respetan para descartar proveedores fallidos dentro de esta escalera.
     ...(Array.isArray(providersDisabledExtra) ? providersDisabledExtra : []),
     ...sinModeloApto,
   ].filter((v, i, arr) => v && arr.indexOf(v) === i);
