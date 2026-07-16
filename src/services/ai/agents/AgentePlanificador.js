@@ -11,6 +11,7 @@
  */
 
 import { AIService } from "../AIService.js";
+import { conFundamento } from "../../fundamentoDoctrinalService.js";
 import { getReferenciaAdecuacionesCurriculares } from "../../../data/adecuacionesCurriculares.js";
 
 const SYSTEM = `Eres el Agente Planificador de DocenteOS, experto en diseño didáctico para escuelas dominicanas (currículo MINERD).
@@ -36,6 +37,7 @@ Responde SIEMPRE con JSON válido, sin texto adicional.`;
  * @returns {Promise<Object>} Contenido adaptado
  */
 export async function adaptar(candidato, query, opciones = {}) {
+  const system = await conFundamento(SYSTEM, query.grado ?? candidato.grado ?? '');
   return new Promise((resolve, reject) => {
     let acumulado = "";
 
@@ -66,7 +68,7 @@ Retorna el JSON de la planificación adaptada. Mantén la estructura original. S
 
     AIService.generate({
       module: "planificacion-ia",
-      system: SYSTEM,
+      system,
       prompt,
       maxTokens: 3000,
       onChunk: t => { acumulado += t; },
@@ -91,11 +93,12 @@ Retorna el JSON de la planificación adaptada. Mantén la estructura original. S
  * @returns {Promise<Object>}
  */
 export async function ajustarTiempo(contenido, minutos) {
+  const system = await conFundamento(SYSTEM, '');
   return new Promise((resolve, reject) => {
     let acumulado = "";
     AIService.generate({
       module: "planificacion-ia",
-      system: SYSTEM,
+      system,
       prompt: `Ajusta los tiempos de esta planificación para clases de ${minutos} minutos.
 Redistribuye los momentos (Inicio/Desarrollo/Cierre) de forma proporcional.
 Elimina o condensa actividades si es necesario. NO agregues contenido nuevo.
@@ -124,6 +127,7 @@ Retorna el JSON con los tiempos ajustados.`,
  * @returns {Promise<Object>}
  */
 export async function adaptarNEAE(contenido, tiposNEAE = []) {
+  const system = await conFundamento(SYSTEM, '');
   return new Promise((resolve, reject) => {
     let acumulado = "";
     const neaeLista = tiposNEAE.length
@@ -133,7 +137,7 @@ export async function adaptarNEAE(contenido, tiposNEAE = []) {
 
     AIService.generate({
       module: "planificacion-ia",
-      system: SYSTEM,
+      system,
       prompt: `Incorpora adecuaciones curriculares para estudiantes con ${neaeLista} en esta planificación.
 
 Usa como referente la ${referenciaAdecuaciones}

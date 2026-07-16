@@ -45,6 +45,18 @@ export const invalidarCacheFundamento = () => { _cache = { en: 0, data: null }; 
  * NUNCA lanza y NUNCA devuelve vacío.
  * @returns {Promise<{ nivel, nivelAsumido, texto, fuente: "config"|"local" }>}
  */
+/**
+ * system final = fundamento del nivel + system base del rol (B3/B3.2).
+ * Azúcar para los agentes: nunca lanza; sin fundamento devuelve el base.
+ */
+export const conFundamento = async (systemBase, nivel = "") => {
+  try {
+    const fund = await getFundamentoDoctrinal(nivel);
+    if (fund?.texto && fund.activo !== false) return `${fund.texto}\n\n${systemBase}`;
+  } catch { /* system base */ }
+  return systemBase;
+};
+
 export const getFundamentoDoctrinal = async (nivel = "") => {
   const local = fundamentoLocal(nivel);
   try {

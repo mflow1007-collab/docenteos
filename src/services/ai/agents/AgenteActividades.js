@@ -9,6 +9,7 @@
  */
 
 import { AIService } from "../AIService.js";
+import { conFundamento } from "../../fundamentoDoctrinalService.js";
 
 const SYSTEM = `Eres el Agente de Actividades de DocenteOS, experto en diseño de experiencias de aprendizaje activas para escuelas dominicanas.
 
@@ -33,7 +34,7 @@ Formatos válidos de actividad:
 export async function generarActividades({ grado, area, tema, momento = "Desarrollo", competencia, tiempo = 30, indicador }, { onChunk, onFinish, onError }) {
   await AIService.generate({
     module: "planificacion-ia",
-    system: SYSTEM,
+    system: await conFundamento(SYSTEM, grado),
     prompt: `Diseña 3 actividades para el momento de ${momento} de una clase de ${area} para ${grado}.
 
 Tema: ${tema}
@@ -68,7 +69,7 @@ export async function regenerarSemana({ grado, area, tema, actividadesActuales =
 
   await AIService.generate({
     module: "planificacion-ia",
-    system: SYSTEM,
+    system: await conFundamento(SYSTEM, grado),
     prompt: `Genera actividades NUEVAS y DIFERENTES para la Semana ${semana ?? 1} de ${fase ?? "una unidad"} de ${area} para ${grado}.
 
 Tema: ${tema}
@@ -98,7 +99,7 @@ export async function evaluarVariedad(actividades, { grado, area }) {
 
     AIService.generate({
       module: "auditoria",
-      system: SYSTEM,
+      system: await conFundamento(SYSTEM, grado),
       prompt: `Evalúa la variedad pedagógica de estas actividades para ${area} en ${grado}:
 
 ${lista}
@@ -131,7 +132,7 @@ Responde en JSON:
 export async function sugerirEstrategias({ area, tema, grado, cantidadEstudiantes = 30 }, { onChunk, onFinish, onError }) {
   await AIService.generate({
     module: "planificacion-ia",
-    system: SYSTEM,
+    system: await conFundamento(SYSTEM, grado),
     prompt: `Sugiere 5 estrategias pedagógicas para enseñar "${tema}" en ${area} para ${grado} con ${cantidadEstudiantes} estudiantes.
 
 Para cada estrategia:

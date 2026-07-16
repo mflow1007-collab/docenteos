@@ -12,6 +12,7 @@
  */
 
 import { AIService } from "../AIService.js";
+import { conFundamento } from "../../fundamentoDoctrinalService.js";
 
 const SYSTEM = `Eres el Agente Evaluador de DocenteOS, experto en evaluación por competencias para el sistema educativo dominicano (MINERD).
 
@@ -76,13 +77,14 @@ const SCHEMAS = {
  * @returns {Promise<Object>} JSON del instrumento
  */
 export async function generarInstrumento({ tipo = "Rúbrica", tema, area, grado, competencia, indicador }) {
+  const system = await conFundamento(SYSTEM, grado);
   return new Promise((resolve, reject) => {
     let acumulado = "";
     const schema = SCHEMAS[tipo] ?? SCHEMAS["Rúbrica"];
 
     AIService.generate({
       module: "instrumentos",
-      system: SYSTEM,
+      system,
       prompt: `Crea un instrumento de ${tipo} para:
 Área: ${area}   Grado: ${grado}
 Tema: ${tema}
@@ -120,12 +122,13 @@ Reglas:
  * @returns {Promise<Object>}
  */
 export async function adaptarInstrumento(instrumentoBase, nuevoCont) {
+  const system = await conFundamento(SYSTEM, '');
   return new Promise(resolve => {
     let acumulado = "";
 
     AIService.generate({
       module: "instrumentos",
-      system: SYSTEM,
+      system,
       prompt: `Adapta el siguiente instrumento para un nuevo contexto. Mantén la estructura y tipo, cambia solo el contenido.
 
 INSTRUMENTO BASE:
@@ -157,13 +160,14 @@ Retorna el JSON adaptado. Misma estructura que el original.`,
  * @returns {Promise<{ cobertura: number, faltantes: string[] }>}
  */
 export async function verificarCobertura(instrumento, indicadoresPlan) {
+  const system = await conFundamento(SYSTEM, '');
   return new Promise(resolve => {
     let acumulado = "";
     const indStr = indicadoresPlan.slice(0, 6).join("\n- ");
 
     AIService.generate({
       module: "auditoria",
-      system: SYSTEM,
+      system,
       prompt: `Verifica si este instrumento cubre los indicadores de la planificación.
 
 INSTRUMENTO:

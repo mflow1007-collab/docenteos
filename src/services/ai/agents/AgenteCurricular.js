@@ -9,6 +9,7 @@
  */
 
 import { AIService } from "../AIService.js";
+import { conFundamento } from "../../fundamentoDoctrinalService.js";
 
 const SYSTEM = `Eres el Agente Curricular de DocenteOS, especialista en el Diseño Curricular del Nivel Primario y Secundario de la República Dominicana (MINERD).
 
@@ -32,7 +33,7 @@ export async function verificarAlineacionCurricular({ grado, area, competencia, 
 
   await AIService.generate({
     module: "auditoria",
-    system: SYSTEM,
+    system: await conFundamento(SYSTEM, grado),
     prompt: `Verifica si la siguiente competencia e indicadores corresponden fielmente al currículo MINERD para ${grado} en el área de ${area}.
 
 Competencia: ${competencia}
@@ -62,7 +63,7 @@ export async function completarMetadatos(datos) {
     let acumulado = "";
     AIService.generate({
       module: "auditoria",
-      system: SYSTEM,
+      system: await conFundamento(SYSTEM, datos.grado ?? ''),
       prompt: `Dado estos datos parciales de una planificación dominicana:
 ${JSON.stringify(datos, null, 2)}
 
@@ -95,7 +96,7 @@ Responde SOLO con el JSON completado, sin texto adicional.`,
 export async function sugerirCompetencias({ grado, area, tema }, { onChunk, onFinish, onError }) {
   await AIService.generate({
     module: "planificacion-ia",
-    system: SYSTEM,
+    system: await conFundamento(SYSTEM, ''),
     prompt: `Para ${grado} en el área de ${area}, tema "${tema}", sugiere:
 
 1. La competencia específica más apropiada según el currículo MINERD
