@@ -709,6 +709,37 @@ assert.equal(proximaEntregaReportes("Primaria", "2026-07-16")?.periodo, "P1");
 assert.equal(proximaEntregaReportes("", "2026-10-20"), null);
 ok("proximaEntregaReportes por nivel (P1-P4 del afiche, cruza el verano, tolera grado+nivel)");
 
+// ─── 15. B1 — Fundamento doctrinal por nivel (fallback local puro) ────────────
+console.log("\n15) B1 — fundamento doctrinal MINERD por nivel");
+
+const { fundamentoLocal, nivelCanonico, FUNDAMENTO_POR_NIVEL, FUNDAMENTO_BASE } =
+  await import("../src/data/fundamentoDoctrinalMINERD.js");
+
+assert.equal(nivelCanonico("1ro Secundaria"), "Secundaria");
+assert.equal(nivelCanonico("Kínder"), "Inicial");
+assert.equal(nivelCanonico("4to Primaria"), "Primaria");
+assert.equal(nivelCanonico("universidad"), "");
+for (const nivel of ["Inicial", "Primaria", "Secundaria"]) {
+  const f = fundamentoLocal(nivel);
+  assert.equal(f.nivel, nivel);
+  assert.equal(f.nivelAsumido, false);
+  assert.ok(f.texto.includes(FUNDAMENTO_BASE), `${nivel}: incluye el marco común`);
+  assert.ok(f.texto.includes(FUNDAMENTO_POR_NIVEL[nivel]), `${nivel}: incluye su bloque`);
+  assert.ok(f.texto.length > 400, `${nivel}: doctrina sustancial, no un placeholder`);
+}
+// Doctrina diferenciada de verdad: lo de Inicial no aplica a Secundaria
+assert.ok(FUNDAMENTO_POR_NIVEL.Inicial.includes("JUEGO"), "Inicial: juego como estrategia");
+assert.ok(FUNDAMENTO_POR_NIVEL.Inicial.includes("sin calificaciones numéricas"));
+assert.ok(FUNDAMENTO_POR_NIVEL.Primaria.includes("ALFABETIZACIÓN"), "Primaria: prioridad del 1er ciclo");
+assert.ok(FUNDAMENTO_POR_NIVEL.Primaria.includes("generales del día"), "Primaria: registro general de asistencia");
+assert.ok(FUNDAMENTO_POR_NIVEL.Secundaria.includes("70"), "Secundaria: mínimo de logro");
+assert.ok(FUNDAMENTO_POR_NIVEL.Secundaria.includes("su propia clase"), "Secundaria: asistencia por docente");
+// Sin nivel reconocible: asume Secundaria y LO MARCA
+const sinNivel = fundamentoLocal("");
+assert.equal(sinNivel.nivel, "Secundaria");
+assert.equal(sinNivel.nivelAsumido, true);
+ok("fundamentoLocal: base + nivel diferenciado, nivelAsumido marcado, nunca vacío");
+
 // La capa curricular ANOTA la clase que cae en feriado (no la mueve)
 const planFeriado = {
   ...plan,
