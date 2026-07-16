@@ -15,6 +15,7 @@ import {
 import { validarPonderacion } from "../services/hiloPedagogico.js";
 import { obtenerAvanceCurricular } from "../services/avanceCurricularService.js";
 import { obtenerAsistenciaCurso, obtenerSuspensiones } from "../services/asistenciaService.js";
+import { proximaEntregaReportes } from "../data/calendarioEscolarMINERD.js";
 import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -1260,6 +1261,26 @@ function RegistroPage({
           </article>
         </div>
       </section>
+
+      {/* ETAPA C — recordatorio de entrega de Reportes de Evaluación (afiche
+          oficial MINERD): visible solo en la ventana previa a la fecha */}
+      {(() => {
+        const entrega = proximaEntregaReportes(curso?.nivel || grado || "", new Date().toISOString().slice(0, 10));
+        if (!entrega || entrega.diasRestantes > 21) return null;
+        const fechaTxt = new Date(`${entrega.fecha}T12:00:00`).toLocaleDateString("es-DO", { weekday: "long", day: "numeric", month: "long" });
+        const urgente = entrega.diasRestantes <= 5;
+        return (
+          <div style={{
+            margin: "0 0 12px", padding: "10px 16px", borderRadius: 10,
+            background: urgente ? "#fef2f2" : "#eff6ff",
+            border: `1px solid ${urgente ? "#fecaca" : "#bfdbfe"}`,
+            fontSize: 13, fontWeight: 700, color: urgente ? "#b91c1c" : "#1e40af",
+          }}>
+            📋 Entrega de Reportes de Evaluación {entrega.periodo} ({entrega.nivel}): {fechaTxt}
+            {" — "}{entrega.diasRestantes === 0 ? "¡es HOY!" : `falta${entrega.diasRestantes === 1 ? "" : "n"} ${entrega.diasRestantes} día${entrega.diasRestantes === 1 ? "" : "s"}`}
+          </div>
+        );
+      })()}
 
       <section className="registro-tabs">
         {["Asistencia", "Competencias", "Indicadores", "Aspectos", "Instrumentos", "Evaluaciones", "Calificaciones", "Resumen"].map((tab) => (

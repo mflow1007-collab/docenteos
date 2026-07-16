@@ -148,6 +148,36 @@ export const diasDocenciaPrevios = (fechaISO, n = 7) => {
   return out;
 };
 
+/**
+ * Próxima entrega de Reportes de Evaluación para el nivel (afiche oficial).
+ * Busca en TODOS los años cargados la primera entrega >= fecha — así funciona
+ * también en verano, apuntando al P1 del año entrante. PURO.
+ * @returns {{ periodo, fecha, diasRestantes, anio, nivel }|null}
+ */
+export const proximaEntregaReportes = (nivel = "", fechaISO = new Date().toISOString().slice(0, 10)) => {
+  const f = _iso(fechaISO);
+  if (!f) return null;
+  const txt = String(nivel || "").toLowerCase();
+  const nivelKey = txt.includes("secundaria") ? "Secundaria"
+    : txt.includes("primaria") ? "Primaria"
+    : (txt.includes("inicial") || txt.includes("kinder") || txt.includes("preprimario")) ? "Inicial"
+    : "";
+  if (!nivelKey) return null;
+  let mejor = null;
+  for (const [anio, cal] of Object.entries(CALENDARIOS_ESCOLARES)) {
+    for (const entrega of (cal.reportesEvaluacion?.[nivelKey] || [])) {
+      if (entrega.fecha >= f && (!mejor || entrega.fecha < mejor.fecha)) {
+        mejor = { ...entrega, anio };
+      }
+    }
+  }
+  if (!mejor) return null;
+  const diasRestantes = Math.round(
+    (new Date(`${mejor.fecha}T12:00:00`) - new Date(`${f}T12:00:00`)) / 86400000
+  );
+  return { periodo: mejor.periodo, fecha: mejor.fecha, diasRestantes, anio: mejor.anio, nivel: nivelKey };
+};
+
 /** Próximo día lectivo estrictamente posterior (tope de búsqueda: 30 días). */
 export const proximoDiaLectivo = (fechaISO) => {
   const f = _iso(fechaISO);

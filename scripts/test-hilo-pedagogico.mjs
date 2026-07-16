@@ -696,6 +696,19 @@ assert.equal(estadoDocencia("2020-03-03").desconocido, true, "sin calendario car
 assert.deepEqual(diasDocenciaPrevios("2026-09-28", 3), ["2026-09-25", "2026-09-23", "2026-09-22"]);
 ok("estadoDocencia (verano/pre-docencia/feriado/fail-open) + diasDocenciaPrevios salta feriados");
 
+const { proximaEntregaReportes } = await import("../src/data/calendarioEscolarMINERD.js");
+const entregaSec = proximaEntregaReportes("1ro Secundaria", "2026-10-20");
+assert.equal(entregaSec?.periodo, "P1");
+assert.equal(entregaSec?.fecha, "2026-10-30");
+assert.equal(entregaSec?.diasRestantes, 10);
+// Secundaria e Inicial difieren: P4 Secundaria 1-jun; Inicial en jun apunta a P3 22-jun
+assert.equal(proximaEntregaReportes("Secundaria", "2027-05-30")?.fecha, "2027-06-01");
+assert.equal(proximaEntregaReportes("Inicial", "2027-06-05")?.fecha, "2027-06-22");
+// En verano apunta al P1 del año entrante; nivel desconocido → null
+assert.equal(proximaEntregaReportes("Primaria", "2026-07-16")?.periodo, "P1");
+assert.equal(proximaEntregaReportes("", "2026-10-20"), null);
+ok("proximaEntregaReportes por nivel (P1-P4 del afiche, cruza el verano, tolera grado+nivel)");
+
 // La capa curricular ANOTA la clase que cae en feriado (no la mueve)
 const planFeriado = {
   ...plan,
