@@ -43,6 +43,33 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
     onEditarUnidad({ ...unidad, competenciasDetalle: nuevoDetalle });
   };
 
+  const extraerContenidosActivos = (estado = {}) => {
+    const activos = (items = []) => (Array.isArray(items) ? items : [])
+      .filter((item) => item?.estado === "activo")
+      .map((item) => item.texto || "")
+      .filter(Boolean);
+    return {
+      conceptuales: activos(estado.conceptuales),
+      procedimentales: activos(estado.procedimentales),
+      actitudinales: activos(estado.actitudinales),
+      _seleccionPDF: true,
+      _fuente: estado.fuente || "malla_curricular",
+      _temasActivos: estado.temasActivos || [],
+    };
+  };
+
+  const toggleContenidoActivo = (grupo, index) => {
+    if (!onEditarUnidad) return;
+    const clon = JSON.parse(JSON.stringify(unidad));
+    const estado = clon.matrizCurricularInterna?.contenidosMalla;
+    const lista = estado?.[grupo];
+    if (!Array.isArray(lista) || !lista[index]) return;
+    const item = lista[index];
+    item.estado = item.estado === "activo" ? "disponible" : "activo";
+    clon.contenidos = extraerContenidosActivos(estado);
+    onEditarUnidad(clon);
+  };
+
   // Escribe un valor en una ruta anidada del objeto unidad (ej. "metadatos.titulo"
   // o "fasesSemanales.0.dias.1.titulo") y eleva la unidad modificada al padre.
   const setEnRuta = (ruta, valor) => {
@@ -141,6 +168,38 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       <ul className="ua-list">{items.map((item, i) => <li key={i}>{renderIndicador(item, compIdx, i)}</li>)}</ul>
     ) : <em>{empty}</em>
   );
+  const contenidosMalla = unidad.matrizCurricularInterna?.contenidosMalla || null;
+  const contenidoVista = contenidosMalla || {
+    conceptuales: (contenidos?.conceptuales || []).map((texto) => ({ texto: textoItem(texto), estado: "activo" })),
+    procedimentales: (contenidos?.procedimentales || []).map((texto) => ({ texto: textoItem(texto), estado: "activo" })),
+    actitudinales: (contenidos?.actitudinales || []).map((texto) => ({ texto: textoItem(texto), estado: "activo" })),
+  };
+  const renderContenido = (item, grupo, index) => {
+    const texto = textoItem(item?.texto || item);
+    const style = {
+      fontWeight: item?.estado === "activo" ? 800 : undefined,
+      textDecoration: item?.estado === "trabajadoAntes" ? "line-through" : undefined,
+      opacity: item?.estado === "trabajadoAntes" ? 0.72 : item?.estado === "disponible" ? 0.86 : undefined,
+    };
+    const m = String(texto).match(/^(Vocabulario|Gramática|Expresión|Funcional|Discursivo):\s*(.*)$/s);
+    const cuerpo = (
+      <span style={style}>
+        {m ? <><strong>{m[1]}:</strong> {m[2]}</> : texto}
+      </span>
+    );
+    if (!editando || item?.estado === "trabajadoAntes") return cuerpo;
+    return (
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 6, cursor: "pointer" }}>
+        <input
+          type="checkbox"
+          checked={item?.estado === "activo"}
+          onChange={() => toggleContenidoActivo(grupo, index)}
+          style={{ marginTop: 3, flexShrink: 0 }}
+        />
+        {cuerpo}
+      </label>
+    );
+  };
   const competenciasDetalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
   const competenciasVisibles = competenciasDetalle.length
     ? competenciasDetalle
@@ -350,26 +409,23 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       {/* ── CONTENIDOS ── */}
       <section className="ua-section">
         <div className="ua-section-head">CONTENIDOS</div>
+        {editando && contenidosMalla && (
+          <p className="ua-text-block" style={{ fontSize: 13 }}>
+            Marca los contenidos que trabaja esta unidad. Los marcados salen en <strong>negrita</strong> y son los únicos que pasan al PDF; los contenidos ya trabajados aparecen <span style={{ textDecoration: "line-through" }}>tachados</span>.
+          </p>
+        )}
         <div className="ua-contenidos-grid">
           <div className="ua-cont-col ua-cont-conceptual">
             <div className="ua-cont-head">Conceptuales</div>
-            <ul>{(contenidos?.conceptuales || []).map((c, i) => {
-              const texto = textoItem(c);
-              const m = String(texto).match(/^(Vocabulario|Gramática|Expresión):\s*(.*)$/s);
-              return m ? <li key={i}><strong>{m[1]}:</strong> {m[2]}</li> : <li key={i}>{texto}</li>;
-            })}</ul>
+            <ul>{(contenidoVista.conceptuales || []).map((c, i) => <li key={i}>{renderContenido(c, "conceptuales", i)}</li>)}</ul>
           </div>
           <div className="ua-cont-col ua-cont-procedimental">
             <div className="ua-cont-head">Procedimentales</div>
-            <ul>{(contenidos?.procedimentales || []).map((c, i) => {
-              const texto = textoItem(c);
-              const m = String(texto).match(/^(Funcional|Discursivo):\s*(.*)$/s);
-              return m ? <li key={i}><strong>{m[1]}:</strong> {m[2]}</li> : <li key={i}>{texto}</li>;
-            })}</ul>
+            <ul>{(contenidoVista.procedimentales || []).map((c, i) => <li key={i}>{renderContenido(c, "procedimentales", i)}</li>)}</ul>
           </div>
           <div className="ua-cont-col ua-cont-actitudinal">
             <div className="ua-cont-head">Actitudinales</div>
-            <ul>{(contenidos?.actitudinales || []).map((c, i) => <li key={i}>{textoItem(c)}</li>)}</ul>
+            <ul>{(contenidoVista.actitudinales || []).map((c, i) => <li key={i}>{renderContenido(c, "actitudinales", i)}</li>)}</ul>
           </div>
         </div>
       </section>
