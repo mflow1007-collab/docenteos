@@ -202,6 +202,13 @@ check("el HTML contiene vocabulario real de la malla (lobby, entrance, do the la
   }
 });
 
+check("resumen semanal al CIERRE de cada semana (documento modelo)", () => {
+  if (!html.includes("RESUMEN DE EVALUACIÓN — SEMANA 1")) throw new Error("falta el resumen de la semana 1");
+  if (!html.includes("Boceto del plano de la casa")) throw new Error("el resumen no lista los aportes al producto");
+  if (!html.includes("Observaciones de la semana:")) throw new Error("falta la fila de observaciones en la última semana de la fase");
+  if (html.includes("RESUMEN DE EVALUACIÓN Y OBSERVACIONES")) throw new Error("con datos por semana, el bloque legacy por fase no debe emitirse");
+});
+
 check("evaluación del documento y resumen provienen de la misma tabla", () => {
   const d = unidadFixture.fasesSemanales[0].dias[0];
   for (const mom of d.momentos) {

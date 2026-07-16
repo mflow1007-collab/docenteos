@@ -2823,12 +2823,44 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         </table>`;
     };
 
+    // RESUMEN SEMANAL (documento modelo): tabla al CIERRE de cada semana
+    // calendario, compuesta determinísticamente de los días de esa semana.
+    // La última semana de la fase carga además las observaciones (R14).
+    const resumenSemanaHtml = (g, esUltimaDeFase) => {
+      const dias = g.dias || [];
+      const unicos = (arr) => [...new Set(arr.filter(Boolean))];
+      const indicadores = unicos(dias.flatMap((d) => d.indicadoresTrabajados || []));
+      const tipos = unicos(dias.flatMap((d) => (d.momentos || []).map((mm) => mm.evaluacion?.tipo)));
+      const tecnicas = unicos(dias.flatMap((d) => (d.momentos || []).map((mm) => mm.evaluacion?.tecnica)));
+      const instrumentos = unicos(dias.flatMap((d) => (d.momentos || []).map((mm) => mm.evaluacion?.instrumento)));
+      const aportes = dias.map((d) => String(d.aporteProducto || "").trim()).filter(Boolean);
+      if (!tipos.length && !indicadores.length) return ""; // unidad legacy sin datos por semana
+      const obs = esUltimaDeFase
+        ? String(fase.observacionesSemana || dias[0]?.resumenEvaluacion?.observaciones || "").trim()
+        : "";
+      return `
+      <div class="section-head" style="background:#0e7490">RESUMEN DE EVALUACIÓN — SEMANA ${g.semana}</div>
+      <table class="checkpoint-table">
+        <tr><th style="width:20%">Indicadores trabajados</th><th style="width:16%">Tipos de evaluación</th><th style="width:22%">Técnicas</th><th style="width:18%">Instrumentos</th><th>Aportes al producto final</th></tr>
+        <tr>
+          <td>${indicadores.join(", ") || "—"}</td>
+          <td>${tipos.join(", ") || "—"}</td>
+          <td>${tecnicas.join("; ") || "—"}</td>
+          <td>${instrumentos.join(", ") || "—"}</td>
+          <td>${aportes.map((a) => `• ${a}`).join("<br>") || "—"}</td>
+        </tr>
+        ${obs ? `<tr><td colspan="5"><strong>Observaciones de la semana:</strong> ${obs}</td></tr>` : ""}
+      </table>`;
+    };
+    const resumenesSemanas = gruposSemana.map((g, i) => resumenSemanaHtml(g, i === gruposSemana.length - 1));
+    const hayResumenSemanal = resumenesSemanas.some(Boolean);
+
     // Banda por semana calendario dentro de la fase, con el título de semana
     // que aportó la IA (o el de la fase para unidades guardadas legacy)
-    const diasHtml = gruposSemana.map((g) => {
+    const diasHtml = gruposSemana.map((g, i) => {
       const tituloSem = String(g.dias[0]?.tituloSemana || fase.tituloSemana || "").trim();
       const banda = `<div class="semana-band">${m.titulo} — SEMANA ${g.semana} (${g.dias.length} día${g.dias.length === 1 ? "" : "s"})${tituloSem ? `: "${tituloSem}"` : ""}</div>`;
-      return banda + g.dias.map(diaHtml).join("");
+      return banda + g.dias.map(diaHtml).join("") + resumenesSemanas[i];
     }).join("");
 
     // ADAPTACIONES NEAE del bloque, LIGADAS AL FOCO (contrato R14). Fallback a
@@ -2842,11 +2874,11 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         <div class="neae-col"><div class="neae-head">De evaluación</div><div class="neae-body">${neae.evaluacion}</div></div>
       </div>` : "";
 
-    // RESUMEN: observaciones ligadas al foco de la semana (contrato R14),
-    // con fallback al resumen legacy del primer día.
+    // RESUMEN por fase: SOLO para unidades legacy sin datos por semana (las
+    // nuevas emiten la tabla al cierre de cada semana calendario, arriba).
     const resEv = fase.dias[0]?.resumenEvaluacion;
     const obsSemana = String(fase.observacionesSemana || resEv?.observaciones || "").trim();
-    const resumenHtml = (resEv || obsSemana) ? `
+    const resumenHtml = (!hayResumenSemanal && (resEv || obsSemana)) ? `
       <div class="section-head">RESUMEN DE EVALUACIÓN Y OBSERVACIONES</div>
       <div class="neae-grid">
         <div class="neae-col"><div class="neae-head">Técnicas</div><div class="neae-body">${(resEv?.tecnicas || []).join(", ") || "Observación directa, revisión de producciones y ticket de salida."}</div></div>
