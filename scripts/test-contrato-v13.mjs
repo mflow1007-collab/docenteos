@@ -10,7 +10,7 @@
  * Ejecutar: node scripts/test-contrato-v13.mjs
  */
 
-import { validateBatch, EXEMPLARS_ESTILO } from "../src/services/phaseAService.js";
+import { validateBatch, EXEMPLARS_ESTILO, buildSystemPromptFaseA, nivelLabelPrompt } from "../src/services/phaseAService.js";
 
 let pasadas = 0, falladas = 0;
 const check = (nombre, fn) => {
@@ -232,6 +232,17 @@ check("falta observacionesSemana → rechazo", () => {
   const lote = loteValido();
   lote.observacionesSemana = "";
   esperaError(() => validateBatch(lote, DUR, 1, foco, { semanaNum: 2 }), "observacionesSemana");
+});
+
+// ── B3: system del compositor por NIVEL (antes mentía "Secundario" siempre) ──
+console.log("\nB3 — system de Fase A parametrizado por nivel:");
+
+check("el system dice el nivel REAL del formulario, no siempre Secundario", () => {
+  if (!buildSystemPromptFaseA("Primaria").includes("Nivel Primario")) throw new Error("Primaria no produce 'Nivel Primario'");
+  if (buildSystemPromptFaseA("Primaria").includes("Secundario")) throw new Error("Primaria sigue mencionando Secundario");
+  if (!buildSystemPromptFaseA("Inicial").includes("Nivel Inicial")) throw new Error("Inicial no produce 'Nivel Inicial'");
+  if (!buildSystemPromptFaseA("1ro Secundaria").includes("Nivel Secundario")) throw new Error("Secundaria no produce 'Nivel Secundario'");
+  if (nivelLabelPrompt("") !== "Secundario") throw new Error("sin nivel debe asumir Secundario (compatibilidad)");
 });
 
 console.log(`\n${pasadas} ✓ · ${falladas} ✗`);

@@ -49,14 +49,17 @@ export const getFundamentoDoctrinal = async (nivel = "") => {
   const local = fundamentoLocal(nivel);
   try {
     const cfg = await leerConfig();
+    // Interruptor sin deploy: config.activo === false apaga la inyección
+    // (B3) en todas las mentes sin perder los textos guardados.
+    const activo = cfg?.activo !== false;
     const clave = nivelCanonico(nivel) || local.nivel;
     const base = String(cfg?.base || "").trim() || FUNDAMENTO_BASE;
     const bloque = String(cfg?.[clave] || "").trim();
     if (bloque) {
-      return { nivel: clave, nivelAsumido: local.nivelAsumido, texto: `${base}\n\n${bloque}`, fuente: "config" };
+      return { nivel: clave, nivelAsumido: local.nivelAsumido, texto: `${base}\n\n${bloque}`, fuente: "config", activo };
     }
-    return local;
+    return { ...local, activo };
   } catch {
-    return local;
+    return { ...local, activo: true };
   }
 };

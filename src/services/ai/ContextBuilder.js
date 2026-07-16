@@ -17,6 +17,7 @@
 
 import { getAuth } from "firebase/auth";
 import { resolveForAction } from "./knowledge/KnowledgeEngine.js";
+import { getFundamentoDoctrinal } from "../fundamentoDoctrinalService.js";
 
 // ─── Estimación de tokens ─────────────────────────────────────────────────────
 // El español usa ~3.8 caracteres por token (vs ~4 en inglés).
@@ -445,7 +446,19 @@ export async function buildAIContext(action, data = {}) {
     // KnowledgeEngine no disponible — continuar sin contexto
   }
 
-  const { prompt: basePrompt, system } = builder(data);
+  const { prompt: basePrompt, system: systemBase } = builder(data);
+
+  // B3 — FUNDAMENTO DOCTRINAL por nivel antepuesto al SYSTEM del rol (no al
+  // prompt): cada mente aplica la doctrina desde su función. Cacheado 5 min,
+  // apagable sin deploy (config/fundamento-doctrinal.activo=false), y su
+  // fallo jamás detiene la acción (queda el system base del rol).
+  let system = systemBase;
+  try {
+    const fund = await getFundamentoDoctrinal(
+      data.nivel || data.perfilDocente?.nivel || data.grado || ""
+    );
+    if (fund?.texto && fund.activo !== false) system = `${fund.texto}\n\n${systemBase}`;
+  } catch { /* sin fundamento, system base */ }
 
   // Inyectar el contexto del Knowledge Engine justo antes de la instrucción final del builder
   const prompt = knowledgeContext

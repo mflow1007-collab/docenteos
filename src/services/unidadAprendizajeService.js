@@ -124,7 +124,7 @@ const construirSituacionNarrativa = ({
 };
 
 // Nota institucional de organización temporal (versión parametrizada del modelo)
-const construirNotaInstitucional = ({ clasesPorSemana, durMin, producto }) => `Conforme al enfoque de atención a la diversidad, evaluación formativa y aprendizaje centrado en el estudiante establecido en el Diseño Curricular del Nivel Secundario del MINERD, la presente unidad organiza su tiempo en torno a un núcleo esencial de ${clasesPorSemana} clase(s) semanal(es) de ${durMin} minutos, complementado por sesiones pedagógicas flexibles que fortalecen la calidad, la pertinencia y la equidad de los aprendizajes. Dichas sesiones no representan una sobreplanificación ni un error en la distribución temporal, sino una decisión metodológica intencional orientada a responder a la diversidad del aula.
+const construirNotaInstitucional = ({ clasesPorSemana, durMin, producto, nivel = "" }) => `Conforme al enfoque de atención a la diversidad, evaluación formativa y aprendizaje centrado en el estudiante establecido en el Diseño Curricular del Nivel ${/primaria|primario/i.test(nivel) ? "Primario" : /inicial|kinder|preprimario/i.test(nivel) ? "Inicial" : "Secundario"} del MINERD, la presente unidad organiza su tiempo en torno a un núcleo esencial de ${clasesPorSemana} clase(s) semanal(es) de ${durMin} minutos, complementado por sesiones pedagógicas flexibles que fortalecen la calidad, la pertinencia y la equidad de los aprendizajes. Dichas sesiones no representan una sobreplanificación ni un error en la distribución temporal, sino una decisión metodológica intencional orientada a responder a la diversidad del aula.
 Las sesiones flexibles permiten responder a los hallazgos de la evaluación diagnóstica de inicio, habilitar procesos de recuperación pedagógica, nivelación y ampliación según los ritmos de aprendizaje, dar seguimiento continuo a los indicadores de logro y acompañar la construcción progresiva del producto final (${producto.replace(/\.$/, "")}) antes de su valoración sumativa, además de absorber los ajustes propios del calendario escolar y las dinámicas institucionales sin afectar la secuencia didáctica.
 Nota: ante fallas de electricidad, internet o equipos, las actividades que usan TV, proyector o audio se realizan con las alternativas físicas del Anexo L — Plan B tecnológico (imágenes impresas, flashcards, lectura en voz alta y dramatización).`;
 
@@ -2497,6 +2497,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     clasesPorSemana: diasClaseFinal.length,
     durMin: durMinEf,
     producto: productoNombrado,
+    nivel,
   });
   unidadResult.checkpointFormativo = construirCheckpointFormativo({
     tema: titulo, producto: productoNombrado, numSemanas,

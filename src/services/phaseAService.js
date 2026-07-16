@@ -21,6 +21,8 @@ import {
   resolverFocosCurriculares,
   resumirArquitecturaParaPrompt,
 } from './curriculumBrainService.js';
+import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
+import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -72,14 +74,21 @@ export const EXEMPLARS_ESTILO = [
   'Elaboran un mapa de ideas sobre las actividades que consideran más importantes dentro de su rutina diaria. Socializan sus respuestas explicando brevemente por qué esas actividades son importantes para su vida.',
 ];
 
-const SYSTEM_PROMPT =
+// B3 — etiqueta del nivel para los prompts ("Secundario"/"Primario"/"Inicial").
+// Antes el system decía "Nivel Secundario" hardcodeado y mentía para
+// Primaria/Inicial; el nivel real llega en spec.nivel desde la malla.
+const NIVEL_LABEL = { Secundaria: 'Secundario', Primaria: 'Primario', Inicial: 'Inicial' };
+export const nivelLabelPrompt = (nivel = '') =>
+  NIVEL_LABEL[nivelCanonico(nivel)] || 'Secundario';
+
+export const buildSystemPromptFaseA = (nivel = '') =>
   // PERSONAJE EXPERTO (transversal a TODAS las asignaturas del MINERD, no solo
   // idiomas). El estándar de calidad es el de un docente dominicano excelente:
   // planificaciones ricas, contextualizadas a la comunidad, con un producto
   // final tangible al que cada clase aporta una pieza, actividades con misión
   // nombrada y evidencias observables. El CONTENIDO (vocabulario, fórmulas,
   // conceptos) lo aporta SIEMPRE la malla del área — nunca lo inventa el rol.
-  'Eres un docente dominicano experto del Nivel Secundario que planifica con la calidad y el detalle ' +
+  `Eres un docente dominicano experto del Nivel ${nivelLabelPrompt(nivel)} que planifica con la calidad y el detalle ` +
   'del mejor docente del MINERD, para CUALQUIER asignatura (Lengua Española, Matemática, Ciencias ' +
   'Sociales, Ciencias de la Naturaleza, Lenguas Extranjeras, Educación Artística, Física, Formación ' +
   'Integral Humana y Religiosa). Tu sello: contextualizas a la realidad de la comunidad del docente; ' +
@@ -1063,7 +1072,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
     ? `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el ${saludoNota}: ${saludoEjem}), "retroalimentacionPrevia", "saberesPrevios" y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). Para la PRIMERA clase de la unidad no hay clase anterior: "retroalimentacionPrevia" inicia con "Retroalimentación de experiencias relacionadas con..." (exploración diagnóstica del tema con preguntas ${preguntaLoc}) y "saberesPrevios" (inicia con "Recuperación o exploración de saberes previos sobre...") puede versar sobre el tema o sobre cómo serán evaluados en la unidad. NO repitas saludo ni retroalimentación dentro de los momentos.`
     : `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el ${saludoNota}: ${saludoEjem}), "retroalimentacionPrevia" (oración completa que inicia con "Retroalimentación de..." recordando lo trabajado en la clase anterior — usa las actividades ya programadas listadas arriba — con preguntas de recuerdo ${preguntaLoc}), "saberesPrevios" (oración completa que inicia con "Recuperación o exploración de saberes previos sobre..." el contenido de ESTE día) y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). NO repitas saludo ni retroalimentación dentro de los momentos.`;
 
-  return `Eres un DOCENTE dominicano experto del Nivel Secundario planificando TU propia clase de ${spec.area} para el grado ${spec.grado}. Planificas con la riqueza y el detalle del mejor docente del MINERD: producto final tangible al que cada clase aporta una pieza, misiones con nombre propio, contextualización a la comunidad y evidencias observables. El estándar de calidad es transversal a TODAS las asignaturas; el CONTENIDO específico (vocabulario, conceptos, procedimientos) sale SIEMPRE de la malla oficial que se te entrega abajo — nunca lo inventas.
+  return `Eres un DOCENTE dominicano experto del Nivel ${nivelLabelPrompt(spec.nivel)} planificando TU propia clase de ${spec.area} para el grado ${spec.grado}. Planificas con la riqueza y el detalle del mejor docente del MINERD: producto final tangible al que cada clase aporta una pieza, misiones con nombre propio, contextualización a la comunidad y evidencias observables. El estándar de calidad es transversal a TODAS las asignaturas; el CONTENIDO específico (vocabulario, conceptos, procedimientos) sale SIEMPRE de la malla oficial que se te entrega abajo — nunca lo inventas.
 
 TEMA: "${spec.temaOficial}"
 ÁREA: ${spec.area} | GRADO: ${spec.grado} | SEMANA: ${semanaNum} de ${numSemanas} (${rango})
@@ -1151,6 +1160,19 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   const anotarFallo = (p) => fallosPorProveedor.set(p, (fallosPorProveedor.get(p) || 0) + 1);
   const descartarProveedor = (p) => fallosPorProveedor.set(p, MAX_INTENTOS_POR_PROVEEDOR);
   const maxAttempts = Math.max(2, providerOrderBase.length * MAX_INTENTOS_POR_PROVEEDOR);
+
+  // B3 — FUNDAMENTO DOCTRINAL por nivel antepuesto al rol del compositor.
+  // Cacheado (5 min) → una lectura por unidad; apagable sin deploy con
+  // config/fundamento-doctrinal.activo=false; su fallo NUNCA detiene la
+  // generación (cae al system base).
+  let systemFaseA = buildSystemPromptFaseA(spec.nivel);
+  try {
+    const fund = await getFundamentoDoctrinal(spec.nivel);
+    if (fund?.texto && fund.activo !== false) {
+      systemFaseA = `${fund.texto}\n\n${systemFaseA}`;
+    }
+  } catch { /* sin fundamento, system base */ }
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     attemptsUsed = attempt;
     const proveedoresActivos = providerOrderBase.filter(
@@ -1168,7 +1190,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       lastModel = 'desconocido';
       const { text: raw, provider, model, usage } = await callGatewayCollect(
         prompt,
-        SYSTEM_PROMPT,
+        systemFaseA,
         maxTokens,
         [providerIntento],
         proveedoresDescartados,
@@ -1185,7 +1207,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         module: MODULE_NAME,
         provider,
         model,
-        tokensIn:  usage?.in  || Math.ceil((prompt.length + SYSTEM_PROMPT.length) / 4),
+        tokensIn:  usage?.in  || Math.ceil((prompt.length + systemFaseA.length) / 4),
         tokensOut: usage?.out || Math.ceil((raw || '').length / 4),
         ms: Date.now() - t0,
         exact: Boolean(usage),
