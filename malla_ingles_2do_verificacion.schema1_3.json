@@ -1,0 +1,4500 @@
+{
+  "schemaVersion": "1.3",
+  "level": "Secundaria",
+  "cycle": "Primer Ciclo",
+  "grade": "2do",
+  "area": "Lenguas Extranjeras",
+  "subject": "Inglés",
+  "contentType": "malla_curricular",
+  "contentId": "ING-2",
+  "metadata": {
+    "nivel": "Secundaria",
+    "ciclo": "Primer Ciclo",
+    "grado": "2do",
+    "area": "Lenguas Extranjeras",
+    "asignatura": "Inglés",
+    "versionCurriculo": "Adecuación Curricular 2023",
+    "ministerio": "MINERD",
+    "paginasPdf": "140-145",
+    "fuente": {
+      "documento": "Adecuación Curricular - Nivel Secundario",
+      "organismo": "MINERD - Dirección General de Currículo",
+      "anio": 2023,
+      "paginasPdf": "140-145",
+      "extractionMethod": "assisted"
+    },
+    "contenidosPorTema": {
+      "status": "reparto_por_afinidad_verificacion",
+      "nota": "Bloques creados desde contenidos oficiales existentes. Requiere cotejo final contra PDF antes de producción.",
+      "totalBloques": 13,
+      "bloquesTemaOficial": 13,
+      "respaldoTecnico": 0
+    }
+  },
+  "fuente": {
+    "documento": "Adecuación Curricular - Nivel Secundario",
+    "organismo": "MINERD - Dirección General de Currículo",
+    "anio": 2023,
+    "paginasPdf": "140-145",
+    "extractionMethod": "assisted"
+  },
+  "revision": {
+    "status": "draft",
+    "needsReview": false,
+    "nota": "Contenidos estructurados manualmente desde el PDF oficial 2023 (extracción asistida por columnas, verificada). Contenido cotejado como idéntico entre ediciones 2022 y 2023."
+  },
+  "competencias": [
+    {
+      "id": "ING-2-C01",
+      "fundamental": "Comunicativa",
+      "especificaGrado": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicación, utilizando el idioma inglés de forma breve y sencilla con la finalidad de informar, ofrecer ayuda, sugerir, comprar, describir planes futuros, y narrar experiencias, con relación a necesidades concretas y temas cotidianos.",
+      "competenciaFundamental": "Comunicativa",
+      "descripcion": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicación, utilizando el idioma inglés de forma breve y sencilla con la finalidad de informar, ofrecer ayuda, sugerir, comprar, describir planes futuros, y narrar experiencias, con relación a necesidades concretas y temas cotidianos.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-2-I01",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos breves y sencillos que contienen información sobre su entorno inmediato, actividades cotidianas, estados de salud, sentimientos, intereses, consejos, planes, sugerencias, y narraciones de experiencias.",
+          "competenciaId": "ING-2-C01"
+        },
+        {
+          "id": "ING-2-I02",
+          "descripcion": "Produce textos breves y sencillos mediante una serie de frases y oraciones enlazadas por conectores básicos para compartir informaciones personales y de su entorno inmediato, tales como experiencias, estados de salud, sentimientos, planes, consejos y sugerencias, con pausas y reformulaciones en lo oral y con algunos errores básicos en lo escrito.",
+          "competenciaId": "ING-2-C01"
+        },
+        {
+          "id": "ING-2-I03",
+          "descripcion": "Interactúa en forma oral o escrita a través de una serie de frases y oraciones sencillas, enlazadas por conectores, con el propósito de informar sobre actividades cotidianas, describir estados anímicos y físicos, solicitar ayuda, comprar, expresar deseo o interés, dar consejos y sugerencias, expresar planes y narrar experiencias, aunque con algunos errores básicos.",
+          "competenciaId": "ING-2-C01"
+        }
+      ]
+    },
+    {
+      "id": "ING-2-C02",
+      "fundamental": "Pensamiento Lógico, Creativo y Crítico",
+      "especificaGrado": "Interactúa de forma oral y escrita en el idioma inglés empleando razonamiento lógico-verbal y estrategias de desempeño de manera creativa y crítica en distintas situaciones de comunicación donde narra experiencias, da sugerencias y consejos y expresa planes en expresiones breves y sencillas.",
+      "competenciaFundamental": "Pensamiento Lógico, Creativo y Crítico",
+      "descripcion": "Interactúa de forma oral y escrita en el idioma inglés empleando razonamiento lógico-verbal y estrategias de desempeño de manera creativa y crítica en distintas situaciones de comunicación donde narra experiencias, da sugerencias y consejos y expresa planes en expresiones breves y sencillas.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-2-I04",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos donde se presenta información variada y sugerencias sobre situaciones presentes, futuras y pasadas, comprendiendo de forma reflexiva y creativa la secuencia y relación lógica de los elementos.",
+          "competenciaId": "ING-2-C02"
+        },
+        {
+          "id": "ING-2-I05",
+          "descripcion": "Produce textos orales y escritos breves y sencillos con claridad y creatividad, manteniendo una secuencia clara y ordenada de las ideas, mediante el uso de conectores lógicos básicos apropiados a la relación específica de las ideas, al tema y la situación.",
+          "competenciaId": "ING-2-C02"
+        },
+        {
+          "id": "ING-2-I06",
+          "descripcion": "Interactúa en forma oral o escrita a través de una serie de oraciones breves y sencillas ordenadas de una forma lógica y presentadas de forma creativa en diferentes tipos de texto donde comparte experiencias, información, planes, sugerencias, y consejos.",
+          "competenciaId": "ING-2-C02"
+        }
+      ]
+    },
+    {
+      "id": "ING-2-C03",
+      "fundamental": "Resolución de Problemas",
+      "especificaGrado": "Interactúa en inglés ante diversas circunstancias y problemas comunes de su entorno inmediato en las que solicita u ofrece ayuda, da consejos y sugerencias pertinentes y emplea estrategias de desempeño oral y escrito para lograr la claridad del mensaje, aunque el interlocutor deba hacer cierto esfuerzo oral y escrito para comprenderle.",
+      "competenciaFundamental": "Resolución de Problemas",
+      "descripcion": "Interactúa en inglés ante diversas circunstancias y problemas comunes de su entorno inmediato en las que solicita u ofrece ayuda, da consejos y sugerencias pertinentes y emplea estrategias de desempeño oral y escrito para lograr la claridad del mensaje, aunque el interlocutor deba hacer cierto esfuerzo oral y escrito para comprenderle.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-2-I07",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones sobre situaciones y problemas de su entorno inmediato y temas que le son familiares, a partir de textos orales y escritos breves y sencillos.",
+          "competenciaId": "ING-2-C03"
+        },
+        {
+          "id": "ING-2-I08",
+          "descripcion": "Se comunica mediante textos orales y escritos de forma clara y comprensible, para comunicar problemas inmediatos propios, de otras personas y del entorno cotidiano, así como para proponer consejos y sugerencias pertinentes, utilizando frases y oraciones breves y sencillas.",
+          "competenciaId": "ING-2-C03"
+        },
+        {
+          "id": "ING-2-I09",
+          "descripcion": "Interactúa de forma oral y escrita para solicitar o proveer información, ayuda, consejos y sugerencias sobre situaciones y problemas relativos a actividades cotidianas, intereses y estados de ánimo, utilizando con claridad frases y oraciones breves y sencillas.",
+          "competenciaId": "ING-2-C03"
+        }
+      ]
+    },
+    {
+      "id": "ING-2-C04",
+      "fundamental": "Ética y Ciudadana",
+      "especificaGrado": "Se comunica en el idioma inglés de forma breve y sencilla, con cortesía y respeto, reconociendo las diferencias individuales más comunes, y la identidad social y cultural propias de la comunidad local y global.",
+      "competenciaFundamental": "Ética y Ciudadana",
+      "descripcion": "Se comunica en el idioma inglés de forma breve y sencilla, con cortesía y respeto, reconociendo las diferencias individuales más comunes, y la identidad social y cultural propias de la comunidad local y global.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-2-I10",
+          "descripcion": "Reconoce las diferencias individuales y la identidad social y cultural propia y de otros países como gestos, compras, celebraciones, actividades de tiempo libre, puntualidad y lugares de interés.",
+          "competenciaId": "ING-2-C04"
+        },
+        {
+          "id": "ING-2-I11",
+          "descripcion": "Interactúa de forma breve y sencilla en el idioma inglés, con cortesía, asertividad y respeto.",
+          "competenciaId": "ING-2-C04"
+        },
+        {
+          "id": "ING-2-I12",
+          "descripcion": "Sostiene la conversación al interactuar en forma oral o escrita, utilizando frases y oraciones estratégicas para mantener la interacción de forma cortés y respetuosa a las diferencias de la cultura personal y de otras personas.",
+          "competenciaId": "ING-2-C04"
+        }
+      ]
+    },
+    {
+      "id": "ING-2-C05",
+      "fundamental": "Científica y Tecnológica",
+      "especificaGrado": "Se comunica en el idioma inglés con el propósito de solicitar y ofrecer ayuda, expresar interés y dar sugerencias sobre asuntos científicos, tecnológicos y de otra índole, en situaciones inmediatas de comunicación.",
+      "competenciaFundamental": "Científica y Tecnológica",
+      "descripcion": "Se comunica en el idioma inglés con el propósito de solicitar y ofrecer ayuda, expresar interés y dar sugerencias sobre asuntos científicos, tecnológicos y de otra índole, en situaciones inmediatas de comunicación.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-2-I13",
+          "descripcion": "Identifica información y la utiliza de forma adecuada para responder a preguntas e indicaciones sobre aspectos científicos y tecnológicos presentes en la descripción de actividades cotidianas, experiencias, sentimientos y dolencias propias y de otras personas.",
+          "competenciaId": "ING-2-C05"
+        },
+        {
+          "id": "ING-2-I14",
+          "descripcion": "Expresa ideas y sugerencias sobre aspectos de temas científicos, tecnológicos y de otra índole presentes en su entorno inmediato de interés personal para referirse a la salud, estados de ánimo, deseos y experiencias pasadas, utilizando oraciones comunes breves y sencillas.",
+          "competenciaId": "ING-2-C05"
+        },
+        {
+          "id": "ING-2-I15",
+          "descripcion": "Interactúa sobre temas científicos, tecnológicos y de otra índole con el propósito de pedir y dar consejos y sugerencias, de forma presencial o virtual, utilizando vocabulario común con frases y oraciones breves y sencillas.",
+          "competenciaId": "ING-2-C05"
+        }
+      ]
+    },
+    {
+      "id": "ING-2-C06",
+      "fundamental": "Ambiental y de la Salud",
+      "especificaGrado": "Muestra preferencia por opciones que impactan positivamente la salud y el medio ambiente al interactuar en inglés sobre sus actividades cotidianas y en situaciones de compra, así como al describir estados anímicos y físicos.",
+      "competenciaFundamental": "Ambiental y de la Salud",
+      "descripcion": "Muestra preferencia por opciones que impactan positivamente la salud y el medio ambiente al interactuar en inglés sobre sus actividades cotidianas y en situaciones de compra, así como al describir estados anímicos y físicos.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-2-I16",
+          "descripcion": "Identifica las acciones que impactan positivamente la salud y el medio ambiente en las actividades cotidianas que se realizan en su entorno inmediato.",
+          "competenciaId": "ING-2-C06"
+        },
+        {
+          "id": "ING-2-I17",
+          "descripcion": "Describe información del estado de su entorno inmediato, presentando consejos, sugerencias y planes para cuidar el medioambiente, la salud propia y de otras personas.",
+          "competenciaId": "ING-2-C06"
+        },
+        {
+          "id": "ING-2-I18",
+          "descripcion": "Interactúa de forma adecuada en situaciones donde se promueve prácticas de hábitos saludables para las personas y amigables con el medioambiente.",
+          "competenciaId": "ING-2-C06"
+        }
+      ]
+    },
+    {
+      "id": "ING-2-C07",
+      "fundamental": "Desarrollo Personal y Espiritual",
+      "especificaGrado": "Interactúa en el idioma inglés, con cortesía, honestidad, actitud de respeto y aceptación al referirse a sí mismo/a y a las demás personas, al hacer sugerencias y al describir experiencias, planes, estados anímicos y físicos.",
+      "competenciaFundamental": "Desarrollo Personal y Espiritual",
+      "descripcion": "Interactúa en el idioma inglés, con cortesía, honestidad, actitud de respeto y aceptación al referirse a sí mismo/a y a las demás personas, al hacer sugerencias y al describir experiencias, planes, estados anímicos y físicos.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-2-I19",
+          "descripcion": "Muestra empatía por los sentimientos y necesidades de las demás personas.",
+          "competenciaId": "ING-2-C07"
+        },
+        {
+          "id": "ING-2-I20",
+          "descripcion": "Muestra disposición para ayudar a las demás personas que lo necesitan, al interactuar con sus compañeros de forma colaborativa.",
+          "competenciaId": "ING-2-C07"
+        },
+        {
+          "id": "ING-2-I21",
+          "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas. 144",
+          "competenciaId": "ING-2-C07"
+        }
+      ]
+    }
+  ],
+  "indicadoresLogro": [
+    {
+      "id": "ING-2-I01",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos breves y sencillos que contienen información sobre su entorno inmediato, actividades cotidianas, estados de salud, sentimientos, intereses, consejos, planes, sugerencias, y narraciones de experiencias.",
+      "competenciaId": "ING-2-C01"
+    },
+    {
+      "id": "ING-2-I02",
+      "descripcion": "Produce textos breves y sencillos mediante una serie de frases y oraciones enlazadas por conectores básicos para compartir informaciones personales y de su entorno inmediato, tales como experiencias, estados de salud, sentimientos, planes, consejos y sugerencias, con pausas y reformulaciones en lo oral y con algunos errores básicos en lo escrito.",
+      "competenciaId": "ING-2-C01"
+    },
+    {
+      "id": "ING-2-I03",
+      "descripcion": "Interactúa en forma oral o escrita a través de una serie de frases y oraciones sencillas, enlazadas por conectores, con el propósito de informar sobre actividades cotidianas, describir estados anímicos y físicos, solicitar ayuda, comprar, expresar deseo o interés, dar consejos y sugerencias, expresar planes y narrar experiencias, aunque con algunos errores básicos.",
+      "competenciaId": "ING-2-C01"
+    },
+    {
+      "id": "ING-2-I04",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos donde se presenta información variada y sugerencias sobre situaciones presentes, futuras y pasadas, comprendiendo de forma reflexiva y creativa la secuencia y relación lógica de los elementos.",
+      "competenciaId": "ING-2-C02"
+    },
+    {
+      "id": "ING-2-I05",
+      "descripcion": "Produce textos orales y escritos breves y sencillos con claridad y creatividad, manteniendo una secuencia clara y ordenada de las ideas, mediante el uso de conectores lógicos básicos apropiados a la relación específica de las ideas, al tema y la situación.",
+      "competenciaId": "ING-2-C02"
+    },
+    {
+      "id": "ING-2-I06",
+      "descripcion": "Interactúa en forma oral o escrita a través de una serie de oraciones breves y sencillas ordenadas de una forma lógica y presentadas de forma creativa en diferentes tipos de texto donde comparte experiencias, información, planes, sugerencias, y consejos.",
+      "competenciaId": "ING-2-C02"
+    },
+    {
+      "id": "ING-2-I07",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones sobre situaciones y problemas de su entorno inmediato y temas que le son familiares, a partir de textos orales y escritos breves y sencillos.",
+      "competenciaId": "ING-2-C03"
+    },
+    {
+      "id": "ING-2-I08",
+      "descripcion": "Se comunica mediante textos orales y escritos de forma clara y comprensible, para comunicar problemas inmediatos propios, de otras personas y del entorno cotidiano, así como para proponer consejos y sugerencias pertinentes, utilizando frases y oraciones breves y sencillas.",
+      "competenciaId": "ING-2-C03"
+    },
+    {
+      "id": "ING-2-I09",
+      "descripcion": "Interactúa de forma oral y escrita para solicitar o proveer información, ayuda, consejos y sugerencias sobre situaciones y problemas relativos a actividades cotidianas, intereses y estados de ánimo, utilizando con claridad frases y oraciones breves y sencillas.",
+      "competenciaId": "ING-2-C03"
+    },
+    {
+      "id": "ING-2-I10",
+      "descripcion": "Reconoce las diferencias individuales y la identidad social y cultural propia y de otros países como gestos, compras, celebraciones, actividades de tiempo libre, puntualidad y lugares de interés.",
+      "competenciaId": "ING-2-C04"
+    },
+    {
+      "id": "ING-2-I11",
+      "descripcion": "Interactúa de forma breve y sencilla en el idioma inglés, con cortesía, asertividad y respeto.",
+      "competenciaId": "ING-2-C04"
+    },
+    {
+      "id": "ING-2-I12",
+      "descripcion": "Sostiene la conversación al interactuar en forma oral o escrita, utilizando frases y oraciones estratégicas para mantener la interacción de forma cortés y respetuosa a las diferencias de la cultura personal y de otras personas.",
+      "competenciaId": "ING-2-C04"
+    },
+    {
+      "id": "ING-2-I13",
+      "descripcion": "Identifica información y la utiliza de forma adecuada para responder a preguntas e indicaciones sobre aspectos científicos y tecnológicos presentes en la descripción de actividades cotidianas, experiencias, sentimientos y dolencias propias y de otras personas.",
+      "competenciaId": "ING-2-C05"
+    },
+    {
+      "id": "ING-2-I14",
+      "descripcion": "Expresa ideas y sugerencias sobre aspectos de temas científicos, tecnológicos y de otra índole presentes en su entorno inmediato de interés personal para referirse a la salud, estados de ánimo, deseos y experiencias pasadas, utilizando oraciones comunes breves y sencillas.",
+      "competenciaId": "ING-2-C05"
+    },
+    {
+      "id": "ING-2-I15",
+      "descripcion": "Interactúa sobre temas científicos, tecnológicos y de otra índole con el propósito de pedir y dar consejos y sugerencias, de forma presencial o virtual, utilizando vocabulario común con frases y oraciones breves y sencillas.",
+      "competenciaId": "ING-2-C05"
+    },
+    {
+      "id": "ING-2-I16",
+      "descripcion": "Identifica las acciones que impactan positivamente la salud y el medio ambiente en las actividades cotidianas que se realizan en su entorno inmediato.",
+      "competenciaId": "ING-2-C06"
+    },
+    {
+      "id": "ING-2-I17",
+      "descripcion": "Describe información del estado de su entorno inmediato, presentando consejos, sugerencias y planes para cuidar el medioambiente, la salud propia y de otras personas.",
+      "competenciaId": "ING-2-C06"
+    },
+    {
+      "id": "ING-2-I18",
+      "descripcion": "Interactúa de forma adecuada en situaciones donde se promueve prácticas de hábitos saludables para las personas y amigables con el medioambiente.",
+      "competenciaId": "ING-2-C06"
+    },
+    {
+      "id": "ING-2-I19",
+      "descripcion": "Muestra empatía por los sentimientos y necesidades de las demás personas.",
+      "competenciaId": "ING-2-C07"
+    },
+    {
+      "id": "ING-2-I20",
+      "descripcion": "Muestra disposición para ayudar a las demás personas que lo necesitan, al interactuar con sus compañeros de forma colaborativa.",
+      "competenciaId": "ING-2-C07"
+    },
+    {
+      "id": "ING-2-I21",
+      "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas. 144",
+      "competenciaId": "ING-2-C07"
+    }
+  ],
+  "indicadores": [
+    {
+      "id": "ING-2-I01",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos breves y sencillos que contienen información sobre su entorno inmediato, actividades cotidianas, estados de salud, sentimientos, intereses, consejos, planes, sugerencias, y narraciones de experiencias.",
+      "competenciaId": "ING-2-C01"
+    },
+    {
+      "id": "ING-2-I02",
+      "descripcion": "Produce textos breves y sencillos mediante una serie de frases y oraciones enlazadas por conectores básicos para compartir informaciones personales y de su entorno inmediato, tales como experiencias, estados de salud, sentimientos, planes, consejos y sugerencias, con pausas y reformulaciones en lo oral y con algunos errores básicos en lo escrito.",
+      "competenciaId": "ING-2-C01"
+    },
+    {
+      "id": "ING-2-I03",
+      "descripcion": "Interactúa en forma oral o escrita a través de una serie de frases y oraciones sencillas, enlazadas por conectores, con el propósito de informar sobre actividades cotidianas, describir estados anímicos y físicos, solicitar ayuda, comprar, expresar deseo o interés, dar consejos y sugerencias, expresar planes y narrar experiencias, aunque con algunos errores básicos.",
+      "competenciaId": "ING-2-C01"
+    },
+    {
+      "id": "ING-2-I04",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos donde se presenta información variada y sugerencias sobre situaciones presentes, futuras y pasadas, comprendiendo de forma reflexiva y creativa la secuencia y relación lógica de los elementos.",
+      "competenciaId": "ING-2-C02"
+    },
+    {
+      "id": "ING-2-I05",
+      "descripcion": "Produce textos orales y escritos breves y sencillos con claridad y creatividad, manteniendo una secuencia clara y ordenada de las ideas, mediante el uso de conectores lógicos básicos apropiados a la relación específica de las ideas, al tema y la situación.",
+      "competenciaId": "ING-2-C02"
+    },
+    {
+      "id": "ING-2-I06",
+      "descripcion": "Interactúa en forma oral o escrita a través de una serie de oraciones breves y sencillas ordenadas de una forma lógica y presentadas de forma creativa en diferentes tipos de texto donde comparte experiencias, información, planes, sugerencias, y consejos.",
+      "competenciaId": "ING-2-C02"
+    },
+    {
+      "id": "ING-2-I07",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones sobre situaciones y problemas de su entorno inmediato y temas que le son familiares, a partir de textos orales y escritos breves y sencillos.",
+      "competenciaId": "ING-2-C03"
+    },
+    {
+      "id": "ING-2-I08",
+      "descripcion": "Se comunica mediante textos orales y escritos de forma clara y comprensible, para comunicar problemas inmediatos propios, de otras personas y del entorno cotidiano, así como para proponer consejos y sugerencias pertinentes, utilizando frases y oraciones breves y sencillas.",
+      "competenciaId": "ING-2-C03"
+    },
+    {
+      "id": "ING-2-I09",
+      "descripcion": "Interactúa de forma oral y escrita para solicitar o proveer información, ayuda, consejos y sugerencias sobre situaciones y problemas relativos a actividades cotidianas, intereses y estados de ánimo, utilizando con claridad frases y oraciones breves y sencillas.",
+      "competenciaId": "ING-2-C03"
+    },
+    {
+      "id": "ING-2-I10",
+      "descripcion": "Reconoce las diferencias individuales y la identidad social y cultural propia y de otros países como gestos, compras, celebraciones, actividades de tiempo libre, puntualidad y lugares de interés.",
+      "competenciaId": "ING-2-C04"
+    },
+    {
+      "id": "ING-2-I11",
+      "descripcion": "Interactúa de forma breve y sencilla en el idioma inglés, con cortesía, asertividad y respeto.",
+      "competenciaId": "ING-2-C04"
+    },
+    {
+      "id": "ING-2-I12",
+      "descripcion": "Sostiene la conversación al interactuar en forma oral o escrita, utilizando frases y oraciones estratégicas para mantener la interacción de forma cortés y respetuosa a las diferencias de la cultura personal y de otras personas.",
+      "competenciaId": "ING-2-C04"
+    },
+    {
+      "id": "ING-2-I13",
+      "descripcion": "Identifica información y la utiliza de forma adecuada para responder a preguntas e indicaciones sobre aspectos científicos y tecnológicos presentes en la descripción de actividades cotidianas, experiencias, sentimientos y dolencias propias y de otras personas.",
+      "competenciaId": "ING-2-C05"
+    },
+    {
+      "id": "ING-2-I14",
+      "descripcion": "Expresa ideas y sugerencias sobre aspectos de temas científicos, tecnológicos y de otra índole presentes en su entorno inmediato de interés personal para referirse a la salud, estados de ánimo, deseos y experiencias pasadas, utilizando oraciones comunes breves y sencillas.",
+      "competenciaId": "ING-2-C05"
+    },
+    {
+      "id": "ING-2-I15",
+      "descripcion": "Interactúa sobre temas científicos, tecnológicos y de otra índole con el propósito de pedir y dar consejos y sugerencias, de forma presencial o virtual, utilizando vocabulario común con frases y oraciones breves y sencillas.",
+      "competenciaId": "ING-2-C05"
+    },
+    {
+      "id": "ING-2-I16",
+      "descripcion": "Identifica las acciones que impactan positivamente la salud y el medio ambiente en las actividades cotidianas que se realizan en su entorno inmediato.",
+      "competenciaId": "ING-2-C06"
+    },
+    {
+      "id": "ING-2-I17",
+      "descripcion": "Describe información del estado de su entorno inmediato, presentando consejos, sugerencias y planes para cuidar el medioambiente, la salud propia y de otras personas.",
+      "competenciaId": "ING-2-C06"
+    },
+    {
+      "id": "ING-2-I18",
+      "descripcion": "Interactúa de forma adecuada en situaciones donde se promueve prácticas de hábitos saludables para las personas y amigables con el medioambiente.",
+      "competenciaId": "ING-2-C06"
+    },
+    {
+      "id": "ING-2-I19",
+      "descripcion": "Muestra empatía por los sentimientos y necesidades de las demás personas.",
+      "competenciaId": "ING-2-C07"
+    },
+    {
+      "id": "ING-2-I20",
+      "descripcion": "Muestra disposición para ayudar a las demás personas que lo necesitan, al interactuar con sus compañeros de forma colaborativa.",
+      "competenciaId": "ING-2-C07"
+    },
+    {
+      "id": "ING-2-I21",
+      "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas. 144",
+      "competenciaId": "ING-2-C07"
+    }
+  ],
+  "temas": [
+    "Relaciones humanas y sociales",
+    "Actividades de la vida diaria",
+    "Vivienda, entorno y ciudad",
+    "Escuela y educación",
+    "Deporte, tiempo libre y recreación",
+    "Alimentación",
+    "Salud y cuidados físicos",
+    "Ciencia y tecnología",
+    "Lengua y comunicación",
+    "Clima, condiciones atmosféricas y medio ambiente",
+    "Bienes y servicios",
+    "Actividades sociales y culturales",
+    "Viajes y turismo"
+  ],
+  "temasCurriculares": [
+    "Relaciones humanas y sociales",
+    "Actividades de la vida diaria",
+    "Vivienda, entorno y ciudad",
+    "Escuela y educación",
+    "Deporte, tiempo libre y recreación",
+    "Alimentación",
+    "Salud y cuidados físicos",
+    "Ciencia y tecnología",
+    "Lengua y comunicación",
+    "Clima, condiciones atmosféricas y medio ambiente",
+    "Bienes y servicios",
+    "Actividades sociales y culturales",
+    "Viajes y turismo"
+  ],
+  "contenidosRaw": "            Conceptos                                       Procedimientos                                            Actitudes y Valores\nTemas                                    Funcionales                                                  • Motivación para aprender inglés.\n• Relaciones humanas y sociales          • Sostener una conversación                                  • Cortesía y asertividad en la comunicación.\n• Actividades de la vida diaria          •Intercambiar información sobre actividades cotidianas       • Respeto por las diferencias en los modos de vida\n• Vivienda, entorno y ciudad             • Describir estados anímicos y físicos                       de las personas.\n•Escuela y educación                     •Solicitar y ofrecer ayuda                                   • Respeto por las normas éticas de la interacción a\n• Deporte, tiempo libre y recreación     • Comprar                                                    través de las TIC.\n• Alimentación                           • Expresar deseo o interés                                   • Uso juicioso del tiempo que se dedica a la\n• Salud y cuidados físicos               • Pedir y dar consejos y sugerencias                         interacción a través de las TIC.\n• Ciencia y tecnología                   • Expresar planes y acordar un encuentro                     • Empatía por los sentimientos y necesidades de\n• Lengua y comunicación                  • Narrar hechos y experiencias                               los y las demás.\n• Clima, condiciones atmosféricas y\n                                                                                                      • Dominio propio y auto control.\n   medioambiente                         Discursivos\n                                                                                                      • Tacto al ofrecer consejos.\n•Bienes y servicios                      • Comprensión de textos orales y escritos, tales\n•Actividades sociales y culturales         como: conversaciones, tarjetas de presentación,            • Hábitos juiciosos de consumo.\n• Viajes y turismo                         listas, anuncios, recetas, letreros, avisos, afiches,      • Honestidad al interactuar con las demás\n                                           mensajes, correos electrónicos, currículum vitae,          personas.\nVocabulario                                cartas, formularios, pronósticos del tiempo, noticias,     • Cumplimiento de los compromisos contraídos.\n• Actividades de la vida diaria: go to     horarios, agendas, menús, croquis, cuestionarios,          • Respeto por el tiempo de los demás.\nschool, take the metro...                  folletos, canciones, poesías, historietas, guías           • Humildad al narrar sus experiencias.\n• Actividades de tiempo libre y ocio:      turísticas, descripciones, biografías y narraciones.       • Valoración positiva de su origen familiar y social.\nread, listen to music…                   • Producción de discursos orales, tales como:                • Respeto por las costumbres y tradiciones\n• Asignaturas: English, geography,         conversaciones, canciones, recetas, mensajes,              propias y las de los demás países.\nmath, PE…                                  noticias, descripciones, narraciones y monólogos.          • Cuidado del medioambiente y de los recursos\n• Celebraciones: New Year, Mother’s      • Producción de textos escritos: mensajes, correos           naturales.\nDay, Independence Day…                     electrónicos, cartas, currículum vitae, avisos, afiches,   • Flexibilidad ante los cambios.\n• Comidas y bebidas: bread, salad,         letreros, formularios, cuestionarios, narraciones y        • Solidaridad con quien necesita ayuda.\njuice, milk…                               descripciones.\n                                                                       Contenidos\n             Conceptos                                       Procedimientos                           Actitudes y Valores\nVocabulario                                Estratégicos\n• Condiciones atmosféricas: rainy,         Comprensión oral\nsunny, cloudy, cold…                       • Anticipación del contenido del mensaje\n• Deportes: basketball, volleyball,        • Escucha atenta\nbowling…                                   • Uso del lenguaje no verbal de su interlocutor/a para\n• Dinero: credit card, cash, change,       comprender el mensaje\ndollars, pesos                             • Inferencia del significado de palabras y expresiones a\n• Dolencias y enfermedades:                partir del contexto y los conocimientos previos\nheadache, stomachache, cold…               • Solicitud de ayuda y repetición\n• Educación: high school, seventh          • Identificación de que se comprensión oral\ngrade, freshman …\n• Establecimientos comerciales:            Producción oral\nbakery, restaurant, pharmacy...            •Reproducción y ensayo de palabras, expresiones y\n• Estados de ánimo: excited,               pautas de entonación\nembarrassed, scared, surprised…            •Identificación de la situación de comunicación\n• Eventos de la vida: be born, have a      •Establecimiento de la intención comunicativa\nbaby, start school…                        • Uso del lenguaje no verbal para comunicarse\n• Formas de interacción: texting,\nvoice calls, chat…                         Comprensión escrita\n• Lugares: park, fire station, hospital,\nbeach…                                     • Establecimiento del propósito de la lectura\n• Medicamentos: aspirin, antiacid,         • Formulación de hipótesis a partir de los\neye drops…                                 conocimientos previos y los elementos paratextuales\n• Medios de transporte: metro, bus,        • Identificación de la correspondencia entre la grafía y\ntaxi, plane…                               el sonido de las palabras\n• Números cardinales: one, two…            • Inferencia del significado de palabras y expresiones\n• Números ordinales: first, second,        a partir de las pistas textuales y los conocimientos\nthird…                                     previos\n• Ocupaciones: florist, manager,           • Subrayado, anotación y búsqueda de palabras en el\npharmacist…                                diccionario y otras herramientas de consulta\n• Partes del cuerpo: head, legs,           Identificación de la intención comunicativa del texto\nmouth…\n• Puntos cardinales: east, west,           Producción escrita\nnorth…                                     • Establecimiento del propósito del mensaje y del tipo\n• Relaciones humanas: friends,             de texto que se va a producir.\nclassmates,       relatives…               • Planificación y organización del mensaje.\n• Sensaciones Físicas: cold, hungry,       • Uso del diccionario y otras herramientas de consulta.\nthirsty, tired                             • Revisión del sentido y la corrección del mensaje.\n…\n• Tallas: small (S), large (L),            Otros:\nextra•large          (XL)…                 • Utilización de asociaciones mentales y de la acción.\n• Tecnología: video calls, tablets,        • Automotivación y control del nivel de ansiedad.\nsmart phones…                              • Búsqueda de oportunidades de uso de la lengua.\nVías:     street,    avenue,      road,\nhighway…\n                                                                   Contenidos\n            Conceptos                                     Procedimientos                                   Actitudes y Valores\nExpresiones                              Sociolingüísticos y socioculturales\n• Cortesía: Excuse me; Thank you!        • Utilización de fórmulas cotidianas de interacción\n• You’re welcome…                        social.\n• Captar la atención: Excuse me,         • Comparación entre los siguientes aspectos de la\nm a’a m …                                República Dominicana y de otros países:\n• Interrumpir con cortesía: Sorry to\ninterrupt you…                             • Gestos que expresan estados anímicos y físicos\n• Pedir y dar la palabra: May I say        •Situaciones problemáticas que afectan a los\nsomething?...                                jóvenes\n• Pedir que repitan: Pardon? Sorry?...     • Compras\n•Disculparse: I’m sorry; I apologize…      • Celebraciones\n• Dudar: I’m not sure; maybe…              • Actividades de tiempo libre\n• Mostrar interés o empatía: What          • Puntualidad\nhappened? What’s wrong? Good for           • Lugares de interés\nyou!\n• Mostrar indiferencia o desinterés: I\ndon’t mind. I don’t care!\n• Mostrar acuerdo y desacuerdo: I\ndon’t agree; I agree…\n• Fechas: September 12th, 2016.\n•Hora: at 9:00 a.m., at noon, at 11:00\npm\n• Deseos: I hope so! I hope not! I\nwish!\nGramática\n• Presente simple para sostener una\nconversación:\nWhat do you do for a living? Hello,\nthis is Ethan.\n• Presente simple para referirse a\nactividades cotidianas:\nShe always picks up her kids at\nschool.\n• Presente simple de los verbos be,\nfeel, have, seem, look, hurt, ache …\npara describir estados anímicos y\nfísicos:\nShe looks tired and angry.\n• Presente simple de los verbos be,\nhave, want, need… en contexto de\ncompra:\nI need a pair of boots.\n• Pasado simple al narrar hechos y\nexperiencias:\nI lived in the US until I was seven.\n• Pasado continuo al narrar hechos\ny experiencias, y describir estados\nanímicos y físicos:\nHe was coughing last night.\n• Presente perfecto para narrar\nhechos y experiencias:\nI’ve seen the flamingos at Lago\nEnriquillo.\n                                                Contenidos\n              Conceptos                     Procedimientos   Actitudes y Valores\n• Pasado continuo y pasado simple para\nnarrar hechos y experiencias:\nI was doing homework when she called.\n• Will para acordar un encuentro y\ncomprar :\nI’ll be there at 6:00 pm.\nI’ll have a cheeseburger, please.\n• Be going to para expresar planes y\nacordar encuentros:\nI’m going to visit Grandma next week.\nAre you going to join me?\n•Presente continuo para expresar planes\ne intenciones y acordar un encuentro:\nOur tech support is installing a new\nantivirus tomorrow.\nWhat time are we meeting for dinner?\nI’m looking for a yellow T•shirt.\n• There + be en pasado simple para\nnarrar\nhechos y experiencias:\nThere was an earthquake this morning.\n• Modo imperativo para dar consejos y\nsugerencias:\nDon’t eat junk food.\n• Let’s para dar sugerencias:\nLet’s go out for pizza.\n• Want, hope y wish para expresar deseo\no interés:\nI hope to spend more time with my\nfamily.\n• Can, may y could para sostener una\nconversación:\nMay I speak to Rosa, please? Could you\nspeak louder, please?\n• Should para pedir y dar consejos y\nsugerencias:\nYou should drink more water.\n• Condicional para dar consejos y\nsugerencias y expresar planes:\nIf you have a fever, you should see a\ndoctor. If I get home early today, I will\nbake a cake.\n• Question tags:\nYou feel better, don’t you?\nShe visited her father last month, didn´t\nshe?\n• Voz pasiva del presente en contexto de\ncompras:\nThis device is made in the Dominican\nRepublic. he batteries are sold\nseparately.\n• Oraciones exclamativas:\nHow nice! That’s great!\n• Posesivo’s: This is Victor’s shirt.\n• Sustantivos contables y no contables:\nbooks, chairs; sugar, salad…\n                                                       Contenidos\n                 Conceptos                         Procedimientos               Actitudes y Valores\n• Género: father, mother, king, queen…\n• Número: girl, girls, man, men…\nArtículos definido (the) e indefinidos (a/an):\nThe pencil is on the table.\nI saw a rhino and an elephant at the zoo.\nGrados comparativo y superlativo del\nadjetivo:\nDo you have a smaller one? He´s my best\nfriend.\n•Participio presente en función adjetiva:\nThe soccer game was boring.\nWe saw an exciting movie last night.\n• Participio pasado en función adjetiva:\nThe injured patient is getting better.\n• Pronombres Interrogativos: what, who,\nhow...\nHow do you spell your name, please?\n• How much /how many en contexto de\ncompra:\nHow much are those black shoes? How many\nbatteries do you need?\n• Why don’t/ Why not para sugerencias:\nWhy don’t we meet this weekend?\nPronombres:\nObjeto: me, her, them… Would you call me\nlater, please?\nPosesivos: mine, yours, his, hers… These red\npens are mine.\nReflexivos: myself, yourself...\nHe cut himself while he was cooking.\n• Adverbios de:\nTiempo: now, in the past, yet, already, still… I\nstill want to go there.\nFrecuencia: never, always; once a week, … I\nnever drink coffee at night.\nCantidad: most of, some of…\nMost of my friends learned English in high\nschool.\nIntensidad: very, so, really, too The movie was\nreally boring.\n•Preposiciones de:\nTiempo: in, on, at…\nI’ll meet you at 3:00 pm.\nDuración: since, for, ago, until… I lived there\nuntil 2014.\n• Conectores de:\nCoordinación: and, or, but…\nWhat do you prefer, bananas or apples?\nTiempo: when/while…\nAvoid using your cell phone while you’re\ndriving.\nSecuencia: first, then, finally…\nFirst, we visited the Lincoln Memorial. Then\nwe spent two hours in the Smithsonian\nMuseum.\nCausalidad: because, so, then… He was\nhappy because he got all A’s.",
+  "contenidos": {
+    "conceptos": {
+      "temas": [
+        "Relaciones humanas y sociales",
+        "Actividades de la vida diaria",
+        "Vivienda, entorno y ciudad",
+        "Escuela y educación",
+        "Deporte, tiempo libre y recreación",
+        "Alimentación",
+        "Salud y cuidados físicos",
+        "Ciencia y tecnología",
+        "Lengua y comunicación",
+        "Clima, condiciones atmosféricas y medio ambiente",
+        "Bienes y servicios",
+        "Actividades sociales y culturales",
+        "Viajes y turismo"
+      ],
+      "vocabulario": [
+        {
+          "categoria": "Actividades de la vida diaria",
+          "ejemplos": [
+            "go to school",
+            "take the metro"
+          ]
+        },
+        {
+          "categoria": "Actividades de tiempo libre y ocio",
+          "ejemplos": [
+            "read",
+            "listen to music"
+          ]
+        },
+        {
+          "categoria": "Asignaturas",
+          "ejemplos": [
+            "English",
+            "geography",
+            "math",
+            "PE"
+          ]
+        },
+        {
+          "categoria": "Celebraciones",
+          "ejemplos": [
+            "New Year",
+            "Mother's Day",
+            "Independence Day"
+          ]
+        },
+        {
+          "categoria": "Comidas y bebidas",
+          "ejemplos": [
+            "bread",
+            "salad",
+            "juice",
+            "milk"
+          ]
+        },
+        {
+          "categoria": "Condiciones atmosféricas",
+          "ejemplos": [
+            "rainy",
+            "sunny",
+            "cloudy",
+            "cold"
+          ]
+        },
+        {
+          "categoria": "Deportes",
+          "ejemplos": [
+            "basketball",
+            "volleyball",
+            "bowling"
+          ]
+        },
+        {
+          "categoria": "Dinero",
+          "ejemplos": [
+            "credit card",
+            "cash",
+            "change",
+            "dollars",
+            "pesos"
+          ]
+        },
+        {
+          "categoria": "Dolencias y enfermedades",
+          "ejemplos": [
+            "headache",
+            "stomachache",
+            "cold"
+          ]
+        },
+        {
+          "categoria": "Educación",
+          "ejemplos": [
+            "high school",
+            "seventh grade",
+            "freshman"
+          ]
+        },
+        {
+          "categoria": "Establecimientos comerciales",
+          "ejemplos": [
+            "bakery",
+            "restaurant",
+            "pharmacy"
+          ]
+        },
+        {
+          "categoria": "Estados de ánimo",
+          "ejemplos": [
+            "excited",
+            "embarrassed",
+            "scared",
+            "surprised"
+          ]
+        },
+        {
+          "categoria": "Eventos de la vida",
+          "ejemplos": [
+            "be born",
+            "have a baby",
+            "start school"
+          ]
+        },
+        {
+          "categoria": "Formas de interacción",
+          "ejemplos": [
+            "texting",
+            "voice calls",
+            "chat"
+          ]
+        },
+        {
+          "categoria": "Lugares",
+          "ejemplos": [
+            "park",
+            "fire station",
+            "hospital",
+            "beach"
+          ]
+        },
+        {
+          "categoria": "Medicamentos",
+          "ejemplos": [
+            "aspirin",
+            "antiacid",
+            "eye drops"
+          ]
+        },
+        {
+          "categoria": "Medios de transporte",
+          "ejemplos": [
+            "metro",
+            "bus",
+            "taxi",
+            "plane"
+          ]
+        },
+        {
+          "categoria": "Números cardinales",
+          "ejemplos": [
+            "one",
+            "two"
+          ]
+        },
+        {
+          "categoria": "Números ordinales",
+          "ejemplos": [
+            "first",
+            "second",
+            "third"
+          ]
+        },
+        {
+          "categoria": "Ocupaciones",
+          "ejemplos": [
+            "florist",
+            "manager",
+            "pharmacist"
+          ]
+        },
+        {
+          "categoria": "Partes del cuerpo",
+          "ejemplos": [
+            "head",
+            "legs",
+            "mouth"
+          ]
+        },
+        {
+          "categoria": "Puntos cardinales",
+          "ejemplos": [
+            "east",
+            "west",
+            "north"
+          ]
+        },
+        {
+          "categoria": "Relaciones humanas",
+          "ejemplos": [
+            "friends",
+            "classmates",
+            "relatives"
+          ]
+        },
+        {
+          "categoria": "Sensaciones físicas",
+          "ejemplos": [
+            "cold",
+            "hungry",
+            "thirsty",
+            "tired"
+          ]
+        },
+        {
+          "categoria": "Tallas",
+          "ejemplos": [
+            "small (S)",
+            "large (L)",
+            "extra-large (XL)"
+          ]
+        },
+        {
+          "categoria": "Tecnología",
+          "ejemplos": [
+            "video calls",
+            "tablets",
+            "smart phones"
+          ]
+        },
+        {
+          "categoria": "Vías",
+          "ejemplos": [
+            "street",
+            "avenue",
+            "road",
+            "highway"
+          ]
+        }
+      ],
+      "expresiones": [
+        {
+          "funcion": "Cortesía",
+          "ejemplos": [
+            "Excuse me",
+            "Thank you!",
+            "You're welcome"
+          ]
+        },
+        {
+          "funcion": "Captar la atención",
+          "ejemplos": [
+            "Excuse me, ma'am"
+          ]
+        },
+        {
+          "funcion": "Interrumpir con cortesía",
+          "ejemplos": [
+            "Sorry to interrupt you"
+          ]
+        },
+        {
+          "funcion": "Pedir y dar la palabra",
+          "ejemplos": [
+            "May I say something?"
+          ]
+        },
+        {
+          "funcion": "Pedir que repitan",
+          "ejemplos": [
+            "Pardon?",
+            "Sorry?"
+          ]
+        },
+        {
+          "funcion": "Disculparse",
+          "ejemplos": [
+            "I'm sorry",
+            "I apologize"
+          ]
+        },
+        {
+          "funcion": "Dudar",
+          "ejemplos": [
+            "I'm not sure",
+            "maybe"
+          ]
+        },
+        {
+          "funcion": "Mostrar interés o empatía",
+          "ejemplos": [
+            "What happened?",
+            "What's wrong?",
+            "Good for you!"
+          ]
+        },
+        {
+          "funcion": "Mostrar indiferencia o desinterés",
+          "ejemplos": [
+            "I don't mind",
+            "I don't care!"
+          ]
+        },
+        {
+          "funcion": "Mostrar acuerdo y desacuerdo",
+          "ejemplos": [
+            "I don't agree",
+            "I agree"
+          ]
+        },
+        {
+          "funcion": "Fechas",
+          "ejemplos": [
+            "September 12th, 2016"
+          ]
+        },
+        {
+          "funcion": "Hora",
+          "ejemplos": [
+            "at 9:00 a.m.",
+            "at noon",
+            "at 11:00 pm"
+          ]
+        },
+        {
+          "funcion": "Deseos",
+          "ejemplos": [
+            "I hope so!",
+            "I hope not!",
+            "I wish!"
+          ]
+        }
+      ],
+      "gramatica": [
+        {
+          "estructura": "Presente simple para sostener una conversación",
+          "ejemplos": [
+            "What do you do for a living?",
+            "Hello, this is Ethan."
+          ]
+        },
+        {
+          "estructura": "Presente simple para referirse a actividades cotidianas",
+          "ejemplos": [
+            "She always picks up her kids at school."
+          ]
+        },
+        {
+          "estructura": "Presente simple de los verbos be, feel, have, seem, look, hurt, ache para describir estados anímicos y físicos",
+          "ejemplos": [
+            "She looks tired and angry."
+          ]
+        },
+        {
+          "estructura": "Presente simple de los verbos be, have, want, need en contexto de compra",
+          "ejemplos": [
+            "I need a pair of boots."
+          ]
+        },
+        {
+          "estructura": "Pasado simple al narrar hechos y experiencias",
+          "ejemplos": [
+            "I lived in the US until I was seven."
+          ]
+        },
+        {
+          "estructura": "Pasado continuo al narrar hechos y experiencias, y describir estados anímicos y físicos",
+          "ejemplos": [
+            "He was coughing last night."
+          ]
+        },
+        {
+          "estructura": "Presente perfecto para narrar hechos y experiencias",
+          "ejemplos": [
+            "I've seen the flamingos at Lago Enriquillo."
+          ]
+        },
+        {
+          "estructura": "Pasado continuo y pasado simple para narrar hechos y experiencias",
+          "ejemplos": [
+            "I was doing homework when she called."
+          ]
+        },
+        {
+          "estructura": "Will para acordar un encuentro y comprar",
+          "ejemplos": [
+            "I'll be there at 6:00 pm.",
+            "I'll have a cheeseburger, please."
+          ]
+        },
+        {
+          "estructura": "Be going to para expresar planes y acordar encuentros",
+          "ejemplos": [
+            "I'm going to visit Grandma next week. Are you going to join me?"
+          ]
+        },
+        {
+          "estructura": "Presente continuo para expresar planes e intenciones y acordar un encuentro",
+          "ejemplos": [
+            "Our tech support is installing a new antivirus tomorrow.",
+            "What time are we meeting for dinner?",
+            "I'm looking for a yellow T-shirt."
+          ]
+        },
+        {
+          "estructura": "There + be en pasado simple para narrar hechos y experiencias",
+          "ejemplos": [
+            "There was an earthquake this morning."
+          ]
+        },
+        {
+          "estructura": "Modo imperativo para dar consejos y sugerencias",
+          "ejemplos": [
+            "Don't eat junk food."
+          ]
+        },
+        {
+          "estructura": "Let's para dar sugerencias",
+          "ejemplos": [
+            "Let's go out for pizza."
+          ]
+        },
+        {
+          "estructura": "Want, hope y wish para expresar deseo o interés",
+          "ejemplos": [
+            "I hope to spend more time with my family."
+          ]
+        },
+        {
+          "estructura": "Can, may y could para sostener una conversación",
+          "ejemplos": [
+            "May I speak to Rosa, please?",
+            "Could you speak louder, please?"
+          ]
+        },
+        {
+          "estructura": "Should para pedir y dar consejos y sugerencias",
+          "ejemplos": [
+            "You should drink more water."
+          ]
+        },
+        {
+          "estructura": "Condicional para dar consejos y sugerencias y expresar planes",
+          "ejemplos": [
+            "If you have a fever, you should see a doctor.",
+            "If I get home early today, I will bake a cake."
+          ]
+        },
+        {
+          "estructura": "Question tags",
+          "ejemplos": [
+            "You feel better, don't you?",
+            "She visited her father last month, didn't she?"
+          ]
+        },
+        {
+          "estructura": "Voz pasiva del presente en contexto de compras",
+          "ejemplos": [
+            "This device is made in the Dominican Republic.",
+            "The batteries are sold separately."
+          ]
+        },
+        {
+          "estructura": "Oraciones exclamativas",
+          "ejemplos": [
+            "How nice!",
+            "That's great!"
+          ]
+        },
+        {
+          "estructura": "Posesivo 's",
+          "ejemplos": [
+            "This is Victor's shirt."
+          ]
+        },
+        {
+          "estructura": "Sustantivos contables y no contables",
+          "ejemplos": [
+            "books, chairs; sugar, salad"
+          ]
+        },
+        {
+          "estructura": "Género",
+          "ejemplos": [
+            "father, mother, king, queen"
+          ]
+        },
+        {
+          "estructura": "Número",
+          "ejemplos": [
+            "girl, girls, man, men"
+          ]
+        },
+        {
+          "estructura": "Artículos definido (the) e indefinidos (a/an)",
+          "ejemplos": [
+            "The pencil is on the table.",
+            "I saw a rhino and an elephant at the zoo."
+          ]
+        },
+        {
+          "estructura": "Grados comparativo y superlativo del adjetivo",
+          "ejemplos": [
+            "Do you have a smaller one?",
+            "He's my best friend."
+          ]
+        },
+        {
+          "estructura": "Participio presente en función adjetiva",
+          "ejemplos": [
+            "The soccer game was boring.",
+            "We saw an exciting movie last night."
+          ]
+        },
+        {
+          "estructura": "Participio pasado en función adjetiva",
+          "ejemplos": [
+            "The injured patient is getting better."
+          ]
+        },
+        {
+          "estructura": "Pronombres interrogativos: what, who, how",
+          "ejemplos": [
+            "How do you spell your name, please?"
+          ]
+        },
+        {
+          "estructura": "How much / how many en contexto de compra",
+          "ejemplos": [
+            "How much are those black shoes?",
+            "How many batteries do you need?"
+          ]
+        },
+        {
+          "estructura": "Why don't / Why not para sugerencias",
+          "ejemplos": [
+            "Why don't we meet this weekend?"
+          ]
+        },
+        {
+          "estructura": "Pronombres objeto: me, her, them",
+          "ejemplos": [
+            "Would you call me later, please?"
+          ]
+        },
+        {
+          "estructura": "Pronombres posesivos: mine, yours, his, hers",
+          "ejemplos": [
+            "These red pens are mine."
+          ]
+        },
+        {
+          "estructura": "Pronombres reflexivos: myself, yourself",
+          "ejemplos": [
+            "He cut himself while he was cooking."
+          ]
+        },
+        {
+          "estructura": "Adverbios de tiempo: now, in the past, yet, already, still",
+          "ejemplos": [
+            "I still want to go there."
+          ]
+        },
+        {
+          "estructura": "Adverbios de frecuencia: never, always, once a week",
+          "ejemplos": [
+            "I never drink coffee at night."
+          ]
+        },
+        {
+          "estructura": "Adverbios de cantidad: most of, some of",
+          "ejemplos": [
+            "Most of my friends learned English in high school."
+          ]
+        },
+        {
+          "estructura": "Adverbios de intensidad: very, so, really, too",
+          "ejemplos": [
+            "The movie was really boring."
+          ]
+        },
+        {
+          "estructura": "Preposiciones de tiempo: in, on, at",
+          "ejemplos": [
+            "I'll meet you at 3:00 pm."
+          ]
+        },
+        {
+          "estructura": "Preposiciones de duración: since, for, ago, until",
+          "ejemplos": [
+            "I lived there until 2014."
+          ]
+        },
+        {
+          "estructura": "Conectores de coordinación: and, or, but",
+          "ejemplos": [
+            "What do you prefer, bananas or apples?"
+          ]
+        },
+        {
+          "estructura": "Conectores de tiempo: when / while",
+          "ejemplos": [
+            "Avoid using your cell phone while you're driving."
+          ]
+        },
+        {
+          "estructura": "Conectores de secuencia: first, then, finally",
+          "ejemplos": [
+            "First, we visited the Lincoln Memorial. Then we spent two hours in the Smithsonian Museum."
+          ]
+        },
+        {
+          "estructura": "Conectores de causalidad: because, so, then",
+          "ejemplos": [
+            "He was happy because he got all A's."
+          ]
+        }
+      ],
+      "frases": [
+        {
+          "funcion": "Cortesía",
+          "ejemplos": [
+            "Excuse me",
+            "Thank you!",
+            "You're welcome"
+          ]
+        },
+        {
+          "funcion": "Captar la atención",
+          "ejemplos": [
+            "Excuse me, ma'am"
+          ]
+        },
+        {
+          "funcion": "Interrumpir con cortesía",
+          "ejemplos": [
+            "Sorry to interrupt you"
+          ]
+        },
+        {
+          "funcion": "Pedir y dar la palabra",
+          "ejemplos": [
+            "May I say something?"
+          ]
+        },
+        {
+          "funcion": "Pedir que repitan",
+          "ejemplos": [
+            "Pardon?",
+            "Sorry?"
+          ]
+        },
+        {
+          "funcion": "Disculparse",
+          "ejemplos": [
+            "I'm sorry",
+            "I apologize"
+          ]
+        },
+        {
+          "funcion": "Dudar",
+          "ejemplos": [
+            "I'm not sure",
+            "maybe"
+          ]
+        },
+        {
+          "funcion": "Mostrar interés o empatía",
+          "ejemplos": [
+            "What happened?",
+            "What's wrong?",
+            "Good for you!"
+          ]
+        },
+        {
+          "funcion": "Mostrar indiferencia o desinterés",
+          "ejemplos": [
+            "I don't mind",
+            "I don't care!"
+          ]
+        },
+        {
+          "funcion": "Mostrar acuerdo y desacuerdo",
+          "ejemplos": [
+            "I don't agree",
+            "I agree"
+          ]
+        },
+        {
+          "funcion": "Fechas",
+          "ejemplos": [
+            "September 12th, 2016"
+          ]
+        },
+        {
+          "funcion": "Hora",
+          "ejemplos": [
+            "at 9:00 a.m.",
+            "at noon",
+            "at 11:00 pm"
+          ]
+        },
+        {
+          "funcion": "Deseos",
+          "ejemplos": [
+            "I hope so!",
+            "I hope not!",
+            "I wish!"
+          ]
+        }
+      ]
+    },
+    "procedimientos": {
+      "funcionales": [
+        "Sostener una conversación",
+        "Intercambiar información sobre actividades cotidianas",
+        "Describir estados anímicos y físicos",
+        "Solicitar y ofrecer ayuda",
+        "Comprar",
+        "Expresar deseo o interés",
+        "Pedir y dar consejos y sugerencias",
+        "Expresar planes y acordar un encuentro",
+        "Narrar hechos y experiencias"
+      ],
+      "discursivos": [
+        "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+        "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+        "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+      ],
+      "estrategicos": {
+        "comprensionOral": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "comprensionEscrita": [
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ]
+      },
+      "sociolinguisticosYSocioculturales": [
+        "Utilización de fórmulas cotidianas de interacción social",
+        "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+      ]
+    },
+    "actitudinales": [
+      "Motivación para aprender inglés",
+      "Cortesía y asertividad en la comunicación",
+      "Respeto por las diferencias en los modos de vida de las personas",
+      "Respeto por las normas éticas de la interacción a través de las TIC",
+      "Uso juicioso del tiempo que se dedica a la interacción a través de las TIC",
+      "Empatía por los sentimientos y necesidades de los y las demás",
+      "Dominio propio y autocontrol",
+      "Tacto al ofrecer consejos",
+      "Hábitos juiciosos de consumo",
+      "Honestidad al interactuar con las demás personas",
+      "Cumplimiento de los compromisos contraídos",
+      "Respeto por el tiempo de los demás",
+      "Humildad al narrar sus experiencias",
+      "Valoración positiva de su origen familiar y social",
+      "Respeto por las costumbres y tradiciones propias y las de los demás países",
+      "Cuidado del medioambiente y de los recursos naturales",
+      "Flexibilidad ante los cambios",
+      "Solidaridad con quien necesita ayuda"
+    ],
+    "actitudesYValores": [
+      "Motivación para aprender inglés",
+      "Cortesía y asertividad en la comunicación",
+      "Respeto por las diferencias en los modos de vida de las personas",
+      "Respeto por las normas éticas de la interacción a través de las TIC",
+      "Uso juicioso del tiempo que se dedica a la interacción a través de las TIC",
+      "Empatía por los sentimientos y necesidades de los y las demás",
+      "Dominio propio y autocontrol",
+      "Tacto al ofrecer consejos",
+      "Hábitos juiciosos de consumo",
+      "Honestidad al interactuar con las demás personas",
+      "Cumplimiento de los compromisos contraídos",
+      "Respeto por el tiempo de los demás",
+      "Humildad al narrar sus experiencias",
+      "Valoración positiva de su origen familiar y social",
+      "Respeto por las costumbres y tradiciones propias y las de los demás países",
+      "Cuidado del medioambiente y de los recursos naturales",
+      "Flexibilidad ante los cambios",
+      "Solidaridad con quien necesita ayuda"
+    ]
+  },
+  "contenidosGenerales": {
+    "conceptuales": [
+      "Relaciones humanas y sociales",
+      "Actividades de la vida diaria",
+      "Vivienda, entorno y ciudad",
+      "Escuela y educación",
+      "Deporte, tiempo libre y recreación",
+      "Alimentación",
+      "Salud y cuidados físicos",
+      "Ciencia y tecnología",
+      "Lengua y comunicación",
+      "Clima, condiciones atmosféricas y medio ambiente",
+      "Bienes y servicios",
+      "Actividades sociales y culturales",
+      "Viajes y turismo",
+      "Actividades de la vida diaria: go to school, take the metro",
+      "Actividades de tiempo libre y ocio: read, listen to music",
+      "Asignaturas: English, geography, math, PE",
+      "Celebraciones: New Year, Mother's Day, Independence Day",
+      "Comidas y bebidas: bread, salad, juice, milk",
+      "Condiciones atmosféricas: rainy, sunny, cloudy, cold",
+      "Deportes: basketball, volleyball, bowling",
+      "Dinero: credit card, cash, change, dollars, pesos",
+      "Dolencias y enfermedades: headache, stomachache, cold",
+      "Educación: high school, seventh grade, freshman",
+      "Establecimientos comerciales: bakery, restaurant, pharmacy",
+      "Estados de ánimo: excited, embarrassed, scared, surprised",
+      "Eventos de la vida: be born, have a baby, start school",
+      "Formas de interacción: texting, voice calls, chat",
+      "Lugares: park, fire station, hospital, beach",
+      "Medicamentos: aspirin, antiacid, eye drops",
+      "Medios de transporte: metro, bus, taxi, plane",
+      "Números cardinales: one, two",
+      "Números ordinales: first, second, third",
+      "Ocupaciones: florist, manager, pharmacist",
+      "Partes del cuerpo: head, legs, mouth",
+      "Puntos cardinales: east, west, north",
+      "Relaciones humanas: friends, classmates, relatives",
+      "Sensaciones físicas: cold, hungry, thirsty, tired",
+      "Tallas: small (S), large (L), extra-large (XL)",
+      "Tecnología: video calls, tablets, smart phones",
+      "Vías: street, avenue, road, highway",
+      "Cortesía: Excuse me, Thank you!, You're welcome",
+      "Captar la atención: Excuse me, ma'am",
+      "Interrumpir con cortesía: Sorry to interrupt you",
+      "Pedir y dar la palabra: May I say something?",
+      "Pedir que repitan: Pardon?, Sorry?",
+      "Disculparse: I'm sorry, I apologize",
+      "Dudar: I'm not sure, maybe",
+      "Mostrar interés o empatía: What happened?, What's wrong?, Good for you!",
+      "Mostrar indiferencia o desinterés: I don't mind, I don't care!",
+      "Mostrar acuerdo y desacuerdo: I don't agree, I agree",
+      "Fechas: September 12th, 2016",
+      "Hora: at 9:00 a.m., at noon, at 11:00 pm",
+      "Deseos: I hope so!, I hope not!, I wish!",
+      "Presente simple para sostener una conversación: What do you do for a living? Hello, this is Ethan.",
+      "Presente simple para referirse a actividades cotidianas: She always picks up her kids at school.",
+      "Presente simple de los verbos be, feel, have, seem, look, hurt, ache para describir estados anímicos y físicos: She looks tired and angry.",
+      "Presente simple de los verbos be, have, want, need en contexto de compra: I need a pair of boots.",
+      "Pasado simple al narrar hechos y experiencias: I lived in the US until I was seven.",
+      "Pasado continuo al narrar hechos y experiencias, y describir estados anímicos y físicos: He was coughing last night.",
+      "Presente perfecto para narrar hechos y experiencias: I've seen the flamingos at Lago Enriquillo.",
+      "Pasado continuo y pasado simple para narrar hechos y experiencias: I was doing homework when she called.",
+      "Will para acordar un encuentro y comprar: I'll be there at 6:00 pm. I'll have a cheeseburger, please.",
+      "Be going to para expresar planes y acordar encuentros: I'm going to visit Grandma next week. Are you going to join me?",
+      "Presente continuo para expresar planes e intenciones y acordar un encuentro: Our tech support is installing a new antivirus tomorrow. What time are we meeting for dinner? I'm looking for a yellow T-shirt.",
+      "There + be en pasado simple para narrar hechos y experiencias: There was an earthquake this morning.",
+      "Modo imperativo para dar consejos y sugerencias: Don't eat junk food.",
+      "Let's para dar sugerencias: Let's go out for pizza.",
+      "Want, hope y wish para expresar deseo o interés: I hope to spend more time with my family.",
+      "Can, may y could para sostener una conversación: May I speak to Rosa, please? Could you speak louder, please?",
+      "Should para pedir y dar consejos y sugerencias: You should drink more water.",
+      "Condicional para dar consejos y sugerencias y expresar planes: If you have a fever, you should see a doctor. If I get home early today, I will bake a cake.",
+      "Question tags: You feel better, don't you? She visited her father last month, didn't she?",
+      "Voz pasiva del presente en contexto de compras: This device is made in the Dominican Republic. The batteries are sold separately.",
+      "Oraciones exclamativas: How nice! That's great!",
+      "Posesivo 's: This is Victor's shirt.",
+      "Sustantivos contables y no contables: books, chairs; sugar, salad",
+      "Género: father, mother, king, queen",
+      "Número: girl, girls, man, men",
+      "Artículos definido (the) e indefinidos (a/an): The pencil is on the table. I saw a rhino and an elephant at the zoo.",
+      "Grados comparativo y superlativo del adjetivo: Do you have a smaller one? He's my best friend.",
+      "Participio presente en función adjetiva: The soccer game was boring. We saw an exciting movie last night.",
+      "Participio pasado en función adjetiva: The injured patient is getting better.",
+      "Pronombres interrogativos: what, who, how: How do you spell your name, please?",
+      "How much / how many en contexto de compra: How much are those black shoes? How many batteries do you need?",
+      "Why don't / Why not para sugerencias: Why don't we meet this weekend?",
+      "Pronombres objeto: me, her, them: Would you call me later, please?",
+      "Pronombres posesivos: mine, yours, his, hers: These red pens are mine.",
+      "Pronombres reflexivos: myself, yourself: He cut himself while he was cooking.",
+      "Adverbios de tiempo: now, in the past, yet, already, still: I still want to go there.",
+      "Adverbios de frecuencia: never, always, once a week: I never drink coffee at night.",
+      "Adverbios de cantidad: most of, some of: Most of my friends learned English in high school.",
+      "Adverbios de intensidad: very, so, really, too: The movie was really boring.",
+      "Preposiciones de tiempo: in, on, at: I'll meet you at 3:00 pm.",
+      "Preposiciones de duración: since, for, ago, until: I lived there until 2014.",
+      "Conectores de coordinación: and, or, but: What do you prefer, bananas or apples?",
+      "Conectores de tiempo: when / while: Avoid using your cell phone while you're driving.",
+      "Conectores de secuencia: first, then, finally: First, we visited the Lincoln Memorial. Then we spent two hours in the Smithsonian Museum.",
+      "Conectores de causalidad: because, so, then: He was happy because he got all A's."
+    ],
+    "procedimentales": [
+      "Sostener una conversación",
+      "Intercambiar información sobre actividades cotidianas",
+      "Describir estados anímicos y físicos",
+      "Solicitar y ofrecer ayuda",
+      "Comprar",
+      "Expresar deseo o interés",
+      "Pedir y dar consejos y sugerencias",
+      "Expresar planes y acordar un encuentro",
+      "Narrar hechos y experiencias",
+      "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+      "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+      "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+    ],
+    "actitudinales": [
+      "Motivación para aprender inglés",
+      "Cortesía y asertividad en la comunicación",
+      "Respeto por las diferencias en los modos de vida de las personas",
+      "Respeto por las normas éticas de la interacción a través de las TIC",
+      "Uso juicioso del tiempo que se dedica a la interacción a través de las TIC",
+      "Empatía por los sentimientos y necesidades de los y las demás",
+      "Dominio propio y autocontrol",
+      "Tacto al ofrecer consejos",
+      "Hábitos juiciosos de consumo",
+      "Honestidad al interactuar con las demás personas",
+      "Cumplimiento de los compromisos contraídos",
+      "Respeto por el tiempo de los demás",
+      "Humildad al narrar sus experiencias",
+      "Valoración positiva de su origen familiar y social",
+      "Respeto por las costumbres y tradiciones propias y las de los demás países",
+      "Cuidado del medioambiente y de los recursos naturales",
+      "Flexibilidad ante los cambios",
+      "Solidaridad con quien necesita ayuda"
+    ]
+  },
+  "conceptuales": [
+    "Relaciones humanas y sociales",
+    "Actividades de la vida diaria",
+    "Vivienda, entorno y ciudad",
+    "Escuela y educación",
+    "Deporte, tiempo libre y recreación",
+    "Alimentación",
+    "Salud y cuidados físicos",
+    "Ciencia y tecnología",
+    "Lengua y comunicación",
+    "Clima, condiciones atmosféricas y medio ambiente",
+    "Bienes y servicios",
+    "Actividades sociales y culturales",
+    "Viajes y turismo",
+    "Actividades de la vida diaria: go to school, take the metro",
+    "Actividades de tiempo libre y ocio: read, listen to music",
+    "Asignaturas: English, geography, math, PE",
+    "Celebraciones: New Year, Mother's Day, Independence Day",
+    "Comidas y bebidas: bread, salad, juice, milk",
+    "Condiciones atmosféricas: rainy, sunny, cloudy, cold",
+    "Deportes: basketball, volleyball, bowling",
+    "Dinero: credit card, cash, change, dollars, pesos",
+    "Dolencias y enfermedades: headache, stomachache, cold",
+    "Educación: high school, seventh grade, freshman",
+    "Establecimientos comerciales: bakery, restaurant, pharmacy",
+    "Estados de ánimo: excited, embarrassed, scared, surprised",
+    "Eventos de la vida: be born, have a baby, start school",
+    "Formas de interacción: texting, voice calls, chat",
+    "Lugares: park, fire station, hospital, beach",
+    "Medicamentos: aspirin, antiacid, eye drops",
+    "Medios de transporte: metro, bus, taxi, plane",
+    "Números cardinales: one, two",
+    "Números ordinales: first, second, third",
+    "Ocupaciones: florist, manager, pharmacist",
+    "Partes del cuerpo: head, legs, mouth",
+    "Puntos cardinales: east, west, north",
+    "Relaciones humanas: friends, classmates, relatives",
+    "Sensaciones físicas: cold, hungry, thirsty, tired",
+    "Tallas: small (S), large (L), extra-large (XL)",
+    "Tecnología: video calls, tablets, smart phones",
+    "Vías: street, avenue, road, highway",
+    "Cortesía: Excuse me, Thank you!, You're welcome",
+    "Captar la atención: Excuse me, ma'am",
+    "Interrumpir con cortesía: Sorry to interrupt you",
+    "Pedir y dar la palabra: May I say something?",
+    "Pedir que repitan: Pardon?, Sorry?",
+    "Disculparse: I'm sorry, I apologize",
+    "Dudar: I'm not sure, maybe",
+    "Mostrar interés o empatía: What happened?, What's wrong?, Good for you!",
+    "Mostrar indiferencia o desinterés: I don't mind, I don't care!",
+    "Mostrar acuerdo y desacuerdo: I don't agree, I agree",
+    "Fechas: September 12th, 2016",
+    "Hora: at 9:00 a.m., at noon, at 11:00 pm",
+    "Deseos: I hope so!, I hope not!, I wish!",
+    "Presente simple para sostener una conversación: What do you do for a living? Hello, this is Ethan.",
+    "Presente simple para referirse a actividades cotidianas: She always picks up her kids at school.",
+    "Presente simple de los verbos be, feel, have, seem, look, hurt, ache para describir estados anímicos y físicos: She looks tired and angry.",
+    "Presente simple de los verbos be, have, want, need en contexto de compra: I need a pair of boots.",
+    "Pasado simple al narrar hechos y experiencias: I lived in the US until I was seven.",
+    "Pasado continuo al narrar hechos y experiencias, y describir estados anímicos y físicos: He was coughing last night.",
+    "Presente perfecto para narrar hechos y experiencias: I've seen the flamingos at Lago Enriquillo.",
+    "Pasado continuo y pasado simple para narrar hechos y experiencias: I was doing homework when she called.",
+    "Will para acordar un encuentro y comprar: I'll be there at 6:00 pm. I'll have a cheeseburger, please.",
+    "Be going to para expresar planes y acordar encuentros: I'm going to visit Grandma next week. Are you going to join me?",
+    "Presente continuo para expresar planes e intenciones y acordar un encuentro: Our tech support is installing a new antivirus tomorrow. What time are we meeting for dinner? I'm looking for a yellow T-shirt.",
+    "There + be en pasado simple para narrar hechos y experiencias: There was an earthquake this morning.",
+    "Modo imperativo para dar consejos y sugerencias: Don't eat junk food.",
+    "Let's para dar sugerencias: Let's go out for pizza.",
+    "Want, hope y wish para expresar deseo o interés: I hope to spend more time with my family.",
+    "Can, may y could para sostener una conversación: May I speak to Rosa, please? Could you speak louder, please?",
+    "Should para pedir y dar consejos y sugerencias: You should drink more water.",
+    "Condicional para dar consejos y sugerencias y expresar planes: If you have a fever, you should see a doctor. If I get home early today, I will bake a cake.",
+    "Question tags: You feel better, don't you? She visited her father last month, didn't she?",
+    "Voz pasiva del presente en contexto de compras: This device is made in the Dominican Republic. The batteries are sold separately.",
+    "Oraciones exclamativas: How nice! That's great!",
+    "Posesivo 's: This is Victor's shirt.",
+    "Sustantivos contables y no contables: books, chairs; sugar, salad",
+    "Género: father, mother, king, queen",
+    "Número: girl, girls, man, men",
+    "Artículos definido (the) e indefinidos (a/an): The pencil is on the table. I saw a rhino and an elephant at the zoo.",
+    "Grados comparativo y superlativo del adjetivo: Do you have a smaller one? He's my best friend.",
+    "Participio presente en función adjetiva: The soccer game was boring. We saw an exciting movie last night.",
+    "Participio pasado en función adjetiva: The injured patient is getting better.",
+    "Pronombres interrogativos: what, who, how: How do you spell your name, please?",
+    "How much / how many en contexto de compra: How much are those black shoes? How many batteries do you need?",
+    "Why don't / Why not para sugerencias: Why don't we meet this weekend?",
+    "Pronombres objeto: me, her, them: Would you call me later, please?",
+    "Pronombres posesivos: mine, yours, his, hers: These red pens are mine.",
+    "Pronombres reflexivos: myself, yourself: He cut himself while he was cooking.",
+    "Adverbios de tiempo: now, in the past, yet, already, still: I still want to go there.",
+    "Adverbios de frecuencia: never, always, once a week: I never drink coffee at night.",
+    "Adverbios de cantidad: most of, some of: Most of my friends learned English in high school.",
+    "Adverbios de intensidad: very, so, really, too: The movie was really boring.",
+    "Preposiciones de tiempo: in, on, at: I'll meet you at 3:00 pm.",
+    "Preposiciones de duración: since, for, ago, until: I lived there until 2014.",
+    "Conectores de coordinación: and, or, but: What do you prefer, bananas or apples?",
+    "Conectores de tiempo: when / while: Avoid using your cell phone while you're driving.",
+    "Conectores de secuencia: first, then, finally: First, we visited the Lincoln Memorial. Then we spent two hours in the Smithsonian Museum.",
+    "Conectores de causalidad: because, so, then: He was happy because he got all A's."
+  ],
+  "procedimentales": [
+    "Sostener una conversación",
+    "Intercambiar información sobre actividades cotidianas",
+    "Describir estados anímicos y físicos",
+    "Solicitar y ofrecer ayuda",
+    "Comprar",
+    "Expresar deseo o interés",
+    "Pedir y dar consejos y sugerencias",
+    "Expresar planes y acordar un encuentro",
+    "Narrar hechos y experiencias",
+    "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+    "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+    "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+  ],
+  "actitudinales": [
+    "Motivación para aprender inglés",
+    "Cortesía y asertividad en la comunicación",
+    "Respeto por las diferencias en los modos de vida de las personas",
+    "Respeto por las normas éticas de la interacción a través de las TIC",
+    "Uso juicioso del tiempo que se dedica a la interacción a través de las TIC",
+    "Empatía por los sentimientos y necesidades de los y las demás",
+    "Dominio propio y autocontrol",
+    "Tacto al ofrecer consejos",
+    "Hábitos juiciosos de consumo",
+    "Honestidad al interactuar con las demás personas",
+    "Cumplimiento de los compromisos contraídos",
+    "Respeto por el tiempo de los demás",
+    "Humildad al narrar sus experiencias",
+    "Valoración positiva de su origen familiar y social",
+    "Respeto por las costumbres y tradiciones propias y las de los demás países",
+    "Cuidado del medioambiente y de los recursos naturales",
+    "Flexibilidad ante los cambios",
+    "Solidaridad con quien necesita ayuda"
+  ],
+  "vocabulario": [
+    {
+      "categoria": "Actividades de la vida diaria",
+      "ejemplos": [
+        "go to school",
+        "take the metro"
+      ]
+    },
+    {
+      "categoria": "Actividades de tiempo libre y ocio",
+      "ejemplos": [
+        "read",
+        "listen to music"
+      ]
+    },
+    {
+      "categoria": "Asignaturas",
+      "ejemplos": [
+        "English",
+        "geography",
+        "math",
+        "PE"
+      ]
+    },
+    {
+      "categoria": "Celebraciones",
+      "ejemplos": [
+        "New Year",
+        "Mother's Day",
+        "Independence Day"
+      ]
+    },
+    {
+      "categoria": "Comidas y bebidas",
+      "ejemplos": [
+        "bread",
+        "salad",
+        "juice",
+        "milk"
+      ]
+    },
+    {
+      "categoria": "Condiciones atmosféricas",
+      "ejemplos": [
+        "rainy",
+        "sunny",
+        "cloudy",
+        "cold"
+      ]
+    },
+    {
+      "categoria": "Deportes",
+      "ejemplos": [
+        "basketball",
+        "volleyball",
+        "bowling"
+      ]
+    },
+    {
+      "categoria": "Dinero",
+      "ejemplos": [
+        "credit card",
+        "cash",
+        "change",
+        "dollars",
+        "pesos"
+      ]
+    },
+    {
+      "categoria": "Dolencias y enfermedades",
+      "ejemplos": [
+        "headache",
+        "stomachache",
+        "cold"
+      ]
+    },
+    {
+      "categoria": "Educación",
+      "ejemplos": [
+        "high school",
+        "seventh grade",
+        "freshman"
+      ]
+    },
+    {
+      "categoria": "Establecimientos comerciales",
+      "ejemplos": [
+        "bakery",
+        "restaurant",
+        "pharmacy"
+      ]
+    },
+    {
+      "categoria": "Estados de ánimo",
+      "ejemplos": [
+        "excited",
+        "embarrassed",
+        "scared",
+        "surprised"
+      ]
+    },
+    {
+      "categoria": "Eventos de la vida",
+      "ejemplos": [
+        "be born",
+        "have a baby",
+        "start school"
+      ]
+    },
+    {
+      "categoria": "Formas de interacción",
+      "ejemplos": [
+        "texting",
+        "voice calls",
+        "chat"
+      ]
+    },
+    {
+      "categoria": "Lugares",
+      "ejemplos": [
+        "park",
+        "fire station",
+        "hospital",
+        "beach"
+      ]
+    },
+    {
+      "categoria": "Medicamentos",
+      "ejemplos": [
+        "aspirin",
+        "antiacid",
+        "eye drops"
+      ]
+    },
+    {
+      "categoria": "Medios de transporte",
+      "ejemplos": [
+        "metro",
+        "bus",
+        "taxi",
+        "plane"
+      ]
+    },
+    {
+      "categoria": "Números cardinales",
+      "ejemplos": [
+        "one",
+        "two"
+      ]
+    },
+    {
+      "categoria": "Números ordinales",
+      "ejemplos": [
+        "first",
+        "second",
+        "third"
+      ]
+    },
+    {
+      "categoria": "Ocupaciones",
+      "ejemplos": [
+        "florist",
+        "manager",
+        "pharmacist"
+      ]
+    },
+    {
+      "categoria": "Partes del cuerpo",
+      "ejemplos": [
+        "head",
+        "legs",
+        "mouth"
+      ]
+    },
+    {
+      "categoria": "Puntos cardinales",
+      "ejemplos": [
+        "east",
+        "west",
+        "north"
+      ]
+    },
+    {
+      "categoria": "Relaciones humanas",
+      "ejemplos": [
+        "friends",
+        "classmates",
+        "relatives"
+      ]
+    },
+    {
+      "categoria": "Sensaciones físicas",
+      "ejemplos": [
+        "cold",
+        "hungry",
+        "thirsty",
+        "tired"
+      ]
+    },
+    {
+      "categoria": "Tallas",
+      "ejemplos": [
+        "small (S)",
+        "large (L)",
+        "extra-large (XL)"
+      ]
+    },
+    {
+      "categoria": "Tecnología",
+      "ejemplos": [
+        "video calls",
+        "tablets",
+        "smart phones"
+      ]
+    },
+    {
+      "categoria": "Vías",
+      "ejemplos": [
+        "street",
+        "avenue",
+        "road",
+        "highway"
+      ]
+    }
+  ],
+  "gramatica": [
+    {
+      "estructura": "Presente simple para sostener una conversación",
+      "ejemplos": [
+        "What do you do for a living?",
+        "Hello, this is Ethan."
+      ]
+    },
+    {
+      "estructura": "Presente simple para referirse a actividades cotidianas",
+      "ejemplos": [
+        "She always picks up her kids at school."
+      ]
+    },
+    {
+      "estructura": "Presente simple de los verbos be, feel, have, seem, look, hurt, ache para describir estados anímicos y físicos",
+      "ejemplos": [
+        "She looks tired and angry."
+      ]
+    },
+    {
+      "estructura": "Presente simple de los verbos be, have, want, need en contexto de compra",
+      "ejemplos": [
+        "I need a pair of boots."
+      ]
+    },
+    {
+      "estructura": "Pasado simple al narrar hechos y experiencias",
+      "ejemplos": [
+        "I lived in the US until I was seven."
+      ]
+    },
+    {
+      "estructura": "Pasado continuo al narrar hechos y experiencias, y describir estados anímicos y físicos",
+      "ejemplos": [
+        "He was coughing last night."
+      ]
+    },
+    {
+      "estructura": "Presente perfecto para narrar hechos y experiencias",
+      "ejemplos": [
+        "I've seen the flamingos at Lago Enriquillo."
+      ]
+    },
+    {
+      "estructura": "Pasado continuo y pasado simple para narrar hechos y experiencias",
+      "ejemplos": [
+        "I was doing homework when she called."
+      ]
+    },
+    {
+      "estructura": "Will para acordar un encuentro y comprar",
+      "ejemplos": [
+        "I'll be there at 6:00 pm.",
+        "I'll have a cheeseburger, please."
+      ]
+    },
+    {
+      "estructura": "Be going to para expresar planes y acordar encuentros",
+      "ejemplos": [
+        "I'm going to visit Grandma next week. Are you going to join me?"
+      ]
+    },
+    {
+      "estructura": "Presente continuo para expresar planes e intenciones y acordar un encuentro",
+      "ejemplos": [
+        "Our tech support is installing a new antivirus tomorrow.",
+        "What time are we meeting for dinner?",
+        "I'm looking for a yellow T-shirt."
+      ]
+    },
+    {
+      "estructura": "There + be en pasado simple para narrar hechos y experiencias",
+      "ejemplos": [
+        "There was an earthquake this morning."
+      ]
+    },
+    {
+      "estructura": "Modo imperativo para dar consejos y sugerencias",
+      "ejemplos": [
+        "Don't eat junk food."
+      ]
+    },
+    {
+      "estructura": "Let's para dar sugerencias",
+      "ejemplos": [
+        "Let's go out for pizza."
+      ]
+    },
+    {
+      "estructura": "Want, hope y wish para expresar deseo o interés",
+      "ejemplos": [
+        "I hope to spend more time with my family."
+      ]
+    },
+    {
+      "estructura": "Can, may y could para sostener una conversación",
+      "ejemplos": [
+        "May I speak to Rosa, please?",
+        "Could you speak louder, please?"
+      ]
+    },
+    {
+      "estructura": "Should para pedir y dar consejos y sugerencias",
+      "ejemplos": [
+        "You should drink more water."
+      ]
+    },
+    {
+      "estructura": "Condicional para dar consejos y sugerencias y expresar planes",
+      "ejemplos": [
+        "If you have a fever, you should see a doctor.",
+        "If I get home early today, I will bake a cake."
+      ]
+    },
+    {
+      "estructura": "Question tags",
+      "ejemplos": [
+        "You feel better, don't you?",
+        "She visited her father last month, didn't she?"
+      ]
+    },
+    {
+      "estructura": "Voz pasiva del presente en contexto de compras",
+      "ejemplos": [
+        "This device is made in the Dominican Republic.",
+        "The batteries are sold separately."
+      ]
+    },
+    {
+      "estructura": "Oraciones exclamativas",
+      "ejemplos": [
+        "How nice!",
+        "That's great!"
+      ]
+    },
+    {
+      "estructura": "Posesivo 's",
+      "ejemplos": [
+        "This is Victor's shirt."
+      ]
+    },
+    {
+      "estructura": "Sustantivos contables y no contables",
+      "ejemplos": [
+        "books, chairs; sugar, salad"
+      ]
+    },
+    {
+      "estructura": "Género",
+      "ejemplos": [
+        "father, mother, king, queen"
+      ]
+    },
+    {
+      "estructura": "Número",
+      "ejemplos": [
+        "girl, girls, man, men"
+      ]
+    },
+    {
+      "estructura": "Artículos definido (the) e indefinidos (a/an)",
+      "ejemplos": [
+        "The pencil is on the table.",
+        "I saw a rhino and an elephant at the zoo."
+      ]
+    },
+    {
+      "estructura": "Grados comparativo y superlativo del adjetivo",
+      "ejemplos": [
+        "Do you have a smaller one?",
+        "He's my best friend."
+      ]
+    },
+    {
+      "estructura": "Participio presente en función adjetiva",
+      "ejemplos": [
+        "The soccer game was boring.",
+        "We saw an exciting movie last night."
+      ]
+    },
+    {
+      "estructura": "Participio pasado en función adjetiva",
+      "ejemplos": [
+        "The injured patient is getting better."
+      ]
+    },
+    {
+      "estructura": "Pronombres interrogativos: what, who, how",
+      "ejemplos": [
+        "How do you spell your name, please?"
+      ]
+    },
+    {
+      "estructura": "How much / how many en contexto de compra",
+      "ejemplos": [
+        "How much are those black shoes?",
+        "How many batteries do you need?"
+      ]
+    },
+    {
+      "estructura": "Why don't / Why not para sugerencias",
+      "ejemplos": [
+        "Why don't we meet this weekend?"
+      ]
+    },
+    {
+      "estructura": "Pronombres objeto: me, her, them",
+      "ejemplos": [
+        "Would you call me later, please?"
+      ]
+    },
+    {
+      "estructura": "Pronombres posesivos: mine, yours, his, hers",
+      "ejemplos": [
+        "These red pens are mine."
+      ]
+    },
+    {
+      "estructura": "Pronombres reflexivos: myself, yourself",
+      "ejemplos": [
+        "He cut himself while he was cooking."
+      ]
+    },
+    {
+      "estructura": "Adverbios de tiempo: now, in the past, yet, already, still",
+      "ejemplos": [
+        "I still want to go there."
+      ]
+    },
+    {
+      "estructura": "Adverbios de frecuencia: never, always, once a week",
+      "ejemplos": [
+        "I never drink coffee at night."
+      ]
+    },
+    {
+      "estructura": "Adverbios de cantidad: most of, some of",
+      "ejemplos": [
+        "Most of my friends learned English in high school."
+      ]
+    },
+    {
+      "estructura": "Adverbios de intensidad: very, so, really, too",
+      "ejemplos": [
+        "The movie was really boring."
+      ]
+    },
+    {
+      "estructura": "Preposiciones de tiempo: in, on, at",
+      "ejemplos": [
+        "I'll meet you at 3:00 pm."
+      ]
+    },
+    {
+      "estructura": "Preposiciones de duración: since, for, ago, until",
+      "ejemplos": [
+        "I lived there until 2014."
+      ]
+    },
+    {
+      "estructura": "Conectores de coordinación: and, or, but",
+      "ejemplos": [
+        "What do you prefer, bananas or apples?"
+      ]
+    },
+    {
+      "estructura": "Conectores de tiempo: when / while",
+      "ejemplos": [
+        "Avoid using your cell phone while you're driving."
+      ]
+    },
+    {
+      "estructura": "Conectores de secuencia: first, then, finally",
+      "ejemplos": [
+        "First, we visited the Lincoln Memorial. Then we spent two hours in the Smithsonian Museum."
+      ]
+    },
+    {
+      "estructura": "Conectores de causalidad: because, so, then",
+      "ejemplos": [
+        "He was happy because he got all A's."
+      ]
+    }
+  ],
+  "frases": [
+    {
+      "funcion": "Cortesía",
+      "ejemplos": [
+        "Excuse me",
+        "Thank you!",
+        "You're welcome"
+      ]
+    },
+    {
+      "funcion": "Captar la atención",
+      "ejemplos": [
+        "Excuse me, ma'am"
+      ]
+    },
+    {
+      "funcion": "Interrumpir con cortesía",
+      "ejemplos": [
+        "Sorry to interrupt you"
+      ]
+    },
+    {
+      "funcion": "Pedir y dar la palabra",
+      "ejemplos": [
+        "May I say something?"
+      ]
+    },
+    {
+      "funcion": "Pedir que repitan",
+      "ejemplos": [
+        "Pardon?",
+        "Sorry?"
+      ]
+    },
+    {
+      "funcion": "Disculparse",
+      "ejemplos": [
+        "I'm sorry",
+        "I apologize"
+      ]
+    },
+    {
+      "funcion": "Dudar",
+      "ejemplos": [
+        "I'm not sure",
+        "maybe"
+      ]
+    },
+    {
+      "funcion": "Mostrar interés o empatía",
+      "ejemplos": [
+        "What happened?",
+        "What's wrong?",
+        "Good for you!"
+      ]
+    },
+    {
+      "funcion": "Mostrar indiferencia o desinterés",
+      "ejemplos": [
+        "I don't mind",
+        "I don't care!"
+      ]
+    },
+    {
+      "funcion": "Mostrar acuerdo y desacuerdo",
+      "ejemplos": [
+        "I don't agree",
+        "I agree"
+      ]
+    },
+    {
+      "funcion": "Fechas",
+      "ejemplos": [
+        "September 12th, 2016"
+      ]
+    },
+    {
+      "funcion": "Hora",
+      "ejemplos": [
+        "at 9:00 a.m.",
+        "at noon",
+        "at 11:00 pm"
+      ]
+    },
+    {
+      "funcion": "Deseos",
+      "ejemplos": [
+        "I hope so!",
+        "I hope not!",
+        "I wish!"
+      ]
+    }
+  ],
+  "funcionesComunicativas": [
+    "Sostener una conversación",
+    "Intercambiar información sobre actividades cotidianas",
+    "Describir estados anímicos y físicos",
+    "Solicitar y ofrecer ayuda",
+    "Comprar",
+    "Expresar deseo o interés",
+    "Pedir y dar consejos y sugerencias",
+    "Expresar planes y acordar un encuentro",
+    "Narrar hechos y experiencias"
+  ],
+  "contenidosPorTema": [
+    {
+      "id": "T-ING-2-01",
+      "tema": "Relaciones humanas y sociales",
+      "nombre": "Relaciones humanas y sociales",
+      "conceptos": {
+        "temas": [
+          "Relaciones humanas y sociales"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Relaciones humanas",
+            "ejemplos": [
+              "friends",
+              "classmates",
+              "relatives"
+            ]
+          },
+          {
+            "categoria": "Estados de ánimo",
+            "ejemplos": [
+              "excited",
+              "embarrassed",
+              "scared",
+              "surprised"
+            ]
+          },
+          {
+            "categoria": "Formas de interacción",
+            "ejemplos": [
+              "texting",
+              "voice calls",
+              "chat"
+            ]
+          },
+          {
+            "categoria": "Ocupaciones",
+            "ejemplos": [
+              "florist",
+              "manager",
+              "pharmacist"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Presente simple para sostener una conversación",
+            "ejemplos": [
+              "What do you do for a living?",
+              "Hello, this is Ethan."
+            ]
+          },
+          {
+            "estructura": "Can, may y could para sostener una conversación",
+            "ejemplos": [
+              "May I speak to Rosa, please?",
+              "Could you speak louder, please?"
+            ]
+          },
+          {
+            "estructura": "Posesivo 's",
+            "ejemplos": [
+              "This is Victor's shirt."
+            ]
+          },
+          {
+            "estructura": "Pronombres objeto: me, her, them",
+            "ejemplos": [
+              "Would you call me later, please?"
+            ]
+          },
+          {
+            "estructura": "Pronombres posesivos: mine, yours, his, hers",
+            "ejemplos": [
+              "These red pens are mine."
+            ]
+          },
+          {
+            "estructura": "Question tags",
+            "ejemplos": [
+              "You feel better, don't you?",
+              "She visited her father last month, didn't she?"
+            ]
+          },
+          {
+            "estructura": "Género",
+            "ejemplos": [
+              "father, mother, king, queen"
+            ]
+          },
+          {
+            "estructura": "Número",
+            "ejemplos": [
+              "girl, girls, man, men"
+            ]
+          },
+          {
+            "estructura": "Want, hope y wish para expresar deseo o interés",
+            "ejemplos": [
+              "I hope to spend more time with my family."
+            ]
+          },
+          {
+            "estructura": "Why don't / Why not para sugerencias",
+            "ejemplos": [
+              "Why don't we meet this weekend?"
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Cortesía",
+            "ejemplos": [
+              "Excuse me",
+              "Thank you!",
+              "You're welcome"
+            ]
+          },
+          {
+            "funcion": "Captar la atención",
+            "ejemplos": [
+              "Excuse me, ma'am"
+            ]
+          },
+          {
+            "funcion": "Interrumpir con cortesía",
+            "ejemplos": [
+              "Sorry to interrupt you"
+            ]
+          },
+          {
+            "funcion": "Pedir y dar la palabra",
+            "ejemplos": [
+              "May I say something?"
+            ]
+          },
+          {
+            "funcion": "Pedir que repitan",
+            "ejemplos": [
+              "Pardon?",
+              "Sorry?"
+            ]
+          },
+          {
+            "funcion": "Disculparse",
+            "ejemplos": [
+              "I'm sorry",
+              "I apologize"
+            ]
+          },
+          {
+            "funcion": "Dudar",
+            "ejemplos": [
+              "I'm not sure",
+              "maybe"
+            ]
+          },
+          {
+            "funcion": "Mostrar interés o empatía",
+            "ejemplos": [
+              "What happened?",
+              "What's wrong?",
+              "Good for you!"
+            ]
+          },
+          {
+            "funcion": "Mostrar indiferencia o desinterés",
+            "ejemplos": [
+              "I don't mind",
+              "I don't care!"
+            ]
+          },
+          {
+            "funcion": "Mostrar acuerdo y desacuerdo",
+            "ejemplos": [
+              "I don't agree",
+              "I agree"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Utilización de fórmulas cotidianas de interacción social",
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Sostener una conversación",
+          "Solicitar y ofrecer ayuda",
+          "Describir estados anímicos y físicos"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Utilización de fórmulas cotidianas de interacción social",
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Motivación para aprender inglés",
+        "Cortesía y asertividad en la comunicación",
+        "Respeto por las diferencias en los modos de vida de las personas",
+        "Empatía por los sentimientos y necesidades de los y las demás",
+        "Honestidad al interactuar con las demás personas",
+        "Solidaridad con quien necesita ayuda"
+      ],
+      "actitudinales": [
+        "Motivación para aprender inglés",
+        "Cortesía y asertividad en la comunicación",
+        "Respeto por las diferencias en los modos de vida de las personas",
+        "Empatía por los sentimientos y necesidades de los y las demás",
+        "Honestidad al interactuar con las demás personas",
+        "Solidaridad con quien necesita ayuda"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-02",
+      "tema": "Actividades de la vida diaria",
+      "nombre": "Actividades de la vida diaria",
+      "conceptos": {
+        "temas": [
+          "Actividades de la vida diaria"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Actividades de la vida diaria",
+            "ejemplos": [
+              "go to school",
+              "take the metro"
+            ]
+          },
+          {
+            "categoria": "Medios de transporte",
+            "ejemplos": [
+              "metro",
+              "bus",
+              "taxi",
+              "plane"
+            ]
+          },
+          {
+            "categoria": "Números cardinales",
+            "ejemplos": [
+              "one",
+              "two"
+            ]
+          },
+          {
+            "categoria": "Números ordinales",
+            "ejemplos": [
+              "first",
+              "second",
+              "third"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Presente simple para referirse a actividades cotidianas",
+            "ejemplos": [
+              "She always picks up her kids at school."
+            ]
+          },
+          {
+            "estructura": "Adverbios de frecuencia: never, always, once a week",
+            "ejemplos": [
+              "I never drink coffee at night."
+            ]
+          },
+          {
+            "estructura": "Preposiciones de tiempo: in, on, at",
+            "ejemplos": [
+              "I'll meet you at 3:00 pm."
+            ]
+          },
+          {
+            "estructura": "Conectores de secuencia: first, then, finally",
+            "ejemplos": [
+              "First, we visited the Lincoln Memorial. Then we spent two hours in the Smithsonian Museum."
+            ]
+          },
+          {
+            "estructura": "Conectores de tiempo: when / while",
+            "ejemplos": [
+              "Avoid using your cell phone while you're driving."
+            ]
+          },
+          {
+            "estructura": "Adverbios de tiempo: now, in the past, yet, already, still",
+            "ejemplos": [
+              "I still want to go there."
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Hora",
+            "ejemplos": [
+              "at 9:00 a.m.",
+              "at noon",
+              "at 11:00 pm"
+            ]
+          },
+          {
+            "funcion": "Fechas",
+            "ejemplos": [
+              "September 12th, 2016"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Intercambiar información sobre actividades cotidianas",
+          "Sostener una conversación"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Motivación para aprender inglés",
+        "Cumplimiento de los compromisos contraídos",
+        "Respeto por el tiempo de los demás",
+        "Dominio propio y autocontrol"
+      ],
+      "actitudinales": [
+        "Motivación para aprender inglés",
+        "Cumplimiento de los compromisos contraídos",
+        "Respeto por el tiempo de los demás",
+        "Dominio propio y autocontrol"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-03",
+      "tema": "Vivienda, entorno y ciudad",
+      "nombre": "Vivienda, entorno y ciudad",
+      "conceptos": {
+        "temas": [
+          "Vivienda, entorno y ciudad"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Lugares",
+            "ejemplos": [
+              "park",
+              "fire station",
+              "hospital",
+              "beach"
+            ]
+          },
+          {
+            "categoria": "Vías",
+            "ejemplos": [
+              "street",
+              "avenue",
+              "road",
+              "highway"
+            ]
+          },
+          {
+            "categoria": "Puntos cardinales",
+            "ejemplos": [
+              "east",
+              "west",
+              "north"
+            ]
+          },
+          {
+            "categoria": "Medios de transporte",
+            "ejemplos": [
+              "metro",
+              "bus",
+              "taxi",
+              "plane"
+            ]
+          },
+          {
+            "categoria": "Números cardinales",
+            "ejemplos": [
+              "one",
+              "two"
+            ]
+          },
+          {
+            "categoria": "Números ordinales",
+            "ejemplos": [
+              "first",
+              "second",
+              "third"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "There + be en pasado simple para narrar hechos y experiencias",
+            "ejemplos": [
+              "There was an earthquake this morning."
+            ]
+          },
+          {
+            "estructura": "Artículos definido (the) e indefinidos (a/an)",
+            "ejemplos": [
+              "The pencil is on the table.",
+              "I saw a rhino and an elephant at the zoo."
+            ]
+          },
+          {
+            "estructura": "Conectores de coordinación: and, or, but",
+            "ejemplos": [
+              "What do you prefer, bananas or apples?"
+            ]
+          },
+          {
+            "estructura": "Conectores de secuencia: first, then, finally",
+            "ejemplos": [
+              "First, we visited the Lincoln Memorial. Then we spent two hours in the Smithsonian Museum."
+            ]
+          }
+        ],
+        "frases": [],
+        "sociolinguisticos": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Solicitar y ofrecer ayuda",
+          "Sostener una conversación",
+          "Narrar hechos y experiencias"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Respeto por las diferencias en los modos de vida de las personas",
+        "Valoración positiva de su origen familiar y social",
+        "Cuidado del medioambiente y de los recursos naturales",
+        "Solidaridad con quien necesita ayuda"
+      ],
+      "actitudinales": [
+        "Respeto por las diferencias en los modos de vida de las personas",
+        "Valoración positiva de su origen familiar y social",
+        "Cuidado del medioambiente y de los recursos naturales",
+        "Solidaridad con quien necesita ayuda"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-04",
+      "tema": "Escuela y educación",
+      "nombre": "Escuela y educación",
+      "conceptos": {
+        "temas": [
+          "Escuela y educación"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Asignaturas",
+            "ejemplos": [
+              "English",
+              "geography",
+              "math",
+              "PE"
+            ]
+          },
+          {
+            "categoria": "Educación",
+            "ejemplos": [
+              "high school",
+              "seventh grade",
+              "freshman"
+            ]
+          },
+          {
+            "categoria": "Números ordinales",
+            "ejemplos": [
+              "first",
+              "second",
+              "third"
+            ]
+          },
+          {
+            "categoria": "Ocupaciones",
+            "ejemplos": [
+              "florist",
+              "manager",
+              "pharmacist"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Presente simple para sostener una conversación",
+            "ejemplos": [
+              "What do you do for a living?",
+              "Hello, this is Ethan."
+            ]
+          },
+          {
+            "estructura": "Pronombres interrogativos: what, who, how",
+            "ejemplos": [
+              "How do you spell your name, please?"
+            ]
+          },
+          {
+            "estructura": "Can, may y could para sostener una conversación",
+            "ejemplos": [
+              "May I speak to Rosa, please?",
+              "Could you speak louder, please?"
+            ]
+          },
+          {
+            "estructura": "Conectores de causalidad: because, so, then",
+            "ejemplos": [
+              "He was happy because he got all A's."
+            ]
+          },
+          {
+            "estructura": "Why don't / Why not para sugerencias",
+            "ejemplos": [
+              "Why don't we meet this weekend?"
+            ]
+          },
+          {
+            "estructura": "Adverbios de tiempo: now, in the past, yet, already, still",
+            "ejemplos": [
+              "I still want to go there."
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Pedir y dar la palabra",
+            "ejemplos": [
+              "May I say something?"
+            ]
+          },
+          {
+            "funcion": "Pedir que repitan",
+            "ejemplos": [
+              "Pardon?",
+              "Sorry?"
+            ]
+          },
+          {
+            "funcion": "Disculparse",
+            "ejemplos": [
+              "I'm sorry",
+              "I apologize"
+            ]
+          },
+          {
+            "funcion": "Mostrar acuerdo y desacuerdo",
+            "ejemplos": [
+              "I don't agree",
+              "I agree"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Utilización de fórmulas cotidianas de interacción social"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Sostener una conversación",
+          "Solicitar y ofrecer ayuda",
+          "Expresar deseo o interés"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Utilización de fórmulas cotidianas de interacción social"
+        ]
+      },
+      "actitudesValores": [
+        "Motivación para aprender inglés",
+        "Cortesía y asertividad en la comunicación",
+        "Cumplimiento de los compromisos contraídos",
+        "Respeto por el tiempo de los demás",
+        "Flexibilidad ante los cambios"
+      ],
+      "actitudinales": [
+        "Motivación para aprender inglés",
+        "Cortesía y asertividad en la comunicación",
+        "Cumplimiento de los compromisos contraídos",
+        "Respeto por el tiempo de los demás",
+        "Flexibilidad ante los cambios"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-05",
+      "tema": "Deporte, tiempo libre y recreación",
+      "nombre": "Deporte, tiempo libre y recreación",
+      "conceptos": {
+        "temas": [
+          "Deporte, tiempo libre y recreación"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Actividades de tiempo libre y ocio",
+            "ejemplos": [
+              "read",
+              "listen to music"
+            ]
+          },
+          {
+            "categoria": "Deportes",
+            "ejemplos": [
+              "basketball",
+              "volleyball",
+              "bowling"
+            ]
+          },
+          {
+            "categoria": "Estados de ánimo",
+            "ejemplos": [
+              "excited",
+              "embarrassed",
+              "scared",
+              "surprised"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Participio presente en función adjetiva",
+            "ejemplos": [
+              "The soccer game was boring.",
+              "We saw an exciting movie last night."
+            ]
+          },
+          {
+            "estructura": "Oraciones exclamativas",
+            "ejemplos": [
+              "How nice!",
+              "That's great!"
+            ]
+          },
+          {
+            "estructura": "Grados comparativo y superlativo del adjetivo",
+            "ejemplos": [
+              "Do you have a smaller one?",
+              "He's my best friend."
+            ]
+          },
+          {
+            "estructura": "Adverbios de intensidad: very, so, really, too",
+            "ejemplos": [
+              "The movie was really boring."
+            ]
+          },
+          {
+            "estructura": "Let's para dar sugerencias",
+            "ejemplos": [
+              "Let's go out for pizza."
+            ]
+          },
+          {
+            "estructura": "Why don't / Why not para sugerencias",
+            "ejemplos": [
+              "Why don't we meet this weekend?"
+            ]
+          },
+          {
+            "estructura": "Want, hope y wish para expresar deseo o interés",
+            "ejemplos": [
+              "I hope to spend more time with my family."
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Mostrar interés o empatía",
+            "ejemplos": [
+              "What happened?",
+              "What's wrong?",
+              "Good for you!"
+            ]
+          },
+          {
+            "funcion": "Mostrar acuerdo y desacuerdo",
+            "ejemplos": [
+              "I don't agree",
+              "I agree"
+            ]
+          },
+          {
+            "funcion": "Deseos",
+            "ejemplos": [
+              "I hope so!",
+              "I hope not!",
+              "I wish!"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Expresar deseo o interés",
+          "Pedir y dar consejos y sugerencias",
+          "Expresar planes y acordar un encuentro"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Motivación para aprender inglés",
+        "Respeto por las diferencias en los modos de vida de las personas",
+        "Dominio propio y autocontrol",
+        "Respeto por las costumbres y tradiciones propias y las de los demás países",
+        "Flexibilidad ante los cambios"
+      ],
+      "actitudinales": [
+        "Motivación para aprender inglés",
+        "Respeto por las diferencias en los modos de vida de las personas",
+        "Dominio propio y autocontrol",
+        "Respeto por las costumbres y tradiciones propias y las de los demás países",
+        "Flexibilidad ante los cambios"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-06",
+      "tema": "Alimentación",
+      "nombre": "Alimentación",
+      "conceptos": {
+        "temas": [
+          "Alimentación"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Comidas y bebidas",
+            "ejemplos": [
+              "bread",
+              "salad",
+              "juice",
+              "milk"
+            ]
+          },
+          {
+            "categoria": "Dinero",
+            "ejemplos": [
+              "credit card",
+              "cash",
+              "change",
+              "dollars",
+              "pesos"
+            ]
+          },
+          {
+            "categoria": "Establecimientos comerciales",
+            "ejemplos": [
+              "bakery",
+              "restaurant",
+              "pharmacy"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Presente simple de los verbos be, have, want, need en contexto de compra",
+            "ejemplos": [
+              "I need a pair of boots."
+            ]
+          },
+          {
+            "estructura": "Sustantivos contables y no contables",
+            "ejemplos": [
+              "books, chairs; sugar, salad"
+            ]
+          },
+          {
+            "estructura": "How much / how many en contexto de compra",
+            "ejemplos": [
+              "How much are those black shoes?",
+              "How many batteries do you need?"
+            ]
+          },
+          {
+            "estructura": "Will para acordar un encuentro y comprar",
+            "ejemplos": [
+              "I'll be there at 6:00 pm.",
+              "I'll have a cheeseburger, please."
+            ]
+          },
+          {
+            "estructura": "Adverbios de cantidad: most of, some of",
+            "ejemplos": [
+              "Most of my friends learned English in high school."
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Cortesía",
+            "ejemplos": [
+              "Excuse me",
+              "Thank you!",
+              "You're welcome"
+            ]
+          },
+          {
+            "funcion": "Hora",
+            "ejemplos": [
+              "at 9:00 a.m.",
+              "at noon",
+              "at 11:00 pm"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Comprar",
+          "Expresar deseo o interés",
+          "Pedir y dar consejos y sugerencias"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Cortesía y asertividad en la comunicación",
+        "Hábitos juiciosos de consumo",
+        "Honestidad al interactuar con las demás personas",
+        "Dominio propio y autocontrol"
+      ],
+      "actitudinales": [
+        "Cortesía y asertividad en la comunicación",
+        "Hábitos juiciosos de consumo",
+        "Honestidad al interactuar con las demás personas",
+        "Dominio propio y autocontrol"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-07",
+      "tema": "Salud y cuidados físicos",
+      "nombre": "Salud y cuidados físicos",
+      "conceptos": {
+        "temas": [
+          "Salud y cuidados físicos"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Dolencias y enfermedades",
+            "ejemplos": [
+              "headache",
+              "stomachache",
+              "cold"
+            ]
+          },
+          {
+            "categoria": "Partes del cuerpo",
+            "ejemplos": [
+              "head",
+              "legs",
+              "mouth"
+            ]
+          },
+          {
+            "categoria": "Medicamentos",
+            "ejemplos": [
+              "aspirin",
+              "antiacid",
+              "eye drops"
+            ]
+          },
+          {
+            "categoria": "Sensaciones físicas",
+            "ejemplos": [
+              "cold",
+              "hungry",
+              "thirsty",
+              "tired"
+            ]
+          },
+          {
+            "categoria": "Estados de ánimo",
+            "ejemplos": [
+              "excited",
+              "embarrassed",
+              "scared",
+              "surprised"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Presente simple de los verbos be, feel, have, seem, look, hurt, ache para describir estados anímicos y físicos",
+            "ejemplos": [
+              "She looks tired and angry."
+            ]
+          },
+          {
+            "estructura": "Modo imperativo para dar consejos y sugerencias",
+            "ejemplos": [
+              "Don't eat junk food."
+            ]
+          },
+          {
+            "estructura": "Should para pedir y dar consejos y sugerencias",
+            "ejemplos": [
+              "You should drink more water."
+            ]
+          },
+          {
+            "estructura": "Condicional para dar consejos y sugerencias y expresar planes",
+            "ejemplos": [
+              "If you have a fever, you should see a doctor.",
+              "If I get home early today, I will bake a cake."
+            ]
+          },
+          {
+            "estructura": "Participio pasado en función adjetiva",
+            "ejemplos": [
+              "The injured patient is getting better."
+            ]
+          },
+          {
+            "estructura": "Pronombres reflexivos: myself, yourself",
+            "ejemplos": [
+              "He cut himself while he was cooking."
+            ]
+          },
+          {
+            "estructura": "Why don't / Why not para sugerencias",
+            "ejemplos": [
+              "Why don't we meet this weekend?"
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Mostrar interés o empatía",
+            "ejemplos": [
+              "What happened?",
+              "What's wrong?",
+              "Good for you!"
+            ]
+          },
+          {
+            "funcion": "Deseos",
+            "ejemplos": [
+              "I hope so!",
+              "I hope not!",
+              "I wish!"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Describir estados anímicos y físicos",
+          "Solicitar y ofrecer ayuda",
+          "Pedir y dar consejos y sugerencias"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Empatía por los sentimientos y necesidades de los y las demás",
+        "Tacto al ofrecer consejos",
+        "Dominio propio y autocontrol",
+        "Solidaridad con quien necesita ayuda"
+      ],
+      "actitudinales": [
+        "Empatía por los sentimientos y necesidades de los y las demás",
+        "Tacto al ofrecer consejos",
+        "Dominio propio y autocontrol",
+        "Solidaridad con quien necesita ayuda"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-08",
+      "tema": "Ciencia y tecnología",
+      "nombre": "Ciencia y tecnología",
+      "conceptos": {
+        "temas": [
+          "Ciencia y tecnología"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Tecnología",
+            "ejemplos": [
+              "video calls",
+              "tablets",
+              "smart phones"
+            ]
+          },
+          {
+            "categoria": "Formas de interacción",
+            "ejemplos": [
+              "texting",
+              "voice calls",
+              "chat"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Presente continuo para expresar planes e intenciones y acordar un encuentro",
+            "ejemplos": [
+              "Our tech support is installing a new antivirus tomorrow.",
+              "What time are we meeting for dinner?",
+              "I'm looking for a yellow T-shirt."
+            ]
+          },
+          {
+            "estructura": "Voz pasiva del presente en contexto de compras",
+            "ejemplos": [
+              "This device is made in the Dominican Republic.",
+              "The batteries are sold separately."
+            ]
+          },
+          {
+            "estructura": "Can, may y could para sostener una conversación",
+            "ejemplos": [
+              "May I speak to Rosa, please?",
+              "Could you speak louder, please?"
+            ]
+          },
+          {
+            "estructura": "Conectores de causalidad: because, so, then",
+            "ejemplos": [
+              "He was happy because he got all A's."
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Cortesía",
+            "ejemplos": [
+              "Excuse me",
+              "Thank you!",
+              "You're welcome"
+            ]
+          },
+          {
+            "funcion": "Captar la atención",
+            "ejemplos": [
+              "Excuse me, ma'am"
+            ]
+          },
+          {
+            "funcion": "Interrumpir con cortesía",
+            "ejemplos": [
+              "Sorry to interrupt you"
+            ]
+          },
+          {
+            "funcion": "Pedir que repitan",
+            "ejemplos": [
+              "Pardon?",
+              "Sorry?"
+            ]
+          },
+          {
+            "funcion": "Mostrar acuerdo y desacuerdo",
+            "ejemplos": [
+              "I don't agree",
+              "I agree"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Utilización de fórmulas cotidianas de interacción social"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Solicitar y ofrecer ayuda",
+          "Expresar deseo o interés",
+          "Pedir y dar consejos y sugerencias"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Utilización de fórmulas cotidianas de interacción social"
+        ]
+      },
+      "actitudesValores": [
+        "Respeto por las normas éticas de la interacción a través de las TIC",
+        "Uso juicioso del tiempo que se dedica a la interacción a través de las TIC",
+        "Flexibilidad ante los cambios",
+        "Solidaridad con quien necesita ayuda"
+      ],
+      "actitudinales": [
+        "Respeto por las normas éticas de la interacción a través de las TIC",
+        "Uso juicioso del tiempo que se dedica a la interacción a través de las TIC",
+        "Flexibilidad ante los cambios",
+        "Solidaridad con quien necesita ayuda"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-09",
+      "tema": "Lengua y comunicación",
+      "nombre": "Lengua y comunicación",
+      "conceptos": {
+        "temas": [
+          "Lengua y comunicación"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Formas de interacción",
+            "ejemplos": [
+              "texting",
+              "voice calls",
+              "chat"
+            ]
+          },
+          {
+            "categoria": "Números cardinales",
+            "ejemplos": [
+              "one",
+              "two"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Presente simple para sostener una conversación",
+            "ejemplos": [
+              "What do you do for a living?",
+              "Hello, this is Ethan."
+            ]
+          },
+          {
+            "estructura": "Can, may y could para sostener una conversación",
+            "ejemplos": [
+              "May I speak to Rosa, please?",
+              "Could you speak louder, please?"
+            ]
+          },
+          {
+            "estructura": "Question tags",
+            "ejemplos": [
+              "You feel better, don't you?",
+              "She visited her father last month, didn't she?"
+            ]
+          },
+          {
+            "estructura": "Pronombres interrogativos: what, who, how",
+            "ejemplos": [
+              "How do you spell your name, please?"
+            ]
+          },
+          {
+            "estructura": "Conectores de coordinación: and, or, but",
+            "ejemplos": [
+              "What do you prefer, bananas or apples?"
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Cortesía",
+            "ejemplos": [
+              "Excuse me",
+              "Thank you!",
+              "You're welcome"
+            ]
+          },
+          {
+            "funcion": "Captar la atención",
+            "ejemplos": [
+              "Excuse me, ma'am"
+            ]
+          },
+          {
+            "funcion": "Interrumpir con cortesía",
+            "ejemplos": [
+              "Sorry to interrupt you"
+            ]
+          },
+          {
+            "funcion": "Pedir y dar la palabra",
+            "ejemplos": [
+              "May I say something?"
+            ]
+          },
+          {
+            "funcion": "Pedir que repitan",
+            "ejemplos": [
+              "Pardon?",
+              "Sorry?"
+            ]
+          },
+          {
+            "funcion": "Disculparse",
+            "ejemplos": [
+              "I'm sorry",
+              "I apologize"
+            ]
+          },
+          {
+            "funcion": "Dudar",
+            "ejemplos": [
+              "I'm not sure",
+              "maybe"
+            ]
+          },
+          {
+            "funcion": "Mostrar acuerdo y desacuerdo",
+            "ejemplos": [
+              "I don't agree",
+              "I agree"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Utilización de fórmulas cotidianas de interacción social"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Sostener una conversación",
+          "Solicitar y ofrecer ayuda"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Utilización de fórmulas cotidianas de interacción social"
+        ]
+      },
+      "actitudesValores": [
+        "Cortesía y asertividad en la comunicación",
+        "Honestidad al interactuar con las demás personas",
+        "Respeto por las diferencias en los modos de vida de las personas",
+        "Flexibilidad ante los cambios"
+      ],
+      "actitudinales": [
+        "Cortesía y asertividad en la comunicación",
+        "Honestidad al interactuar con las demás personas",
+        "Respeto por las diferencias en los modos de vida de las personas",
+        "Flexibilidad ante los cambios"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-10",
+      "tema": "Clima, condiciones atmosféricas y medio ambiente",
+      "nombre": "Clima, condiciones atmosféricas y medio ambiente",
+      "conceptos": {
+        "temas": [
+          "Clima, condiciones atmosféricas y medio ambiente"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Condiciones atmosféricas",
+            "ejemplos": [
+              "rainy",
+              "sunny",
+              "cloudy",
+              "cold"
+            ]
+          },
+          {
+            "categoria": "Sensaciones físicas",
+            "ejemplos": [
+              "cold",
+              "hungry",
+              "thirsty",
+              "tired"
+            ]
+          },
+          {
+            "categoria": "Lugares",
+            "ejemplos": [
+              "park",
+              "fire station",
+              "hospital",
+              "beach"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Presente simple de los verbos be, feel, have, seem, look, hurt, ache para describir estados anímicos y físicos",
+            "ejemplos": [
+              "She looks tired and angry."
+            ]
+          },
+          {
+            "estructura": "Be going to para expresar planes y acordar encuentros",
+            "ejemplos": [
+              "I'm going to visit Grandma next week. Are you going to join me?"
+            ]
+          },
+          {
+            "estructura": "Will para acordar un encuentro y comprar",
+            "ejemplos": [
+              "I'll be there at 6:00 pm.",
+              "I'll have a cheeseburger, please."
+            ]
+          },
+          {
+            "estructura": "Condicional para dar consejos y sugerencias y expresar planes",
+            "ejemplos": [
+              "If you have a fever, you should see a doctor.",
+              "If I get home early today, I will bake a cake."
+            ]
+          },
+          {
+            "estructura": "Conectores de causalidad: because, so, then",
+            "ejemplos": [
+              "He was happy because he got all A's."
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Mostrar interés o empatía",
+            "ejemplos": [
+              "What happened?",
+              "What's wrong?",
+              "Good for you!"
+            ]
+          },
+          {
+            "funcion": "Deseos",
+            "ejemplos": [
+              "I hope so!",
+              "I hope not!",
+              "I wish!"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Describir estados anímicos y físicos",
+          "Pedir y dar consejos y sugerencias",
+          "Expresar planes y acordar un encuentro"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Cuidado del medioambiente y de los recursos naturales",
+        "Flexibilidad ante los cambios",
+        "Solidaridad con quien necesita ayuda",
+        "Dominio propio y autocontrol"
+      ],
+      "actitudinales": [
+        "Cuidado del medioambiente y de los recursos naturales",
+        "Flexibilidad ante los cambios",
+        "Solidaridad con quien necesita ayuda",
+        "Dominio propio y autocontrol"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-11",
+      "tema": "Bienes y servicios",
+      "nombre": "Bienes y servicios",
+      "conceptos": {
+        "temas": [
+          "Bienes y servicios"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Dinero",
+            "ejemplos": [
+              "credit card",
+              "cash",
+              "change",
+              "dollars",
+              "pesos"
+            ]
+          },
+          {
+            "categoria": "Establecimientos comerciales",
+            "ejemplos": [
+              "bakery",
+              "restaurant",
+              "pharmacy"
+            ]
+          },
+          {
+            "categoria": "Tallas",
+            "ejemplos": [
+              "small (S)",
+              "large (L)",
+              "extra-large (XL)"
+            ]
+          },
+          {
+            "categoria": "Ocupaciones",
+            "ejemplos": [
+              "florist",
+              "manager",
+              "pharmacist"
+            ]
+          },
+          {
+            "categoria": "Tecnología",
+            "ejemplos": [
+              "video calls",
+              "tablets",
+              "smart phones"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Presente simple de los verbos be, have, want, need en contexto de compra",
+            "ejemplos": [
+              "I need a pair of boots."
+            ]
+          },
+          {
+            "estructura": "Will para acordar un encuentro y comprar",
+            "ejemplos": [
+              "I'll be there at 6:00 pm.",
+              "I'll have a cheeseburger, please."
+            ]
+          },
+          {
+            "estructura": "How much / how many en contexto de compra",
+            "ejemplos": [
+              "How much are those black shoes?",
+              "How many batteries do you need?"
+            ]
+          },
+          {
+            "estructura": "Grados comparativo y superlativo del adjetivo",
+            "ejemplos": [
+              "Do you have a smaller one?",
+              "He's my best friend."
+            ]
+          },
+          {
+            "estructura": "Voz pasiva del presente en contexto de compras",
+            "ejemplos": [
+              "This device is made in the Dominican Republic.",
+              "The batteries are sold separately."
+            ]
+          },
+          {
+            "estructura": "Artículos definido (the) e indefinidos (a/an)",
+            "ejemplos": [
+              "The pencil is on the table.",
+              "I saw a rhino and an elephant at the zoo."
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Cortesía",
+            "ejemplos": [
+              "Excuse me",
+              "Thank you!",
+              "You're welcome"
+            ]
+          },
+          {
+            "funcion": "Captar la atención",
+            "ejemplos": [
+              "Excuse me, ma'am"
+            ]
+          },
+          {
+            "funcion": "Mostrar acuerdo y desacuerdo",
+            "ejemplos": [
+              "I don't agree",
+              "I agree"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Comprar",
+          "Solicitar y ofrecer ayuda",
+          "Expresar deseo o interés"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Cortesía y asertividad en la comunicación",
+        "Hábitos juiciosos de consumo",
+        "Honestidad al interactuar con las demás personas",
+        "Cumplimiento de los compromisos contraídos"
+      ],
+      "actitudinales": [
+        "Cortesía y asertividad en la comunicación",
+        "Hábitos juiciosos de consumo",
+        "Honestidad al interactuar con las demás personas",
+        "Cumplimiento de los compromisos contraídos"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-12",
+      "tema": "Actividades sociales y culturales",
+      "nombre": "Actividades sociales y culturales",
+      "conceptos": {
+        "temas": [
+          "Actividades sociales y culturales"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Celebraciones",
+            "ejemplos": [
+              "New Year",
+              "Mother's Day",
+              "Independence Day"
+            ]
+          },
+          {
+            "categoria": "Actividades de tiempo libre y ocio",
+            "ejemplos": [
+              "read",
+              "listen to music"
+            ]
+          },
+          {
+            "categoria": "Relaciones humanas",
+            "ejemplos": [
+              "friends",
+              "classmates",
+              "relatives"
+            ]
+          },
+          {
+            "categoria": "Eventos de la vida",
+            "ejemplos": [
+              "be born",
+              "have a baby",
+              "start school"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Pasado simple al narrar hechos y experiencias",
+            "ejemplos": [
+              "I lived in the US until I was seven."
+            ]
+          },
+          {
+            "estructura": "Pasado continuo al narrar hechos y experiencias, y describir estados anímicos y físicos",
+            "ejemplos": [
+              "He was coughing last night."
+            ]
+          },
+          {
+            "estructura": "Presente perfecto para narrar hechos y experiencias",
+            "ejemplos": [
+              "I've seen the flamingos at Lago Enriquillo."
+            ]
+          },
+          {
+            "estructura": "Pasado continuo y pasado simple para narrar hechos y experiencias",
+            "ejemplos": [
+              "I was doing homework when she called."
+            ]
+          },
+          {
+            "estructura": "Oraciones exclamativas",
+            "ejemplos": [
+              "How nice!",
+              "That's great!"
+            ]
+          },
+          {
+            "estructura": "Conectores de secuencia: first, then, finally",
+            "ejemplos": [
+              "First, we visited the Lincoln Memorial. Then we spent two hours in the Smithsonian Museum."
+            ]
+          },
+          {
+            "estructura": "Want, hope y wish para expresar deseo o interés",
+            "ejemplos": [
+              "I hope to spend more time with my family."
+            ]
+          },
+          {
+            "estructura": "Adverbios de tiempo: now, in the past, yet, already, still",
+            "ejemplos": [
+              "I still want to go there."
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Fechas",
+            "ejemplos": [
+              "September 12th, 2016"
+            ]
+          },
+          {
+            "funcion": "Hora",
+            "ejemplos": [
+              "at 9:00 a.m.",
+              "at noon",
+              "at 11:00 pm"
+            ]
+          },
+          {
+            "funcion": "Deseos",
+            "ejemplos": [
+              "I hope so!",
+              "I hope not!",
+              "I wish!"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Narrar hechos y experiencias",
+          "Expresar planes y acordar un encuentro",
+          "Expresar deseo o interés"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Respeto por las costumbres y tradiciones propias y las de los demás países",
+        "Humildad al narrar sus experiencias",
+        "Valoración positiva de su origen familiar y social",
+        "Respeto por las diferencias en los modos de vida de las personas"
+      ],
+      "actitudinales": [
+        "Respeto por las costumbres y tradiciones propias y las de los demás países",
+        "Humildad al narrar sus experiencias",
+        "Valoración positiva de su origen familiar y social",
+        "Respeto por las diferencias en los modos de vida de las personas"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    },
+    {
+      "id": "T-ING-2-13",
+      "tema": "Viajes y turismo",
+      "nombre": "Viajes y turismo",
+      "conceptos": {
+        "temas": [
+          "Viajes y turismo"
+        ],
+        "vocabulario": [
+          {
+            "categoria": "Lugares",
+            "ejemplos": [
+              "park",
+              "fire station",
+              "hospital",
+              "beach"
+            ]
+          },
+          {
+            "categoria": "Medios de transporte",
+            "ejemplos": [
+              "metro",
+              "bus",
+              "taxi",
+              "plane"
+            ]
+          },
+          {
+            "categoria": "Puntos cardinales",
+            "ejemplos": [
+              "east",
+              "west",
+              "north"
+            ]
+          },
+          {
+            "categoria": "Vías",
+            "ejemplos": [
+              "street",
+              "avenue",
+              "road",
+              "highway"
+            ]
+          },
+          {
+            "categoria": "Dinero",
+            "ejemplos": [
+              "credit card",
+              "cash",
+              "change",
+              "dollars",
+              "pesos"
+            ]
+          },
+          {
+            "categoria": "Actividades de tiempo libre y ocio",
+            "ejemplos": [
+              "read",
+              "listen to music"
+            ]
+          }
+        ],
+        "gramatica": [
+          {
+            "estructura": "Be going to para expresar planes y acordar encuentros",
+            "ejemplos": [
+              "I'm going to visit Grandma next week. Are you going to join me?"
+            ]
+          },
+          {
+            "estructura": "Presente continuo para expresar planes e intenciones y acordar un encuentro",
+            "ejemplos": [
+              "Our tech support is installing a new antivirus tomorrow.",
+              "What time are we meeting for dinner?",
+              "I'm looking for a yellow T-shirt."
+            ]
+          },
+          {
+            "estructura": "Presente perfecto para narrar hechos y experiencias",
+            "ejemplos": [
+              "I've seen the flamingos at Lago Enriquillo."
+            ]
+          },
+          {
+            "estructura": "Pasado simple al narrar hechos y experiencias",
+            "ejemplos": [
+              "I lived in the US until I was seven."
+            ]
+          },
+          {
+            "estructura": "Preposiciones de tiempo: in, on, at",
+            "ejemplos": [
+              "I'll meet you at 3:00 pm."
+            ]
+          },
+          {
+            "estructura": "Preposiciones de duración: since, for, ago, until",
+            "ejemplos": [
+              "I lived there until 2014."
+            ]
+          },
+          {
+            "estructura": "Conectores de secuencia: first, then, finally",
+            "ejemplos": [
+              "First, we visited the Lincoln Memorial. Then we spent two hours in the Smithsonian Museum."
+            ]
+          },
+          {
+            "estructura": "Want, hope y wish para expresar deseo o interés",
+            "ejemplos": [
+              "I hope to spend more time with my family."
+            ]
+          },
+          {
+            "estructura": "Adverbios de tiempo: now, in the past, yet, already, still",
+            "ejemplos": [
+              "I still want to go there."
+            ]
+          }
+        ],
+        "frases": [
+          {
+            "funcion": "Fechas",
+            "ejemplos": [
+              "September 12th, 2016"
+            ]
+          },
+          {
+            "funcion": "Hora",
+            "ejemplos": [
+              "at 9:00 a.m.",
+              "at noon",
+              "at 11:00 pm"
+            ]
+          },
+          {
+            "funcion": "Cortesía",
+            "ejemplos": [
+              "Excuse me",
+              "Thank you!",
+              "You're welcome"
+            ]
+          }
+        ],
+        "sociolinguisticos": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "procedimientos": {
+        "funcionales": [
+          "Expresar planes y acordar un encuentro",
+          "Narrar hechos y experiencias",
+          "Comprar",
+          "Solicitar y ofrecer ayuda"
+        ],
+        "discursivos": [
+          "Comprensión de textos orales y escritos, tales como: conversaciones, tarjetas de presentación, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electrónicos, currículum vitae, cartas, formularios, pronósticos del tiempo, noticias, horarios, agendas, menús, croquis, cuestionarios, folletos, canciones, poesías, historietas, guías turísticas, descripciones, biografías y narraciones",
+          "Producción de discursos orales, tales como: conversaciones, canciones, recetas, mensajes, noticias, descripciones, narraciones y monólogos",
+          "Producción de textos escritos, tales como: mensajes, correos electrónicos, cartas, currículum vitae, avisos, afiches, letreros, formularios, cuestionarios, narraciones y descripciones"
+        ],
+        "comprensionOralEscrita": [
+          "Anticipación del contenido del mensaje",
+          "Escucha atenta",
+          "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+          "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+          "Solicitud de ayuda y repetición",
+          "Indicación de que se comprende o no",
+          "Establecimiento del propósito de la lectura",
+          "Formulación de hipótesis a partir de los conocimientos previos y los elementos paratextuales",
+          "Identificación de la correspondencia entre la grafía y el sonido de las palabras",
+          "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+          "Subrayado, anotación y búsqueda de palabras en el diccionario y otras herramientas de consulta",
+          "Identificación de la intención comunicativa del texto"
+        ],
+        "produccionOral": [
+          "Reproducción y ensayo de palabras, expresiones y pautas de entonación",
+          "Identificación de la situación de comunicación",
+          "Establecimiento de la intención comunicativa",
+          "Uso del lenguaje no verbal para comunicarse"
+        ],
+        "produccionEscrita": [
+          "Establecimiento del propósito del mensaje y del tipo de texto que se va a producir",
+          "Planificación y organización del mensaje",
+          "Uso del diccionario y otras herramientas de consulta",
+          "Revisión del sentido y la corrección del mensaje"
+        ],
+        "otros": [
+          "Utilización de asociaciones mentales y de la acción",
+          "Automotivación y control del nivel de ansiedad",
+          "Búsqueda de oportunidades de uso de la lengua"
+        ],
+        "sociolinguisticosYSocioculturales": [
+          "Comparación entre los siguientes aspectos de la República Dominicana y de otros países: gestos que expresan estados anímicos y físicos; situaciones problemáticas que afectan a los jóvenes; compras; celebraciones; actividades de tiempo libre; puntualidad; lugares de interés"
+        ]
+      },
+      "actitudesValores": [
+        "Respeto por las costumbres y tradiciones propias y las de los demás países",
+        "Valoración positiva de su origen familiar y social",
+        "Flexibilidad ante los cambios",
+        "Cumplimiento de los compromisos contraídos",
+        "Respeto por el tiempo de los demás"
+      ],
+      "actitudinales": [
+        "Respeto por las costumbres y tradiciones propias y las de los demás países",
+        "Valoración positiva de su origen familiar y social",
+        "Flexibilidad ante los cambios",
+        "Cumplimiento de los compromisos contraídos",
+        "Respeto por el tiempo de los demás"
+      ],
+      "metadata": {
+        "criterioReparto": "Afinidad temática desde contenidos oficiales del diseño curricular; no agrega contenidos externos.",
+        "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
+      }
+    }
+  ]
+}
