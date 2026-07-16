@@ -660,6 +660,41 @@ assert.deepEqual(indicadoresDebilesDeAvance(avanceF9, { umbral: 70, minEvaluacio
   "sin evidencia suficiente no se declara débil");
 ok("indicadores débiles bajo el umbral → candidatos a (REFORZAR) en la siguiente unidad");
 
+// ─── 14. HITO 3.2 — Calendario escolar MINERD (módulo puro) ──────────────────
+console.log("\n14) Calendario escolar 2026-2027 — feriados, recesos y días lectivos");
+
+const { calendarioParaFecha, diaNoLectivo, esDiaLectivo, proximoDiaLectivo } =
+  await import("../src/data/calendarioEscolarMINERD.js");
+
+assert.equal(calendarioParaFecha("2026-10-01")?.anio, "2026-2027");
+assert.equal(calendarioParaFecha("2025-05-01"), null, "fecha fuera de todo año lectivo cargado");
+assert.equal(esDiaLectivo("2026-09-23"), true, "miércoles ordinario es lectivo");
+assert.equal(diaNoLectivo("2026-09-24")?.tipo, "feriado", "Las Mercedes");
+assert.equal(diaNoLectivo("2027-01-04")?.tipo, "feriado", "Reyes trasladado a lunes (Ley 139-97)");
+assert.equal(diaNoLectivo("2027-01-21")?.tipo, "feriado", "Altagracia (fijo)");
+assert.equal(diaNoLectivo("2026-12-23")?.tipo, "receso");
+assert.equal(diaNoLectivo("2026-12-23")?.estimado, true, "receso navideño marcado estimado hasta el PDF oficial");
+assert.equal(diaNoLectivo("2026-09-26")?.tipo, "fin-de-semana");
+assert.equal(proximoDiaLectivo("2026-12-24"), "2027-01-07", "salta Navidad + receso + Año Nuevo");
+ok("calendarioParaFecha / diaNoLectivo / esDiaLectivo / proximoDiaLectivo");
+
+// La capa curricular ANOTA la clase que cae en feriado (no la mueve)
+const planFeriado = {
+  ...plan,
+  id: "plan-feriado",
+  metadatos: { ...(plan.metadatos || {}), fechaInicio: "2027-01-18" }, // lunes; el jueves 21 es Altagracia
+};
+const capaFeriado = construirCapaCurricular(planFeriado, { curriculo, cursoId: CURSO_ID, docenteId: UID });
+const claseEnFeriado = (capaFeriado.clases || []).find((c) => c.fechaSugerida === "2027-01-21");
+if (claseEnFeriado) {
+  assert.ok(claseEnFeriado.advertenciaCalendario.includes("Altagracia"), "clase del 21-ene anotada con el feriado");
+  ok("construirCapaCurricular anota advertenciaCalendario en la clase que cae en feriado");
+} else {
+  const conFecha = (capaFeriado.clases || []).filter((c) => /^\d{4}-\d{2}-\d{2}$/.test(c.fechaSugerida));
+  assert.ok(conFecha.every((c) => c.advertenciaCalendario === "" || c.advertenciaCalendario), "campo presente en todas las clases con fecha");
+  ok("advertenciaCalendario presente en el contrato de la clase (ninguna cayó en el feriado con este horario)");
+}
+
 // ─── Resumen ─────────────────────────────────────────────────────────────────
 console.log(`\n✅ ${pasos} verificaciones pasaron.`);
 console.log("\nColecciones simuladas (mismas rutas que los servicios reales):");

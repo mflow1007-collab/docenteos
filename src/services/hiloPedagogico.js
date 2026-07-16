@@ -17,6 +17,8 @@
  *   competencias[].indicadoresLogro[] → { id: "IL-ING-1-COM-1", descripcion }
  */
 
+import { diaNoLectivo } from "../data/calendarioEscolarMINERD.js"; // módulo puro, sin Firebase
+
 // ─── Utilidades base ─────────────────────────────────────────────────────────
 
 export const normalizarTexto = (texto = "") =>
@@ -324,12 +326,20 @@ const construirClase = ({
     criteriosExito: Array.isArray(dia.criteriosExito) ? dia.criteriosExito : criteriosExito,
   });
 
+  const fechaSugerida = dia.diaCalendario || calcularFechaSugerida(fechaInicio, semana, dia.nombre || "");
+  // HITO 3.2 — calendario escolar: si la fecha cae en día no lectivo, la clase
+  // queda ANOTADA (no se mueve — reprogramarla es decisión del docente).
+  const noLectivo = /^\d{4}-\d{2}-\d{2}$/.test(fechaSugerida) ? diaNoLectivo(fechaSugerida) : null;
+
   return {
     claseId,
     numeroClase,
     semana,
     nombreDia: dia.nombre || "",
-    fechaSugerida: dia.diaCalendario || calcularFechaSugerida(fechaInicio, semana, dia.nombre || ""),
+    fechaSugerida,
+    advertenciaCalendario: noLectivo
+      ? `${noLectivo.tipo === "receso" ? "Receso" : noLectivo.tipo === "fin-de-semana" ? "Fin de semana" : "Feriado"}: ${noLectivo.nombre}${noLectivo.estimado ? " (estimado)" : ""}`
+      : "",
     titulo: dia.tituloDia || dia.titulo || `Clase ${numeroClase}`,
     intencionPedagogica: dia.intencionPedagogica || "",
     actividades,
