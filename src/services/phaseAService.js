@@ -98,6 +98,18 @@ const SYSTEM_PROMPT =
 const JSON_REMINDER =
   'RECUERDA: responde ÚNICAMENTE el objeto JSON, sin texto antes ni después, sin markdown.\n\n';
 
+const buildMissingClassesRepairPrefix = ({ semanaNum, startDia, count }) =>
+  `TU RESPUESTA ANTERIOR FUE JSON VÁLIDO PERO INVÁLIDO PARA DOCENTEOS: omitiste "clases[]".
+Ahora corrige el lote completo. Es OBLIGATORIO devolver un objeto con:
+- "outputSchemaVersion": "1.3"
+- "semana": ${semanaNum}
+- "adaptacionesSemana"
+- "observacionesSemana"
+- "clases": arreglo con EXACTAMENTE ${count} clase(s), desde el día ${startDia}
+
+NO devuelvas solo adaptaciones u observaciones. Si falta "clases[]", el lote falla.
+Responde únicamente JSON puro con "clases[]" completo.\n\n`;
+
 // ─── Registro de errores de parseo en aiLogs/ ─────────────────────────────────
 
 async function logParseError({ contexto, attempt, motivo, raw, provider, model }) {
@@ -204,7 +216,11 @@ async function callGatewayCollect(
     });
   } catch (err) {
     if (err?.name === 'AbortError') {
-      throw new Error(`tiempo de espera agotado (${Math.round(PHASE_A_FETCH_TIMEOUT_MS / 1000)}s)`, { cause: err });
+      const error = new Error(`tiempo de espera agotado (${Math.round(PHASE_A_FETCH_TIMEOUT_MS / 1000)}s)`, { cause: err });
+      error.provider = providerOrder?.[0] || 'desconocido';
+      error.model = modelosAptos?.[error.provider] || 'desconocido';
+      error.timeout = true;
+      throw error;
     }
     throw err;
   } finally {
@@ -1024,6 +1040,7 @@ ${productoLinea ? `${productoLinea}\n` : ''}${contextoLinea ? `${contextoLinea}\
 TAREA: Genera exactamente ${count} clase(s) — ${rango} de la Semana ${semanaNum}.
 Clases con PROGRESIÓN PEDAGÓGICA, DISTINTAS de las ya programadas.
 El foco curricular asignado debe trabajarse explícitamente en el Desarrollo.
+SALIDA OBLIGATORIA: el JSON DEBE incluir la clave "clases" como arreglo con EXACTAMENTE ${count} clase(s). No basta con devolver adaptacionesSemana u observacionesSemana.
 
 REGLAS:
 1. Solo JSON puro, sin texto ni markdown.
@@ -1146,6 +1163,23 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         continue;
       }
 
+      const omitioClases = !Array.isArray(result.data?.clases);
+      const soloMetaSemanal = omitioClases
+        && (result.data?.adaptacionesSemana || result.data?.observacionesSemana);
+      if (soloMetaSemanal) {
+        const motivo = 'R1: falta clases[]; el modelo devolvió solo metadata semanal';
+        await logParseError({ contexto: contextoLog, attempt, motivo, raw, provider, model });
+        console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${motivo}`,
+          { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
+        lastError = new Error(motivo);
+        prefix = buildMissingClassesRepairPrefix({ semanaNum, startDia, count });
+        truncadoPrevio = false;
+        const fp = provider && provider !== 'desconocido' ? provider : providerIntento;
+        proveedoresProbados.add(fp);
+        anotarFallo(fp);
+        continue;
+      }
+
       normalizarVozBatch(result.data);
       const indicadoresPermitidos = [
         ...(spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
@@ -1181,8 +1215,10 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       // Estructuralmente incompleto (R1: sin clases[] o menos de las esperadas):
       // el modelo respondió JSON válido pero no compuso — descartarlo ya.
       const estructuralIncompleto = /falta clases\[\]|se esperaban \d+ clases/.test(msg);
-      // Sin servicio: sin clave, apagado, cola vacía o 503 — descartar directo.
-      const sinServicio = /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|Cola vacía|503/i.test(msg);
+      // Sin servicio: sin clave, apagado, cola vacía, 503 o timeout — descartar
+      // directo y seguir con otro proveedor fuerte disponible.
+      const sinServicio = /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|Cola vacía|503|tiempo de espera/i.test(msg)
+        || err?.timeout === true;
       if (!sinServicio) proveedoresProbados.add(failedProvider);
       if (estructuralIncompleto || sinServicio) descartarProveedor(failedProvider);
       else anotarFallo(failedProvider);

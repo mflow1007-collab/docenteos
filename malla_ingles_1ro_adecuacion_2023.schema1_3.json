@@ -1,0 +1,519 @@
+{
+  "schemaVersion": "1.3",
+  "level": "Secundaria",
+  "cycle": "Primer Ciclo",
+  "grade": "1ro",
+  "area": "Lenguas Extranjeras",
+  "subject": "Ingles",
+  "contentType": "malla_curricular",
+  "contentId": "ING-1",
+  "metadata": {
+    "nivel": "Secundaria",
+    "ciclo": "Primer Ciclo",
+    "grado": "1ro",
+    "area": "Lenguas Extranjeras",
+    "asignatura": "Ingles",
+    "versionCurriculo": "Adecuacion Curricular 2023",
+    "ministerio": "MINERD",
+    "paginasPdf": "134-139",
+    "fuente": {
+      "documento": "Adecuacion Curricular - Nivel Secundario",
+      "organismo": "MINERD - Direccion General de Curriculo",
+      "anio": 2023,
+      "paginasPdf": "134-139",
+      "archivo": "Ht7X-adecuacion-secundaria-2023pdf-2.pdf",
+      "extractionMethod": "pdfjs-assisted"
+    },
+    "contenidosPorTema": {
+      "status": "global_oficial_no_repartido",
+      "nota": "El PDF presenta contenidos globales para Ingles 1ro. No se reparte por tema para evitar agregar estructura no oficial.",
+      "totalTemasOficiales": 14
+    }
+  },
+  "fuente": {
+    "documento": "Adecuacion Curricular - Nivel Secundario",
+    "organismo": "MINERD - Direccion General de Curriculo",
+    "anio": 2023,
+    "paginasPdf": "134-139",
+    "archivo": "/Users/cesarbaez/Downloads/Ht7X-adecuacion-secundaria-2023pdf-2.pdf",
+    "extractionMethod": "pdfjs-assisted"
+  },
+  "revision": {
+    "status": "draft",
+    "needsReview": false,
+    "nota": "Datos extraidos de la seccion Ingles, Nivel Secundario - Primer Ciclo, 1er. Grado, paginas PDF 134-139."
+  },
+  "competenciasFundamentales": [
+    "Comunicativa",
+    "Pensamiento Logico, Creativo y Critico",
+    "Resolucion de Problemas",
+    "Etica y Ciudadana",
+    "Cientifica y Tecnologica",
+    "Ambiental y de la Salud",
+    "Desarrollo Personal y Espiritual"
+  ],
+  "competencias": [
+    {
+      "id": "ING-1-C01",
+      "fundamental": "Comunicativa",
+      "competenciaFundamental": "Comunicativa",
+      "especificaGrado": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicacion orales y escritas relativas a necesidades concretas y temas cotidianos, utilizando el idioma ingles de forma breve y sencilla para compartir informacion propia y de otras personas, describir sus actividades cotidianas, el entorno inmediato, y sus puntos de vista.",
+      "descripcion": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicacion orales y escritas relativas a necesidades concretas y temas cotidianos, utilizando el idioma ingles de forma breve y sencilla para compartir informacion propia y de otras personas, describir sus actividades cotidianas, el entorno inmediato, y sus puntos de vista.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-1-I01",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos claros, breves y sencillos, donde se describen el entorno inmediato, informacion personal propia y de otras personas, actividades cotidianas y preferencias personales.",
+          "competenciaId": "ING-1-C01"
+        },
+        {
+          "id": "ING-1-I02",
+          "descripcion": "Se expresa en ingles mediante una serie de frases y oraciones breves y sencillas enlazadas por conectores comunes para compartir informacion, puntos de vista e ideas referentes al entorno proximo y actividades cotidianas, aunque con pausas y reformulaciones en lo oral y con posibles errores basicos en lo escrito.",
+          "competenciaId": "ING-1-C01"
+        },
+        {
+          "id": "ING-1-I03",
+          "descripcion": "Interactua de forma oral y escrita utilizando una serie de frases y oraciones breves y sencillas y con diversidad de vocabulario basico referente a informacion personal, actividades cotidianas y el entorno inmediato, pero con suficiente claridad para ser comprendido con un poco de esfuerzo.",
+          "competenciaId": "ING-1-C01"
+        }
+      ]
+    },
+    {
+      "id": "ING-1-C02",
+      "fundamental": "Pensamiento Logico, Creativo y Critico",
+      "competenciaFundamental": "Pensamiento Logico, Creativo y Critico",
+      "especificaGrado": "Interactua en el idioma ingles, empleando estrategias de desempeno, el razonamiento logico-verbal y la expresion creativa y critica con el proposito de comunicarse de forma clara y efectiva en distintas situaciones concretas de comunicacion oral y escrita.",
+      "descripcion": "Interactua en el idioma ingles, empleando estrategias de desempeno, el razonamiento logico-verbal y la expresion creativa y critica con el proposito de comunicarse de forma clara y efectiva en distintas situaciones concretas de comunicacion oral y escrita.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-1-I04",
+          "descripcion": "Responde a preguntas e indicaciones utilizando el pensamiento logico verbal, creativo y critico para comprender la informacion contenida en mensajes orales y escritos referentes a necesidades concretas y temas cotidianos.",
+          "competenciaId": "ING-1-C02"
+        },
+        {
+          "id": "ING-1-I05",
+          "descripcion": "Se expresa en ingles a traves de frases y oraciones con creatividad y mediante una estructura logica basica, enlazadas por conectores comunes, con pausas y reformulaciones en lo oral y con posibles errores basicos en lo escrito.",
+          "competenciaId": "ING-1-C02"
+        },
+        {
+          "id": "ING-1-I06",
+          "descripcion": "Interactua de forma oral y escrita siguiendo la logica de la interaccion y el contexto inmediato, expresandose mediante frases y oraciones breves y sencillas con creatividad y pensamiento reflexivo.",
+          "competenciaId": "ING-1-C02"
+        }
+      ]
+    },
+    {
+      "id": "ING-1-C03",
+      "fundamental": "Resolucion de Problemas",
+      "competenciaFundamental": "Resolucion de Problemas",
+      "especificaGrado": "Se comunica en ingles oral y escrito de forma basica, pero comprensible, compartiendo informacion que permite identificar, describir y abordar problemas y situaciones comunes de su entorno inmediato.",
+      "descripcion": "Se comunica en ingles oral y escrito de forma basica, pero comprensible, compartiendo informacion que permite identificar, describir y abordar problemas y situaciones comunes de su entorno inmediato.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-1-I07",
+          "descripcion": "Responde acorde a preguntas e indicaciones a partir de informacion sencilla contenida en textos orales o escritos sobre situaciones y problemas cotidianos o del entorno proximo.",
+          "competenciaId": "ING-1-C03"
+        },
+        {
+          "id": "ING-1-I08",
+          "descripcion": "Se expresa de forma oral y escrita, utilizando expresiones breves y sencillas para describir de forma clara ideas, elementos, personas y acciones relativas a problemas o situaciones de su entorno inmediato.",
+          "competenciaId": "ING-1-C03"
+        },
+        {
+          "id": "ING-1-I09",
+          "descripcion": "Interactua en intercambios comunicativos breves y sencillos, identificando problemas y situaciones variadas de sus actividades cotidianas y de su entorno inmediato, planteando opciones justas para enfrentar la situacion, con expresiones breves y sencillas.",
+          "competenciaId": "ING-1-C03"
+        }
+      ]
+    },
+    {
+      "id": "ING-1-C04",
+      "fundamental": "Etica y Ciudadana",
+      "competenciaFundamental": "Etica y Ciudadana",
+      "especificaGrado": "Se comunica en intercambios breves y sencillos, participando en un plano de respeto y colaboracion, e identificando algunas de las diferencias individuales y la identidad social y cultural propia y de otros paises.",
+      "descripcion": "Se comunica en intercambios breves y sencillos, participando en un plano de respeto y colaboracion, e identificando algunas de las diferencias individuales y la identidad social y cultural propia y de otros paises.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-1-I10",
+          "descripcion": "Participa de forma activa, con escucha atenta y respetuosa en las interacciones formativas e informativas que realiza, identificando aspectos de la identidad social y cultural propia y de otros paises, con actitud de aceptacion y asertividad.",
+          "competenciaId": "ING-1-C04"
+        },
+        {
+          "id": "ING-1-I11",
+          "descripcion": "Expresa preferencias y puntos de vista de forma oral o escrita, con actitud y conducta respetuosa, cortes y asertiva, teniendo en cuenta las diferencias individuales y la cultura propia y de otras personas.",
+          "competenciaId": "ING-1-C04"
+        },
+        {
+          "id": "ING-1-I12",
+          "descripcion": "Interactua en un plano de cortesia, asertividad y respeto tomando en cuenta las diferencias individuales y la identidad social y cultural propia y de otras personas relativas a rasgos fisicos, formas de interactuar, preferencias, puntualidad, celebraciones y clima.",
+          "competenciaId": "ING-1-C04"
+        }
+      ]
+    },
+    {
+      "id": "ING-1-C05",
+      "fundamental": "Cientifica y Tecnologica",
+      "competenciaFundamental": "Cientifica y Tecnologica",
+      "especificaGrado": "Interactua en el idioma ingles compartiendo informacion, ideas y opiniones sobre aspectos cientificos y tecnologicos de su entorno inmediato en distintas situaciones cotidianas de comunicacion.",
+      "descripcion": "Interactua en el idioma ingles compartiendo informacion, ideas y opiniones sobre aspectos cientificos y tecnologicos de su entorno inmediato en distintas situaciones cotidianas de comunicacion.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-1-I13",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones a partir de la escucha o lectura de textos breves y de vocabulario y expresiones basicas y sencillas sobre asuntos cientificos y tecnologicos compartidos de forma presencial o virtual.",
+          "competenciaId": "ING-1-C05"
+        },
+        {
+          "id": "ING-1-I14",
+          "descripcion": "Identifica y describe aspectos cientificos y tecnologicos relativos a sus actividades cotidianas y entorno inmediato, tales como anatomia de las personas y elementos tecnologicos y de la naturaleza utilizando frases y oraciones breves y sencillas orales y escritas.",
+          "competenciaId": "ING-1-C05"
+        },
+        {
+          "id": "ING-1-I15",
+          "descripcion": "Interactua en forma oral o escrita por diferentes medios fisicos y electronicos, para intercambiar informacion, ideas y opiniones sobre aspectos cientificos y tecnologicos del entorno inmediato, actividades cotidianas y la descripcion de las personas.",
+          "competenciaId": "ING-1-C05"
+        }
+      ]
+    },
+    {
+      "id": "ING-1-C06",
+      "fundamental": "Ambiental y de la Salud",
+      "competenciaFundamental": "Ambiental y de la Salud",
+      "especificaGrado": "Muestra preferencias por actividades cotidianas y opciones que impactan de forma positiva la salud y el medioambiente en distintas situaciones de comunicacion.",
+      "descripcion": "Muestra preferencias por actividades cotidianas y opciones que impactan de forma positiva la salud y el medioambiente en distintas situaciones de comunicacion.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-1-I16",
+          "descripcion": "Responde de forma favorable a la preservacion del medio ambiente y la salud ante preguntas e indicaciones sobre informacion de las personas, el entorno y sus actividades cotidianas.",
+          "competenciaId": "ING-1-C06"
+        },
+        {
+          "id": "ING-1-I17",
+          "descripcion": "Ofrece informacion, opiniones e instrucciones sobre acciones que impactan positivamente el medio ambiente y la salud.",
+          "competenciaId": "ING-1-C06"
+        },
+        {
+          "id": "ING-1-I18",
+          "descripcion": "Interactua para compartir informacion personal, de su entorno inmediato y de actividades cotidianas, mostrando preferencia por aquellas que impactan positivamente la salud y el medioambiente.",
+          "competenciaId": "ING-1-C06"
+        }
+      ]
+    },
+    {
+      "id": "ING-1-C07",
+      "fundamental": "Desarrollo Personal y Espiritual",
+      "competenciaFundamental": "Desarrollo Personal y Espiritual",
+      "especificaGrado": "Se comunica en el idioma ingles, con cortesia, asertividad, actitud de respeto, honestidad y aceptacion al expresarse sobre si mismo y las demas personas en cuanto a preferencias, experiencias, caracteristicas personales y actividades cotidianas.",
+      "descripcion": "Se comunica en el idioma ingles, con cortesia, asertividad, actitud de respeto, honestidad y aceptacion al expresarse sobre si mismo y las demas personas en cuanto a preferencias, experiencias, caracteristicas personales y actividades cotidianas.",
+      "indicadoresLogro": [
+        {
+          "id": "ING-1-I19",
+          "descripcion": "Identifica respetuosamente a las personas por su apariencia y forma de ser, preferencias sobre actividades cotidianas y lugares, en un plano de cortesia, aceptacion y asertividad ante si mismo y los demas.",
+          "competenciaId": "ING-1-C07"
+        },
+        {
+          "id": "ING-1-I20",
+          "descripcion": "Comparte informacion sobre su identidad personal y preferencias sobre lugares y actividades cotidianas con humildad, cortesia, asertividad y respeto.",
+          "competenciaId": "ING-1-C07"
+        },
+        {
+          "id": "ING-1-I21",
+          "descripcion": "Interactua con cortesia asertividad y respeto, en intercambios orales y escritos de informacion, opiniones e instrucciones.",
+          "competenciaId": "ING-1-C07"
+        }
+      ]
+    }
+  ],
+  "indicadoresLogro": [
+    { "id": "ING-1-I01", "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos claros, breves y sencillos, donde se describen el entorno inmediato, informacion personal propia y de otras personas, actividades cotidianas y preferencias personales.", "competenciaId": "ING-1-C01" },
+    { "id": "ING-1-I02", "descripcion": "Se expresa en ingles mediante una serie de frases y oraciones breves y sencillas enlazadas por conectores comunes para compartir informacion, puntos de vista e ideas referentes al entorno proximo y actividades cotidianas, aunque con pausas y reformulaciones en lo oral y con posibles errores basicos en lo escrito.", "competenciaId": "ING-1-C01" },
+    { "id": "ING-1-I03", "descripcion": "Interactua de forma oral y escrita utilizando una serie de frases y oraciones breves y sencillas y con diversidad de vocabulario basico referente a informacion personal, actividades cotidianas y el entorno inmediato, pero con suficiente claridad para ser comprendido con un poco de esfuerzo.", "competenciaId": "ING-1-C01" },
+    { "id": "ING-1-I04", "descripcion": "Responde a preguntas e indicaciones utilizando el pensamiento logico verbal, creativo y critico para comprender la informacion contenida en mensajes orales y escritos referentes a necesidades concretas y temas cotidianos.", "competenciaId": "ING-1-C02" },
+    { "id": "ING-1-I05", "descripcion": "Se expresa en ingles a traves de frases y oraciones con creatividad y mediante una estructura logica basica, enlazadas por conectores comunes, con pausas y reformulaciones en lo oral y con posibles errores basicos en lo escrito.", "competenciaId": "ING-1-C02" },
+    { "id": "ING-1-I06", "descripcion": "Interactua de forma oral y escrita siguiendo la logica de la interaccion y el contexto inmediato, expresandose mediante frases y oraciones breves y sencillas con creatividad y pensamiento reflexivo.", "competenciaId": "ING-1-C02" },
+    { "id": "ING-1-I07", "descripcion": "Responde acorde a preguntas e indicaciones a partir de informacion sencilla contenida en textos orales o escritos sobre situaciones y problemas cotidianos o del entorno proximo.", "competenciaId": "ING-1-C03" },
+    { "id": "ING-1-I08", "descripcion": "Se expresa de forma oral y escrita, utilizando expresiones breves y sencillas para describir de forma clara ideas, elementos, personas y acciones relativas a problemas o situaciones de su entorno inmediato.", "competenciaId": "ING-1-C03" },
+    { "id": "ING-1-I09", "descripcion": "Interactua en intercambios comunicativos breves y sencillos, identificando problemas y situaciones variadas de sus actividades cotidianas y de su entorno inmediato, planteando opciones justas para enfrentar la situacion, con expresiones breves y sencillas.", "competenciaId": "ING-1-C03" },
+    { "id": "ING-1-I10", "descripcion": "Participa de forma activa, con escucha atenta y respetuosa en las interacciones formativas e informativas que realiza, identificando aspectos de la identidad social y cultural propia y de otros paises, con actitud de aceptacion y asertividad.", "competenciaId": "ING-1-C04" },
+    { "id": "ING-1-I11", "descripcion": "Expresa preferencias y puntos de vista de forma oral o escrita, con actitud y conducta respetuosa, cortes y asertiva, teniendo en cuenta las diferencias individuales y la cultura propia y de otras personas.", "competenciaId": "ING-1-C04" },
+    { "id": "ING-1-I12", "descripcion": "Interactua en un plano de cortesia, asertividad y respeto tomando en cuenta las diferencias individuales y la identidad social y cultural propia y de otras personas relativas a rasgos fisicos, formas de interactuar, preferencias, puntualidad, celebraciones y clima.", "competenciaId": "ING-1-C04" },
+    { "id": "ING-1-I13", "descripcion": "Responde de forma adecuada a preguntas e indicaciones a partir de la escucha o lectura de textos breves y de vocabulario y expresiones basicas y sencillas sobre asuntos cientificos y tecnologicos compartidos de forma presencial o virtual.", "competenciaId": "ING-1-C05" },
+    { "id": "ING-1-I14", "descripcion": "Identifica y describe aspectos cientificos y tecnologicos relativos a sus actividades cotidianas y entorno inmediato, tales como anatomia de las personas y elementos tecnologicos y de la naturaleza utilizando frases y oraciones breves y sencillas orales y escritas.", "competenciaId": "ING-1-C05" },
+    { "id": "ING-1-I15", "descripcion": "Interactua en forma oral o escrita por diferentes medios fisicos y electronicos, para intercambiar informacion, ideas y opiniones sobre aspectos cientificos y tecnologicos del entorno inmediato, actividades cotidianas y la descripcion de las personas.", "competenciaId": "ING-1-C05" },
+    { "id": "ING-1-I16", "descripcion": "Responde de forma favorable a la preservacion del medio ambiente y la salud ante preguntas e indicaciones sobre informacion de las personas, el entorno y sus actividades cotidianas.", "competenciaId": "ING-1-C06" },
+    { "id": "ING-1-I17", "descripcion": "Ofrece informacion, opiniones e instrucciones sobre acciones que impactan positivamente el medio ambiente y la salud.", "competenciaId": "ING-1-C06" },
+    { "id": "ING-1-I18", "descripcion": "Interactua para compartir informacion personal, de su entorno inmediato y de actividades cotidianas, mostrando preferencia por aquellas que impactan positivamente la salud y el medioambiente.", "competenciaId": "ING-1-C06" },
+    { "id": "ING-1-I19", "descripcion": "Identifica respetuosamente a las personas por su apariencia y forma de ser, preferencias sobre actividades cotidianas y lugares, en un plano de cortesia, aceptacion y asertividad ante si mismo y los demas.", "competenciaId": "ING-1-C07" },
+    { "id": "ING-1-I20", "descripcion": "Comparte informacion sobre su identidad personal y preferencias sobre lugares y actividades cotidianas con humildad, cortesia, asertividad y respeto.", "competenciaId": "ING-1-C07" },
+    { "id": "ING-1-I21", "descripcion": "Interactua con cortesia asertividad y respeto, en intercambios orales y escritos de informacion, opiniones e instrucciones.", "competenciaId": "ING-1-C07" }
+  ],
+  "indicadores": [
+    { "id": "ING-1-I01", "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos claros, breves y sencillos, donde se describen el entorno inmediato, informacion personal propia y de otras personas, actividades cotidianas y preferencias personales.", "competenciaId": "ING-1-C01" },
+    { "id": "ING-1-I02", "descripcion": "Se expresa en ingles mediante una serie de frases y oraciones breves y sencillas enlazadas por conectores comunes para compartir informacion, puntos de vista e ideas referentes al entorno proximo y actividades cotidianas, aunque con pausas y reformulaciones en lo oral y con posibles errores basicos en lo escrito.", "competenciaId": "ING-1-C01" },
+    { "id": "ING-1-I03", "descripcion": "Interactua de forma oral y escrita utilizando una serie de frases y oraciones breves y sencillas y con diversidad de vocabulario basico referente a informacion personal, actividades cotidianas y el entorno inmediato, pero con suficiente claridad para ser comprendido con un poco de esfuerzo.", "competenciaId": "ING-1-C01" },
+    { "id": "ING-1-I04", "descripcion": "Responde a preguntas e indicaciones utilizando el pensamiento logico verbal, creativo y critico para comprender la informacion contenida en mensajes orales y escritos referentes a necesidades concretas y temas cotidianos.", "competenciaId": "ING-1-C02" },
+    { "id": "ING-1-I05", "descripcion": "Se expresa en ingles a traves de frases y oraciones con creatividad y mediante una estructura logica basica, enlazadas por conectores comunes, con pausas y reformulaciones en lo oral y con posibles errores basicos en lo escrito.", "competenciaId": "ING-1-C02" },
+    { "id": "ING-1-I06", "descripcion": "Interactua de forma oral y escrita siguiendo la logica de la interaccion y el contexto inmediato, expresandose mediante frases y oraciones breves y sencillas con creatividad y pensamiento reflexivo.", "competenciaId": "ING-1-C02" },
+    { "id": "ING-1-I07", "descripcion": "Responde acorde a preguntas e indicaciones a partir de informacion sencilla contenida en textos orales o escritos sobre situaciones y problemas cotidianos o del entorno proximo.", "competenciaId": "ING-1-C03" },
+    { "id": "ING-1-I08", "descripcion": "Se expresa de forma oral y escrita, utilizando expresiones breves y sencillas para describir de forma clara ideas, elementos, personas y acciones relativas a problemas o situaciones de su entorno inmediato.", "competenciaId": "ING-1-C03" },
+    { "id": "ING-1-I09", "descripcion": "Interactua en intercambios comunicativos breves y sencillos, identificando problemas y situaciones variadas de sus actividades cotidianas y de su entorno inmediato, planteando opciones justas para enfrentar la situacion, con expresiones breves y sencillas.", "competenciaId": "ING-1-C03" },
+    { "id": "ING-1-I10", "descripcion": "Participa de forma activa, con escucha atenta y respetuosa en las interacciones formativas e informativas que realiza, identificando aspectos de la identidad social y cultural propia y de otros paises, con actitud de aceptacion y asertividad.", "competenciaId": "ING-1-C04" },
+    { "id": "ING-1-I11", "descripcion": "Expresa preferencias y puntos de vista de forma oral o escrita, con actitud y conducta respetuosa, cortes y asertiva, teniendo en cuenta las diferencias individuales y la cultura propia y de otras personas.", "competenciaId": "ING-1-C04" },
+    { "id": "ING-1-I12", "descripcion": "Interactua en un plano de cortesia, asertividad y respeto tomando en cuenta las diferencias individuales y la identidad social y cultural propia y de otras personas relativas a rasgos fisicos, formas de interactuar, preferencias, puntualidad, celebraciones y clima.", "competenciaId": "ING-1-C04" },
+    { "id": "ING-1-I13", "descripcion": "Responde de forma adecuada a preguntas e indicaciones a partir de la escucha o lectura de textos breves y de vocabulario y expresiones basicas y sencillas sobre asuntos cientificos y tecnologicos compartidos de forma presencial o virtual.", "competenciaId": "ING-1-C05" },
+    { "id": "ING-1-I14", "descripcion": "Identifica y describe aspectos cientificos y tecnologicos relativos a sus actividades cotidianas y entorno inmediato, tales como anatomia de las personas y elementos tecnologicos y de la naturaleza utilizando frases y oraciones breves y sencillas orales y escritas.", "competenciaId": "ING-1-C05" },
+    { "id": "ING-1-I15", "descripcion": "Interactua en forma oral o escrita por diferentes medios fisicos y electronicos, para intercambiar informacion, ideas y opiniones sobre aspectos cientificos y tecnologicos del entorno inmediato, actividades cotidianas y la descripcion de las personas.", "competenciaId": "ING-1-C05" },
+    { "id": "ING-1-I16", "descripcion": "Responde de forma favorable a la preservacion del medio ambiente y la salud ante preguntas e indicaciones sobre informacion de las personas, el entorno y sus actividades cotidianas.", "competenciaId": "ING-1-C06" },
+    { "id": "ING-1-I17", "descripcion": "Ofrece informacion, opiniones e instrucciones sobre acciones que impactan positivamente el medio ambiente y la salud.", "competenciaId": "ING-1-C06" },
+    { "id": "ING-1-I18", "descripcion": "Interactua para compartir informacion personal, de su entorno inmediato y de actividades cotidianas, mostrando preferencia por aquellas que impactan positivamente la salud y el medioambiente.", "competenciaId": "ING-1-C06" },
+    { "id": "ING-1-I19", "descripcion": "Identifica respetuosamente a las personas por su apariencia y forma de ser, preferencias sobre actividades cotidianas y lugares, en un plano de cortesia, aceptacion y asertividad ante si mismo y los demas.", "competenciaId": "ING-1-C07" },
+    { "id": "ING-1-I20", "descripcion": "Comparte informacion sobre su identidad personal y preferencias sobre lugares y actividades cotidianas con humildad, cortesia, asertividad y respeto.", "competenciaId": "ING-1-C07" },
+    { "id": "ING-1-I21", "descripcion": "Interactua con cortesia asertividad y respeto, en intercambios orales y escritos de informacion, opiniones e instrucciones.", "competenciaId": "ING-1-C07" }
+  ],
+  "temas": [
+    "Identificacion personal",
+    "Relaciones humanas y sociales",
+    "Actividades de la vida diaria",
+    "Vivienda, entorno y ciudad",
+    "Escuela y educacion",
+    "Deporte, tiempo libre y recreacion",
+    "Alimentacion",
+    "Salud y cuidados fisicos",
+    "Lengua y comunicacion",
+    "Ciencia y tecnologia",
+    "Clima, condiciones atmosfericas y medio ambiente",
+    "Bienes y servicios",
+    "Actividades sociales y culturales",
+    "Viajes y turismo"
+  ],
+  "temasCurriculares": [
+    "Identificacion personal",
+    "Relaciones humanas y sociales",
+    "Actividades de la vida diaria",
+    "Vivienda, entorno y ciudad",
+    "Escuela y educacion",
+    "Deporte, tiempo libre y recreacion",
+    "Alimentacion",
+    "Salud y cuidados fisicos",
+    "Lengua y comunicacion",
+    "Ciencia y tecnologia",
+    "Clima, condiciones atmosfericas y medio ambiente",
+    "Bienes y servicios",
+    "Actividades sociales y culturales",
+    "Viajes y turismo"
+  ],
+  "contenidos": {
+    "conceptos": {
+      "temas": [
+        "Identificacion personal",
+        "Relaciones humanas y sociales",
+        "Actividades de la vida diaria",
+        "Vivienda, entorno y ciudad",
+        "Escuela y educacion",
+        "Deporte, tiempo libre y recreacion",
+        "Alimentacion",
+        "Salud y cuidados fisicos",
+        "Lengua y comunicacion",
+        "Ciencia y tecnologia",
+        "Clima, condiciones atmosfericas y medio ambiente",
+        "Bienes y servicios",
+        "Actividades sociales y culturales",
+        "Viajes y turismo"
+      ],
+      "vocabulario": [
+        { "categoria": "Accidentes geograficos", "ejemplos": ["mountain", "beach", "peninsula"] },
+        { "categoria": "Actividades artisticas", "ejemplos": ["sing", "paint", "dance"] },
+        { "categoria": "Actividades cotidianas", "ejemplos": ["take a shower", "eat breakfast", "go to bed"] },
+        { "categoria": "Actividades recreativas", "ejemplos": ["go camping", "go dancing"] },
+        { "categoria": "Alimentos", "ejemplos": ["rice", "beans", "lemon"] },
+        { "categoria": "Apelativos", "ejemplos": ["sir", "ma'am", "young lady"] },
+        { "categoria": "Celebraciones y ceremonias", "ejemplos": ["birthday", "christening", "wedding"] },
+        { "categoria": "Colores", "ejemplos": ["purple", "white", "gray"] },
+        { "categoria": "Condiciones atmosfericas", "ejemplos": ["sunny", "windy", "hot"] },
+        { "categoria": "Continentes, paises y ciudades", "ejemplos": ["Europe", "Brazil", "Santiago"] },
+        { "categoria": "Deportes", "ejemplos": ["baseball", "soccer", "cycling"] },
+        { "categoria": "Dias de la semana", "ejemplos": ["Monday", "Tuesday"] },
+        { "categoria": "Estaciones del ano", "ejemplos": ["spring", "summer"] },
+        { "categoria": "Fenomenos atmosfericos", "ejemplos": ["earthquake", "hurricane", "tornado"] },
+        { "categoria": "Formas", "ejemplos": ["round", "square"] },
+        { "categoria": "Formas de ser", "ejemplos": ["quiet", "nice", "kind"] },
+        { "categoria": "Generos musicales", "ejemplos": ["salsa", "rock", "merengue"] },
+        { "categoria": "Idiomas", "ejemplos": ["Spanish", "English", "Creole", "Italian"] },
+        { "categoria": "Lugares de un edificio", "ejemplos": ["lobby", "entrance", "exit"] },
+        { "categoria": "Lugares", "ejemplos": ["movies", "hospital", "mall"] },
+        { "categoria": "Medios de transporte", "ejemplos": ["taxi", "metro", "cable car"] },
+        { "categoria": "Miembros de la familia", "ejemplos": ["mother", "father", "brother"] },
+        { "categoria": "Mobiliario del hogar y de la oficina", "ejemplos": ["chair", "desk"] },
+        { "categoria": "Nacionalidades", "ejemplos": ["Dominican", "Chinese", "Peruvian"] },
+        { "categoria": "Nombres propios", "ejemplos": ["Peter", "Elizabeth"] },
+        { "categoria": "Numeros cardinales", "ejemplos": ["one", "two"] },
+        { "categoria": "Numeros ordinales", "ejemplos": ["first", "second"] },
+        { "categoria": "Ocupaciones", "ejemplos": ["teacher", "doctor", "engineer"] },
+        { "categoria": "Partes del cuerpo", "ejemplos": ["hands", "arms", "eyes"] },
+        { "categoria": "Pertenencias", "ejemplos": ["cell phone", "laptop", "bike"] },
+        { "categoria": "Preparacion de alimentos", "ejemplos": ["wash", "cut", "chop", "boil"] },
+        { "categoria": "Puntos cardinales", "ejemplos": ["north", "south", "southwest"] },
+        { "categoria": "Rasgos fisicos", "ejemplos": ["handsome", "tall", "pretty"] },
+        { "categoria": "Ropa y accesorios", "ejemplos": ["pants", "shirt", "watch", "glasses", "tie"] },
+        { "categoria": "Tamanos", "ejemplos": ["small", "big", "large"] },
+        { "categoria": "Tareas del hogar", "ejemplos": ["do the laundry", "do the dishes"] },
+        { "categoria": "Titulos personales", "ejemplos": ["Mr.", "Ms.", "Miss"] },
+        { "categoria": "Uso de equipos", "ejemplos": ["plug in", "turn on", "reset"] },
+        { "categoria": "Viajes", "ejemplos": ["airport", "luggage", "hotel"] }
+      ],
+      "expresiones": [
+        { "funcion": "Saludos", "ejemplos": ["Hello!", "How are you?", "Fine, thanks. And you?"] },
+        { "funcion": "Despedidas", "ejemplos": ["Have a nice day!"] },
+        { "funcion": "Presentaciones", "ejemplos": ["Betty, this is Carlos Diaz.", "Nice to meet you."] },
+        { "funcion": "Interaccion cotidiana en el aula", "ejemplos": ["Did you understand?"] },
+        { "funcion": "Interrumpir con cortesia", "ejemplos": ["Excuse me.", "May I say something?"] },
+        { "funcion": "Tomar y conceder turnos", "ejemplos": ["It's your turn.", "Next, please."] },
+        { "funcion": "Solicitud de traduccion o repeticion", "ejemplos": ["How do you say \"mesa\" in English?", "Pardon me?"] },
+        { "funcion": "Expresar aprobacion o acuerdo", "ejemplos": ["That's right.", "Sure!"] },
+        { "funcion": "Atraer la atencion", "ejemplos": ["Excuse me, sir!", "May I have your attention, please?"] },
+        { "funcion": "Responder a invitaciones", "ejemplos": ["Perhaps another time.", "Thanks!"] },
+        { "funcion": "Excusas", "ejemplos": ["I'm sorry.", "I really can't go."] },
+        { "funcion": "Agradecimientos", "ejemplos": ["Thanks for your help.", "I really appreciate it."] },
+        { "funcion": "Fechas", "ejemplos": ["September 30th, 1976"] },
+        { "funcion": "Hora", "ejemplos": ["five o'clock", "at noon"] }
+      ],
+      "gramatica": [
+        { "estructura": "Presente simple para solicitar y ofrecer informacion personal, referirse a actividades cotidianas, expresar opiniones y describir personas, objetos, lugares y condiciones atmosfericas", "ejemplos": ["I live in San Juan.", "I go to school early every morning.", "Playing chess is better than watching TV.", "My brothers have short curly hair and big brown eyes.", "Emma is very smart.", "This neighborhood looks really quiet.", "It's hot and sunny in Santo Domingo now."] },
+        { "estructura": "Verbos like, prefer, enjoy para expresar gustos y preferencias", "ejemplos": ["He likes living in the countryside."] },
+        { "estructura": "Presente continuo para referirse a las condiciones atmosfericas y rechazar invitaciones", "ejemplos": ["It's snowing now.", "I can't go because I'm studying now."] },
+        { "estructura": "Pasado simple para narrar experiencias personales", "ejemplos": ["I won a chess tournament last year."] },
+        { "estructura": "Presente perfecto para narrar experiencias personales", "ejemplos": ["Have you ever eaten Mexican food?", "I've been to Spain twice."] },
+        { "estructura": "Will y be going to para referirse a las condiciones atmosfericas", "ejemplos": ["It's going to snow all day long.", "It will be sunny on Monday."] },
+        { "estructura": "Would para invitar y aceptar una invitacion", "ejemplos": ["Would you like to come to my birthday party?", "I would love it!"] },
+        { "estructura": "Can't y have to para rechazar una invitacion", "ejemplos": ["I'm sorry. I can't come tomorrow because I have to see the dentist."] },
+        { "estructura": "There + be en presente simple para describir lugares", "ejemplos": ["There are four bedrooms on the second floor."] },
+        { "estructura": "Modo imperativo para dar y seguir indicaciones e instrucciones", "ejemplos": ["Open your books to page 45.", "Don't close the door, please!"] },
+        { "estructura": "Let's para invitar", "ejemplos": ["Let's go to the park."] },
+        { "estructura": "Question tags", "ejemplos": ["You like pizza, don't you?", "This house is beautiful, isn't it?"] },
+        { "estructura": "Posesivo ('s)", "ejemplos": ["Lucy's cell phone is newer than mine."] },
+        { "estructura": "Articulos definidos e indefinidos: the, a/an", "ejemplos": ["The weather is nice today.", "My brother is a lawyer and my sister is an architect."] },
+        { "estructura": "Adjetivos calificativos", "ejemplos": ["handsome", "new", "respectful"] },
+        { "estructura": "Grados comparativo y superlativo del adjetivo", "ejemplos": ["My tablet is as thin as a notebook."] },
+        { "estructura": "Adjetivos posesivos", "ejemplos": ["my", "his", "her"] },
+        { "estructura": "Pronombres interrogativos", "ejemplos": ["what", "who", "where", "What's your nationality?"] },
+        { "estructura": "Pronombres objeto", "ejemplos": ["me", "you", "him", "Give him the key, please."] },
+        { "estructura": "Pronombres posesivos", "ejemplos": ["mine", "yours", "his", "hers", "Is the red smart phone yours?"] },
+        { "estructura": "Preposiciones de tiempo y lugar", "ejemplos": ["in", "on", "at", "It's usually very hot in the summer.", "There's a beautiful vase on the night table."] },
+        { "estructura": "Adverbios de tiempo, frecuencia, modo, intensidad y certeza", "ejemplos": ["early", "tomorrow", "late", "always", "sometimes", "never", "fast", "hard", "slowly", "carefully", "very", "really", "maybe", "perhaps", "sure"] },
+        { "estructura": "Conectores de coordinacion, tiempo, secuencia, causa y consecuencia", "ejemplos": ["and", "or", "but", "before", "after", "first", "second", "then", "next", "finally", "because", "so"] }
+      ]
+    },
+    "procedimientos": {
+      "funcionales": [
+        "Solicitar y ofrecer informacion personal",
+        "Expresar gustos y preferencias",
+        "Dar y pedir indicaciones e instrucciones",
+        "Dar y pedir informacion sobre actividades cotidianas",
+        "Describir a personas por su apariencia y su forma de ser",
+        "Describir y comparar lugares y objetos",
+        "Dar y pedir informacion sobre las condiciones atmosfericas",
+        "Expresar opiniones",
+        "Narrar experiencias personales, propias y de otras personas",
+        "Invitar, aceptar o rechazar invitaciones"
+      ],
+      "discursivos": [
+        "Comprension de textos orales y escritos, tales como conversaciones, tarjetas de presentacion, listas, anuncios, recetas, letreros, avisos, afiches, mensajes, correos electronicos, curriculum vitae, cartas, formularios, pronosticos del tiempo, noticias, horarios, agendas, croquis, cuestionarios, folletos, canciones, poesias, historietas, guias turisticas, descripciones, biografias y narraciones.",
+        "Produccion de textos orales, tales como conversaciones, canciones, recetas, mensajes, noticias, descripciones y narraciones.",
+        "Produccion de textos escritos, tales como mensajes, correos electronicos, cartas, curriculum vitae, avisos, afiches, letreros, memes, formularios, cuestionarios, narraciones y descripciones.",
+        "Produccion de audiovisuales."
+      ],
+      "comprensionOral": [
+        "Anticipacion del contenido del mensaje",
+        "Escucha atenta",
+        "Uso del lenguaje no verbal de su interlocutor/a para comprender el mensaje",
+        "Inferencia del significado de palabras y expresiones a partir del contexto y los conocimientos previos",
+        "Solicitud de ayuda y repeticion",
+        "Indicacion de que se comprende o no"
+      ],
+      "produccionOral": [
+        "Reproduccion y ensayo de palabras, expresiones y pautas de entonacion",
+        "Identificacion de la situacion de comunicacion",
+        "Establecimiento de la intencion comunicativa",
+        "Uso del lenguaje no verbal para comunicarse"
+      ],
+      "comprensionEscrita": [
+        "Establecimiento del proposito de la lectura",
+        "Formulacion de hipotesis a partir de los conocimientos previos y los elementos paratextuales",
+        "Identificacion de la correspondencia entre la grafia y el sonido de las palabras",
+        "Inferencia del significado de palabras y expresiones a partir de las pistas textuales y los conocimientos previos",
+        "Subrayado, anotacion y busqueda de palabras en el diccionario y otras herramientas de consulta",
+        "Identificacion de la intencion comunicativa del texto"
+      ],
+      "produccionEscrita": [
+        "Establecimiento del proposito del mensaje y del tipo de texto que se va a producir",
+        "Planificacion y organizacion del mensaje",
+        "Uso del diccionario y otras herramientas de consulta",
+        "Revision del sentido y la correccion del mensaje"
+      ],
+      "otros": [
+        "Utilizacion de asociaciones mentales y de la accion",
+        "Automotivacion y control del nivel de ansiedad",
+        "Busqueda de oportunidades de uso de la lengua"
+      ],
+      "sociolinguisticosYSocioculturales": [
+        "Utilizacion de formulas cotidianas de interaccion social",
+        "Comparacion entre rasgos fisicos de las personas, formas de interactuar, gustos y preferencias, puntualidad, celebraciones y efecto del clima en las condiciones de vida de la Republica Dominicana y de otros paises"
+      ]
+    },
+    "actitudesValores": [
+      "Motivacion para aprender ingles",
+      "Cuidado del medioambiente",
+      "Practica de habitos saludables",
+      "Cumplimiento de las normas de seguridad",
+      "Respeto por las pertenencias de las demas personas",
+      "Cortesia, asertividad y respeto al interactuar con los y las demas",
+      "Conciencia de que el valor de las personas trasciende las posesiones materiales",
+      "Respeto por las diferencias relativas a genero, edad, ocupacion y nacionalidad de las personas",
+      "Reconocimiento de la equidad de genero en el desempeno exitoso de las diferentes ocupaciones",
+      "Reconocimiento de que las personas discapacitadas pueden desempenar su trabajo de forma exitosa",
+      "Respeto por el tiempo propio y el de las demas personas",
+      "Planificacion de las actividades que lleva a cabo",
+      "Responsabilidad en el cumplimiento de sus deberes y compromisos",
+      "Valoracion de la importancia del trabajo para las personas y la sociedad",
+      "Empatia y solidaridad ante las dificultades de los demas",
+      "Valoracion de la diversidad de rasgos fisicos caracteristicos de diferentes etnias",
+      "Valoracion de las costumbres locales y las de otros paises"
+    ]
+  },
+  "contenidosGenerales": {
+    "conceptuales": [
+      "Temas: Identificacion personal; Relaciones humanas y sociales; Actividades de la vida diaria; Vivienda, entorno y ciudad; Escuela y educacion; Deporte, tiempo libre y recreacion; Alimentacion; Salud y cuidados fisicos; Lengua y comunicacion; Ciencia y tecnologia; Clima, condiciones atmosfericas y medio ambiente; Bienes y servicios; Actividades sociales y culturales; Viajes y turismo",
+      "Vocabulario: accidentes geograficos, actividades artisticas, actividades cotidianas, actividades recreativas, alimentos, apelativos, celebraciones y ceremonias, colores, condiciones atmosfericas, continentes, paises y ciudades, deportes, dias de la semana, estaciones del ano, fenomenos atmosfericos, formas, formas de ser, generos musicales, idiomas, lugares de un edificio, lugares, medios de transporte, miembros de la familia, mobiliario del hogar y de la oficina, nacionalidades, nombres propios, numeros cardinales, numeros ordinales, ocupaciones, partes del cuerpo, pertenencias, preparacion de alimentos, puntos cardinales, rasgos fisicos, ropa y accesorios, tamanos, tareas del hogar, titulos personales, uso de equipos y viajes",
+      "Expresiones: saludos, despedidas, presentaciones, interaccion cotidiana en el aula, interrupcion con cortesia, turnos, solicitud de traduccion o repeticion, aprobacion o acuerdo, atraer la atencion, responder a invitaciones, excusas, agradecimientos, fechas y hora",
+      "Gramatica: presente simple, like/prefer/enjoy, presente continuo, pasado simple, presente perfecto, will y be going to, would, can't y have to, there + be, imperativo, let's, question tags, posesivo 's, articulos, adjetivos, comparativo y superlativo, pronombres, preposiciones, adverbios y conectores"
+    ],
+    "procedimentales": [
+      "Solicitar y ofrecer informacion personal",
+      "Expresar gustos y preferencias",
+      "Dar y pedir indicaciones e instrucciones",
+      "Dar y pedir informacion sobre actividades cotidianas",
+      "Describir personas por apariencia y forma de ser",
+      "Describir y comparar lugares y objetos",
+      "Dar y pedir informacion sobre condiciones atmosfericas",
+      "Expresar opiniones",
+      "Narrar experiencias personales",
+      "Invitar, aceptar o rechazar invitaciones",
+      "Comprender y producir textos orales, escritos y audiovisuales",
+      "Aplicar estrategias de comprension oral, produccion oral, comprension escrita y produccion escrita"
+    ],
+    "actitudinales": [
+      "Motivacion para aprender ingles",
+      "Cuidado del medioambiente",
+      "Practica de habitos saludables",
+      "Cumplimiento de normas de seguridad",
+      "Respeto, cortesia, asertividad, responsabilidad, empatia y valoracion de la diversidad"
+    ]
+  },
+  "criteriosEvaluacion": [
+    "Comprension de textos orales y escritos breves y sencillos compuestos por frases y expresiones basicas, relativas a necesidades concretas y temas cotidianos, apoyandose de imagenes y de modelos previstos.",
+    "Produccion de textos orales y escritos breves y sencillos, compuestos por una serie ensayada de oraciones basicas sobre el mismo tema, en distintas situaciones de comunicacion donde se expresan puntos de vista propios y de otras personas, apoyandose de modelos y con ayuda visual.",
+    "Interaccion breve y sencilla mediante una serie de frases y oraciones sencillas relativas a necesidades concretas y temas cotidianos, que el interlocutor puede comprender prestando atencion.",
+    "Empleo del pensamiento logico-verbal y critico en la comprension de textos orales y escritos breves y sencillos para responder a preguntas e indicaciones y proponer puntos de vista a partir de la informacion presentada.",
+    "Utilizacion del pensamiento logico-verbal para organizar y relacionar las ideas de forma creativa en los textos orales y escritos que produce, empleando estrategias de desempeno en diferentes situaciones cotidianas de comunicacion.",
+    "Interaccion sencilla en el idioma ingles, utilizando el razonamiento logico-verbal y la expresion creativa y critica para expresar y comprender los mensajes que se comparten en situaciones concretas de comunicacion oral o escrita."
+  ],
+  "contenidosPorTema": []
+}

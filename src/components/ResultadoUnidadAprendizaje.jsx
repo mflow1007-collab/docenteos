@@ -7,6 +7,16 @@
 import { useState } from "react";
 import AuditoriaModal from "./AuditoriaModal.jsx";
 
+const textoSeguro = (value) => {
+  if (typeof value === "string" || typeof value === "number") return String(value).trim();
+  if (!value || typeof value !== "object") return "";
+  return [
+    value.organismo || value.ministerio || value.entidad,
+    value.documento || value.titulo || value.nombre,
+    value.anio || value.year,
+  ].map(textoSeguro).filter(Boolean).join(" · ");
+};
+
 export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onNueva, onAplicarAcciones, onEditarUnidad, guardando, mensaje, onIrAModoAula }) {
   const [mostrarAuditoria, setMostrarAuditoria] = useState(false);
   // Modo edición (Bloque 1): permite al docente elegir qué indicadores trabaja
@@ -66,6 +76,9 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 
   const { metadatos: m, competencias, contenidos, fasesSemanales = [] } = unidad;
   const modeloSuperior = unidad.modeloCurricularSuperior || {};
+  const fuenteCurricular = textoSeguro(modeloSuperior.fuente) || "MINERD";
+  const versionCurriculo = textoSeguro(modeloSuperior.versionCurriculo);
+  const nivelMCERL = textoSeguro(modeloSuperior.nivelMCERL || competencias?.nivelMCERL);
   const renderList = (items = [], empty = "No registrado en la malla.") => (
     items?.length ? (
       <ul className="ua-list">{items.map((item, i) => <li key={i}>{textoItem(item)}</li>)}</ul>
@@ -282,11 +295,11 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       {/* ── COMPETENCIAS ── */}
       <section className="ua-section">
         <div className="ua-section-head">COMPONENTE CURRICULAR — Asignatura: {m.asignatura}</div>
-        {(modeloSuperior.fuente || modeloSuperior.versionCurriculo || modeloSuperior.nivelMCERL || competencias?.nivelMCERL) && (
+        {(fuenteCurricular || versionCurriculo || nivelMCERL) && (
           <p className="ua-text-block" style={{ fontSize: 13 }}>
-            Fuente curricular: {modeloSuperior.fuente || "MINERD"}
-            {modeloSuperior.versionCurriculo ? ` · Versión: ${modeloSuperior.versionCurriculo}` : ""}
-            {modeloSuperior.nivelMCERL || competencias?.nivelMCERL ? ` · Nivel MCERL: ${modeloSuperior.nivelMCERL || competencias.nivelMCERL}` : ""}
+            Fuente curricular: {fuenteCurricular}
+            {versionCurriculo ? ` · Versión: ${versionCurriculo}` : ""}
+            {nivelMCERL ? ` · Nivel MCERL: ${nivelMCERL}` : ""}
           </p>
         )}
         {competenciasVisibles.length > 0 ? (

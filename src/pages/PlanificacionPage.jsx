@@ -61,6 +61,16 @@ const PLAN_JOB_ID = "planificacion-inteligente";
 const ES_TIPO_UNIDAD = (t) =>
   t === "Unidad de Aprendizaje" || t === "Secuencia Didáctica";
 
+const textoUI = (valor, fallback = "") => {
+  if (typeof valor === "string" || typeof valor === "number") return String(valor).trim();
+  if (!valor || typeof valor !== "object") return fallback;
+  return [
+    valor.organismo || valor.ministerio || valor.entidad,
+    valor.documento || valor.titulo || valor.nombre || valor.tema || valor.title,
+    valor.anio || valor.year,
+  ].map((item) => textoUI(item)).filter(Boolean).join(" · ") || fallback;
+};
+
 export default function PlanificacionPage({
   planificacionPreCargada = null,
   onConsumirPreCargada = () => {},
@@ -1791,19 +1801,19 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
       {dialogoTema.abierto && (
         <div className="tema-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="tema-modal-titulo">
           <div className="tema-modal">
-            <h2 id="tema-modal-titulo">{tituloDialogoTema}</h2>
+            <h2 id="tema-modal-titulo">{textoUI(tituloDialogoTema, "Tema en uso")}</h2>
             <p>
               {dialogoTema?.payload?.mensaje || "Puedes seguir editándolos sin límites. Para iniciar un nuevo tema debes usar un nuevo crédito de planificación o disponer de una suscripción que lo permita."}
             </p>
             <div className="tema-modal-temas">
               {temasDialogoActivos.length ? temasDialogoActivos.map((temaItem, index) => (
-                <span key={`${temaItem?.titulo || "tema"}-${index}`}>
-                  <strong>Tema {index + 1}:</strong> {temaItem?.titulo || "No definido"}
-                </span>
+                  <span key={`${textoUI(temaItem?.titulo, "tema")}-${index}`}>
+                    <strong>Tema {index + 1}:</strong> {textoUI(temaItem?.titulo, "No definido")}
+                  </span>
               )) : (
                 <>
-                  <span><strong>Tema 1:</strong> {dialogoTema?.payload?.temas?.temaActivo?.titulo || "No definido"}</span>
-                  <span><strong>Tema 2:</strong> {dialogoTema?.payload?.temas?.temaSecundario?.titulo || "No definido"}</span>
+                  <span><strong>Tema 1:</strong> {textoUI(dialogoTema?.payload?.temas?.temaActivo?.titulo, "No definido")}</span>
+                  <span><strong>Tema 2:</strong> {textoUI(dialogoTema?.payload?.temas?.temaSecundario?.titulo, "No definido")}</span>
                 </>
               )}
               <span className="tema-modal-creditos">
@@ -1837,7 +1847,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             <span className="generation-progress-dot" />
             <div className="generation-progress-copy">
               <span>DocenteOS está trabajando</span>
-              <strong>{progresoGeneracionActivo}</strong>
+              <strong>{textoUI(progresoGeneracionActivo)}</strong>
             </div>
           </div>
         )}
@@ -1846,9 +1856,10 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
           <section className="planning-resource-card">
             <div>
               <span className="planning-resource-label">Recurso activo</span>
-              <h2>{materialPlanificacion.titulo || "Material seleccionado"}</h2>
+              <h2>{textoUI(materialPlanificacion.titulo, "Material seleccionado")}</h2>
               <p>
                 {[materialPlanificacion.nivel, materialPlanificacion.grado, materialPlanificacion.asignatura]
+                  .map((item) => textoUI(item))
                   .filter(Boolean)
                   .join(" · ") || "Libro Abierto MINERD"}
               </p>
@@ -1916,10 +1927,10 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
               {historialVisibleDocente.map((item) => {
                 const contenido = item?.contenido || item;
                 const meta = contenido?.metadatos || {};
-                const titulo = meta.tema || meta.titulo || item.tema || "Planificación sin tema";
-                const cursoResumen = [meta.grado, meta.seccion].filter(Boolean).join(" ").trim() || item.curso || "Curso";
-                const areaResumen = meta.area || item.area || "Área";
-                const tipoResumen = meta.tipoPlanificacion || contenido?.tipoPlanificacion || "Planificación";
+                const titulo = textoUI(meta.tema || meta.titulo || item.tema, "Planificación sin tema");
+                const cursoResumen = [meta.grado, meta.seccion].map((v) => textoUI(v)).filter(Boolean).join(" ").trim() || textoUI(item.curso, "Curso");
+                const areaResumen = textoUI(meta.area || item.area, "Área");
+                const tipoResumen = textoUI(meta.tipoPlanificacion || contenido?.tipoPlanificacion, "Planificación");
                 const fechaResumen = formatearFechaRegistro(item.createdAt || item.fecha || meta.fechaGeneracion);
 
                 return (

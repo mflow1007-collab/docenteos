@@ -470,7 +470,7 @@ function AppInner() {
     if (["inicio", "cursos", "estudiantes", "banco-evidencias"].includes(id)) {
       refrescarCursosDesdeRegistros();
     }
-    navegar(id);
+    navegar(id, options);
     setGrupoExpandido(grupoDePageID(id));
     cerrarMenu();
   };

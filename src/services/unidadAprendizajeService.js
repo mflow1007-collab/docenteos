@@ -173,6 +173,16 @@ const textoPlano = (value) => {
   ).trim();
 };
 
+const textoFuenteCurricular = (value) => {
+  if (typeof value === "string") return value.trim();
+  if (!value || typeof value !== "object") return "";
+  return [
+    value.organismo || value.ministerio || value.entidad,
+    value.documento || value.titulo || value.nombre,
+    value.anio || value.year,
+  ].map(textoPlano).filter(Boolean).join(" · ");
+};
+
 const textosUnicos = (items = []) => {
   const seen = new Set();
   const out = [];
@@ -318,9 +328,9 @@ const construirModeloCurricularSuperior = ({
     : construirEjesContextualizados(ejes, { area, tema: titulo });
 
   return {
-    fuente: payload.fuente || payload.ministerio || "MINERD",
-    versionCurriculo: payload.versionCurriculo || payload.version || payload.schemaVersion || "",
-    nivelMCERL: payload.nivelMCERL || payload.nivelDominio || "",
+    fuente: textoFuenteCurricular(payload.fuente) || textoPlano(payload.ministerio) || "MINERD",
+    versionCurriculo: textoPlano(payload.versionCurriculo || payload.version || payload.schemaVersion),
+    nivelMCERL: textoPlano(payload.nivelMCERL || payload.nivelDominio),
     estrategia,
     productoFinal: producto,
     ejes: ejesOficiales,

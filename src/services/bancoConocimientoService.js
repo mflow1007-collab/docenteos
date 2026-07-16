@@ -474,6 +474,16 @@ const asArray = (value) => Array.isArray(value) ? value : [];
 
 const cleanText = (value) => String(value || '').trim();
 
+const cleanSourceText = (value) => {
+  if (typeof value === 'string') return value.trim();
+  if (!value || typeof value !== 'object') return '';
+  return [
+    value.organismo || value.ministerio || value.entidad,
+    value.documento || value.titulo || value.nombre,
+    value.anio || value.year,
+  ].filter(Boolean).map(cleanText).join(' · ');
+};
+
 const firstArray = (...values) => values.find(Array.isArray) || [];
 
 const uniqueCleanTexts = (items = []) => {
@@ -617,7 +627,7 @@ export const construirPaqueteCurricularJson = (archivos = []) => {
     contentType: 'malla_curricular',
     nivelMCERL: cleanText(metadata.mcerl || metadata.nivelMCERL || metadata.nivelDominio),
     versionCurriculo: cleanText(metadata.versionCurriculo || metadata.version || metadata.revision),
-    fuente: metadata.fuente || metadata.ministerio || 'MINERD',
+    fuente: cleanSourceText(metadata.fuente) || cleanText(metadata.ministerio) || 'MINERD',
     competencias,
     indicadoresLogro: indicadores,
     indicadores,

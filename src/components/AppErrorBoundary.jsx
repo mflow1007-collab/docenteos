@@ -8,6 +8,12 @@ function esErrorChunk(error) {
     || texto.includes("importing a module script");
 }
 
+function detalleError(error) {
+  const mensaje = String(error?.message || error || "Error sin mensaje").trim();
+  const stack = String(error?.stack || "").trim();
+  return stack && !stack.startsWith(mensaje) ? `${mensaje}\n${stack}` : mensaje;
+}
+
 export default class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -27,6 +33,17 @@ export default class AppErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error("[DocenteOS] Error de modulo:", error, info);
+    try {
+      localStorage.setItem("docenteos_ultimo_error_modulo", JSON.stringify({
+        fecha: new Date().toISOString(),
+        ruta: window.location.pathname || "",
+        mensaje: String(error?.message || error || "Error sin mensaje"),
+        stack: String(error?.stack || ""),
+        componente: String(info?.componentStack || ""),
+      }));
+    } catch {
+      // El diagnostico es auxiliar; no debe romper la pantalla de recuperacion.
+    }
     if (esErrorChunk(error) && this.props.autoReloadOnChunkError) {
       const key = "docenteos_chunk_reload_once";
       try {
@@ -45,6 +62,8 @@ export default class AppErrorBoundary extends Component {
     if (!error) return this.props.children;
 
     const chunk = esErrorChunk(error);
+    const detalleTecnico = detalleError(error);
+    const ruta = typeof window !== "undefined" ? window.location.pathname || "/" : this.props.resetKey || "/";
     const titulo = chunk
       ? "Necesitamos recargar este modulo"
       : "Este modulo no pudo abrir correctamente";
@@ -58,6 +77,11 @@ export default class AppErrorBoundary extends Component {
         <div>
           <h2>{titulo}</h2>
           <p>{detalle}</p>
+          <div className="app-recovery-details" aria-label="Detalle tecnico del error">
+            <strong>Ruta:</strong> <code>{ruta}</code>
+            <strong>Detalle tecnico:</strong>
+            <code>{detalleTecnico}</code>
+          </div>
           <div className="app-recovery-actions">
             <button type="button" onClick={() => window.location.reload()}>
               Recargar pagina

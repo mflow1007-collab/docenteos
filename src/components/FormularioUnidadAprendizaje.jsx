@@ -40,6 +40,16 @@ const normalizarClave = (valor) => String(valor || "")
   .replace(/\s+/g, " ")
   .trim();
 
+const textoUI = (valor) => {
+  if (typeof valor === "string" || typeof valor === "number") return String(valor).trim();
+  if (!valor || typeof valor !== "object") return "";
+  return [
+    valor.organismo || valor.ministerio || valor.entidad,
+    valor.documento || valor.titulo || valor.nombre || valor.tema || valor.title,
+    valor.anio || valor.year,
+  ].map(textoUI).filter(Boolean).join(" · ");
+};
+
 const normalizarNivel = (valor) => {
   const n = normalizarClave(valor);
   if (["secundario", "secundaria"].includes(n)) return "secundaria";
@@ -420,20 +430,23 @@ export default function FormularioUnidadAprendizaje({
   };
 
   const elegirCombinacion = (op) => {
-    setModoElegido(op.nombre);
+    setModoElegido(textoUI(op.nombre));
     setMostrarPropia(false);
-    onChange({ ...datos, temasSeleccionados: op.temas, numSemanas: semanasDeCombinacion(op) });
+    onChange({ ...datos, temasSeleccionados: (op.temas || []).map(textoUI).filter(Boolean), numSemanas: semanasDeCombinacion(op) });
   };
 
   const abrirPropia = () => {
     setMostrarPropia(true);
-    if (temasPropios.length === 0 && sugerenciaTema?.temaOficial) {
-      setTemasPropios([sugerenciaTema.temaOficial]);
+    const temaOficial = textoUI(sugerenciaTema?.temaOficial);
+    if (temasPropios.length === 0 && temaOficial) {
+      setTemasPropios([temaOficial]);
     }
   };
 
   const toggleTemaPropio = (t) => {
-    setTemasPropios((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+    const tema = textoUI(t);
+    if (!tema) return;
+    setTemasPropios((prev) => (prev.includes(tema) ? prev.filter((x) => x !== tema) : [...prev, tema]));
   };
 
   const confirmarPropia = () => {
@@ -692,7 +705,7 @@ export default function FormularioUnidadAprendizaje({
               <div className="ua-rec-item">
                 <span className="ua-rec-label">Tema oficial del currículo</span>
                 <span className="ua-rec-value" style={{ color: "#1d4ed8" }}>
-                  🎯 {sugerenciaTema.temaOficial}
+                  🎯 {textoUI(sugerenciaTema.temaOficial)}
                   <span className="ua-rec-sub"> (confianza {sugerenciaTema.confianza})</span>
                 </span>
               </div>
@@ -709,7 +722,7 @@ export default function FormularioUnidadAprendizaje({
               )}
             </div>
 
-            {temaYaTrabajado(sugerenciaTema.temaOficial) && (
+            {temaYaTrabajado(textoUI(sugerenciaTema.temaOficial)) && (
               <div style={{
                 marginTop: 8, padding: "8px 12px", borderRadius: 8,
                 background: "#fffbeb", border: "1.5px solid #f59e0b",
@@ -760,21 +773,27 @@ export default function FormularioUnidadAprendizaje({
             </div>
 
             {/* Opción 2: combinación sugerida por el currículo (+ alternativas) */}
-            {(sugerenciaTema.opciones || []).map((op, i) => (
+            {(sugerenciaTema.opciones || []).map((op, i) => {
+              const nombreOp = textoUI(op.nombre) || `Combinación ${i + 1}`;
+              const duracionOp = textoUI(op.duracionSugerida);
+              const temasOp = (op.temas || []).map(textoUI).filter(Boolean);
+              const tituloOp = textoUI(op.tituloSugerido);
+              const razonOp = textoUI(op.razon);
+              return (
               <div
-                key={op.nombre}
+                key={nombreOp}
                 style={{
-                  background: modoElegido === op.nombre ? "#dbeafe" : "white",
-                  border: `2px solid ${modoElegido === op.nombre ? "#1d4ed8" : "#bfdbfe"}`,
+                  background: modoElegido === nombreOp ? "#dbeafe" : "white",
+                  border: `2px solid ${modoElegido === nombreOp ? "#1d4ed8" : "#bfdbfe"}`,
                   borderRadius: 10, padding: "10px 12px", marginBottom: 8,
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                   <span style={{ color: "#1d4ed8", fontWeight: 700, fontSize: 13 }}>
                     {i === 0 ? "✨ Combinación sugerida por el currículo — " : "🔀 "}
-                    {op.nombre}
-                    {op.duracionSugerida && (
-                      <span style={{ fontWeight: 500, opacity: 0.75 }}> · {op.duracionSugerida}</span>
+                    {nombreOp}
+                    {duracionOp && (
+                      <span style={{ fontWeight: 500, opacity: 0.75 }}> · {duracionOp}</span>
                     )}
                   </span>
                   <button
@@ -789,11 +808,11 @@ export default function FormularioUnidadAprendizaje({
                       fontWeight: 700, fontSize: 12, cursor: "pointer",
                     }}
                   >
-                    {modoElegido === op.nombre ? "✓ Elegida" : `Aceptar combinación (${semanasDeCombinacion(op)} sem.)`}
+                    {modoElegido === nombreOp ? "✓ Elegida" : `Aceptar combinación (${semanasDeCombinacion(op)} sem.)`}
                   </button>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                  {op.temas.map((t) => (
+                  {temasOp.map((t) => (
                     <span
                       key={t}
                       className="pd-campo-badge"
@@ -804,14 +823,14 @@ export default function FormularioUnidadAprendizaje({
                     </span>
                   ))}
                 </div>
-                {op.tituloSugerido && (
+                {tituloOp && (
                   <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
                     <span style={{ color: "#1e3a8a", fontSize: 12 }}>
-                      💡 Título sugerido: <strong>“{op.tituloSugerido}”</strong>
+                      💡 Título sugerido: <strong>“{tituloOp}”</strong>
                     </span>
                     <button
                       type="button"
-                      onClick={() => aplicarTituloSugerido(op.tituloSugerido)}
+                      onClick={() => aplicarTituloSugerido(tituloOp)}
                       disabled={cargando}
                       style={{
                         padding: "2px 10px", borderRadius: 8,
@@ -824,13 +843,13 @@ export default function FormularioUnidadAprendizaje({
                     </button>
                   </div>
                 )}
-                {i === 0 && (
+                {i === 0 && razonOp && (
                   <p style={{ color: "#1e3a8a", fontSize: 12, fontStyle: "italic", margin: "6px 0 0" }}>
-                    {op.razon}
+                    {razonOp}
                   </p>
                 )}
               </div>
-            ))}
+            )})}
 
             {/* Opción 3: combinación propia con todos los temas de la malla */}
             {temasMalla.length > 0 && (
@@ -864,24 +883,25 @@ export default function FormularioUnidadAprendizaje({
                   <>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                       {temasMalla.map((t) => {
-                        const activo = temasPropios.includes(t);
+                        const temaTexto = textoUI(t);
+                        const activo = temasPropios.includes(temaTexto);
                         return (
                           <button
-                            key={t}
+                            key={temaTexto}
                             type="button"
-                            onClick={() => toggleTemaPropio(t)}
+                            onClick={() => toggleTemaPropio(temaTexto)}
                             disabled={cargando}
-                            title={temaYaTrabajado(t) ? "Ya trabajaste este tema — puedes volver a elegirlo" : undefined}
+                            title={temaYaTrabajado(temaTexto) ? "Ya trabajaste este tema — puedes volver a elegirlo" : undefined}
                             style={{
                               padding: "4px 10px", borderRadius: 8,
                               background: activo ? "#1d4ed8" : "white",
                               color: activo ? "white" : "#1e3a8a",
                               border: `1.5px solid ${activo ? "#1d4ed8" : "#93c5fd"}`,
                               fontWeight: 600, fontSize: 12, cursor: "pointer",
-                              ...(temaYaTrabajado(t) && !activo ? estiloTrabajado : {}),
+                              ...(temaYaTrabajado(temaTexto) && !activo ? estiloTrabajado : {}),
                             }}
                           >
-                            {activo ? "☑" : "☐"} {t}
+                            {activo ? "☑" : "☐"} {temaTexto}
                           </button>
                         );
                       })}
