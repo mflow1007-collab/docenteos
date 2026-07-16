@@ -61,7 +61,13 @@ const PLAN_JOB_ID = "planificacion-inteligente";
 const ES_TIPO_UNIDAD = (t) =>
   t === "Unidad de Aprendizaje" || t === "Secuencia Didáctica";
 
-export default function PlanificacionPage({ planificacionPreCargada = null, onConsumirPreCargada = () => {}, onIrA }) {
+export default function PlanificacionPage({
+  planificacionPreCargada = null,
+  onConsumirPreCargada = () => {},
+  accionIAActiva = null,
+  onConsumirAccionIA = () => {},
+  onIrA,
+}) {
   const hoyISO = new Date().toISOString().slice(0, 10);
   const STORAGE_USO_TIPOS = "docenteos_planificacion_uso_tipos_v1";
 
@@ -468,6 +474,55 @@ export default function PlanificacionPage({ planificacionPreCargada = null, onCo
     onConsumirPreCargada();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planificacionPreCargada]);
+
+  useEffect(() => {
+    if (!accionIAActiva || accionIAActiva.destino !== "planificacion") return;
+
+    const prompt = accionIAActiva.prompt || accionIAActiva.descripcion || "";
+    const tipoPorAccion = {
+      "situacion-aprendizaje": "Situación de Aprendizaje",
+      "secuencia-semanal": "Planificación Semanal",
+      "actividad-multinivel": "Planificación Diaria",
+      "actividad-competencial": "Planificación Diaria",
+      dua: "Planificación Diaria",
+    };
+    const tipoSugerido = tipoPorAccion[accionIAActiva.id] || "Planificación Diaria";
+    setTipoPlanificacion(tipoSugerido);
+
+    if (tipoSugerido === "Planificación Diaria") {
+      setPlanDiarioDatos((prev) => ({
+        ...prev,
+        grado: prev.grado || grado || "",
+        area: prev.area || area || "",
+        asignatura: prev.asignatura || asignatura || "",
+        tema: prev.tema || tema || accionIAActiva.titulo || "",
+        situacionAprendizajeTexto: prompt,
+      }));
+    } else if (ES_TIPO_UNIDAD(tipoSugerido)) {
+      setUnidadDatos((prev) => ({
+        ...prev,
+        grado: prev.grado || grado || "",
+        seccion: prev.seccion || seccion || "",
+        area: prev.area || area || "",
+        asignatura: prev.asignatura || asignatura || "",
+        titulo: prev.titulo || tema || accionIAActiva.titulo || "",
+        situacionTexto: prompt,
+      }));
+      setUnidad(null);
+      setMensajeUnidad(null);
+    } else {
+      setTema((prev) => prev || accionIAActiva.titulo || "");
+      setSituacionAprendizaje(prompt);
+    }
+
+    setMensaje({
+      tipo: "success",
+      texto: `${tipoSugerido} preparada desde Centro IA. Revisa los datos y pulsa Generar.`,
+    });
+    window.setTimeout(() => setMensaje(null), 3500);
+    onConsumirAccionIA();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accionIAActiva]);
 
   useEffect(() => {
     const unsub = suscribirseEstadoTemasPlanificacion(

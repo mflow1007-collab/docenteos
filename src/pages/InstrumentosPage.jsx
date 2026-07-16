@@ -403,7 +403,13 @@ const crearValorInicial = (tipo, estructura) => {
   return { calificacion: "", observacion: "" };
 };
 
-function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} }) {
+function InstrumentosPage({
+  cursos = [],
+  cursoActivo = null,
+  accionIAActiva = null,
+  onConsumirAccionIA = () => {},
+  onIrA = () => {},
+}) {
   const [planificaciones, setPlanificaciones] = useState([]);
   const [cargandoPlanificaciones, setCargandoPlanificaciones] = useState(true);
   const [instrumentosCargados, setInstrumentosCargados] = useState(false);
@@ -429,6 +435,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
   const statsRef = useRef(null);
   const [competenciasCurso, setCompetenciasCurso] = useState([]);
   const [confirmEliminar, setConfirmEliminar] = useState(null); // { id, mensaje }
+  const aiCardRef = useRef(null);
 
   useEffect(() => {
     const nivel = cursoActivo?.nivel;
@@ -526,6 +533,35 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
     () => curriculosDisponibles.find((item) => item.id === curriculoId) || curriculosDisponibles[0] || null,
     [curriculoId, curriculosDisponibles]
   );
+
+  useEffect(() => {
+    if (!accionIAActiva || accionIAActiva.destino !== "instrumentos") return;
+
+    const tipoPorAccion = {
+      rubrica: "Rúbrica",
+      "lista-cotejo": "Lista de cotejo",
+      autoevaluacion: "Autoevaluación",
+      "escala-estimativa": "Escala de estimación",
+      "escala-estimacion": "Escala de estimación",
+    };
+    const tipoSugerido = tipoPorAccion[accionIAActiva.id] || accionIAActiva.titulo || "Rúbrica";
+    const tipoValido = TIPOS_INSTRUMENTO.includes(tipoSugerido) ? tipoSugerido : "Rúbrica";
+    const promptSugerido = accionIAActiva.prompt || accionIAActiva.descripcion || "";
+
+    setAiTipo(tipoValido);
+    setAiPrompt(promptSugerido);
+    setAiDraft(null);
+    setAiError(null);
+    setMensaje({
+      tipo: "success",
+      texto: `${tipoValido} preparada desde Centro IA. Revisa el prompt y pulsa Generar.`,
+    });
+    window.setTimeout(() => {
+      aiCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    window.setTimeout(() => setMensaje(null), 3500);
+    onConsumirAccionIA();
+  }, [accionIAActiva, onConsumirAccionIA]);
 
   const obtenerCursoRelacionado = (referencia = curriculoActivo) => {
     if (!referencia) return null;
@@ -1263,7 +1299,7 @@ function InstrumentosPage({ cursos = [], cursoActivo = null, onIrA = () => {} })
         </article>
 
         <aside className="instrumentos-aside">
-          <article className="instrumentos-panel panel-soft ai-card">
+          <article ref={aiCardRef} className="instrumentos-panel panel-soft ai-card">
             <div className="panel-head-inline compact">
               <div>
                 <h2>✨ Crear Instrumento con IA</h2>

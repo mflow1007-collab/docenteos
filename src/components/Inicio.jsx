@@ -621,10 +621,10 @@ function Inicio({
             <strong>Generar planificación</strong>
             <small>Nueva planificación MINERD</small>
           </button>
-          <button type="button" className="ai-action-btn" onClick={() => onIrASeccionIA("laboratorio")}>
+          <button type="button" className="ai-action-btn" onClick={() => onIrASeccionIA("prompts")}>
             <span className="ai-action-icon">✨</span>
             <strong>Mejorar actividades</strong>
-            <small>Optimiza tus actividades</small>
+            <small>Multinivel, DUA y competencial</small>
           </button>
           <button type="button" className="ai-action-btn" onClick={onNuevaPlanificacion}>
             <span className="ai-action-icon">📋</span>
@@ -635,6 +635,11 @@ function Inicio({
             <span className="ai-action-icon">📚</span>
             <strong>Sugerir recursos</strong>
             <small>Materiales y actividades</small>
+          </button>
+          <button type="button" className="ai-action-btn" onClick={() => onIrASeccionIA("prompts")}>
+            <span className="ai-action-icon">💡</span>
+            <strong>Biblioteca inteligente</strong>
+            <small>Prompts listos por necesidad</small>
           </button>
           <button type="button" className="ai-action-btn" onClick={() => onIrA("libro-abierto")}>
             <span className="ai-action-icon">📚</span>

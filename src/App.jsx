@@ -166,6 +166,7 @@ function AppInner() {
     : 'DO'
 
   const [planificacionPreCargada, setPlanificacionPreCargada] = useState(null);
+  const [accionIAActiva, setAccionIAActiva] = useState(null);
   const [cursosLoaded, setCursosLoaded] = useState(false);
   const [cursos, setCursos] = useState(() => {
     try {
@@ -462,7 +463,10 @@ function AppInner() {
       .catch((err) => console.error("[App] Error al refrescar cursos desde registros:", err));
   }, [cursos, cursosLoaded, sincronizarCursosConRegistros]);
 
-  const irA = (id) => {
+  const irA = (id, options = {}) => {
+    if (options?.accionIA) {
+      setAccionIAActiva(options.accionIA);
+    }
     if (["inicio", "cursos", "estudiantes", "banco-evidencias"].includes(id)) {
       refrescarCursosDesdeRegistros();
     }
@@ -758,6 +762,8 @@ function AppInner() {
             <PlanificacionPage
               planificacionPreCargada={planificacionPreCargada}
               onConsumirPreCargada={() => setPlanificacionPreCargada(null)}
+              accionIAActiva={accionIAActiva}
+              onConsumirAccionIA={() => setAccionIAActiva(null)}
               onIrA={navegar}
             />
           )}
@@ -788,6 +794,8 @@ function AppInner() {
           {pagina === "estudiantes" && (
             <EstudiantesPage
               cursos={cursos}
+              accionIAActiva={accionIAActiva}
+              onConsumirAccionIA={() => setAccionIAActiva(null)}
               onAbrirCurso={abrirDetalleCurso}
               onAbrirPerfil={abrirDetalleEstudiante}
               onActualizarCurso={actualizarCurso}
@@ -806,6 +814,8 @@ function AppInner() {
             <InstrumentosPage
               cursos={cursos}
               cursoActivo={cursoRegistro}
+              accionIAActiva={accionIAActiva}
+              onConsumirAccionIA={() => setAccionIAActiva(null)}
               onIrA={(destino) => navegar(destino)}
             />
           )}
@@ -826,8 +836,14 @@ function AppInner() {
           {(pagina === "formatos-minerd" || pagina === "registros-minerd") && (
             <RegistrosEducandoPage onIrA={(destino) => navegar(destino)} />
           )}
-          {pagina === "reportes" && <ReportesPage cursos={cursos} />}
-          {pagina === "ia"       && esDocenteOS && <CentroIAPage seccion={seccionIA} />}
+          {pagina === "reportes" && (
+            <ReportesPage
+              cursos={cursos}
+              accionIAActiva={accionIAActiva}
+              onConsumirAccionIA={() => setAccionIAActiva(null)}
+            />
+          )}
+          {pagina === "ia"       && esDocenteOS && <CentroIAPage seccion={seccionIA} onIrA={irA} />}
           {pagina === "curriculo" && esDocenteOS && <CurriculumImportPage />}
           {(pagina === "ia" || pagina === "curriculo") && !esDocenteOS && (
             <div className="app-recovery-card" role="alert">

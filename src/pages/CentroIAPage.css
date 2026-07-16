@@ -450,6 +450,11 @@
   border-color: #93c5fd;
 }
 
+.cia-action-card {
+  border-color: #bfdbfe;
+  background: linear-gradient(165deg, #ffffff 0%, #eff6ff 100%);
+}
+
 .cia-prompt-top {
   display: flex;
   align-items: flex-start;
@@ -469,6 +474,17 @@
   font-size: 14px;
   color: #475569;
   margin: 0 0 9px;
+}
+
+.cia-action-module {
+  flex-shrink: 0;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .cia-prompt-body {

@@ -10,6 +10,7 @@ import { LEARNING_EVENTS, AGENT_IDS, MEMORY_TYPES, MEMORY_SOURCES, STATES, COLLE
 import { crearMemoria } from '../services/ai/memory/AgentMemoryService.js'
 import { esUsuarioDocenteOS } from '../utils/permisos.js'
 import { getReferenciaAdecuacionesCurriculares } from '../data/adecuacionesCurriculares.js'
+import { CATEGORIAS_ACCIONES_DOCENTES_IA, accionesPorCategoria } from '../data/accionesDocentesIA.js'
 import './CentroIAPage.css'
 
 const REFERENCIA_ADECUACIONES = getReferenciaAdecuacionesCurriculares()
@@ -28,6 +29,11 @@ const BANCO = [
         id: 'p2', titulo: 'Planificación Semanal',
         desc: 'Distribuye objetivos, actividades y evaluaciones en la semana',
         texto: 'Crea una planificación semanal para [GRADO] de [ÁREA] para el período [SEMANA/FECHAS]. Incluye para cada día: objetivo específico alineado a las competencias del MINERD, actividades de apertura y cierre, estrategia principal de aprendizaje, recursos y tipo de evaluación. Señala cuándo se aplicará evaluación formativa y cuándo sumativa.',
+      },
+      {
+        id: 'p6', titulo: 'Secuencia Semanal de 5 Sesiones',
+        desc: 'Organiza una semana completa con inicio, desarrollo, cierre y repaso',
+        texto: 'Organiza una secuencia de 5 sesiones sobre [TEMA] para [GRADO] de [ÁREA]. Para cada sesión indica: objetivo específico, actividad de inicio, desarrollo, cierre, tarea breve de repaso, material necesario, evidencia esperada y cómo se conecta con los indicadores del MINERD.',
       },
       {
         id: 'p3', titulo: 'Unidad de Aprendizaje',
@@ -57,7 +63,17 @@ const BANCO = [
       {
         id: 'a2', titulo: 'Situación de Aprendizaje',
         desc: 'Contexto real y motivador para anclar el aprendizaje',
-        texto: 'Diseña una situación de aprendizaje contextualizada en la realidad dominicana para enseñar [TEMA] en [GRADO] de [ÁREA]. Debe presentar un reto o problema real que los estudiantes deban resolver aplicando los contenidos. Incluye: contexto narrativo, preguntas guía, secuencia de actividades, recursos, y cómo se evalúa el proceso y el producto.',
+        texto: 'Genera una situación de aprendizaje de [ÁREA] para [GRADO] sobre [TEMA]. Incluye: contexto real dominicano, producto final, objetivos, competencias, indicadores, actividades por sesiones, materiales, atención a la diversidad, evaluación, evidencia esperada y criterios de logro.',
+      },
+      {
+        id: 'a6', titulo: 'Actividad Multinivel',
+        desc: 'Convierte una actividad en tres niveles de dificultad',
+        texto: 'Convierte esta actividad: [PEGA AQUÍ LA ACTIVIDAD] en 3 niveles de dificultad para [GRADO] de [ÁREA]: básico, medio y avanzado. Mantén el mismo objetivo e indicador, pero adapta instrucciones, apoyos, exigencia, tiempo, producto esperado y forma de respuesta. Incluye cómo evaluarla sin bajar la expectativa pedagógica.',
+      },
+      {
+        id: 'a7', titulo: 'Actividad Competencial',
+        desc: 'Diseña una actividad práctica conectada con la vida real',
+        texto: 'Diseña una actividad práctica sobre [TEMA] para [GRADO] de [ÁREA] que conecte con la vida real. Añade: situación o reto, producto final, trabajo individual y cooperativo, materiales, pasos, rol del docente, evidencias esperadas, indicadores evaluados y cómo evaluarla.',
       },
       {
         id: 'a3', titulo: 'Proyecto Interdisciplinario',
@@ -82,12 +98,12 @@ const BANCO = [
       {
         id: 'e1', titulo: 'Rúbrica Analítica',
         desc: 'Criterios claros para evaluar producciones y desempeños',
-        texto: 'Crea una rúbrica analítica para evaluar [ACTIVIDAD/PRODUCTO] en [GRADO] de [ÁREA]. La rúbrica debe tener:\n• 4 criterios de evaluación relevantes y observables\n• 4 niveles de desempeño: Excelente (4), Bueno (3), En proceso (2), Necesita apoyo (1)\n• Descriptores específicos y medibles en cada celda\nIncluye escala de calificación total y cómo se relaciona con las competencias del MINERD.',
+        texto: 'Crea una rúbrica de 4 niveles para evaluar [ACTIVIDAD/PRODUCTO] en [GRADO] de [ÁREA]. Define 4-5 criterios claros, descriptores comprensibles para el alumnado, puntaje total, relación con indicadores del MINERD y una versión resumida para compartir con estudiantes.',
       },
       {
         id: 'e2', titulo: 'Lista de Cotejo',
         desc: 'Verificación rápida de indicadores presentes o ausentes',
-        texto: 'Elabora una lista de cotejo para verificar el logro de [COMPETENCIA/HABILIDAD] en estudiantes de [GRADO] de [ÁREA]. Incluye:\n• 12-15 indicadores observables y verificables (SÍ / NO)\n• Organizados en 3 categorías lógicas: proceso, producto y actitud/valores\n• Instrucciones breves para el docente\n• Sección de observaciones cualitativas',
+        texto: 'Diseña una lista de cotejo rápida para observar participación, autonomía, orden, comprensión y trabajo en equipo en [GRADO] de [ÁREA]. Preséntala con casillas Sí / A veces / No, indicadores claros, espacio de observaciones y relación con la actividad [TEMA].',
       },
       {
         id: 'e3', titulo: 'Banco de Preguntas',
@@ -98,6 +114,11 @@ const BANCO = [
         id: 'e4', titulo: 'Escala de Estimación',
         desc: 'Evalúa frecuencia o calidad de actitudes y procesos',
         texto: 'Crea una escala de estimación para evaluar [ACTITUD/PROCESO/COMPETENCIA] en estudiantes de [GRADO] de [ÁREA]. Incluye:\n• 10 ítems observables redactados en positivo\n• Escala de 4 niveles: Siempre (4), Frecuentemente (3), Ocasionalmente (2), Raramente (1)\n• Puntaje total e interpretación\n• Sección de reflexión del docente y plan de mejora',
+      },
+      {
+        id: 'e6', titulo: 'Autoevaluación Breve',
+        desc: 'Diana o autoevaluación para que el estudiante valore su proceso',
+        texto: 'Crea una diana o autoevaluación breve para que el alumnado de [GRADO] valore cómo trabajó en [TEMA] de [ÁREA]. Incluye 4-6 ítems, escala fácil, preguntas finales de reflexión, propuesta de mejora personal y orientaciones para que el docente la use como evidencia formativa.',
       },
       {
         id: 'e5', titulo: 'Preguntas de Ensayo',
@@ -145,6 +166,11 @@ const BANCO = [
         texto: 'Genera un comentario de retroalimentación formativa para un estudiante de [GRADO] que realizó [DESCRIPCIÓN DEL TRABAJO] en [ÁREA]. El comentario debe:\n• Destacar 2-3 fortalezas específicas y observables\n• Señalar 1-2 áreas de mejora con sugerencias concretas de cómo mejorar\n• Usar lenguaje positivo, empático y alentador\n• Orientar claramente los próximos pasos\nTono: profesional pero cálido. Máximo 3 párrafos cortos.',
       },
       {
+        id: 'r5', titulo: '10 Frases de Feedback Formativo',
+        desc: 'Frases listas para motivar, corregir y orientar mejoras',
+        texto: 'Redacta 10 frases de feedback formativo para estudiantes de [GRADO] en [ÁREA] que reconozcan el esfuerzo y den un siguiente paso concreto. Sepáralas en cuatro grupos: motivar, corregir con respeto, reforzar avances y orientar mejoras. Usa tono cercano, claro y pedagógico.',
+      },
+      {
         id: 'r2', titulo: 'Retroalimentación Grupal',
         desc: 'Retroalimentación para toda la clase tras una actividad',
         texto: 'Elabora una retroalimentación grupal para compartir con estudiantes de [GRADO] después de [ACTIVIDAD/EVALUACIÓN] en [ÁREA]. Incluye:\n• Reconocimiento de los aspectos positivos observados en el grupo\n• Patrones de error más comunes (sin señalar estudiantes individuales) con explicación clara\n• Estrategias concretas de mejora para el grupo\n• Cómo continuarán avanzando en los próximos días\nTono: motivador, respetuoso y orientado al crecimiento colectivo.',
@@ -153,6 +179,16 @@ const BANCO = [
         id: 'r3', titulo: 'Informe a la Familia',
         desc: 'Comunicación clara para padres y tutores',
         texto: 'Redacta un informe de progreso para la familia de un estudiante de [GRADO] sobre su desempeño en [ÁREA] durante [PERÍODO]. El informe debe:\n• Estar en lenguaje claro y accesible (sin jerga técnica)\n• Describir fortalezas observadas con ejemplos concretos\n• Señalar áreas en proceso de mejora sin ser peyorativo\n• Explicar qué estrategias está aplicando el centro educativo\n• Dar recomendaciones prácticas para apoyar en casa\nTono: profesional, empático y positivo.',
+      },
+      {
+        id: 'r6', titulo: 'Mensaje a Familias',
+        desc: 'Comunicación breve para salida, tarea, reunión, evaluación o incidencia',
+        texto: 'Redacta un mensaje claro y amable para informar a las familias de [GRADO] sobre [SALIDA/TAREA/REUNIÓN/EVALUACIÓN/INCIDENCIA]. Incluye asunto, saludo, cuerpo del mensaje, acción esperada de la familia, fecha si aplica y cierre respetuoso.',
+      },
+      {
+        id: 'r7', titulo: 'Guion de Tutoría con Familias',
+        desc: 'Prepara una reunión sobre rendimiento, conducta o necesidades',
+        texto: 'Prepara un guion para una reunión con familias de un estudiante de [GRADO] sobre [RENDIMIENTO/CONDUCTA/NECESIDADES]. Incluye inicio cuidadoso, datos a compartir, fortalezas, dificultades, preguntas clave, acuerdos finales, responsabilidades y cierre positivo.',
       },
       {
         id: 'r4', titulo: 'Preguntas de Metacognición',
@@ -170,14 +206,104 @@ const BANCO = [
         texto: `Sugiere adecuaciones curriculares para un estudiante con [TIPO DE NECESIDAD: Discapacidad visual / auditiva / intelectual / motora / autismo / TDAH / dislexia / superdotación] en [GRADO] de [ÁREA]. Incluye adecuaciones en tres dimensiones:\n1. Acceso: adaptaciones físicas, comunicativas y de presentación\n2. Metodológicas: estrategias, tiempos, agrupamientos, recursos alternativos\n3. Evaluación: formatos alternativos, criterios ajustados, tiempo adicional\nBasado en el enfoque inclusivo del MINERD, el DUA y la referencia oficial actualizada: ${REFERENCIA_ADECUACIONES}.`,
       },
       {
+        id: 'n4', titulo: 'DUA para una Actividad',
+        desc: 'Adapta una propuesta con Diseño Universal para el Aprendizaje',
+        texto: 'Adapta esta propuesta siguiendo DUA para [GRADO] de [ÁREA]: [PEGA AQUÍ LA PROPUESTA]. Ofrece varias formas de representación, acción-expresión e implicación. Añade ejemplos concretos, apoyos opcionales, versión accesible, opciones de evaluación y materiales sencillos.',
+      },
+      {
         id: 'n2', titulo: 'Actividades Diferenciadas',
         desc: 'Tres versiones de la misma actividad para distintos niveles',
         texto: 'Diseña la actividad sobre [TEMA] para [GRADO] de [ÁREA] en tres versiones diferenciadas:\n• Nivel de apoyo: para estudiantes que necesitan acompañamiento adicional (más estructura, menos abstracción)\n• Nivel esperado: para el grupo general (competencia estándar del grado)\n• Nivel desafiante: para estudiantes que van más allá (mayor profundidad, autonomía y creación)\nCada versión debe alcanzar el mismo objetivo de aprendizaje adaptando la complejidad y los apoyos.',
       },
       {
+        id: 'n5', titulo: 'Apoyos Visuales',
+        desc: 'Pictogramas, pasos y frases cortas para explicar mejor',
+        texto: 'Crea apoyos visuales sencillos para explicar [RUTINA/CONTENIDO] en [GRADO] de [ÁREA]. Incluye pictogramas o iconos sugeridos, pasos numerados, frases cortas, colores recomendados, adaptación para estudiantes con NEAE y sugerencias para imprimir o proyectar.',
+      },
+      {
+        id: 'n6', titulo: 'Autorregulación',
+        desc: 'Mini intervención para impulsividad, frustración o desregulación',
+        texto: 'Diseña una mini intervención para ayudar a un estudiante de [GRADO] con impulsividad, frustración o desregulación durante [ÁREA]. Incluye señales previas, estrategia breve, material visual, frase de acompañamiento, cierre para volver a la tarea y cómo registrar seguimiento sin estigmatizar.',
+      },
+      {
         id: 'n3', titulo: 'Estrategias Inclusivas',
         desc: 'Estrategias para un aula diversa e inclusiva',
         texto: 'Sugiere 10 estrategias inclusivas prácticas para atender la diversidad en un aula de [GRADO] de [ÁREA] que incluye estudiantes con diferentes estilos de aprendizaje y ritmos de desarrollo. Las estrategias deben cubrir: ambientación del aula, presentación de contenidos en múltiples formatos, estrategias de participación activa para todos, sistemas de apoyo visual, y gestión de transiciones. Alineadas con el Diseño Universal para el Aprendizaje (DUA).',
+      },
+    ],
+  },
+  {
+    id: 'inicio-curso', icon: '🌱', label: 'Primera semana',
+    prompts: [
+      {
+        id: 'ps1', titulo: 'Cohesión de Grupo',
+        desc: 'Dinámica para arrancar el curso con confianza y pertenencia',
+        texto: 'Diseña una dinámica de cohesión para [GRADO] con objetivo, materiales, pasos, tiempo, preguntas de reflexión y una variante inclusiva para todo el grupo. Añade qué debe observar el docente y cómo cerrar la actividad.',
+      },
+      {
+        id: 'ps2', titulo: 'Detectar Necesidades',
+        desc: 'Checklist observacional para la primera semana',
+        texto: 'Crea un checklist observacional para la primera semana en [GRADO]. Incluye indicadores sobre atención, lenguaje, lectoescritura, interacción, conducta, autonomía y regulación emocional, con señales de alerta y sugerencias de seguimiento.',
+      },
+      {
+        id: 'ps3', titulo: 'Sociograma Informal',
+        desc: 'Preguntas para interpretar vínculos y detectar aislamiento',
+        texto: 'Explícame cómo hacer un sociograma informal con 4-5 preguntas para [GRADO]. Añade cómo registrar respuestas, interpretar vínculos, detectar aislamiento o rechazo y qué primeras medidas tomar con cuidado pedagógico.',
+      },
+      {
+        id: 'ps4', titulo: 'Rutinas de Aula',
+        desc: 'Rutinas para entrada, transición, ruido, material y cierre',
+        texto: 'Diseña 6 rutinas de aula para [GRADO]: entrada, transición, ruido, material, trabajo cooperativo y cierre. Para cada una incluye objetivo, pasos, frase clave del docente, apoyo visual sugerido y cómo practicarla durante la primera semana.',
+      },
+    ],
+  },
+  {
+    id: 'convivencia', icon: '🤝', label: 'Convivencia',
+    prompts: [
+      {
+        id: 'cv1', titulo: 'Resolución de Conflictos',
+        desc: 'Actividad de tutoría con role play y acuerdos',
+        texto: 'Diseña una actividad de tutoría para enseñar a resolver conflictos en [GRADO]. Añade pasos claros, ejemplo práctico, role play, preguntas de reflexión, acuerdo final del grupo y cómo dar seguimiento.',
+      },
+      {
+        id: 'cv2', titulo: 'Educación Emocional',
+        desc: 'Dinámica breve de identificación y regulación emocional',
+        texto: 'Crea una dinámica breve para trabajar identificación emocional y regulación en [GRADO]. Incluye emociones a trabajar, materiales, desarrollo, pregunta final, adaptación para distintas edades y cómo observar avances.',
+      },
+      {
+        id: 'cv3', titulo: 'Prevención del Acoso',
+        desc: 'Sesión preventiva sobre respeto, inclusión y señales de alerta',
+        texto: 'Propón una sesión preventiva sobre respeto, inclusión y acoso escolar para [GRADO]. Organízala con activación inicial, caso o dilema, debate guiado, compromisos, señales de alerta que el docente debe observar y protocolo de seguimiento.',
+      },
+    ],
+  },
+  {
+    id: 'cierre', icon: '🧭', label: 'Cierre y apoyo',
+    prompts: [
+      {
+        id: 'ce1', titulo: 'Informe Breve de Estudiante',
+        desc: 'Fortalezas, dificultades, apoyos y seguimiento',
+        texto: 'Redacta un informe breve, profesional y cercano sobre un alumno de [GRADO]. Organízalo en fortalezas, dificultades observadas, apoyos aplicados, evolución y propuestas de seguimiento. Usa tono respetuoso y útil para familias o coordinación pedagógica.',
+      },
+      {
+        id: 'ce2', titulo: 'Plan de Recuperación',
+        desc: 'Dos semanas de objetivos, tareas y seguimiento',
+        texto: 'Diseña un plan de recuperación de 2 semanas para [TEMA] en [GRADO] de [ÁREA]. Incluye objetivos, tareas breves, secuencia diaria, seguimiento, adaptación si hay dificultad, criterios de éxito y evidencias que debe recopilar el docente.',
+      },
+      {
+        id: 'ce3', titulo: 'Actividades de Refuerzo',
+        desc: 'Actividades ordenadas de menor a mayor dificultad',
+        texto: 'Propón 8 actividades de refuerzo para casa o aula sobre [TEMA] en [GRADO] de [ÁREA]. Ordénalas de menor a mayor dificultad, con materiales sencillos, tiempo estimado, objetivo de cada una y forma rápida de retroalimentar.',
+      },
+      {
+        id: 'ce4', titulo: 'Reunión Docente',
+        desc: 'Acta de reunión sobre un alumno o grupo',
+        texto: 'Resume en formato acta una reunión de equipo docente sobre un alumno o grupo de [GRADO]. Incluye asistentes, tema, datos tratados, acuerdos, responsables, fechas, seguimiento y señales que deben observarse.',
+      },
+      {
+        id: 'ce5', titulo: 'Actividades de Emergencia',
+        desc: 'Recursos rápidos para cubrir 10-15 minutos de clase',
+        texto: 'Crea 10 actividades rápidas para cubrir 10-15 minutos de clase sin material complejo en [GRADO] de [ÁREA]. Deben ser motivadoras, útiles y adaptables. Añade objetivo breve, instrucciones y variante inclusiva de cada una.',
       },
     ],
   },
@@ -230,7 +356,7 @@ const SUGERENCIAS_LAB = [
 ]
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function CentroIAPage({ seccion = 'bienvenida' }) {
+export default function CentroIAPage({ seccion = 'bienvenida', onIrA = () => {} }) {
   const [seccionInterna,    setSeccionInterna]    = useState(seccion)
   const [promptPreCargado,  setPromptPreCargado]  = useState('')
 
@@ -251,7 +377,7 @@ export default function CentroIAPage({ seccion = 'bienvenida' }) {
       {seccionInterna === 'rol'          && <SecRol />}
       {seccionInterna === 'planificar'   && <SecPlanificar />}
       {seccionInterna === 'experiencias' && <SecExperiencias />}
-      {seccionInterna === 'prompts'      && <SecPrompts onEjecutar={irALaboratorio} datosCurriculares={datosCurriculares} />}
+      {seccionInterna === 'prompts'      && <SecPrompts onEjecutar={irALaboratorio} onAbrirModulo={onIrA} datosCurriculares={datosCurriculares} />}
       {seccionInterna === 'materiales'   && <SecMateriales onEjecutar={irALaboratorio} datosCurriculares={datosCurriculares} />}
       {seccionInterna === 'evaluaciones' && <SecEvaluaciones onEjecutar={irALaboratorio} datosCurriculares={datosCurriculares} />}
       {seccionInterna === 'ev-autentica' && <SecEvAutentica />}
@@ -579,10 +705,12 @@ function SecExperiencias() {
 // ════════════════════════════════════════════════════════════════════════════
 // SECTION 5 · Banco de Prompts
 // ════════════════════════════════════════════════════════════════════════════
-function SecPrompts({ onEjecutar, datosCurriculares = null }) {
-  const [cat,     setCat]     = useState('planif')
-  const [copiado, setCopiado] = useState(null)
+function SecPrompts({ onEjecutar, onAbrirModulo = () => {}, datosCurriculares = null }) {
+  const [cat,       setCat]       = useState('planif')
+  const [catAccion, setCatAccion] = useState(CATEGORIAS_ACCIONES_DOCENTES_IA[0] || '')
+  const [copiado,   setCopiado]   = useState(null)
   const catActual = BANCO.find(c => c.id === cat) || BANCO[0]
+  const accionesActuales = accionesPorCategoria(catAccion)
 
   // Reemplaza placeholders con datos reales del docente cuando están disponibles
   const rellenar = useCallback((texto) => {
@@ -632,6 +760,64 @@ function SecPrompts({ onEjecutar, datosCurriculares = null }) {
         </Info>
       )}
 
+      <div className="cia-section-label">Acciones conectadas a DocenteOS</div>
+      <div className="cia-prompts-tabs">
+        {CATEGORIAS_ACCIONES_DOCENTES_IA.map(categoria => (
+          <button
+            key={categoria}
+            className={`cia-tab${catAccion === categoria ? ' active' : ''}`}
+            onClick={() => setCatAccion(categoria)}
+          >
+            {categoria}
+          </button>
+        ))}
+      </div>
+
+      {accionesActuales.map(accion => {
+        const textoFinal = rellenar(accion.prompt)
+        const tieneCorchetes = textoFinal.includes('[')
+        const puedeAbrirModulo = accion.destino && accion.destino !== 'ia'
+        return (
+          <div className="cia-prompt-card cia-action-card" key={accion.id}>
+            <div className="cia-prompt-top">
+              <p className="cia-prompt-title">{accion.icono} {accion.titulo}</p>
+              <span className="cia-action-module">{accion.modulo}</span>
+            </div>
+            <p className="cia-prompt-desc">{accion.descripcion}</p>
+            <div className="cia-prompt-body">{textoFinal}</div>
+            <div className="cia-prompt-actions">
+              <button
+                className="cia-btn cia-btn-primary"
+                onClick={() => onEjecutar(textoFinal)}
+                title="Enviar esta acción al Laboratorio IA"
+              >
+                ✦ Ejecutar en Laboratorio
+              </button>
+              {puedeAbrirModulo && (
+                <button
+                  className="cia-btn cia-btn-ghost"
+                  onClick={() => onAbrirModulo(accion.destino, {
+                    accionIA: {
+                      ...accion,
+                      prompt: textoFinal,
+                    },
+                  })}
+                  title={`Abrir ${accion.modulo} en DocenteOS`}
+                >
+                  Abrir {accion.modulo}
+                </button>
+              )}
+              {tieneCorchetes && (
+                <span style={{ fontSize: '0.78rem', color: 'var(--cia-text-3)' }}>
+                  Completa los campos [CORCHETES] antes de ejecutar
+                </span>
+              )}
+            </div>
+          </div>
+        )
+      })}
+
+      <div className="cia-section-label">Banco de prompts por área</div>
       <div className="cia-prompts-tabs">
         {BANCO.map(c => (
           <button key={c.id} className={`cia-tab${cat === c.id ? ' active' : ''}`} onClick={() => setCat(c.id)}>

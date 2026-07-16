@@ -1,10 +1,11 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import { guardarEstudiantesEnSubcoleccion } from "../services/estudiantesService.js";
 import { enriquecerCursoInicial, generarEstudiantesDetalle } from "../utils/cursoUtils.js";
+import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
 
 function capitalizarNombre(str) {
   return str
@@ -13,7 +14,15 @@ function capitalizarNombre(str) {
     .join(" ");
 }
 
-function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso = () => {}, onActualizarCurso = () => {}, onCrearCurso = () => {} }) {
+function EstudiantesPage({
+  cursos = [],
+  accionIAActiva = null,
+  onConsumirAccionIA = () => {},
+  onAbrirPerfil = () => {},
+  onAbrirCurso = () => {},
+  onActualizarCurso = () => {},
+  onCrearCurso = () => {},
+}) {
   const [vistaEstudiantes, setVistaEstudiantes] = useState("Por Período");
   const [busqueda, setBusqueda] = useState("");
   const [fGrado, setFGrado] = useState("Todos");
@@ -31,6 +40,8 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
   const [periodoExpandido, setPeriodoExpandido] = useState(null);
   const [panelIaGenerando, setPanelIaGenerando] = useState(false);
   const [panelIaError, setPanelIaError] = useState(null);
+  const [panelIaGuardando, setPanelIaGuardando] = useState(false);
+  const [panelIaGuardado, setPanelIaGuardado] = useState("");
   const panelIaRef = useRef(null);
   const [registroCerrado, setRegistroCerrado] = useState(() => {
     try { return localStorage.getItem("docenteos_registro_cerrado") === "true"; } catch { return false; }
@@ -144,10 +155,11 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
     return { total: filtrados.length, enRiesgo, excelentes, promGeneral, asistenciaProm, mejorando, estables, bajando };
   }, [filtrados]);
 
-  const ejecutarIaEstudiante = async (accion, est) => {
+  const ejecutarIaEstudiante = async (accion, est, solicitud = "") => {
     if (!est) return;
     setPanelIaTexto("");
     setPanelIaError(null);
+    setPanelIaGuardado("");
     setPanelIaAccion(accion);
     setPanelIaGenerando(true);
 
@@ -177,7 +189,7 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
 
     AIService.generate({
       module:    "registro-apoyo",
-      prompt:    ctx.prompt,
+      prompt:    solicitud ? `${ctx.prompt}\n\nSolicitud específica del docente:\n${solicitud}` : ctx.prompt,
       system:    ctx.system,
       maxTokens: accion === "informe" ? 2000 : ctx.recommendedMaxTokens,
       onChunk: (chunk) => {
@@ -196,6 +208,73 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
       onError: (err) => { setPanelIaError(err); setPanelIaGenerando(false); },
     });
   };
+
+  const detalleIdEstudiante = (est) =>
+    `${est?.nombre || "estudiante"}-${est?.cursoNombre || "curso"}`.replace(/\s+/g, "-").toLowerCase();
+
+  const guardarResultadoIAEnExpediente = async () => {
+    if (!seleccionado || !panelIaTexto.trim() || panelIaGenerando) return;
+    setPanelIaGuardando(true);
+    setPanelIaError(null);
+    setPanelIaGuardado("");
+
+    try {
+      const estudianteId = detalleIdEstudiante(seleccionado);
+      const actual = await obtenerEstadoDetalleEstudiante(estudianteId).catch(() => ({ data: null }));
+      const payloadPrevio = actual?.data && typeof actual.data === "object" ? actual.data : {};
+      const fecha = new Date().toLocaleString("es-DO", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const lineas = panelIaTexto
+        .split("\n")
+        .map((linea) => linea.replace(/^[-*]\s*/, "").trim())
+        .filter(Boolean)
+        .slice(0, 10);
+      const planApoyoActual = Array.isArray(payloadPrevio.planApoyo) ? payloadPrevio.planApoyo : [];
+      const payload = {
+        ...payloadPrevio,
+        tabActiva: panelIaAccion === "informe" ? "Informe IA" : "Intervenciones",
+        mensajeAccion: `${panelIaAccion === "informe" ? "Informe" : "Intervención"} guardado desde Centro IA el ${fecha}.`,
+        ...(panelIaAccion === "informe"
+          ? { informeIa: panelIaTexto }
+          : {
+              planApoyo: [
+                `${fecha} · ${panelIaAccion || "intervención"} · ${lineas[0] || "Recomendación IA"}`,
+                ...lineas.slice(1, 6),
+                ...planApoyoActual,
+              ].slice(0, 18),
+            }),
+      };
+
+      await guardarEstadoDetalleEstudiante({ estudianteId, payload });
+      setPanelIaGuardado("Guardado en el expediente del estudiante.");
+    } catch (error) {
+      setPanelIaError(error?.message || "No se pudo guardar en el expediente.");
+    } finally {
+      setPanelIaGuardando(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!accionIAActiva || accionIAActiva.destino !== "estudiantes" || !filtrados.length) return;
+
+    const estudianteObjetivo =
+      filtrados.find((est) => est.nivelRiesgo === "Alto") ||
+      filtrados.find((est) => est.estado?.key === "riesgo") ||
+      filtrados[0];
+    const accion = accionIAActiva.id === "tutoria-familias" ? "informe" : "recomendaciones";
+
+    setSeleccionadoId(estudianteObjetivo.id);
+    setVistaEstudiantes("Listado");
+    setTabDetalle("Resumen");
+    ejecutarIaEstudiante(accion, estudianteObjetivo, accionIAActiva.prompt || accionIAActiva.descripcion || "");
+    onConsumirAccionIA();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accionIAActiva, filtrados.length]);
 
   const limpiar = () => {
     setBusqueda("");
@@ -617,6 +696,14 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
             })}
             {panelIaGenerando && <span className="plan-ia-cursor">▋</span>}
           </div>
+          {!panelIaGenerando && panelIaTexto && (
+            <div style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,.18)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button type="button" className="secundario" onClick={guardarResultadoIAEnExpediente} disabled={panelIaGuardando}>
+                {panelIaGuardando ? "Guardando..." : "Guardar en expediente"}
+              </button>
+              {panelIaGuardado && <span style={{ color: "#bbf7d0", fontSize: "0.78rem", fontWeight: 700 }}>{panelIaGuardado}</span>}
+            </div>
+          )}
         </div>
       )}
 
@@ -1022,6 +1109,14 @@ function EstudiantesPage({ cursos = [], onAbrirPerfil = () => {}, onAbrirCurso =
                       })}
                       {panelIaGenerando && <span className="plan-ia-cursor">▋</span>}
                     </div>
+                    {!panelIaGenerando && panelIaTexto && (
+                      <div style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,.18)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                        <button type="button" className="secundario" onClick={guardarResultadoIAEnExpediente} disabled={panelIaGuardando}>
+                          {panelIaGuardando ? "Guardando..." : "Guardar en expediente"}
+                        </button>
+                        {panelIaGuardado && <span style={{ color: "#bbf7d0", fontSize: "0.78rem", fontWeight: 700 }}>{panelIaGuardado}</span>}
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
