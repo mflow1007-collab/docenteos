@@ -26,6 +26,8 @@ const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
 const MAX_TOKENS   = 12000;  // por lote (contrato incluye evidencias/metacognición/recursos por momento × clases; modelos verbosos se truncaban a 9000)
 const RETRY_TOKENS = 20000;  // reintento tras truncamiento — techo generoso para modelos verbosos (deepseek, etc.)
+const SINGLE_CLASS_MAX_TOKENS = 7000;
+const SINGLE_CLASS_RETRY_TOKENS = 12000;
 const CHECKPOINT_PREFIX = 'docenteos_phase_a_checkpoint_v3';
 const CHECKPOINT_TTL_MS = 12 * 60 * 60 * 1000;
 const MAX_INDICADORES_TRABAJO_UNIDAD = 6;
@@ -38,16 +40,15 @@ const PHASE_A_FETCH_TIMEOUT_MS = 90_000;
 // anterior de "costo primero con gpt-4o-mini forzado" queda revertida para
 // este módulo: el validador rechaza la basura, pero reintentar contra un
 // modelo que no puede componer solo quema llamadas.
-const PHASE_A_PROVIDER_ORDER = ['openai', 'gemini', 'nvidia', 'anthropic', 'abacus'];
+const PHASE_A_PROVIDER_ORDER = ['openai', 'anthropic', 'gemini', 'abacus'];
 
 // Allowlist de COMPOSICIÓN: el modelo fuerte de cada proveedor. Un proveedor
-// sin entrada aquí (abacus: su ruta por defecto es gpt-4o-mini y no expone
-// catálogo fuerte en el gateway) NO participa en la composición Fase A.
+// sin entrada aquí NO participa en la composición Fase A.
 const MODELOS_COMPOSICION = {
   openai:    'gpt-4o',
   gemini:    'gemini-2.5-pro',
-  nvidia:    'nvidia/nemotron-3-ultra-550b-a55b',
   anthropic: 'claude-sonnet-5',
+  abacus:    'gpt-4o',
 };
 
 // Denylist explícita: si el admin configuró una variante débil para un
@@ -145,12 +146,15 @@ async function resolvePhaseAProviderOrder() {
     const priority = Array.isArray(gwConfig.priority) && gwConfig.priority.length
       ? gwConfig.priority
       : PHASE_A_PROVIDER_ORDER;
-    return [
+    const ordered = [
       ...priority,
       ...PHASE_A_PROVIDER_ORDER.filter((p) => !priority.includes(p)),
     ].filter((p, i, arr) => p && arr.indexOf(p) === i)
       // Solo proveedores con modelo APTO para composición (allowlist)
       .filter((p) => modeloComposicion(p, gwConfig.models));
+    // Fase A no usa NVIDIA: en composiciones largas se queda agotando tiempo.
+    // Debe haber OpenAI, Anthropic, Gemini o Abacus configurado.
+    return ordered.filter((p) => p !== 'nvidia');
   } catch {
     return PHASE_A_PROVIDER_ORDER.filter((p) => MODELOS_COMPOSICION[p]);
   }
@@ -1107,7 +1111,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // el foco curricular puede ser procedimiento/concepto/evidencia, por lo que
   // se valida por contrato general y no por igualdad gramatical.
   const focoGram = spec.esIdioma ? getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas) : [];
-  let maxTokens = MAX_TOKENS;
+  let maxTokens = count === 1 ? SINGLE_CLASS_MAX_TOKENS : MAX_TOKENS;
   let prefix    = '';
   let lastError = null;
   let lastProvider = 'desconocido';
@@ -1127,8 +1131,9 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // quemarle el segundo intento.
   let truncadoPrevio = false;
   const providerOrderBase = await resolvePhaseAProviderOrder();
+  const sinProveedorComposicion = providerOrderBase.length === 0;
   const MAX_INTENTOS_POR_PROVEEDOR = 2;
-  const MAX_MODELOS_CON_SERVICIO = 3; // peldaños reales de la escalera
+  const MAX_MODELOS_CON_SERVICIO = 5; // peldaños reales de la escalera
   const fallosPorProveedor = new Map();
   const proveedoresProbados = new Set(); // con al menos un intento REAL (no sin-servicio)
   const anotarFallo = (p) => fallosPorProveedor.set(p, (fallosPorProveedor.get(p) || 0) + 1);
@@ -1181,7 +1186,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
           { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
         lastError = new Error(result.motivo);
         if (result.motivo.includes('TRUNCADO')) {
-          maxTokens = RETRY_TOKENS;
+          maxTokens = count === 1 ? SINGLE_CLASS_RETRY_TOKENS : RETRY_TOKENS;
           truncadoPrevio = true;
           lastTruncationError = lastError;
         }
@@ -1264,9 +1269,12 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // El detalle técnico completo de cada intento ya quedó en aiLogs.
   // FUTURO: cuando exista el Banco de Secuencias, el respaldo legítimo es
   // servir una secuencia cosechada y validada — nunca plantillas.
+  const consejo = sinProveedorComposicion
+    ? ' No hay proveedor apto para composición de planificaciones; activa o corrige OpenAI, Anthropic, Gemini o Abacus en Administración → Motor de IA.'
+    : '';
   throw new Error(
     `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) — ` +
-    `revisa la configuración de proveedores de IA en Administración. ` +
+    `revisa la configuración de proveedores de IA en Administración.${consejo} ` +
     `Detalle: ${attemptsUsed} intentos, último ${lastProvider}/${lastModel} — ${lastError?.message}`,
   );
 }
