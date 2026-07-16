@@ -31,17 +31,36 @@ const CHECKPOINT_TTL_MS = 12 * 60 * 60 * 1000;
 const MAX_INDICADORES_TRABAJO_UNIDAD = 6;
 const PHASE_A_FETCH_TIMEOUT_MS = 90_000;
 
-// COSTO PRIMERO, CALIDAD DE RESPALDO. Una unidad son ~10-12 lotes de ~12K tokens
-// de salida cada uno. Con todos los validadores de contrato (voz, R9/R12,
-// evidencias, anti-repetición) blindados, un modelo ECONÓMICO que produzca JSON
-// válido cuesta igual de bien (si produce basura, el validador lo rechaza y
-// escala solo al siguiente). Por eso openai va primero con gpt-4o-mini forzado
-// ($0.60/M salida — 17x más barato que gpt-4o) — es el proveedor con crédito
-// disponible y el mini es confiable en JSON. gemini/nvidia como respaldo cuando
-// tengan crédito; anthropic (opus, caro) al final. El modelo de OpenAI se fuerza
-// a gpt-4o-mini abajo (modelOverrides), salvo que el admin lo sobrescriba.
-// Salida por millón: gpt-4o-mini $0.60 · gpt-4o $10 · opus $75.
+// CAPACIDAD PRIMERO. La composición de clases exige modelos de capacidad alta:
+// los flash/mini/lite devuelven JSON válido pero OMITEN clases[] (cumplen los
+// campos fáciles del lote y esquivan el trabajo de componer) — caso real
+// S3/C2 con gemini-2.5-flash tras 10 intentos (2026-07-15). La política
+// anterior de "costo primero con gpt-4o-mini forzado" queda revertida para
+// este módulo: el validador rechaza la basura, pero reintentar contra un
+// modelo que no puede componer solo quema llamadas.
 const PHASE_A_PROVIDER_ORDER = ['openai', 'gemini', 'nvidia', 'anthropic', 'abacus'];
+
+// Allowlist de COMPOSICIÓN: el modelo fuerte de cada proveedor. Un proveedor
+// sin entrada aquí (abacus: su ruta por defecto es gpt-4o-mini y no expone
+// catálogo fuerte en el gateway) NO participa en la composición Fase A.
+const MODELOS_COMPOSICION = {
+  openai:    'gpt-4o',
+  gemini:    'gemini-2.5-pro',
+  nvidia:    'nvidia/nemotron-3-ultra-550b-a55b',
+  anthropic: 'claude-sonnet-5',
+};
+
+// Denylist explícita: si el admin configuró una variante débil para un
+// proveedor, para ESTE módulo se ignora y se usa el de la allowlist.
+const MODELO_DEBIL_RE = /flash|mini|lite|nano|tiny|small|haiku/i;
+
+// Modelo apto para composición: el del admin si es fuerte; si es débil o no
+// hay, el de la allowlist; null = proveedor no apto (se salta al siguiente).
+function modeloComposicion(provider, adminModels = {}) {
+  const admin = String(adminModels?.[provider] || '').trim();
+  if (admin && !MODELO_DEBIL_RE.test(admin)) return admin;
+  return MODELOS_COMPOSICION[provider] || null;
+}
 
 // Exemplars de estilo: MÁXIMO uno por concepto (saludo, retroalimentación,
 // producción). Se listan aparte porque también alimentan la validación
@@ -117,9 +136,11 @@ async function resolvePhaseAProviderOrder() {
     return [
       ...priority,
       ...PHASE_A_PROVIDER_ORDER.filter((p) => !priority.includes(p)),
-    ].filter((p, i, arr) => p && arr.indexOf(p) === i);
+    ].filter((p, i, arr) => p && arr.indexOf(p) === i)
+      // Solo proveedores con modelo APTO para composición (allowlist)
+      .filter((p) => modeloComposicion(p, gwConfig.models));
   } catch {
-    return PHASE_A_PROVIDER_ORDER;
+    return PHASE_A_PROVIDER_ORDER.filter((p) => MODELOS_COMPOSICION[p]);
   }
 }
 
@@ -142,9 +163,20 @@ async function callGatewayCollect(
   let gwConfig = {};
   try { gwConfig = await loadGatewayConfig(); } catch { /* no-fatal */ }
 
+  // Modelo fuerte por proveedor para ESTE módulo; los proveedores sin modelo
+  // apto quedan además deshabilitados por si el gateway intenta caer en ellos
+  const modelosAptos = {};
+  const sinModeloApto = [];
+  for (const p of (providerOrder || [])) {
+    const m = modeloComposicion(p, gwConfig.models);
+    if (m) modelosAptos[p] = m;
+    else sinModeloApto.push(p);
+  }
+
   const providersDisabled = [
     ...(Array.isArray(gwConfig.disabled) ? gwConfig.disabled : []),
     ...(Array.isArray(providersDisabledExtra) ? providersDisabledExtra : []),
+    ...sinModeloApto,
   ].filter((v, i, arr) => v && arr.indexOf(v) === i);
 
   const controller = new AbortController();
@@ -164,10 +196,7 @@ async function callGatewayCollect(
         system,
         maxTokens,
         providerOrder,
-        // Ahorro: si el respaldo cae en OpenAI (3er lugar de la cola), usar el mini
-        // ($0.60/M salida) en vez de gpt-4o ($10/M) salvo que el admin lo sobrescriba
-        // explícitamente. El mini produce JSON válido; el contrato lo valida igual.
-        modelOverrides: { openai: 'gpt-4o-mini', ...(gwConfig.models || {}) },
+        modelOverrides: modelosAptos,
         providersDisabled: providersDisabled.length ? providersDisabled : undefined,
         strictProvider,
         requireNonEmpty: true,
@@ -1040,28 +1069,35 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   let lastRaw      = '';
   let lastTruncationError = null;
   let attemptsUsed = 0;
-  const proveedoresFallidosCiclo = new Set();
 
   // El primer lote de la unidad propone el nombre propio del producto final;
   // una vez fijado en la spec, todos los lotes siguientes lo reciben.
   const pedirNombreProducto = semanaNum === 1 && startDia === 1 && !spec.productoFinalNombre;
 
-  // Reintentos por proveedor: si un proveedor abre stream pero devuelve vacío,
-  // JSON roto o falla la calidad del contrato, el siguiente intento excluye
-  // temporalmente ese proveedor y deja que el gateway pruebe otro. Al agotar la
-  // cola configurada se limpia el ciclo y se concede una segunda vuelta.
+  // ESCALERA de composición: máximo 2 intentos por modelo, sin segunda vuelta.
+  // JSON estructuralmente incompleto (falta clases[] o llegan menos de las
+  // esperadas) descarta al modelo de inmediato: ya demostró no poder componer.
+  // Proveedor sin servicio (sin clave, apagado, 503) también se descarta sin
+  // quemarle el segundo intento.
   let truncadoPrevio = false;
   const providerOrderBase = await resolvePhaseAProviderOrder();
-  const maxAttempts = Math.max(3, providerOrderBase.length * 2);
+  const MAX_INTENTOS_POR_PROVEEDOR = 2;
+  const MAX_MODELOS_CON_SERVICIO = 3; // peldaños reales de la escalera
+  const fallosPorProveedor = new Map();
+  const proveedoresProbados = new Set(); // con al menos un intento REAL (no sin-servicio)
+  const anotarFallo = (p) => fallosPorProveedor.set(p, (fallosPorProveedor.get(p) || 0) + 1);
+  const descartarProveedor = (p) => fallosPorProveedor.set(p, MAX_INTENTOS_POR_PROVEEDOR);
+  const maxAttempts = Math.max(2, providerOrderBase.length * MAX_INTENTOS_POR_PROVEEDOR);
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     attemptsUsed = attempt;
+    const proveedoresActivos = providerOrderBase.filter(
+      (p) => (fallosPorProveedor.get(p) || 0) < MAX_INTENTOS_POR_PROVEEDOR
+        && (proveedoresProbados.size < MAX_MODELOS_CON_SERVICIO || proveedoresProbados.has(p)));
+    if (!proveedoresActivos.length) break; // escalera agotada — detener, no reciclar
+    const providerIntento = proveedoresActivos[0];
+    const proveedoresDescartados = providerOrderBase.filter(
+      (p) => (fallosPorProveedor.get(p) || 0) >= MAX_INTENTOS_POR_PROVEEDOR);
     try {
-      let proveedoresActivos = providerOrderBase.filter((p) => !proveedoresFallidosCiclo.has(p));
-      if (!proveedoresActivos.length) {
-        proveedoresFallidosCiclo.clear();
-        proveedoresActivos = providerOrderBase;
-      }
-      const providerIntento = proveedoresActivos[0];
       const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, pedirNombreProducto);
       const t0 = Date.now();
       lastRaw = '';
@@ -1072,7 +1108,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         SYSTEM_PROMPT,
         maxTokens,
         [providerIntento],
-        Array.from(proveedoresFallidosCiclo),
+        proveedoresDescartados,
         true,
       );
       lastProvider = provider;
@@ -1104,7 +1140,9 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
           lastTruncationError = lastError;
         }
         else { prefix = JSON_REMINDER; truncadoPrevio = false; }
-        if (provider && provider !== 'desconocido') proveedoresFallidosCiclo.add(provider);
+        const fp = provider && provider !== 'desconocido' ? provider : providerIntento;
+        proveedoresProbados.add(fp);
+        anotarFallo(fp);
         continue;
       }
 
@@ -1129,22 +1167,25 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
 
     } catch (err) {
       const msg = String(err?.message || err || '');
-      if (/No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|Cola vacía/i.test(msg) && proveedoresFallidosCiclo.size) {
-        proveedoresFallidosCiclo.clear();
-        lastError = err;
-        continue;
-      }
       if (truncadoPrevio && lastTruncationError && /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|503|tiempo de espera/i.test(msg)) {
         lastError = new Error(`${lastTruncationError.message}. Reintento no disponible: ${msg}`);
       } else {
         lastError = err;
       }
-      const failedProvider = err?.provider || lastProvider;
-      if (failedProvider && failedProvider !== 'desconocido') {
-        proveedoresFallidosCiclo.add(failedProvider);
-        lastProvider = failedProvider;
-      }
+      const failedProvider = (err?.provider && err.provider !== 'desconocido')
+        ? err.provider
+        : (lastProvider !== 'desconocido' ? lastProvider : providerIntento);
+      lastProvider = failedProvider;
       if (err?.model) lastModel = err.model;
+
+      // Estructuralmente incompleto (R1: sin clases[] o menos de las esperadas):
+      // el modelo respondió JSON válido pero no compuso — descartarlo ya.
+      const estructuralIncompleto = /falta clases\[\]|se esperaban \d+ clases/.test(msg);
+      // Sin servicio: sin clave, apagado, cola vacía o 503 — descartar directo.
+      const sinServicio = /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|Cola vacía|503/i.test(msg);
+      if (!sinServicio) proveedoresProbados.add(failedProvider);
+      if (estructuralIncompleto || sinServicio) descartarProveedor(failedProvider);
+      else anotarFallo(failedProvider);
       console.error(`[FaseA] ${contextoLog} intento ${attempt} (${lastProvider}/${lastModel}):`, err.message);
       await logParseError({
         contexto: contextoLog, attempt, motivo: err.message,
@@ -1153,13 +1194,14 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
     }
   }
 
-  // Reintentos agotados → DETENER, nunca degradar a plantillas en silencio.
+  // Escalera agotada → DETENER, nunca degradar a plantillas en silencio.
+  // El detalle técnico completo de cada intento ya quedó en aiLogs.
   // FUTURO: cuando exista el Banco de Secuencias, el respaldo legítimo es
   // servir una secuencia cosechada y validada — nunca plantillas.
   throw new Error(
-    `${contextoLog} falló tras ${attemptsUsed} intentos [${lastProvider}/${lastModel}]. ` +
-    `Motivo: ${lastError?.message}. ` +
-    `Raw inicio: "${lastRaw.slice(0, 200)}" … fin: "${lastRaw.slice(-200)}"`,
+    `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) — ` +
+    `revisa la configuración de proveedores de IA en Administración. ` +
+    `Detalle: ${attemptsUsed} intentos, último ${lastProvider}/${lastModel} — ${lastError?.message}`,
   );
 }
 
