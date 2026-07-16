@@ -1142,3 +1142,73 @@ export const obtenerClaseDeHoy = (capa, fechaISO = new Date().toISOString().slic
   const ultima = conFecha[conFecha.length - 1] || clases[0];
   return { clase: ultima, esHoy: false, motivo: conFecha.length ? "ultima" : "sin-fechas" };
 };
+
+// ─── Fase 9 — Cierre del ciclo: logro por indicador ──────────────────────────
+// Los resultados de la Fase 4 se escribían y nadie los leía: el sistema sabía
+// qué se ENSEÑÓ pero no qué se APRENDIÓ. Esta fase los agrega en logro por
+// indicador oficial para el mapa de avance del curso y para que la SIGUIENTE
+// unidad reciba los indicadores débiles (marcado REFORZAR, junto al tachado).
+
+const _normCodigoAvance = (c) => String(c || "").trim().toUpperCase().replace(/\s+/g, "");
+
+/**
+ * Agrega resultados de instrumento (Fase 4) en logro por indicador. PURO.
+ * Reglas de conteo (las de la Fase 4):
+ *   - "evaluado"   → cuenta con su porcentaje
+ *   - "no_entrego" → cuenta como 0 (porcentaje ya viene en 0)
+ *   - "pendiente"  → NO cuenta (porcentaje null)
+ * Cada resultado aporta su porcentaje a TODOS los indicadorIds del instrumento.
+ *
+ * @param {Array} resultados  Docs de instrumentoResultados
+ * @returns {Array<{codigo, evaluaciones, estudiantes, promedio, nivel, estudiantesApoyo}>}
+ *          ordenado por código; estudiantesApoyo = estudiantes cuyo promedio
+ *          personal en ese indicador queda bajo 70 (corte "En proceso").
+ */
+export const agregarResultadosPorIndicador = (resultados = []) => {
+  const mapa = new Map();
+  for (const r of resultados) {
+    const pct = Number(r?.porcentaje);
+    if (r?.porcentaje === null || r?.porcentaje === undefined || !Number.isFinite(pct)) continue;
+    for (const cod of (r.indicadorIds || [])) {
+      const codigo = _normCodigoAvance(cod);
+      if (!codigo) continue;
+      const acc = mapa.get(codigo) || {
+        codigo, evaluaciones: 0, sumaPorcentaje: 0, porEstudiante: new Map(),
+      };
+      acc.evaluaciones += 1;
+      acc.sumaPorcentaje += pct;
+      const estId = String(r.estudianteId || "");
+      if (estId) {
+        const est = acc.porEstudiante.get(estId) || { suma: 0, n: 0 };
+        est.suma += pct;
+        est.n += 1;
+        acc.porEstudiante.set(estId, est);
+      }
+      mapa.set(codigo, acc);
+    }
+  }
+  return [...mapa.values()]
+    .map((acc) => {
+      const promedio = Math.round(acc.sumaPorcentaje / acc.evaluaciones);
+      const estudiantesApoyo = [...acc.porEstudiante.values()]
+        .filter((e) => e.n > 0 && (e.suma / e.n) < 70).length;
+      return {
+        codigo: acc.codigo,
+        evaluaciones: acc.evaluaciones,
+        estudiantes: acc.porEstudiante.size,
+        promedio,
+        nivel: nivelLogroDesdePorcentaje(promedio),
+        estudiantesApoyo,
+      };
+    })
+    .sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+};
+
+/**
+ * Indicadores DÉBILES del avance: promedio bajo el umbral con evidencia
+ * suficiente. PURO. Son los que la siguiente unidad marca como (REFORZAR).
+ */
+export const indicadoresDebilesDeAvance = (avance = [], { umbral = 70, minEvaluaciones = 1 } = {}) =>
+  (avance || [])
+    .filter((i) => i && i.evaluaciones >= minEvaluaciones && i.promedio < umbral)
+    .map((i) => i.codigo);

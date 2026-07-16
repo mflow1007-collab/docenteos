@@ -35,6 +35,9 @@ import {
   construirEvidenciaDesdeResultado,
   // Bloque A.5
   clasificarEvidencias,
+  // Fase 9 — cierre del ciclo
+  agregarResultadosPorIndicador,
+  indicadoresDebilesDeAvance,
 } from "../src/services/hiloPedagogico.js";
 import { adaptarCurriculoLocal } from "../src/services/curriculoAdapter.js";
 
@@ -618,6 +621,44 @@ assert.ok(sobre.contenidos.conceptos.gramatica.length > 0);
 assert.ok(sobre.contenidos.procedimientos.funcionales.length > 0);
 assert.ok(sobre.origenLocal.contenidosGenerales.conceptuales.length > 0);
 ok("7 CE + 21 IL con IDs oficiales intactos, índice plano con competenciaId, original preservado");
+
+// ─── 13. Fase 9 — Cierre del ciclo: logro por indicador ──────────────────────
+console.log("\n13) Fase 9 — agregarResultadosPorIndicador + indicadoresDebilesDeAvance");
+
+const instrumentoF9 = {
+  id: "inst-f9", cursoId: CURSO_ID, planificacionId: "plan-1", claseId: "c1",
+  tipoInstrumento: "rubrica", valorMaximo: 100, indicadorIds: ["IL-ING-1-COM-1", "IL-ING-1-COM-2"],
+};
+const resultadosF9 = [
+  construirResultadoInstrumento({ instrumento: instrumentoF9, estudianteId: "e1", puntajeObtenido: 90 }),
+  construirResultadoInstrumento({ instrumento: instrumentoF9, estudianteId: "e2", puntajeObtenido: 40 }),
+  construirResultadoInstrumento({ instrumento: instrumentoF9, estudianteId: "e3", estado: "no_entrego" }),
+  construirResultadoInstrumento({ instrumento: instrumentoF9, estudianteId: "e4", estado: "pendiente" }),
+  construirResultadoInstrumento({
+    instrumento: { ...instrumentoF9, id: "inst-f9b", indicadorIds: ["IL-ING-1-COM-3"] },
+    estudianteId: "e1", puntajeObtenido: 95,
+  }),
+];
+
+const avanceF9 = agregarResultadosPorIndicador(resultadosF9);
+assert.equal(avanceF9.length, 3, "3 indicadores agregados");
+const il1 = avanceF9.find((i) => i.codigo === "IL-ING-1-COM-1");
+// e1=90, e2=40, e3=0 (no_entrego cuenta como 0); e4 pendiente NO cuenta
+assert.equal(il1.evaluaciones, 3);
+assert.equal(il1.estudiantes, 3);
+assert.equal(il1.promedio, Math.round((90 + 40 + 0) / 3)); // 43
+assert.equal(il1.nivel, "Necesita apoyo");
+assert.equal(il1.estudiantesApoyo, 2, "e2 y e3 bajo 70; e1 no");
+const il3 = avanceF9.find((i) => i.codigo === "IL-ING-1-COM-3");
+assert.equal(il3.promedio, 95);
+assert.equal(il3.nivel, "Logrado");
+ok("agregación por indicador: evaluado/no_entrego cuentan, pendiente no");
+
+const debilesF9 = indicadoresDebilesDeAvance(avanceF9, { umbral: 70, minEvaluaciones: 1 });
+assert.deepEqual(debilesF9, ["IL-ING-1-COM-1", "IL-ING-1-COM-2"]);
+assert.deepEqual(indicadoresDebilesDeAvance(avanceF9, { umbral: 70, minEvaluaciones: 4 }), [],
+  "sin evidencia suficiente no se declara débil");
+ok("indicadores débiles bajo el umbral → candidatos a (REFORZAR) en la siguiente unidad");
 
 // ─── Resumen ─────────────────────────────────────────────────────────────────
 console.log(`\n✅ ${pasos} verificaciones pasaron.`);
