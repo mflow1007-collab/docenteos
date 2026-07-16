@@ -13,6 +13,7 @@ import {
   obtenerRegistroNotas,
 } from "../firebase";
 import { validarPonderacion } from "../services/hiloPedagogico.js";
+import { obtenerAvanceCurricular } from "../services/avanceCurricularService.js";
 import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -369,6 +370,27 @@ function RegistroPage({
 
   const cursoId = curso?.id || "registro-general";
   const draftKey = getDraftKey(cursoId);
+
+  // Fase 9 — avance curricular por indicador (carga perezosa al abrir el tab)
+  const [avanceCurricular, setAvanceCurricular] = useState(null);
+  useEffect(() => {
+    if (tabActiva !== "Indicadores") return;
+    let vivo = true;
+    obtenerAvanceCurricular({ cursoId: curso?.id || "" })
+      .then((av) => { if (vivo) setAvanceCurricular(av); })
+      .catch(() => { if (vivo) setAvanceCurricular({ porIndicador: [], totalResultados: 0 }); });
+    return () => { vivo = false; };
+  }, [tabActiva, curso?.id]);
+
+  // Código de indicador → texto corto, desde los aspectos ya cargados del curso
+  const textosIndicador = useMemo(() => {
+    const m = new Map();
+    for (const a of registroAspectos) {
+      const cod = String(a.indicadorId || "").trim().toUpperCase().replace(/\s+/g, "");
+      if (cod && !m.has(cod)) m.set(cod, a.aspectoVisible || a.nombre || "");
+    }
+    return m;
+  }, [registroAspectos]);
 
   const aplicarRegistroGuardado = (data) => {
     if (!data) return;
@@ -1583,6 +1605,53 @@ function RegistroPage({
               <p className="rs-nota-pie" style={{ marginTop: "24px" }}>
                 Aún no hay notas ingresadas. Ve a la pestaña <strong>Calificaciones</strong> para comenzar a registrar.
               </p>
+            )}
+
+            {/* Fase 9 — mapa de avance curricular por indicador oficial */}
+            <div className="registro-section-head" style={{ marginTop: "32px" }}>
+              <h2>Avance curricular por indicador</h2>
+              <p>
+                Logro agregado desde las evaluaciones de instrumentos (Modo Aula e Instrumentos).
+                Los indicadores en rojo son candidatos a refuerzo en la próxima unidad.
+              </p>
+            </div>
+            {!avanceCurricular ? (
+              <p className="rs-nota-pie">Cargando avance curricular…</p>
+            ) : avanceCurricular.porIndicador.length === 0 ? (
+              <p className="rs-nota-pie">
+                Aún no hay evaluaciones de instrumentos para este curso. Evalúa desde{" "}
+                <strong>Modo Aula</strong> o <strong>Instrumentos</strong> y el avance aparecerá aquí.
+              </p>
+            ) : (
+              <div className="registro-table-scroll">
+                <table className="registro-table">
+                  <thead>
+                    <tr>
+                      <th>Nivel</th>
+                      <th>Indicador</th>
+                      <th>Logro</th>
+                      <th>Evaluaciones</th>
+                      <th>En apoyo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {avanceCurricular.porIndicador.map((ind) => (
+                      <tr key={ind.codigo}>
+                        <td title={ind.nivel}>
+                          {ind.nivel === "Logrado" ? "🟢" : ind.nivel === "En proceso" ? "🟡" : "🔴"} {ind.nivel}
+                        </td>
+                        <td>
+                          <strong>{ind.codigo}</strong>
+                          {textosIndicador.get(ind.codigo) ? ` — ${textosIndicador.get(ind.codigo)}` : ""}
+                        </td>
+                        <td><strong>{ind.promedio}%</strong></td>
+                        <td>{ind.evaluaciones} ({ind.estudiantes} est.)</td>
+                        <td>{ind.estudiantesApoyo > 0 ? `⚠️ ${ind.estudiantesApoyo}` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         );
