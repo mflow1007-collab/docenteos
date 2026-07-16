@@ -1810,7 +1810,7 @@ const _generarFasesConIA = async (
     specFase.temasSemana = temasFase;
     specFase.productoFinalNombre = productoFinalNombreActual;
     if (contexto.productoPropio) specFase.productoFinalNombre = contexto.productoPropio;
-    specFase.indicadoresTrabajadosAntes = Array.isArray(indicadoresTrabajadosAntes) ? indicadoresTrabajadosAntes : [];
+    specFase.indicadoresTrabajadosAntes = Array.isArray(contexto.indicadoresTrabajadosAntes) ? contexto.indicadoresTrabajadosAntes : [];
 
     // Progreso narrado para el docente: fase pedagógica, semana calendario y
     // tópico real por día según la malla/contenidos oficiales ya seleccionados.
@@ -2229,6 +2229,9 @@ export const generarUnidadAprendizaje = async (datos) => {
       // Si el docente escribió su propio producto, ese nombre MANDA y la IA
       // no propone otro; el nombre generado solo sustituye el genérico.
       productoPropio: productoFinalTexto ? producto : "",
+      // Indicadores de unidades anteriores: alimentan el marcado ~~tachado~~
+      // del prompt y la lista de permitidos del validador (R1)
+      indicadoresTrabajadosAntes,
     },
     mallaContenidos,
     mallaPayload, allInds, allComps, durMinEf, grado,
