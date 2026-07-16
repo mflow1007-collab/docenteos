@@ -738,7 +738,12 @@ assert.ok(FUNDAMENTO_POR_NIVEL.Secundaria.includes("su propia clase"), "Secundar
 const sinNivel = fundamentoLocal("");
 assert.equal(sinNivel.nivel, "Secundaria");
 assert.equal(sinNivel.nivelAsumido, true);
-ok("fundamentoLocal: base + nivel diferenciado, nivelAsumido marcado, nunca vacío");
+// Lenguaje OFICIAL de la Adecuación Curricular Secundaria 2023 (aportada por el dueño)
+assert.ok(FUNDAMENTO_BASE.includes("capacidad para actuar de manera eficaz y autónoma"),
+  "definición textual de competencia (p.18)");
+assert.ok(FUNDAMENTO_POR_NIVEL.Secundaria.includes("TERCER Nivel de Dominio"), "Nivel de Dominio III (p.12)");
+assert.ok(FUNDAMENTO_POR_NIVEL.Secundaria.includes("hipotético-deductivo"), "dimensión cognitiva del adolescente");
+ok("fundamentoLocal: base + nivel diferenciado, nivelAsumido marcado, nunca vacío; Secundaria con lenguaje oficial 2023");
 
 // La capa curricular ANOTA la clase que cae en feriado (no la mueve)
 const planFeriado = {
