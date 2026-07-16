@@ -12,6 +12,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { actualizarPlanificacionDetallada, obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
 import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula, obtenerInstrumentosDelDia } from '../services/modoAulaService.js'
 import { obtenerClaseDeHoy, crearAspectoId } from '../services/hiloPedagogico.js'
+import { obtenerPaseLista, guardarPaseLista, ESTADOS_ASISTENCIA, ETIQUETA_ASISTENCIA } from '../services/asistenciaService.js'
 import { crearEvidencia } from '../services/evidenciasService.js'
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1227,6 +1228,40 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       }))
       .filter((estudiante) => estudiante.nombre)
   }, [cursoParaAula, claseNorm?.grado])
+
+  // ═══ PASE DE LISTA (HITO 3.1) — asistencia real del día, por curso
+  const [paseLista, setPaseLista] = useState({})              // estId → estado
+  const [paseListaAbierto, setPaseListaAbierto] = useState(false)
+  const [paseListaGuardando, setPaseListaGuardando] = useState(false)
+  const [paseListaMsg, setPaseListaMsg] = useState('')
+  useEffect(() => {
+    let vigente = true
+    setPaseLista({})
+    setPaseListaMsg('')
+    if (!cursoParaAula?.id) return undefined
+    obtenerPaseLista(cursoParaAula.id).then((docDia) => {
+      if (vigente && docDia?.marcas) {
+        setPaseLista(docDia.marcas)
+        setPaseListaMsg(`Lista de hoy ya guardada (${Object.keys(docDia.marcas).length} estudiantes) — puedes corregirla.`)
+      }
+    })
+    return () => { vigente = false }
+  }, [cursoParaAula?.id])
+
+  const guardarListaDeHoy = async () => {
+    if (!cursoParaAula?.id || paseListaGuardando) return
+    setPaseListaGuardando(true)
+    setPaseListaMsg('')
+    try {
+      const r = await guardarPaseLista({ cursoId: cursoParaAula.id, marcas: paseLista })
+      setPaseListaMsg(`✓ Guardada: ${r.resumen.presente} presente(s) · ${r.resumen.tarde} tardanza(s) · ${r.resumen.excusa} excusa(s) · ${r.resumen.ausente} ausente(s).`)
+    } catch (e) {
+      setPaseListaMsg(`❌ ${e.message}`)
+    } finally {
+      setPaseListaGuardando(false)
+    }
+  }
+
   const sugerenciasEstudiantesEv = useMemo(() => {
     const q = normalizarClave(busquedaEstudianteEv)
     if (!q) return estudiantesAula.slice(0, 6)
@@ -2016,6 +2051,68 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           ⇄ Cambiar planificación
         </button>
       </div>
+
+      {/* ══ PASE DE LISTA (HITO 3.1) ══ */}
+      {estudiantesAula.length > 0 && (
+        <div className="modo-aula-pase-lista" style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:12, margin:'0 24px 14px', boxShadow:'0 10px 24px rgba(15,23,42,.06)', flexShrink:0 }}>
+          <button
+            type="button"
+            onClick={() => setPaseListaAbierto((v) => !v)}
+            style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 18px', background:'transparent', border:0, cursor:'pointer', fontSize:13, fontWeight:900, color:'#0f172a' }}
+          >
+            <span>🙋 Pase de lista — {new Date().toLocaleDateString('es-DO', { weekday:'long', day:'numeric', month:'long' })}</span>
+            <span style={{ fontSize:12, fontWeight:700, color: Object.keys(paseLista).length === estudiantesAula.length ? '#15803d' : '#64748b' }}>
+              {Object.keys(paseLista).length ? `${Object.keys(paseLista).length}/${estudiantesAula.length} marcados` : 'Sin marcar'} {paseListaAbierto ? '▲' : '▼'}
+            </span>
+          </button>
+          {paseListaAbierto && (
+            <div style={{ padding:'0 18px 14px' }}>
+              <div style={{ display:'flex', gap:8, marginBottom:10, flexWrap:'wrap', alignItems:'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setPaseLista(Object.fromEntries(estudiantesAula.map((e) => [e.id, 'presente'])))}
+                  style={{ padding:'7px 14px', borderRadius:999, border:'1px solid #bbf7d0', background:'#f0fdf4', color:'#15803d', fontSize:12, fontWeight:800, cursor:'pointer' }}
+                >
+                  ✓ Todos presentes
+                </button>
+                <button
+                  type="button"
+                  onClick={guardarListaDeHoy}
+                  disabled={paseListaGuardando || !Object.keys(paseLista).length}
+                  style={{ padding:'7px 16px', borderRadius:999, border:'1px solid #c7d2fe', background: paseListaGuardando ? '#eef2ff' : 'linear-gradient(135deg,#4f46e5,#4338ca)', color: paseListaGuardando ? '#4f46e5' : '#fff', fontSize:12, fontWeight:800, cursor: paseListaGuardando ? 'default' : 'pointer' }}
+                >
+                  {paseListaGuardando ? '⏳ Guardando…' : '💾 Guardar lista'}
+                </button>
+                {paseListaMsg && <small style={{ fontSize:12, color: paseListaMsg.startsWith('❌') ? '#dc2626' : '#15803d', fontWeight:600 }}>{paseListaMsg}</small>}
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(250px, 1fr))', gap:6 }}>
+                {estudiantesAula.map((est) => (
+                  <div key={est.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, border:'1px solid #eef2f7', borderRadius:8, padding:'6px 10px' }}>
+                    <span style={{ fontSize:12.5, fontWeight:600, color:'#0f172a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{est.nombre}</span>
+                    <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                      {ESTADOS_ASISTENCIA.map((estado) => {
+                        const activo = paseLista[est.id] === estado
+                        const color = { presente:'#16a34a', tarde:'#d97706', excusa:'#2563eb', ausente:'#dc2626' }[estado]
+                        return (
+                          <button
+                            key={estado}
+                            type="button"
+                            title={ETIQUETA_ASISTENCIA[estado]}
+                            onClick={() => setPaseLista((prev) => ({ ...prev, [est.id]: estado }))}
+                            style={{ width:26, height:26, borderRadius:6, border:`1px solid ${activo ? color : '#e2e8f0'}`, background: activo ? color : '#fff', color: activo ? '#fff' : '#64748b', fontSize:11, fontWeight:900, cursor:'pointer' }}
+                          >
+                            {ETIQUETA_ASISTENCIA[estado][0]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ══ WORKSPACE 3 COLUMNAS ══ */}
       <div className="modo-aula-grid" style={{

@@ -79,6 +79,15 @@ service cloud.firestore {
           && request.resource.data.keys().hasAll(['cursoId', 'estudianteId', 'aspectoId'])
           && string(request.resource.data.cursoId) == cursoId;
       }
+      // Pase de lista (HITO 3.1): un doc por día con las marcas del curso
+      match /cursos/{cursoId}/asistencia/{fecha} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+      // Estudiantes del docente (usuarios/{uid}/estudiantes): estudiantesService
+      // escribe aquí desde siempre — la regla faltaba en esta copia del repo
+      match /estudiantes/{estId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
       match /cursos/{cursoId}/estudiantes/{estId}/evidencias/{evId} {
         allow read, update, delete: if isOwner(userId) || isAdmin();
         // Fase 11: toda evidencia queda vinculada a su estudiante y curso
