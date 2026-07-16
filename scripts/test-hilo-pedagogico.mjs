@@ -676,7 +676,25 @@ assert.equal(diaNoLectivo("2026-12-23")?.tipo, "receso");
 assert.equal(diaNoLectivo("2026-12-23")?.estimado, true, "receso navideño marcado estimado hasta el PDF oficial");
 assert.equal(diaNoLectivo("2026-09-26")?.tipo, "fin-de-semana");
 assert.equal(proximoDiaLectivo("2026-12-24"), "2027-01-07", "salta Navidad + receso + Año Nuevo");
-ok("calendarioParaFecha / diaNoLectivo / esDiaLectivo / proximoDiaLectivo");
+// Del afiche oficial: Trabajo MOVIDO al lunes 3-may (no el sábado 1) y 12 feriados
+assert.equal(diaNoLectivo("2027-05-03")?.tipo, "feriado", "Día del Trabajo movido a lunes");
+assert.equal(calendarioParaFecha("2026-10-01")?.feriados.length, 12);
+assert.equal(calendarioParaFecha("2026-10-01")?.reportesEvaluacion?.Secundaria?.length, 4, "reportes P1-P4 del afiche");
+ok("calendarioParaFecha / diaNoLectivo / esDiaLectivo / proximoDiaLectivo (afiche oficial)");
+
+const { estadoDocencia, diasDocenciaPrevios } = await import("../src/data/calendarioEscolarMINERD.js");
+const verano = estadoDocencia("2026-07-16"); // jueves de verano, antes del año 2026-2027
+assert.equal(verano.docencia, false);
+assert.ok(verano.motivo.includes("2026-2027"), "receso anual apunta al próximo año escolar");
+const preDocencia = estadoDocencia("2026-08-10"); // lunes: docentes ya, estudiantes aún no
+assert.equal(preDocencia.docencia, false);
+assert.equal(preDocencia.tipo, "pre-docencia");
+assert.equal(estadoDocencia("2026-09-01").docencia, true, "martes ordinario del año escolar");
+assert.equal(estadoDocencia("2026-09-24").docencia, false, "feriado no es docencia");
+assert.equal(estadoDocencia("2020-03-03").desconocido, true, "sin calendario cargado: fail-open");
+// 28-sep-2026 lunes: previos de docencia = vie 25, mié 23, mar 22 (24 es feriado)
+assert.deepEqual(diasDocenciaPrevios("2026-09-28", 3), ["2026-09-25", "2026-09-23", "2026-09-22"]);
+ok("estadoDocencia (verano/pre-docencia/feriado/fail-open) + diasDocenciaPrevios salta feriados");
 
 // La capa curricular ANOTA la clase que cae en feriado (no la mueve)
 const planFeriado = {

@@ -14,7 +14,7 @@ import {
 } from "../firebase";
 import { validarPonderacion } from "../services/hiloPedagogico.js";
 import { obtenerAvanceCurricular } from "../services/avanceCurricularService.js";
-import { obtenerAsistenciaCurso } from "../services/asistenciaService.js";
+import { obtenerAsistenciaCurso, obtenerSuspensiones } from "../services/asistenciaService.js";
 import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -406,9 +406,12 @@ function RegistroPage({
   // se vuelca sobre la cuadrícula mensual al abrir la pestaña Asistencia.
   // El dato de Modo Aula MANDA sobre esas celdas (es lo más fresco); las
   // celdas de días sin lista pasada no se tocan.
+  const [suspensionesDocencia, setSuspensionesDocencia] = useState([]);
   useEffect(() => {
     if (tabActiva !== "Asistencia" || !curso?.id) return;
     let vivo = true;
+    // Suspensiones (ADP, cooperativa, fenómeno atmosférico): nota del mes
+    obtenerSuspensiones().then((susp) => { if (vivo) setSuspensionesDocencia(susp); });
     obtenerAsistenciaCurso(curso.id).then((dias) => {
       if (!vivo || !dias.length) return;
       const LETRA = { presente: "P", ausente: "A", tarde: "T", excusa: "E" };
@@ -1527,6 +1530,28 @@ function RegistroPage({
             <span><i className="azul" />E · Excusa</span>
             <span style={{ color: "#94a3b8" }}>TOTAL y % · 2 excusas equivalen a 1 día presente</span>
           </div>
+
+          {/* Días SIN docencia del mes activo (marcados desde Modo Aula):
+              nota oficial de por qué esos días no tienen marcas */}
+          {(() => {
+            const delMes = suspensionesDocencia.filter(
+              (s) => posicionEnCuadricula(s.fecha, anioEscolar)?.mes === mesActivo
+            );
+            if (!delMes.length) return null;
+            return (
+              <div style={{ marginTop: 14, padding: "10px 14px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8 }}>
+                <strong style={{ fontSize: 13, color: "#92400e" }}>📌 Días sin docencia en {mesActivo}:</strong>
+                <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 12.5, color: "#78350f" }}>
+                  {delMes.map((s) => (
+                    <li key={s.fecha}>
+                      {new Date(`${s.fecha}T12:00:00`).toLocaleDateString("es-DO", { weekday: "long", day: "numeric" })}
+                      {" — "}{s.etiqueta}{s.motivo ? ` (${s.motivo})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
         </section>
       )}
 

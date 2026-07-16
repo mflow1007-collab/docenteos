@@ -16,30 +16,38 @@
 
 export const CALENDARIOS_ESCOLARES = {
   "2026-2027": {
-    estado: "aprobado-cne", // → "oficial-pdf" cuando el MINERD publique el PDF detallado
-    fuente: "Aprobado por el Consejo Nacional de Educación el 10-jun-2026; fechas clave publicadas por MINERD/prensa (hoy.com.do 1090417)",
+    estado: "oficial", // afiche oficial del MINERD (aportado por el dueño, 2026-07-16)
+    fuente: "Calendario Escolar oficial MINERD 2026-2027 (afiche; CNE 10-jun-2026). 190 días laborables.",
     docentes:    { inicio: "2026-08-03", fin: "2027-06-25", semanas: 45 },
     estudiantes: { inicio: "2026-08-24", fin: "2027-06-18", semanas: 40, diasLaborables: 190 },
     bancoTiempo: "2 semanas calendario de recuperación de docencia",
-    // Feriados nacionales OBSERVADOS dentro del año lectivo (Ley 139-97:
-    // 6-ene, 26-ene, 1-may, 16-ago y 6-nov se trasladan a lunes cuando caen
-    // mar/mié → lunes anterior, jue/vie → lunes siguiente; el resto es fijo).
+    // Feriados nacionales del AFICHE OFICIAL (los "movidos" ya vienen movidos)
     feriados: [
+      { fecha: "2026-08-16", nombre: "Día de la Restauración" },
       { fecha: "2026-09-24", nombre: "Nuestra Señora de las Mercedes" },
-      { fecha: "2026-11-09", nombre: "Día de la Constitución (trasladado del 6-nov)" },
+      { fecha: "2026-11-09", nombre: "Día de la Constitución (movido)" },
       { fecha: "2026-12-25", nombre: "Navidad" },
       { fecha: "2027-01-01", nombre: "Año Nuevo" },
-      { fecha: "2027-01-04", nombre: "Día de Reyes (trasladado del 6-ene)" },
+      { fecha: "2027-01-04", nombre: "Santos Reyes (movido)" },
       { fecha: "2027-01-21", nombre: "Nuestra Señora de la Altagracia" },
-      { fecha: "2027-01-25", nombre: "Día de Duarte (trasladado del 26-ene)" },
+      { fecha: "2027-01-25", nombre: "Natalicio de Juan Pablo Duarte (movido)" },
+      { fecha: "2027-02-27", nombre: "Independencia Nacional" },
       { fecha: "2027-03-26", nombre: "Viernes Santo" },
+      { fecha: "2027-05-03", nombre: "Día del Trabajo (movido)" },
       { fecha: "2027-05-27", nombre: "Corpus Christi" },
     ],
-    // Recesos escolares: ESTIMADOS por patrón histórico hasta el PDF oficial
+    // Recesos escolares: el afiche NO los marca — siguen estimados por patrón
+    // histórico hasta ver la resolución/PDF con los recesos explícitos
     recesos: [
       { inicio: "2026-12-21", fin: "2027-01-06", nombre: "Receso navideño", estimado: true },
       { inicio: "2027-03-22", fin: "2027-03-26", nombre: "Semana Santa", estimado: true },
     ],
+    // Entregas de Reportes de Evaluación por nivel (afiche oficial)
+    reportesEvaluacion: {
+      Inicial:    [{ periodo: "P1", fecha: "2026-12-15" }, { periodo: "P2", fecha: "2027-03-31" }, { periodo: "P3", fecha: "2027-06-22" }],
+      Primaria:   [{ periodo: "P1", fecha: "2026-10-30" }, { periodo: "P2", fecha: "2027-01-29" }, { periodo: "P3", fecha: "2027-03-29" }, { periodo: "P4", fecha: "2027-06-11" }],
+      Secundaria: [{ periodo: "P1", fecha: "2026-10-30" }, { periodo: "P2", fecha: "2027-01-29" }, { periodo: "P3", fecha: "2027-03-29" }, { periodo: "P4", fecha: "2027-06-01" }],
+    },
   },
 };
 
@@ -81,6 +89,64 @@ export const diaNoLectivo = (fechaISO) => {
 };
 
 export const esDiaLectivo = (fechaISO) => diaNoLectivo(fechaISO) === null;
+
+const _fechaLarga = (iso) =>
+  new Date(`${_iso(iso)}T12:00:00`).toLocaleDateString("es-DO", { day: "numeric", month: "long", year: "numeric" });
+
+/**
+ * ¿Hay DOCENCIA (clases con estudiantes) en la fecha?
+ *   { docencia: true }                          → día de clases
+ *   { docencia: true, desconocido: true }       → sin calendario cargado (fail-open)
+ *   { docencia: false, tipo, motivo, estimado } → finde/feriado/receso/verano/pre-docencia
+ */
+export const estadoDocencia = (fechaISO) => {
+  const f = _iso(fechaISO);
+  if (!f) return { docencia: false, tipo: "invalida", motivo: "Fecha inválida" };
+  const noLectivo = diaNoLectivo(f);
+  if (noLectivo) {
+    return {
+      docencia: false, tipo: noLectivo.tipo, estimado: noLectivo.estimado,
+      motivo: noLectivo.tipo === "fin-de-semana" ? `Fin de semana (${noLectivo.nombre.toLowerCase()})` : noLectivo.nombre,
+    };
+  }
+  const cal = calendarioParaFecha(f);
+  if (cal) {
+    if (f < cal.estudiantes.inicio) {
+      return { docencia: false, tipo: "pre-docencia", motivo: `Semana docente sin estudiantes — la docencia ${cal.anio} inicia el ${_fechaLarga(cal.estudiantes.inicio)}` };
+    }
+    if (f > cal.estudiantes.fin) {
+      return { docencia: false, tipo: "post-docencia", motivo: `La docencia ${cal.anio} concluyó el ${_fechaLarga(cal.estudiantes.fin)}` };
+    }
+    return { docencia: true };
+  }
+  // Fuera de todo calendario: es receso anual SOLO si estamos en la ventana
+  // de verano previa al próximo año conocido (≤90 días antes de su inicio).
+  // Una fecha lejana sin calendario cargado no se declara "sin docencia".
+  const proximo = Object.entries(CALENDARIOS_ESCOLARES)
+    .filter(([, c]) => c.docentes.inicio > f)
+    .sort(([, a], [, b]) => a.docentes.inicio.localeCompare(b.docentes.inicio))[0];
+  if (proximo) {
+    const diasHasta = (new Date(`${proximo[1].docentes.inicio}T12:00:00`) - new Date(`${f}T12:00:00`)) / 86400000;
+    if (diasHasta <= 90) {
+      return { docencia: false, tipo: "receso-anual", motivo: `Sin docencia — el año escolar ${proximo[0]} inicia el ${_fechaLarga(proximo[1].estudiantes.inicio)}` };
+    }
+  }
+  return { docencia: true, desconocido: true }; // sin datos: jamás bloquear al docente
+};
+
+/** Últimos n días DE DOCENCIA anteriores a la fecha (excluida). Ventana: 30 días. */
+export const diasDocenciaPrevios = (fechaISO, n = 7) => {
+  const out = [];
+  const d = new Date(`${_iso(fechaISO)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return out;
+  for (let i = 0; i < 30 && out.length < n; i++) {
+    d.setDate(d.getDate() - 1);
+    const c = d.toISOString().slice(0, 10);
+    const e = estadoDocencia(c);
+    if (e.docencia === true && !e.desconocido) out.push(c);
+  }
+  return out;
+};
 
 /** Próximo día lectivo estrictamente posterior (tope de búsqueda: 30 días). */
 export const proximoDiaLectivo = (fechaISO) => {

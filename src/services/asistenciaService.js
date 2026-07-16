@@ -92,6 +92,53 @@ export const guardarPaseLista = async ({ cursoId, fecha = hoyISO(), marcas = {} 
   return { fecha, resumen: resumenDeMarcas(marcasValidas), porcentajes };
 };
 
+// ── Suspensiones de docencia ───────────────────────────────────────────────────
+// Un día puede quedar SIN docencia por causas del centro/país: asamblea o
+// actividad de la ADP, actividad de la cooperativa, fenómeno atmosférico, etc.
+// Es una propiedad del DÍA del docente (afecta todos sus cursos), no de un
+// curso: usuarios/{uid}/suspensiones/{fecha}. El Registro la muestra como nota
+// y el pase de lista deja de reclamar ese día.
+
+export const CATEGORIAS_SUSPENSION = {
+  asamblea_adp: "Asamblea de la ADP",
+  actividad_adp: "Actividad de la ADP",
+  cooperativa: "Actividad de la cooperativa",
+  fenomeno_atmosferico: "Fenómeno atmosférico",
+  actividad_centro: "Actividad del centro",
+  otro: "Otro motivo",
+};
+
+const colSuspensiones = () => collection(db, "usuarios", uid(), "suspensiones");
+
+/** Marca un día (de hoy o pasado) como SIN docencia. ID determinista = fecha. */
+export const guardarSuspension = async ({ fecha = hoyISO(), categoria = "otro", motivo = "" }) => {
+  if (!db || !uid()) throw new Error("Usuario no autenticado");
+  const f = String(fecha).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) throw new Error("Fecha inválida");
+  const cat = CATEGORIAS_SUSPENSION[categoria] ? categoria : "otro";
+  await setDoc(doc(colSuspensiones(), f), {
+    fecha: f,
+    categoria: cat,
+    etiqueta: CATEGORIAS_SUSPENSION[cat],
+    motivo: String(motivo || "").trim(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+  return { fecha: f, categoria: cat, etiqueta: CATEGORIAS_SUSPENSION[cat] };
+};
+
+/** Todas las suspensiones del docente, más reciente primero. Nunca lanza. */
+export const obtenerSuspensiones = async () => {
+  if (!db || !uid()) return [];
+  try {
+    const snap = await getDocs(colSuspensiones());
+    return snap.docs
+      .map((d) => ({ fecha: d.id, ...d.data() }))
+      .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  } catch {
+    return [];
+  }
+};
+
 /** % por estudiante sobre TODOS los días con lista pasada en el curso. */
 const _actualizarPorcentajes = async (cursoId) => {
   const dias = (await getDocs(colAsistencia(cursoId))).docs.map((d) => d.data());

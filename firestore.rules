@@ -83,6 +83,11 @@ service cloud.firestore {
       match /cursos/{cursoId}/asistencia/{fecha} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+      // Suspensiones de docencia (ADP, cooperativa, fenómeno atmosférico):
+      // propiedad del DÍA del docente — cubre todos sus cursos
+      match /suspensiones/{fecha} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
       // Estudiantes del docente (usuarios/{uid}/estudiantes): estudiantesService
       // escribe aquí desde siempre — la regla faltaba en esta copia del repo
       match /estudiantes/{estId} {
