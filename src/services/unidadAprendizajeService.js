@@ -1810,6 +1810,7 @@ const _generarFasesConIA = async (
     specFase.temasSemana = temasFase;
     specFase.productoFinalNombre = productoFinalNombreActual;
     if (contexto.productoPropio) specFase.productoFinalNombre = contexto.productoPropio;
+    specFase.indicadoresTrabajadosAntes = Array.isArray(indicadoresTrabajadosAntes) ? indicadoresTrabajadosAntes : [];
 
     // Progreso narrado para el docente: fase pedagógica, semana calendario y
     // tópico real por día según la malla/contenidos oficiales ya seleccionados.

@@ -67,8 +67,10 @@ const SYSTEM_PROMPT =
   'tiene una MISIÓN con nombre propio memorable apropiada a la asignatura; las evidencias son ' +
   'observables y evaluables; y la metacognición hace pensar al estudiante. ' +
   'Redactas cada actividad iniciando con un VERBO en tercera persona plural del presente ' +
-  '(Responden, Observan, Escuchan, Elaboran, Socializan, Practican, Identifican, Comparan, Guardan...) ' +
-  'y NUNCA inicias con "Los estudiantes", "El docente", "La docente", "Se", "Ticket", "Reflexión" ni nombres de recursos. ' +
+  '(Responden, Observan, Escuchan, Elaboran, Socializan, Practican, Identifican, Comparan, Guardan...). ' +
+  'PROHIBIDO iniciar con sustantivos o etiquetas como "Ticket", "Reflexión", "Evaluación", "Lectura", "Presentación", "Trabajo colaborativo", ' +
+  '"Los estudiantes", "El docente", "La docente" o "Se" — escribe directamente el verbo de acción. ' +
+  'Excepciones canónicas del formato MINERD que SÍ pueden iniciar sin verbo: "Retroalimentación de…" y "Recuperación de saberes previos…". ' +
   'Si la asignatura es de idioma, el término en el idioma va incrustado entre paréntesis dentro de la actividad. ' +
   'Estilo oficial de referencia (referencia de VOZ, jamás los copies como actividades): ' +
   EXEMPLARS_ESTILO.map((e) => `"${e}"`).join(' · ') + ' ' +
@@ -247,11 +249,37 @@ function extraerJSON(raw) {
 }
 
 // ─── Jaccard para R2 ──────────────────────────────────────────────────────────
+// Stopwords en español e inglés + términos pedagógicos/temáticos estructurales
+// que aparecen en TODAS las clases del mismo tema y causarían falsos positivos
+// (ej. "present", "simple", "daily", "routine" en cualquier clase de inglés).
+const JACCARD_STOPWORDS = new Set([
+  // español funcional
+  'a','al','ante','con','de','del','desde','e','el','en','entre','es','esa','ese',
+  'eso','esta','este','esto','hacia','hasta','la','las','le','les','lo','los','más',
+  'me','mi','mis','muy','ni','no','nos','o','para','pero','por','que','se','si',
+  'sin','su','sus','también','te','tu','tus','un','una','unas','uno','unos','y',
+  'ya','yo',
+  // inglés funcional
+  'a','an','and','are','as','at','be','been','being','but','by','do','does','for',
+  'from','has','have','he','her','his','how','i','if','in','is','it','its','me',
+  'my','not','of','on','or','our','s','she','so','that','the','their','them',
+  'they','this','to','us','was','we','were','what','when','which','who','will',
+  'with','you','your',
+  // pedagógicos estructurales (aparecen en toda clase del mismo tema)
+  'actividad','actividades','clase','clases','día','dias','estudiantes','docente',
+  'momento','momentos','inicio','desarrollo','cierre','semana','unidad','tema',
+  'present','simple','daily','routine','routines','time','activities','students',
+  'class','lesson','learning','work','use','using','make','can','my','their',
+]);
 
 function jaccardSimilarity(a, b) {
   if (!a || !b) return 0;
-  const setA = new Set(a.toLowerCase().split(/\s+/));
-  const setB = new Set(b.toLowerCase().split(/\s+/));
+  const tokenizar = (t) => t.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !JACCARD_STOPWORDS.has(w));
+  const tA = tokenizar(a);
+  const tB = tokenizar(b);
+  if (!tA.length || !tB.length) return 0;
+  const setA = new Set(tA);
+  const setB = new Set(tB);
   const inter = [...setA].filter(w => setB.has(w)).length;
   return inter / Math.max(setA.size, setB.size, 1);
 }
@@ -847,15 +875,27 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   // Indicadores precargados por DocenteOS desde la malla. La IA NO decide la
   // malla ni reconstruye currículo: solo copia códigos de esta lista al crear
   // la secuencia didáctica.
-  // Descripción RECORTADA (~90 chars): la IA solo necesita reconocer el
-  // indicador para copiar su código, no leer el párrafo completo. Recortar aquí
-  // baja los tokens de entrada del prompt (los 21 indicadores completos lo
-  // engordaban y ralentizaban la respuesta hasta rozar el muro de 504 en Edge).
+  // Malla COMPLETA de 21 indicadores con marcado visual:
+  //   **[IL-N] texto** = trabajado en ESTA secuencia (la IA elige de estos)
+  //   ~~[IL-N] texto~~ = ya trabajado en unidad anterior (puede reutilizar si el tema lo exige)
+  //   [IL-N] texto     = no aplica a esta secuencia
+  // Descripción recortada a ~90 chars para contener tokens.
   const recorta = (t) => { const s = String(t || '').trim(); return s.length > 90 ? s.slice(0, 90).replace(/\s+\S*$/, '') + '…' : s; };
-  const indicadoresTrabajo = spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : (spec.indicadores || []);
-  const indText    = indicadoresTrabajo
-    .map(i => `[${i.codigoOficial || i.id || 's/c'}] ${recorta(i.descripcion || i.texto)}`)
-    .filter(l => !l.endsWith('] ')).join('\n');
+  const codigosTrabajo   = new Set((spec.indicadoresTrabajo || []).map(i => i.codigoOficial || i.id || '').filter(Boolean));
+  const codigosAnteriores = new Set((spec.indicadoresTrabajadosAntes || []).map(normalizarCodigo).filter(Boolean));
+  const todosIndicadores  = spec.indicadores?.length ? spec.indicadores : (spec.indicadoresTrabajo || []);
+  const indText = todosIndicadores
+    .map(i => {
+      const cod  = i.codigoOficial || i.id || 's/c';
+      const desc = recorta(i.descripcion || i.texto);
+      if (!desc) return null;
+      const linea = `[${cod}] ${desc}`;
+      if (codigosTrabajo.has(cod))              return `**${linea}**`;
+      if (codigosAnteriores.has(normalizarCodigo(cod))) return `~~${linea}~~`;
+      return linea;
+    })
+    .filter(Boolean)
+    .join('\n');
   const ceText     = (spec.ces || [])
     .map(c => `${c.fundamental ? c.fundamental + ' — ' : ''}${c.descripcion || ''}`.trim())
     .filter(Boolean).join(' | ');
@@ -882,10 +922,10 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   // 3A — producto final NOMBRADO: el primer lote lo propone; los siguientes
   // lo reciben fijado y cada clase deposita un aporte concreto a ese producto
   const productoLinea = spec.productoFinalNombre
-    ? `- PRODUCTO FINAL DE LA UNIDAD: «${spec.productoFinalNombre}» — cada "aporteProducto" alimenta ESTE producto.`
+    ? `- PRODUCTO FINAL DE LA UNIDAD: «${spec.productoFinalNombre}». Imagina que el producto es un rompecabezas: cada "aporteProducto" es UNA PIEZA nombrada que, sumada a las demás clases, ENSAMBLA ese producto. Al final de la unidad, las piezas juntas DEBEN DAR el producto completo. Ejemplo: si el producto es "My House Map & Tour", las piezas podrían ser → C1: "Vocabulary card set de rooms", C2: "Floor plan del hogar con etiquetas", C3: "Description card de cada room", C4: "Script del House Tour", C5: "Poster de presentación". PROHIBIDO repetir piezas o dar aportes que no conecten visiblemente con el producto final.`
     : (pedirNombreProducto
-      ? `- PRODUCTO FINAL: propón "productoFinalNombre" — nombre PROPIO y concreto derivado del tema y los discursivos de la malla (ej. tema Vivienda + croquis → "My House Map & Tour"). PROHIBIDO el genérico "Presentación/producción final sobre el tema".`
-      : (spec.productoFinal ? `- PRODUCTO FINAL DE LA UNIDAD: ${spec.productoFinal}` : ''));
+      ? `- PRODUCTO FINAL: propón "productoFinalNombre" — nombre PROPIO y concreto derivado del tema y los discursivos de la malla (ej. tema Vivienda + croquis → "My House Map & Tour"). PROHIBIDO el genérico "Presentación/producción final sobre el tema". Luego cada clase aporta UNA PIEZA que, sumada, ensambla ese producto.`
+      : (spec.productoFinal ? `- PRODUCTO FINAL DE LA UNIDAD: ${spec.productoFinal} — cada "aporteProducto" es una pieza nombrada que ensambla este producto.` : ''));
   const contextoLinea = spec.contextoComunitario
     ? `- CONTEXTO COMUNITARIO REAL (palabras del docente — úsalo en situaciones y actividades; NO inventes otros datos locales): ${spec.contextoComunitario}`
     : '';
@@ -948,7 +988,7 @@ ESPECIFICACIÓN CURRICULAR:
 - Indicadores PRECARGADOS por DocenteOS para esta secuencia (copia SOLO estos códigos en "indicadoresTrabajados"; no inventes ni uses indicadores fuera de esta lista):
 ${indText}
 - Conceptos/vocabulario disponible: ${vocab}
-- FOCO CURRICULAR DEL BLOQUE (usar en Desarrollo): ${focoCurricularTx}
+- FOCO ${spec.esIdioma ? 'LINGÜÍSTICO' : 'CURRICULAR'} DEL BLOQUE (${spec.esIdioma ? 'estructura gramatical, vocabulario o función comunicativa que trabaja el Desarrollo — úsala como eje de las actividades y del campo "focoLinguistico"' : 'concepto, procedimiento o criterio central de la malla que trabaja el Desarrollo — úsalo como eje de las actividades y del campo "focoLinguistico"'}): ${focoCurricularTx}
 - Procedimientos/funciones afines al tema — trabájalos a lo largo de la unidad, distribuidos entre las clases, sin omitirlos cuando apliquen: ${funcs}
 ${arquitecturaTx ? `${arquitecturaTx}\n` : ''}
 ${productoLinea ? `${productoLinea}\n` : ''}${contextoLinea ? `${contextoLinea}\n` : ''}${exprs ? `- Expresiones oficiales del tema (incrústalas en las situaciones comunicativas): ${exprs}\n` : ''}${formatearMemoria(memoria)}
@@ -960,18 +1000,27 @@ REGLAS:
 1. Solo JSON puro, sin texto ni markdown.
 2. Desarrollos distintos entre sí y distintos a los ya listados arriba.
 3. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
-4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con "Los estudiantes", "El docente", "La docente" o "Se".${notaIdioma} Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
+4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con sustantivos o etiquetas — escribe directamente el verbo de acción: NO "Ticket de salida: completan…" → SÍ "Completan un ticket de salida…"; NO "Reflexión: responden…" → SÍ "Reflexionan sobre…"; NO "Evaluación:" → SÍ "Completan una evaluación…". TAMBIÉN PROHIBIDO: "Los estudiantes", "El docente", "La docente", "Se".${notaIdioma} Excepciones canónicas que SÍ inician sin verbo: "Retroalimentación de…" y "Recuperación de saberes previos…". Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
 ${patronDesarrollo}
    Cierre: 3 actividades — socialización de lo producido → reflexión sobre UN aspecto específico del aprendizaje del día → guardar el artefacto en el portafolio o exit ticket con una producción nueva ("Guardan … en el portafolio para el producto final.").
 ${reglaInicio}
 7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
-8. CADA clase incluye "indicadoresTrabajados": copia de 1 a 3 CÓDIGOS EXACTOS de la lista PRECARGADA arriba. PROHIBIDO inventar indicadores, cambiar códigos o usar indicadores fuera de esa lista. DocenteOS ya renderiza la malla completa: negrita = trabajado en esta secuencia, tachado = trabajado antes, normal = no trabajado.
+8. CADA clase incluye "indicadoresTrabajados": elige de 1 a 3 CÓDIGOS EXACTOS de los indicadores marcados en **negrita** arriba (son los que corresponden a este tema). Los ~~tachados~~ ya fueron trabajados en una unidad anterior — solo úsalos si el contenido del día los requiere directamente. Los sin marcado no aplican a esta secuencia. PROHIBIDO inventar códigos o usar indicadores fuera de la malla.
 9. CADA clase incluye "titulo" (título llamativo de la clase) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], ${conQueEjem} — o su equivalente "con…", "a través de…", "comprendiendo…", [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — nombra siempre el contenido real de la malla (ej. idioma: "describirán sus hábitos y su frecuencia mediante comprensión oral y producción escrita, utilizando presente simple y adverbios de frecuencia"; ej. otra área: "clasificarán los tipos de ecosistemas de su comunidad mediante observación y comparación de casos, utilizando los criterios de biodiversidad y clima").
-10. CADA clase incluye encabezado pedagógico: "tituloSemana" (título descriptivo que refleja la FASE de la unidad esa semana y AVANZA — como "Exploración y descripción", luego "Profundización", luego "Integración y producto final"; no repitas el mismo título en semanas distintas), "focoLinguistico" (por compatibilidad del template: escribe aquí el FOCO CURRICULAR del día; copia o adapta UNO de los focos indicados arriba${spec.esIdioma ? ' — una estructura, vocabulario o función comunicativa del bloque, incluidos ejemplos entre paréntesis cuando aplique' : ' — el concepto, procedimiento, evidencia o criterio central del día tomado de la malla y del cerebro curricular'}; si es Semana 1: "Apropiación de la unidad / producto / evaluación") y "estrategiasDia" (2-3 estrategias coherentes separadas por " • "). Semana 1 debe apropiarse de la unidad: clase 1 presenta situación/tema/saberes previos y clase 2 presenta producto final, criterios/evaluación y portafolio. Desde semana 2, avanza por los contenidos de la malla (conceptuales → procedimentales → producción), y la intención pedagógica de cada clase nombra su foco del día.
-11. CADA clase incluye "aporteProducto": el artefacto CONCRETO con NOMBRE PROPIO ÚNICO que esa clase deposita al producto final — como un paso de checklist del producto (ej. idioma: "My Daily Schedule con horarios", "Chore Chart de responsabilidades"; ej. otra área: "Ficha comparativa de dos ecosistemas", "Croquis del acueducto con medidas"). Debe ser DISTINTO en cada clase y describir el ENTREGABLE, no la ubicación: PROHIBIDO "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto".${spec.esIdioma ? ' El nombre del artefacto puede incluir el idioma meta.' : ''}${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
+10. CADA clase incluye encabezado pedagógico:
+   • "tituloSemana": título que refleja la FASE de la unidad y AVANZA semana a semana ("Exploración y descripción" → "Profundización" → "Integración y producto final"); no repitas el mismo en semanas distintas.
+   • "focoLinguistico": ${spec.esIdioma ? 'la ESTRUCTURA GRAMATICAL, vocabulario o función comunicativa que trabaja esta clase (copia o adapta UNO del FOCO LINGÜÍSTICO DEL BLOQUE indicado arriba); incluye ejemplos entre paréntesis en cursiva cuando aplique (ej. "Present Simple: routines _(I wake up at 6.)_"). Si es Semana 1: "Apropiación de la unidad / producto / evaluación".' : 'el CONCEPTO, PROCEDIMIENTO o CRITERIO central de la malla que trabaja esta clase (copia o adapta UNO del FOCO CURRICULAR DEL BLOQUE indicado arriba). NO uses vocabulario de idioma aquí. Si es Semana 1: "Apropiación de la unidad / producto / evaluación".'}
+   • "estrategiasDia": 2-3 estrategias pedagógicas coherentes separadas por " • ".
+   Semana 1: clase 1 presenta situación/tema/saberes previos; clase 2 presenta producto final, criterios y portafolio. Desde semana 2: avanza por contenidos de la malla (conceptuales → procedimentales → producción); la intención pedagógica nombra el foco del día.
+11. CADA clase incluye "aporteProducto": la PIEZA NOMBRADA que esa clase ensambla al producto final. Regla de coherencia: si juntas todos los "aporteProducto" de la unidad, el resultado DEBE SER el producto final — como las páginas de un libro o las partes de una maqueta. Cada pieza debe ser DISTINTA y VISIBLE: describe el artefacto entregable con nombre propio (ej. idioma: "Vocabulary card set de rooms and furniture", "Floor plan del hogar con etiquetas en inglés", "Script del House Tour"; ej. otra área: "Ficha comparativa de dos ecosistemas", "Croquis del acueducto con medidas reales"). PROHIBIDO: "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto", "participación en la clase".${spec.esIdioma ? ' El nombre del artefacto puede incluir términos en el idioma meta.' : ''}${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
 12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica CONCRETA del Desarrollo (${tecnicasEjem}), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en [técnica]: …"). Usa una técnica ACCIONABLE. Un marco amplio ("Aprendizaje Basado en Proyectos", "Aprendizaje Cooperativo", "ABP") vale SOLO si lo nombras con su MISIÓN concreta del día ("Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto"), nunca desnudo. Cuando la clase tenga una MISIÓN, dale un NOMBRE PROPIO memorable entre comillas, ligado al tema del día: "Participan en 'Feria de fracciones del barrio': …". No repitas una técnica ni un nombre de misión ya usados en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: activación con propósito O misión nombrada → producción → verificación entre pares.
 13. NO copies los ejemplos de estilo del sistema como actividades: son referencia de VOZ. Cada actividad es específica del contenido de ESTA clase.
-14. El LOTE incluye "adaptacionesSemana": {"acceso", "metodologicas", "evaluacion"} — adecuaciones NEAE LIGADAS AL FOCO de la semana (ej. semana de 3ra persona → "banco de verbos en tercera persona visible") — y "observacionesSemana": qué observar/registrar esta semana según su foco. Nunca genéricas.
+14. El LOTE incluye "adaptacionesSemana": {"acceso": "...", "metodologicas": "...", "evaluacion": "..."} y "observacionesSemana": "...". Las tres adecuaciones y la observación deben NOMBAR el foco de la semana — nunca genéricas ("proveer instrucciones claras", "dar más tiempo"). Fórmula: [estrategia concreta] + [ligada al foco del contenido]. Ejemplos por tipo de foco:
+   • Idioma / vocabulario (ej. "partes de la casa"): acceso → "Banco visual de imágenes etiquetadas de rooms y furniture disponible en el pupitre"; metodologicas → "Tarjetas de vocabulario casa-imagen para actividades de matching y categorización"; evaluacion → "Señalar la imagen correspondiente en vez de escribir el término".
+   • Idioma / estructura gramatical (ej. "there is / there are"): acceso → "Póster de aula con la estructura there is/there are + ejemplos del salón"; metodologicas → "Oraciones modelo en tiras para ordenar antes de producir"; evaluacion → "Completar oraciones con banco de palabras en vez de producción libre".
+   • Matemática (ej. "fracciones"): acceso → "Material concreto: círculos fraccionarios y regletas disponibles durante toda la clase"; metodologicas → "Resolución paso a paso con organizador gráfico numerado para el procedimiento"; evaluacion → "Resolver 2 ejercicios con material concreto en lugar de los 5 del grupo".
+   • Ciencias / conceptual (ej. "ecosistemas"): acceso → "Ficha-guía con imágenes y definición clave de ecosistema en el pupitre"; metodologicas → "Organizador de doble columna: características → ejemplos del entorno"; evaluacion → "Identificar y marcar con círculo los elementos en una imagen, no describir por escrito".
+   • observacionesSemana: qué observará el docente ESPECÍFICAMENTE esta semana (ej. "Observar si el estudiante identifica correctamente rooms vs furniture al hacer el matching; anotar cuáles confunde para reforzar en la próxima sesión").
 
 {"outputSchemaVersion":"1.3","semana":${semanaNum},${pedirNombreProducto ? '"productoFinalNombre":"...",' : ''}"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"...","saludoInicial":${spec.esIdioma ? '"Good morning! ..."' : '"¡Buenos días! ..."'},"retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en [técnica]: ...","...","...","...","..."],"evidencias":{"desempeno":["...","..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
@@ -1060,9 +1109,11 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       }
 
       normalizarVozBatch(result.data);
-      const indicadoresPermitidos = (spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
-        .map((ind) => ind.codigoOficial || ind.id || ind.codigo)
-        .filter(Boolean);
+      const indicadoresPermitidos = [
+        ...(spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
+          .map((ind) => ind.codigoOficial || ind.id || ind.codigo),
+        ...(spec.indicadoresTrabajadosAntes || []).map(normalizarCodigo),
+      ].filter(Boolean);
       validateBatch(result.data, durMin, count, focoGram, {
         memoria,
         exigirNombreProducto: pedirNombreProducto,
@@ -1405,9 +1456,11 @@ export const generateWeekPlan = async (
   let adaptacionesSemana = null;   // NEAE ligadas al foco (contrato R14)
   let observacionesSemana = '';
   const focoGram = spec.esIdioma ? getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas) : [];
-  const indicadoresPermitidos = (spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
-    .map((ind) => ind.codigoOficial || ind.id || ind.codigo)
-    .filter(Boolean);
+  const indicadoresPermitidos = [
+    ...(spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
+      .map((ind) => ind.codigoOficial || ind.id || ind.codigo),
+    ...(spec.indicadoresTrabajadosAntes || []).map(normalizarCodigo),
+  ].filter(Boolean);
   const baseCheckpointKey = checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas);
 
   for (let b = 0; b < batches; b++) {
