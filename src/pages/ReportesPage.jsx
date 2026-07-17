@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AIService } from "../services/ai/AIService.js";
+import { conFundamento } from "../services/fundamentoDoctrinalService.js";
 import "./ReportesPage.css";
 
 function barWidth(valor, max) {
@@ -98,9 +99,15 @@ export default function ReportesPage({
     setReporteGenerando(true);
     window.setTimeout(() => reporteRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
 
+    // F2.1 — doctrina antepuesta también en Reportes (mente pedagógica);
+    // nivel del primer curso filtrado cuando existe, si no asume Secundaria
+    const systemReportes = await conFundamento(
+      "Eres DocenteOS AI PRO. Redactas reportes pedagógicos claros, accionables y respetuosos para docentes dominicanos. Usa solo los datos proporcionados y distingue datos reales de recomendaciones.",
+      cursosFiltrados?.[0]?.nivel || cursosFiltrados?.[0]?.grado || ""
+    );
     await AIService.generate({
       module: "reportes",
-      system: "Eres DocenteOS AI PRO. Redactas reportes pedagógicos claros, accionables y respetuosos para docentes dominicanos. Usa solo los datos proporcionados y distingue datos reales de recomendaciones.",
+      system: systemReportes,
       prompt: [
         `Acción solicitada: ${accion?.titulo || "Reporte pedagógico"}`,
         `Solicitud del docente: ${solicitud}`,

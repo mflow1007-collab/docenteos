@@ -93,6 +93,10 @@ service cloud.firestore {
       match /estudiantes/{estId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+      // Grupos académicos del docente (audit-cerebro F3)
+      match /gruposAcademicos/{grupoId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
       match /cursos/{cursoId}/estudiantes/{estId}/evidencias/{evId} {
         allow read, update, delete: if isOwner(userId) || isAdmin();
         // Fase 11: toda evidencia queda vinculada a su estudiante y curso
@@ -300,6 +304,41 @@ service cloud.firestore {
     match /materiales/{docId} {
       allow read: if isAuth();
       allow write: if isAdmin();
+    }
+
+    // ── Barrido audit-cerebro F3 (2026-07-17): 7 colecciones más destapadas
+    //    por el auditor automatizado en su primera corrida ───────────────────
+
+    // Banco Pedagógico (bp_*): lectura docentes; publicación curada por admin
+    match /bp_temas/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /bp_actividades/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /bp_instrumentos/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /bp_recursos/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+    match /bp_neae/{docId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAdmin();
+    }
+
+    // Configuración global del panel admin (seguridad, firebase, general)
+    match /configuracionGlobal/{docId} {
+      allow read, write: if isAdmin();
     }
 
     // ── Barrido auditoría HITO 5 (2026-07-16): colecciones que el código usa

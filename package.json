@@ -10,7 +10,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node scripts/test-hilo-pedagogico.mjs && node scripts/test-unidad-render.mjs && node scripts/test-contrato-v13.mjs"
+    "test": "node scripts/audit-cerebro.mjs && node scripts/test-hilo-pedagogico.mjs && node scripts/test-unidad-render.mjs && node scripts/test-contrato-v13.mjs",
+    "audit": "node scripts/audit-cerebro.mjs"
   },
   "dependencies": {
     "firebase": "^12.14.0",

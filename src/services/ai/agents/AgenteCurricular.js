@@ -11,7 +11,7 @@
 import { AIService } from "../AIService.js";
 import { conFundamento } from "../../fundamentoDoctrinalService.js";
 
-const SYSTEM = `Eres el Agente Curricular de DocenteOS, especialista en el Diseño Curricular del Nivel Primario y Secundario de la República Dominicana (MINERD).
+const SYSTEM = `Eres el Agente Curricular de DocenteOS, especialista en el Diseño Curricular del sistema educativo preuniversitario de la República Dominicana (MINERD) — el fundamento del nivel que trabajas te llega antepuesto.
 
 Conoces con precisión:
 - Las áreas curriculares y sus asignaturas por nivel/ciclo
