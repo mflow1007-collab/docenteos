@@ -59,6 +59,12 @@ export const conFundamento = async (systemBase, nivel = "") => {
 
 export const getFundamentoDoctrinal = async (nivel = "") => {
   const local = fundamentoLocal(nivel);
+  // F4.1 — honestidad: si llegó un nivel NO vacío que no se reconoce, la
+  // asunción de Secundaria se dice en consola (nivel vacío = asunción por
+  // diseño en chat/coach, no se reporta)
+  if (nivel && local.nivelAsumido) {
+    console.warn(`[Fundamento] Nivel no reconocido "${nivel}" — se asume doctrina de Secundaria.`);
+  }
   try {
     const cfg = await leerConfig();
     // Interruptor sin deploy: config.activo === false apaga la inyección
