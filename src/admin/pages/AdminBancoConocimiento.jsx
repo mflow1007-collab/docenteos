@@ -688,16 +688,20 @@ const revisarSeccionesCurriculares = ({ textoMalla = '', textoContexto = '' } = 
   const contexto = normalizarMalla(textoContexto);
   const todo = `${contexto}\n${malla}`;
   return {
-    identificacionMalla: /nivel\s+secundario/.test(malla) && /grado/.test(malla),
+    identificacionMalla: /nivel\s+(secundario|primario|inicial)/.test(malla) && /grado/.test(malla),
     competenciasFundamentales: /competencias?\s+fundamentales?/.test(todo),
     competenciasEspecificas: /competencias?\s+especificas?/.test(todo),
     aportesArea: /aportes?\s+del\s+area/.test(contexto),
     ejesTransversales: /ejes?\s+transversales?/.test(contexto),
     indicadoresLogro: /indicadores?\s+de\s+logro/.test(malla),
     contenidos: /\bcontenidos?\b/.test(malla),
-    conceptos: /\bconceptos?\b/.test(malla),
-    procedimientos: /\bprocedimientos?\b/.test(malla),
-    actitudesValores: /actitudes?\s+y\s+valores?/.test(malla),
+    // Las conversiones de tabla a texto pueden perder la FILA de encabezados
+    // de columnas: se aceptan los subencabezados propios de cada columna como
+    // confirmación equivalente (Vocabulario/Gramática viven en Conceptos;
+    // Funcionales/Discursivos en Procedimientos).
+    conceptos: /\bconceptos?\b/.test(malla) || (/\bvocabulario\b/.test(malla) && /\bgramatica\b/.test(malla)),
+    procedimientos: /\bprocedimientos?\b/.test(malla) || /\bfuncionales\b/.test(malla) || /\bdiscursivos\b/.test(malla),
+    actitudesValores: /actitudes?\s+y\s+valores?/.test(malla) || /\bactitud(es)?\b/.test(malla),
   };
 };
 
@@ -1441,9 +1445,12 @@ const auditarEstructuraMalla = (texto = '') => {
   const bloqueConcep = seccionEntre('conceptual', 'procedimental|procedimiento');
   const bloqueProced = seccionEntre('procedimental|procedimiento', 'actitud');
   const bloqueActit = seccionEntre('actitud', 'fase 1|componente|eje tem');
+  // Primaria/Inicial no usan códigos IL-x: sus indicadores son viñetas bajo el
+  // encabezado "Indicadores de Logro" — se cuentan como piso estimado.
+  const bloqueIndicadores = seccionEntre('indicadores?\\s+de\\s+logro', 'area de|malla curricular|competencias fundamentales');
 
   return {
-    indicadoresEsperados: codigosIL.size,               // p.ej. IL-1..IL-21 → 21
+    indicadoresEsperados: codigosIL.size || contarVinetas(bloqueIndicadores), // IL-1..IL-21 → 21; sin códigos → viñetas del bloque
     conceptualesEsperados: contarVinetas(bloqueConcep),
     procedimentalesEsperados: contarVinetas(bloqueProced),
     actitudesEsperadas: contarVinetas(bloqueActit),
@@ -1454,11 +1461,13 @@ const auditarEstructuraMalla = (texto = '') => {
 const SECCIONES_MALLA = {
   competenciasIndicadores: {
     etiqueta: 'Competencias e Indicadores de Logro',
-    // Indicadores ANIDADOS en su competencia (preserva la alineación
-    // competencia→indicador tal como el diseño la muestra en dos columnas).
-    instruccion: 'Extrae las Competencias (Fundamentales y Específicas del grado/ciclo) CON sus Indicadores de Logro ANIDADOS. Cada indicador va DENTRO de la competencia a la que pertenece según la tabla (columna izquierda = competencia, columna derecha = sus indicadores). No pierdas ningún indicador ni ninguna competencia. Copia el texto oficial literal.',
-    esquema: '{"competencias":[{"id":"","competenciaFundamental":"","descripcion":"","indicadoresLogro":[{"id":"","descripcion":""}]}]}',
-    tieneDatos: (r) => (r?.competencias || []).length,
+    // El diseño MINERD tiene DOS layouts de malla: Secundaria alinea cada
+    // competencia con sus indicadores en dos columnas (→ indicadores ANIDADOS);
+    // Primaria/Inicial ponen los indicadores en un bloque aparte al FINAL de la
+    // malla (→ indicadores PLANOS en la clave raíz, la fusión ya los acepta).
+    instruccion: 'Extrae las Competencias (Fundamentales y Específicas del grado/ciclo) y TODOS los Indicadores de Logro. El documento puede traer DOS layouts: (A) tabla de dos columnas donde cada competencia lleva sus indicadores al lado — anida cada indicador DENTRO de su competencia en "competencias[].indicadoresLogro"; o (B) un bloque aparte titulado "Indicadores de Logro" DESPUÉS de la tabla de Contenidos, sin división por competencia — en ese caso copia el bloque completo en la clave raíz "indicadoresLogro", un elemento por viñeta, y deja las competencias sin indicadores anidados. Si las Competencias Fundamentales vienen AGRUPADAS en una misma fila (p. ej. "Ética y Ciudadana; Desarrollo Personal y Espiritual; Ambiental y de la Salud"), copia la fila tal cual como UNA competencia con su específica — NO la dividas. No pierdas ningún indicador ni ninguna competencia. Copia el texto oficial literal.',
+    esquema: '{"competencias":[{"id":"","competenciaFundamental":"","descripcion":"","indicadoresLogro":[{"id":"","descripcion":""}]}],"indicadoresLogro":[{"id":"","descripcion":""}]}',
+    tieneDatos: (r) => (r?.competencias || []).length || (r?.indicadoresLogro || []).length,
     critica: true,
   },
   contenidosConceptuales: {
@@ -1477,7 +1486,7 @@ const SECCIONES_MALLA = {
   },
   actitudes: {
     etiqueta: 'Contenidos actitudinales (Actitudes y valores)',
-    instruccion: 'Extrae la columna COMPLETA de "Actitudes y valores" de la tabla de Contenidos. Copia TODAS las actitudes literal, una por una — suelen ser muchas (respeto, cortesía, motivación, cuidado del medioambiente, etc.). No las resumas ni omitas ninguna.',
+    instruccion: 'Extrae la columna COMPLETA de "Actitudes y valores" de la tabla de Contenidos. Copia TODAS las actitudes literal, una por una — suelen ser muchas (respeto, cortesía, motivación, cuidado del medioambiente, etc.). Si el texto no muestra el encabezado de la columna (pasa al convertir tablas a texto), identifícalas por su forma: son las viñetas actitudinales que empiezan con "Motivación…", "Respeto…", "Valoración…", "Aceptación…", "Reconocimiento…", "Interés…", "Disfrute…" y similares, mezcladas entre los demás contenidos. No las resumas ni omitas ninguna.',
     esquema: '{"actitudesValores":[],"actitudinales":[]}',
     tieneDatos: (r) => (r?.actitudesValores || []).length || (r?.actitudinales || []).length,
     critica: false,
@@ -1498,7 +1507,7 @@ const SECCIONES_MALLA = {
   },
   contextualizacion: {
     etiqueta: 'Contextualización del Área',
-    instruccion: 'Extrae el texto narrativo de "Contextualización del Área de Lenguas Extranjeras (inglés y francés) en el Nivel Secundario" (o encabezado equivalente que introduzca el enfoque del área — suele estar VARIAS PÁGINAS ANTES de la malla, al inicio de la sección del área). Es el enfoque/propósito/justificación del área. Cópialo literal (varios párrafos), no lo resumas. Si de verdad no aparece, deja el string vacío.',
+    instruccion: 'Extrae el texto narrativo de "Contextualización del Área…" del nivel seleccionado (p. ej. "Contextualización del Área de Lenguas Extranjeras (inglés y francés)…", o encabezado equivalente que introduzca el enfoque del área — suele estar VARIAS PÁGINAS ANTES de la malla, al inicio de la sección del área). Es el enfoque/propósito/justificación del área. Cópialo literal (varios párrafos), no lo resumas. Si de verdad no aparece, deja el string vacío.',
     esquema: '{"contextualizacionArea":""}',
     tieneDatos: (r) => String(r?.contextualizacionArea || '').trim().length > 0,
     critica: false,

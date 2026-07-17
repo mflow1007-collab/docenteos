@@ -145,13 +145,19 @@ export const validateCurricularDoc = (docOrPayload) => {
     });
   }
 
-  // Cardinalidad canónica del registro oficial MINERD: exactamente 7
-  // competencias con específica y 21 indicadores con descripción (3 por
-  // competencia). Un conteo distinto delata filas basura o pérdidas de
+  // Cardinalidad canónica del registro oficial MINERD de SECUNDARIA:
+  // exactamente 7 competencias con específica y 21 indicadores con descripción
+  // (3 por competencia). Un conteo distinto delata filas basura o pérdidas de
   // conversión — es la puerta por la que entró el doc corrupto v2.0.
+  // SOLO aplica a Secundaria: la malla oficial de Primaria agrupa las 7 CF en
+  // filas combinadas ("Ética y Ciudadana; Desarrollo Personal…" = 1 fila) y sus
+  // indicadores son un bloque por grado sin cardinalidad fija — exigir 7/21
+  // ahí rechazaría el documento oficial de la Adecuación 2023.
+  const nivelDoc = texto(payload.level || docOrPayload?.level).toLowerCase();
+  const exigeCardinalidadSecundaria = nivelDoc.startsWith('secundar');
   const compsConEspecifica = comps.filter(
     (c) => texto(c?.especificaGrado || c?.especifica || c?.descripcion)).length;
-  if (comps.length !== 7 || compsConEspecifica !== 7) {
+  if (exigeCardinalidadSecundaria && (comps.length !== 7 || compsConEspecifica !== 7)) {
     const detalle = comps.length !== 7
       ? comps.length
       : `${comps.length}, solo ${compsConEspecifica} con específica`;
@@ -164,12 +170,14 @@ export const validateCurricularDoc = (docOrPayload) => {
   const indsConDesc = anidadosTotal
     ? comps.reduce((n, c) => n + (c?.indicadoresLogro || c?.indicadores || []).filter(descInd).length, 0)
     : planos.filter(descInd).length;
-  if (indsTotal !== 21 || indsConDesc !== 21) {
+  if (exigeCardinalidadSecundaria && (indsTotal !== 21 || indsConDesc !== 21)) {
     const detalle = indsTotal !== 21
       ? indsTotal
       : `${indsTotal}, solo ${indsConDesc} con descripción`;
     v('indicadoresLogro', `el registro oficial tiene 21 indicadores; este doc trae ${detalle} — revisar filas basura de conversión`);
   }
+  // Fuera de Secundaria la exigencia honesta es de PRESENCIA: los chequeos de
+  // arriba ya obligan competencias e indicadores no vacíos y sin filas basura.
 
   // Contenidos estructurados (fuente de CONTENIDOS del documento)
   const conceptos = payload.contenidos?.conceptos;
