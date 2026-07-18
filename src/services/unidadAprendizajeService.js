@@ -2049,6 +2049,10 @@ const _generarFasesConIA = async (
 
   const normCodigo = (c) => String(c || "").replaceAll("[", "").replaceAll("]", "").replace(/\s/g, "").toUpperCase();
 
+  // G2 — indicadores del día: SOLO códigos reales de la malla (nada de
+  // inventar "IL-n": un código falso envenena el resumen semanal, el semáforo
+  // de Registro→Indicadores y las evidencias por indicador). Los indicadores
+  // (REFORZAR) —trabajados antes pero no logrados— van primero en la rotación.
   const tomarIndicadoresBase = (specActual = specBase, indice = 0) => {
     const base = [
       ...(Array.isArray(specActual.indicadoresTrabajo) ? specActual.indicadoresTrabajo : []),
@@ -2059,12 +2063,22 @@ const _generarFasesConIA = async (
     for (const ind of base) {
       const codigo = String(ind?.codigoOficial || ind?.id || ind?.codigo || "").trim();
       const descripcion = String(ind?.descripcion || ind?.texto || "").trim();
-      const clave = normCodigo(codigo) || descripcion.toLowerCase();
+      if (!codigo) continue; // sin código oficial no hay vínculo al hilo pedagógico
+      const clave = normCodigo(codigo);
       if (!clave || vistos.has(clave)) continue;
       vistos.add(clave);
-      unicos.push({ codigo: codigo || `IL-${unicos.length + 1}`, descripcion });
+      unicos.push({ codigo, descripcion });
     }
     if (!unicos.length) return [];
+    const debiles = new Set(
+      (Array.isArray(specActual.indicadoresDebiles) ? specActual.indicadoresDebiles : [])
+        .map((c) => normCodigo(typeof c === "string" ? c : c?.codigo || c?.id || ""))
+        .filter(Boolean)
+    );
+    if (debiles.size) {
+      unicos.sort((a, b) =>
+        (debiles.has(normCodigo(b.codigo)) ? 1 : 0) - (debiles.has(normCodigo(a.codigo)) ? 1 : 0));
+    }
     return tomarVentana(unicos, indice, Math.min(2, unicos.length));
   };
 
