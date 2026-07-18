@@ -1848,10 +1848,22 @@ const _generarFasesConIA = async (
     return Array.from({ length: Math.min(cantidad, lista.length) }, (_, i) => lista[(start + i) % lista.length]);
   };
 
+  // Recorte HONESTO: corta en límite de palabra y sin separadores colgando.
+  // El corte a media palabra ("eva…", "Presen…") delataba texto de máquina
+  // en títulos e intenciones del documento del docente (Roadmap 6 · G1).
   const recortar = (texto = "", max = 82) => {
     const limpio = String(texto || "").replace(/\s+/g, " ").trim();
-    return limpio.length > max ? `${limpio.slice(0, max - 1)}…` : limpio;
+    if (limpio.length <= max) return limpio;
+    const corte = limpio.slice(0, max - 1);
+    const espacio = corte.lastIndexOf(" ");
+    const base = espacio > max * 0.6 ? corte.slice(0, espacio) : corte;
+    return `${base.replace(/[\s·:;,.\-–—(]+$/, "")}…`;
   };
+
+  // Los contenidos de la malla llegan con su etiqueta de columna
+  // ("Gramática: X", "Funcional: Y"); al citarlos en prosa la etiqueta sobra.
+  const limpiarEtiquetaContenido = (texto = "") =>
+    String(texto || "").replace(/^\s*(gram[aá]tica|funcional|discursivo|expresi[oó]n|conceptual|procedimental|actitudinal)\s*:\s*/i, "").trim();
 
   const normalizarClaveDidactica = (texto = "") =>
     String(texto || "")
@@ -1990,37 +2002,49 @@ const _generarFasesConIA = async (
       diaGlobal: indiceGlobal + 1,
       numSemanas,
     });
-    const focoPrincipal = focoCurricular?.principal ? String(focoCurricular.principal).trim() : "";
-    const focoDetalle = (focoCurricular?.detalles || []).filter(Boolean).slice(0, 2).join(" · ");
+    // G1 — el foco es SIEMPRE contenido curricular legible: sin etiquetas de
+    // etapa interna ("Diagnóstico:", "Construcción:") ni claves del andamio
+    // ("Apropiacion de la unidad / situacion de aprendizaje / …"). La etapa
+    // del día ya la comunica el título del perfil didáctico.
+    const focoPrincipal = limpiarEtiquetaContenido(focoCurricular?.principal || "");
+    const detalleUnico = (focoCurricular?.detalles || [])
+      .map((d) => limpiarEtiquetaContenido(d))
+      .filter((d) => d
+        && !esFocoInternoUnidad(d)
+        && normalizarClaveDidactica(d) !== normalizarClaveDidactica(focoPrincipal))
+      .slice(0, 1)
+      .join("");
     if (focoPrincipal && !esFocoInternoUnidad(focoPrincipal)) {
-      return recortar(`${etapa || "Foco curricular"}: ${focoPrincipal}${focoDetalle && focoDetalle !== focoPrincipal ? ` · ${focoDetalle}` : ""}`);
+      return recortar(detalleUnico ? `${focoPrincipal} · ${detalleUnico}` : focoPrincipal, 90);
     }
-    const gramaticaSemana = getFocoGramatical(specActual.contenidosClaves?.gramatica, semanaReal, numSemanas);
-    const vocab = tomarVentana(specActual.contenidosClaves?.vocabulario, indiceGlobal, 3);
-    const expresiones = tomarVentana(specActual.contenidosClaves?.expresiones, indiceGlobal, 1);
-    const funcionales = tomarVentana(specActual.contenidosClaves?.funcionales, indiceGlobal, 1);
+    const gramaticaSemana = getFocoGramatical(specActual.contenidosClaves?.gramatica, semanaReal, numSemanas)
+      .map(limpiarEtiquetaContenido).filter(Boolean);
+    const vocab = tomarVentana(specActual.contenidosClaves?.vocabulario, indiceGlobal, 3).map(limpiarEtiquetaContenido);
+    const expresiones = tomarVentana(specActual.contenidosClaves?.expresiones, indiceGlobal, 1).map(limpiarEtiquetaContenido);
+    const funcionales = tomarVentana(specActual.contenidosClaves?.funcionales, indiceGlobal, 1).map(limpiarEtiquetaContenido);
+    const temaDia = String(dia?.temaCurricular || specActual.temaOficial || tema || "el tema de la unidad").trim();
 
     if (etapa && /presentaci[oó]n|exploraci[oó]n|diagn[oó]stico/i.test(etapa)) {
-      return recortar(`Exploración inicial de ${dia?.temaCurricular || specActual.temaOficial}${vocab.length ? ` con vocabulario (${vocab.slice(0, 2).join(", ")})` : ""}`);
+      return recortar(temaDia, 90);
     }
 
     if (gramaticaSemana.length) {
-      return recortar(`${etapa || "Aplicación"}: ${gramaticaSemana[0]}${vocab.length ? ` + vocabulario (${vocab.slice(0, 2).join(", ")})` : ""}`);
+      return recortar(`${gramaticaSemana[0]}${vocab.length ? ` · vocabulario: ${vocab.slice(0, 2).join(", ")}` : ""}`, 90);
     }
 
     if (funcionales.length) {
-      return recortar(`${etapa || "Desarrollo"}: ${funcionales[0]}${expresiones.length ? ` · ${expresiones[0]}` : ""}`);
+      return recortar(`${funcionales[0]}${expresiones.length ? ` · ${expresiones[0]}` : ""}`, 90);
     }
 
     if (expresiones.length) {
-      return recortar(`${etapa || "Práctica"}: expresiones del tema (${expresiones[0]})`);
+      return recortar(`expresiones del tema (${expresiones[0]})`, 90);
     }
 
     if (vocab.length) {
-      return recortar(`${etapa || "Práctica"}: vocabulario del tema (${vocab.join(", ")})`);
+      return recortar(`vocabulario del tema: ${vocab.join(", ")}`, 90);
     }
 
-    return recortar(`${etapa || "Trabajo guiado"} sobre "${dia?.temaCurricular || specActual.temaOficial}"`);
+    return recortar(temaDia, 90);
   };
 
   const normCodigo = (c) => String(c || "").replaceAll("[", "").replaceAll("]", "").replace(/\s/g, "").toUpperCase();
@@ -2044,16 +2068,17 @@ const _generarFasesConIA = async (
     return tomarVentana(unicos, indice, Math.min(2, unicos.length));
   };
 
-  const construirEvidenciasBase = ({ foco, producto, indicadores = [], momento = "Desarrollo", piezaProducto = "" }) => {
-    const indicadorTxt = indicadores.map((i) => i.descripcion).filter(Boolean).slice(0, 1).join(" ");
-    const pieza = piezaProducto || "avance de aprendizaje";
+  // G1 — evidencias con contenido REAL del día (tema y estructura), no el
+  // texto del foco repetido en las tres celdas de la tabla.
+  const construirEvidenciasBase = ({ foco, producto, momento = "Desarrollo", piezaProducto = "", temaCorto = "", estructura = "" }) => {
+    const pieza = piezaProducto || "un avance de aprendizaje";
+    const temaTxt = temaCorto || foco || "el tema del día";
+    const productoTxt = producto || "el producto final";
     const nombre = String(momento || "").toLowerCase();
     if (nombre.includes("inicio")) {
       return {
         conocimientos: [
-          recortar(indicadorTxt
-            ? `Reconoce saberes previos sobre ${foco} vinculados al indicador trabajado.`
-            : `Reconoce ideas y vocabulario clave relacionados con ${foco}.`, 120),
+          recortar(`Reconoce ideas y vocabulario clave sobre ${temaTxt}.`, 120),
         ],
         desempeno: [],
         producto: [],
@@ -2064,17 +2089,19 @@ const _generarFasesConIA = async (
         conocimientos: [],
         desempeno: [],
         producto: [
-          recortar(`Guarda o mejora ${pieza} para ${producto || "el producto final"} vinculada con ${foco}.`, 120),
+          recortar(`Guarda o socializa ${pieza} como evidencia para ${productoTxt}.`, 120),
         ],
       };
     }
     return {
       conocimientos: [],
       desempeno: [
-        recortar(`Usa lo trabajado sobre ${foco} en una interacción, práctica o producción guiada.`, 120),
+        recortar(estructura
+          ? `Aplica ${estructura} al comunicarse sobre ${temaTxt}.`
+          : `Aplica el contenido del día en la práctica guiada sobre ${temaTxt}.`, 120),
       ],
       producto: [
-        recortar(`Completa ${pieza} como evidencia parcial para ${producto || "el producto final"}.`, 120),
+        recortar(`Entrega ${pieza} como avance para ${productoTxt}.`, 120),
       ],
     };
   };
@@ -2142,10 +2169,10 @@ const _generarFasesConIA = async (
     const perfil = perfiles[Math.min(Math.max((fase?.numero || 1) - 1, 0), perfiles.length - 1)];
     const tituloDia = perfil.porPos[pos] || perfil.porPos.desarrollo;
     const pieza = pos === "cierre"
-      ? `versión revisada para ${productoNombre}`
+      ? `la versión revisada de ${productoNombre}`
       : pos === "inicio"
-        ? `borrador inicial conectado con ${temaSemana}`
-        : `pieza de trabajo sobre ${temaSemana}`;
+        ? `un borrador inicial sobre ${temaSemana}`
+        : `una pieza de trabajo sobre ${temaSemana}`;
     return {
       tituloSemana: perfil.tituloSemana,
       tituloDia,
@@ -2157,7 +2184,7 @@ const _generarFasesConIA = async (
       evidenciaCentral: perfil.evidenciaCentral,
       instrumentoSugerido: perfil.instrumentoSugerido,
       cierre: pos === "cierre"
-        ? `Guardan la versión mejorada de ${pieza} como evidencia para el producto final.`
+        ? `Guardan ${pieza} como evidencia final en el portafolio.`
         : `Guardan ${pieza} en el portafolio para retomarla en la próxima clase.`,
     };
   };
@@ -2189,9 +2216,11 @@ const _generarFasesConIA = async (
       gramatica.length ? `Ejemplos modelo: ${gramatica[0]}` : "",
     ].filter(Boolean);
 
-    const evidenciaInicio = construirEvidenciasBase({ foco, producto: productoNombre, indicadores, momento: "Inicio", piezaProducto });
-    const evidenciaDesarrollo = construirEvidenciasBase({ foco, producto: productoNombre, indicadores, momento: "Desarrollo", piezaProducto });
-    const evidenciaCierre = construirEvidenciasBase({ foco, producto: productoNombre, indicadores, momento: "Cierre", piezaProducto });
+    const temaCorto = String(temaSemana).split(" · ")[0].trim();
+    const estructuraDia = limpiarEtiquetaContenido(gramatica[0] || "");
+    const evidenciaInicio = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Inicio", piezaProducto, temaCorto, estructura: estructuraDia });
+    const evidenciaDesarrollo = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Desarrollo", piezaProducto, temaCorto, estructura: estructuraDia });
+    const evidenciaCierre = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Cierre", piezaProducto, temaCorto, estructura: estructuraDia });
 
     const actividadesDesarrollo = construirActividadesPorPatron({
       patron: patronActividad,
@@ -2220,17 +2249,19 @@ const _generarFasesConIA = async (
         evidenciaCentral: perfilDia.evidenciaCentral,
         instrumentoSugerido: perfilDia.instrumentoSugerido,
       },
-      tituloSemana: recortar(`Semana ${semanaGeneracion}: ${perfilDia.tituloSemana}`, 70),
-      titulo: recortar(`${perfilDia.tituloDia}: ${foco}`, 70),
+      // G1/G4 — la semana visible es la del DÍA (antes todas las semanas de la
+      // fase heredaban la primera y el PDF decía "Semana 1" en las semanas 2-5)
+      tituloSemana: recortar(`Semana ${dia?.semana || semanaGeneracion}: ${perfilDia.tituloSemana}`, 70),
+      titulo: recortar(`${perfilDia.tituloDia}: ${foco}`, 96),
       focoLinguistico: recortar([
         gramatica[0],
         vocabulario.length ? `Vocabulario: ${vocabulario.join(", ")}` : "",
-        expresiones[0] ? `Expresión: ${expresiones[0]}` : "",
+        expresiones[0] ? `Expresión: ${limpiarEtiquetaContenido(expresiones[0])}` : "",
       ].filter(Boolean).join(" · ") || foco, 140),
       estrategiasDia: [estrategia, "práctica guiada", "socialización"].filter(Boolean).join(" · "),
       intencionPedagogica: recortar(
-        `Desarrollar ${foco} mediante activación de saberes previos, práctica guiada, producción aplicada y reflexión final vinculada al producto de la unidad.`,
-        220
+        `Desde el inicio hasta el final de la clase, los estudiantes trabajan ${foco} con práctica guiada y producción propia, aportando ${piezaProducto} a ${productoNombre}.`,
+        230
       ),
       saludoInicial: area === "Inglés"
         ? "Good morning. Today we will use English to connect the class topic with our final product."
@@ -2238,7 +2269,12 @@ const _generarFasesConIA = async (
       retroalimentacionPrevia: "Recuperan brevemente lo trabajado en la clase anterior y aclaran una duda frecuente antes de avanzar.",
       saberesPrevios: recortar(`Recuperación de saberes previos sobre ${temaSemana} mediante preguntas orales y ejemplos cercanos.`, 150),
       actividadEnganche: recortar(`Observan una situación breve, imagen o ejemplo relacionado con ${foco} y predicen qué aprenderán.`, 150),
-      aporteProducto: recortar(`${piezaProducto}: evidencia conectada con ${foco}.`, 120),
+      aporteProducto: recortar(
+        piezaProducto.toLowerCase().includes(String(productoNombre).toLowerCase())
+          ? piezaProducto
+          : `${piezaProducto} para ${productoNombre}`,
+        120
+      ),
       actividadCLT: {
         nombre: recortar(`${perfilDia.mision}: ${piezaProducto}`, 70),
         mecanica: recortar(`Trabajo en parejas o equipos: comprenden el foco, elaboran ${piezaProducto}, la revisan con criterios y la socializan.`, 170),
