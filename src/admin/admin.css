@@ -1286,6 +1286,7 @@
 .aim-badge--blue  { background: var(--adm-info-bg);    color: var(--adm-info);    border-color: var(--adm-info); }
 .aim-badge--green { background: var(--adm-success-bg); color: var(--adm-success); border-color: var(--adm-success); }
 .aim-badge--amber { background: var(--adm-warning-bg); color: var(--adm-warning); border-color: var(--adm-warning); }
+.aim-badge--red   { background: var(--adm-danger-bg);  color: var(--adm-danger);  border-color: var(--adm-danger); }
 .aim-badge--dim   { background: var(--adm-surface3);   color: var(--adm-dim);     border-color: var(--adm-border2); }
 .aim-badge--default { background: var(--adm-surface3); color: var(--adm-muted); }
 

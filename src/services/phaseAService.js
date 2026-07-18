@@ -14,7 +14,7 @@
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
 import { db }                                   from '../firebase.js';
-import { loadGatewayConfig }                    from './ai/AIService.js';
+import { invalidateGatewayConfig, loadGatewayConfig } from './ai/AIService.js';
 import { logUsage }                             from './ai/usage.js';
 import {
   construirArquitecturaUnidadMINERD,
@@ -57,6 +57,29 @@ const MODELOS_COMPOSICION = {
 // Denylist explícita: si el admin configuró una variante débil para un
 // proveedor, para ESTE módulo se ignora y se usa el de la allowlist.
 const MODELO_DEBIL_RE = /flash|mini|lite|nano|tiny|small|haiku/i;
+const PROVIDER_BUDGET_ERROR_RE =
+  /no remaining credits|credit balance|credits? to use|current quota|exceeded.*quota|quota exceeded|rate[- ]?limit|billing|purchase credits|insufficient[_ -]?quota|HTTP 429|\b429\b/i;
+const PROVIDER_BUDGET_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const providerBudgetCooldowns = new Map();
+
+const isProviderBudgetError = (errOrMsg) => {
+  const msg = String(errOrMsg?.message || errOrMsg || "");
+  return PROVIDER_BUDGET_ERROR_RE.test(msg) || Number(errOrMsg?.status) === 429;
+};
+
+const getBudgetCooldownProviders = () => {
+  const now = Date.now();
+  for (const [provider, until] of providerBudgetCooldowns.entries()) {
+    if (!until || until <= now) providerBudgetCooldowns.delete(provider);
+  }
+  return [...providerBudgetCooldowns.keys()];
+};
+
+const cooldownProviderForBudget = (provider, reason = "") => {
+  if (!provider || provider === "desconocido") return;
+  providerBudgetCooldowns.set(provider, Date.now() + PROVIDER_BUDGET_COOLDOWN_MS);
+  console.warn(`[FaseA] Proveedor ${provider} bloqueado temporalmente por crédito/cuota: ${String(reason).slice(0, 240)}`);
+};
 
 // Modelo apto para composición: el del admin si es fuerte; si es débil o no
 // hay, el de la allowlist; null = proveedor no apto (se salta al siguiente).
@@ -154,7 +177,12 @@ async function logParseError({ contexto, attempt, motivo, raw, provider, model }
 
 async function resolvePhaseAProviderOrder() {
   try {
+    invalidateGatewayConfig();
     const gwConfig = await loadGatewayConfig();
+    const disabled = [
+      ...(Array.isArray(gwConfig.disabled) ? gwConfig.disabled : []),
+      ...getBudgetCooldownProviders(),
+    ];
     const priority = Array.isArray(gwConfig.priority) && gwConfig.priority.length
       ? gwConfig.priority
       : PHASE_A_PROVIDER_ORDER;
@@ -162,6 +190,8 @@ async function resolvePhaseAProviderOrder() {
       ...priority,
       ...PHASE_A_PROVIDER_ORDER.filter((p) => !priority.includes(p)),
     ].filter((p, i, arr) => p && arr.indexOf(p) === i)
+      // Proveedores apagados por el admin: jamás se usan, ni como fallback.
+      .filter((p) => !disabled.includes(p))
       // Solo proveedores con modelo APTO para composición (allowlist)
       .filter((p) => modeloComposicion(p, gwConfig.models));
     // Fase A no usa NVIDIA: en composiciones largas se queda agotando tiempo.
@@ -189,7 +219,23 @@ async function callGatewayCollect(
   // Config del admin (prioridad, modelos y APAGADOS): la generación de
   // unidades respeta el mismo interruptor de proveedores que el resto
   let gwConfig = {};
-  try { gwConfig = await loadGatewayConfig(); } catch { /* no-fatal */ }
+  try {
+    invalidateGatewayConfig();
+    gwConfig = await loadGatewayConfig();
+  } catch { /* no-fatal */ }
+  const adminDisabled = [
+    ...(Array.isArray(gwConfig.disabled) ? gwConfig.disabled : []),
+    ...getBudgetCooldownProviders(),
+  ];
+  if (strictProvider) {
+    const requested = Array.isArray(providerOrder) ? providerOrder.filter(Boolean) : [];
+    const blocked = requested.filter((p) => adminDisabled.includes(p));
+    if (requested.length && blocked.length === requested.length) {
+      const err = new Error(`Proveedor desactivado por el administrador: ${blocked.join(", ")}`);
+      err.provider = blocked[0] || "desconocido";
+      throw err;
+    }
+  }
 
   // Modelo fuerte por proveedor para ESTE módulo; los proveedores sin modelo
   // apto quedan además deshabilitados por si el gateway intenta caer en ellos
@@ -202,10 +248,10 @@ async function callGatewayCollect(
   }
 
   const providersDisabled = [
-    // Fase A ya usa providerOrder estricto con modelos aptos. No heredamos el
-    // apagado global del panel admin porque puede dejar la planificación sin
-    // ningún proveedor aunque existan API keys válidas. Los apagados extra sí
-    // se respetan para descartar proveedores fallidos dentro de esta escalera.
+    // Apagados por el admin: jamás se usan, ni como fallback. Fase A puede
+    // quedarse sin proveedor si el administrador apaga todos los aptos; eso es
+    // preferible a llamar un proveedor explícitamente desactivado.
+    ...adminDisabled,
     ...(Array.isArray(providersDisabledExtra) ? providersDisabledExtra : []),
     ...sinModeloApto,
   ].filter((v, i, arr) => v && arr.indexOf(v) === i);
@@ -477,6 +523,7 @@ function normalizarVozBatch(data) {
       if (Array.isArray(momento.actividades)) {
         momento.actividades = momento.actividades.map(normalizarVozActividadMINERD);
       }
+      momento.evidencias = normalizarEvidenciasMomento(momento.evidencias, momento.nombre, momento.actividades || []);
     }
   }
   return data;
@@ -519,6 +566,7 @@ export const nombreCortoEstructura = (estructura) =>
 const PRODUCTO_GENERICO = [
   'presentación final', 'producción final', 'producto final sobre',
   'presentación/producción', 'que evidencie el dominio',
+  'producto integrador', 'producto integrador sobre', 'evidencia final sobre',
 ];
 
 const PRODUCT_RULES_BY_TOPIC = [
@@ -582,23 +630,31 @@ const EVIDENCIA_NO_EVALUABLE = [
   'participación activa en la clase', 'atención a la explicación',
 ];
 
-// Evidencias DESAGREGADAS (documento modelo): {conocimientos, desempeno,
-// producto} — al menos una clave con contenido; el Desarrollo exige desempeño
-// o producto; nada de "participación activa en el saludo".
+// Evidencias proporcionales al trabajo real: se conservan más evidencias solo
+// cuando las actividades producen artefactos o desempeños observables.
 const CLAVES_EVIDENCIA = ['conocimientos', 'desempeno', 'producto'];
-function validarEvidenciasMomento(ev, esDesarrollo, etiqueta) {
+function validarEvidenciasMomento(ev, nombreMomento, etiqueta) {
   if (!ev || typeof ev !== 'object' || Array.isArray(ev)) {
     throw new Error(`R4: ${etiqueta} — "evidencias" debe ser objeto {conocimientos/desempeno/producto} con arrays, no lista plana`);
   }
-  const presentes = CLAVES_EVIDENCIA.filter(
-    (k) => Array.isArray(ev[k]) && ev[k].filter((x) => String(x || '').trim()).length,
-  );
-  if (!presentes.length) {
-    throw new Error(`R4: ${etiqueta} — evidencias sin ninguna clave con contenido`);
+  const contar = (k) => Array.isArray(ev[k])
+    ? ev[k].filter((x) => String(x || '').trim()).length
+    : 0;
+  const nombre = _normTextoFoco(nombreMomento);
+  const c = contar('conocimientos');
+  const d = contar('desempeno');
+  const p = contar('producto');
+
+  if (nombre.includes('inicio') && (c < 1 || c > 1 || d !== 0 || p !== 0)) {
+    throw new Error(`R4: ${etiqueta} — Inicio debe traer 1 evidencia diagnóstica de conocimientos`);
   }
-  if (esDesarrollo && !presentes.includes('desempeno') && !presentes.includes('producto')) {
-    throw new Error(`R4: ${etiqueta} — el Desarrollo exige evidencias de desempeño o de producto`);
+  if (nombre.includes('desarrollo') && (c !== 0 || d + p < 1 || d + p > 3)) {
+    throw new Error(`R4: ${etiqueta} — Desarrollo debe traer de 1 a 3 evidencias derivadas de sus actividades`);
   }
+  if (nombre.includes('cierre') && (c !== 0 || d > 1 || p < 1 || d + p > 2)) {
+    throw new Error(`R4: ${etiqueta} — Cierre debe traer 1 o 2 evidencias de cierre vinculadas al producto/reflexión`);
+  }
+  const presentes = CLAVES_EVIDENCIA.filter((k) => contar(k));
   for (const k of presentes) {
     for (const e of ev[k]) {
       const vaga = EVIDENCIA_NO_EVALUABLE.find((b) => _normTextoFoco(e).includes(_normTextoFoco(b)));
@@ -612,6 +668,77 @@ const textoDesarrollo = (clase) =>
 
 const normalizarCodigo = (codigo) =>
   String(codigo || '').replaceAll('[', '').replaceAll(']', '').replace(/\s/g, '').toUpperCase().trim();
+
+const primeraEvidencia = (...grupos) => {
+  for (const grupo of grupos) {
+    const lista = Array.isArray(grupo) ? grupo : [];
+    const item = lista.map((x) => String(x || '').replace(/\s+/g, ' ').trim()).find(Boolean);
+    if (item) return item;
+  }
+  return '';
+};
+
+const PRODUCTO_ACTIVIDAD_RE = /\b(elaboran|construyen|redactan|escriben|completan|diseñan|crean|producen|preparan|presentan|guardan|entregan|socializan|registran|clasifican|organizan|resuelven|dibujan|arman|llenan)\b/i;
+const DESEMPENO_ACTIVIDAD_RE = /\b(participan|practican|simulan|dialogan|leen|escuchan|identifican|comparan|explican|analizan|observan|responden|intercambian|dramatizan)\b/i;
+
+const tomarEvidencias = (lista, max, fallback = []) => {
+  const out = [];
+  const seen = new Set();
+  const fuentes = [...(Array.isArray(lista) ? lista : []), ...(Array.isArray(fallback) ? fallback : [])];
+  for (const item of fuentes) {
+    const texto = String(item || '').replace(/\s+/g, ' ').trim();
+    const key = _normTextoFoco(texto);
+    if (!texto || seen.has(key)) continue;
+    seen.add(key);
+    out.push(texto);
+    if (out.length >= max) break;
+  }
+  return out;
+};
+
+function normalizarEvidenciasMomento(ev, nombreMomento = '', actividades = []) {
+  const base = ev && typeof ev === 'object' && !Array.isArray(ev) ? ev : {};
+  const conocimientos = Array.isArray(base.conocimientos) ? base.conocimientos : [];
+  const desempeno = Array.isArray(base.desempeno) ? base.desempeno : [];
+  const producto = Array.isArray(base.producto) ? base.producto : [];
+  const nombre = _normTextoFoco(nombreMomento);
+  const acts = Array.isArray(actividades) ? actividades.map((a) => String(a || '')) : [];
+  const actividadesProducto = acts.filter((a) => PRODUCTO_ACTIVIDAD_RE.test(a)).length;
+  const actividadesDesempeno = acts.filter((a) => DESEMPENO_ACTIVIDAD_RE.test(a)).length;
+
+  if (nombre.includes('inicio')) {
+    return {
+      conocimientos: [primeraEvidencia(conocimientos, desempeno, producto)].filter(Boolean),
+      desempeno: [],
+      producto: [],
+    };
+  }
+  if (nombre.includes('desarrollo')) {
+    const maxTotal = Math.min(3, Math.max(1, actividadesProducto + actividadesDesempeno));
+    const maxProducto = actividadesProducto >= 2 ? 2 : actividadesProducto === 1 ? 1 : 0;
+    const productos = tomarEvidencias(producto, Math.min(maxProducto || 1, maxTotal), [desempeno, conocimientos].flat());
+    const espacioDesempeno = Math.max(0, maxTotal - productos.length);
+    const desempenos = tomarEvidencias(desempeno, Math.min(espacioDesempeno || 1, maxTotal), [conocimientos, producto].flat());
+    return {
+      conocimientos: [],
+      desempeno: desempenos,
+      producto: productos,
+    };
+  }
+  if (nombre.includes('cierre')) {
+    const maxCierre = actividadesProducto >= 2 ? 2 : 1;
+    return {
+      conocimientos: [],
+      desempeno: [],
+      producto: tomarEvidencias(producto, maxCierre, [desempeno, conocimientos].flat()),
+    };
+  }
+  return {
+    conocimientos: conocimientos.slice(0, 1),
+    desempeno: desempeno.slice(0, 1),
+    producto: producto.slice(0, 1),
+  };
+}
 
 const textosUnicos = (items = []) => {
   const out = [];
@@ -874,7 +1001,7 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
           if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} "${m.nombre}" — ${voz.motivo}`);
         }
       }
-      validarEvidenciasMomento(m.evidencias, m.nombre === 'Desarrollo', `clase ${idx + 1} momento "${m.nombre}"`);
+      validarEvidenciasMomento(m.evidencias, m.nombre, `clase ${idx + 1} momento "${m.nombre}"`);
       if (!listaNoVacia(m.metacognicion)) {
         throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin metacognicion`);
       }
@@ -1019,6 +1146,30 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const contextoLinea = spec.contextoComunitario
     ? `- CONTEXTO COMUNITARIO REAL (palabras del docente — úsalo en situaciones y actividades; NO inventes otros datos locales): ${spec.contextoComunitario}`
     : '';
+  const secuenciaBase = Array.isArray(spec.secuenciaBase)
+    ? spec.secuenciaBase.slice(startDia - 1, startDia - 1 + count)
+    : [];
+  const secuenciaBaseTx = secuenciaBase.length
+    ? JSON.stringify(secuenciaBase.map((c, i) => ({
+      dia: startDia + i,
+      fase: c.fase,
+      tituloSemana: c.tituloSemana,
+      titulo: c.titulo,
+      foco: c.focoLinguistico,
+      secuencia: c.secuenciaPedagogica,
+      intencionPedagogica: c.intencionPedagogica,
+      aporteProducto: c.aporteProducto,
+      indicadoresTrabajados: c.indicadoresTrabajados,
+      inicio: {
+        saludoInicial: c.saludoInicial,
+        retroalimentacionPrevia: c.retroalimentacionPrevia,
+        saberesPrevios: c.saberesPrevios,
+        actividadEnganche: c.actividadEnganche,
+      },
+      desarrolloBase: c.momentos?.find((m) => m.nombre === 'Desarrollo')?.actividades || [],
+      cierreBase: c.momentos?.find((m) => m.nombre === 'Cierre')?.actividades || [],
+    })), null, 2)
+    : '';
 
   // Punto 5 — patrón del Desarrollo. El MODELO (Daily Routines) es el estándar
   // de calidad, pero solo el ramo de idiomas usa "Listening con propósito". Para
@@ -1089,9 +1240,10 @@ ${indText}
 - Procedimientos/funciones afines al tema — trabájalos a lo largo de la unidad, distribuidos entre las clases, sin omitirlos cuando apliquen: ${funcs}
 ${arquitecturaTx ? `${arquitecturaTx}\n` : ''}
 ${productoLinea ? `${productoLinea}\n` : ''}${contextoLinea ? `${contextoLinea}\n` : ''}${exprs ? `- Expresiones oficiales del tema (incrústalas en las situaciones comunicativas): ${exprs}\n` : ''}${formatearMemoria(memoria)}
-TAREA: Genera exactamente ${count} clase(s) — ${rango} de la Semana ${semanaNum}.
-Clases con PROGRESIÓN PEDAGÓGICA, DISTINTAS de las ya programadas.
-El foco curricular asignado debe trabajarse explícitamente en el Desarrollo.
+${secuenciaBaseTx ? `SECUENCIA BASE DOCENTEOS (NO ES DECORACIÓN): esta ruta ya fue armada desde la malla oficial y la situación de aprendizaje. Tu trabajo NO es inventar otra planificación desde cero: ENRIQUECE estas clases, conserva su fase, foco, aporte al producto e indicadores, y mejora actividades/evidencias/metacognición con más precisión docente.\n${secuenciaBaseTx}\n` : ''}
+TAREA: Enriquece y devuelve exactamente ${count} clase(s) — ${rango} de la Semana ${semanaNum}.
+Clases con PROGRESIÓN PEDAGÓGICA, DISTINTAS de las ya programadas, pero fieles a la SECUENCIA BASE DOCENTEOS cuando esté presente.
+El foco curricular asignado debe trabajarse explícitamente en el Desarrollo; no sustituyas el tema ni el producto por otro.
 SALIDA OBLIGATORIA: el JSON DEBE incluir la clave "clases" como arreglo con EXACTAMENTE ${count} clase(s). No basta con devolver adaptacionesSemana u observacionesSemana.
 
 REGLAS:
@@ -1102,7 +1254,7 @@ REGLAS:
 ${patronDesarrollo}
    Cierre: 3 actividades — socialización de lo producido → reflexión sobre UN aspecto específico del aprendizaje del día → guardar el artefacto en el portafolio o exit ticket con una producción nueva ("Guardan … en el portafolio para el producto final."). PROHIBIDO cerrar con frases genéricas como "reflexionan sobre lo aprendido"; nombra el contenido exacto y el aporte al producto.
 ${reglaInicio}
-7. CADA momento (incluido Inicio) incluye: "evidencias" DESAGREGADAS como objeto {"conocimientos":[...], "desempeno":[...], "producto":[...]} — al menos una clave con contenido; el Desarrollo SIEMPRE con desempeno o producto. Cada evidencia es observable y evaluable ("Construye oraciones en presente simple sobre su rutina", "Cinco oraciones escritas sobre su horario"); PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación"). Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
+7. EVIDENCIAS SEGÚN LAS ACTIVIDADES, NO POR CUOTA FIJA: cada momento incluye "evidencias" como {"conocimientos":[...], "desempeno":[...], "producto":[...]}, pero solo se registran evidencias que nacen de actividades observables. Inicio: 1 evidencia diagnóstica de conocimientos si activa saberes o comprensión inicial. Desarrollo: de 1 a 3 evidencias según lo que realmente hacen; si una actividad dice elaboran/completan/redactan/presentan/guardan, debe existir evidencia de producto; si practican/simulan/dialogan/analizan, evidencia de desempeño. Cierre: 1 o 2 evidencias vinculadas al producto, ticket de salida o reflexión final. Cada evidencia debe nombrar el contenido exacto o la pieza del producto; PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación") y las listas largas. Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.
 8. CADA clase incluye "indicadoresTrabajados": elige de 1 a 3 CÓDIGOS EXACTOS de los indicadores marcados en **negrita** arriba (son los que corresponden a este tema). Los ~~tachados~~ ya fueron trabajados en una unidad anterior — solo úsalos si el contenido del día los requiere directamente. Los marcados (REFORZAR) fueron trabajados pero el curso NO los logró en las evaluaciones reales: cuando el contenido del día lo permita, retómalos con actividades NUEVAS (no repitas las anteriores) y dales prioridad al elegir. Los sin marcado no aplican a esta secuencia. PROHIBIDO inventar códigos o usar indicadores fuera de la malla.
 9. CADA clase incluye "titulo" (título llamativo de la clase) e "intencionPedagogica" DIRECTA Y OBJETIVA con el formato oficial: "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el CONTENIDO ESPECÍFICO del día — nómbralo] mediante [las actividades concretas de ESTA clase], ${conQueEjem} — o su equivalente "con…", "a través de…", "comprendiendo…", [evidencia de logro observable]." PROHIBIDO el relleno vago SIN nombrar el contenido: "mediante una serie de actividades", "diversas actividades" — nombra siempre el contenido real de la malla (ej. idioma: "describirán sus hábitos y su frecuencia mediante comprensión oral y producción escrita, utilizando presente simple y adverbios de frecuencia"; ej. otra área: "clasificarán los tipos de ecosistemas de su comunidad mediante observación y comparación de casos, utilizando los criterios de biodiversidad y clima").
 10. CADA clase incluye encabezado pedagógico:
@@ -1120,7 +1272,7 @@ ${reglaInicio}
    • Ciencias / conceptual (ej. "ecosistemas"): acceso → "Ficha-guía con imágenes y definición clave de ecosistema en el pupitre"; metodologicas → "Organizador de doble columna: características → ejemplos del entorno"; evaluacion → "Identificar y marcar con círculo los elementos en una imagen, no describir por escrito".
    • observacionesSemana: qué observará el docente ESPECÍFICAMENTE esta semana (ej. "Observar si el estudiante identifica correctamente rooms vs furniture al hacer el matching; anotar cuáles confunde para reforzar en la próxima sesión").
 
-{"outputSchemaVersion":"1.3","semana":${semanaNum},${pedirNombreProducto ? '"productoFinalNombre":"...",' : ''}"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"...","saludoInicial":${spec.esIdioma ? '"Good morning! ..."' : '"¡Buenos días! ..."'},"retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en [técnica]: ...","...","...","...","..."],"evidencias":{"desempeno":["...","..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.3","semana":${semanaNum},${pedirNombreProducto ? '"productoFinalNombre":"...",' : ''}"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"...","saludoInicial":${spec.esIdioma ? '"Good morning! ..."' : '"¡Buenos días! ..."'},"retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en [técnica]: ...","...","...","...","..."],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote con rotación de proveedores ───────────────────────
@@ -1151,11 +1303,11 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   let truncadoPrevio = false;
   const providerOrderBase = await resolvePhaseAProviderOrder();
   const sinProveedorComposicion = providerOrderBase.length === 0;
-  const MAX_INTENTOS_POR_PROVEEDOR = 2;
+  const MAX_INTENTOS_POR_PROVEEDOR = 1;
   // Peldaños reales de la escalera: máximo 3 modelos CON SERVICIO (los
   // proveedores sin clave/apagados no consumen peldaño). Con 4 proveedores
   // aptos, un tope de 4+ dejaría el límite sin efecto.
-  const MAX_MODELOS_CON_SERVICIO = 3;
+  const MAX_MODELOS_CON_SERVICIO = 2;
   const fallosPorProveedor = new Map();
   const proveedoresProbados = new Set(); // con al menos un intento REAL (no sin-servicio)
   const anotarFallo = (p) => fallosPorProveedor.set(p, (fallosPorProveedor.get(p) || 0) + 1);
@@ -1288,7 +1440,10 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       const estructuralIncompleto = /falta clases\[\]|se esperaban \d+ clases/.test(msg);
       // Sin servicio: sin clave, apagado, cola vacía, 503 o timeout — descartar
       // directo y seguir con otro proveedor fuerte disponible.
-      const sinServicio = /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|Cola vacía|503|tiempo de espera/i.test(msg)
+      const presupuestoAgotado = isProviderBudgetError(err);
+      if (presupuestoAgotado) cooldownProviderForBudget(failedProvider, msg);
+      const sinServicio = presupuestoAgotado
+        || /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|Cola vacía|503|tiempo de espera|desactivad|apagado/i.test(msg)
         || err?.timeout === true;
       if (!sinServicio) proveedoresProbados.add(failedProvider);
       if (estructuralIncompleto || sinServicio) descartarProveedor(failedProvider);
@@ -1316,7 +1471,8 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
 }
 
 const esFalloRecuperablePorTamano = (err) =>
-  /JSON TRUNCADO|respuesta truncada|malformad|Unexpected end|respuesta vacía|Failed to fetch|No hay ningún servicio de Inteligencia Artificial/i.test(String(err?.message || err || ''));
+  /JSON TRUNCADO|respuesta truncada|malformad|Unexpected end|respuesta vacía/i.test(String(err?.message || err || ''))
+  && !isProviderBudgetError(err);
 
 function agregarClasesAMemoria(clases = [], semanaNum, memoriaAcumulada) {
   clases.forEach(c => {

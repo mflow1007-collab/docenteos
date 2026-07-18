@@ -623,7 +623,7 @@ function TabResumen({
 }
 
 // ─── Tab: Proveedores (catálogo completo + drag & drop) ───────────────────────
-function TabProveedores({ providerStatus, statusLoading, priority, savePriority, saving, models, onActivar }) {
+function TabProveedores({ providerStatus, statusLoading, priority, savePriority, saving, models, apagados = [], onActivar, onToggleApagado }) {
   const dragItem = useRef(null)
   const dragOver = useRef(null)
   const [dragId, setDragId] = useState(null)
@@ -660,6 +660,7 @@ function TabProveedores({ providerStatus, statusLoading, priority, savePriority,
         {ordered.map((prov, i) => {
           const configured = providerStatus?.providers?.[prov.id]?.configured ?? false
           const isPrimary  = i === 0
+          const isApagado  = apagados.includes(prov.id)
           return (
             <div
               key={prov.id}
@@ -678,18 +679,31 @@ function TabProveedores({ providerStatus, statusLoading, priority, savePriority,
                 <span>{models?.[prov.id] || prov.model}</span>
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                {configured
-                  ? <Badge label="Configurado" variant="green" />
-                  : <Badge label="Sin API Key" variant="dim" />}
-                {isPrimary && <Badge label="Principal" variant="blue" />}
+                {isApagado
+                  ? <Badge label="Desactivado" variant="red" />
+                  : configured
+                    ? <Badge label="Configurado" variant="green" />
+                    : <Badge label="Sin API Key" variant="dim" />}
+                {isPrimary && !isApagado && <Badge label="Principal" variant="blue" />}
                 {!isPrimary && (
                   <button
                     className="aim-btn aim-btn-primary"
                     style={{ fontSize: 11, padding: '4px 10px', width: 'auto' }}
+                    disabled={isApagado}
                     onClick={e => { e.stopPropagation(); onActivar(prov.id) }}
-                    title="Activar como principal (testea y mueve al puesto #1)"
+                    title={isApagado ? 'Está desactivado en el catálogo; actívalo primero' : 'Activar como principal (testea y mueve al puesto #1)'}
                   >
                     Activar
+                  </button>
+                )}
+                {isApagado && (
+                  <button
+                    className="aim-btn aim-btn-ghost"
+                    style={{ fontSize: 11, padding: '4px 10px', width: 'auto', color: 'var(--adm-success)' }}
+                    onClick={e => { e.stopPropagation(); onToggleApagado?.(prov.id) }}
+                    title="Volver a poner disponible este proveedor"
+                  >
+                    Activar uso
                   </button>
                 )}
               </div>
@@ -1126,7 +1140,10 @@ export default function AdminIA() {
           saveModels({ ...models, [provId]: data.model })
         }
         const next = [provId, ...priority.filter(p => p !== provId)]
-        savePriority(next)
+        const nextApagados = apagados.filter(p => p !== provId)
+        setPriority(next)
+        setApagados(nextApagados)
+        saveConfig(next, models, nextApagados)
         setActivacionOk(provId)
         setTimeout(() => setActivacionOk(null), 3500)
       }
@@ -1197,7 +1214,7 @@ export default function AdminIA() {
         <TabProveedores
           providerStatus={providerStatus} statusLoading={statusLoading}
           priority={priority} savePriority={savePriority} saving={saving}
-          models={models} onActivar={activar}
+          models={models} apagados={apagados} onActivar={activar} onToggleApagado={toggleApagado}
         />
       )}
       {tab === 'historial'    && <TabHistorial logs={logs}  loading={histLoading}  reload={histReload}  />}

@@ -5,7 +5,9 @@
  *   3A  producto final NOMBRADO + aporteProducto concreto por clase
  *   3B  actividadCLT {nombre, mecanica} nombrada y presente en el Desarrollo
  *   3C  anti-repetición GLOBAL de Desarrollos y técnicas + anti-copia de exemplars
- *   4   evidencias DESAGREGADAS {conocimientos/desempeno/producto} + NEAE por semana
+ *   4   evidencias PROPORCIONALES por momento (rediseño 2026-07-17): Inicio =
+ *       1 diagnóstica de conocimientos; Desarrollo = 1-3 de desempeño/producto
+ *       según las actividades; Cierre = 1-2 con producto obligatorio + NEAE
  *
  * Ejecutar: node scripts/test-contrato-v13.mjs
  */
@@ -72,7 +74,10 @@ const claseValida = (over = {}) => ({
         "Reflexionan sobre cómo describir su rutina en inglés.",
         "Guardan la producción escrita como Entrada 1 del Portafolio.",
       ],
-      evidencias: { desempeno: ["Comparte oralmente una oración de su rutina."] },
+      evidencias: {
+        desempeno: ["Comparte oralmente una oración de su rutina."],
+        producto: ["Oraciones de su rutina guardadas en el portafolio como Entrada 1."],
+      },
       metacognicion: ["What new sentence can I say today?", "How will I use this at home?"],
       recursos: ["Portafolio", "Pizarra"],
     },
@@ -210,15 +215,27 @@ check("evidencias como lista plana (v1.2) → rechazo", () => {
   esperaError(() => validateBatch(loteValido([clase]), DUR, 1, foco, { semanaNum: 2 }), "lista plana");
 });
 
-check("Desarrollo sin desempeño ni producto → rechazo", () => {
+check("Desarrollo sin desempeño ni producto → rechazo (cuota 1-3)", () => {
   const clase = claseValida();
   clase.momentos[1].evidencias = { conocimientos: ["Reconoce el vocabulario"] };
-  esperaError(() => validateBatch(loteValido([clase]), DUR, 1, foco, { semanaNum: 2 }), "desempeño o de producto");
+  esperaError(() => validateBatch(loteValido([clase]), DUR, 1, foco, { semanaNum: 2 }), "de 1 a 3 evidencias");
+});
+
+check("Inicio con más de 1 evidencia diagnóstica → rechazo (cuota)", () => {
+  const clase = claseValida();
+  clase.momentos[0].evidencias = { conocimientos: ["Nombra acciones.", "Reconoce horarios."] };
+  esperaError(() => validateBatch(loteValido([clase]), DUR, 1, foco, { semanaNum: 2 }), "Inicio debe traer 1 evidencia");
+});
+
+check("Cierre sin evidencia de producto → rechazo (cuota)", () => {
+  const clase = claseValida();
+  clase.momentos[2].evidencias = { desempeno: ["Comparte oralmente una oración de su rutina."] };
+  esperaError(() => validateBatch(loteValido([clase]), DUR, 1, foco, { semanaNum: 2 }), "Cierre debe traer");
 });
 
 check("evidencia no evaluable ('participación activa en el saludo') → rechazo", () => {
   const clase = claseValida();
-  clase.momentos[0].evidencias = { desempeno: ["Participación activa en el saludo inicial."] };
+  clase.momentos[0].evidencias = { conocimientos: ["Participación activa en el saludo inicial."] };
   esperaError(() => validateBatch(loteValido([clase]), DUR, 1, foco, { semanaNum: 2 }), "no evaluable");
 });
 
