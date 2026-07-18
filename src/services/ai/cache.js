@@ -14,10 +14,11 @@
 import { db } from "../../firebase.js";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-/** Hash SHA-256 del texto (usa primeros 2000 chars para rendimiento) */
+/** Hash SHA-256 del texto COMPLETO (SHA-256 sobre decenas de KB es trivial;
+ * truncar la entrada causaba colisiones entre prompts largos) */
 async function hashKey(text) {
   try {
-    const data = new TextEncoder().encode(text.slice(0, 2000));
+    const data = new TextEncoder().encode(text);
     const buf  = await crypto.subtle.digest("SHA-256", data);
     return Array.from(new Uint8Array(buf))
       .map((b) => b.toString(16).padStart(2, "0"))
@@ -26,11 +27,23 @@ async function hashKey(text) {
   } catch {
     // Fallback djb2 si crypto.subtle no está disponible
     let hash = 5381;
-    for (let i = 0; i < Math.min(text.length, 500); i++) {
+    for (let i = 0; i < Math.min(text.length, 4000); i++) {
       hash = ((hash << 5) + hash) ^ text.charCodeAt(i);
     }
     return (hash >>> 0).toString(36);
   }
+}
+
+/**
+ * Clave compuesta system+texto: cada parte se hashea POR SEPARADO.
+ * Antes se hasheaba `${sys}§${texto}` truncado a 2000 chars: con un system
+ * largo (doctrina B3 sola mide ~2350) el texto NUNCA entraba a la clave y
+ * todas las peticiones del módulo colisionaban en UNA entrada compartida
+ * entre docentes. G0.1 del Roadmap 6.
+ */
+async function claveCompuesta(sys, texto) {
+  const [hSys, hTexto] = await Promise.all([hashKey(sys), hashKey(texto)]);
+  return `${hSys}.${hTexto}`;
 }
 
 /**
@@ -78,11 +91,11 @@ export async function getCached(module, prompt, opts = {}) {
     // cacheado (antes podían servirse respuestas pre-doctrina hasta 7 días)
     const sys = String(opts.system || "");
     const semanticPart = useSemantic ? extractSemanticKey(prompt) : null;
-    const rawPart = await hashKey(`${sys}\u00a7${prompt}`);
+    const rawPart = await claveCompuesta(sys, prompt);
 
     // Intentar con clave semántica primero (mayor hit rate entre docentes)
     if (semanticPart) {
-      const semKey  = `${module}:sem:${await hashKey(`${sys}\u00a7${semanticPart}`)}`;
+      const semKey  = `${module}:sem:${await claveCompuesta(sys, semanticPart)}`;
       const semSnap = await getDoc(doc(db, "aiCache", semKey));
       if (semSnap.exists()) {
         const semData = semSnap.data();
@@ -125,13 +138,13 @@ export async function setCached(module, prompt, response, ttlHours = 24, system 
     const writes = [];
 
     // Clave hash completo (siempre)
-    const rawKey = `${module}:${await hashKey(`${sys}\u00a7${prompt}`)}`;
+    const rawKey = `${module}:${await claveCompuesta(sys, prompt)}`;
     writes.push(setDoc(doc(db, "aiCache", rawKey), basePayload, { merge: true }));
 
     // Clave semántica (cuando aplica)
     const semanticPart = extractSemanticKey(prompt);
     if (semanticPart) {
-      const semKey = `${module}:sem:${await hashKey(`${sys}\u00a7${semanticPart}`)}`;
+      const semKey = `${module}:sem:${await claveCompuesta(sys, semanticPart)}`;
       writes.push(setDoc(doc(db, "aiCache", semKey), { ...basePayload, semanticKey: semanticPart }, { merge: true }));
     }
 
