@@ -466,6 +466,134 @@ export const sugerirTemasATrabajar = (curriculoData, temaLibre) => {
   };
 };
 
+const productoInicialPorRuta = (temas = [], { area = "", asignatura = "" } = {}) => {
+  const texto = _norm(temas.join(" "));
+  const esIdioma = /ingles|frances|lenguas extranjeras|english|french/.test(_norm(`${area} ${asignatura}`));
+  if (esIdioma) {
+    if (/identificacion|personal|relaciones|social|familia|amigos|people|friends/.test(texto)) {
+      return "People Around Me: Social Interaction Portfolio";
+    }
+    if (/rutina|vida diaria|daily|routine|habitos/.test(texto)) {
+      return "My Daily Routine and Healthy Habits Portfolio";
+    }
+    if (/vivienda|entorno|ciudad|house|home|city/.test(texto)) {
+      return "My Home and Community Tour Portfolio";
+    }
+    return "My Learning Portfolio";
+  }
+  return `Portafolio de evidencias sobre ${temas[0] || "la unidad"}`;
+};
+
+const tituloInicialPorRuta = (temas = [], { area = "", asignatura = "" } = {}) => {
+  const texto = _norm(temas.join(" "));
+  const esIdioma = /ingles|frances|lenguas extranjeras|english|french/.test(_norm(`${area} ${asignatura}`));
+  if (esIdioma) {
+    if (/identificacion|personal|relaciones|social|familia|amigos|people|friends/.test(texto)) {
+      return "People Around Me";
+    }
+    if (/rutina|vida diaria|daily|routine|habitos/.test(texto)) return "My Daily Life";
+    if (/vivienda|entorno|ciudad|house|home|city/.test(texto)) return "My Home and Community";
+  }
+  return temas[0] || "Unidad de aprendizaje";
+};
+
+/**
+ * Sugiere rutas iniciales cuando el docente todavía no ha escrito tema.
+ * La fuente es la malla: se priorizan los primeros temas oficiales porque
+ * normalmente abren el año y permiten construir identidad, diagnóstico y
+ * lenguaje base antes de avanzar a contextos más complejos.
+ */
+export const sugerirRutasInicialesAsesor = (curriculoData, contexto = {}) => {
+  const temas = (curriculoData?.temasCurriculares || [])
+    .map(textoTema)
+    .map((tema) => String(tema || "").trim())
+    .filter(Boolean)
+    .filter((tema, index, lista) => lista.findIndex((t) => _norm(t) === _norm(tema)) === index);
+  if (!temas.length) return [];
+
+  const primeras = temas.slice(0, 3);
+  const rutas = [];
+
+  if (primeras.length >= 2) {
+    const temasRuta = primeras.slice(0, Math.min(3, primeras.length));
+    rutas.push({
+      id: "inicio_anio",
+      etiqueta: "Recomendación inicial",
+      titulo: tituloInicialPorRuta(temasRuta, contexto),
+      temas: temasRuta,
+      semanas: Math.min(6, Math.max(4, temasRuta.length * 2)),
+      productoFinal: productoInicialPorRuta(temasRuta, contexto),
+      razon: "Conviene iniciar con los primeros temas de la malla porque permiten diagnosticar saberes previos, construir vocabulario base y avanzar con una secuencia natural hacia un producto integrador.",
+      focoSemanal: temasRuta.map((tema, index) => ({
+        semana: index + 1,
+        tema,
+        aporte: index === 0
+          ? "Presentar la situación de aprendizaje, activar saberes previos y construir la primera pieza del producto."
+          : "Ampliar el contenido anterior y añadir una nueva pieza conectada al producto final.",
+      })),
+    });
+  }
+
+  const alternativas = [
+    {
+      id: "alternativa_siguiente_bloque",
+      etiqueta: "Alternativa",
+      temas: temas.slice(1, 4),
+      razon: "Esta ruta funciona si el docente prefiere avanzar hacia el siguiente bloque de la malla, manteniendo una progresión contextual sin empezar necesariamente por el primer tema.",
+    },
+    {
+      id: "alternativa_integrada",
+      etiqueta: "Alternativa integradora",
+      temas: [temas[0], temas[2], temas[3]].filter(Boolean),
+      razon: "Esta opción integra el tema inicial con contenidos posteriores para construir un producto más amplio, útil cuando el curso tiene buen diagnóstico inicial o más tiempo disponible.",
+    },
+  ];
+
+  alternativas.forEach((alt) => {
+    const temasAlt = alt.temas
+      .filter(Boolean)
+      .filter((tema, index, lista) => lista.findIndex((t) => _norm(t) === _norm(tema)) === index);
+    if (temasAlt.length < 2) return;
+    rutas.push({
+      id: alt.id,
+      etiqueta: alt.etiqueta,
+      titulo: tituloInicialPorRuta(temasAlt, contexto),
+      temas: temasAlt,
+      semanas: Math.min(6, Math.max(4, temasAlt.length * 2)),
+      productoFinal: productoInicialPorRuta(temasAlt, contexto),
+      razon: alt.razon,
+      focoSemanal: temasAlt.map((tema, index) => ({
+        semana: index + 1,
+        tema,
+        aporte: index === 0
+          ? "Abrir la unidad desde este foco, diagnosticar saberes y definir la primera pieza del producto."
+          : "Conectar este contenido con lo anterior y agregar una nueva evidencia al producto final.",
+      })),
+    });
+  });
+
+  if (temas.length) {
+    const tema = temas[0];
+    rutas.push({
+      id: "primer_tema",
+      etiqueta: "Ruta corta",
+      titulo: tituloInicialPorRuta([tema], contexto),
+      temas: [tema],
+      semanas: 4,
+      productoFinal: productoInicialPorRuta([tema], contexto),
+      razon: "Si quieres empezar con una unidad más concentrada, el primer tema oficial funciona bien para diagnóstico, nivelación y producción inicial sin mezclar demasiados contenidos.",
+      focoSemanal: [
+        { semana: 1, tema, aporte: "Explorar la situación y acordar el producto." },
+        { semana: 2, tema, aporte: "Construir vocabulario, conceptos o procedimientos base." },
+        { semana: 3, tema, aporte: "Aplicar el aprendizaje en una tarea guiada." },
+        { semana: 4, tema, aporte: "Mejorar, socializar y cerrar el producto." },
+      ],
+    });
+  }
+
+  return rutas;
+};
+
 // ── Consulta por semana ──────────────────────────────────────────────────────
 
 /**
@@ -505,4 +633,5 @@ export default {
   temaNecesitaCombinacion,
   sugerirTemaOficial,
   sugerirTemasATrabajar,
+  sugerirRutasInicialesAsesor,
 };

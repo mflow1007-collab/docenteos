@@ -17,7 +17,13 @@ import {
   temasOficialesDeMalla,
   esMismoGradoEscolar,
 } from "../services/bancoConocimientoService.js";
-import { sugerirTemasATrabajar, sugerirTemaOficial, normalizarTema, coincideContextoTemaTrabajado } from "../services/curriculumCombinacionService";
+import {
+  sugerirTemasATrabajar,
+  sugerirTemaOficial,
+  sugerirRutasInicialesAsesor,
+  normalizarTema,
+  coincideContextoTemaTrabajado,
+} from "../services/curriculumCombinacionService";
 import { horasOficialesSecundaria } from "../data/cargaHorariaMINERD.js";
 
 const GRADOS = [
@@ -412,6 +418,14 @@ export default function FormularioUnidadAprendizaje({
   const temaYaTrabajado = (t) => trabajadosResueltos.has(normalizarTema(t));
   const estiloTrabajado = { textDecoration: "line-through", opacity: 0.7 };
 
+  const rutasInicialesAsesor = useMemo(() => {
+    if (!temasMalla.length || (titulo || "").trim()) return [];
+    return sugerirRutasInicialesAsesor(
+      { temasCurriculares: temasMalla },
+      { area, asignatura: asignatura || area, grado, nivel: nivelEfectivo }
+    );
+  }, [temasMalla, titulo, area, asignatura, grado, nivelEfectivo]);
+
   // Semanas que sugiere una combinación ("5-6 semanas" → 5); si no trae
   // duración, ~2 semanas por tema acotado a 4-8
   const semanasDeCombinacion = (op) => {
@@ -434,6 +448,21 @@ export default function FormularioUnidadAprendizaje({
     setModoElegido(textoUI(op.nombre));
     setMostrarPropia(false);
     onChange({ ...datos, temasSeleccionados: (op.temas || []).map(textoUI).filter(Boolean), numSemanas: semanasDeCombinacion(op) });
+  };
+
+  const usarRutaInicial = (ruta) => {
+    const temasRuta = (ruta?.temas || []).map(textoUI).filter(Boolean);
+    const tituloRuta = textoUI(ruta?.titulo) || temasRuta[0] || "";
+    setModoElegido(ruta?.id || "ruta_inicial");
+    setMostrarPropia(false);
+    setTemasPropios(temasRuta);
+    onChange({
+      ...datos,
+      titulo: tituloRuta,
+      temasSeleccionados: temasRuta.length > 1 ? temasRuta : [],
+      numSemanas: ruta?.semanas || numSemanas,
+      productoFinalTexto: productoFinalTexto || textoUI(ruta?.productoFinal),
+    });
   };
 
   const abrirPropia = () => {
@@ -627,6 +656,119 @@ export default function FormularioUnidadAprendizaje({
         </div>
       </div>
 
+      {estadoCurriculoAsesor.status === "ready" && !(titulo || "").trim() && rutasInicialesAsesor.length > 0 && (
+        <div
+          className="ua-rec-panel"
+          style={{
+            background: "linear-gradient(135deg, #f5f3ff 0%, #eef2ff 100%)",
+            borderColor: "#a78bfa",
+            marginTop: 12,
+          }}
+        >
+          <div className="ua-rec-header">
+            <span className="ua-rec-tag" style={{ background: "#7c3aed", color: "white" }}>
+              Asesor Pedagógico
+            </span>
+            <span className="ua-rec-title" style={{ color: "#4c1d95" }}>
+              Sugerencias antes de elegir tema
+            </span>
+          </div>
+
+          <div className="ua-rec-body">
+            <p style={{ color: "#4c1d95", fontWeight: 800, margin: "0 0 6px" }}>
+              Malla curricular oficial verificada.
+            </p>
+            <p style={{ color: "#5b21b6", margin: "0 0 12px", fontSize: 13 }}>
+              Puedes iniciar con una ruta recomendada por DocenteOS según los primeros temas oficiales de la malla y una progresión natural hacia un producto final.
+            </p>
+
+            {rutasInicialesAsesor.map((ruta, index) => (
+              <div
+                key={ruta.id || index}
+                style={{
+                  background: "rgba(255,255,255,.92)",
+                  border: `2px solid ${index === 0 ? "#8b5cf6" : "#c4b5fd"}`,
+                  borderRadius: 10,
+                  padding: "12px",
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+                  <div style={{ minWidth: 220, flex: "1 1 300px" }}>
+                    <div style={{ color: "#4c1d95", fontWeight: 900, fontSize: 14 }}>
+                      {index === 0 ? "✨ " : ruta.etiqueta?.toLowerCase?.().includes("alternativa") ? "🔀 " : "📍 "}
+                      {ruta.etiqueta}: {ruta.titulo}
+                    </div>
+                    <div style={{ color: "#5b21b6", fontSize: 12, marginTop: 4 }}>
+                      {ruta.semanas} semanas · Producto final: <strong>{ruta.productoFinal}</strong>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => usarRutaInicial(ruta)}
+                    disabled={cargando}
+                    style={{
+                      padding: "7px 14px",
+                      borderRadius: 8,
+                      background: "#7c3aed",
+                      color: "white",
+                      border: "none",
+                      fontWeight: 800,
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Usar esta ruta
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 9 }}>
+                  {(ruta.temas || []).map((t) => (
+                    <span
+                      key={t}
+                      className="pd-campo-badge"
+                      title={temaYaTrabajado(t) ? "Ya trabajaste este tema — puedes volver a elegirlo" : undefined}
+                      style={{
+                        background: "#ede9fe",
+                        color: "#4c1d95",
+                        border: "1px solid #c4b5fd",
+                        ...(temaYaTrabajado(t) ? estiloTrabajado : {}),
+                      }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+
+                <p style={{ color: "#5b21b6", fontSize: 12, fontStyle: "italic", margin: "8px 0 0" }}>
+                  {ruta.razon}
+                </p>
+
+                {Array.isArray(ruta.focoSemanal) && ruta.focoSemanal.length > 0 && (
+                  <div style={{ marginTop: 9, display: "grid", gap: 5 }}>
+                    {ruta.focoSemanal.slice(0, 4).map((item) => (
+                      <div
+                        key={`${ruta.id}-${item.semana}-${item.tema}`}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "82px minmax(0, 1fr)",
+                          gap: 8,
+                          color: "#4c1d95",
+                          fontSize: 12,
+                        }}
+                      >
+                        <strong>Semana {item.semana}</strong>
+                        <span><strong>{item.tema}:</strong> {item.aporte}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Título de la unidad */}
       <div className="pd-field pd-field-full" style={{ marginTop: 12 }}>
         <label>Título de la Unidad <span className="pd-req">*</span></label>
@@ -671,7 +813,7 @@ export default function FormularioUnidadAprendizaje({
             </p>
           </div>
         </div>
-      ) : estadoCurriculoAsesor.status === "ready" && !sugerenciaTema ? (
+      ) : estadoCurriculoAsesor.status === "ready" && !sugerenciaTema && ((titulo || "").trim().length >= 3 || rutasInicialesAsesor.length === 0) ? (
         <div
           className="ua-rec-panel"
           style={{ background: "#eff6ff", borderColor: "#93c5fd" }}
@@ -684,11 +826,76 @@ export default function FormularioUnidadAprendizaje({
             <p style={{ color: "#1e3a8a", fontWeight: 700, margin: "0 0 6px" }}>
               Malla curricular oficial verificada.
             </p>
-            <p style={{ color: "#1e3a8a", margin: 0, fontSize: 13 }}>
-              {(titulo || "").trim().length >= 3
-                ? "El tema escrito no coincide todavía con un tema oficial de esta malla."
-                : "Escribe el título o tema de la unidad para buscar su tema oficial en la malla."}
-            </p>
+            {(titulo || "").trim().length >= 3 ? (
+              <p style={{ color: "#1e3a8a", margin: 0, fontSize: 13 }}>
+                El tema escrito no coincide todavía con un tema oficial de esta malla.
+              </p>
+            ) : rutasInicialesAsesor.length > 0 ? (
+              <>
+                <p style={{ color: "#1e3a8a", margin: "0 0 10px", fontSize: 13 }}>
+                  Antes de escribir el tema, puedes iniciar con una ruta sugerida desde la malla oficial.
+                </p>
+                {rutasInicialesAsesor.map((ruta, index) => (
+                  <div
+                    key={ruta.id || index}
+                    style={{
+                      background: "white",
+                      border: "2px solid #bfdbfe",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                      <div>
+                        <span style={{ color: "#1d4ed8", fontWeight: 800, fontSize: 13 }}>
+                          {index === 0 ? "✨ " : "📍 "}{ruta.etiqueta}: {ruta.titulo}
+                        </span>
+                        <div style={{ color: "#1e3a8a", fontSize: 12, marginTop: 3 }}>
+                          {ruta.semanas} semanas · Producto: <strong>{ruta.productoFinal}</strong>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => usarRutaInicial(ruta)}
+                        disabled={cargando}
+                        style={{
+                          padding: "6px 14px",
+                          borderRadius: 8,
+                          background: "#1d4ed8",
+                          color: "white",
+                          border: "none",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Usar esta ruta
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                      {(ruta.temas || []).map((t) => (
+                        <span
+                          key={t}
+                          className="pd-campo-badge"
+                          title={temaYaTrabajado(t) ? "Ya trabajaste este tema — puedes volver a elegirlo" : undefined}
+                          style={{ background: "#dbeafe", color: "#1e3a8a", ...(temaYaTrabajado(t) ? estiloTrabajado : {}) }}
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    <p style={{ color: "#1e3a8a", fontSize: 12, fontStyle: "italic", margin: "8px 0 0" }}>
+                      {ruta.razon}
+                    </p>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <p style={{ color: "#1e3a8a", margin: 0, fontSize: 13 }}>
+                Escribe el título o tema de la unidad para buscar su tema oficial en la malla.
+              </p>
+            )}
           </div>
         </div>
       ) : sugerenciaTema ? (
