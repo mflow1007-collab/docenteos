@@ -2711,9 +2711,23 @@ export const generarUnidadAprendizaje = async (datos) => {
 
   // Índices planos del corpus (payload level) — deben existir antes de chequeo (c)
   const allComps = Array.isArray(mallaPayload.competencias) ? mallaPayload.competencias : [];
-  const allInds  = Array.isArray(mallaPayload.indicadoresLogro)
+  // v1.2 los trae PLANOS en payload.indicadoresLogro; v1.3 los trae ANIDADOS en
+  // competencias[].indicadoresLogro. Sin este aplanado, el spec viaja sin
+  // indicadores y la base curricular no puede asignar códigos por día (el
+  // resumen semanal quedaba en "—" aunque el componente curricular sí los
+  // mostraba, porque competenciasDetalle lee los anidados por su propia vía).
+  const allIndsPlanos = Array.isArray(mallaPayload.indicadoresLogro) && mallaPayload.indicadoresLogro.length
     ? mallaPayload.indicadoresLogro
-    : Array.isArray(mallaPayload.indicadores) ? mallaPayload.indicadores : [];
+    : Array.isArray(mallaPayload.indicadores) && mallaPayload.indicadores.length
+      ? mallaPayload.indicadores
+      : [];
+  const allInds = allIndsPlanos.length
+    ? allIndsPlanos
+    : allComps.flatMap((comp) =>
+        (Array.isArray(comp.indicadoresLogro) ? comp.indicadoresLogro : (comp.indicadores || []))
+          .map((ind) => (typeof ind === "string"
+            ? { descripcion: ind, competenciaId: comp.id || comp.codigo || "" }
+            : { ...ind, competenciaId: ind.competenciaId || comp.id || comp.codigo || "" })));
 
   if (!allComps.length && !allInds.length) {
     throw new Error(
