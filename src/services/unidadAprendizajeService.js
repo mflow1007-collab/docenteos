@@ -1363,8 +1363,15 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
     const conceptos = bloqueTema.conceptos || {};
     const procedimientos = bloqueTema.procedimientos || {};
     const vocabulario = textosUnicos(extraerEjemplos(conceptos.vocabulario || []));
-    const gramatica = textosUnicos(toArray(conceptos.gramatica || conceptos.gramática)
-      .map((g) => typeof g === "object" ? g.estructura : g));
+    // Detalle con ejemplos oficiales: el documento modelo imprime cada
+    // estructura con sus ejemplos en cursiva ("Presente simple... (I wake up
+    // at 6:00 a.m.)"). El corpus los trae en g.ejemplos y antes se descartaban.
+    const gramaticaDetalle = toArray(conceptos.gramatica || conceptos.gramática)
+      .map((g) => (g && typeof g === "object"
+        ? { estructura: String(g.estructura || "").trim(), ejemplos: textosUnicos(toArray(g.ejemplos).map(String)) }
+        : { estructura: String(g || "").trim(), ejemplos: [] }))
+      .filter((g) => g.estructura);
+    const gramatica = textosUnicos(gramaticaDetalle.map((g) => g.estructura));
     const expresiones = textosUnicos([
       ...extraerEjemplos(conceptos.frases || []),
       ...extraerEjemplos(conceptos.expresiones || []),
@@ -1393,6 +1400,12 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
       ...(bloqueTema.actitudinales || []),
       ...(bloqueTema.actitudesValores || []),
     ]);
+    // Evidencias de aprendizaje del tema (4ta columna del documento modelo)
+    const evidenciasAprendizaje = textosUnicos([
+      ...toArray(bloqueTema.evidencias).map(String),
+      ...toArray(bloqueTema.evidenciasAprendizaje).map(String),
+      ...toArray(bloqueTema.evidenciasEsperadas).map(String),
+    ].map((t) => t.trim()).filter(Boolean));
     const conceptuales = textosUnicos([
       ...vocabulario,
       ...gramatica,
@@ -1401,9 +1414,11 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
     return {
       vocabulario,
       gramatica,
+      gramaticaDetalle,
       expresiones,
       funcionales,
       actitudinales,
+      evidenciasAprendizaje,
       conceptuales,
       procedimentales: funcionales,
       fuenteContenido: 'contenidosPorTema',
@@ -2857,10 +2872,28 @@ export const generarUnidadAprendizaje = async (datos) => {
         `Corrige el JSON en Administración → Potente IA o recarga la versión vigente.`
       );
     }
+    // G3a — agrupación POR TEMA como el documento modelo (págs. 5-8): cada
+    // tema con su Vocabulario, Gramática (ejemplos en cursiva), Funcionales,
+    // Discursivos, Actitudes y Evidencias de aprendizaje. Las listas planas de
+    // arriba se conservan para compatibilidad (validador y unidades guardadas).
+    const porTema = (mallaContenidos.contenidosPorTemaResueltos || [])
+      .filter((c) => c && (c.vocabulario?.length || c.gramatica?.length || c.funcionales?.length))
+      .map((c) => ({
+        tema: c.temaContenido || c.temaOficial || "",
+        vocabulario: textosUnicos(c.vocabulario || []),
+        gramaticaDetalle: Array.isArray(c.gramaticaDetalle) && c.gramaticaDetalle.length
+          ? c.gramaticaDetalle
+          : textosUnicos(c.gramatica || []).map((g) => ({ estructura: g, ejemplos: [] })),
+        expresiones: textosUnicos(c.expresiones || []),
+        funcionales: textosUnicos(c.funcionales || []),
+        actitudinales: textosUnicos(c.actitudinales || []),
+        evidenciasAprendizaje: textosUnicos(c.evidenciasAprendizaje || []),
+      }));
     return {
       conceptuales,
       procedimentales,
       actitudinales,
+      porTema,
       _seleccionPDF: true,
       _fuente: mallaContenidos.fuenteContenido || "contenidosPorTema",
       _temasActivos: textosUnicos(rutaCurricular.temas || mallaContenidos.temasContenido || []),
@@ -3178,6 +3211,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     .cont-col { border: 1px solid #93c5fd; }
     .cont-head { background: #bfdbfe; padding: 4px 8px; font-weight: bold; font-size: 11pt; }
     .cont-list { padding: 4px 8px 4px 18px; margin: 0; font-size: 12pt; }
+    .cont-table td { font-size: 10.5pt; }
+    .cont-table .cont-list { font-size: 10.5pt; padding: 2px 4px 4px 16px; }
+    .cont-sub { font-weight: bold; margin: 5px 0 1px; font-size: 10.5pt; }
+    .cont-tema { margin-bottom: 3px; font-size: 10.5pt; }
     .curriculo-meta { font-size: 10.5pt; color: #334155; margin: 3px 0 8px; }
     .modelo-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
     .modelo-table th { background: #1d4ed8; color: white; border: 1px solid #1e40af; padding: 5px 6px; font-size: 10.5pt; text-align: left; }
@@ -3544,19 +3581,67 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   })()}
 
   <div class="section-head">CONTENIDOS</div>
-  <div class="contenidos">
+  ${(() => {
+    // G3a — agrupación POR TEMA (documento modelo, págs. 5-8): 4 columnas
+    // (Conceptos / Procedimientos / Actitudes y valores / Evidencias de
+    // aprendizaje), cada tema como bloque con sus subtítulos y la gramática
+    // con ejemplos oficiales en cursiva. Fallback: columnas planas legacy
+    // para unidades guardadas sin porTema.
+    const grupos = unidad.contenidos?.porTema || [];
+    if (!grupos.length) {
+      return `<div class="contenidos">
     <div class="cont-col"><div class="cont-head">Conceptuales</div><ul class="cont-list">${(unidad.contenidos?.conceptuales || []).map((c) => {
-      // Resalta la etiqueta de tipo ("Vocabulario:", "Gramática:", "Expresión:")
-      // en negrita, como los subtítulos del documento modelo.
-      const m = String(c).match(/^(Vocabulario|Gramática|Expresión):\s*(.*)$/s);
-      return m ? `<li><strong>${m[1]}:</strong> ${m[2]}</li>` : `<li>${c}</li>`;
-    }).join("")}</ul></div>
+        const m = String(c).match(/^(Vocabulario|Gramática|Expresión):\s*(.*)$/s);
+        return m ? `<li><strong>${m[1]}:</strong> ${m[2]}</li>` : `<li>${c}</li>`;
+      }).join("")}</ul></div>
     <div class="cont-col"><div class="cont-head">Procedimentales</div><ul class="cont-list">${(unidad.contenidos?.procedimentales || []).map((c) => {
-      const m = String(c).match(/^(Funcional|Discursivo):\s*(.*)$/s);
-      return m ? `<li><strong>${m[1]}:</strong> ${m[2]}</li>` : `<li>${c}</li>`;
-    }).join("")}</ul></div>
+        const m = String(c).match(/^(Funcional|Discursivo):\s*(.*)$/s);
+        return m ? `<li><strong>${m[1]}:</strong> ${m[2]}</li>` : `<li>${c}</li>`;
+      }).join("")}</ul></div>
     <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${(unidad.contenidos?.actitudinales || []).map((c) => `<li>${c}</li>`).join("")}</ul></div>
-  </div>
+  </div>`;
+    }
+    const li = (t) => `<li>${t}</li>`;
+    const separarProcedimientos = (funcionales = []) => {
+      const func = [], disc = [], otros = [];
+      for (const f of funcionales) {
+        const m = String(f).match(/^(Funcional|Discursivo):\s*(.*)$/s);
+        if (!m) { otros.push(f); continue; }
+        (m[1] === "Funcional" ? func : disc).push(m[2]);
+      }
+      return { func, disc, otros };
+    };
+    const conceptosTema = (g) => [
+      g.vocabulario.length ? `<div class="cont-sub">Vocabulario</div><ul class="cont-list">${g.vocabulario.map(li).join("")}</ul>` : "",
+      g.gramaticaDetalle.length ? `<div class="cont-sub">Gramática</div><ul class="cont-list">${g.gramaticaDetalle.map((gd) =>
+        `<li>${gd.estructura}${gd.ejemplos.length ? ` <em>(${gd.ejemplos.join(" ")})</em>` : ""}</li>`).join("")}</ul>` : "",
+      g.expresiones.length ? `<div class="cont-sub">Sociolingüísticos y socioculturales</div><ul class="cont-list">${g.expresiones.map(li).join("")}</ul>` : "",
+    ].filter(Boolean).join("");
+    const procedimientosTema = (g) => {
+      const { func, disc, otros } = separarProcedimientos(g.funcionales);
+      return [
+        func.length ? `<div class="cont-sub">Funcionales</div><ul class="cont-list">${func.map(li).join("")}</ul>` : "",
+        disc.length ? `<div class="cont-sub">Discursivos</div><ul class="cont-list">${disc.map(li).join("")}</ul>` : "",
+        otros.length ? `<ul class="cont-list">${otros.map(li).join("")}</ul>` : "",
+      ].filter(Boolean).join("");
+    };
+    // Evidencias de aprendizaje: por tema si la malla las trae; si no, la
+    // lista de actitudes globales de la unidad (como el documento modelo, que
+    // las presenta en una sola celda para toda la tabla).
+    const evidenciasGlobales = textosUnicos(grupos.flatMap((g) => g.evidenciasAprendizaje || []));
+    const evidenciasCol = evidenciasGlobales.length ? evidenciasGlobales : (unidad.contenidos?.actitudinales || []);
+    const filas = grupos.map((g, i) => `
+      <tr>
+        <td style="width:27%;vertical-align:top"><div class="cont-tema"><strong>Temas</strong><br><strong>${g.tema}</strong></div>${conceptosTema(g)}</td>
+        <td style="width:27%;vertical-align:top"><div class="cont-tema"><strong>${g.tema}</strong></div>${procedimientosTema(g)}</td>
+        <td style="width:26%;vertical-align:top"><div class="cont-tema"><strong>${g.tema}</strong></div><ul class="cont-list">${(g.actitudinales || []).map(li).join("")}</ul></td>
+        ${i === 0 ? `<td style="width:20%;vertical-align:top" rowspan="${grupos.length}"><ul class="cont-list">${evidenciasCol.map(li).join("")}</ul></td>` : ""}
+      </tr>`).join("");
+    return `<table class="checkpoint-table cont-table">
+      <tr><th style="width:27%">Conceptos</th><th style="width:27%">Procedimientos</th><th style="width:26%">Actitudes y valores</th><th>Evidencias de aprendizaje</th></tr>
+      ${filas}
+    </table>`;
+  })()}
 
   ${progresionHtml}
 
