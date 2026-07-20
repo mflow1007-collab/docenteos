@@ -1891,119 +1891,244 @@ const _generarFasesConIA = async (
   const esFocoInternoUnidad = (texto = "") =>
     /apropiacion de la unidad|situacion de aprendizaje|producto|evaluacion|criterios/.test(normalizarClaveDidactica(texto));
 
-  const detectarPatronActividad = ({ temaSemana = "", specActual = specBase, productoNombre = "" }) => {
-    const contenidos = specActual?.contenidosClaves || {};
-    const texto = normalizarClaveDidactica([
-      temaSemana,
-      specActual?.temaOficial,
-      productoNombre,
-      ...(contenidos.vocabulario || []),
-      ...(contenidos.gramatica || []),
-      ...(contenidos.funcionales || []),
-      ...(contenidos.expresiones || []),
-    ].join(" "));
+  // ─── G3b/G3c — motor de progresión y catálogo de actividades del modelo ────
+  // El documento de referencia del dueño ("My Life and Daily Routines") avanza
+  // UNA estructura protagonista por día, con una actividad nombrada distinta
+  // cada clase (Listen and X + misión + producción + socialización) y una
+  // pieza del producto ÚNICA derivada de esa estructura. Nada de rotar las
+  // mismas 4 piezas ni repetir el mismo bloque gramatical 4 días seguidos.
 
-    if (/daily|routine|rutina|vida diaria|habits?|habitos|hora|time|frequency|frecuencia|morning|afternoon|evening|go to school|take the metro|get up|wake up/.test(texto)) {
-      return "daily_life";
-    }
-    if (/people|persona|relacion|social|famil|friend|amigo|cortesia|courtesy|greeting|saludo|conversation|conversacion|help|ayuda|presentacion/.test(texto)) {
-      return "people_social";
-    }
-    if (/house|home|vivienda|casa|room|habitacion|bedroom|kitchen|bathroom|city|ciudad|entorno|community|comunidad|place|lugar|there is|there are|there was|there were/.test(texto)) {
-      return "home_city";
-    }
-    return "general";
-  };
+  const resolverProtagonistaDia = ({ specActual = specBase, fase, indiceEnFase = 0, indiceGlobal = 0 }) => {
+    const limpiar = (t) => limpiarEtiquetaContenido(String(t || "").trim());
+    const gramaticaAll = textosUnicos((specActual.contenidosClaves?.gramatica || []).map(limpiar)).filter(Boolean);
+    const expresionesAll = textosUnicos((specActual.contenidosClaves?.expresiones || []).map(limpiar)).filter(Boolean);
+    const faseNum = fase?.numero || 1;
+    const diasFase1 = fases?.[0]?.dias?.length || 0;
 
-  const elegirPiezaProducto = ({ patron, indiceGlobal = 0, temaSemana = "", productoNombre = "" }) => {
-    const piezas = {
-      daily_life: [
-        "página del portafolio: My Morning Routine",
-        "agenda diaria con acciones y horas",
-        "entrevista de rutinas con un compañero",
-        "comparación de rutinas saludables",
-        "borrador del texto My Daily Life",
-      ],
-      people_social: [
-        "guía visual de expresiones de cortesía",
-        "mini diálogo de presentación y ayuda",
-        "tarjetas de role play para conversaciones respetuosas",
-        "escena dialogada para resolver una situación cotidiana",
-      ],
-      home_city: [
-        "mapa de la vivienda o comunidad con etiquetas",
-        "tarjeta descriptiva de una habitación o lugar",
-        "ruta guiada de lugares de interés",
-        "descripción comparativa del entorno",
-      ],
-      general: [
-        `ficha aplicada sobre ${temaSemana || "el tema"}`,
-        `avance del producto ${productoNombre || "final"}`,
-        "organizador de ideas y ejemplos",
-        "borrador revisado con criterios",
-      ],
+    if (faseNum === 1) {
+      // Semana de apropiación: sin estructura nueva (como el modelo) — el foco
+      // son las expresiones sociales de arranque y la comprensión de la unidad.
+      const expresion = expresionesAll.length ? expresionesAll[indiceEnFase % expresionesAll.length] : "";
+      return {
+        texto: expresion || "presentación de la unidad y saberes previos",
+        etiqueta: "Expresión",
+        tipo: "apropiacion",
+        esNueva: false,
+      };
+    }
+
+    if (!gramaticaAll.length) {
+      const expresion = expresionesAll.length ? expresionesAll[indiceGlobal % expresionesAll.length] : "";
+      return { texto: expresion || "el contenido central del tema", etiqueta: "Foco", tipo: "contenido", esNueva: true };
+    }
+
+    const indiceContenido = Math.max(indiceGlobal - diasFase1, 0);
+    if (faseNum >= 4) {
+      // Fase final: integración de estructuras ya vistas rumbo al producto.
+      const a = gramaticaAll[indiceContenido % gramaticaAll.length];
+      const b = gramaticaAll[(indiceContenido + 1) % gramaticaAll.length];
+      return {
+        texto: b && b !== a ? `${a} · ${b}` : a,
+        etiqueta: "Integración",
+        tipo: "integracion",
+        esNueva: false,
+      };
+    }
+    if (indiceContenido < gramaticaAll.length) {
+      // Progresión: a cada día de contenido le toca UNA estructura nueva.
+      return { texto: gramaticaAll[indiceContenido], etiqueta: "Estructura gramatical", tipo: "estructura", esNueva: true };
+    }
+    // Más días que estructuras: se reaplica una estructura vista a vocabulario
+    // nuevo (el modelo hace esto en sus últimas semanas) — nunca se estanca.
+    return {
+      texto: gramaticaAll[indiceContenido % gramaticaAll.length],
+      etiqueta: "Estructura gramatical",
+      tipo: "reaplicacion",
+      esNueva: false,
     };
-    const lista = piezas[patron] || piezas.general;
-    return lista[Math.max(indiceGlobal, 0) % lista.length];
   };
 
-  const construirActividadesPorPatron = ({
-    patron,
+  // Pieza del producto derivada de la estructura del día — la agenda nace del
+  // día de horas, el párrafo del día de conectores, la entrevista del día de
+  // preguntas… (Anexo H del modelo: cada semana aporta piezas distintas).
+  const piezaDelDia = ({ protagonista, perfilDia, temaCorto, esUltimoDeSemana = false, faseNum = 2 }) => {
+    if (faseNum === 1) {
+      return perfilDia.posicion === "inicio" || perfilDia.posicion === "unico"
+        ? "mapa inicial de ideas sobre la unidad"
+        : "plan inicial del producto (Entrada 0 del portafolio)";
+    }
+    if (faseNum >= 4) {
+      if (perfilDia.posicion === "inicio") return "plan de organización de las evidencias del producto";
+      if (perfilDia.posicion === "cierre") return "presentación final del producto y ficha de autoevaluación";
+      return "guion de presentación ensayado con retroalimentación";
+    }
+    if (esUltimoDeSemana) return `avance integrado del producto con las piezas de la semana sobre ${temaCorto}`;
+    const t = normalizarClaveDidactica(protagonista?.texto || "");
+    if (/conector|secuencia|first|then|finally/.test(t)) return `párrafo secuenciado sobre ${temaCorto}`;
+    if (/frecuencia|frequency|adverbio/.test(t)) return `lista de hábitos con adverbios de frecuencia sobre ${temaCorto}`;
+    if (/wh|question|pregunta|interrogativ/.test(t)) return `entrevista escrita con preguntas y respuestas sobre ${temaCorto}`;
+    if (/hora|time|horario|reloj|fecha/.test(t)) return `agenda personal con horas sobre ${temaCorto}`;
+    if (/tercera persona|posesiv|his|her|mine|yours/.test(t)) return `descripción de otra persona sobre ${temaCorto}`;
+    if (/should|sugerencia|consejo|imperativ|recomendaci|why don/.test(t)) return `lista de recomendaciones sobre ${temaCorto}`;
+    if (/pasado|was|were|narrar|experiencia/.test(t)) return `narración breve de una experiencia sobre ${temaCorto}`;
+    if (/comparaci|contraste|but/.test(t)) return `cuadro comparativo sobre ${temaCorto}`;
+    if (/want|hope|wish|deseo|interes/.test(t)) return `lista de deseos y planes sobre ${temaCorto}`;
+    if (/cortesia|saludo|greeting|atencion|disculp|interrump|palabra|repitan/.test(t)) return `mini diálogo con expresiones de cortesía sobre ${temaCorto}`;
+    if (/presente simple|conversacion|sostener/.test(t)) return `oraciones propias en contexto sobre ${temaCorto}`;
+    return `ficha aplicada sobre ${temaCorto}`;
+  };
+
+  // Catálogo de "Listening con propósito" — la variante cambia cada día.
+  const LISTENING_VARIANTES = [
+    { nombre: "Listen and Act", consigna: "representan con mímica o gestos lo que reconocen al escuchar" },
+    { nombre: "Listen and Decide", consigna: "deciden si las oraciones son verdaderas o falsas según lo escuchado" },
+    { nombre: "Listen and Solve", consigna: "resuelven una ficha-problema con la información escuchada" },
+    { nombre: "Listen and Compare", consigna: "comparan lo escuchado con su propia experiencia marcando semejanzas y diferencias" },
+    { nombre: "Listen and Organize", consigna: "ordenan tarjetas o imágenes según la secuencia que escuchan" },
+    { nombre: "Listen and Complete", consigna: "completan un texto-hueco con las palabras y estructuras que faltan" },
+    { nombre: "Listen and Choose", consigna: "eligen la opción que corresponde a cada situación escuchada" },
+  ];
+
+  // Catálogo de interacción comunicativa — rota para que cada clase tenga una
+  // mecánica distinta (juego de roles, entrevista, information gap, estaciones…).
+  const INTERACCION_VARIANTES = [
+    ({ funcion }) => `Misión en parejas (juego de roles): representan una situación real para ${funcion}, alternando los roles.`,
+    ({ estructura }) => `Entrevista en parejas: preguntan y responden usando ${estructura}, y registran dos respuestas completas del compañero.`,
+    ({ temaSemana }) => `Information Gap: cada estudiante tiene la mitad de la información sobre ${temaSemana} y la completa preguntando, sin mostrar su hoja.`,
+    ({ estructura }) => `Estaciones de trabajo: rotan en pequeños grupos practicando ${estructura} con una tarea corta distinta en cada estación.`,
+    ({ temaSemana }) => `Speaking Circle: en círculo, cada estudiante aporta una oración sobre ${temaSemana} sin repetir la del compañero anterior.`,
+    ({ funcion }) => `Misión colaborativa: en equipos preparan y presentan un intercambio breve para ${funcion}, con un papel para cada miembro.`,
+  ];
+
+  const construirActividadesDia = ({
+    protagonista,
     perfilDia,
     temaSemana,
     productoNombre,
     vocabulario = [],
-    gramatica = [],
     funcionales = [],
-    expresiones = [],
     piezaProducto,
+    indiceGlobal = 0,
+    faseNum = 2,
+    esUltimoDeSemana = false,
   }) => {
     const vocabTxt = vocabulario.length ? vocabulario.join(", ") : "palabras clave del tema";
-    const estructura = gramatica[0] || "la estructura comunicativa trabajada";
-    const funcion = (funcionales[0] || "comunicarse en una situación cotidiana").replace(/^Funcional:\s*/i, "");
-    const expresion = expresiones[0] || "expresiones útiles del contexto";
+    const estructura = protagonista?.texto || "la estructura comunicativa trabajada";
+    const funcion = (funcionales[0] || "comunicarse en una situación cotidiana")
+      .replace(/^(Funcional|Discursivo):\s*/i, "").toLowerCase();
+    const lv = LISTENING_VARIANTES[indiceGlobal % LISTENING_VARIANTES.length];
+    const interaccion = INTERACCION_VARIANTES[indiceGlobal % INTERACCION_VARIANTES.length]({ funcion, estructura, temaSemana });
 
-    if (patron === "daily_life") {
+    if (faseNum === 1) {
+      const esPrimerDia = perfilDia.posicion === "inicio" || perfilDia.posicion === "unico";
+      if (esPrimerDia) {
+        return [
+          `Escuchan la presentación de la unidad: la situación de aprendizaje, los temas que trabajarán y el producto final que construirán (${productoNombre}).`,
+          `Observan imágenes o ejemplos relacionados con ${temaSemana} y expresan oralmente qué reconocen de su propia experiencia.`,
+          `Identifican y registran en el cuaderno palabras que ya conocen sobre el tema (${vocabTxt}).`,
+          `Elaboran ${piezaProducto} con las actividades o ideas que consideran más importantes y socializan por qué.`,
+          `Participan en un diagnóstico oral breve respondiendo preguntas sencillas sobre el tema.`,
+        ];
+      }
       return [
-        `Escuchan o leen una rutina breve relacionada con ${temaSemana} y subrayan acciones, horas y expresiones conocidas.`,
-        `Ordenan tarjetas de acciones del día (${vocabTxt}) para formar una secuencia real desde la mañana hasta la noche.`,
-        `Practican ${estructura} con ejemplos propios, cambiando persona, hora o frecuencia según el caso.`,
-        `Entrevistan a un compañero sobre su rutina usando preguntas modelo y registran dos respuestas completas.`,
-        `Completan ${piezaProducto} para ${productoNombre}, incorporando vocabulario y al menos una estructura trabajada.`,
-        `Revisan en parejas si la rutina tiene orden lógico, claridad y relación con la situación de aprendizaje.`,
+        `Observan ejemplos del producto final y analizan la rúbrica de ${productoNombre}, identificando los criterios con los que serán evaluados.`,
+        `Escuchan y practican la pronunciación guiada del vocabulario inicial del tema (${vocabTxt}).`,
+        `Organizan el vocabulario por categorías en sus cuadernos y elaboran de tres a cinco oraciones sencillas sobre ${temaSemana}.`,
+        `Guardan su producción diagnóstica y elaboran ${piezaProducto} imaginando cómo será su producto terminado.`,
+        `Socializan sus planes iniciales y acuerdan las normas de trabajo de la unidad.`,
       ];
     }
 
-    if (patron === "people_social") {
+    if (faseNum >= 4) {
+      if (perfilDia.posicion === "inicio") {
+        return [
+          `Listening con propósito (Listen and Organize): escuchan la descripción de un producto modelo y ordenan las secciones del suyo en el orden correcto.`,
+          `Revisan las piezas del portafolio elaboradas en la unidad y deciden cuáles integran a ${productoNombre}.`,
+          `Misión colaborativa: arman ${piezaProducto} decidiendo qué evidencia, texto o imagen va en cada sección.`,
+          `Comparten su plan con otro equipo y reciben una sugerencia concreta de mejora.`,
+        ];
+      }
+      if (perfilDia.posicion === "cierre") {
+        return [
+          `Presentan ${productoNombre} ante el grupo en turnos breves y cronometrados, para que todos alcancen su turno.`,
+          `Mientras escuchan, participan en Listen and Evaluate: completan la rúbrica de coevaluación y anotan una pregunta real para cada presentador.`,
+          `Responden en el idioma trabajado una pregunta del público al cierre de su presentación.`,
+          `Completan la ficha de autoevaluación de la unidad y registran una meta personal para la siguiente.`,
+          `Exhiben los productos terminados en el aula como celebración del cierre (galería del producto).`,
+        ];
+      }
       return [
-        `Escuchan o leen una escena social breve y deciden qué expresiones muestran respeto, ayuda o cortesía.`,
-        `Clasifican expresiones útiles (${expresion}) según su propósito: saludar, pedir ayuda, responder o cerrar la conversación.`,
-        `Practican ${estructura} en intercambios cortos con tarjetas de roles y apoyo visual.`,
-        `Simulan una situación para ${funcion.toLowerCase()} cuidando tono de voz, turno de habla y lenguaje corporal.`,
-        `Escriben y ensayan ${piezaProducto} para integrarlo a ${productoNombre}.`,
-        `Presentan la escena a otro equipo y reciben una mejora concreta antes de guardarla en el portafolio.`,
+        `Listening con propósito (Listen and Evaluate): observan una presentación modelo y evalúan con una rúbrica sencilla qué la hace clara (volumen, orden, contacto visual).`,
+        `Redactan su guion de presentación con introducción, secciones del producto y un cierre con recomendación.`,
+        `Ensayan en parejas (Pair Rehearsal): uno presenta y el otro completa una ficha de retroalimentación "dos estrellas y un deseo".`,
+        `Ajustan ${piezaProducto} con la retroalimentación recibida antes del segundo ensayo.`,
       ];
     }
 
-    if (patron === "home_city") {
+    if (esUltimoDeSemana) {
       return [
-        `Observan una imagen, plano o croquis de ${temaSemana} y nombran lugares, objetos o características visibles.`,
-        `Relacionan vocabulario (${vocabTxt}) con partes del hogar, la escuela o la comunidad usando etiquetas visuales.`,
-        `Describen lugares con ${estructura}, agregando ubicación, cantidad o característica según corresponda.`,
-        `Realizan una actividad de información incompleta: un estudiante describe y otro dibuja, ubica o completa el plano.`,
-        `Construyen ${piezaProducto} como avance de ${productoNombre}, cuidando precisión del vocabulario y orden espacial.`,
-        `Comparan producciones con una lista breve de criterios y corrigen una descripción antes de socializarla.`,
+        `Revisan las piezas elaboradas durante la semana e identifican vocabulario, estructuras y ejemplos que pueden integrar.`,
+        `Organizan sus ideas y construyen ${piezaProducto}, conectando lo aprendido con ${productoNombre}.`,
+        `Trabajo colaborativo (Listen and Create): en grupos revisan el avance de los compañeros, escuchan sugerencias y aplican mejoras.`,
+        `Practican en pequeños grupos cómo presentarán su avance, usando las estructuras de la semana.`,
+        `Completan una coevaluación breve destacando una fortaleza del trabajo de un compañero.`,
       ];
     }
 
     return [
-      `Analizan una situación breve relacionada con ${temaSemana} y explican qué problema o necesidad resolverán en la clase.`,
-      `Seleccionan ejemplos, palabras o datos clave que necesitan para comprender y trabajar el tema.`,
-      `Resuelven una tarea guiada aplicando ${estructura} o el procedimiento central con apoyo del docente.`,
-      `Trabajan en parejas para producir una respuesta, explicación o ejemplo conectado con la situación de aprendizaje.`,
-      `Elaboran ${piezaProducto} como avance verificable para ${productoNombre}.`,
-      `Revisan el avance con criterios compartidos y deciden una mejora antes de guardarlo como evidencia.`,
+      `Listening con propósito (${lv.nombre}): escuchan un texto breve sobre ${temaSemana} y ${lv.consigna}.`,
+      protagonista?.esNueva
+        ? `Descubren el uso de ${estructura} mediante ejemplos contextualizados y lo relacionan con el vocabulario del tema (${vocabTxt}).`
+        : `Reaplican ${estructura} a vocabulario y situaciones nuevas del tema (${vocabTxt}), ampliando sus ejemplos anteriores.`,
+      interaccion,
+      `Producción: elaboran ${piezaProducto}, incorporando ${estructura} y al menos tres palabras del vocabulario trabajado. (Aporte a ${productoNombre}.)`,
+      `Socializan su producción con un compañero y aplican una mejora concreta ("una estrella y un deseo") antes de guardarla en el portafolio.`,
     ];
+  };
+
+  // G3d — metacognición VARIADA por día (banco rotativo; en el idioma meta
+  // para Lenguas Extranjeras, como el documento modelo).
+  const METACOG_BANK = specBase.esIdioma
+    ? {
+        inicio: [
+          ["What do I already know about today's topic?", "What words do I need to review before practicing?"],
+          ["What did I remember from the last class?", "What do I want to learn today?"],
+          ["Which words were easy to recognize and which were harder?", "Why?"],
+          ["What time of my day connects with today's topic?", "Why is this topic useful for me?"],
+        ],
+        desarrollo: [
+          ["Which strategy helped me most during the practice?", "How do I know my work connects with the final product?"],
+          ["What did I discover about using this structure?", "Which activity helped me understand it better?"],
+          ["Was the listening activity easy or hard? Why?", "What helped me complete the mission?"],
+          ["Which part of the activity did I enjoy most?", "How can I describe this better in English?"],
+        ],
+        cierre: [
+          ["What new sentence can I say today that I could not say before?", "How can I use it outside the classroom?"],
+          ["What did I learn today and what do I need to improve?", "How does this class help my final product?"],
+          ["What was easy and what was difficult today?", "What will I practice at home?"],
+          ["What did I learn from my classmates today?", "How will I use this in my real life?"],
+        ],
+      }
+    : {
+        inicio: [
+          ["¿Qué recordé que me ayuda a comprender el tema de hoy?", "¿Qué necesito aclarar antes de pasar a la práctica?"],
+          ["¿Qué sé ya sobre el tema de hoy?", "¿Qué me gustaría aprender en esta clase?"],
+          ["¿Qué de la clase anterior me sirve hoy?", "¿Qué duda quiero resolver?"],
+        ],
+        desarrollo: [
+          ["¿Qué estrategia me ayudó más durante la práctica?", "¿Cómo sé que mi avance responde al producto esperado?"],
+          ["¿Qué descubrí al usar el contenido de hoy?", "¿Qué actividad me ayudó a comprenderlo mejor?"],
+          ["¿Qué parte fue fácil y cuál difícil? ¿Por qué?", "¿Qué me ayudó a completar la misión?"],
+        ],
+        cierre: [
+          ["¿Qué logré hoy y qué debo mejorar?", "¿Cómo aporta esta clase al producto final de la unidad?"],
+          ["¿Qué puedo hacer hoy que no podía hacer antes?", "¿Cómo lo usaré fuera del aula?"],
+          ["¿Qué aprendí de mis compañeros hoy?", "¿Qué voy a practicar en casa?"],
+        ],
+      };
+  const metacogDia = (momento, indiceGlobal = 0) => {
+    const banco = METACOG_BANK[momento] || METACOG_BANK.cierre;
+    return banco[indiceGlobal % banco.length];
   };
 
   const resolverTopicoDia = (dia, indiceEnFase, specActual = specBase) => {
@@ -2223,14 +2348,11 @@ const _generarFasesConIA = async (
     const foco = resolverTopicoDia(dia, indiceEnFase, specActual);
     const temaSemana = (specActual.temasSemana || []).filter(Boolean).join(" · ") || dia?.temaCurricular || specActual.temaOficial || tema;
     const vocabulario = tomarVentana(specActual.contenidosClaves?.vocabulario, indiceGlobal, 3);
-    const gramatica = getFocoGramatical(specActual.contenidosClaves?.gramatica, semanaGeneracion, numSemanas);
     const funcionales = tomarVentana(specActual.contenidosClaves?.funcionales, indiceGlobal, 2);
-    const expresiones = tomarVentana(specActual.contenidosClaves?.expresiones, indiceGlobal, 1);
     const indicadores = tomarIndicadoresBase(specActual, indiceGlobal);
     const codigosIndicadores = indicadores.map((ind) => ind.codigo).filter(Boolean);
     const productoNombre = specActual.productoFinalNombre || productoFinal || "el producto final";
-    const patronActividad = detectarPatronActividad({ temaSemana, specActual, productoNombre });
-    const piezaProducto = elegirPiezaProducto({ patron: patronActividad, indiceGlobal, temaSemana, productoNombre });
+    const faseNum = fase?.numero || 1;
     const perfilDia = obtenerPerfilDidacticoDia({
       fase,
       indiceEnFase,
@@ -2238,29 +2360,46 @@ const _generarFasesConIA = async (
       temaSemana,
       productoNombre,
     });
+
+    // G3b — estructura protagonista del día (avanza clase a clase)
+    const protagonista = resolverProtagonistaDia({ specActual, fase, indiceEnFase, indiceGlobal });
+    const protagonistaPrevio = indiceEnFase > 0
+      ? resolverProtagonistaDia({ specActual, fase, indiceEnFase: indiceEnFase - 1, indiceGlobal: indiceGlobal - 1 })
+      : null;
+
+    // G3d — arco semanal: el último día de cada semana calendario (en fases de
+    // contenido, con semana de 3+ días en esta fase) INTEGRA en vez de sumar
+    // contenido nuevo.
+    const diasMismaSemana = (fase?.dias || []).filter((d) => d?.semana === dia?.semana).length;
+    const esUltimoDeSemana = faseNum >= 2 && faseNum <= 3
+      && diasMismaSemana >= 3
+      && (indiceEnFase === (fase?.dias?.length || 1) - 1 || fase?.dias?.[indiceEnFase + 1]?.semana !== dia?.semana);
+
+    const temaCorto = String(temaSemana).split(" · ")[0].trim();
+    const estructuraDia = protagonista.texto;
+    const piezaProducto = piezaDelDia({ protagonista, perfilDia, temaCorto, esUltimoDeSemana, faseNum });
     const recursosBase = [
       "Pizarra y marcadores",
       area === "Inglés" ? "Tarjetas de vocabulario" : "Cuaderno del estudiante",
       vocabulario.length ? `Banco de palabras: ${vocabulario.join(", ")}` : "",
-      gramatica.length ? `Ejemplos modelo: ${gramatica[0]}` : "",
+      protagonista.tipo === "estructura" || protagonista.tipo === "reaplicacion"
+        ? `Ejemplos modelo: ${estructuraDia}` : "",
     ].filter(Boolean);
-
-    const temaCorto = String(temaSemana).split(" · ")[0].trim();
-    const estructuraDia = limpiarEtiquetaContenido(gramatica[0] || "");
     const evidenciaInicio = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Inicio", piezaProducto, temaCorto, estructura: estructuraDia });
     const evidenciaDesarrollo = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Desarrollo", piezaProducto, temaCorto, estructura: estructuraDia });
     const evidenciaCierre = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Cierre", piezaProducto, temaCorto, estructura: estructuraDia });
 
-    const actividadesDesarrollo = construirActividadesPorPatron({
-      patron: patronActividad,
+    const actividadesDesarrollo = construirActividadesDia({
+      protagonista,
       perfilDia,
       temaSemana,
       productoNombre,
       vocabulario,
-      gramatica,
       funcionales,
-      expresiones,
       piezaProducto,
+      indiceGlobal,
+      faseNum,
+      esUltimoDeSemana,
     });
 
     return {
@@ -2281,21 +2420,36 @@ const _generarFasesConIA = async (
       // G1/G4 — la semana visible es la del DÍA (antes todas las semanas de la
       // fase heredaban la primera y el PDF decía "Semana 1" en las semanas 2-5)
       tituloSemana: recortar(`Semana ${dia?.semana || semanaGeneracion}: ${perfilDia.tituloSemana}`, 70),
-      titulo: recortar(`${perfilDia.tituloDia}: ${foco}`, 96),
-      focoLinguistico: recortar([
-        gramatica[0],
-        vocabulario.length ? `Vocabulario: ${vocabulario.join(", ")}` : "",
-        expresiones[0] ? `Expresión: ${limpiarEtiquetaContenido(expresiones[0])}` : "",
-      ].filter(Boolean).join(" · ") || foco, 140),
+      titulo: recortar(
+        esUltimoDeSemana
+          ? `Integración de la semana: ${foco}`
+          : `${perfilDia.tituloDia}: ${foco}`,
+        96
+      ),
+      // G3b — el encabezado del día muestra SU protagonista con la etiqueta
+      // correcta (Estructura gramatical / Expresión / Integración), no la
+      // primera estructura de la semana repetida en bloque.
+      focoLinguistico: recortar(
+        protagonista.etiqueta === "Estructura gramatical"
+          ? estructuraDia
+          : `${protagonista.etiqueta}: ${estructuraDia}`,
+        140
+      ),
       estrategiasDia: [estrategia, "práctica guiada", "socialización"].filter(Boolean).join(" · "),
       intencionPedagogica: recortar(
-        `Desde el inicio hasta el final de la clase, los estudiantes trabajan ${foco} con práctica guiada y producción propia, aportando ${piezaProducto} a ${productoNombre}.`,
+        esUltimoDeSemana
+          ? `Desde el inicio hasta el final de la clase, los estudiantes integran lo trabajado en la semana sobre ${temaCorto} y construyen ${piezaProducto} para ${productoNombre}.`
+          : `Desde el inicio hasta el final de la clase, los estudiantes trabajan ${estructuraDia} aplicado a ${temaCorto}, con práctica guiada y producción propia, aportando ${piezaProducto} a ${productoNombre}.`,
         230
       ),
       saludoInicial: area === "Inglés"
         ? "Good morning. Today we will use English to connect the class topic with our final product."
         : "Buenos días. Hoy conectaremos el tema de la clase con el producto final de la unidad.",
-      retroalimentacionPrevia: "Recuperan brevemente lo trabajado en la clase anterior y aclaran una duda frecuente antes de avanzar.",
+      // Retroalimentación ESPECÍFICA: nombra lo que se trabajó la clase
+      // anterior (documento modelo: "What adverbs of frequency do you remember?")
+      retroalimentacionPrevia: protagonistaPrevio?.texto
+        ? recortar(`Retroalimentación de la clase anterior: recuerdan ${protagonistaPrevio.texto} con ejemplos propios antes de avanzar.`, 160)
+        : "Recuperan brevemente lo trabajado en la clase anterior y aclaran una duda frecuente antes de avanzar.",
       saberesPrevios: recortar(`Recuperación de saberes previos sobre ${temaSemana} mediante preguntas orales y ejemplos cercanos.`, 150),
       actividadEnganche: recortar(`Observan una situación breve, imagen o ejemplo relacionado con ${foco} y predicen qué aprenderán.`, 150),
       aporteProducto: recortar(
@@ -2316,10 +2470,7 @@ const _generarFasesConIA = async (
           actividades: [],
           evidencias: evidenciaInicio,
           recursos: recursosBase,
-          metacognicion: [
-            "¿Qué recordé que me ayuda a comprender el tema de hoy?",
-            "¿Qué necesito aclarar antes de pasar a la práctica?",
-          ],
+          metacognicion: metacogDia("inicio", indiceGlobal),
         },
         {
           nombre: "Desarrollo",
@@ -2327,26 +2478,20 @@ const _generarFasesConIA = async (
           actividades: actividadesDesarrollo,
           evidencias: evidenciaDesarrollo,
           recursos: [...recursosBase, "Guía breve de trabajo", "Instrumento de observación"],
-          metacognicion: [
-            "¿Qué estrategia me ayudó más durante la práctica?",
-            "¿Cómo sé que mi avance responde al producto esperado?",
-          ],
+          metacognicion: metacogDia("desarrollo", indiceGlobal),
         },
         {
           nombre: "Cierre",
           tiempo: dia?.momentos?.[2]?.tiempo || "5 min",
           actividades: [
-            `Comparten una evidencia o aprendizaje logrado sobre ${foco}.`,
+            `Comparten una evidencia o aprendizaje logrado sobre ${estructuraDia}.`,
             `Registran una mejora concreta para la próxima clase o para ${productoNombre}.`,
             `Guardan ${piezaProducto} en el portafolio para retomarla o mejorarla en la próxima clase.`,
             "Completan un ticket de salida con una idea aprendida y una pregunta pendiente.",
           ],
           evidencias: evidenciaCierre,
           recursos: [...recursosBase, "Ticket de salida"],
-          metacognicion: [
-            "¿Qué logré hoy y qué debo mejorar?",
-            "¿Cómo aporta esta clase al producto final de la unidad?",
-          ],
+          metacognicion: metacogDia("cierre", indiceGlobal),
         },
       ],
       _origenComposicion: "base_curricular",
@@ -3354,11 +3499,18 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       // de la unidad, no una estructura; ahí se muestra sin la etiqueta gramatical.
       const foco = dia.focoLinguistico || "";
       const esApropiacion = /apropiaci[oó]n|producto|evaluaci[oó]n/i.test(foco) && !/\(/.test(foco);
-      const etiquetaFoco = ES_IDIOMA(m.asignatura || m.area) ? "Estructura gramatical" : "Foco curricular";
+      // G4 — etiqueta fiel al protagonista del día: si el foco ya viene
+      // etiquetado ("Expresión: Cortesía", "Integración: X · Y"), se usa ESA
+      // etiqueta; "Estructura gramatical" solo cuando de verdad es gramática.
+      const focoEtiquetado = foco.match(/^(Expresión|Integración|Foco)\s*:\s*(.*)$/s);
+      const etiquetaFoco = focoEtiquetado
+        ? focoEtiquetado[1]
+        : ES_IDIOMA(m.asignatura || m.area) ? "Estructura gramatical" : "Foco curricular";
+      const focoTexto = focoEtiquetado ? focoEtiquetado[2] : foco;
       const focoHtml = foco
         ? (esApropiacion
           ? ` <span style="font-weight:400">· ${foco}</span>`
-          : ` <span style="font-weight:600;font-size:11pt">(${etiquetaFoco}: ${foco})</span>`)
+          : ` <span style="font-weight:600;font-size:11pt">(${etiquetaFoco}: ${focoTexto})</span>`)
         : "";
       const estrategiaDiaHtml = dia.estrategiasDia
         ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${dia.estrategiasDia}</div>`
