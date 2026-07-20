@@ -1991,13 +1991,15 @@ const _generarFasesConIA = async (
 
   // Catálogo de interacción comunicativa — rota para que cada clase tenga una
   // mecánica distinta (juego de roles, entrevista, information gap, estaciones…).
+  // Todas inician con VERBO en tercera plural (regla de voz R1); el nombre de
+  // la técnica va entre paréntesis, como el documento modelo.
   const INTERACCION_VARIANTES = [
-    ({ funcion }) => `Misión en parejas (juego de roles): representan una situación real para ${funcion}, alternando los roles.`,
-    ({ estructura }) => `Entrevista en parejas: preguntan y responden usando ${estructura}, y registran dos respuestas completas del compañero.`,
-    ({ temaSemana }) => `Information Gap: cada estudiante tiene la mitad de la información sobre ${temaSemana} y la completa preguntando, sin mostrar su hoja.`,
-    ({ estructura }) => `Estaciones de trabajo: rotan en pequeños grupos practicando ${estructura} con una tarea corta distinta en cada estación.`,
-    ({ temaSemana }) => `Speaking Circle: en círculo, cada estudiante aporta una oración sobre ${temaSemana} sin repetir la del compañero anterior.`,
-    ({ funcion }) => `Misión colaborativa: en equipos preparan y presentan un intercambio breve para ${funcion}, con un papel para cada miembro.`,
+    ({ funcion }) => `Representan en parejas (juego de roles) una situación real para ${funcion}, alternando los roles.`,
+    ({ estructura }) => `Entrevistan a un compañero preguntando y respondiendo con ${estructura}, y registran dos respuestas completas.`,
+    ({ temaSemana }) => `Completan una actividad de información incompleta (Information Gap): cada estudiante tiene la mitad de la información sobre ${temaSemana} y la obtiene preguntando, sin mostrar su hoja.`,
+    ({ estructura }) => `Rotan por estaciones de trabajo en pequeños grupos, practicando ${estructura} con una tarea corta distinta en cada estación.`,
+    ({ temaSemana }) => `Participan en un Speaking Circle: en círculo, cada estudiante aporta una oración sobre ${temaSemana} sin repetir la del compañero anterior.`,
+    ({ funcion }) => `Preparan en equipos (misión colaborativa) un intercambio breve para ${funcion}, con un papel para cada miembro, y lo presentan al grupo.`,
   ];
 
   const construirActividadesDia = ({
@@ -2042,23 +2044,23 @@ const _generarFasesConIA = async (
     if (faseNum >= 4) {
       if (perfilDia.posicion === "inicio") {
         return [
-          `Listening con propósito (Listen and Organize): escuchan la descripción de un producto modelo y ordenan las secciones del suyo en el orden correcto.`,
+          `Escuchan con propósito (Listen and Organize) la descripción de un producto modelo y ordenan las secciones del suyo en el orden correcto.`,
           `Revisan las piezas del portafolio elaboradas en la unidad y deciden cuáles integran a ${productoNombre}.`,
-          `Misión colaborativa: arman ${piezaProducto} decidiendo qué evidencia, texto o imagen va en cada sección.`,
+          `Arman en equipos (misión colaborativa) ${piezaProducto}, decidiendo qué evidencia, texto o imagen va en cada sección.`,
           `Comparten su plan con otro equipo y reciben una sugerencia concreta de mejora.`,
         ];
       }
       if (perfilDia.posicion === "cierre") {
         return [
           `Presentan ${productoNombre} ante el grupo en turnos breves y cronometrados, para que todos alcancen su turno.`,
-          `Mientras escuchan, participan en Listen and Evaluate: completan la rúbrica de coevaluación y anotan una pregunta real para cada presentador.`,
+          `Participan en Listen and Evaluate mientras escuchan: completan la rúbrica de coevaluación y anotan una pregunta real para cada presentador.`,
           `Responden en el idioma trabajado una pregunta del público al cierre de su presentación.`,
           `Completan la ficha de autoevaluación de la unidad y registran una meta personal para la siguiente.`,
           `Exhiben los productos terminados en el aula como celebración del cierre (galería del producto).`,
         ];
       }
       return [
-        `Listening con propósito (Listen and Evaluate): observan una presentación modelo y evalúan con una rúbrica sencilla qué la hace clara (volumen, orden, contacto visual).`,
+        `Observan con propósito (Listen and Evaluate) una presentación modelo y evalúan con una rúbrica sencilla qué la hace clara (volumen, orden, contacto visual).`,
         `Redactan su guion de presentación con introducción, secciones del producto y un cierre con recomendación.`,
         `Ensayan en parejas (Pair Rehearsal): uno presenta y el otro completa una ficha de retroalimentación "dos estrellas y un deseo".`,
         `Ajustan ${piezaProducto} con la retroalimentación recibida antes del segundo ensayo.`,
@@ -2069,19 +2071,19 @@ const _generarFasesConIA = async (
       return [
         `Revisan las piezas elaboradas durante la semana e identifican vocabulario, estructuras y ejemplos que pueden integrar.`,
         `Organizan sus ideas y construyen ${piezaProducto}, conectando lo aprendido con ${productoNombre}.`,
-        `Trabajo colaborativo (Listen and Create): en grupos revisan el avance de los compañeros, escuchan sugerencias y aplican mejoras.`,
+        `Intercambian en grupos (Listen and Create) sugerencias sobre el avance de los compañeros y aplican una mejora concreta.`,
         `Practican en pequeños grupos cómo presentarán su avance, usando las estructuras de la semana.`,
         `Completan una coevaluación breve destacando una fortaleza del trabajo de un compañero.`,
       ];
     }
 
     return [
-      `Listening con propósito (${lv.nombre}): escuchan un texto breve sobre ${temaSemana} y ${lv.consigna}.`,
+      `Escuchan con propósito (${lv.nombre}) un texto breve sobre ${temaSemana} y ${lv.consigna}.`,
       protagonista?.esNueva
         ? `Descubren el uso de ${estructura} mediante ejemplos contextualizados y lo relacionan con el vocabulario del tema (${vocabTxt}).`
         : `Reaplican ${estructura} a vocabulario y situaciones nuevas del tema (${vocabTxt}), ampliando sus ejemplos anteriores.`,
       interaccion,
-      `Producción: elaboran ${piezaProducto}, incorporando ${estructura} y al menos tres palabras del vocabulario trabajado. (Aporte a ${productoNombre}.)`,
+      `Elaboran ${piezaProducto}, incorporando ${estructura} y al menos tres palabras del vocabulario trabajado. (Aporte a ${productoNombre}.)`,
       `Socializan su producción con un compañero y aplican una mejora concreta ("una estrella y un deseo") antes de guardarla en el portafolio.`,
     ];
   };
