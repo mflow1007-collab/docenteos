@@ -2221,7 +2221,13 @@ const _generarFasesConIA = async (
       unicos.sort((a, b) =>
         (debiles.has(normCodigo(b.codigo)) ? 1 : 0) - (debiles.has(normCodigo(a.codigo)) ? 1 : 0));
     }
-    return tomarVentana(unicos, indice, Math.min(2, unicos.length));
+    // tomarVentana opera sobre STRINGS (hace String(x)); pasarle objetos los
+    // convertía en "[object Object]" y el resumen semanal quedaba en "—".
+    // Rotamos sobre los códigos y reconstruimos el objeto con su descripción.
+    const porCodigo = new Map(unicos.map((u) => [u.codigo, u]));
+    return tomarVentana(unicos.map((u) => u.codigo), indice, Math.min(2, unicos.length))
+      .map((codigo) => porCodigo.get(codigo))
+      .filter(Boolean);
   };
 
   // G1 — evidencias con contenido REAL del día (tema y estructura), no el
@@ -2348,7 +2354,11 @@ const _generarFasesConIA = async (
   const construirClaseBaseCurricular = ({ dia, fase, indiceEnFase, specActual, semanaGeneracion }) => {
     const indiceGlobal = Math.max((dia?.numeroGlobal || (globalOffset + indiceEnFase + 1)) - 1, 0);
     const foco = resolverTopicoDia(dia, indiceEnFase, specActual);
-    const temaSemana = (specActual.temasSemana || []).filter(Boolean).join(" · ") || dia?.temaCurricular || specActual.temaOficial || tema;
+    const temaSemana = dia?.temaCurricular
+      || specActual.temaTrabajoSemana
+      || (specActual.temasSemana || []).filter(Boolean)[0]
+      || specActual.temaOficial
+      || tema;
     const vocabulario = tomarVentana(specActual.contenidosClaves?.vocabulario, indiceGlobal, 3);
     const funcionales = tomarVentana(specActual.contenidosClaves?.funcionales, indiceGlobal, 2);
     const indicadores = tomarIndicadoresBase(specActual, indiceGlobal);
@@ -2534,10 +2544,18 @@ const _generarFasesConIA = async (
     const semanasFase = [...new Set(fase.dias.map((d) => d.semana).filter(Boolean))];
     const temasFase = _temasDeSemanas(rutaCurricular, semanasFase);
     const semanaGeneracion = semanasFase[0] || fase.numero;
-    const contenidosFase = temasFase.length && contenidosRuta?.porTema
-      ? _unirContenidosTema(temasFase.map((t) => contenidosRuta.porTema.get(t)).filter(Boolean))
-      : mallaContenidos;
-    const tituloFaseCurricular = temasFase.length ? temasFase.join(" · ") : tema;
+    const temaTrabajoSemana = obtenerTemaSemana(Number(semanaGeneracion || 1), rutaCurricular?.distribucion)
+      || temasFase[0]
+      || tema;
+    const contenidosFase = temaTrabajoSemana && contenidosRuta?.porTema?.get(temaTrabajoSemana)
+      ? contenidosRuta.porTema.get(temaTrabajoSemana)
+      : temasFase.length && contenidosRuta?.porTema
+        ? _unirContenidosTema(temasFase.map((t) => contenidosRuta.porTema.get(t)).filter(Boolean))
+        : mallaContenidos;
+    const tituloFaseCurricular = temaTrabajoSemana || (temasFase.length ? temasFase.join(" · ") : tema);
+    const temasTrabajoFase = temaTrabajoSemana
+      ? [temaTrabajoSemana]
+      : temasFase;
     const specFase = buildEspecificacionCurricular({
       mallaPayload,
       titulo: tituloFaseCurricular,
@@ -2550,7 +2568,9 @@ const _generarFasesConIA = async (
       contextoComunitario: contexto.contextoComunitario || "",
     });
     specFase.rutaCurricular = rutaCurricular;
-    specFase.temasSemana = temasFase;
+    specFase.temaTrabajoSemana = temaTrabajoSemana;
+    specFase.temasSemana = temasTrabajoFase;
+    specFase.temasActivos = rutaCurricular?.temas || temasFase;
     specFase.productoFinalNombre = productoFinalNombreActual;
     if (contexto.productoPropio) specFase.productoFinalNombre = contexto.productoPropio;
     specFase.indicadoresTrabajadosAntes = Array.isArray(contexto.indicadoresTrabajadosAntes) ? contexto.indicadoresTrabajadosAntes : [];

@@ -209,6 +209,13 @@ check("resumen semanal al CIERRE de cada semana (documento modelo)", () => {
   if (html.includes("RESUMEN DE EVALUACIÓN Y OBSERVACIONES")) throw new Error("con datos por semana, el bloque legacy por fase no debe emitirse");
 });
 
+check("el HTML nunca serializa un objeto como texto ('[object Object]')", () => {
+  // Regresión G2: tomarIndicadoresBase pasaba objetos a tomarVentana (que hace
+  // String(x)), y el resumen semanal imprimía "[object Object]" o quedaba en
+  // "—". Cualquier objeto mal serializado en el documento es un bug de render.
+  if (html.includes("[object Object]")) throw new Error("hay un objeto serializado como texto en el HTML");
+});
+
 check("evaluación del documento y resumen provienen de la misma tabla", () => {
   const d = unidadFixture.fasesSemanales[0].dias[0];
   for (const mom of d.momentos) {
