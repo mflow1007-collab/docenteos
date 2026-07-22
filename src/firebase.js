@@ -1358,6 +1358,22 @@ export const verificarTemaAntesDeGenerar = async ({ tituloTema, contexto = "gene
 
     const normalizado = normalizarTema(tituloTema);
     const isAdmin = esUsuarioDocenteOS(user.email);
+    if (isAdmin) {
+      return {
+        success: true,
+        permitido: true,
+        tipoCoincidencia: "admin_ilimitado",
+        requiereCredito: false,
+        puedeCrearNuevoTema: true,
+        creditosDisponibles: resolverCreditosDisponibles(data),
+        temas: {
+          temaActivo: data?.temaActivo || null,
+          temaSecundario: data?.temaSecundario || null,
+          temaTercero: data?.temaTercero || null,
+          temaCuarto: data?.temaCuarto || null,
+        },
+      };
+    }
     const limite = limiteTemasPlanificacion(user.email);
     const creditos = resolverCreditosDisponibles(data);
     const slots = temasPlanificacionDesdeData(data, user.email);
@@ -1452,6 +1468,40 @@ export const registrarUsoTemaPlanificacion = async ({
   const titulo = String(tituloTema).trim();
   const normalizado = normalizarTema(titulo);
   const isAdmin = esUsuarioDocenteOS(user.email);
+
+  if (isAdmin) {
+    try {
+      await upsertHistorialTema({
+        uid: user.uid,
+        titulo,
+        estado: "admin_ilimitado",
+        activo: true,
+        incrementarEdiciones: contexto === "edicion" || contexto === "generacion",
+      });
+    } catch (err) {
+      console.warn("[registrarUsoTemaPlanificacion] Error actualizando historial admin (no crítico):", err?.message);
+    }
+
+    await registrarEventoAuditoria({
+      tipo: "planificacion",
+      evento: "uso_tema_planificacion",
+      modulo: "planificacion",
+      detalle: {
+        tema: titulo,
+        slot: "admin_ilimitado",
+        contexto,
+        consumioCredito: false,
+      },
+    });
+
+    return {
+      success: true,
+      slot: "admin_ilimitado",
+      consumioCredito: false,
+      reemplazo: false,
+      adminIlimitado: true,
+    };
+  }
 
   const resultado = await runTransaction(db, async (tx) => {
     const userSnap = await tx.get(userRef);

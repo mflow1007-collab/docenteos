@@ -3,9 +3,10 @@
  */
 
 import { resolverClave } from "../planning/areaAsignaturaMap.js";
+import { getActividades } from "./bancoPedagogicoService.js";
 import { getCurricularContentForUnit, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "./bancoConocimientoService.js";
 import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical } from "./phaseAService.js";
-import { resolverFocosCurriculares } from "./curriculumBrainService.js";
+import { resolverFocosCurriculares, obtenerPerfilPedagogicoArea } from "./curriculumBrainService.js";
 import {
   distribuirTemasEnSemanas,
   obtenerTemaSemana,
@@ -1849,6 +1850,35 @@ const _generarFasesConIA = async (
   let globalOffset = 0;
   let productoFinalNombreActual = specBase.productoFinalNombre || "";
 
+  // Naturaleza del área (documento oficial MINERD, págs. 9-10): solo Lenguas
+  // Extranjeras progresa por estructura gramatical y usa el molde comunicativo
+  // (Listen and X, Speaking Circle…). Las demás áreas construyen sus actividades
+  // desde SU secuencia disciplinar (PERFIL_AREA): Matemática=problema→procedimiento
+  // →verificación, Ciencias=observación→hipótesis→experimento, etc.
+  const esIdiomaArea = ES_IDIOMA(area) || Boolean(specBase.esIdioma);
+  const perfilAreaUnidad = obtenerPerfilPedagogicoArea(area, contexto.asignatura || area);
+
+  // ─── Banco Pedagógico: actividades con mecánica real (Frequency Walk,
+  // Interview Stations, Gallery Walk…) validadas por el dueño contra su modelo.
+  // Se lee UNA sola vez por unidad (cero créditos de IA) y se indexa en memoria
+  // para que construirActividadesDia lo consulte sincrónicamente antes de caer
+  // al molde determinista. Si el banco está vacío o falla, la unidad se genera
+  // igual con el molde — el banco solo eleva la calidad, nunca la bloquea.
+  let bancoActividadesArea = [];
+  try {
+    const [oficiales, aprobadas] = await Promise.all([
+      getActividades({ area, estado: "official", momento: "Desarrollo" }),
+      getActividades({ area, estado: "approved", momento: "Desarrollo" }),
+    ]);
+    // Prioriza official; completa con approved. Solo actividades con
+    // instrucciones reales (mecánica), no fichas vacías.
+    bancoActividadesArea = [...oficiales, ...aprobadas].filter(
+      (a) => Array.isArray(a?.instrucciones) && a.instrucciones.filter((x) => String(x || "").trim()).length > 0
+    );
+  } catch {
+    bancoActividadesArea = [];
+  }
+
   fases.forEach((fase) => {
     fase.dias.forEach((dia) => {
       const temaSemana = obtenerTemaSemana(Number(dia.semana || 1), rutaCurricular?.distribucion);
@@ -1905,6 +1935,26 @@ const _generarFasesConIA = async (
     const faseNum = fase?.numero || 1;
     const diasFase1 = fases?.[0]?.dias?.length || 0;
 
+    // ÁREAS NO-IDIOMA: el protagonista del día es un PROCEDIMIENTO o CONCEPTO del
+    // área (documento oficial pág. 21), no una estructura gramatical ni una
+    // "expresión" de idioma. Avanza uno por día global sobre los contenidos.
+    if (!esIdiomaArea) {
+      const procedimientos = textosUnicos((specActual.contenidosClaves?.funcionales || []).map(limpiar)).filter(Boolean);
+      const conceptos = textosUnicos((specActual.contenidosClaves?.vocabulario || []).map(limpiar)).filter(Boolean);
+      const banco = procedimientos.length ? procedimientos : conceptos;
+      if (banco.length) {
+        const idx = faseNum === 1 ? indiceEnFase : Math.max(indiceGlobal - diasFase1, 0);
+        const nuevo = idx < banco.length;
+        return {
+          texto: banco[idx % banco.length],
+          etiqueta: procedimientos.length ? "Procedimiento" : "Concepto clave",
+          tipo: faseNum === 1 ? "apropiacion" : (faseNum >= 4 ? "integracion" : (nuevo ? "contenido" : "reaplicacion")),
+          esNueva: faseNum >= 2 && faseNum < 4 && nuevo,
+        };
+      }
+      return { texto: "el contenido central del tema", etiqueta: "Foco", tipo: "contenido", esNueva: faseNum >= 2 };
+    }
+
     if (faseNum === 1) {
       // Semana de apropiación: sin estructura nueva (como el modelo) — el foco
       // son las expresiones sociales de arranque y la comprensión de la unidad.
@@ -1951,7 +2001,7 @@ const _generarFasesConIA = async (
   // Pieza del producto derivada de la estructura del día — la agenda nace del
   // día de horas, el párrafo del día de conectores, la entrevista del día de
   // preguntas… (Anexo H del modelo: cada semana aporta piezas distintas).
-  const piezaDelDia = ({ protagonista, perfilDia, temaCorto, esUltimoDeSemana = false, faseNum = 2 }) => {
+  const piezaDelDia = ({ protagonista, perfilDia, temaCorto, esUltimoDeSemana = false, faseNum = 2, indiceEnFase = 0 }) => {
     if (faseNum === 1) {
       return perfilDia.posicion === "inicio" || perfilDia.posicion === "unico"
         ? "mapa inicial de ideas sobre la unidad"
@@ -1960,9 +2010,33 @@ const _generarFasesConIA = async (
     if (faseNum >= 4) {
       if (perfilDia.posicion === "inicio") return "plan de organización de las evidencias del producto";
       if (perfilDia.posicion === "cierre") return "presentación final del producto y ficha de autoevaluación";
-      return "guion de presentación ensayado con retroalimentación";
+      // Días intermedios de la fase final: piezas DISTINTAS por día para no
+      // duplicar filas en el Anexo H (el ensayo del producto tiene etapas: se
+      // redacta primero, se ensaya con retroalimentación después).
+      return indiceEnFase <= 1
+        ? "guion de presentación redactado del producto"
+        : "guion de presentación ensayado con retroalimentación";
     }
     if (esUltimoDeSemana) return `avance integrado del producto con las piezas de la semana sobre ${temaCorto}`;
+
+    // ÁREAS NO-IDIOMA: la pieza del día es propia de la naturaleza del área,
+    // no un diálogo/entrevista de idioma. Rota por indiceEnFase para no repetir.
+    if (!esIdiomaArea) {
+      const naturaleza = clasificarNaturalezaArea();
+      const piezasPorArea = {
+        matematica: [`procedimiento resuelto y verificado sobre ${temaCorto}`, `situación-problema resuelta con su representación sobre ${temaCorto}`, `comparación de estrategias de solución sobre ${temaCorto}`],
+        ciencias_naturales: [`registro de observación y datos sobre ${temaCorto}`, `explicación con evidencias sobre ${temaCorto}`, `informe breve de indagación sobre ${temaCorto}`],
+        ciencias_sociales: [`análisis de fuentes sobre ${temaCorto}`, `organizador de causas y consecuencias sobre ${temaCorto}`, `argumento ciudadano fundamentado sobre ${temaCorto}`],
+        lengua_espanola: [`borrador revisado de texto sobre ${temaCorto}`, `análisis del texto modelo sobre ${temaCorto}`, `producción textual mejorada sobre ${temaCorto}`],
+        artistica: [`pieza en proceso sobre ${temaCorto}`, `bitácora creativa sobre ${temaCorto}`, `producción artística sobre ${temaCorto}`],
+        educacion_fisica: [`registro de ejecución motriz sobre ${temaCorto}`, `reto motor cooperativo sobre ${temaCorto}`, `reflexión de salud y desempeño sobre ${temaCorto}`],
+        formacion_humana: [`reflexión escrita sobre ${temaCorto}`, `diálogo argumentado sobre ${temaCorto}`, `compromiso personal o comunitario sobre ${temaCorto}`],
+        generica: [`producción del proceso sobre ${temaCorto}`, `evidencia de aplicación sobre ${temaCorto}`, `avance del producto sobre ${temaCorto}`],
+      };
+      const lista = piezasPorArea[naturaleza] || piezasPorArea.generica;
+      return lista[Math.max(indiceEnFase, 0) % lista.length];
+    }
+
     const t = normalizarClaveDidactica(protagonista?.texto || "");
     if (/conector|secuencia|first|then|finally/.test(t)) return `párrafo secuenciado sobre ${temaCorto}`;
     if (/frecuencia|frequency|adverbio/.test(t)) return `lista de hábitos con adverbios de frecuencia sobre ${temaCorto}`;
@@ -1974,8 +2048,15 @@ const _generarFasesConIA = async (
     if (/comparaci|contraste|but/.test(t)) return `cuadro comparativo sobre ${temaCorto}`;
     if (/want|hope|wish|deseo|interes/.test(t)) return `lista de deseos y planes sobre ${temaCorto}`;
     if (/cortesia|saludo|greeting|atencion|disculp|interrump|palabra|repitan/.test(t)) return `mini diálogo con expresiones de cortesía sobre ${temaCorto}`;
+    if (/\bcan\b|\bmay\b|\bcould\b|permiso|permission|modal/.test(t)) return `diálogo de peticiones y permisos sobre ${temaCorto}`;
+    if (/pronombre objeto|object pronoun|\bme\b|\bhim\b|\bthem\b/.test(t)) return `diálogo con pronombres objeto sobre ${temaCorto}`;
     if (/presente simple|conversacion|sostener/.test(t)) return `oraciones propias en contexto sobre ${temaCorto}`;
-    return `ficha aplicada sobre ${temaCorto}`;
+    // Fallback nombrado por estructura: días que reaplican estructuras distintas
+    // producen piezas distintas (evita filas idénticas en el Anexo H).
+    const estructuraCorta = String(protagonista?.texto || "").split(/[·(]/)[0].trim();
+    return estructuraCorta
+      ? `producción escrita con ${estructuraCorta} sobre ${temaCorto}`
+      : `ficha aplicada sobre ${temaCorto}`;
   };
 
   // Catálogo de "Listening con propósito" — la variante cambia cada día.
@@ -2002,6 +2083,205 @@ const _generarFasesConIA = async (
     ({ funcion }) => `Preparan en equipos (misión colaborativa) un intercambio breve para ${funcion}, con un papel para cada miembro, y lo presentan al grupo.`,
   ];
 
+  // ── Actividades para ÁREAS NO-IDIOMA ──────────────────────────────────────
+  // Cada área construye el Desarrollo según SU naturaleza disciplinar (documento
+  // oficial págs. 9-10). Los verbos y mecánicas son propios del área: Matemática
+  // razona y verifica, Ciencias indaga y experimenta, Sociales analiza fuentes y
+  // argumenta, etc. Nada de "Listen and X" ni "pronunciación". La MISMA brújula
+  // orienta el camino LLM (data/naturalezaAreasMINERD.js → phaseAService); aquí
+  // se materializa en el fallback determinístico con actividades ya redactadas.
+  const clasificarNaturalezaArea = () => {
+    const a = normalizarClaveDidactica(`${area} ${contexto.asignatura || ""}`);
+    if (/matematica|matematicas/.test(a)) return "matematica";
+    if (/naturaleza|biolog|quimic|fisica|ciencias de la/.test(a)) return "ciencias_naturales";
+    if (/sociales|historia|geograf|ciudadan/.test(a)) return "ciencias_sociales";
+    if (/lengua espanola|espanol|lengua materna/.test(a)) return "lengua_espanola";
+    if (/artistica|arte|musica|plastica|teatro|danza/.test(a)) return "artistica";
+    if (/fisica.*educacion|educacion fisica|deporte/.test(a)) return "educacion_fisica";
+    if (/religiosa|humana|integral|valores|etica/.test(a)) return "formacion_humana";
+    return "generica";
+  };
+
+  // Banco de "mecánicas de exploración/construcción" por naturaleza. Rota por
+  // indiceGlobal para que cada día tenga una mecánica distinta.
+  const MECANICAS_AREA = {
+    matematica: [
+      ({ foco, tema }) => `Analizan una situación-problema del contexto sobre ${tema} y explican qué datos conocen y qué deben hallar aplicando ${foco}.`,
+      ({ foco }) => `Representan el problema con material concreto, gráficos o tablas antes de formalizar el procedimiento de ${foco}.`,
+      ({ foco }) => `Resuelven en parejas un problema aplicando ${foco} y argumentan cada paso ante otra pareja (defensa del procedimiento).`,
+      ({ tema }) => `Comparan dos estrategias de solución para un mismo problema sobre ${tema} y deciden cuál es más eficiente y por qué.`,
+      ({ foco }) => `Verifican sus resultados con una estimación o un método alternativo y detectan posibles errores usando ${foco}.`,
+    ],
+    ciencias_naturales: [
+      ({ tema }) => `Observan un fenómeno, imagen o material del entorno relacionado con ${tema} y registran lo que perciben.`,
+      ({ foco }) => `Formulan una pregunta investigable y una hipótesis sobre ${foco}, anticipando qué esperan encontrar.`,
+      ({ foco }) => `Realizan una exploración o experimento guiado sobre ${foco} y registran los datos en una tabla de observación.`,
+      ({ tema }) => `Analizan los datos obtenidos sobre ${tema}, identifican patrones y contrastan con su hipótesis inicial.`,
+      ({ foco }) => `Elaboran una explicación con evidencias sobre ${foco} y la comunican al grupo con un esquema o modelo.`,
+    ],
+    ciencias_sociales: [
+      ({ tema }) => `Analizan un problema o situación social del contexto vinculado con ${tema} y expresan qué saben y qué les preocupa.`,
+      ({ foco }) => `Leen y contrastan fuentes (texto, mapa, imagen o dato) sobre ${foco}, distinguiendo hechos de opiniones.`,
+      ({ foco }) => `Establecen relaciones de causa y consecuencia sobre ${foco} en un organizador gráfico y las socializan.`,
+      ({ tema }) => `Debaten posturas fundamentadas sobre ${tema}, escuchando y respondiendo con argumentos y evidencias.`,
+      ({ tema }) => `Proponen una acción ciudadana concreta frente a ${tema} y explican a quién beneficia.`,
+    ],
+    lengua_espanola: [
+      ({ tema }) => `Leen un texto modelo relacionado con ${tema} e identifican su propósito, estructura y rasgos del género.`,
+      ({ foco }) => `Analizan cómo funciona ${foco} dentro del texto y anotan ejemplos que podrán reutilizar.`,
+      ({ foco }) => `Planifican y redactan un borrador propio aplicando ${foco}, atendiendo al destinatario y al propósito.`,
+      ({ tema }) => `Revisan en parejas su producción sobre ${tema} con una pauta y aplican al menos una mejora concreta.`,
+      ({ tema }) => `Editan y publican su texto sobre ${tema} para un lector real y comparten la versión final.`,
+    ],
+    artistica: [
+      ({ tema }) => `Aprecian una obra o referente relacionado con ${tema} y comentan qué recursos expresivos reconocen.`,
+      ({ foco }) => `Exploran la técnica de ${foco} con ejercicios breves antes de la creación.`,
+      ({ foco }) => `Crean de forma guiada una pieza propia aplicando ${foco} y registran sus decisiones en la bitácora.`,
+      ({ tema }) => `Revisan su producción sobre ${tema} con criterios estéticos y aplican una mejora.`,
+      ({ tema }) => `Exhiben o interpretan su obra sobre ${tema} y explican su intención al grupo.`,
+    ],
+    educacion_fisica: [
+      ({ tema }) => `Realizan una activación corporal segura conectada con ${tema}.`,
+      ({ foco }) => `Observan la demostración técnica de ${foco} e identifican sus puntos clave.`,
+      ({ foco }) => `Practican ${foco} de forma guiada en parejas o tríos, corrigiéndose con una pauta simple.`,
+      ({ tema }) => `Aplican lo practicado en un juego o reto motor cooperativo sobre ${tema}.`,
+      ({ foco }) => `Reflexionan sobre el esfuerzo, la salud y el juego limpio al practicar ${foco}.`,
+    ],
+    formacion_humana: [
+      ({ tema }) => `Comparten una experiencia humana cercana relacionada con ${tema} en un clima de respeto.`,
+      ({ foco }) => `Dialogan de forma reflexiva sobre ${foco} a partir de un caso o texto de valor.`,
+      ({ foco }) => `Analizan los valores en juego en la situación de ${foco} y contrastan puntos de vista.`,
+      ({ tema }) => `Discierne en grupo qué actitud es más coherente frente a ${tema} y por qué.`,
+      ({ foco }) => `Asumen un compromiso personal o comunitario concreto vinculado con ${foco}.`,
+    ],
+    generica: [
+      ({ tema }) => `Exploran una situación del contexto relacionada con ${tema} y activan sus saberes previos.`,
+      ({ foco }) => `Construyen de forma guiada el aprendizaje central sobre ${foco} con apoyo de ejemplos.`,
+      ({ foco }) => `Aplican ${foco} en una tarea colaborativa y registran su proceso.`,
+      ({ tema }) => `Revisan su avance sobre ${tema} con criterios compartidos y aplican una mejora.`,
+      ({ tema }) => `Socializan su producción sobre ${tema} y reciben retroalimentación de sus pares.`,
+    ],
+  };
+
+  const construirActividadesAreaNoIdioma = ({
+    perfilDia, temaSemana, productoNombre, foco, vocabTxt,
+    piezaProducto, faseNum, esUltimoDeSemana, indiceGlobal = 0,
+  }) => {
+    const tema = String(temaSemana).split(" · ")[0].trim();
+    const banco = MECANICAS_AREA[clasificarNaturalezaArea()] || MECANICAS_AREA.generica;
+    const mecanica = (offset = 0) => banco[(indiceGlobal + offset) % banco.length]({ foco, tema });
+
+    if (faseNum === 1) {
+      const esPrimerDia = perfilDia.posicion === "inicio" || perfilDia.posicion === "unico";
+      if (esPrimerDia) {
+        return [
+          `Escuchan la presentación de la unidad: la situación de aprendizaje, los contenidos que trabajarán y el producto final que construirán (${productoNombre}).`,
+          `Observan una situación o ejemplo del contexto relacionado con ${tema} y expresan qué reconocen de su propia experiencia.`,
+          `Registran en el cuaderno los conceptos o términos clave que ya conocen sobre el tema (${vocabTxt}).`,
+          `Elaboran ${piezaProducto} con las ideas que consideran más importantes y socializan por qué.`,
+          `Participan en un diagnóstico breve respondiendo preguntas sencillas sobre el tema.`,
+        ];
+      }
+      return [
+        `Observan un ejemplo del producto final y analizan la rúbrica de ${productoNombre}, identificando los criterios con los que serán evaluados.`,
+        `Revisan y organizan los conceptos o términos clave del tema (${vocabTxt}) en un organizador gráfico.`,
+        `Elaboran ${piezaProducto} imaginando cómo será su producto terminado.`,
+        `Acuerdan las normas de trabajo de la unidad y el plan de la semana.`,
+      ];
+    }
+
+    if (faseNum >= 4) {
+      if (perfilDia.posicion === "inicio") {
+        return [
+          `Revisan las piezas del portafolio elaboradas en la unidad y deciden cuáles integran a ${productoNombre}.`,
+          `Arman en equipos ${piezaProducto}, decidiendo qué evidencia, dato o representación va en cada sección.`,
+          `Comparten su plan con otro equipo y reciben una sugerencia concreta de mejora.`,
+        ];
+      }
+      if (perfilDia.posicion === "cierre") {
+        return [
+          `Presentan ${productoNombre} ante el grupo en turnos breves y cronometrados.`,
+          `Coevalúan a sus compañeros con la rúbrica y anotan una pregunta real para cada presentación.`,
+          `Responden una pregunta del público al cierre de su presentación, fundamentando con lo aprendido.`,
+          `Completan la ficha de autoevaluación de la unidad y registran una meta personal para la siguiente.`,
+          `Exhiben los productos terminados en el aula como cierre de la unidad.`,
+        ];
+      }
+      return [
+        `Analizan un producto modelo y evalúan con una rúbrica sencilla qué lo hace claro y completo.`,
+        `Preparan su presentación con introducción, desarrollo de las evidencias y un cierre con conclusión.`,
+        `Ensayan en parejas: uno presenta y el otro completa una ficha "dos estrellas y un deseo".`,
+        `Ajustan ${piezaProducto} con la retroalimentación recibida antes de la presentación final.`,
+      ];
+    }
+
+    if (esUltimoDeSemana) {
+      return [
+        `Revisan las piezas elaboradas durante la semana e identifican conceptos y procedimientos que pueden integrar.`,
+        `Organizan sus ideas y construyen ${piezaProducto}, conectando lo aprendido con ${productoNombre}.`,
+        `Intercambian en grupos sugerencias sobre el avance de los compañeros y aplican una mejora concreta.`,
+        `Preparan en pequeños grupos cómo presentarán su avance.`,
+        `Completan una coevaluación breve destacando una fortaleza del trabajo de un compañero.`,
+      ];
+    }
+
+    // Fases de construcción/aplicación: el Desarrollo sigue la secuencia
+    // disciplinar del área (3 mecánicas distintas rotadas) + producción + cierre.
+    return [
+      mecanica(0),
+      mecanica(2),
+      mecanica(4),
+      `Elaboran ${piezaProducto}, aplicando ${foco} y al menos tres conceptos o términos del tema (${vocabTxt}). (Aporte a ${productoNombre}.)`,
+      `Socializan su producción con un compañero y aplican una mejora concreta ("una estrella y un deseo") antes de guardarla en el portafolio.`,
+    ];
+  };
+
+  // ─── Selector del Banco Pedagógico ──────────────────────────────────────────
+  // Elige del banco la actividad de mayor afinidad con el día (tema + estructura
+  // + grado) para el momento Desarrollo. Determinista: mismo día → misma
+  // elección. Evita repetir la misma actividad en días consecutivos con un
+  // registro de usos por unidad. Si nada supera el umbral de afinidad, devuelve
+  // null y el molde toma el control. NO parafrasea: sirve las instrucciones
+  // VERBATIM del banco (validadas por el dueño), solo interpola el aporte al
+  // producto al final para mantener el hilo del portafolio.
+  const _bancoUsadas = new Set();
+  const _tok = (s) => String(s || "")
+    .toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+  const elegirActividadBanco = ({ temaSemana, estructura, foco, indiceGlobal }) => {
+    if (!bancoActividadesArea.length) return null;
+    const señales = new Set([
+      ..._tok(temaSemana), ..._tok(estructura), ..._tok(foco),
+    ]);
+    if (!señales.size) return null;
+    const puntuar = (act) => {
+      const campoActividad = [
+        ...String(act.titulo || "").split(" "),
+        ...(Array.isArray(act.temas) ? act.temas : []),
+        ...(Array.isArray(act.habilidades) ? act.habilidades : []),
+        String(act.estrategia || ""),
+        String(act.competencia || ""),
+      ].join(" ");
+      const tokensAct = new Set(_tok(campoActividad));
+      let score = 0;
+      señales.forEach((s) => { if (tokensAct.has(s)) score += 1; });
+      // Bono por valoración/uso previo (calidad probada), penaliza si ya se usó.
+      score += Math.min(Number(act.valoracion || 0), 3) * 0.25;
+      if (_bancoUsadas.has(act.id)) score -= 2;
+      return score;
+    };
+    const ranking = bancoActividadesArea
+      .map((act) => ({ act, score: puntuar(act) }))
+      .filter((r) => r.score >= 2) // umbral: al menos 2 señales en común
+      .sort((a, b) => b.score - a.score);
+    if (!ranking.length) return null;
+    // Desempate estable por indiceGlobal para variar entre días igualmente afines.
+    const top = ranking.filter((r) => r.score === ranking[0].score);
+    const elegida = top[indiceGlobal % top.length].act;
+    _bancoUsadas.add(elegida.id);
+    return elegida;
+  };
+
   const construirActividadesDia = ({
     protagonista,
     perfilDia,
@@ -2020,6 +2300,17 @@ const _generarFasesConIA = async (
       .replace(/^(Funcional|Discursivo):\s*/i, "").toLowerCase();
     const lv = LISTENING_VARIANTES[indiceGlobal % LISTENING_VARIANTES.length];
     const interaccion = INTERACCION_VARIANTES[indiceGlobal % INTERACCION_VARIANTES.length]({ funcion, estructura, temaSemana });
+
+    // ÁREAS NO-IDIOMA: las actividades nacen de la SECUENCIA DISCIPLINAR del
+    // área (documento oficial, págs. 9-10), no del molde comunicativo de
+    // Lenguas Extranjeras. Nada de "Listen and X", "Speaking Circle" ni
+    // "pronunciación" en Matemática, Ciencias, Sociales, etc.
+    if (!esIdiomaArea) {
+      return construirActividadesAreaNoIdioma({
+        perfilDia, temaSemana, productoNombre, foco: estructura,
+        vocabTxt, piezaProducto, faseNum, esUltimoDeSemana, indiceGlobal,
+      });
+    }
 
     if (faseNum === 1) {
       const esPrimerDia = perfilDia.posicion === "inicio" || perfilDia.posicion === "unico";
@@ -2074,6 +2365,23 @@ const _generarFasesConIA = async (
         `Intercambian en grupos (Listen and Create) sugerencias sobre el avance de los compañeros y aplican una mejora concreta.`,
         `Practican en pequeños grupos cómo presentarán su avance, usando las estructuras de la semana.`,
         `Completan una coevaluación breve destacando una fortaleza del trabajo de un compañero.`,
+      ];
+    }
+
+    // BANCO PEDAGÓGICO primero: si hay una actividad validada afín al día, se
+    // usa su mecánica real (verbatim) en lugar del molde genérico. Se conserva
+    // el andamiaje de escucha con propósito al inicio y el aporte al producto al
+    // final, para no romper el hilo del portafolio ni la progresión de la unidad.
+    const actBanco = elegirActividadBanco({ temaSemana, estructura, foco: estructura, indiceGlobal });
+    if (actBanco) {
+      const pasos = actBanco.instrucciones
+        .map((x) => String(x || "").trim())
+        .filter(Boolean);
+      return [
+        `Escuchan con propósito (${lv.nombre}) un texto breve sobre ${temaSemana} y ${lv.consigna}.`,
+        ...pasos,
+        `Elaboran ${piezaProducto}, incorporando ${estructura} y al menos tres palabras del vocabulario trabajado. (Aporte a ${productoNombre}.)`,
+        `Socializan su producción con un compañero y aplican una mejora concreta ("una estrella y un deseo") antes de guardarla en el portafolio.`,
       ];
     }
 
@@ -2133,10 +2441,30 @@ const _generarFasesConIA = async (
     return banco[indiceGlobal % banco.length];
   };
 
-  const resolverTopicoDia = (dia, indiceEnFase, specActual = specBase) => {
+  const resolverTopicoDia = (dia, indiceEnFase, specActual = specBase, protagonista = null) => {
     const indiceGlobal = Math.max((dia?.numeroGlobal || (globalOffset + indiceEnFase + 1)) - 1, 0);
     const semanaReal = Math.max(1, Math.min(numSemanas, dia?.semana || 1));
     const etapa = String(dia?.etapaProgresion || "").trim();
+
+    // FUENTE ÚNICA DE VERDAD (fix título↔estructura): cuando el día tiene una
+    // estructura gramatical protagonista, el foco del TÍTULO es ESA MISMA
+    // estructura — la misma que alimenta focoLinguistico y piezaProducto.
+    // Antes el título salía de resolverFocosCurriculares (reparto por bloque de
+    // semana) y focoLinguistico de resolverProtagonistaDia (una por día global);
+    // los dos repartos divergían y el título contradecía la estructura del día.
+    if (protagonista?.texto
+      && (protagonista.tipo === "estructura"
+        || protagonista.tipo === "reaplicacion"
+        || protagonista.tipo === "integracion")) {
+      const estructura = limpiarEtiquetaContenido(protagonista.texto);
+      const vocabProt = tomarVentana(specActual.contenidosClaves?.vocabulario, indiceGlobal, 2)
+        .map(limpiarEtiquetaContenido).filter(Boolean);
+      return recortar(
+        vocabProt.length ? `${estructura} · vocabulario: ${vocabProt.slice(0, 2).join(", ")}` : estructura,
+        90
+      );
+    }
+
     const focoCurricular = resolverFocosCurriculares({
       arquitectura: specActual.arquitecturaCurricular,
       contenidosClaves: specActual.contenidosClaves,
@@ -2237,10 +2565,13 @@ const _generarFasesConIA = async (
     const temaTxt = temaCorto || foco || "el tema del día";
     const productoTxt = producto || "el producto final";
     const nombre = String(momento || "").toLowerCase();
+    // Las evidencias son texto de celda de párrafo (como el documento modelo del
+    // dueño): se entregan COMPLETAS, sin truncar. Truncarlas producía cortes a
+    // media palabra ("People Around Me: Social…") en el PDF del docente.
     if (nombre.includes("inicio")) {
       return {
         conocimientos: [
-          recortar(`Reconoce ideas y vocabulario clave sobre ${temaTxt}.`, 120),
+          `Reconoce ideas y vocabulario clave sobre ${temaTxt}.`,
         ],
         desempeno: [],
         producto: [],
@@ -2251,19 +2582,19 @@ const _generarFasesConIA = async (
         conocimientos: [],
         desempeno: [],
         producto: [
-          recortar(`Guarda o socializa ${pieza} como evidencia para ${productoTxt}.`, 120),
+          `Guarda o socializa ${pieza} como evidencia para ${productoTxt}.`,
         ],
       };
     }
     return {
       conocimientos: [],
       desempeno: [
-        recortar(estructura
+        estructura
           ? `Aplica ${estructura} al comunicarse sobre ${temaTxt}.`
-          : `Aplica el contenido del día en la práctica guiada sobre ${temaTxt}.`, 120),
+          : `Aplica el contenido del día en la práctica guiada sobre ${temaTxt}.`,
       ],
       producto: [
-        recortar(`Entrega ${pieza} como avance para ${productoTxt}.`, 120),
+        `Entrega ${pieza} como avance para ${productoTxt}.`,
       ],
     };
   };
@@ -2353,7 +2684,10 @@ const _generarFasesConIA = async (
 
   const construirClaseBaseCurricular = ({ dia, fase, indiceEnFase, specActual, semanaGeneracion }) => {
     const indiceGlobal = Math.max((dia?.numeroGlobal || (globalOffset + indiceEnFase + 1)) - 1, 0);
-    const foco = resolverTopicoDia(dia, indiceEnFase, specActual);
+    // G3b — estructura protagonista del día (avanza clase a clase). Se resuelve
+    // ANTES que el foco del título para que ambos usen la MISMA estructura.
+    const protagonista = resolverProtagonistaDia({ specActual, fase, indiceEnFase, indiceGlobal });
+    const foco = resolverTopicoDia(dia, indiceEnFase, specActual, protagonista);
     const temaSemana = dia?.temaCurricular
       || specActual.temaTrabajoSemana
       || (specActual.temasSemana || []).filter(Boolean)[0]
@@ -2373,8 +2707,6 @@ const _generarFasesConIA = async (
       productoNombre,
     });
 
-    // G3b — estructura protagonista del día (avanza clase a clase)
-    const protagonista = resolverProtagonistaDia({ specActual, fase, indiceEnFase, indiceGlobal });
     const protagonistaPrevio = indiceEnFase > 0
       ? resolverProtagonistaDia({ specActual, fase, indiceEnFase: indiceEnFase - 1, indiceGlobal: indiceGlobal - 1 })
       : null;
@@ -2389,7 +2721,7 @@ const _generarFasesConIA = async (
 
     const temaCorto = String(temaSemana).split(" · ")[0].trim();
     const estructuraDia = protagonista.texto;
-    const piezaProducto = piezaDelDia({ protagonista, perfilDia, temaCorto, esUltimoDeSemana, faseNum });
+    const piezaProducto = piezaDelDia({ protagonista, perfilDia, temaCorto, esUltimoDeSemana, faseNum, indiceEnFase });
     const recursosBase = [
       "Pizarra y marcadores",
       area === "Inglés" ? "Tarjetas de vocabulario" : "Cuaderno del estudiante",
@@ -2448,12 +2780,11 @@ const _generarFasesConIA = async (
         140
       ),
       estrategiasDia: [estrategia, "práctica guiada", "socialización"].filter(Boolean).join(" · "),
-      intencionPedagogica: recortar(
-        esUltimoDeSemana
-          ? `Desde el inicio hasta el final de la clase, los estudiantes integran lo trabajado en la semana sobre ${temaCorto} y construyen ${piezaProducto} para ${productoNombre}.`
-          : `Desde el inicio hasta el final de la clase, los estudiantes trabajan ${estructuraDia} aplicado a ${temaCorto}, con práctica guiada y producción propia, aportando ${piezaProducto} a ${productoNombre}.`,
-        230
-      ),
+      // La intención pedagógica es la banda de párrafo del día (documento modelo
+      // del dueño): completa, sin truncar. El corte a 230 producía "…" en el PDF.
+      intencionPedagogica: esUltimoDeSemana
+        ? `Desde el inicio hasta el final de la clase, los estudiantes integran lo trabajado en la semana sobre ${temaCorto} y construyen ${piezaProducto} para ${productoNombre}.`
+        : `Desde el inicio hasta el final de la clase, los estudiantes trabajan ${estructuraDia} aplicado a ${temaCorto}, con práctica guiada y producción propia, aportando ${piezaProducto} a ${productoNombre}.`,
       saludoInicial: area === "Inglés"
         ? "Good morning. Today we will use English to connect the class topic with our final product."
         : "Buenos días. Hoy conectaremos el tema de la clase con el producto final de la unidad.",
@@ -2533,7 +2864,7 @@ const _generarFasesConIA = async (
         metodologicas: "Dividir la tarea en pasos breves, verificar comprensión antes del trabajo autónomo y permitir apoyo de pares.",
         evaluacion: "Valorar el mismo indicador con evidencias orales, escritas o visuales según la necesidad del estudiante.",
       },
-      observacionesSemana: "Base curricular generada desde la malla oficial. Puede enriquecerse nuevamente con IA cuando haya proveedor disponible.",
+      observacionesSemana: "Observar si los estudiantes aplican correctamente las estructuras y el vocabulario trabajados durante las interacciones; anotar qué elementos necesitan refuerzo en la próxima sesión.",
       productoFinalNombre: specActual.productoFinalNombre || productoFinal || "",
       _origenComposicion: "base_curricular",
     };
@@ -2598,11 +2929,14 @@ const _generarFasesConIA = async (
             ? `Semana ${semanasLote[0]} de ${numSemanas}`
             : `Semanas ${semanasLote.join(" y ")} de ${numSemanas}`;
           const topicos = diasLote.map((dia, idx) => {
+            const idxEnFase = startDia - 1 + idx;
+            const idxGlobal = Math.max((dia?.numeroGlobal || (globalOffset + idxEnFase + 1)) - 1, 0);
+            const prot = resolverProtagonistaDia({ specActual: specFase, fase, indiceEnFase: idxEnFase, indiceGlobal: idxGlobal });
             const etiquetaDia = [
               `Día ${dia.numeroGlobal || globalStart + idx}`,
               dia.diaCalendario ? dia.diaCalendario : "",
             ].filter(Boolean).join(" · ");
-            return `${etiquetaDia}: ${resolverTopicoDia(dia, startDia - 1 + idx, specFase)}`;
+            return `${etiquetaDia}: ${resolverTopicoDia(dia, idxEnFase, specFase, prot)}`;
           });
           onProgress(
             `✍️ ${semanaTxt} · Fase ${fase.numero}: ${fase.nombre} — escribiendo ${rango} de ${totalClases} · ${topicos.join(" | ")}`

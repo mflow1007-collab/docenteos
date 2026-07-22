@@ -10,6 +10,7 @@ import {
   BP_ESTADOS, BP_AREAS, BP_GRADOS, BP_MOMENTOS,
   BP_TIPOS_ACTIVIDAD, BP_TIPOS_INSTRUMENTO, BP_TIPOS_RECURSO,
 } from '../../services/bancoPedagogicoService.js';
+import { sembrarActividadesModelo, ACTIVIDADES_MODELO } from '../../services/bancoActividadesModelo.js';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -350,6 +351,8 @@ function TabActividades({ adminId }) {
   const [modal, setModal]               = useState(null);
   const [form, setForm]                 = useState(ACT_VACIA);
   const [guardando, setGuardando]       = useState(false);
+  const [sembrando, setSembrando]       = useState(false);
+  const [msgSiembra, setMsgSiembra]     = useState('');
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -407,6 +410,25 @@ function TabActividades({ adminId }) {
     }
   };
 
+  // Siembra las actividades del PDF modelo del dueño (Frequency Walk, Interview
+  // Stations, My Daily Vlog…) marcadas `official`. Idempotente: no duplica por
+  // título. El generador de unidades las consulta antes de caer al molde.
+  const sembrar = async () => {
+    const total = ACTIVIDADES_MODELO.length;
+    if (!window.confirm(`¿Sembrar ${total} actividades del modelo del dueño en el banco (marcadas Oficial)? No se duplican las que ya existan.`)) return;
+    setSembrando(true);
+    setMsgSiembra('');
+    try {
+      const r = await sembrarActividadesModelo(adminId);
+      setMsgSiembra(`✓ ${r.creadas} creadas, ${r.omitidas} ya existían (de ${r.total}).`);
+      cargar();
+    } catch (e) {
+      setMsgSiembra(`✗ Error: ${e?.message || 'no se pudo sembrar'}`);
+    } finally {
+      setSembrando(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -420,8 +442,16 @@ function TabActividades({ adminId }) {
           <option value="">Todos los momentos</option>
           {BP_MOMENTOS.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
-        <button onClick={abrirNuevo} className="admin-btn" style={{ marginLeft: 'auto' }}>+ Nueva actividad</button>
+        <button onClick={sembrar} disabled={sembrando} className="admin-btn" style={{ marginLeft: 'auto', background: '#0f766e' }}>
+          {sembrando ? 'Sembrando…' : '🌱 Sembrar modelo del dueño'}
+        </button>
+        <button onClick={abrirNuevo} className="admin-btn">+ Nueva actividad</button>
       </div>
+      {msgSiembra && (
+        <p style={{ marginTop: -8, marginBottom: 14, fontSize: 13, color: msgSiembra.startsWith('✓') ? '#15803d' : '#dc2626' }}>
+          {msgSiembra}
+        </p>
+      )}
 
       {cargando ? (
         <p style={{ color: '#94a3b8', textAlign: 'center', padding: 32 }}>Cargando actividades…</p>

@@ -497,97 +497,146 @@ const tituloInicialPorRuta = (temas = [], { area = "", asignatura = "" } = {}) =
   return temas[0] || "Unidad de aprendizaje";
 };
 
+const focoSemanalPorDistribucion = (temasRuta = [], semanas = 4, modo = "concentrada") => {
+  const distribucion = distribuirTemasEnSemanas(temasRuta, semanas);
+  const salida = [];
+  distribucion.forEach((bloque, bloqueIndex) => {
+    for (let semana = bloque.semanaInicio; semana <= bloque.semanaFin; semana += 1) {
+      const posEnBloque = semana - bloque.semanaInicio;
+      let aporte;
+      if (modo === "concentrada") {
+        aporte = semana === 1
+          ? "Presentar la situación de aprendizaje, activar saberes previos y acordar el producto."
+          : semana === semanas
+            ? "Mejorar, socializar y cerrar el producto final."
+            : posEnBloque === 0
+              ? "Construir vocabulario, funciones y ejemplos base del tema."
+              : "Aplicar el aprendizaje en una tarea comunicativa y guardar evidencia en el portafolio.";
+      } else {
+        aporte = bloqueIndex === 0 && posEnBloque === 0
+          ? "Presentar la situación de aprendizaje desde este tema y construir la primera pieza del producto."
+          : posEnBloque === 0
+            ? "Abrir este nuevo tema y conectarlo explícitamente con la situación de aprendizaje y el producto."
+            : "Profundizar este tema con una producción parcial antes de pasar al siguiente bloque.";
+      }
+      salida.push({ semana, tema: bloque.tema, aporte });
+    }
+  });
+  return salida;
+};
+
 /**
  * Sugiere rutas iniciales cuando el docente todavía no ha escrito tema.
- * La fuente es la malla: se priorizan los primeros temas oficiales porque
- * normalmente abren el año y permiten construir identidad, diagnóstico y
- * lenguaje base antes de avanzar a contextos más complejos.
+ *
+ * Dos reglas que el docente pidió explícitamente:
+ *   1) NO sugerir temas que el docente ya trabajó en este mismo contexto
+ *      (se pasan normalizados en contexto.temasTrabajados, un Set o arreglo).
+ *   2) Las combinaciones se arman por AFINIDAD real de la malla
+ *      (criteriosCombinacionTematica), NO por proximidad en la lista.
+ *
+ * La fuente es la malla: se priorizan los primeros temas oficiales AÚN NO
+ * trabajados porque normalmente abren el año y permiten diagnóstico y lenguaje
+ * base antes de avanzar a contextos más complejos.
  */
 export const sugerirRutasInicialesAsesor = (curriculoData, contexto = {}) => {
-  const temas = (curriculoData?.temasCurriculares || [])
+  // Set de temas ya trabajados (normalizados). Acepta Set o arreglo.
+  const trabajados = contexto.temasTrabajados instanceof Set
+    ? contexto.temasTrabajados
+    : new Set((Array.isArray(contexto.temasTrabajados) ? contexto.temasTrabajados : []).map(_norm));
+  const yaTrabajado = (t) => trabajados.has(_norm(t));
+
+  const todos = (curriculoData?.temasCurriculares || [])
     .map(textoTema)
     .map((tema) => String(tema || "").trim())
     .filter(Boolean)
     .filter((tema, index, lista) => lista.findIndex((t) => _norm(t) === _norm(tema)) === index);
-  if (!temas.length) return [];
+  if (!todos.length) return [];
 
-  const primeras = temas.slice(0, 3);
+  // Regla 1: quitar los temas que el docente ya trabajó. Si absolutamente todos
+  // están trabajados (raro), caemos a la lista completa para no dejar el asesor
+  // en blanco — pero conservamos el orden oficial de la malla.
+  const disponibles = todos.filter((t) => !yaTrabajado(t));
+  const temas = disponibles.length ? disponibles : todos;
+
+  // Regla 2: combinaciones por afinidad de la malla. Buscamos el grupo de
+  // criteriosCombinacionTematica que contiene el PRIMER tema disponible; sus
+  // otros miembros (también no trabajados) son los afines reales.
+  const criterios = Array.isArray(curriculoData?.criteriosCombinacionTematica)
+    ? curriculoData.criteriosCombinacionTematica
+    : [];
+  const grupoAfinDe = (tema) => {
+    const grupo = criterios.find(
+      (c) => Array.isArray(c.temas) && c.temas.some((t) => _norm(t) === _norm(tema))
+    );
+    if (!grupo) return null;
+    const miembros = grupo.temas
+      .map((t) => String(t || "").trim())
+      .filter(Boolean)
+      .filter((t) => !yaTrabajado(t))
+      .filter((t, i, arr) => arr.findIndex((x) => _norm(x) === _norm(t)) === i);
+    return { nombre: grupo.nombre, razon: grupo.razon, duracionSugerida: grupo.duracionSugerida, miembros };
+  };
+
   const rutas = [];
+  const primero = temas[0];
 
-  if (primeras.length >= 2) {
-    const temasRuta = primeras.slice(0, Math.min(3, primeras.length));
+  // Ruta 1 — Recomendación inicial: un solo tema (el primero disponible).
+  rutas.push({
+    id: "primer_tema",
+    etiqueta: "Recomendación inicial",
+    titulo: tituloInicialPorRuta([primero], contexto),
+    temas: [primero],
+    semanas: 4,
+    productoFinal: productoInicialPorRuta([primero], contexto),
+    razon: "Conviene iniciar con el primer tema oficial de la malla aún no trabajado porque permite diagnosticar saberes previos, nivelar vocabulario y construir un producto claro sin mezclar contenidos antes de tiempo.",
+    focoSemanal: focoSemanalPorDistribucion([primero], 4, "concentrada"),
+  });
+
+  // Ruta 2 — Ruta combinada POR AFINIDAD: el grupo curricular del primer tema.
+  const afin = grupoAfinDe(primero);
+  if (afin && afin.miembros.length >= 2) {
+    const temasRuta = afin.miembros.slice(0, 3);
+    const nSug = parseInt(String(afin.duracionSugerida || ""), 10);
+    const semanas = Number.isFinite(nSug) && nSug >= 4
+      ? Math.min(8, nSug)
+      : Math.min(6, Math.max(4, temasRuta.length * 2));
     rutas.push({
-      id: "inicio_anio",
-      etiqueta: "Recomendación inicial",
-      titulo: tituloInicialPorRuta(temasRuta, contexto),
+      id: "combinada_afin",
+      etiqueta: "Ruta combinada (temas afines)",
+      titulo: afin.nombre || `${tituloInicialPorRuta([temasRuta[0]], contexto)} integrado`,
       temas: temasRuta,
-      semanas: Math.min(6, Math.max(4, temasRuta.length * 2)),
+      semanas,
       productoFinal: productoInicialPorRuta(temasRuta, contexto),
-      razon: "Conviene iniciar con los primeros temas de la malla porque permiten diagnosticar saberes previos, construir vocabulario base y avanzar con una secuencia natural hacia un producto integrador.",
-      focoSemanal: temasRuta.map((tema, index) => ({
-        semana: index + 1,
-        tema,
-        aporte: index === 0
-          ? "Presentar la situación de aprendizaje, activar saberes previos y construir la primera pieza del producto."
-          : "Ampliar el contenido anterior y añadir una nueva pieza conectada al producto final.",
-      })),
+      razon: afin.razon
+        ? `${afin.razon} Cada tema se trabaja por bloque semanal, sin mezclar contenidos dentro de una misma semana.`
+        : "Estos temas son afines según la malla oficial y se integran en un mismo producto. Cada tema se trabaja por bloque semanal, sin mezclar contenidos dentro de una misma semana.",
+      focoSemanal: focoSemanalPorDistribucion(temasRuta, semanas, "combinada"),
     });
   }
 
-  const alternativas = [
-    {
-      id: "alternativa_siguiente_bloque",
+  // Ruta 3 — Alternativa: el siguiente tema disponible como arranque distinto.
+  if (temas.length >= 2) {
+    const alt = temas[1];
+    const afinAlt = grupoAfinDe(alt);
+    const temasRuta = afinAlt && afinAlt.miembros.length >= 2
+      ? afinAlt.miembros.slice(0, 3)
+      : [alt];
+    const semanas = temasRuta.length >= 2
+      ? Math.min(6, Math.max(4, temasRuta.length * 2))
+      : 4;
+    rutas.push({
+      id: "alternativa_siguiente",
       etiqueta: "Alternativa",
-      temas: temas.slice(1, 4),
-      razon: "Esta ruta funciona si el docente prefiere avanzar hacia el siguiente bloque de la malla, manteniendo una progresión contextual sin empezar necesariamente por el primer tema.",
-    },
-    {
-      id: "alternativa_integrada",
-      etiqueta: "Alternativa integradora",
-      temas: [temas[0], temas[2], temas[3]].filter(Boolean),
-      razon: "Esta opción integra el tema inicial con contenidos posteriores para construir un producto más amplio, útil cuando el curso tiene buen diagnóstico inicial o más tiempo disponible.",
-    },
-  ];
-
-  alternativas.forEach((alt) => {
-    const temasAlt = alt.temas
-      .filter(Boolean)
-      .filter((tema, index, lista) => lista.findIndex((t) => _norm(t) === _norm(tema)) === index);
-    if (temasAlt.length < 2) return;
-    rutas.push({
-      id: alt.id,
-      etiqueta: alt.etiqueta,
-      titulo: tituloInicialPorRuta(temasAlt, contexto),
-      temas: temasAlt,
-      semanas: Math.min(6, Math.max(4, temasAlt.length * 2)),
-      productoFinal: productoInicialPorRuta(temasAlt, contexto),
-      razon: alt.razon,
-      focoSemanal: temasAlt.map((tema, index) => ({
-        semana: index + 1,
-        tema,
-        aporte: index === 0
-          ? "Abrir la unidad desde este foco, diagnosticar saberes y definir la primera pieza del producto."
-          : "Conectar este contenido con lo anterior y agregar una nueva evidencia al producto final.",
-      })),
-    });
-  });
-
-  if (temas.length) {
-    const tema = temas[0];
-    rutas.push({
-      id: "primer_tema",
-      etiqueta: "Ruta corta",
-      titulo: tituloInicialPorRuta([tema], contexto),
-      temas: [tema],
-      semanas: 4,
-      productoFinal: productoInicialPorRuta([tema], contexto),
-      razon: "Si quieres empezar con una unidad más concentrada, el primer tema oficial funciona bien para diagnóstico, nivelación y producción inicial sin mezclar demasiados contenidos.",
-      focoSemanal: [
-        { semana: 1, tema, aporte: "Explorar la situación y acordar el producto." },
-        { semana: 2, tema, aporte: "Construir vocabulario, conceptos o procedimientos base." },
-        { semana: 3, tema, aporte: "Aplicar el aprendizaje en una tarea guiada." },
-        { semana: 4, tema, aporte: "Mejorar, socializar y cerrar el producto." },
-      ],
+      titulo: temasRuta.length >= 2 && afinAlt?.nombre
+        ? afinAlt.nombre
+        : tituloInicialPorRuta(temasRuta, contexto),
+      temas: temasRuta,
+      semanas,
+      productoFinal: productoInicialPorRuta(temasRuta, contexto),
+      razon: temasRuta.length >= 2 && afinAlt
+        ? (afinAlt.razon || "Otro grupo de temas afines de la malla, útil si prefieres un arranque distinto.")
+        : "Arranca desde el siguiente tema disponible de la malla si prefieres no empezar por el primero.",
+      focoSemanal: focoSemanalPorDistribucion(temasRuta, semanas, temasRuta.length >= 2 ? "combinada" : "concentrada"),
     });
   }
 

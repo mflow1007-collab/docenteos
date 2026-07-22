@@ -226,6 +226,9 @@ export default function FormularioUnidadAprendizaje({
   // ── Sugerencia de tema oficial (texto libre → tema del currículo + afines) ──
   const [sugerenciaTema, setSugerenciaTema] = useState(null);
   const [temasMalla, setTemasMalla] = useState([]);
+  // Criterios de afinidad de la malla — el asesor combina POR AFINIDAD real,
+  // no por proximidad en la lista de temas.
+  const [criteriosMalla, setCriteriosMalla] = useState([]);
   const [estadoCurriculoAsesor, setEstadoCurriculoAsesor] = useState({ status: "idle", mensaje: "" });
   const [modoElegido, setModoElegido] = useState(null); // "solo" | nombre de combinación | "propia"
   const [mostrarPropia, setMostrarPropia] = useState(false);
@@ -326,6 +329,7 @@ export default function FormularioUnidadAprendizaje({
     if (!seleccionCompleta) {
       setSugerenciaTema(null);
       setTemasMalla([]);
+      setCriteriosMalla([]);
       setEstadoCurriculoAsesor({ status: "idle", mensaje: "" });
       return undefined;
     }
@@ -358,6 +362,7 @@ export default function FormularioUnidadAprendizaje({
         if (!cancelado) {
           setSugerenciaTema(null);
           setTemasMalla([]);
+          setCriteriosMalla([]);
           setEstadoCurriculoAsesor({
             status: "error",
             mensaje: `No se pudo verificar la malla curricular oficial: ${error.message}`,
@@ -374,6 +379,7 @@ export default function FormularioUnidadAprendizaje({
             : "";
           setSugerenciaTema(null);
           setTemasMalla([]);
+          setCriteriosMalla([]);
           setModoElegido(null);
           setMostrarPropia(false);
           setEstadoCurriculoAsesor({
@@ -386,6 +392,7 @@ export default function FormularioUnidadAprendizaje({
         setEstadoCurriculoAsesor({ status: "ready", mensaje: "" });
         setSugerenciaTema(texto.length >= 3 ? sugerirTemasATrabajar(curriculo, texto) : null);
         setTemasMalla(curriculo.temasCurriculares || []);
+        setCriteriosMalla(curriculo.criteriosCombinacionTematica || []);
       }
     }, 600);
 
@@ -400,7 +407,7 @@ export default function FormularioUnidadAprendizaje({
   // ciudad" como trabajado. Solo marca visualmente — nunca bloquea.
   // Solo cuentan los registros del MISMO contexto (nivel+grado+asignatura):
   // "Parts of the House" trabajado en 1ro Secundaria no marca 1ro Primaria.
-  const trabajadosResueltos = (() => {
+  const trabajadosResueltos = useMemo(() => {
     const s = new Set();
     const seleccionContexto = { nivel: nivelEfectivo, grado, asignatura: asignatura || area, area };
     temasTrabajados.forEach((registro) => {
@@ -414,17 +421,23 @@ export default function FormularioUnidadAprendizaje({
       }
     });
     return s;
-  })();
+  }, [temasTrabajados, temasMalla, nivelEfectivo, grado, asignatura, area]);
   const temaYaTrabajado = (t) => trabajadosResueltos.has(normalizarTema(t));
   const estiloTrabajado = { textDecoration: "line-through", opacity: 0.7 };
 
   const rutasInicialesAsesor = useMemo(() => {
     if (!temasMalla.length || (titulo || "").trim()) return [];
     return sugerirRutasInicialesAsesor(
-      { temasCurriculares: temasMalla },
-      { area, asignatura: asignatura || area, grado, nivel: nivelEfectivo }
+      { temasCurriculares: temasMalla, criteriosCombinacionTematica: criteriosMalla },
+      {
+        area,
+        asignatura: asignatura || area,
+        grado,
+        nivel: nivelEfectivo,
+        temasTrabajados: trabajadosResueltos,
+      }
     );
-  }, [temasMalla, titulo, area, asignatura, grado, nivelEfectivo]);
+  }, [temasMalla, criteriosMalla, trabajadosResueltos, titulo, area, asignatura, grado, nivelEfectivo]);
 
   // Semanas que sugiere una combinación ("5-6 semanas" → 5); si no trae
   // duración, ~2 semanas por tema acotado a 4-8
@@ -746,7 +759,7 @@ export default function FormularioUnidadAprendizaje({
 
                 {Array.isArray(ruta.focoSemanal) && ruta.focoSemanal.length > 0 && (
                   <div style={{ marginTop: 9, display: "grid", gap: 5 }}>
-                    {ruta.focoSemanal.slice(0, 4).map((item) => (
+                    {ruta.focoSemanal.map((item) => (
                       <div
                         key={`${ruta.id}-${item.semana}-${item.tema}`}
                         style={{

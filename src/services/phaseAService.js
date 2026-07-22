@@ -23,6 +23,7 @@ import {
 } from './curriculumBrainService.js';
 import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
+import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
 
 const MODULE_NAME  = 'planificacion';
@@ -31,7 +32,7 @@ const MAX_TOKENS   = 12000;  // por lote (contrato incluye evidencias/metacognic
 const RETRY_TOKENS = 20000;  // reintento tras truncamiento — techo generoso para modelos verbosos (deepseek, etc.)
 const SINGLE_CLASS_MAX_TOKENS = 7000;
 const SINGLE_CLASS_RETRY_TOKENS = 12000;
-const CHECKPOINT_PREFIX = 'docenteos_phase_a_checkpoint_v3';
+const CHECKPOINT_PREFIX = 'docenteos_phase_a_checkpoint_v4';
 const CHECKPOINT_TTL_MS = 12 * 60 * 60 * 1000;
 const MAX_INDICADORES_TRABAJO_UNIDAD = 6;
 const PHASE_A_FETCH_TIMEOUT_MS = 90_000;
@@ -666,6 +667,27 @@ function validarEvidenciasMomento(ev, nombreMomento, etiqueta) {
 const textoDesarrollo = (clase) =>
   ((clase?.momentos || []).find((m) => m.nombre === 'Desarrollo')?.actividades || []).join(' ');
 
+const textoClaseCompleta = (clase) => [
+  clase?.tituloSemana,
+  clase?.titulo,
+  clase?.focoLinguistico,
+  clase?.intencionPedagogica,
+  clase?.aporteProducto,
+  clase?.actividadCLT?.nombre,
+  clase?.actividadCLT?.mecanica,
+  clase?.saludoInicial,
+  clase?.retroalimentacionPrevia,
+  clase?.saberesPrevios,
+  clase?.actividadEnganche,
+  ...((clase?.momentos || []).flatMap((m) => [
+    ...(m?.actividades || []),
+    ...(m?.evidencias?.conocimientos || []),
+    ...(m?.evidencias?.desempeno || []),
+    ...(m?.evidencias?.producto || []),
+    ...(m?.metacognicion || []),
+  ])),
+].filter(Boolean).join(' ');
+
 const normalizarCodigo = (codigo) =>
   String(codigo || '').replaceAll('[', '').replaceAll(']', '').replace(/\s/g, '').toUpperCase().trim();
 
@@ -800,6 +822,16 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
   const listaNoVacia = (v) => Array.isArray(v) && v.filter((x) => String(x || '').trim()).length > 0;
   const textoNoVacio = (v) => String(v || '').trim().length > 0;
   const cltEnLote = new Map(); // técnica → clase que la usó (no repetir en el mismo lote)
+  const temaTrabajo = _normTextoFoco(opts.temaTrabajoSemana || opts.temaOficial || '');
+  const temasActivos = (Array.isArray(opts.temasActivos) ? opts.temasActivos : [])
+    .map((t) => String(t || '').trim())
+    .filter(Boolean);
+  const temasFueraDeSemana = temasActivos
+    .filter((t) => {
+      const norm = _normTextoFoco(t);
+      return norm && temaTrabajo && norm !== temaTrabajo && !norm.includes(temaTrabajo) && !temaTrabajo.includes(norm);
+    })
+    .filter((t, i, arr) => arr.findIndex((x) => _normTextoFoco(x) === _normTextoFoco(t)) === i);
 
   for (let idx = 0; idx < count; idx++) {
     const clase = data.clases[idx];
@@ -824,6 +856,13 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     }
     if (!textoNoVacio(clase.intencionPedagogica)) {
       throw new Error(`R1: clase ${idx + 1} sin intencionPedagogica`);
+    }
+    if (temaTrabajo && temasFueraDeSemana.length) {
+      const textoClase = _normTextoFoco(textoClaseCompleta(clase));
+      const contaminante = temasFueraDeSemana.find((t) => textoClase.includes(_normTextoFoco(t)));
+      if (contaminante) {
+        throw new Error(`R15: clase ${idx + 1} mezcla el tema "${contaminante}" dentro de la semana de "${opts.temaTrabajoSemana || opts.temaOficial}".`);
+      }
     }
     for (const campo of ['tituloSemana', 'focoLinguistico', 'estrategiasDia']) {
       if (!textoNoVacio(clase[campo])) {
@@ -1177,16 +1216,23 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   // construcción → misión nombrada → socialización con aporte) sin vocabulario
   // de idioma. La MISIÓN con nombre propio y el aporte al producto son
   // transversales — son el "sabor" del modelo que sí aplica a todas las áreas.
+  // Naturaleza disciplinar del área (documento oficial págs. 9-10). Solo áreas
+  // NO-idioma: cada área construye conocimiento a su manera (Matemática razona
+  // y verifica, Ciencias indaga, Sociales analiza fuentes…). Es la BRÚJULA que
+  // evita el molde comunicativo de Lenguas Extranjeras en las demás áreas.
+  const naturaleza = spec.esIdioma ? null : resolverNaturalezaArea(spec.area, spec.asignatura);
   const patronDesarrollo = spec.esIdioma
     ? `5. Desarrollo: 4 actividades concretas y progresivas con ESTE patrón:
    (a) LISTENING CON PROPÓSITO NOMBRADO: una actividad de escucha con nombre propio según la tarea — "Listen and Act" (mímica), "Listen and Decide" (True/False), "Listen and Compare", "Listen and Solve", "Listen and Complete", "Listen and Create", "Listen and Organize", "Listen and Choose", "Listen and Evaluate". Nombra la actividad y di QUÉ hace el estudiante al escuchar.
    (b) DESCUBRIMIENTO de la estructura del día con ejemplos contextualizados reales EN CURSIVA y entre paréntesis, markdown _..._ (ej.: _(I wake up at 6:00. She studies in the afternoon.)_). Tienes libertad de dar oraciones de ejemplo completas para modelar el uso.
    (c) MISIÓN/PRODUCCIÓN con NOMBRE PROPIO (ej.: "My Day, Your Day", "Family Interview", "Chore Chart", "Weekend Mini-Map", "My Daily Vlog", "Who does what?") — el estudiante crea un artefacto concreto.
    (d) SOCIALIZACIÓN con APORTE AL PRODUCTO: comparten y el artefacto se guarda para el producto final.`
-    : `5. Desarrollo: 4 actividades concretas y progresivas con ESTE patrón (adáptalo a la naturaleza de ${spec.area}):
-   (a) ACTIVACIÓN CON PROPÓSITO: una actividad de observación, exploración, lectura o experimentación con un propósito NOMBRADO y claro (qué debe descubrir, resolver, comparar o clasificar el estudiante). Di QUÉ hace el estudiante.
-   (b) CONSTRUCCIÓN del concepto/procedimiento del día con ejemplos reales y contextualizados de la malla (modelado + práctica guiada). Nombra el contenido específico, no lo aludas.
-   (c) MISIÓN/PRODUCCIÓN con NOMBRE PROPIO memorable ligado al tema (ej.: "Mapa del acueducto comunitario", "Feria de fracciones del barrio", "Debate: ¿quién tiene la razón?", "Maqueta del ecosistema local") — el estudiante crea un artefacto o resuelve un reto concreto.
+    : `5. Desarrollo: 4 actividades concretas y progresivas FIELES A LA NATURALEZA DE ${spec.area.toUpperCase()}.
+   ENFOQUE DEL ÁREA (respétalo, NO uses el molde de idiomas — nada de "Listen and…", "pronunciación" ni "en el idioma trabajado"): ${naturaleza.enfoque}
+   La secuencia disciplinar propia del área es: ${naturaleza.procesos.join(" → ")}. Las 4 actividades del Desarrollo deben recorrer esa lógica, adaptada al foco curricular del día:
+   (a) ACTIVACIÓN/ENTRADA propia del área: ${naturaleza.procesos[0]}${naturaleza.procesos[1] ? " y " + naturaleza.procesos[1] : ""} — con un propósito NOMBRADO (qué debe descubrir, resolver, comparar o explicar). Di QUÉ hace el estudiante.
+   (b) CONSTRUCCIÓN del concepto/procedimiento del día con ejemplos reales de la malla (modelado + práctica guiada). Nombra el contenido específico, no lo aludas.
+   (c) MISIÓN/PRODUCCIÓN con NOMBRE PROPIO memorable ligado al tema y al área, usando una mecánica propia (${naturaleza.tecnicas.slice(0, 4).join(", ")}) — el estudiante crea un artefacto o resuelve un reto concreto del tipo: ${naturaleza.productos.join(", ")}.
    (d) SOCIALIZACIÓN con APORTE AL PRODUCTO: comparten, verifican entre pares y el artefacto se guarda para el producto final.`;
 
   // Instrucciones sensibles al idioma. En asignaturas de idioma el término va en
@@ -1202,7 +1248,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   // Técnicas metodológicas ejemplo según asignatura (idioma vs. general).
   const tecnicasEjem = spec.esIdioma
     ? 'Listen and Act / Listen and Solve / Information Gap / Role Play con roles / Interview en parejas / Gallery Walk / Describe and Draw / Speaking Circle...'
-    : 'Rompecabezas (Jigsaw) / Estaciones de trabajo / Debate estructurado / Estudio de caso / Galería de aprendizaje / Laboratorio guiado / Cadena de expertos / Resolución de problemas en parejas / Simulación / Línea de tiempo colaborativa...';
+    : `${naturaleza.tecnicas.join(' / ')}...`;
   // El CON QUÉ de la intención: en idioma es la estructura gramatical; en otras
   // áreas es el concepto/procedimiento del día. Redacción neutra por defecto.
   const conQueEjem = spec.esIdioma
@@ -1216,6 +1262,12 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const temasActivosTx = Array.isArray(spec.temasActivos) && spec.temasActivos.length
     ? spec.temasActivos.join(' + ')
     : spec.temaOficial;
+  const otrosTemasRuta = (Array.isArray(spec.temasActivos) ? spec.temasActivos : [])
+    .map((t) => String(t || '').trim())
+    .filter((t) => t && _normTextoFoco(t) !== _normTextoFoco(spec.temaTrabajoSemana || spec.temaOficial));
+  const reglaTemaTrabajo = spec.temaTrabajoSemana
+    ? `\nTEMA DE TRABAJO DE ESTA SEMANA: "${spec.temaTrabajoSemana}". Usa este tema como contenido central de TODAS las clases del lote. ${otrosTemasRuta.length ? `NO metas como contenido central estos otros temas de la ruta: ${otrosTemasRuta.join(' · ')}. Pueden existir en la ruta general, pero NO deben aparecer en actividades, evidencias ni saberes previos de esta semana.` : ''}`
+    : '';
   const reglaTemasCombinados = spec.rutaCurricular?.esCombinada
     ? `\nREGLA DE TEMAS COMBINADOS: esta unidad integra ${temasActivosTx}. NO hagas clases sueltas por tema. La situacion de aprendizaje y el producto final son el camino unico: cada clase debe explicar para que sirve el tema de esa semana dentro del producto final. Las actividades del Desarrollo y del Cierre deben nombrar la pieza del producto que se construye, revisa o guarda.`
     : '';
@@ -1229,6 +1281,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
 TEMA: "${spec.temaOficial}"
 ÁREA: ${spec.area} | GRADO: ${spec.grado} | SEMANA: ${semanaNum} de ${numSemanas} (${rango})
 ${rutaTx ? `RUTA CURRICULAR DE LA UNIDAD: ${rutaTx}\n` : ''}
+${reglaTemaTrabajo}
 ${reglaTemasCombinados}
 
 ESPECIFICACIÓN CURRICULAR:
@@ -1412,6 +1465,8 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         memoria,
         exigirNombreProducto: pedirNombreProducto,
         temaOficial: spec.temaOficial,
+        temaTrabajoSemana: spec.temaTrabajoSemana,
+        temasActivos: spec.temasActivos,
         semanaNum,
         indicadoresPermitidos,
       });
@@ -1510,6 +1565,8 @@ function checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas) {
   const firma = {
     schema: spec.outputSchemaVersion || '1.3',
     tema: spec.temaOficial,
+    temaTrabajoSemana: spec.temaTrabajoSemana,
+    temasSemana: spec.temasSemana,
     area: spec.area,
     grado: spec.grado,
     nivelMCERL: spec.nivelMCERL,
@@ -1770,6 +1827,11 @@ export const generateWeekPlan = async (
     ...(spec.indicadoresTrabajadosAntes || []).map(normalizarCodigo),
     ...(spec.indicadoresDebiles || []).map(normalizarCodigo),
   ].filter(Boolean);
+  const optsValidacionTema = {
+    temaOficial: spec.temaOficial,
+    temaTrabajoSemana: spec.temaTrabajoSemana,
+    temasActivos: spec.temasActivos,
+  };
   const baseCheckpointKey = checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas);
 
   for (let b = 0; b < batches; b++) {
@@ -1787,6 +1849,7 @@ export const generateWeekPlan = async (
     if (esBatchCacheValido(cachedBatch, durMin, count, focoGram, {
       memoria: memoriaAcumulada,
       indicadoresPermitidos,
+      ...optsValidacionTema,
       exigirNombreProducto: semanaNum === 1 && startDia === 1 && !spec.productoFinalNombre,
       semanaNum,
     })) {
@@ -1811,7 +1874,7 @@ export const generateWeekPlan = async (
     if (hayCacheParcial) {
       for (const item of singleKeys) {
         onProgress?.(item.dia, item.dia);
-        if (esBatchCacheValido(item.data, durMin, 1, focoGram, { memoria: memoriaAcumulada, indicadoresPermitidos, exigirNombreProducto: false, semanaNum })) {
+        if (esBatchCacheValido(item.data, durMin, 1, focoGram, { memoria: memoriaAcumulada, indicadoresPermitidos, ...optsValidacionTema, exigirNombreProducto: false, semanaNum })) {
           const claseCache = { ...item.data.clases?.[0], dia: item.dia };
           nuevasClases.push(claseCache);
           agregarClasesAMemoria([claseCache], semanaNum, memoriaAcumulada);
@@ -1864,7 +1927,7 @@ export const generateWeekPlan = async (
         onProgress?.(dia, dia);
         const singleKey = checkpointKey(baseCheckpointKey, dia, 1);
         const cachedSingle = leerCheckpoint(singleKey);
-        if (esBatchCacheValido(cachedSingle, durMin, 1, focoGram, { memoria: memoriaAcumulada, indicadoresPermitidos, exigirNombreProducto: false, semanaNum })) {
+        if (esBatchCacheValido(cachedSingle, durMin, 1, focoGram, { memoria: memoriaAcumulada, indicadoresPermitidos, ...optsValidacionTema, exigirNombreProducto: false, semanaNum })) {
           const claseCache = { ...cachedSingle.clases?.[0], dia };
           nuevasClases.push(claseCache);
           agregarClasesAMemoria([claseCache], semanaNum, memoriaAcumulada);
