@@ -2764,12 +2764,18 @@ const _generarFasesConIA = async (
       // G1/G4 — la semana visible es la del DÍA (antes todas las semanas de la
       // fase heredaban la primera y el PDF decía "Semana 1" en las semanas 2-5)
       tituloSemana: recortar(`Semana ${dia?.semana || semanaGeneracion}: ${perfilDia.tituloSemana}`, 70),
-      titulo: recortar(
-        esUltimoDeSemana
-          ? `Integración de la semana: ${foco}`
-          : `${perfilDia.tituloDia}: ${foco}`,
-        96
-      ),
+      // El título va en encabezado de tabla estrecho: se ABREVIA de forma limpia
+      // (no con "…"). En días de integración el foco combina dos estructuras
+      // (A · B · vocabulario…); se muestra solo la primera + "(integración)" para
+      // que quepa sin cortar a media palabra como pasaba en Semana 4.
+      titulo: (() => {
+        const focoCorto = String(foco).split(" · ")[0].trim();
+        if (esUltimoDeSemana || faseNum >= 4) {
+          return `Integración de la semana: ${focoCorto} (integración)`;
+        }
+        const completo = `${perfilDia.tituloDia}: ${focoCorto}`;
+        return completo.length <= 96 ? completo : `${perfilDia.tituloDia}: ${focoCorto}`;
+      })(),
       // G3b — el encabezado del día muestra SU protagonista con la etiqueta
       // correcta (Estructura gramatical / Expresión / Integración), no la
       // primera estructura de la semana repetida en bloque.
@@ -2790,11 +2796,14 @@ const _generarFasesConIA = async (
         : "Buenos días. Hoy conectaremos el tema de la clase con el producto final de la unidad.",
       // Retroalimentación ESPECÍFICA: nombra lo que se trabajó la clase
       // anterior (documento modelo: "What adverbs of frequency do you remember?")
+      // Retroalimentación y enganche son texto de párrafo de celda (como en el
+      // documento modelo): completos, sin truncar. El corte producía "…con
+      // ejemplos…" y "…Presente simple para… y…" en las semanas de integración.
       retroalimentacionPrevia: protagonistaPrevio?.texto
-        ? recortar(`Retroalimentación de la clase anterior: recuerdan ${protagonistaPrevio.texto} con ejemplos propios antes de avanzar.`, 160)
+        ? `Retroalimentación de la clase anterior: recuerdan ${protagonistaPrevio.texto} con ejemplos propios antes de avanzar.`
         : "Recuperan brevemente lo trabajado en la clase anterior y aclaran una duda frecuente antes de avanzar.",
-      saberesPrevios: recortar(`Recuperación de saberes previos sobre ${temaSemana} mediante preguntas orales y ejemplos cercanos.`, 150),
-      actividadEnganche: recortar(`Observan una situación breve, imagen o ejemplo relacionado con ${foco} y predicen qué aprenderán.`, 150),
+      saberesPrevios: `Recuperación de saberes previos sobre ${temaSemana} mediante preguntas orales y ejemplos cercanos.`,
+      actividadEnganche: `Observan una situación breve, imagen o ejemplo relacionado con ${foco} y predicen qué aprenderán.`,
       aporteProducto: recortar(
         piezaProducto.toLowerCase().includes(String(productoNombre).toLowerCase())
           ? piezaProducto
