@@ -467,6 +467,39 @@ check("indicadores PLANOS como strings + división exacta → bloques secuencial
   if (detalle[1].indicadores[0].descripcion !== "Indicador tres.") throw new Error("bloques desordenados");
 });
 
+check("indicadores: del tema en NEGRITA, previos TACHADOS, resto NORMAL — la tabla muestra los 3", () => {
+  const u = structuredClone(unidadFixture);
+  // Tres indicadores en la misma competencia, uno por estado.
+  u.competenciasDetalle = [{
+    competenciaFundamental: "Comunicativa",
+    codigo: "ING-2-C01",
+    especifica: "Comprende y expresa ideas...",
+    indicadores: [
+      { codigo: "ING-2-I01", descripcion: "DEL_TEMA_marca", aplicaTemaActual: true,  trabajadoAntes: false },
+      { codigo: "ING-2-I02", descripcion: "YA_TRABAJADO_marca", aplicaTemaActual: false, trabajadoAntes: true },
+      { codigo: "ING-2-I03", descripcion: "NO_APLICA_marca", aplicaTemaActual: false, trabajadoAntes: false },
+    ],
+  }];
+  const out = formatearUnidadHTML(u, "");
+  // Los tres SÍ aparecen (la tabla muestra los 21 completos).
+  for (const m of ["DEL_TEMA_marca", "YA_TRABAJADO_marca", "NO_APLICA_marca"]) {
+    if (!out.includes(m)) throw new Error(`la tabla no muestra el indicador ${m}`);
+  }
+  // Del tema → negrita (font-weight:700 envolviendo su código+texto).
+  if (!/font-weight:700[^>]*>\s*<strong>ING-2-I01<\/strong>/.test(out)
+      && !new RegExp('font-weight:700[\\s\\S]{0,40}ING-2-I01').test(out)) {
+    throw new Error("el indicador del tema no salió en negrita");
+  }
+  // Ya trabajado → tachado (line-through).
+  if (!new RegExp('line-through[\\s\\S]{0,60}ING-2-I02').test(out)) {
+    throw new Error("el indicador ya trabajado no salió tachado");
+  }
+  // No aplica → sin <strong> en su código y sin negrita/tachado envolviéndolo.
+  if (/<strong>ING-2-I03<\/strong>/.test(out)) {
+    throw new Error("el indicador que NO aplica salió con código en negrita");
+  }
+});
+
 check("competenciasDetalle sigue soportando indicadores ANIDADOS (v1.3)", () => {
   const comps = [{
     id: "CE-LEI-1", especifica: "Comprensión oral...",

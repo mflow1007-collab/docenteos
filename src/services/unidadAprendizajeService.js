@@ -2524,10 +2524,16 @@ const _generarFasesConIA = async (
   // de Registro→Indicadores y las evidencias por indicador). Los indicadores
   // (REFORZAR) —trabajados antes pero no logrados— van primero en la rotación.
   const tomarIndicadoresBase = (specActual = specBase, indice = 0) => {
-    const base = [
-      ...(Array.isArray(specActual.indicadoresTrabajo) ? specActual.indicadoresTrabajo : []),
-      ...(Array.isArray(specActual.indicadores) ? specActual.indicadores : []),
-    ];
+    // SOLO los indicadores seleccionados por afinidad al TEMA de la unidad
+    // (indicadoresTrabajo, tope MAX_INDICADORES_TRABAJO_UNIDAD). NO se suman los
+    // 21 de la malla completa (specActual.indicadores) — eso hacía que a lo largo
+    // de las 16 clases se tocaran TODOS los indicadores y salieran todos en
+    // negrita. La malla completa queda como fallback solo si el tema no precargó
+    // ninguno, para no dejar la unidad sin indicadores.
+    const trabajo = Array.isArray(specActual.indicadoresTrabajo) ? specActual.indicadoresTrabajo : [];
+    const base = trabajo.length
+      ? trabajo
+      : (Array.isArray(specActual.indicadores) ? specActual.indicadores : []);
     const unicos = [];
     const vistos = new Set();
     for (const ind of base) {
@@ -4048,6 +4054,11 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         : '';
       // Indicador puede ser string (unidades guardadas legacy) u objeto
       // { codigo, descripcion } con el código oficial de la malla (IL-…)
+      // Formato por estado del indicador (regla del documento modelo del dueño):
+      //  · del TEMA a trabajar → NEGRITA completa (código + descripción)
+      //  · YA trabajado antes  → TACHADO (constancia de lo cubierto)
+      //  · no aplica           → texto NORMAL (código incluido, sin negrita)
+      // La tabla siempre muestra los 21; solo cambia el formato de cada uno.
       const indicadorHtml = (ind) => {
         if (typeof ind === 'string') return ind;
         const estilo = [
@@ -4056,7 +4067,11 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         ].filter(Boolean).join(';');
         const abrir = estilo ? `<span style="${estilo}">` : '';
         const cerrar = estilo ? '</span>' : '';
-        const cod = ind?.codigo ? `<strong>${ind.codigo}</strong> — ` : '';
+        // El código va en <strong> SOLO cuando el indicador es del tema; si no
+        // aplica (ni trabaja ahora ni antes) va completamente en texto normal.
+        const cod = ind?.codigo
+          ? (ind?.aplicaTemaActual ? `<strong>${ind.codigo}</strong> — ` : `${ind.codigo} — `)
+          : '';
         return `${abrir}${cod}${ind?.descripcion || ''}${cerrar}`;
       };
       const filas = detalle.map((c) => `
