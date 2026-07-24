@@ -2087,6 +2087,35 @@ const _generarFasesConIA = async (
     ({ funcion }) => `Preparan en equipos (misión colaborativa) un intercambio breve para ${funcion}, con un papel para cada miembro, y lo presentan al grupo.`,
   ];
 
+  // MECÁNICA LIGADA A LA ESTRUCTURA (lógica de DocenteOS, no datos a mano):
+  // cada estructura gramatical tiene una actividad comunicativa NATURAL. En vez
+  // de rotar a ciegas (indiceGlobal % N), se elige por la estructura del día —
+  // igual que piezaDelDia deriva el PRODUCTO. Así la mecánica prepara el
+  // producto y no sale genérica ("estaciones" para WH-questions). Sirve para
+  // CUALQUIER tema, porque depende de la estructura, no del tema. Si la
+  // estructura no matchea aquí, cae a INTERACCION_VARIANTES (nunca peor que hoy).
+  // ORDEN IMPORTA: las reglas específicas van ANTES que las amplias. Ej. "Why
+  // don't/Why not" contiene "wh" y matchearía WH-questions; por eso sugerencias
+  // va primero. Igual adverbios de tiempo antes que frecuencia (ambos "adverbio").
+  const MECANICA_POR_ESTRUCTURA = [
+    { re: /why don|why not|sugerencia|consejo|should|recomendaci/, fn: () => `En parejas intercambian consejos (Advice Swap): uno plantea una dificultad y el otro sugiere una solución; anotan las mejores sugerencias.` },
+    { re: /\bcan\b|\bmay\b|\bcould\b|permiso|permission|modal/, fn: () => `Representan en parejas un juego de roles de peticiones y permisos, uno pide y el otro concede o niega con cortesía, alternando los roles.` },
+    { re: /conector|causalidad|because|so\b|then|secuencia|first|finally/, fn: ({ estructura }) => `Explican en cadena, por turnos: cada estudiante conecta su idea con la del compañero anterior usando ${estructura} (causa y consecuencia).` },
+    { re: /adverbio de tiempo|now|in the past|\byet\b|already|still/, fn: ({ estructura }) => `Comparan "antes y ahora" en parejas: se preguntan qué hacían antes y qué hacen ahora usando ${estructura}, y marcan las diferencias.` },
+    { re: /frecuencia|frequency|always|usually|often|sometimes|never/, fn: () => `Recorren el aula (Find Someone Who): buscan compañeros que hagan ciertas acciones y anotan con qué frecuencia las realizan.` },
+    { re: /comparaci|contraste|but\b|however/, fn: ({ temaSemana }) => `En parejas comparan sus experiencias sobre ${temaSemana} y completan un cuadro de semejanzas y diferencias.` },
+    { re: /pasado|was|were|narrar|experiencia/, fn: () => `Narran por turnos una experiencia breve al compañero, que hace dos preguntas de seguimiento antes de intercambiar roles.` },
+    { re: /interrogativ|question|\bwhat\b|\bwho\b|\bhow\b|\bwhen\b|\bwhere\b/, fn: ({ estructura }) => `Realizan una entrevista en parejas: uno pregunta con ${estructura} sobre el tema y registra las respuestas del otro; luego intercambian los roles.` },
+    { re: /presente simple|conversacion|sostener/, fn: ({ temaSemana }) => `Completan una actividad de información incompleta (Information Gap): cada estudiante tiene la mitad de la información sobre ${temaSemana} y la obtiene preguntando, sin mostrar su hoja.` },
+  ];
+  const resolverMecanica = ({ estructura, funcion, temaSemana, indiceGlobal }) => {
+    const clave = normalizarClaveDidactica(estructura || "");
+    const match = MECANICA_POR_ESTRUCTURA.find((m) => m.re.test(clave));
+    if (match) return match.fn({ estructura, funcion, temaSemana });
+    // Fallback: rotación genérica (comportamiento previo, nunca peor).
+    return INTERACCION_VARIANTES[indiceGlobal % INTERACCION_VARIANTES.length]({ funcion, estructura, temaSemana });
+  };
+
   // ── Actividades para ÁREAS NO-IDIOMA ──────────────────────────────────────
   // Cada área construye el Desarrollo según SU naturaleza disciplinar (documento
   // oficial págs. 9-10). Los verbos y mecánicas son propios del área: Matemática
@@ -2303,7 +2332,7 @@ const _generarFasesConIA = async (
     const funcion = (funcionales[0] || "comunicarse en una situación cotidiana")
       .replace(/^(Funcional|Discursivo):\s*/i, "").toLowerCase();
     const lv = LISTENING_VARIANTES[indiceGlobal % LISTENING_VARIANTES.length];
-    const interaccion = INTERACCION_VARIANTES[indiceGlobal % INTERACCION_VARIANTES.length]({ funcion, estructura, temaSemana });
+    const interaccion = resolverMecanica({ estructura, funcion, temaSemana, indiceGlobal });
 
     // ÁREAS NO-IDIOMA: las actividades nacen de la SECUENCIA DISCIPLINAR del
     // área (documento oficial, págs. 9-10), no del molde comunicativo de
