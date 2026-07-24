@@ -12,6 +12,8 @@ import {
 } from '../../services/bancoPedagogicoService.js';
 import { sembrarActividadesModelo, ACTIVIDADES_MODELO } from '../../services/bancoActividadesModelo.js';
 import { ejecutarAuditoria } from '../../services/auditorBancoService.js';
+import { previsualizarCosechaDeRegistro, cosecharActividadesDeRegistro } from '../../services/cosechaActividadesService.js';
+import { obtenerPlanificacionesDetalladas } from '../../firebase.js';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -356,6 +358,10 @@ function TabActividades({ adminId }) {
   const [msgSiembra, setMsgSiembra]     = useState('');
   const [auditando, setAuditando]       = useState(false);
   const [reporteAudit, setReporteAudit] = useState(null); // { auto, revisar, ... }
+  const [planes, setPlanes]             = useState([]);   // planificaciones guardadas
+  const [planSel, setPlanSel]           = useState('');   // id de la unidad a cosechar
+  const [cosechando, setCosechando]     = useState(false);
+  const [previaCosecha, setPreviaCosecha] = useState(null); // candidatas o resultado
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -490,6 +496,51 @@ function TabActividades({ adminId }) {
     }
   };
 
+  // Cosecha de actividades: carga las planificaciones guardadas del dueño para
+  // elegir una y cosechar su MECÁNICA NUEVA (la que aún no existe en el banco)
+  // como `cosechada`. Primero previsualiza (sin escribir), luego confirma.
+  const cargarPlanes = useCallback(async () => {
+    try {
+      const res = await obtenerPlanificacionesDetalladas();
+      setPlanes(Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      setPlanes([]);
+    }
+  }, []);
+  useEffect(() => { cargarPlanes(); }, [cargarPlanes]);
+
+  const previsualizarCosecha = async () => {
+    if (!planSel) return;
+    setCosechando(true);
+    setPreviaCosecha(null);
+    try {
+      const registro = planes.find((p) => p.id === planSel);
+      const candidatas = await previsualizarCosechaDeRegistro(registro);
+      setPreviaCosecha({ candidatas });
+    } catch (e) {
+      setPreviaCosecha({ error: e?.message || 'no se pudo previsualizar' });
+    } finally {
+      setCosechando(false);
+    }
+  };
+
+  const confirmarCosecha = async () => {
+    const n = previaCosecha?.candidatas?.length || 0;
+    if (!n || !planSel) return;
+    if (!window.confirm(`¿Cosechar ${n} actividad(es) nueva(s) al banco como Cosechada (a la espera de tu validación)?`)) return;
+    setCosechando(true);
+    try {
+      const registro = planes.find((p) => p.id === planSel);
+      const r = await cosecharActividadesDeRegistro(registro, { consentimiento: true, userId: adminId });
+      setPreviaCosecha({ ...r, hecho: true });
+      cargar();
+    } catch (e) {
+      setPreviaCosecha({ error: e?.message || 'no se pudo cosechar' });
+    } finally {
+      setCosechando(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -557,6 +608,55 @@ function TabActividades({ adminId }) {
           )}
         </div>
       )}
+
+      {/* Cosecha de actividades: elige una unidad guardada y guarda su mecánica
+          NUEVA como `cosechada`, a la espera de validación. */}
+      <div style={{ marginBottom: 16, padding: 12, borderRadius: 8, border: '1px solid #c7d2fe', background: '#eef2ff' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#3730a3' }}>🧺 Cosechar de una unidad:</span>
+          <select
+            value={planSel}
+            onChange={(e) => { setPlanSel(e.target.value); setPreviaCosecha(null); }}
+            style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #c7d2fe', fontSize: 13, minWidth: 240, maxWidth: 420 }}
+          >
+            <option value="">— Elige una planificación guardada —</option>
+            {planes.map((p) => (
+              <option key={p.id} value={p.id}>
+                {(p.titulo || p.contenido?.unidad?.titulo || p.tema || 'Sin título')}{p.area ? ` · ${p.area}` : ''}{p.grado ? ` · ${p.grado}` : ''}
+              </option>
+            ))}
+          </select>
+          <button onClick={previsualizarCosecha} disabled={cosechando || !planSel} className="admin-btn" style={{ background: '#4f46e5' }}>
+            {cosechando ? 'Analizando…' : 'Ver qué se cosecharía'}
+          </button>
+        </div>
+        {previaCosecha && (
+          <div style={{ marginTop: 10, fontSize: 13 }}>
+            {previaCosecha.error ? (
+              <span style={{ color: '#dc2626' }}>✗ {previaCosecha.error}</span>
+            ) : previaCosecha.hecho ? (
+              <span style={{ color: '#15803d' }}>✓ {previaCosecha.cosechadas} actividad(es) cosechada(s) (estado Cosechada). Valídalas antes de que el generador las use.</span>
+            ) : (previaCosecha.candidatas?.length || 0) === 0 ? (
+              <span style={{ color: '#64748b' }}>No hay mecánica nueva que cosechar: el banco ya tiene todo lo de esta unidad.</span>
+            ) : (
+              <div>
+                <p style={{ margin: '2px 0 6px', color: '#3730a3' }}>
+                  <strong>{previaCosecha.candidatas.length} actividad(es) nueva(s)</strong> (no existen en el banco):
+                </p>
+                <ul style={{ margin: '0 0 8px 18px' }}>
+                  {previaCosecha.candidatas.slice(0, 10).map((c, i) => (
+                    <li key={i}>{c.titulo}{c.temas?.length ? <em style={{ color: '#64748b' }}> — {c.temas.join(', ')}</em> : null}</li>
+                  ))}
+                  {previaCosecha.candidatas.length > 10 && <li>… y {previaCosecha.candidatas.length - 10} más</li>}
+                </ul>
+                <button onClick={confirmarCosecha} disabled={cosechando} className="admin-btn" style={{ background: '#4f46e5' }}>
+                  Cosechar {previaCosecha.candidatas.length} al banco (como Cosechada)
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {cargando ? (
         <p style={{ color: '#94a3b8', textAlign: 'center', padding: 32 }}>Cargando actividades…</p>

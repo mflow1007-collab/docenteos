@@ -22,6 +22,10 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
   // Modo edición (Bloque 1): permite al docente elegir qué indicadores trabaja
   // el plan. Los cambios se elevan al padre vía onEditarUnidad para persistirlos.
   const [editando, setEditando] = useState(false);
+  // Opt-in: guardar las actividades NUEVAS de esta unidad en el banco (como
+  // `cosechada`, para validación). Apagado por defecto — el docente decide.
+  const [cosechar, setCosechar] = useState(false);
+  const guardar = () => onGuardar?.({ cosecharActividades: cosechar });
 
   if (!unidad) return null;
 
@@ -219,9 +223,16 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 
       {/* Acciones superiores */}
       <div className="minerd-acciones top">
-        <button className="save-btn" onClick={onGuardar} disabled={guardando}>
+        <button className="save-btn" onClick={guardar} disabled={guardando}>
           {guardando ? "⏳ Guardando..." : "💾 Guardar"}
         </button>
+        <label
+          title="Guarda las actividades nuevas de esta unidad en el Banco Pedagógico (como Cosechada) para que el equipo las valide. Apagado por defecto."
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#4c1d95", cursor: "pointer" }}
+        >
+          <input type="checkbox" checked={cosechar} onChange={(e) => setCosechar(e.target.checked)} />
+          🧺 Guardar sus actividades nuevas en el banco
+        </label>
         {onEditarUnidad && (
           <button
             className="export-btn"
@@ -595,7 +606,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 
       {/* Acciones inferiores */}
       <div className="acciones-resultado">
-        <button className="save-btn" onClick={onGuardar} disabled={guardando}>
+        <button className="save-btn" onClick={guardar} disabled={guardando}>
           {guardando ? "⏳ Guardando..." : "💾 Guardar"}
         </button>
         <button className="export-btn" onClick={onDescargar}>🖨️ Guardar como PDF</button>

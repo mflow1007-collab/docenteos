@@ -134,16 +134,18 @@ export function useUnidadAprendizaje() {
     }
   };
 
-  const manejarGuardarUnidad = async () => {
+  const manejarGuardarUnidad = async ({ cosecharActividades = false } = {}) => {
     const { cargarHistorial } = depsRef.current;
     if (!unidad) return;
     setGuardandoUnidad(true);
     try {
       const payload = {
         ...unidad,
+        area: unidadDatos.area ?? unidad.area,
+        grado: unidadDatos.grado ?? unidad.grado,
         metadatos: { ...unidad.metadatos, tema: unidad.metadatos?.titulo },
       };
-      const resultadoGuardado = await guardarPlanificacionConHilo(payload);
+      const resultadoGuardado = await guardarPlanificacionConHilo(payload, { cosecharActividades });
       EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
         agentId: AGENT_IDS.PLANIFICADOR,
         area:       unidadDatos.area ?? null,

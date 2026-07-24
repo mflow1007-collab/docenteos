@@ -26,6 +26,7 @@ import { construirCapaCurricular, normalizarTexto } from "./hiloPedagogico.js";
 import { generarAspectosRegistroDesdePlanificacion } from "./registroService.js";
 import { crearInstrumentosPlaneadosDesdePlan } from "./instrumentosService.js";
 import { cosecharSecuenciaDeUnidad } from "./bancoAprendizajeService.js";
+import { cosecharActividadesDeUnidad } from "./cosechaActividadesService.js";
 
 const AREA_CURRICULO_POR_ASIGNATURA = {
   // El currículo de Inglés/Francés vive bajo el área "Lenguas Extranjeras"
@@ -177,7 +178,7 @@ export const crearPlanificacion = async (planificacion, { cursoId = "" } = {}) =
  *
  * @returns {{ success, id, mode, capaCurricular, aspectos|null, advertencias: string[] }}
  */
-export const guardarPlanificacionConHilo = async (planificacion, { cursoId = "", cosecharSecuencia = false } = {}) => {
+export const guardarPlanificacionConHilo = async (planificacion, { cursoId = "", cosecharSecuencia = false, cosecharActividades = false } = {}) => {
   const resultado = await crearPlanificacion(planificacion, { cursoId });
   const advertencias = [...(resultado.advertencias || [])];
   let aspectos = null;
@@ -199,6 +200,28 @@ export const guardarPlanificacionConHilo = async (planificacion, { cursoId = "",
       }
     } catch (error) {
       advertencias.push(`El plan se guardó, pero la secuencia no se cosechó al Banco de Aprendizaje: ${error.message}`);
+    }
+  }
+
+  // Banco Pedagógico — cosecha de ACTIVIDADES sueltas (opt-in, apagada por
+  // defecto): guarda como `cosechada` la mecánica NUEVA de la unidad para que el
+  // dueño la valide. Best-effort: nunca bloquea el guardado.
+  if (cosecharActividades === true && resultado?.id) {
+    try {
+      const unidad = planificacion?.contenido?.unidad || planificacion?.unidad || planificacion?.contenido || planificacion;
+      const area = unidad?.area || planificacion?.area || "";
+      const grado = unidad?.grado || planificacion?.grado || "";
+      const r = await cosecharActividadesDeUnidad({
+        unidad: { ...unidad, id: resultado.id },
+        area, grado,
+        consentimiento: true,
+        userId: unidad?.docenteUid || planificacion?.docenteUid || "",
+      });
+      if (r && r.cosechadas === 0) {
+        advertencias.push("No había mecánica nueva que cosechar (el banco ya tenía todo lo de esta unidad).");
+      }
+    } catch (error) {
+      advertencias.push(`El plan se guardó, pero las actividades no se cosecharon al Banco Pedagógico: ${error.message}`);
     }
   }
 
