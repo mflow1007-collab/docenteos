@@ -2409,11 +2409,19 @@ const _generarFasesConIA = async (
       ];
     }
 
+    // BANCO Y COMBINADOR: solo de Fase 2 en adelante. La Fase 1 es APROPIACIÓN de
+    // la unidad (presentar situación, producto, rúbrica, acuerdos, diagnóstico) y
+    // sus actividades genéricas SON las correctas — no llevan mecánica de práctica
+    // de estructura. La Fase 1 ya retornó su molde arriba (faseNum===1); este
+    // guard es un cinturón de seguridad por si algún cambio futuro la dejara
+    // caer hasta aquí. Ídem faseNum>=4 (integración/producto ya retornaron).
+    const puedeUsarBanco = faseNum >= 2 && faseNum < 4;
+
     // BANCO PEDAGÓGICO primero: si hay una actividad validada afín al día, se
     // usa su mecánica real (verbatim) en lugar del molde genérico. Se conserva
     // el andamiaje de escucha con propósito al inicio y el aporte al producto al
     // final, para no romper el hilo del portafolio ni la progresión de la unidad.
-    const actBanco = elegirActividadBanco({ temaSemana, estructura, foco: estructura, indiceGlobal });
+    const actBanco = puedeUsarBanco ? elegirActividadBanco({ temaSemana, estructura, foco: estructura, indiceGlobal }) : null;
     if (actBanco) {
       const pasos = actBanco.instrucciones
         .map((x) => String(x || "").trim())
@@ -2430,9 +2438,9 @@ const _generarFasesConIA = async (
     // directo pero el banco tiene ≥3 piezas afines por tema con mecánicas
     // distintas, se crea una actividad NUEVA sin IA recombinando una mecánica
     // probada con la estructura del día. Se acumula para cosecharla y validarla.
-    const actCombinada = combinarActividad(bancoActividadesArea, {
+    const actCombinada = puedeUsarBanco ? combinarActividad(bancoActividadesArea, {
       estructura, temaSemana, funcion: (typeof funcion === "string" ? funcion : ""), area, grado,
-    });
+    }) : null;
     if (actCombinada) {
       const claveComb = String(actCombinada.titulo || "").toLowerCase();
       if (!_combinadasVistas.has(claveComb)) {
