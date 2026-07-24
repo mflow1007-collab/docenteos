@@ -22,6 +22,8 @@
  * NO combinar por proximidad en la lista curricular.
  */
 
+import { efemeridesEnRango } from "../data/calendarioEscolarMINERD.js";
+
 // Máximo de semanas que un solo tema puede sostener pedagógicamente
 // en Lenguas Extranjeras nivel A1-A2 sin volverse repetitivo
 const SEMANAS_MAX_TEMA_INDIVIDUAL = 4;
@@ -357,13 +359,18 @@ const construirOpcionesDesdeMalla = (temaOficial, temasCurriculares = []) => {
     afines: principal.filter((tema) => _norm(tema) !== _norm(temaOficial)),
   }];
 
-  const segundaLinea = [temaOficial, ...relacionados.slice(2, 5)]
-    .filter((tema, index, lista) => lista.findIndex((t) => _norm(t) === _norm(tema)) === index);
-  if (segundaLinea.length >= 2) {
+  // TOPE de 3 temas (tú + 2 afines): 2-3 temas = 5-6 semanas, que caben en el
+  // trimestre escolar. Combinar más no cuadra con el calendario ni deja terminar
+  // el tema. La 2da línea ofrece OTROS afines (no los mismos de la principal),
+  // pero igual topada en 3.
+  const segundaLinea = [temaOficial, ...relacionados.slice(2, 4)]
+    .filter((tema, index, lista) => lista.findIndex((t) => _norm(t) === _norm(tema)) === index)
+    .slice(0, 3);
+  if (segundaLinea.length >= 2 && segundaLinea.length !== principal.length) {
     opciones.push({
       nombre: `Ampliación curricular de ${temaOficial}`,
       temas: segundaLinea,
-      razon: "Esta opción amplía el tema con otros contenidos oficiales de la malla cuando la unidad requiere más semanas o un producto final más riguroso.",
+      razon: "Esta opción combina el tema con otros contenidos afines de la malla (máximo 3 temas), manteniendo una duración que cabe en el trimestre escolar.",
       duracionSugerida: semanasParaCantidadTemas(segundaLinea.length),
       tipo: "alternativa",
       tituloSugerido: "",
@@ -641,6 +648,65 @@ export const sugerirRutasInicialesAsesor = (curriculoData, contexto = {}) => {
   }
 
   return rutas;
+};
+
+/**
+ * SUGERENCIA de efeméride para una unidad. Es una pista discreta, NUNCA impone:
+ * "en tu rango de fechas cae X; podrías apoyar el tema en ella".
+ *
+ * Lógica acordada con el dueño:
+ *   - El docente ya eligió área + grado + fecha de inicio + duración.
+ *   - Calculamos el rango (inicio → inicio + semanas) y buscamos efemérides
+ *     temáticas que caigan DENTRO y apliquen al área.
+ *   - Tomamos la MÁS CERCANA al inicio (si dos cruzan, esa deja terminar el
+ *     tema sin choque) y buscamos en la malla el tema real que mejor casa con
+ *     su clave temática, para que enlace con las rutas del asesor.
+ *   - Aparece aunque el tema ya esté escrito: es información, no reemplazo.
+ *
+ * @param {object} opts
+ * @param {string} opts.fechaInicio  ISO de inicio de la unidad
+ * @param {number} opts.semanas      duración (default 6)
+ * @param {string} opts.area         materia del docente
+ * @param {string[]} opts.temasCurriculares  temas de la malla activa
+ * @returns {{ efemeride, temaSugerido, gancho, coincideConTema } | null}
+ */
+export const sugerirEfemerideParaUnidad = ({
+  fechaInicio,
+  semanas = 6,
+  area = "",
+  temasCurriculares = [],
+  temaActual = "",
+} = {}) => {
+  if (!fechaInicio) return null;
+  const enRango = efemeridesEnRango(fechaInicio, semanas, area);
+  if (!enRango.length) return null;
+
+  const efem = enRango[0]; // la más cercana al inicio → no choca con la siguiente
+
+  // Buscar en la malla el tema real que mejor casa con la clave de la efeméride.
+  const temas = (Array.isArray(temasCurriculares) ? temasCurriculares : [])
+    .map(textoTema)
+    .map((t) => String(t || "").trim())
+    .filter(Boolean);
+  const claveEfem = _norm(efem.tema);
+  const temaSugerido =
+    temas.find((t) => claveTema(t) === claveEfem) ||
+    temas.find((t) => _norm(t).includes(claveEfem) || claveEfem.includes(claveTema(t))) ||
+    null;
+
+  // ¿El docente ya venía trabajando ese mismo tema? Entonces la efeméride solo
+  // confirma su elección (mensaje distinto: "refuerza tu tema" vs "podrías usar").
+  const coincideConTema = temaActual
+    ? _norm(temaActual).includes(claveEfem) || claveEfem.includes(_norm(temaActual)) ||
+      (temaSugerido && _norm(temaActual) === _norm(temaSugerido))
+    : false;
+
+  return {
+    efemeride: { fecha: efem.fecha, nombre: efem.nombre, diasDesdeInicio: efem.diasDesdeInicio },
+    temaSugerido,
+    gancho: efem.gancho,
+    coincideConTema: !!coincideConTema,
+  };
 };
 
 // ── Consulta por semana ──────────────────────────────────────────────────────

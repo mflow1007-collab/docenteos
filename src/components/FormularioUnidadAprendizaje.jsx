@@ -21,6 +21,7 @@ import {
   sugerirTemasATrabajar,
   sugerirTemaOficial,
   sugerirRutasInicialesAsesor,
+  sugerirEfemerideParaUnidad,
   normalizarTema,
   coincideContextoTemaTrabajado,
 } from "../services/curriculumCombinacionService";
@@ -439,6 +440,21 @@ export default function FormularioUnidadAprendizaje({
     );
   }, [temasMalla, criteriosMalla, trabajadosResueltos, titulo, area, asignatura, grado, nivelEfectivo]);
 
+  // Sugerencia de efeméride: pista discreta cuando en el rango de fechas de la
+  // unidad cae una fecha conmemorativa afín al área. A diferencia de las rutas,
+  // esta SÍ aparece aunque el tema ya esté escrito (es información, no reemplazo).
+  // Siempre es SUGERENCIA: el docente decide si la aprovecha.
+  const sugerenciaEfemeride = useMemo(() => {
+    if (!temasMalla.length || !fechaInicio || !area) return null;
+    return sugerirEfemerideParaUnidad({
+      fechaInicio,
+      semanas: numSemanas,
+      area,
+      temasCurriculares: temasMalla,
+      temaActual: titulo,
+    });
+  }, [temasMalla, fechaInicio, numSemanas, area, titulo]);
+
   // Semanas que sugiere una combinación ("5-6 semanas" → 5); si no trae
   // duración, ~2 semanas por tema acotado a 4-8
   const semanasDeCombinacion = (op) => {
@@ -668,6 +684,44 @@ export default function FormularioUnidadAprendizaje({
           <input value={asignaturasVinculadasTexto} onChange={set("asignaturasVinculadasTexto")} placeholder="Lengua Española, Tecnología..." />
         </div>
       </div>
+
+      {sugerenciaEfemeride && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+            background: "#fffbeb",
+            border: "1px solid #fcd34d",
+            borderRadius: 8,
+            padding: "9px 12px",
+            marginTop: 10,
+            fontSize: 12.5,
+            color: "#78350f",
+            lineHeight: 1.45,
+          }}
+        >
+          <span style={{ fontSize: 15, lineHeight: 1 }}>📅</span>
+          <div>
+            {sugerenciaEfemeride.coincideConTema ? (
+              <>
+                Tu tema encaja con <strong>{sugerenciaEfemeride.efemeride.nombre}</strong>{" "}
+                (dentro de tu rango de fechas). Puedes {sugerenciaEfemeride.gancho} para darle
+                un hilo temático real a la unidad.
+              </>
+            ) : (
+              <>
+                En tu rango de fechas cae <strong>{sugerenciaEfemeride.efemeride.nombre}</strong>.
+                Si quieres, podrías {sugerenciaEfemeride.gancho}
+                {sugerenciaEfemeride.temaSugerido ? (
+                  <> apoyándote en el tema <strong>{sugerenciaEfemeride.temaSugerido}</strong> de la malla</>
+                ) : null}
+                . <em>Es solo una sugerencia — tú decides.</em>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {estadoCurriculoAsesor.status === "ready" && !(titulo || "").trim() && rutasInicialesAsesor.length > 0 && (
         <div

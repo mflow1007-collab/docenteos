@@ -42,6 +42,26 @@ export const CALENDARIOS_ESCOLARES = {
       { inicio: "2026-12-21", fin: "2027-01-06", nombre: "Receso navideño", estimado: true },
       { inicio: "2027-03-22", fin: "2027-03-26", nombre: "Semana Santa", estimado: true },
     ],
+    // Efemérides con CARGA TEMÁTICA: fechas conmemorativas que un docente puede
+    // aprovechar como hilo de una unidad. NO son días no lectivos (no bloquean
+    // docencia); son ganchos pedagógicos. Cada una declara:
+    //   - areas: en qué materias tiene sentido (vacío = todas)
+    //   - tema:  clave de tema afín (coincide con AFINIDAD_TEMATICA del asesor)
+    //   - gancho: frase corta para la sugerencia en pantalla
+    // Solo se sugiere si la efeméride CAE dentro del rango de la unidad, para que
+    // el tema se trabaje completo sin interrumpirlo a media unidad.
+    efemerides: [
+      { fecha: "2026-09-15", nombre: "Semana de la Educación Física / Día del Deporte", areas: ["Educación Física", "Inglés", "Lengua Española"], tema: "actividades de la vida diaria", gancho: "trabajar rutinas, deporte y hábitos saludables (sport & healthy habits)" },
+      { fecha: "2026-10-16", nombre: "Día Mundial de la Alimentación", areas: ["Ciencias Naturales", "Inglés", "Lengua Española"], tema: "actividades de la vida diaria", gancho: "trabajar alimentación, comidas y hábitos saludables (food & healthy habits)" },
+      { fecha: "2026-11-20", nombre: "Día Universal del Niño", areas: ["Formación Integral Humana y Religiosa", "Lengua Española", "Inglés"], tema: "identificacion personal", gancho: "trabajar derechos, identidad y familia (rights, self & family)" },
+      { fecha: "2026-12-10", nombre: "Día de los Derechos Humanos", areas: ["Ciencias Sociales", "Formación Integral Humana y Religiosa", "Lengua Española"], tema: "convivencia y ciudadania", gancho: "trabajar convivencia, derechos y deberes (rights & citizenship)" },
+      { fecha: "2027-02-21", nombre: "Día Internacional de la Lengua Materna", areas: ["Lengua Española", "Inglés"], tema: "lengua y comunicacion", gancho: "trabajar lengua, comunicación e identidad cultural" },
+      { fecha: "2027-02-27", nombre: "Independencia Nacional", areas: ["Ciencias Sociales", "Lengua Española", "Formación Integral Humana y Religiosa"], tema: "convivencia y ciudadania", gancho: "trabajar patria, ciudadanía e identidad nacional" },
+      { fecha: "2027-03-08", nombre: "Día Internacional de la Mujer", areas: ["Ciencias Sociales", "Lengua Española", "Inglés"], tema: "identificacion personal", gancho: "trabajar identidad, roles y familia (self, roles & family)" },
+      { fecha: "2027-04-22", nombre: "Día de la Tierra", areas: ["Ciencias Naturales", "Inglés", "Lengua Española"], tema: "medio ambiente", gancho: "trabajar medio ambiente y hábitos sostenibles (environment)" },
+      { fecha: "2027-04-23", nombre: "Día Mundial del Libro y del Idioma", areas: ["Lengua Española", "Inglés"], tema: "lengua y comunicacion", gancho: "trabajar lectura, lengua y comunicación" },
+      { fecha: "2027-05-15", nombre: "Día Internacional de la Familia", areas: ["Formación Integral Humana y Religiosa", "Lengua Española", "Inglés"], tema: "identificacion personal", gancho: "trabajar familia, relaciones y vida diaria (family & relationships)" },
+    ],
     // Entregas de Reportes de Evaluación por nivel (afiche oficial)
     reportesEvaluacion: {
       Inicial:    [{ periodo: "P1", fecha: "2026-12-15" }, { periodo: "P2", fecha: "2027-03-31" }, { periodo: "P3", fecha: "2027-06-22" }],
@@ -190,4 +210,64 @@ export const proximoDiaLectivo = (fechaISO) => {
     if (esDiaLectivo(candidata)) return candidata;
   }
   return "";
+};
+
+const _normArea = (s) => String(s || "")
+  .toLowerCase()
+  .normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .replace(/[^a-z0-9]+/g, " ")
+  .trim();
+
+/** Suma días de calendario a una fecha ISO → nueva fecha ISO (o "" si inválida). */
+const _sumarDias = (fechaISO, dias) => {
+  const f = _iso(fechaISO);
+  const d = new Date(`${f}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Efemérides con carga temática que CAEN dentro del rango de una unidad.
+ *
+ * El docente elige fecha de inicio + duración + área; esto calcula el rango
+ * (inicio → inicio + semanas) y devuelve las efemérides que quedan DENTRO y
+ * aplican al área. Como el tema conmemorativo pasa a ser el hilo de TODA la
+ * unidad (no la interrumpe), solo cuenta si la fecha cae en el rango.
+ *
+ * Resultado ordenado por cercanía al inicio: si dos fechas cruzan, la primera
+ * es la sugerencia natural (deja terminar el tema sin que la segunda choque).
+ * Es material para SUGERIR — nunca impone.
+ *
+ * @param {string} inicioISO  fecha de inicio de la unidad
+ * @param {number} semanas    duración (default 6, el tope del asesor)
+ * @param {string} area       materia (vacío = no filtra por área)
+ * @returns {{ fecha, nombre, tema, gancho, areas, diasDesdeInicio }[]}
+ */
+export const efemeridesEnRango = (inicioISO, semanas = 6, area = "") => {
+  const inicio = _iso(inicioISO);
+  if (!inicio) return [];
+  const nSem = Number.isFinite(+semanas) && +semanas > 0 ? Math.min(8, +semanas) : 6;
+  const fin = _sumarDias(inicio, nSem * 7);
+  if (!fin) return [];
+
+  const cal = calendarioParaFecha(inicio) || calendarioParaFecha(fin);
+  const efemerides = Array.isArray(cal?.efemerides) ? cal.efemerides : [];
+  const areaKey = _normArea(area);
+
+  return efemerides
+    .filter((e) => {
+      const f = _iso(e?.fecha);
+      if (!f || f < inicio || f > fin) return false; // debe caer DENTRO del rango
+      if (!areaKey) return true; // sin área → todas las del rango
+      const areas = (Array.isArray(e?.areas) ? e.areas : []).map(_normArea);
+      return areas.length === 0 || areas.includes(areaKey);
+    })
+    .map((e) => ({
+      ...e,
+      diasDesdeInicio: Math.round(
+        (new Date(`${_iso(e.fecha)}T12:00:00`) - new Date(`${inicio}T12:00:00`)) / 86400000
+      ),
+    }))
+    .sort((a, b) => a.diasDesdeInicio - b.diasDesdeInicio);
 };
