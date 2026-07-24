@@ -92,13 +92,39 @@ const _temaDia = (dia) =>
  *            competencia, instrucciones, duracion}[]}  candidatas ÚNICAS a cosechar
  */
 export const extraerActividadesCosechables = (unidad, { area = '', grado = '', bancoVivo = [] } = {}) => {
-  const fases = _arr(unidad?.fases);
+  const fases = _arr(unidad?.fases).length ? _arr(unidad?.fases) : _arr(unidad?.fasesSemanales);
   const dias = fases.flatMap((f) => _arr(f?.dias));
-  if (!dias.length) return [];
 
   const vivas = _arr(bancoVivo);
   const cosechadasEnUnidad = []; // dedup DENTRO de la misma unidad
   const salida = [];
+
+  // Actividades que el COMBINADOR ya creó listas para cosechar (mecánica probada
+  // + estructura del día). Vienen con instrucciones completas; solo deduplicar.
+  for (const comb of _arr(unidad?.combinacionesCreadas)) {
+    const candidata = {
+      titulo: _texto(comb?.titulo),
+      tipo: comb?.tipo || 'Speaking',
+      momento: 'Desarrollo',
+      area: comb?.area || area,
+      grados: Array.isArray(comb?.grados) && comb.grados.length ? comb.grados : (grado ? [grado] : []),
+      temas: _arr(comb?.temas).map(_texto).filter(Boolean),
+      habilidades: _arr(comb?.habilidades).map(_texto).filter(Boolean),
+      estrategia: _texto(comb?.estrategia),
+      competencia: comb?.competencia || 'Comunicativa',
+      instrucciones: _arr(comb?.instrucciones).map(_texto).filter(Boolean),
+      duracion: Number(comb?.duracion) || 30,
+      origen: 'combinador',
+    };
+    if (!candidata.titulo || candidata.instrucciones.length < 2) continue;
+    const dup = vivas.some((v) => _similitud(candidata, v) >= UMBRAL_DUPLICADO) ||
+      cosechadasEnUnidad.some((c) => _similitud(candidata, c) >= UMBRAL_DUPLICADO);
+    if (dup) continue;
+    cosechadasEnUnidad.push(candidata);
+    salida.push(candidata);
+  }
+
+  if (!dias.length) return salida;
 
   for (const dia of dias) {
     // Si el día ya sirvió una actividad DEL BANCO, no hay mecánica nueva que
@@ -184,7 +210,9 @@ export const cosecharActividadesDeUnidad = async ({
         ...act,
         estado: 'cosechada',
         cosechadaEn: new Date().toISOString(),
-        origen: 'cosecha_unidad',
+        // Preserva 'combinador' si la actividad nació del combinador; si no, es
+        // una cosecha de mecánica de la unidad.
+        origen: act?.origen || 'cosecha_unidad',
         unidadOrigenId: _texto(unidad?.id),
       }, userId);
       ids.push(id);

@@ -4,6 +4,7 @@
 
 import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { getActividades } from "./bancoPedagogicoService.js";
+import { combinarActividad } from "./combinadorActividadesService.js";
 import { getCurricularContentForUnit, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "./bancoConocimientoService.js";
 import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical } from "./phaseAService.js";
 import { resolverFocosCurriculares, obtenerPerfilPedagogicoArea } from "./curriculumBrainService.js";
@@ -1879,6 +1880,13 @@ const _generarFasesConIA = async (
     bancoActividadesArea = [];
   }
 
+  // Acumulador de actividades que el COMBINADOR crea sin IA (mecánica probada +
+  // estructura del día). Se recogen aquí para cosecharlas como `cosechada` tras
+  // generar la unidad — el banco crece con su propio material (visión del dueño).
+  // Dedup por título dentro de la unidad: una misma combinación no se repite.
+  const combinacionesCreadas = [];
+  const _combinadasVistas = new Set();
+
   fases.forEach((fase) => {
     fase.dias.forEach((dia) => {
       const temaSemana = obtenerTemaSemana(Number(dia.semana || 1), rutaCurricular?.distribucion);
@@ -2415,6 +2423,26 @@ const _generarFasesConIA = async (
         ...pasos,
         `Elaboran ${piezaProducto}, incorporando ${estructura} y al menos tres palabras del vocabulario trabajado. (Aporte a ${productoNombre}.)`,
         `Socializan su producción con un compañero y aplican una mejora concreta ("una estrella y un deseo") antes de guardarla en el portafolio.`,
+      ];
+    }
+
+    // COMBINADOR (cascada: banco directo → COMBINADOR → molde): si no hubo match
+    // directo pero el banco tiene ≥3 piezas afines por tema con mecánicas
+    // distintas, se crea una actividad NUEVA sin IA recombinando una mecánica
+    // probada con la estructura del día. Se acumula para cosecharla y validarla.
+    const actCombinada = combinarActividad(bancoActividadesArea, {
+      estructura, temaSemana, funcion: (typeof funcion === "string" ? funcion : ""), area, grado,
+    });
+    if (actCombinada) {
+      const claveComb = String(actCombinada.titulo || "").toLowerCase();
+      if (!_combinadasVistas.has(claveComb)) {
+        _combinadasVistas.add(claveComb);
+        combinacionesCreadas.push(actCombinada);
+      }
+      const pasos = actCombinada.instrucciones.map((x) => String(x || "").trim()).filter(Boolean);
+      return [
+        `Escuchan con propósito (${lv.nombre}) un texto breve sobre ${temaSemana} y ${lv.consigna}.`,
+        ...pasos.slice(1), // el paso 0 del combinado es andamiaje; ya lo pusimos con la variante del día
       ];
     }
 
@@ -3175,7 +3203,7 @@ const _generarFasesConIA = async (
     globalOffset += numClases;
   }
 
-  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA };
+  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA, combinacionesCreadas };
 };
 
 // ─── Exportación principal ────────────────────────────────────────────────────
@@ -3462,7 +3490,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     temasActivos: rutaCurricular.temas,
   });
 
-  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [] } = await _generarFasesConIA(
+  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], combinacionesCreadas = [] } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
     {
       grado, nivel,
@@ -3576,6 +3604,10 @@ export const generarUnidadAprendizaje = async (datos) => {
     },
     contenidos,
     fasesSemanales: fasesSemanalesGeneradas,
+    // Actividades que el COMBINADOR creó sin IA (mecánica probada + estructura
+    // del día). Se cosechan como `cosechada` al guardar con opt-in, para que el
+    // dueño las valide y el banco crezca con su propio material.
+    combinacionesCreadas,
     especificacionCurricular: especificacionCurricularUnidad,
     // Trazabilidad: la malla EXACTA que produjo esta unidad. Ancla obligatoria
     // para la cosecha del Banco de Aprendizaje (verificarRefsContraMalla exige
