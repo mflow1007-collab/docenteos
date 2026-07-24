@@ -193,7 +193,7 @@ export const coincideContextoTemaTrabajado = (registro = {}, seleccion = {}) => 
 
 // Vocabulario ES/EN por tema oficial (Lenguas Extranjeras 1ro-3ro; las claves
 // funcionan igual si otras áreas comparten nombres de tema)
-const TEMA_KEYWORDS = {
+export const TEMA_KEYWORDS = {
   "identificacion personal": ["identificacion personal", "personal information", "introductions", "introduce myself", "about me", "greetings", "saludos", "my name", "nationality", "nacionalidad"],
   "relaciones humanas y sociales": ["family", "familia", "friends", "amigos", "relationships", "relaciones", "people", "personas", "community", "comunidad", "social"],
   "actividades de la vida diaria": ["routine", "routines", "rutina", "rutinas", "daily", "everyday", "dia a dia", "habits", "habitos", "my life", "schedule", "mi dia"],

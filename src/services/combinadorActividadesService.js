@@ -26,11 +26,30 @@
  * combinada (o null). La cosecha la hace quien lo llame.
  */
 
+import { TEMA_KEYWORDS } from './curriculumCombinacionService.js';
+
 const _norm = (s) => String(s ?? '')
   .toLowerCase()
   .normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z0-9]+/g, ' ')
   .trim();
+
+// Expande un tema a sus SINÓNIMOS del campo (rutinas, daily, habits…) para que
+// "actividades de la vida diaria" reconozca piezas etiquetadas "rutinas". Sin
+// esto el matching literal falla entre sinónimos y el combinador nunca dispara.
+const _expandirTema = (tema) => {
+  const base = new Set(_norm(tema).split(' ').filter((w) => w.length > 2));
+  const n = _norm(tema);
+  for (const [clave, sinonimos] of Object.entries(TEMA_KEYWORDS)) {
+    const familia = [clave, ...sinonimos].map(_norm);
+    // Si el tema coincide con la clave o con algún sinónimo, sumamos TODA la
+    // familia de palabras a la base de afinidad.
+    if (familia.some((f) => f && (n.includes(f) || f.includes(n)))) {
+      familia.forEach((f) => f.split(' ').forEach((w) => { if (w.length > 2) base.add(w); }));
+    }
+  }
+  return base;
+};
 
 const _tok = (s) => new Set(_norm(s).split(' ').filter((w) => w.length > 2));
 
@@ -92,27 +111,35 @@ const _pesoProbada = (d) => Math.min(d.usosTotal, 5) * 1 + Math.min(d.valoracion
  */
 export const combinarActividad = (banco = [], objetivo = {}) => {
   const { estructura = '', temaSemana = '', funcion = '', area = '', grado = '' } = objetivo;
-  // Afinidad se mide por el TEMA (campo común), no por la estructura: la
-  // estructura es lo NUEVO que el combinador va a introducir, así que las piezas
-  // "del mismo campo" son las que comparten tema, aunque practiquen estructuras
-  // distintas. Esa diversidad de estructuras/mecánicas es justo lo que permite
-  // recombinar. Si no hay tema, caemos a las señales del objetivo completo.
-  const señalesTema = _tok(temaSemana);
-  const señalesObjetivo = new Set([..._tok(estructura), ...señalesTema, ..._tok(funcion)]);
+  // Afinidad = mismo campo pedagógico. Se mide por TEMA **o** por ESTRUCTURA:
+  //   - por tema: piezas del mismo campo temático (rutinas, deporte…).
+  //   - por estructura: piezas que practican la misma gramática (presente
+  //     simple, adverbios de frecuencia…), aunque el tema esté rotulado con
+  //     otras palabras. Esto es CLAVE: la semilla dice "rutinas" pero la unidad
+  //     dice "actividades de la vida diaria" —sinónimos, cero solape literal—;
+  //     sin el eje de estructura el combinador nunca dispararía entre ellas.
+  // La mecánica combina bien cuando sirve a la MISMA estructura, así que este
+  // eje es además el más correcto pedagógicamente.
+  const señalesTema = _expandirTema(temaSemana); // incluye sinónimos del campo
+  const señalesEstructura = _tok(estructura);
+  const señalesObjetivo = new Set([...señalesEstructura, ...señalesTema, ..._tok(funcion)]);
   if (!señalesObjetivo.size) return null;
-  const baseAfinidad = señalesTema.size ? señalesTema : señalesObjetivo;
 
   const conMecanica = (Array.isArray(banco) ? banco : [])
     .filter((a) => Array.isArray(a?.instrucciones) && a.instrucciones.filter((x) => String(x || '').trim().length > 20).length >= 2)
     .map(descomponerActividad);
 
-  // Piezas AFINES: comparten al menos UMBRAL_SOLAPAMIENTO señales del TEMA con el
-  // objetivo — "hablan del mismo campo". Son las que dan derecho a recombinar.
-  const afines = conMecanica.filter((d) => {
-    let solape = 0;
-    baseAfinidad.forEach((s) => { if (d.contenido.has(s)) solape += 1; });
-    return solape >= UMBRAL_SOLAPAMIENTO;
-  });
+  // Piezas AFINES: comparten ≥UMBRAL señales de TEMA o de ESTRUCTURA con el
+  // objetivo. Basta con uno de los dos ejes para ser "del mismo campo".
+  const solapa = (contenido, base) => {
+    let n = 0;
+    base.forEach((s) => { if (contenido.has(s)) n += 1; });
+    return n;
+  };
+  const afines = conMecanica.filter((d) =>
+    solapa(d.contenido, señalesTema) >= UMBRAL_SOLAPAMIENTO ||
+    solapa(d.contenido, señalesEstructura) >= UMBRAL_SOLAPAMIENTO
+  );
   if (afines.length < UMBRAL_PIEZAS_AFINES) return null; // ← tu umbral ≥3
 
   // Elegimos la MECÁNICA más probada de entre las piezas afines: es la que mejor
