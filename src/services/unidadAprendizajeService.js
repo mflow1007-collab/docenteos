@@ -2822,7 +2822,9 @@ const _generarFasesConIA = async (
     });
 
     return {
-      dia: dia?.dia || indiceEnFase + 1,
+      // Día GLOBAL (numeroGlobal) para que coincida con el "dia" que el prompt
+      // pasa a la IA (startDia + i) y con el matching de fase en el validador.
+      dia: dia?.numeroGlobal || dia?.dia || (globalOffset + indiceEnFase + 1),
       fase: fase?.numero || null,
       nombreFase: fase?.nombre || "",
       secuenciaPedagogica: {

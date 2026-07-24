@@ -903,10 +903,20 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       throw new Error(`R9: clase ${idx + 1} — intención vaga ("${vaga}"): nombra el contenido y las actividades REALES del día`);
     }
 
+    // FASE 1 = APROPIACIÓN: eximida del foco gramatical y de R12 (técnica CLT
+    // rica). Estas clases presentan la unidad, no practican estructura, así que
+    // forzarles una técnica comunicativa (Listen and Act, Role Play…) o una
+    // estructura gramatical en el foco era la causa de que aparecieran mecánicas
+    // ricas en la fase de apropiación. El resto de reglas (voz, evidencias,
+    // intención, indicadores…) SÍ aplican, así que validamos esas antes de saltar.
+    const diasApropiacion = opts.diasApropiacion instanceof Set ? opts.diasApropiacion : new Set();
+    const esApropiacion = diasApropiacion.has(Number(clase.dia));
+
     // Foco lingüístico anclado al plan gramatical del bloque: el encabezado
     // del día debe declarar una estructura OFICIAL del foco, no una etiqueta
-    // inventada. (Bloque introductorio sin foco → sin restricción.)
-    if (focoGram.length) {
+    // inventada. (Bloque introductorio sin foco o clase de apropiación → sin
+    // restricción.)
+    if (focoGram.length && !esApropiacion) {
       const nombres = focoGram.map(nombreCortoEstructura).filter((n) => n.length >= 4);
       if (nombres.length) {
         const focoDia = _normTextoFoco(clase.focoLinguistico);
@@ -916,6 +926,12 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
           );
         }
       }
+    }
+
+    if (esApropiacion) {
+      // Apropiación: no exigimos actividadCLT ni foco gramatical. Saltamos el
+      // resto de checks de técnica de la clase.
+      continue;
     }
 
     // 3B — técnica metodológica NOMBRADA (el "sabor" del documento modelo):
@@ -1314,7 +1330,7 @@ ${reglaInicio}
    • "tituloSemana": título que refleja la FASE de la unidad y AVANZA semana a semana ("Exploración y descripción" → "Profundización" → "Integración y producto final"); no repitas el mismo en semanas distintas.
    • "focoLinguistico": ${spec.esIdioma ? 'la ESTRUCTURA GRAMATICAL, vocabulario o función comunicativa que trabaja esta clase (copia o adapta UNO del FOCO LINGÜÍSTICO DEL BLOQUE indicado arriba); incluye ejemplos entre paréntesis en cursiva cuando aplique (ej. "Present Simple: routines _(I wake up at 6.)_"). Si es Semana 1: "Apropiación de la unidad / producto / evaluación".' : 'el CONCEPTO, PROCEDIMIENTO o CRITERIO central de la malla que trabaja esta clase (copia o adapta UNO del FOCO CURRICULAR DEL BLOQUE indicado arriba). NO uses vocabulario de idioma aquí. Si es Semana 1: "Apropiación de la unidad / producto / evaluación".'}
    • "estrategiasDia": 2-3 estrategias pedagógicas coherentes separadas por " • ". PREFIERE las estrategias OFICIALES del Diseño Curricular (puedes precisarlas con la misión del día): ${ESTRATEGIAS_OFICIALES_TEXTO}.
-   FASE 1 = APROPIACIÓN (las clases cuyo foco es "Apropiación de la unidad / producto / evaluación"): estas clases PRESENTAN la unidad, NO practican estructura gramatical. Sus actividades son de apropiación: presentar la situación de aprendizaje, el tema y los saberes previos; presentar el producto final y su rúbrica; analizar los criterios de evaluación; acordar las normas de trabajo; aplicar un diagnóstico inicial; elaborar un mapa/plan inicial. Su duración VARÍA según la complejidad del tema (puede ser 1 o 2 clases). PROHIBIDO en la Fase 1: mecánicas de práctica de estructura tipo "Frequency Walk", "Interview Stations", "Role Play" con estructura, "Find Someone Who", "Information Gap" u otras actividades comunicativas ricas nombradas — esas empiezan RECIÉN en la Fase 2 (Desarrollo). Las actividades genéricas de apropiación SON las correctas aquí. Desde la Fase 2: avanza por contenidos de la malla (conceptuales → procedimentales → producción) con las mecánicas comunicativas ricas; la intención pedagógica nombra el foco del día.
+   FASE 1 = APROPIACIÓN (toda clase con "fase": 1 en la SECUENCIA BASE — sin importar qué foco tenga): estas clases PRESENTAN la unidad, NO practican estructura gramatical. REGLA DURA: para las clases de "fase": 1, IGNORA cualquier estructura gramatical del foco y trátalas como apropiación pura. Sus actividades son SOLO: presentar la situación de aprendizaje, el tema y los saberes previos; presentar el producto final y su rúbrica; analizar los criterios de evaluación; acordar las normas de trabajo; aplicar un diagnóstico inicial; elaborar un mapa/plan inicial de ideas. Su duración VARÍA según la complejidad del tema (1 o 2 clases). PROHIBIDO en "fase": 1: mecánicas de práctica de estructura como "Listen and Act", "Role Play", "Frequency Walk", "Interview Stations", "Find Someone Who", "Information Gap", "My Routine Snapshot" o cualquier misión que haga PRODUCIR oraciones con una estructura gramatical. En "fase": 1 el Desarrollo se limita a: escuchar la presentación de la unidad, observar ejemplos del producto/rúbrica, registrar vocabulario que YA conocen (diagnóstico), elaborar un mapa de ideas inicial, acordar normas. Las mecánicas comunicativas ricas empiezan RECIÉN en "fase": 2. Desde la Fase 2: avanza por contenidos de la malla (conceptuales → procedimentales → producción) con las mecánicas comunicativas ricas; la intención pedagógica nombra el foco del día.
 11. CADA clase incluye "aporteProducto": la PIEZA NOMBRADA que esa clase ensambla al producto final. Regla de coherencia: si juntas todos los "aporteProducto" de la unidad, el resultado DEBE SER el producto final — como las páginas de un libro o las partes de una maqueta. Cada pieza debe ser DISTINTA y VISIBLE: describe el artefacto entregable con nombre propio (ej. idioma: "Vocabulary card set de rooms and furniture", "Floor plan del hogar con etiquetas en inglés", "Script del House Tour"; ej. otra área: "Ficha comparativa de dos ecosistemas", "Croquis del acueducto con medidas reales"). PROHIBIDO: "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto", "participación en la clase".${spec.esIdioma ? ' El nombre del artefacto puede incluir términos en el idioma meta.' : ''}${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
 12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica CONCRETA del Desarrollo (${tecnicasEjem}), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en [técnica]: …"). Usa una técnica ACCIONABLE. Un marco amplio ("Aprendizaje Basado en Proyectos", "Aprendizaje Cooperativo", "ABP") vale SOLO si lo nombras con su MISIÓN concreta del día ("Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto"), nunca desnudo. Cuando la clase tenga una MISIÓN, dale un NOMBRE PROPIO memorable entre comillas, ligado al tema del día: "Participan en 'Feria de fracciones del barrio': …". No repitas una técnica ni un nombre de misión ya usados en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: activación con propósito O misión nombrada → producción → verificación entre pares.
 13. NO copies los ejemplos de estilo del sistema como actividades: son referencia de VOZ. Cada actividad es específica del contenido de ESTA clase.
@@ -1469,6 +1485,15 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         temasActivos: spec.temasActivos,
         semanaNum,
         indicadoresPermitidos,
+        // Días de APROPIACIÓN (Fase 1): eximidos de exigir técnica CLT rica (R12)
+        // y de tener que trabajar una estructura gramatical — son de presentación
+        // de la unidad, no de práctica.
+        diasApropiacion: new Set(
+          (Array.isArray(spec.secuenciaBase) ? spec.secuenciaBase : [])
+            .filter((c) => Number(c?.fase) === 1)
+            .map((c) => Number(c?.dia))
+            .filter((n) => Number.isFinite(n)),
+        ),
       });
 
       // 3A — fijar el nombre del producto propuesto por el primer lote
