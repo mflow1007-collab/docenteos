@@ -706,12 +706,17 @@ export default function FormularioUnidadAprendizaje({
             {sugerenciaEfemeride.coincideConTema ? (
               <>
                 Tu tema encaja con <strong>{sugerenciaEfemeride.efemeride.nombre}</strong>{" "}
-                (dentro de tu rango de fechas). Puedes {sugerenciaEfemeride.gancho} para darle
-                un hilo temático real a la unidad.
+                {sugerenciaEfemeride.efemeride.esLectivo
+                  ? "(dentro de tu rango de fechas)"
+                  : "(se conmemora esa semana, dentro de tu rango)"}. Puedes{" "}
+                {sugerenciaEfemeride.gancho} para darle un hilo temático real a la unidad.
               </>
             ) : (
               <>
-                En tu rango de fechas cae <strong>{sugerenciaEfemeride.efemeride.nombre}</strong>.
+                {sugerenciaEfemeride.efemeride.esLectivo
+                  ? "En tu rango de fechas cae "
+                  : "En tu rango se conmemora "}
+                <strong>{sugerenciaEfemeride.efemeride.nombre}</strong>.
                 Si quieres, podrías {sugerenciaEfemeride.gancho}
                 {sugerenciaEfemeride.temaSugerido ? (
                   <> apoyándote en el tema <strong>{sugerenciaEfemeride.temaSugerido}</strong> de la malla</>

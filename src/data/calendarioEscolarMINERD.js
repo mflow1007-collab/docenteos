@@ -268,6 +268,10 @@ export const efemeridesEnRango = (inicioISO, semanas = 6, area = "") => {
       diasDesdeInicio: Math.round(
         (new Date(`${_iso(e.fecha)}T12:00:00`) - new Date(`${inicio}T12:00:00`)) / 86400000
       ),
+      // Si la fecha exacta cae en fin de semana/feriado, la efeméride sigue
+      // valiendo como hilo de la unidad (se conmemora esa semana), pero el
+      // mensaje debe reconocerlo en vez de hablar como si fuera día de clase.
+      esLectivo: esDiaLectivo(_iso(e.fecha)),
     }))
     .sort((a, b) => a.diasDesdeInicio - b.diasDesdeInicio);
 };

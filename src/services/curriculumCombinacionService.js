@@ -702,7 +702,12 @@ export const sugerirEfemerideParaUnidad = ({
     : false;
 
   return {
-    efemeride: { fecha: efem.fecha, nombre: efem.nombre, diasDesdeInicio: efem.diasDesdeInicio },
+    efemeride: {
+      fecha: efem.fecha,
+      nombre: efem.nombre,
+      diasDesdeInicio: efem.diasDesdeInicio,
+      esLectivo: efem.esLectivo !== false, // por defecto lo tratamos como lectivo
+    },
     temaSugerido,
     gancho: efem.gancho,
     coincideConTema: !!coincideConTema,
