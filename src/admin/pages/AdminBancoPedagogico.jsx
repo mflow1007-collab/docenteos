@@ -11,6 +11,7 @@ import {
   BP_TIPOS_ACTIVIDAD, BP_TIPOS_INSTRUMENTO, BP_TIPOS_RECURSO,
 } from '../../services/bancoPedagogicoService.js';
 import { sembrarActividadesModelo, ACTIVIDADES_MODELO } from '../../services/bancoActividadesModelo.js';
+import { ejecutarAuditoria } from '../../services/auditorBancoService.js';
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -353,6 +354,8 @@ function TabActividades({ adminId }) {
   const [guardando, setGuardando]       = useState(false);
   const [sembrando, setSembrando]       = useState(false);
   const [msgSiembra, setMsgSiembra]     = useState('');
+  const [auditando, setAuditando]       = useState(false);
+  const [reporteAudit, setReporteAudit] = useState(null); // { auto, revisar, ... }
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -367,6 +370,32 @@ function TabActividades({ adminId }) {
   }, [filtroEstado, filtroArea, filtroTipo, filtroMomento]);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  // Auto-auditoría periódica (sustituye al cron server-side, que requeriría
+  // firebase-admin). Al abrir el tab, si pasaron >7 días desde la última
+  // corrida, archiva SOLO lo objetivo (refs muertas/duplicados, modo 'auto')
+  // usando la sesión ya autenticada del admin, y deja el resto para revisar.
+  useEffect(() => {
+    const CLAVE = 'docenteos_ultima_auditoria_banco';
+    const SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
+    const ultima = Number(localStorage.getItem(CLAVE) || 0);
+    if (Date.now() - ultima < SEMANA_MS) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const r = await ejecutarAuditoria({ modo: 'auto', adminId });
+        localStorage.setItem(CLAVE, String(Date.now()));
+        if (!vivo) return;
+        // Solo molesta al admin si hubo algo (archivado o pendiente de revisar).
+        if (r.archivadas > 0 || (r.revisar?.length || 0) > 0) {
+          setReporteAudit(r.revisar?.length ? { ...r } : { ...r, hecho: true });
+          cargar();
+        }
+      } catch { /* silencioso: la auditoría automática nunca bloquea el panel */ }
+    })();
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const abrirNuevo = () => {
     setForm(ACT_VACIA);
@@ -429,6 +458,38 @@ function TabActividades({ adminId }) {
     }
   };
 
+  // Auditor: previsualiza qué archivaría (nunca borra; marca obsolete). Primero
+  // REPORTA (modo reportar), el admin ve el veredicto y confirma la poda.
+  const auditarPrevia = async () => {
+    setAuditando(true);
+    setReporteAudit(null);
+    try {
+      const r = await ejecutarAuditoria({ modo: 'reportar' });
+      setReporteAudit(r);
+    } catch (e) {
+      setReporteAudit({ error: e?.message || 'no se pudo auditar' });
+    } finally {
+      setAuditando(false);
+    }
+  };
+
+  const confirmarPoda = async (modo) => {
+    // modo 'auto' = solo objetivos; 'todo' = auto + revisar.
+    const n = modo === 'auto' ? (reporteAudit?.auto?.length || 0) : ((reporteAudit?.auto?.length || 0) + (reporteAudit?.revisar?.length || 0));
+    if (!n) return;
+    if (!window.confirm(`¿Archivar ${n} actividad(es) a estado Obsoleto? Es reversible (no se borran).`)) return;
+    setAuditando(true);
+    try {
+      const r = await ejecutarAuditoria({ modo, adminId });
+      setReporteAudit({ ...r, hecho: true });
+      cargar();
+    } catch (e) {
+      setReporteAudit({ error: e?.message || 'no se pudo archivar' });
+    } finally {
+      setAuditando(false);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -442,7 +503,10 @@ function TabActividades({ adminId }) {
           <option value="">Todos los momentos</option>
           {BP_MOMENTOS.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
-        <button onClick={sembrar} disabled={sembrando} className="admin-btn" style={{ marginLeft: 'auto', background: '#0f766e' }}>
+        <button onClick={auditarPrevia} disabled={auditando} className="admin-btn" style={{ marginLeft: 'auto', background: '#b45309' }}>
+          {auditando ? 'Auditando…' : '🧹 Auditar banco'}
+        </button>
+        <button onClick={sembrar} disabled={sembrando} className="admin-btn" style={{ background: '#0f766e' }}>
           {sembrando ? 'Sembrando…' : '🌱 Sembrar modelo del dueño'}
         </button>
         <button onClick={abrirNuevo} className="admin-btn">+ Nueva actividad</button>
@@ -451,6 +515,47 @@ function TabActividades({ adminId }) {
         <p style={{ marginTop: -8, marginBottom: 14, fontSize: 13, color: msgSiembra.startsWith('✓') ? '#15803d' : '#dc2626' }}>
           {msgSiembra}
         </p>
+      )}
+      {reporteAudit && (
+        <div style={{ marginTop: -8, marginBottom: 16, padding: 12, borderRadius: 8, border: '1px solid #fcd34d', background: '#fffbeb', fontSize: 13 }}>
+          {reporteAudit.error ? (
+            <span style={{ color: '#dc2626' }}>✗ {reporteAudit.error}</span>
+          ) : reporteAudit.hecho ? (
+            <span style={{ color: '#15803d' }}>✓ {reporteAudit.archivadas} actividad(es) archivada(s) a Obsoleto (reversible).</span>
+          ) : reporteAudit.revisadas === 0 ? (
+            <span style={{ color: '#64748b' }}>No hay actividades auditables (cosechadas/borradores). El banco está limpio.</span>
+          ) : (
+            <div>
+              <strong>Auditoría — revisadas {reporteAudit.revisadas}:</strong>
+              {reporteAudit.excedeTope && (
+                <p style={{ color: '#dc2626', margin: '6px 0' }}>⚠ El veredicto tocaría más del 50% del banco — revísalo antes de podar.</p>
+              )}
+              <p style={{ margin: '6px 0 2px' }}>
+                <strong>Auto-archivar ({reporteAudit.auto.length})</strong> — refs muertas / duplicados:
+              </p>
+              <ul style={{ margin: '0 0 6px 18px' }}>
+                {reporteAudit.auto.slice(0, 8).map((x) => <li key={x.id}>{x.titulo} — <em>{x.motivo}</em></li>)}
+                {reporteAudit.auto.length > 8 && <li>… y {reporteAudit.auto.length - 8} más</li>}
+              </ul>
+              <p style={{ margin: '6px 0 2px' }}>
+                <strong>Revisar ({reporteAudit.revisar.length})</strong> — requieren tu criterio:
+              </p>
+              <ul style={{ margin: '0 0 8px 18px' }}>
+                {reporteAudit.revisar.slice(0, 8).map((x) => <li key={x.id}>{x.titulo} — <em>{x.motivo}</em></li>)}
+                {reporteAudit.revisar.length > 8 && <li>… y {reporteAudit.revisar.length - 8} más</li>}
+              </ul>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => confirmarPoda('auto')} disabled={auditando || !reporteAudit.auto.length} className="admin-btn" style={{ background: '#b45309' }}>
+                  Archivar solo auto ({reporteAudit.auto.length})
+                </button>
+                <button onClick={() => confirmarPoda('todo')} disabled={auditando || (!reporteAudit.auto.length && !reporteAudit.revisar.length)} className="admin-btn" style={{ background: '#dc2626' }}>
+                  Archivar todo ({reporteAudit.auto.length + reporteAudit.revisar.length})
+                </button>
+                <button onClick={() => setReporteAudit(null)} className="admin-btn" style={{ background: '#64748b' }}>Cerrar</button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {cargando ? (

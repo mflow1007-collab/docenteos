@@ -2039,7 +2039,11 @@ const _generarFasesConIA = async (
 
     const t = normalizarClaveDidactica(protagonista?.texto || "");
     if (/conector|secuencia|first|then|finally/.test(t)) return `párrafo secuenciado sobre ${temaCorto}`;
-    if (/frecuencia|frequency|adverbio/.test(t)) return `lista de hábitos con adverbios de frecuencia sobre ${temaCorto}`;
+    // Adverbios de TIEMPO (now, in the past, yet, already, still) ≠ adverbios de
+    // FRECUENCIA (always, usually, never). Van ANTES para que "adverbio" no caiga
+    // por error en la rama de frecuencia y el producto contradiga la estructura.
+    if (/tiempo|now|in the past|\byet\b|already|still|adverbio de tiempo|time adverb/.test(t)) return `oraciones con adverbios de tiempo sobre ${temaCorto}`;
+    if (/frecuencia|frequency|always|usually|often|sometimes|never/.test(t)) return `lista de hábitos con adverbios de frecuencia sobre ${temaCorto}`;
     if (/wh|question|pregunta|interrogativ/.test(t)) return `entrevista escrita con preguntas y respuestas sobre ${temaCorto}`;
     if (/hora|time|horario|reloj|fecha/.test(t)) return `agenda personal con horas sobre ${temaCorto}`;
     if (/tercera persona|posesiv|his|her|mine|yours/.test(t)) return `descripción de otra persona sobre ${temaCorto}`;
