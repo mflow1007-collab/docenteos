@@ -1048,6 +1048,21 @@ check("una fase de 8 días con 4 clases/semana se muestra como SEMANA 2 y SEMANA
   }
 });
 
+check("la banda de semana NO duplica el número: SEMANA N lo pone una sola vez, el título es solo la frase", () => {
+  const u = JSON.parse(JSON.stringify(unidadFixture));
+  // Título de semana SIN prefijo "Semana N:" (así lo produce el generador tras
+  // el fix): la banda antepone SEMANA N; embeder el número aquí daba
+  // "SEMANA 2: 'Semana 1: …'" — duplicado y desincronizado.
+  u.fasesSemanales[0].dias.forEach((d) => { d.tituloSemana = "Exploración de estructuras de permiso"; });
+  const h = formatearUnidadHTML(u, "");
+  if (/SEMANA \d+ \([^)]*\):\s*"Semana \d+:/.test(h)) {
+    throw new Error("la banda duplica el número de semana (SEMANA N: 'Semana M: …')");
+  }
+  if (!h.includes('"Exploración de estructuras de permiso"')) {
+    throw new Error("la banda no muestra la frase descriptiva del título de semana");
+  }
+});
+
 check("el Día N se cuenta dentro de su semana (numeroEnSemana manda)", () => {
   const u = JSON.parse(JSON.stringify(unidadFixture));
   u.fasesSemanales[0].dias[1].numeroEnSemana = 2;

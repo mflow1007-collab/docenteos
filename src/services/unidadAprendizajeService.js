@@ -2800,9 +2800,12 @@ const _generarFasesConIA = async (
         evidenciaCentral: perfilDia.evidenciaCentral,
         instrumentoSugerido: perfilDia.instrumentoSugerido,
       },
-      // G1/G4 — la semana visible es la del DÍA (antes todas las semanas de la
-      // fase heredaban la primera y el PDF decía "Semana 1" en las semanas 2-5)
-      tituloSemana: recortar(`Semana ${dia?.semana || semanaGeneracion}: ${perfilDia.tituloSemana}`, 70),
+      // El título de semana es SOLO la frase descriptiva ("Exploración y
+      // descripción de..."). El número de semana lo pone la banda calendario
+      // (SEMANA N) al renderizar; incluirlo aquí producía "SEMANA 2: 'Semana 1:
+      // …'" — número duplicado y, peor, desincronizado (dia.semana era relativo
+      // a la fase y arrancaba en 1, contradiciendo la banda calendario).
+      tituloSemana: recortar(perfilDia.tituloSemana, 70),
       // El título va en encabezado de tabla estrecho: se ABREVIA de forma limpia
       // (no con "…"). En días de integración el foco combina dos estructuras
       // (A · B · vocabulario…); se muestra solo la primera + "(integración)" para
