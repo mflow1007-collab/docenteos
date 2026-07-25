@@ -59,11 +59,12 @@ Sé preciso y cita el área y grado oficial cuando sea posible.`,
  * @returns {Promise<Object>} Metadatos completados
  */
 export async function completarMetadatos(datos) {
+  const system = await conFundamento(SYSTEM, datos.grado ?? '');
   return new Promise(resolve => {
     let acumulado = "";
     AIService.generate({
       module: "auditoria",
-      system: await conFundamento(SYSTEM, datos.grado ?? ''),
+      system,
       prompt: `Dado estos datos parciales de una planificación dominicana:
 ${JSON.stringify(datos, null, 2)}
 

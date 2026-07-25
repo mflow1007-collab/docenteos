@@ -6,7 +6,7 @@ import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { getActividades } from "./bancoPedagogicoService.js";
 import { combinarActividad } from "./combinadorActividadesService.js";
 import { getCurricularContentForUnit, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "./bancoConocimientoService.js";
-import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical, validarProductoFinalAutentico } from "./phaseAService.js";
+import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical, validarProductoFinalAutentico, esErrorCreditosAgotados } from "./phaseAService.js";
 import {
   resolverFocosCurriculares,
   obtenerPerfilPedagogicoArea,
@@ -142,6 +142,53 @@ export const detectarContextoAplicado = ({ contexto = "", textos = [], referenci
     tipoReferencia: mejor.coincidencias.tipoReferencia,
     coincidencias: mejor.coincidencias.comunes,
     verificacion: "coincidencia_textual",
+  };
+};
+
+export const asegurarAporteProductoUnico = ({
+  aporte = "",
+  faseNumero = 1,
+  foco = "",
+  claseNumero = 1,
+  usados = new Set(),
+} = {}) => {
+  const limpiar = (texto) => String(texto || "").replace(/\s+/g, " ").trim();
+  const clave = (texto) => limpiar(texto).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const original = limpiar(aporte);
+  if (!original || !usados.has(clave(original))) {
+    if (original) usados.add(clave(original));
+    return { texto: original, ajustado: false };
+  }
+
+  const etapaPorFase = {
+    1: "Diseño inicial",
+    2: "Borrador desarrollado",
+    3: "Ampliación argumentada",
+    4: "Versión integrada",
+    5: "Versión revisada",
+    6: "Versión final socializada",
+  };
+  const etapa = etapaPorFase[Number(faseNumero)] || "Versión mejorada";
+  const focoCorto = limpiar(foco).split(" · ")[0]
+    .replace(/^(Expresión|Estructura gramatical|Integración):\s*/i, "");
+  const base = original.replace(
+    /^(diseño inicial|borrador desarrollado|ampliación argumentada|versión integrada|versión revisada|versión final socializada|versión mejorada)\s+de\s+/i,
+    "",
+  );
+  const candidatos = [
+    `${etapa} de ${base}`,
+    `${etapa} de ${base}${focoCorto ? ` con ${focoCorto}` : ""}`,
+    `${etapa} ${claseNumero} de ${base}${focoCorto ? ` con ${focoCorto}` : ""}`,
+  ].map((texto) => limpiar(texto).slice(0, 120).trim());
+  const texto = candidatos.find((candidato) => !usados.has(clave(candidato)))
+    || limpiar(`${etapa} ${claseNumero} de ${base}`).slice(0, 120).trim();
+  usados.add(clave(texto));
+  return {
+    texto,
+    ajustado: true,
+    original,
+    motivo: "La clase profundiza una pieza ya iniciada y se identifica como una etapa distinta del producto.",
   };
 };
 
@@ -633,7 +680,7 @@ export const construirAnexosUnidad = ({
     });
     const pieza = piezaProducto
       || seleccionarPieza([item, evidencia].filter(Boolean).join(" "));
-    const requiereRevision = !relacion;
+    const requiereRevision = !relacion || relacion.confianza === "requiere_revision";
     return {
       instrumentoId: `${tipo}-${index + 1}`,
       criterioOficialId: relacion?.criterioId || "",
@@ -2163,6 +2210,8 @@ const _generarFasesConIA = async (
   if (contexto.productoPropio) specBase.productoFinalNombre = contexto.productoPropio;
 
   const memoriaAcumulada = [];
+  const aportesProductoUsados = new Set();
+  let modoContingenciaSinIA = false;
   const advertenciasIA = [];
   const totalClases = fases.reduce((sum, f) => sum + f.dias.length, 0);
   let globalOffset = 0;
@@ -3252,15 +3301,13 @@ const _generarFasesConIA = async (
     advertenciasIA.push(
       `Semana ${semanaGeneracion}, fase ${fase.numero}: la IA no completó esta parte; DocenteOS entregó una base curricular editable desde la malla oficial. ${motivoLimpio ? `Detalle: ${motivoLimpio.slice(0, 180)}` : ""}`.trim()
     );
-    const clasesBase = Array.isArray(specActual.secuenciaBase) && specActual.secuenciaBase.length
-      ? specActual.secuenciaBase
-      : fase.dias.map((dia, i) => construirClaseBaseCurricular({
-        dia,
-        fase,
-        indiceEnFase: i,
-        specActual,
-        semanaGeneracion,
-      }));
+    const clasesBase = fase.dias.map((dia, i) => construirClaseBaseCurricular({
+      dia,
+      fase,
+      indiceEnFase: i,
+      specActual,
+      semanaGeneracion,
+    }));
     return {
       outputSchemaVersion: "1.3",
       semana: semanaGeneracion,
@@ -3351,22 +3398,37 @@ const _generarFasesConIA = async (
       : null;
 
     let weekPlan;
-    try {
-      weekPlan = await generateWeekPlan(
-        specFase, semanaGeneracion, durMin, numClases, numSemanas,
-        memoriaAcumulada, progressWrapper,
-      );
-    } catch (err) {
-      console.warn(`[UnidadIA] Fase ${fase.numero} semana ${semanaGeneracion}: usando base curricular por fallo IA.`, err);
+    if (modoContingenciaSinIA) {
       onProgress?.(
-        `🧩 Semana ${semanaGeneracion}: la IA no completó esta fase; DocenteOS arma una base curricular desde la malla oficial para no dejarte sin planificación.`
+        `🧩 Semana ${semanaGeneracion}: modo curricular sin IA activo; construyendo la fase desde la malla oficial sin consumir créditos.`
       );
       weekPlan = construirWeekPlanBaseCurricular({
         fase,
         specActual: specFase,
         semanaGeneracion,
-        motivo: err?.message || String(err || ""),
+        motivo: "Modo curricular sin IA activado después de detectar créditos agotados.",
       });
+    } else {
+      try {
+        weekPlan = await generateWeekPlan(
+          specFase, semanaGeneracion, durMin, numClases, numSemanas,
+          memoriaAcumulada, progressWrapper,
+        );
+      } catch (err) {
+        if (esErrorCreditosAgotados(err)) modoContingenciaSinIA = true;
+        console.warn(`[UnidadIA] Fase ${fase.numero} semana ${semanaGeneracion}: usando base curricular por fallo IA.`, err);
+        onProgress?.(
+          modoContingenciaSinIA
+            ? `🧩 Semana ${semanaGeneracion}: créditos agotados; DocenteOS continúa desde la malla oficial y no hará más llamadas de IA en esta unidad.`
+            : `🧩 Semana ${semanaGeneracion}: la IA no completó esta fase; DocenteOS arma una base curricular desde la malla oficial para no dejarte sin planificación.`
+        );
+        weekPlan = construirWeekPlanBaseCurricular({
+          fase,
+          specActual: specFase,
+          semanaGeneracion,
+          motivo: err?.message || String(err || ""),
+        });
+      }
     }
     productoFinalNombreActual = specFase.productoFinalNombre || weekPlan.productoFinalNombre || productoFinalNombreActual;
 
@@ -3386,7 +3448,19 @@ const _generarFasesConIA = async (
       dia.estrategiasDia = String(aiClase.estrategiasDia || "").trim();
       dia.intencionPedagogica = String(aiClase.intencionPedagogica || "").trim();
       // 3A/3B — aporte concreto al producto y técnica metodológica del día
-      dia.aporteProducto = String(aiClase.aporteProducto || "").trim();
+      const aporteResuelto = asegurarAporteProductoUnico({
+        aporte: aiClase.aporteProducto,
+        faseNumero: fase.numero,
+        foco: aiClase.focoLinguistico,
+        claseNumero: dia.numeroGlobal || i + 1,
+        usados: aportesProductoUsados,
+      });
+      dia.aporteProducto = aporteResuelto.texto;
+      if (aporteResuelto.ajustado) {
+        advertenciasIA.push(
+          `Clase ${dia.numeroGlobal || i + 1}: se diferenció una etapa repetida del producto como “${aporteResuelto.texto}”.`
+        );
+      }
       dia.actividadCLT = aiClase.actividadCLT
         ? {
             nombre: String(aiClase.actividadCLT.nombre || "").trim(),
@@ -3487,7 +3561,11 @@ const _generarFasesConIA = async (
             ].filter(Boolean).join(" "),
             relaciones: relacionesDia,
           });
-          const relacionado = Boolean(relacion && actividad);
+          const relacionado = Boolean(
+            relacion
+            && actividad
+            && relacion.confianza !== "requiere_revision"
+          );
           return {
             evidenciaId: evidencia.id,
             evidenciaTipo: evidencia.tipo,
@@ -3602,6 +3680,17 @@ const _generarFasesConIA = async (
       fase.observacionesSemana = String(weekPlan.observacionesSemana).trim();
     }
 
+    // generateWeekPlan actualiza esta memoria internamente. El respaldo no,
+    // por eso solo incorporamos aquí sus clases determinísticas.
+    if (weekPlan._origenComposicion === "base_curricular") {
+      memoriaAcumulada.push(...weekPlan.clases.map((clase, index) => ({
+        semana: semanaGeneracion,
+        dia: fase.dias[index]?.numeroGlobal || clase.dia || index + 1,
+        aporteProducto: fase.dias[index]?.aporteProducto || clase.aporteProducto || "",
+        actividadCLT: clase.actividadCLT || null,
+        momentos: clase.momentos || [],
+      })));
+    }
     globalOffset += numClases;
   }
 

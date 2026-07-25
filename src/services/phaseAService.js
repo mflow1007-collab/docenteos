@@ -60,12 +60,21 @@ const MODELOS_COMPOSICION = {
 const MODELO_DEBIL_RE = /flash|mini|lite|nano|tiny|small|haiku/i;
 const PROVIDER_BUDGET_ERROR_RE =
   /no remaining credits|credit balance|credits? to use|current quota|exceeded.*quota|quota exceeded|rate[- ]?limit|billing|purchase credits|insufficient[_ -]?quota|HTTP 429|\b429\b/i;
+const DEFINITIVE_CREDIT_ERROR_RE =
+  /no remaining credits|credit balance|credits? to use|billing|purchase credits|insufficient[_ -]?quota/i;
 const PROVIDER_BUDGET_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const providerBudgetCooldowns = new Map();
 
 const isProviderBudgetError = (errOrMsg) => {
   const msg = String(errOrMsg?.message || errOrMsg || "");
   return PROVIDER_BUDGET_ERROR_RE.test(msg) || Number(errOrMsg?.status) === 429;
+};
+
+export const esErrorCreditosAgotados = (errOrMsg) => {
+  const msg = String(errOrMsg?.message || errOrMsg || "");
+  return errOrMsg?.code === "AI_CREDITS_EXHAUSTED"
+    || errOrMsg?.creditosAgotados === true
+    || DEFINITIVE_CREDIT_ERROR_RE.test(msg);
 };
 
 const getBudgetCooldownProviders = () => {
@@ -1594,6 +1603,22 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         : (lastProvider !== 'desconocido' ? lastProvider : providerIntento);
       lastProvider = failedProvider;
       if (err?.model) lastModel = err.model;
+
+      // Saldo/billing agotado es definitivo para esta generación. No se rota
+      // por todos los modelos ni se vuelve a intentar en las fases siguientes.
+      // Un 429/rate-limit temporal sigue usando la escalera normal.
+      if (esErrorCreditosAgotados(err)) {
+        cooldownProviderForBudget(failedProvider, msg);
+        await logParseError({
+          contexto: contextoLog, attempt, motivo: msg,
+          raw: lastRaw, provider: lastProvider, model: lastModel,
+        });
+        const agotado = new Error(`Créditos de IA agotados: ${msg}`, { cause: err });
+        agotado.code = "AI_CREDITS_EXHAUSTED";
+        agotado.creditosAgotados = true;
+        agotado.provider = failedProvider;
+        throw agotado;
+      }
 
       // Estructuralmente incompleto (R1: sin clases[] o menos de las esperadas):
       // el modelo respondió JSON válido pero no compuso — descartarlo ya.

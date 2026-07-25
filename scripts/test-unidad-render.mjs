@@ -14,11 +14,12 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, detectarContextoAplicado } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, detectarContextoAplicado, asegurarAporteProductoUnico } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import {
   coincideContextoTemaTrabajado,
+  sugerirTemasATrabajar,
   sugerirRutasInicialesAsesor,
   construirProductoEstructurado,
   formatearProductoFinal,
@@ -169,6 +170,57 @@ check("no fuerza una relación cuando la correspondencia es insuficiente", () =>
   }
 });
 
+check("una relación de confianza baja permanece pendiente de revisión", () => {
+  const anexos = construirAnexosUnidad({
+    area: "Lengua Española",
+    tema: "Textos",
+    producto: "Revista escolar",
+    indicadoresPriorizados: [{ codigo: "IL-1", descripcion: "Produce textos breves." }],
+    relacionesCriterioIndicador: [{
+      indicadorId: "IL-1",
+      indicadorDescripcion: "Produce textos breves.",
+      criterioId: "CR-1",
+      criterioTexto: "Producción de textos.",
+      tipoRelacion: "derivada",
+      confianza: "requiere_revision",
+      justificacion: "Coincidencia débil.",
+    }],
+  });
+  const trazas = [
+    ...(anexos.rubricaProducto || []),
+    ...(anexos.listaCotejo || []),
+  ];
+  const debil = trazas.find((traza) => traza.criterioOficialId === "CR-1");
+  if (!debil) throw new Error("la prueba no encontró la relación débil");
+  if (debil.estadoTrazabilidad !== "requiere_revision") {
+    throw new Error("presentó una relación de baja confianza como confirmada");
+  }
+});
+
+check("el respaldo convierte una pieza repetida en una etapa distinta del producto", () => {
+  const usados = new Set();
+  const primero = asegurarAporteProductoUnico({
+    aporte: "Guion de presentación para la feria escolar",
+    faseNumero: 3,
+    claseNumero: 10,
+    usados,
+  });
+  const segundo = asegurarAporteProductoUnico({
+    aporte: "Guion de presentación para la feria escolar",
+    faseNumero: 3,
+    foco: "Expresión: recomendaciones y argumentos",
+    claseNumero: 11,
+    usados,
+  });
+  if (primero.ajustado) throw new Error("modificó la primera aparición de la pieza");
+  if (!segundo.ajustado || segundo.texto === primero.texto) {
+    throw new Error("dejó duplicadas las contribuciones de las clases 10 y 11");
+  }
+  if (!/Guion de presentación para la feria escolar/i.test(segundo.texto)) {
+    throw new Error("perdió el artefacto original al diferenciar la etapa");
+  }
+});
+
 console.log("Trazabilidad de aula — contexto aplicado verificable:");
 check("no declara contexto aplicado por copiar una palabra genérica", () => {
   const resultado = detectarContextoAplicado({
@@ -261,6 +313,27 @@ check("ofrece recomendación afín, ruta corta y alternativa sin salir de la mal
   }
   if (!rutas.every((r) => r.temas.every((t) => temas.includes(t)))) {
     throw new Error("una ruta incluyó un tema ajeno a la malla");
+  }
+});
+
+check("una ruta con título pedagógico conserva el tema oficial seleccionado", () => {
+  const curriculo = {
+    temasCurriculares: [
+      "Actividades de la vida diaria",
+      "Escuela y educación",
+      "Alimentación",
+    ],
+  };
+  const sugerencia = sugerirTemasATrabajar(
+    curriculo,
+    "Vida y comunidad escolar",
+    ["Actividades de la vida diaria", "Escuela y educación"],
+  );
+  if (sugerencia?.temaOficial !== "Actividades de la vida diaria") {
+    throw new Error("analizó el título de la ruta en vez del tema oficial seleccionado");
+  }
+  if (sugerencia?.confianza !== "alta") {
+    throw new Error("rebajó la confianza de un tema elegido directamente desde la malla");
   }
 });
 

@@ -441,9 +441,22 @@ export const sugerirTemaOficial = (temaLibre, temasCurriculares = []) => {
  *   afines: string[]
  * } | null}
  */
-export const sugerirTemasATrabajar = (curriculoData, temaLibre) => {
+export const sugerirTemasATrabajar = (curriculoData, temaLibre, temasSeleccionados = []) => {
   const temas = curriculoData?.temasCurriculares || [];
-  const sugerencia = sugerirTemaOficial(temaLibre, temas);
+  // Una ruta del Asesor puede tener un título pedagógico ("Vida y comunidad
+  // escolar") distinto de los nombres literales de la malla. En ese caso los
+  // temas oficiales elegidos son la fuente de verdad; el título libre queda
+  // como respaldo para unidades escritas directamente por el docente.
+  const seleccionOficial = (Array.isArray(temasSeleccionados) ? temasSeleccionados : [])
+    .map((seleccionado) => temas.find((tema) => _norm(textoTema(tema)) === _norm(textoTema(seleccionado))))
+    .find(Boolean);
+  const sugerencia = seleccionOficial
+    ? {
+        tema: textoTema(seleccionOficial),
+        confianza: "alta",
+        motivo: "Tema seleccionado directamente desde la malla curricular oficial",
+      }
+    : sugerirTemaOficial(temaLibre, temas);
   if (!sugerencia) return null;
 
   const criterios = curriculoData?.criteriosCombinacionTematica || [];

@@ -254,8 +254,17 @@ function useProviderPriority() {
     setApagados(next)
     saveConfig(priority, models, next)
   }
+  const saveProviderConfig = (nextPriority, nextModels, nextApagados) => {
+    setPriority(nextPriority)
+    setModels(nextModels)
+    setApagados(nextApagados)
+    return saveConfig(nextPriority, nextModels, nextApagados)
+  }
 
-  return { priority, savePriority, models, saveModels, saving, apagados, toggleApagado }
+  return {
+    priority, savePriority, models, saveModels, saving, apagados,
+    toggleApagado, saveProviderConfig,
+  }
 }
 
 // ─── Hook: Cache stats ────────────────────────────────────────────────────────
@@ -1086,7 +1095,10 @@ export default function AdminIA() {
   const { data: cacheData, loading: cacheLoading, clearing, reload: cacheReload, clearAll } = useCacheStats()
 
   // Provider priority + models (Firestore config/ia-gateway)
-  const { priority, savePriority, models, saveModels, saving, apagados, toggleApagado } = useProviderPriority()
+  const {
+    priority, savePriority, models, saveModels, saving, apagados,
+    toggleApagado, saveProviderConfig,
+  } = useProviderPriority()
 
   // Load provider status (env var check via /api/ai/status)
   useEffect(() => {
@@ -1141,9 +1153,7 @@ export default function AdminIA() {
         }
         const next = [provId, ...priority.filter(p => p !== provId)]
         const nextApagados = apagados.filter(p => p !== provId)
-        setPriority(next)
-        setApagados(nextApagados)
-        saveConfig(next, models, nextApagados)
+        await saveProviderConfig(next, models, nextApagados)
         setActivacionOk(provId)
         setTimeout(() => setActivacionOk(null), 3500)
       }

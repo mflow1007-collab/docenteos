@@ -394,7 +394,11 @@ export default function FormularioUnidadAprendizaje({
         }
 
         setEstadoCurriculoAsesor({ status: "ready", mensaje: "" });
-        setSugerenciaTema(texto.length >= 3 ? sugerirTemasATrabajar(curriculo, texto) : null);
+        setSugerenciaTema(
+          temasSeleccionados.length || texto.length >= 3
+            ? sugerirTemasATrabajar(curriculo, texto, temasSeleccionados)
+            : null
+        );
         setTemasMalla(curriculo.temasCurriculares || []);
         setCriteriosMalla(curriculo.criteriosCombinacionTematica || []);
       }
@@ -404,7 +408,7 @@ export default function FormularioUnidadAprendizaje({
       cancelado = true;
       clearTimeout(timer);
     };
-  }, [titulo, grado, nivel, area, asignatura, areaTieneMultiplesAsignaturas]);
+  }, [titulo, temasSeleccionados, grado, nivel, nivelEfectivo, area, asignatura, areaTieneMultiplesAsignaturas]);
 
   // Temas ya trabajados (del historial del docente), resueltos también contra
   // la malla: si trabajó "Parts of the House", marca "Vivienda, entorno y

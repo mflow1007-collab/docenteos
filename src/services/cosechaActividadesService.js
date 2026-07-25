@@ -196,7 +196,7 @@ export const cosecharActividadesDeUnidad = async ({
   try {
     bancoVivo = await getActividades(area ? { area } : {});
   } catch {
-    bancoVivo = [];
+    // Fail-open: la cosecha continúa con el banco vacío.
   }
 
   const candidatas = extraerActividadesCosechables(unidad, { area, grado, bancoVivo });
@@ -263,7 +263,7 @@ export const previsualizarCosechaDeRegistro = async (registro) => {
   try {
     bancoVivo = await getActividades(area ? { area } : {});
   } catch {
-    bancoVivo = [];
+    // Fail-open: la previsualización continúa con el banco vacío.
   }
   return extraerActividadesCosechables({ ...unidad, id: registro?.id }, { area, grado, bancoVivo });
 };

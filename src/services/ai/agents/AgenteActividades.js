@@ -93,13 +93,14 @@ Prioriza actividades prácticas, colaborativas y creativas apropiadas para el co
  * @returns {Promise<{ score: number, sugerencias: string[] }>}
  */
 export async function evaluarVariedad(actividades, { grado, area }) {
+  const system = await conFundamento(SYSTEM, grado);
   return new Promise(resolve => {
     let acumulado = "";
     const lista = actividades.slice(0, 10).map((a, i) => `${i + 1}. ${String(a).slice(0, 100)}`).join("\n");
 
     AIService.generate({
       module: "auditoria",
-      system: await conFundamento(SYSTEM, grado),
+      system,
       prompt: `Evalúa la variedad pedagógica de estas actividades para ${area} en ${grado}:
 
 ${lista}

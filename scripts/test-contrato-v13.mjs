@@ -12,7 +12,7 @@
  * Ejecutar: node scripts/test-contrato-v13.mjs
  */
 
-import { validateBatch, EXEMPLARS_ESTILO, buildSystemPromptFaseA, nivelLabelPrompt } from "../src/services/phaseAService.js";
+import { validateBatch, EXEMPLARS_ESTILO, buildSystemPromptFaseA, nivelLabelPrompt, esErrorCreditosAgotados } from "../src/services/phaseAService.js";
 
 let pasadas = 0, falladas = 0;
 const check = (nombre, fn) => {
@@ -316,6 +316,23 @@ check("el system dice el nivel REAL del formulario, no siempre Secundario", () =
   if (!buildSystemPromptFaseA("Inicial").includes("Nivel Inicial")) throw new Error("Inicial no produce 'Nivel Inicial'");
   if (!buildSystemPromptFaseA("1ro Secundaria").includes("Nivel Secundario")) throw new Error("Secundaria no produce 'Nivel Secundario'");
   if (nivelLabelPrompt("") !== "Secundario") throw new Error("sin nivel debe asumir Secundario (compatibilidad)");
+});
+
+console.log("\nC1 — contingencia por créditos agotados:");
+
+check("saldo agotado activa contingencia definitiva sin seguir reintentando", () => {
+  if (!esErrorCreditosAgotados(new Error("No remaining credits. Purchase credits to continue."))) {
+    throw new Error("no detectó el agotamiento definitivo de créditos");
+  }
+  if (!esErrorCreditosAgotados({ code: "AI_CREDITS_EXHAUSTED" })) {
+    throw new Error("no conservó la marca de contingencia entre capas");
+  }
+});
+
+check("un rate limit temporal no se confunde con saldo agotado", () => {
+  if (esErrorCreditosAgotados(new Error("HTTP 429 rate limit; retry later"))) {
+    throw new Error("bloqueó toda la unidad por un límite temporal");
+  }
 });
 
 console.log(`\n${pasadas} ✓ · ${falladas} ✗`);
