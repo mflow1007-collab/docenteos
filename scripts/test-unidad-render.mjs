@@ -23,6 +23,7 @@ import {
   sugerirRutasInicialesAsesor,
   construirProductoEstructurado,
   formatearProductoFinal,
+  claveSeleccionTematica,
 } from "../src/services/curriculumCombinacionService.js";
 import { validateCurricularDoc, SCHEMA_VERSION_CANONICA, localizarPlaceholdersProhibidos as locSchema } from "../src/services/curricularSchema.js";
 import {
@@ -278,6 +279,14 @@ check("integra contexto, necesidad, consecuencia, estrategia, acciones, producto
 });
 
 console.log("Asesor Pedagógico — rutas, afinidad y duración:");
+check("la verificación no se reinicia si el padre reconstruye el mismo arreglo de temas", () => {
+  const primera = claveSeleccionTematica(["Escuela y educación", "Alimentación"]);
+  const reconstruida = claveSeleccionTematica([
+    `${"Escuela y educación"}`,
+    `${"Alimentación"}`,
+  ]);
+  if (primera !== reconstruida) throw new Error("la clave depende de la identidad del arreglo");
+});
 check("ofrece recomendación afín, ruta corta y alternativa sin salir de la malla", () => {
   const temas = [
     "Identificación personal",

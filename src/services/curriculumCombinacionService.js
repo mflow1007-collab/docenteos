@@ -158,6 +158,17 @@ const claveTema = (tema) => {
 /** Normaliza un tema para comparaciones (minúsculas, sin acentos ni espacios dobles) */
 export const normalizarTema = _norm;
 
+// Clave semántica para efectos/cachés: dos selecciones con arreglos distintos
+// pero el mismo contenido curricular deben considerarse la misma selección.
+export const claveSeleccionTematica = (temas = []) => (Array.isArray(temas) ? temas : [])
+  .map((tema) => {
+    if (typeof tema === "string" || typeof tema === "number") return _norm(String(tema));
+    if (!tema || typeof tema !== "object") return "";
+    return _norm(tema.tema || tema.nombre || tema.titulo || tema.title || "");
+  })
+  .filter(Boolean)
+  .join("\u001f");
+
 // ─── Temas trabajados: coincidencia por CONTEXTO (nivel+grado+asignatura) ────
 // Un tema trabajado en 1ro SECUNDARIA no está "trabajado" en 1ro PRIMARIA.
 // El nivel se toma del campo nivel o, si falta, del texto del grado

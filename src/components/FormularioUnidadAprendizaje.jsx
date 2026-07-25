@@ -25,6 +25,7 @@ import {
   normalizarTema,
   coincideContextoTemaTrabajado,
   construirProductoEstructurado,
+  claveSeleccionTematica,
 } from "../services/curriculumCombinacionService";
 import { horasOficialesSecundaria } from "../data/cargaHorariaMINERD.js";
 
@@ -149,6 +150,21 @@ const COMP_FUND_POR_AREA = {
 const NUM_SEMANAS_OPS = [1, 2, 3, 4, 5, 6, 7, 8];
 const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 const LISTA_VACIA_ESTABLE = Object.freeze([]);
+const LIMITE_VERIFICACION_CURRICULAR_MS = 12000;
+
+const conTiempoMaximo = (promesa, milisegundos, mensaje) => new Promise((resolve, reject) => {
+  const temporizador = setTimeout(() => reject(new Error(mensaje)), milisegundos);
+  Promise.resolve(promesa).then(
+    (valor) => {
+      clearTimeout(temporizador);
+      resolve(valor);
+    },
+    (error) => {
+      clearTimeout(temporizador);
+      reject(error);
+    },
+  );
+});
 
 const COLOR_NIVEL = {
   baja:    { bg: "#f0fdf4", border: "#86efac", badge: "#16a34a", text: "#14532d" },
@@ -182,6 +198,9 @@ export default function FormularioUnidadAprendizaje({
     competenciasFundamentalesSeleccionadas = LISTA_VACIA_ESTABLE,
     temasSeleccionados = LISTA_VACIA_ESTABLE,
   } = datos;
+  // React debe observar el CONTENIDO seleccionado, no la identidad del arreglo
+  // que el formulario padre pueda reconstruir en cada render.
+  const claveTemasSeleccionados = claveSeleccionTematica(temasSeleccionados);
 
   const set = (campo) => (e) => onChange({ ...datos, [campo]: e.target.value });
 
@@ -328,6 +347,9 @@ export default function FormularioUnidadAprendizaje({
 
   useEffect(() => {
     const texto = (titulo || "").trim();
+    const temasParaAsesor = claveTemasSeleccionados
+      ? claveTemasSeleccionados.split("\u001f")
+      : LISTA_VACIA_ESTABLE;
     const asignaturaRequerida = areaTieneMultiplesAsignaturas;
     const seleccionCompleta = Boolean(grado && area && (!asignaturaRequerida || asignatura));
 
@@ -355,7 +377,11 @@ export default function FormularioUnidadAprendizaje({
           // y el nivel EFECTIVO del grado seleccionado — el campo nivel del
           // formulario puede quedar rancio (bypass real: resolvía Secundaria
           // para Primaria). El nivel embebido en el grado manda en el resolver.
-          const doc = await getCurricularContentForUnit(areaCandidata, grado, nivelEfectivo);
+          const doc = await conTiempoMaximo(
+            getCurricularContentForUnit(areaCandidata, grado, nivelEfectivo),
+            LIMITE_VERIFICACION_CURRICULAR_MS,
+            "La verificación curricular tardó demasiado. Revisa tu conexión e inténtalo nuevamente.",
+          );
           if (!doc) continue;
           docDetectado = docDetectado || doc;
           if (curriculoCoincideConSeleccion({ doc, nivel: nivelEfectivo, grado, area, asignatura: asignatura || area })) {
@@ -396,8 +422,8 @@ export default function FormularioUnidadAprendizaje({
 
         setEstadoCurriculoAsesor({ status: "ready", mensaje: "" });
         setSugerenciaTema(
-          temasSeleccionados.length || texto.length >= 3
-            ? sugerirTemasATrabajar(curriculo, texto, temasSeleccionados)
+          temasParaAsesor.length || texto.length >= 3
+            ? sugerirTemasATrabajar(curriculo, texto, temasParaAsesor)
             : null
         );
         setTemasMalla(curriculo.temasCurriculares || []);
@@ -409,7 +435,7 @@ export default function FormularioUnidadAprendizaje({
       cancelado = true;
       clearTimeout(timer);
     };
-  }, [titulo, temasSeleccionados, grado, nivel, nivelEfectivo, area, asignatura, areaTieneMultiplesAsignaturas]);
+  }, [titulo, claveTemasSeleccionados, grado, nivel, nivelEfectivo, area, asignatura, areaTieneMultiplesAsignaturas]);
 
   // Temas ya trabajados (del historial del docente), resueltos también contra
   // la malla: si trabajó "Parts of the House", marca "Vivienda, entorno y
