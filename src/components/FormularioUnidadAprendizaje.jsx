@@ -148,6 +148,7 @@ const COMP_FUND_POR_AREA = {
 
 const NUM_SEMANAS_OPS = [1, 2, 3, 4, 5, 6, 7, 8];
 const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+const LISTA_VACIA_ESTABLE = Object.freeze([]);
 
 const COLOR_NIVEL = {
   baja:    { bg: "#f0fdf4", border: "#86efac", badge: "#16a34a", text: "#14532d" },
@@ -178,8 +179,8 @@ export default function FormularioUnidadAprendizaje({
     nivel = "Secundaria", ciclo = "Primer Ciclo", modalidad = "Académica",
     jornada = "Extendida",
     periodo = "", fechaInicio = "",
-    competenciasFundamentalesSeleccionadas = [],
-    temasSeleccionados = [],
+    competenciasFundamentalesSeleccionadas = LISTA_VACIA_ESTABLE,
+    temasSeleccionados = LISTA_VACIA_ESTABLE,
   } = datos;
 
   const set = (campo) => (e) => onChange({ ...datos, [campo]: e.target.value });
