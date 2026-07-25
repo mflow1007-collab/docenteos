@@ -568,7 +568,13 @@ const PRODUCTO_GENERICO = [
   'presentación final', 'producción final', 'producto final sobre',
   'presentación/producción', 'que evidencie el dominio',
   'producto integrador', 'producto integrador sobre', 'evidencia final sobre',
+  'my learning portfolio', 'learning portfolio', 'portafolio de aprendizaje',
+  'portafolio de evidencias', 'portfolio about', 'portfolio sobre',
 ];
+
+const PRODUCTO_FORMATO_RE = /\b(gu[ií]a|guide|mapa|map|recorrido|tour|diario|journal|bolet[ií]n|bulletin|campa[nñ]a|campaign|men[uú]|menu|podcast|video|afiche|affiche|poster|mural|maqueta|modelo|model|revista|magazine|folleto|brochure|debate|programa|program|informe|report|presentaci[oó]n|pr[eé]sentation|exposici[oó]n|exhibition|obra|dramatizaci[oó]n|dramatization|manual|cat[aá]logo|catalog|circuito|prototipo)\b/i;
+const PRODUCTO_AUDIENCIA_RE = /\b(estudiantes?|students?|[ée]l[eè]ves?|familias?|families|comunidad|community|communaut[eé]|visitantes?|visitors?|curso|class|centro educativo|p[uú]blico|audience|viajeros?|travelers?|usuarios?|lectores?|oyentes?)\b/i;
+const PRODUCTO_ESTRUCTURADO_RE = /^(.+?)\s+—\s+(.+?)\s+para\s+(.+?),\s+dirigida\s+a\s+(.+?);\s+socializaci[oó]n:\s+(.+?)\.?$/i;
 
 const PRODUCT_RULES_BY_TOPIC = [
   {
@@ -587,6 +593,36 @@ const PRODUCT_RULES_BY_TOPIC = [
 
 const productRuleForTopic = (tema = '') =>
   PRODUCT_RULES_BY_TOPIC.find((rule) => rule.test.test(String(tema || ''))) || null;
+
+export const validarProductoFinalAutentico = (nombre = '', tema = '') => {
+  const nombreProd = String(nombre || '').trim();
+  if (!nombreProd) throw new Error('R11: falta producto final');
+  const generico = PRODUCTO_GENERICO.find((g) => _normTextoFoco(nombreProd).includes(_normTextoFoco(g)));
+  if (generico || nombreProd.length > 360) {
+    throw new Error(`R11: producto final genérico o excesivo ("${nombreProd.slice(0, 60)}…")`);
+  }
+  const estructura = nombreProd.match(PRODUCTO_ESTRUCTURADO_RE);
+  if (estructura) {
+    const [, nombrePropio, formato, proposito, audiencia, socializacion] = estructura;
+    if ([nombrePropio, formato, proposito, audiencia, socializacion].some((v) => String(v || '').trim().length < 4)) {
+      throw new Error(`R11: producto final estructurado incompleto ("${nombreProd}")`);
+    }
+  }
+  if (!PRODUCTO_FORMATO_RE.test(nombreProd)) {
+    throw new Error(`R11: producto final sin formato auténtico ("${nombreProd}")`);
+  }
+  if (!PRODUCTO_AUDIENCIA_RE.test(nombreProd)) {
+    throw new Error(`R11: producto final sin audiencia ("${nombreProd}")`);
+  }
+  if (!estructura && !/\bpara\b/i.test(nombreProd)) {
+    throw new Error(`R11: producto final sin propósito explícito ("${nombreProd}")`);
+  }
+  const reglaProducto = productRuleForTopic(tema);
+  if (reglaProducto && (reglaProducto.forbidden.test(nombreProd) || !reglaProducto.required.test(nombreProd))) {
+    throw new Error(`R11: producto final desconectado del tema ("${nombreProd}") — ${reglaProducto.hint}`);
+  }
+  return true;
+};
 
 const APORTE_GENERICO = [
   'avance del producto', 'avance del proyecto', 'trabajo en el proyecto',
@@ -687,6 +723,19 @@ const textoClaseCompleta = (clase) => [
     ...(m?.metacognicion || []),
   ])),
 ].filter(Boolean).join(' ');
+
+const palabrasContextoSignificativas = (contexto = '') => {
+  const stop = new Set([
+    'desde', 'entre', 'sobre', 'para', 'porque', 'donde', 'centro', 'comunidad',
+    'escuela', 'escolar', 'estudiantes', 'docente', 'curso', 'nivel', 'grado',
+    'esta', 'este', 'estos', 'estas', 'tienen', 'presentan', 'existe', 'situacion',
+  ]);
+  return _normTextoFoco(contexto)
+    .replace(/[^a-z0-9ñáéíóúü\s]/gi, ' ')
+    .split(/\s+/)
+    .filter((p) => p.length >= 5 && !stop.has(p))
+    .filter((p, i, arr) => arr.indexOf(p) === i);
+};
 
 const normalizarCodigo = (codigo) =>
   String(codigo || '').replaceAll('[', '').replaceAll(']', '').replace(/\s/g, '').toUpperCase().trim();
@@ -790,14 +839,7 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     if (!nombreProd) {
       throw new Error('R11: falta "productoFinalNombre" — el primer lote propone el nombre propio del producto final');
     }
-    const generico = PRODUCTO_GENERICO.find((g) => _normTextoFoco(nombreProd).includes(_normTextoFoco(g)));
-    if (generico || nombreProd.length > 80) {
-      throw new Error(`R11: productoFinalNombre genérico o excesivo ("${nombreProd.slice(0, 60)}…") — nombre propio y concreto (ej. "My House Map & Tour")`);
-    }
-    const reglaProducto = productRuleForTopic(opts.temaOficial);
-    if (reglaProducto && (reglaProducto.forbidden.test(nombreProd) || !reglaProducto.required.test(nombreProd))) {
-      throw new Error(`R11: productoFinalNombre desconectado del tema ("${nombreProd}") — ${reglaProducto.hint}`);
-    }
+    validarProductoFinalAutentico(nombreProd, opts.temaOficial);
   }
 
   // 4 — Adaptaciones NEAE y observaciones DEL BLOQUE, ligadas al foco. Sin
@@ -822,6 +864,7 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
   const listaNoVacia = (v) => Array.isArray(v) && v.filter((x) => String(x || '').trim()).length > 0;
   const textoNoVacio = (v) => String(v || '').trim().length > 0;
   const cltEnLote = new Map(); // técnica → clase que la usó (no repetir en el mismo lote)
+  const aportesEnLote = new Map(); // pieza → clase que ya la construyó
   const temaTrabajo = _normTextoFoco(opts.temaTrabajoSemana || opts.temaOficial || '');
   const temasActivos = (Array.isArray(opts.temasActivos) ? opts.temasActivos : [])
     .map((t) => String(t || '').trim())
@@ -912,6 +955,33 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     const diasApropiacion = opts.diasApropiacion instanceof Set ? opts.diasApropiacion : new Set();
     const esApropiacion = diasApropiacion.has(Number(clase.dia));
 
+    // R11 aplica también a APROPIACIÓN: presentar/acordar el producto debe
+    // dejar una pieza concreta (mapa de necesidades, boceto, plan de secciones),
+    // nunca el rótulo vago "Entrada 0 del portafolio".
+    const aporte = String(clase.aporteProducto || '').trim();
+    if (!aporte) {
+      throw new Error(`R11: clase ${idx + 1} sin aporteProducto (el artefacto que esta clase deposita al producto final)`);
+    }
+    const aporteNorm = _normTextoFoco(aporte);
+    const aporteVago = APORTE_GENERICO.find((g) => aporteNorm.includes(_normTextoFoco(g)));
+    if (aporteVago) {
+      throw new Error(`R11: clase ${idx + 1} — aporteProducto genérico ("${aporteVago}"): nombra el artefacto concreto (ej. "Inventario del espacio favorito con posesivos")`);
+    }
+    const repetidoLote = [...aportesEnLote.entries()].find(([prev]) =>
+      prev === aporteNorm || jaccardSimilarity(prev, aporteNorm) > 0.72
+    );
+    if (repetidoLote) {
+      throw new Error(`R11: clase ${idx + 1} repite la pieza del producto de la clase ${repetidoLote[1]} ("${aporte}")`);
+    }
+    const repetidoUnidad = memoria.find((prev) => {
+      const previo = _normTextoFoco(prev.aporteProducto || '');
+      return previo && (previo === aporteNorm || jaccardSimilarity(previo, aporteNorm) > 0.72);
+    });
+    if (repetidoUnidad) {
+      throw new Error(`R11: clase ${idx + 1} repite la pieza del producto de S${repetidoUnidad.semana}/C${repetidoUnidad.dia} ("${aporte}")`);
+    }
+    aportesEnLote.set(aporteNorm, idx + 1);
+
     // Foco lingüístico anclado al plan gramatical del bloque: el encabezado
     // del día debe declarar una estructura OFICIAL del foco, no una etiqueta
     // inventada. (Bloque introductorio sin foco o clase de apropiación → sin
@@ -981,16 +1051,6 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       || raices.some((r) => desarrolloNorm.some((a) => a.includes(r)));
     if (!cltPresente) {
       throw new Error(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad ("Participan en ${clt.nombre}: …")`);
-    }
-
-    // 3A — aporte concreto y NOMBRADO al producto final
-    const aporte = String(clase.aporteProducto || '').trim();
-    if (!aporte) {
-      throw new Error(`R11: clase ${idx + 1} sin aporteProducto (el artefacto que esta clase deposita al producto final)`);
-    }
-    const aporteVago = APORTE_GENERICO.find((g) => _normTextoFoco(aporte).includes(_normTextoFoco(g)));
-    if (aporteVago) {
-      throw new Error(`R11: clase ${idx + 1} — aporteProducto genérico ("${aporteVago}"): nombra el artefacto concreto (ej. "Inventario del espacio favorito con posesivos")`);
     }
 
     // 3C — anti-repetición GLOBAL: contra TODAS las clases previas de la
@@ -1068,6 +1128,24 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       else totalMin += parseInt(m.tiempo) || 0;
     }
     if (totalMin !== durMin) throw new Error(`R7: clase ${idx + 1} suma ${totalMin} min ≠ ${durMin} min`);
+  }
+
+  // R16 — cuando el docente aportó una realidad concreta, esta debe entrar en
+  // la experiencia de aprendizaje y no quedarse únicamente en el párrafo de
+  // Situación de Aprendizaje. Basta una conexión auténtica por lote; exigirla
+  // en todas las clases produciría repeticiones artificiales.
+  const palabrasContexto = palabrasContextoSignificativas(opts.contextoComunitario);
+  if (palabrasContexto.length) {
+    const textoLote = _normTextoFoco(data.clases.slice(0, count).map(textoClaseCompleta).join(' '));
+    const palabrasLote = new Set(
+      textoLote.replace(/[^a-z0-9ñáéíóúü\s]/gi, ' ').split(/\s+/).filter(Boolean),
+    );
+    const conectadas = palabrasContexto.filter((palabra) => palabrasLote.has(palabra));
+    if (!conectadas.length) {
+      throw new Error(
+        `R16: las actividades y evidencias del lote no aplican el contexto comunitario real (incorpora una situación, dato o necesidad vinculada con: ${palabrasContexto.slice(0, 4).join(', ')})`,
+      );
+    }
   }
 }
 
@@ -1196,7 +1274,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const productoLinea = spec.productoFinalNombre
     ? `- PRODUCTO FINAL DE LA UNIDAD: «${spec.productoFinalNombre}». Imagina que el producto es un rompecabezas: cada "aporteProducto" es UNA PIEZA nombrada que, sumada a las demás clases, ENSAMBLA ese producto. Al final de la unidad, las piezas juntas DEBEN DAR el producto completo. Ejemplo: si el producto es "My House Map & Tour", las piezas podrían ser → C1: "Vocabulary card set de rooms", C2: "Floor plan del hogar con etiquetas", C3: "Description card de cada room", C4: "Script del House Tour", C5: "Poster de presentación". PROHIBIDO repetir piezas o dar aportes que no conecten visiblemente con el producto final.`
     : (pedirNombreProducto
-      ? `- PRODUCTO FINAL: propón "productoFinalNombre" — nombre PROPIO y concreto derivado del TEMA EXACTO DEL DOCENTE ("${spec.temaOficial}"), no del tema amplio de la malla. Si el título dice "parts of the house", el producto debe ser de house/home/rooms/floor plan/house tour (ej. "My House Map & Tour" o "My Dream House Poster"), NO "city guide" ni "neighborhood guide" salvo que el docente haya pedido ciudad. PROHIBIDO el genérico "Presentación/producción final sobre el tema". Luego cada clase aporta UNA PIEZA que, sumada, ensambla ese producto.`
+      ? `- PRODUCTO FINAL: propón "productoFinalNombre" con esta estructura EXACTA: "NOMBRE PROPIO — FORMATO/ARTEFACTO para PROPÓSITO auténtico, dirigida a AUDIENCIA real; socialización: FORMA concreta de compartirlo." Debe derivarse del TEMA EXACTO DEL DOCENTE ("${spec.temaOficial}"), no del tema amplio de la malla, y usar el idioma o lenguaje disciplinar de la asignatura. Ejemplo: "Our School Survival Guide — guía bilingüe para orientar a estudiantes nuevos, dirigida a la comunidad escolar; socialización: recorrido guiado por estaciones." PROHIBIDOS "My Learning Portfolio", "portafolio de evidencias", "presentación final" y equivalentes genéricos. El portafolio puede guardar evidencias, pero NO ser el producto final. Luego cada clase aporta UNA PIEZA distinta que, sumada, ensambla ese producto.`
       : (spec.productoFinal ? `- PRODUCTO FINAL DE LA UNIDAD: ${spec.productoFinal} — cada "aporteProducto" es una pieza nombrada que ensambla este producto.` : ''));
   const contextoLinea = spec.contextoComunitario
     ? `- CONTEXTO COMUNITARIO REAL (palabras del docente — úsalo en situaciones y actividades; NO inventes otros datos locales): ${spec.contextoComunitario}`
@@ -1332,9 +1410,10 @@ ${reglaInicio}
    • "estrategiasDia": 2-3 estrategias pedagógicas coherentes separadas por " • ". PREFIERE las estrategias OFICIALES del Diseño Curricular (puedes precisarlas con la misión del día): ${ESTRATEGIAS_OFICIALES_TEXTO}.
    FASE 1 = APROPIACIÓN (toda clase con "fase": 1 en la SECUENCIA BASE — sin importar qué foco tenga): estas clases PRESENTAN la unidad, NO practican estructura gramatical. REGLA DURA: para las clases de "fase": 1, IGNORA cualquier estructura gramatical del foco y trátalas como apropiación pura. Sus actividades son SOLO: presentar la situación de aprendizaje, el tema y los saberes previos; presentar el producto final y su rúbrica; analizar los criterios de evaluación; acordar las normas de trabajo; aplicar un diagnóstico inicial; elaborar un mapa/plan inicial de ideas. Su duración VARÍA según la complejidad del tema (1 o 2 clases). PROHIBIDO en "fase": 1: mecánicas de práctica de estructura como "Listen and Act", "Role Play", "Frequency Walk", "Interview Stations", "Find Someone Who", "Information Gap", "My Routine Snapshot" o cualquier misión que haga PRODUCIR oraciones con una estructura gramatical. En "fase": 1 el Desarrollo se limita a: escuchar la presentación de la unidad, observar ejemplos del producto/rúbrica, registrar vocabulario que YA conocen (diagnóstico), elaborar un mapa de ideas inicial, acordar normas. Las mecánicas comunicativas ricas empiezan RECIÉN en "fase": 2. Desde la Fase 2: avanza por contenidos de la malla (conceptuales → procedimentales → producción) con las mecánicas comunicativas ricas; la intención pedagógica nombra el foco del día.
 11. CADA clase incluye "aporteProducto": la PIEZA NOMBRADA que esa clase ensambla al producto final. Regla de coherencia: si juntas todos los "aporteProducto" de la unidad, el resultado DEBE SER el producto final — como las páginas de un libro o las partes de una maqueta. Cada pieza debe ser DISTINTA y VISIBLE: describe el artefacto entregable con nombre propio (ej. idioma: "Vocabulary card set de rooms and furniture", "Floor plan del hogar con etiquetas en inglés", "Script del House Tour"; ej. otra área: "Ficha comparativa de dos ecosistemas", "Croquis del acueducto con medidas reales"). PROHIBIDO: "Entrada 3 del Portafolio", "avance del producto", "trabajo en el proyecto", "participación en la clase".${spec.esIdioma ? ' El nombre del artefacto puede incluir términos en el idioma meta.' : ''}${pedirNombreProducto ? ' El LOTE incluye además "productoFinalNombre" (ver arriba).' : ''}
-12. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica CONCRETA del Desarrollo (${tecnicasEjem}), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en [técnica]: …"). Usa una técnica ACCIONABLE. Un marco amplio ("Aprendizaje Basado en Proyectos", "Aprendizaje Cooperativo", "ABP") vale SOLO si lo nombras con su MISIÓN concreta del día ("Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto"), nunca desnudo. Cuando la clase tenga una MISIÓN, dale un NOMBRE PROPIO memorable entre comillas, ligado al tema del día: "Participan en 'Feria de fracciones del barrio': …". No repitas una técnica ni un nombre de misión ya usados en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: activación con propósito O misión nombrada → producción → verificación entre pares.
-13. NO copies los ejemplos de estilo del sistema como actividades: son referencia de VOZ. Cada actividad es específica del contenido de ESTA clase.
-14. El LOTE incluye "adaptacionesSemana": {"acceso": "...", "metodologicas": "...", "evaluacion": "..."} y "observacionesSemana": "...". Las tres adecuaciones y la observación deben NOMBAR el foco de la semana — nunca genéricas ("proveer instrucciones claras", "dar más tiempo"). Fórmula: [estrategia concreta] + [ligada al foco del contenido]. Ejemplos por tipo de foco:
+12. HILO PEDAGÓGICO EXPLÍCITO: las actividades que construyen "aporteProducto" deben nombrar esa pieza o una parte inequívoca de ella; las evidencias de producto deben describir qué se observa en esa misma pieza. Los "indicadoresTrabajados" deben poder comprobarse mediante esas actividades y evidencias. Si existe CONTEXTO COMUNITARIO REAL, al menos una actividad o evidencia del lote debe aplicar literalmente uno de sus datos, necesidades o situaciones concretas; no lo dejes solo en la introducción.
+13. CADA clase incluye "actividadCLT": {"nombre": técnica metodológica CONCRETA del Desarrollo (${tecnicasEjem}), "mecanica": cómo funciona en 1-2 líneas}. La PRIMERA actividad del Desarrollo la nombra explícitamente ("Participan en [técnica]: …"). Usa una técnica ACCIONABLE. Un marco amplio ("Aprendizaje Basado en Proyectos", "Aprendizaje Cooperativo", "ABP") vale SOLO si lo nombras con su MISIÓN concreta del día ("Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto"), nunca desnudo. Cuando la clase tenga una MISIÓN, dale un NOMBRE PROPIO memorable entre comillas, ligado al tema del día: "Participan en 'Feria de fracciones del barrio': …". No repitas una técnica ni un nombre de misión ya usados en la unidad; en otra fase solo con mecánica DISTINTA. Patrón sugerido del Desarrollo: activación con propósito O misión nombrada → producción → verificación entre pares.
+14. NO copies los ejemplos de estilo del sistema como actividades: son referencia de VOZ. Cada actividad es específica del contenido de ESTA clase.
+15. El LOTE incluye "adaptacionesSemana": {"acceso": "...", "metodologicas": "...", "evaluacion": "..."} y "observacionesSemana": "...". Las tres adecuaciones y la observación deben NOMBAR el foco de la semana — nunca genéricas ("proveer instrucciones claras", "dar más tiempo"). Fórmula: [estrategia concreta] + [ligada al foco del contenido]. Ejemplos por tipo de foco:
    • Idioma / vocabulario (ej. "partes de la casa"): acceso → "Banco visual de imágenes etiquetadas de rooms y furniture disponible en el pupitre"; metodologicas → "Tarjetas de vocabulario casa-imagen para actividades de matching y categorización"; evaluacion → "Señalar la imagen correspondiente en vez de escribir el término".
    • Idioma / estructura gramatical (ej. "there is / there are"): acceso → "Póster de aula con la estructura there is/there are + ejemplos del salón"; metodologicas → "Oraciones modelo en tiras para ordenar antes de producir"; evaluacion → "Completar oraciones con banco de palabras en vez de producción libre".
    • Matemática (ej. "fracciones"): acceso → "Material concreto: círculos fraccionarios y regletas disponibles durante toda la clase"; metodologicas → "Resolución paso a paso con organizador gráfico numerado para el procedimiento"; evaluacion → "Resolver 2 ejercicios con material concreto en lugar de los 5 del grupo".
@@ -1483,6 +1562,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         temaOficial: spec.temaOficial,
         temaTrabajoSemana: spec.temaTrabajoSemana,
         temasActivos: spec.temasActivos,
+        contextoComunitario: spec.contextoComunitario,
         semanaNum,
         indicadoresPermitidos,
         // Días de APROPIACIÓN (Fase 1): eximidos de exigir técnica CLT rica (R12)
@@ -1856,6 +1936,7 @@ export const generateWeekPlan = async (
     temaOficial: spec.temaOficial,
     temaTrabajoSemana: spec.temaTrabajoSemana,
     temasActivos: spec.temasActivos,
+    contextoComunitario: spec.contextoComunitario,
   };
   const baseCheckpointKey = checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas);
 

@@ -1121,6 +1121,27 @@
   font-weight: 800;
 }
 
+.traza-instrumento {
+  display: block;
+  width: fit-content;
+  margin-top: 5px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.traza-instrumento.relacionada {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.traza-instrumento.revision {
+  color: #92400e;
+  background: #fef3c7;
+}
+
 .aplicar-item > div,
 .niveles {
   display: flex;

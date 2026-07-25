@@ -14,11 +14,22 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
-import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura } from "../src/services/phaseAService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, detectarContextoAplicado } from "../src/services/unidadAprendizajeService.js";
+import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
-import { coincideContextoTemaTrabajado } from "../src/services/curriculumCombinacionService.js";
+import {
+  coincideContextoTemaTrabajado,
+  sugerirRutasInicialesAsesor,
+  construirProductoEstructurado,
+  formatearProductoFinal,
+} from "../src/services/curriculumCombinacionService.js";
 import { validateCurricularDoc, SCHEMA_VERSION_CANONICA, localizarPlaceholdersProhibidos as locSchema } from "../src/services/curricularSchema.js";
+import {
+  extraerCriteriosEvaluacionCanonicos,
+  inventariarCriteriosCurriculares,
+  construirArquitecturaUnidadMINERD,
+  relacionarCriteriosConIndicadores,
+} from "../src/services/curriculumBrainService.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -46,6 +57,328 @@ const esperaError = (fn, fragmento) => {
   }
   throw new Error(`se esperaba error conteniendo "${fragmento}" y no se lanzó`);
 };
+
+console.log("Criterios oficiales de evaluación — inventario y esquema canónico:");
+check("extrae los seis criterios oficiales disponibles en la malla local de Inglés de 1ro", () => {
+  const payload = JSON.parse(readFileSync(
+    join(__dir, "..", "malla_ingles_1ro_adecuacion_2023.schema1_3.json"),
+    "utf8",
+  ));
+  const criterios = extraerCriteriosEvaluacionCanonicos(payload);
+  if (criterios.length !== 6) throw new Error(`esperaba 6 y obtuvo ${criterios.length}`);
+  for (const criterio of criterios) {
+    if (!criterio.id.startsWith("CR-")) throw new Error(`ID no canónico: ${criterio.id}`);
+    if (!criterio.textoOficial) throw new Error("perdió el texto oficial");
+    if (criterio.relaciones.tipo !== "sin_relacion_declarada") {
+      throw new Error("inventó una competencia que el JSON directo no declara");
+    }
+  }
+});
+
+check("conserva la Competencia Fundamental cuando el criterio viene de la matriz de aportes", () => {
+  const payload = {
+    level: "Secundaria",
+    cycle: "Primer Ciclo",
+    grade: "1ro",
+    area: "Matemática",
+    subject: "Matemática",
+    fuente: { documento: "Adecuación Curricular", pagina: 42 },
+    aportesCompetenciasFundamentales: [{
+      competenciaFundamental: "Resolución de Problemas",
+      criteriosEvaluacion: [
+        { texto: "Resolución de situaciones del entorno mediante estrategias matemáticas.", pagina: 43 },
+      ],
+    }],
+  };
+  const [criterio] = extraerCriteriosEvaluacionCanonicos(payload);
+  if (criterio.competenciaFundamental !== "Resolución de Problemas") {
+    throw new Error("perdió la Competencia Fundamental");
+  }
+  if (criterio.fuente.pagina !== 43) throw new Error("perdió la página del criterio");
+  if (criterio.relaciones.tipo !== "declarada_en_fuente") throw new Error("no marcó la relación declarada");
+});
+
+check("el inventario distingue cobertura presente y ausente sin fabricar criterios", () => {
+  const inventario = inventariarCriteriosCurriculares([
+    { id: "con-criterios", subject: "Inglés", grade: "1ro", criteriosEvaluacion: ["Comprende textos breves."] },
+    { id: "sin-criterios", subject: "Francés", grade: "1ro", competencias: [] },
+  ]);
+  if (inventario[0].cobertura !== "presente" || inventario[0].cantidadCriterios !== 1) {
+    throw new Error("no detectó la cobertura presente");
+  }
+  if (inventario[1].cobertura !== "ausente" || inventario[1].cantidadCriterios !== 0) {
+    throw new Error("inventó cobertura para la malla vacía");
+  }
+});
+
+check("la arquitectura curricular expone criterios detallados y su cobertura", () => {
+  const arquitectura = construirArquitecturaUnidadMINERD({
+    mallaPayload: {
+      subject: "Lengua Española",
+      grade: "1ro",
+      criteriosEvaluacion: ["Producción de textos adecuados a la situación comunicativa."],
+    },
+    area: "Lengua Española",
+    asignatura: "Lengua Española",
+    grado: "1ro",
+    titulo: "El comentario",
+  });
+  if (arquitectura.evaluacion.coberturaCriterios !== "presente") throw new Error("cobertura incorrecta");
+  if (arquitectura.evaluacion.criteriosDetalle.length !== 1) throw new Error("falta el criterio detallado");
+  if (arquitectura.evaluacion.criterios[0] !== arquitectura.evaluacion.criteriosDetalle[0].textoOficial) {
+    throw new Error("rompió la compatibilidad de criterios como texto");
+  }
+});
+
+check("relaciona por acción y contenido, no por la posición de los arreglos", () => {
+  const criterios = extraerCriteriosEvaluacionCanonicos({
+    subject: "Lengua Española",
+    grade: "1ro",
+    criteriosEvaluacion: [
+      "Comprensión e interpretación de textos informativos breves.",
+      "Producción de textos escritos adecuados a la situación comunicativa.",
+    ],
+  });
+  const relaciones = relacionarCriteriosConIndicadores({
+    criterios,
+    indicadores: [
+      { id: "IL-PROD", descripcion: "Produce textos escritos adecuados a sus destinatarios." },
+      { id: "IL-COMP", descripcion: "Comprende e interpreta información explícita del texto." },
+    ],
+  });
+  const produccion = relaciones.find((r) => r.indicadorId === "IL-PROD");
+  const comprension = relaciones.find((r) => r.indicadorId === "IL-COMP");
+  if (!/Producción de textos/i.test(produccion?.criterioTexto || "")) {
+    throw new Error("el indicador de producción se vinculó por posición");
+  }
+  if (!/Comprensión e interpretación/i.test(comprension?.criterioTexto || "")) {
+    throw new Error("el indicador de comprensión se vinculó por posición");
+  }
+});
+
+check("no fuerza una relación cuando la correspondencia es insuficiente", () => {
+  const criterios = extraerCriteriosEvaluacionCanonicos({
+    criteriosEvaluacion: ["Ejecución coordinada de habilidades motrices en situaciones de juego."],
+  });
+  const [relacion] = relacionarCriteriosConIndicadores({
+    criterios,
+    indicadores: [{ id: "IL-LECT", descripcion: "Comprende información explícita de un texto argumentativo." }],
+  });
+  if (relacion.criterioId || relacion.tipoRelacion !== "sin_correspondencia_suficiente") {
+    throw new Error("forzó una relación entre lectura y ejecución motriz");
+  }
+});
+
+console.log("Trazabilidad de aula — contexto aplicado verificable:");
+check("no declara contexto aplicado por copiar una palabra genérica", () => {
+  const resultado = detectarContextoAplicado({
+    contexto: "En la escuela existe poco acceso a recursos tecnológicos y baja participación familiar.",
+    textos: ["Organizan en la escuela una conversación sobre el producto."],
+    referencias: [{ id: "S1-C1-M2-A1", tipo: "actividad" }],
+  });
+  if (resultado !== null) throw new Error("declaró aplicado el contexto completo sin evidencia textual suficiente");
+});
+
+check("conserva solo el fragmento contextual realmente utilizado y su actividad", () => {
+  const resultado = detectarContextoAplicado({
+    contexto: "En la escuela existe poco acceso a recursos tecnológicos. Las familias participan en una feria comunitaria.",
+    textos: ["Proponen alternativas ante el poco acceso a recursos tecnológicos de la escuela."],
+    referencias: [{ id: "S1-C1-M2-A1", tipo: "actividad" }],
+  });
+  if (!resultado || resultado.referenciaId !== "S1-C1-M2-A1") {
+    throw new Error("no vinculó el fragmento con la actividad estable");
+  }
+  if (!/poco acceso a recursos tecnológicos/i.test(resultado.fragmento)) {
+    throw new Error("guardó un contexto distinto del aplicado");
+  }
+  if (/feria comunitaria/i.test(resultado.fragmento)) {
+    throw new Error("copió una parte del contexto que la clase no utilizó");
+  }
+});
+
+console.log("Situación de aprendizaje — patrón oficial contextualizado:");
+check("integra contexto, necesidad, consecuencia, estrategia, acciones, producto y audiencia", () => {
+  const situacion = construirSituacionNarrativa({
+    area: "Inglés",
+    tema: "Escuela y educación",
+    grado: "2do Secundaria",
+    ciclo: "Primer Ciclo",
+    nivel: "Secundaria",
+    centro: "Centro Héctor Francisco López - Hato Nuevo",
+    estrategia: "Enfoque Comunicativo",
+    producto: "Our School Survival Guide: guía bilingüe para orientar a estudiantes nuevos",
+    contextoComunitario: "El centro recibe estudiantes que necesitan conocer sus espacios y normas de convivencia.",
+  });
+  for (const fragmento of [
+    "Hato Nuevo",
+    "presentan dificultades",
+    "lo que limita",
+    "Por ello, mediante Enfoque Comunicativo",
+    "analizarán situaciones auténticas",
+    "Our School Survival Guide",
+    "audiencia real",
+  ]) {
+    if (!situacion.includes(fragmento)) throw new Error(`falta "${fragmento}"`);
+  }
+  if (/Portfolio Cada clase|Guide Cada clase/.test(situacion)) {
+    throw new Error("el producto quedó unido a la oración siguiente sin puntuación");
+  }
+});
+
+console.log("Asesor Pedagógico — rutas, afinidad y duración:");
+check("ofrece recomendación afín, ruta corta y alternativa sin salir de la malla", () => {
+  const temas = [
+    "Identificación personal",
+    "Relaciones humanas y sociales",
+    "Actividades de la vida diaria",
+    "Vivienda, entorno y ciudad",
+    "Escuela y educación",
+    "Deporte, tiempo libre y recreación",
+    "Alimentación",
+    "Salud y cuidados físicos",
+    "Lengua y comunicación",
+    "Ciencia y tecnología",
+    "Clima, condiciones atmosféricas y medio ambiente",
+    "Bienes y servicios",
+    "Actividades sociales y culturales: Viajes y turismo",
+  ];
+  const rutas = sugerirRutasInicialesAsesor(
+    { temasCurriculares: temas },
+    { area: "Lenguas Extranjeras", asignatura: "Inglés" },
+  );
+  if (rutas.length < 3) throw new Error(`solo generó ${rutas.length} rutas`);
+  if (rutas[0].temas.join("|") !== "Identificación personal|Relaciones humanas y sociales") {
+    throw new Error(`recomendación inicial incorrecta: ${rutas[0].temas.join(" · ")}`);
+  }
+  if (rutas[0].semanas !== 4) throw new Error("dos temas afines deben durar 4 semanas");
+  const corta = rutas.find((r) => r.id === "ruta_corta");
+  if (!corta || corta.semanas !== 3 || corta.temas.length !== 1) {
+    throw new Error("falta la ruta corta de 3 semanas");
+  }
+  const alternativa = rutas.find((r) => r.id === "alternativa_siguiente");
+  if (!alternativa || alternativa.temas.join("|") !== "Actividades de la vida diaria|Escuela y educación") {
+    throw new Error("la alternativa no construyó el bloque Vida y comunidad escolar");
+  }
+  if (!rutas.every((r) => r.temas.every((t) => temas.includes(t)))) {
+    throw new Error("una ruta incluyó un tema ajeno a la malla");
+  }
+});
+
+check("descarta miembros inventados en criterios de afinidad", () => {
+  const temas = ["Identificación personal", "Relaciones humanas y sociales"];
+  const rutas = sugerirRutasInicialesAsesor({
+    temasCurriculares: temas,
+    criteriosCombinacionTematica: [{
+      nombre: "Grupo contaminado",
+      temas: ["Identificación personal", "Tema inventado", "Relaciones humanas y sociales"],
+    }],
+  }, { area: "Lenguas Extranjeras", asignatura: "Inglés" });
+  if (!rutas.every((r) => r.temas.every((t) => temas.includes(t)))) {
+    throw new Error("aceptó un tema inventado fuera de temasCurriculares");
+  }
+});
+
+const casosAfinidadPorArea = [
+  ["Matemática", ["Estadística y representación de datos", "Probabilidad y azar"]],
+  ["Ciencias de la Naturaleza", ["Seres vivos y biodiversidad", "Ecosistemas y ambiente"]],
+  ["Ciencias Sociales", ["Ciudadanía y derechos", "Convivencia y participación"]],
+  ["Lengua Española", ["Comprensión de textos", "Producción escrita y revisión"]],
+  ["Educación Física", ["Capacidades físicas", "Salud y bienestar"]],
+  ["Educación Artística", ["Patrimonio cultural", "Identidad y expresión artística"]],
+  ["Formación Integral Humana y Religiosa", ["Dignidad de la persona", "Valores y convivencia"]],
+  ["Tecnología", ["Diseño de prototipos", "Solución de problemas tecnológicos"]],
+];
+
+for (const [areaAfinidad, temasAfinidad] of casosAfinidadPorArea) {
+  check(`${areaAfinidad}: combina por afinidad disciplinar sin inventar temas`, () => {
+    const rutas = sugerirRutasInicialesAsesor(
+      { temasCurriculares: temasAfinidad },
+      { area: areaAfinidad, asignatura: areaAfinidad },
+    );
+    if (rutas[0]?.temas?.length !== 2) {
+      throw new Error(`no reconoció la afinidad: ${rutas[0]?.temas?.join(" · ") || "sin ruta"}`);
+    }
+    if (rutas[0].semanas !== 4) throw new Error(`duración combinada incorrecta: ${rutas[0].semanas}`);
+    if (!rutas[0].temas.every((tema) => temasAfinidad.includes(tema))) {
+      throw new Error("introdujo un tema que no pertenece a la malla activa");
+    }
+  });
+}
+
+console.log("Validadores finales — fecha y producto:");
+check("rechaza una fecha que no coincide con los días de clase", () => {
+  esperaError(
+    () => validarFechaInicioHorario("2026-07-25", ["Lunes", "Martes", "Miércoles", "Viernes"]),
+    "cae Sábado",
+  );
+  validarFechaInicioHorario("2026-07-27", ["Lunes", "Martes", "Miércoles", "Viernes"]);
+});
+
+check("rechaza portafolio genérico aunque lo escriba el docente", () => {
+  esperaError(() => validarProductoFinalAutentico("My Learning Portfolio", "Escuela y educación"), "genérico");
+  validarProductoFinalAutentico(
+    "Our School Survival Guide: guía bilingüe para orientar a estudiantes nuevos",
+    "Escuela y educación",
+  );
+});
+
+check("la evaluación es diagnóstica al inicio, formativa durante el proceso y sumativa solo al valorar el producto", () => {
+  const inicio = resolverEvaluacionMomento({ momento: "Inicio", faseIdx: 0, numeroDia: 1, totalDiasFase: 2 });
+  const desarrolloCierrePrevio = resolverEvaluacionMomento({
+    momento: "Desarrollo", faseIdx: 3, numeroDia: 1, totalDiasFase: 2,
+  });
+  const desarrolloFinal = resolverEvaluacionMomento({
+    momento: "Desarrollo", faseIdx: 3, numeroDia: 2, totalDiasFase: 2,
+  });
+  if (inicio.tipo !== "Diagnóstica") throw new Error(`Inicio quedó ${inicio.tipo}`);
+  if (desarrolloCierrePrevio.tipo !== "Formativa") {
+    throw new Error(`la preparación del cierre quedó ${desarrolloCierrePrevio.tipo}`);
+  }
+  if (desarrolloFinal.tipo !== "Sumativa" || desarrolloFinal.instrumento !== "Rúbrica analítica") {
+    throw new Error("la valoración final no usa evaluación sumativa con rúbrica");
+  }
+});
+
+console.log("Producto final estructurado — perfiles por área:");
+const perfilesProducto = [
+  ["Lenguas Extranjeras", "Francés", "Escuela y educación", /français|bilingue/i],
+  ["Lenguas Extranjeras", "Inglés", "Actividades de la vida diaria", /diario visual|inglés/i],
+  ["Matemática", "Matemática", "Proporcionalidad", /modelo aplicado|soluciones argumentadas/i],
+  ["Ciencias de la Naturaleza", "Biología", "Ecosistemas", /experimental|científico/i],
+  ["Ciencias Sociales", "Historia", "Identidad nacional", /documental|ciudadana/i],
+  ["Lengua Española", "Lengua Española", "El comentario", /artículo|podcast|revista/i],
+  ["Educación Física", "Educación Física", "Capacidades físicas", /circuito|actividad física/i],
+  ["Educación Artística", "Educación Artística", "Artes visuales", /obra|artística/i],
+  ["Formación Integral Humana y Religiosa", "FIHR", "Convivencia", /acuerdo|convivencia/i],
+  ["Tecnología", "Tecnología", "Diseño y fabricación", /prototipo|manual/i],
+];
+
+for (const [areaProducto, asignaturaProducto, temaProducto, patron] of perfilesProducto) {
+  check(`${asignaturaProducto}: genera formato, propósito, audiencia y socialización propios`, () => {
+    const detalle = construirProductoEstructurado([temaProducto], {
+      area: areaProducto,
+      asignatura: asignaturaProducto,
+    });
+    for (const campo of ["nombre", "formato", "proposito", "audiencia", "socializacion"]) {
+      if (!detalle[campo]) throw new Error(`falta ${campo}`);
+    }
+    const texto = formatearProductoFinal(detalle);
+    if (!patron.test(texto)) throw new Error(`perfil disciplinar incorrecto: ${texto}`);
+    validarProductoFinalAutentico(texto, temaProducto);
+  });
+}
+
+check("enriquece un nombre breve del docente sin reemplazarlo", () => {
+  const detalle = construirProductoEstructurado(["Sistema solar"], {
+    area: "Ciencias de la Naturaleza",
+    asignatura: "Física",
+    nombre: "Maqueta del sistema solar",
+  });
+  const texto = formatearProductoFinal(detalle);
+  if (detalle.nombre !== "Maqueta del sistema solar") throw new Error("reemplazó el nombre escrito por el docente");
+  if (!/informe experimental|modelo científico/i.test(texto)) throw new Error("no completó el formato científico");
+  validarProductoFinalAutentico(texto, "Sistema solar");
+});
 
 // ─── Fixture: unidad completa con la forma real del generador ────────────────
 
@@ -81,8 +414,8 @@ const momento = (nombre, tiempo, evaluacion, n) => ({
   evaluacion,
   recursos: {
     humanos: "Docente y estudiantes",
-    didacticos: "Flashcards de vocabulario, plano de una casa, cuaderno de inglés",
-    tecnologicos: "Pizarrón y marcadores",
+    didacticos: "Flashcards de vocabulario, plano de una casa, cuaderno de inglés, pizarrón y marcadores",
+    tecnologicos: "No requerido para esta actividad",
   },
   metacognicion: ["What did I learn about the house today?", "Which room words can I remember?"],
 });
@@ -101,7 +434,7 @@ const dia = (numero, numeroGlobal, semana) => ({
     "☐ Identifica las partes de la casa en inglés.",
     "☐ Describe su habitación usando there is / there are.",
   ],
-  aporteProducto: "Boceto del plano de la casa para el póster final.",
+  aporteProducto: `Boceto del plano de la casa ${numeroGlobal} para el póster final.`,
   intencionPedagogica: "Explorar el vocabulario de las partes de la casa en situaciones reales.",
   momentos: [
     momento("Inicio", "10 min", EVAL_INICIO, numero),
@@ -182,6 +515,17 @@ const unidadFixture = {
 console.log("R1 render — documento completo:");
 
 const html = formatearUnidadHTML(unidadFixture, "");
+const relacionesPrueba = ({ asignatura, criterios, indicadores }) => {
+  const criteriosCanonicos = extraerCriteriosEvaluacionCanonicos({
+    subject: asignatura,
+    grade: "1ro",
+    criteriosEvaluacion: criterios,
+  });
+  return relacionarCriteriosConIndicadores({
+    criterios: criteriosCanonicos,
+    indicadores,
+  });
+};
 
 check("renderiza HTML no vacío", () => {
   if (!html || html.length < 2000) throw new Error(`HTML sospechosamente corto (${html.length})`);
@@ -194,6 +538,152 @@ check("unidad completa pasa la validación R1", () => {
 check("el HTML muestra el código oficial CE-LEI y los IL", () => {
   if (!html.includes("CE-LEI-1")) throw new Error("falta CE-LEI-1");
   if (!html.includes("IL-LEI-1-1")) throw new Error("falta IL-LEI-1-1");
+});
+
+check("el PDF explica la negrita, el tachado y los indicadores pendientes", () => {
+  for (const texto of ["A trabajar en esta unidad", "Trabajado anteriormente", "Pendiente o disponible"]) {
+    if (!html.includes(texto)) throw new Error(`falta la leyenda "${texto}"`);
+  }
+});
+
+check("la rúbrica final tiene como máximo seis criterios y vincula indicadores", () => {
+  if ((unidadFixture.anexos?.rubricaProducto || []).length > 6) {
+    throw new Error("la rúbrica excede seis criterios");
+  }
+  // El fixture legacy puede no traer la nueva lista; el render nuevo sí debe
+  // soportar y mostrarla cuando el generador la adjunta.
+  const conIndicadores = structuredClone(unidadFixture);
+  conIndicadores.anexos = {
+    ...(conIndicadores.anexos || {}),
+    indicadoresRubrica: ["IL-LEI-1-1", "IL-LEI-1-2"],
+  };
+  const htmlConIndicadores = formatearUnidadHTML(conIndicadores, "");
+  if (!htmlConIndicadores.includes("Indicadores priorizados vinculados")) {
+    throw new Error("la rúbrica no muestra su trazabilidad curricular");
+  }
+});
+
+check("cada criterio nuevo se vincula semánticamente o queda marcado para revisión", () => {
+  const indicadores = [
+    { id: "IL-5", descripcion: "Explica relaciones entre los componentes de un ecosistema." },
+    { id: "IL-6", descripcion: "Comunica conclusiones sustentadas en evidencias." },
+  ];
+  const anexos = construirAnexosUnidad({
+    area: "Ciencias de la Naturaleza",
+    tema: "Ecosistemas",
+    producto: "Museo de ecosistemas — modelos científicos para explicar relaciones ecológicas, dirigida a la comunidad escolar; socialización: feria científica.",
+    aportesProducto: [
+      { semana: 1, texto: "Ficha de factores bióticos y abióticos" },
+      { semana: 2, texto: "Modelo de relaciones alimentarias" },
+    ],
+    indicadoresPriorizados: indicadores,
+    relacionesCriterioIndicador: relacionesPrueba({
+      asignatura: "Ciencias de la Naturaleza",
+      criterios: [
+        "Explicación de las relaciones de los ecosistemas mediante evidencias científicas.",
+        "Comunicación de conclusiones científicas sustentadas en datos y evidencias.",
+      ],
+      indicadores,
+    }),
+    recursosTecnologicos: [
+      "Proyector, Video / clip audiovisual, Parlantes",
+      "Computadora o tableta, Acceso a internet",
+    ],
+  });
+  if (!anexos.rubricaTrazable) throw new Error("la rúbrica no se marcó como trazable");
+  for (const [index, criterio] of anexos.rubricaProducto.entries()) {
+    for (const campo of ["evidencia", "piezaProducto"]) {
+      if (!criterio[campo]) throw new Error(`criterio ${index + 1} sin ${campo}`);
+    }
+    const relacionado = criterio.estadoTrazabilidad === "relacionado"
+      && criterio.indicadorCodigo && criterio.criterioOficialId;
+    const revisionHonesta = criterio.estadoTrazabilidad === "requiere_revision"
+      && !criterio.indicadorCodigo;
+    if (!relacionado && !revisionHonesta) {
+      throw new Error(`criterio ${index + 1} tiene trazabilidad ambigua`);
+    }
+  }
+  const conRubrica = structuredClone(unidadFixture);
+  conRubrica.anexos = anexos;
+  const htmlRubrica = formatearUnidadHTML(conRubrica, "");
+  for (const rotulo of ["Indicador:", "Evidencia:", "Pieza:"]) {
+    if (!htmlRubrica.includes(rotulo)) throw new Error(`el PDF no muestra ${rotulo}`);
+  }
+  validarUnidadRenderizada(conRubrica, htmlRubrica);
+});
+
+check("el Plan B cubre exactamente cada recurso tecnológico previsto", () => {
+  const anexos = construirAnexosUnidad({
+    area: "Matemática",
+    tema: "Estadística",
+    producto: "Informe estadístico escolar",
+    aportesProducto: [{ semana: 1, texto: "Tabla de frecuencias" }],
+    indicadoresPriorizados: [{ codigo: "IL-8", descripcion: "Interpreta datos del entorno." }],
+    recursosTecnologicos: ["Proyector, Acceso a internet", "Computadora o tableta"],
+  });
+  const previstos = new Set(anexos.recursosTecnologicosPrevistos);
+  const cubiertos = new Set(anexos.planB.map((item) => item.recurso));
+  for (const recurso of previstos) {
+    if (!cubiertos.has(recurso)) throw new Error(`falta alternativa para ${recurso}`);
+    const alternativa = anexos.planB.find((item) => item.recurso === recurso)?.alternativa;
+    if (!alternativa || /equivalente$/i.test(alternativa)) throw new Error(`alternativa vaga para ${recurso}`);
+  }
+});
+
+check("lista de cotejo, autoevaluación, coevaluación, diagnóstico y registro anecdótico son trazables", () => {
+  const indicadores = [
+    { id: "IL-9", descripcion: "Produce comentarios adecuados a la situación comunicativa." },
+    { id: "IL-10", descripcion: "Sustenta opiniones con argumentos pertinentes." },
+  ];
+  const anexos = construirAnexosUnidad({
+    area: "Lengua Española",
+    tema: "El comentario",
+    producto: "Voces del centro — podcast escolar para comunicar opiniones fundamentadas, dirigida a la comunidad educativa; socialización: escucha comentada.",
+    aportesProducto: [
+      { semana: 1, texto: "Ficha de análisis de un comentario modelo" },
+      { semana: 2, texto: "Guion argumentado del episodio" },
+    ],
+    indicadoresPriorizados: indicadores,
+    relacionesCriterioIndicador: relacionesPrueba({
+      asignatura: "Lengua Española",
+      criterios: [
+        "Producción de comentarios adecuados a la situación comunicativa y sus destinatarios.",
+        "Argumentación de opiniones mediante razones pertinentes.",
+      ],
+      indicadores,
+    }),
+  });
+  const grupos = [
+    ["lista", anexos.listaCotejoOral],
+    ["autoevaluación", anexos.autoevaluacion],
+    ["coevaluación", anexos.coevaluacion],
+    ["escala de valoración", anexos.escalaValoracion],
+    ["diagnóstico", anexos.diagnostica],
+    ["registro anecdótico", [anexos.registroAnecdotico.trazabilidad]],
+  ];
+  for (const [nombre, items] of grupos) {
+    if (!items?.length) throw new Error(`${nombre} quedó vacío`);
+    for (const item of items) {
+      for (const campo of [
+        "evidencia", "piezaProducto", "actividadOrigen", "destinoRegistro",
+      ]) {
+        if (!item[campo]) throw new Error(`${nombre} sin ${campo}`);
+      }
+      if (item.estadoTrazabilidad === "relacionado" && (!item.indicadorCodigo || !item.criterioOficialId)) {
+        throw new Error(`${nombre} relacionado sin criterio e indicador`);
+      }
+      if (item.estadoTrazabilidad === "requiere_revision" && item.indicadorCodigo) {
+        throw new Error(`${nombre} recibió un indicador por relleno`);
+      }
+    }
+  }
+  const unidadTrazable = structuredClone(unidadFixture);
+  unidadTrazable.anexos = anexos;
+  const htmlTrazable = formatearUnidadHTML(unidadTrazable, "");
+  if (!htmlTrazable.includes("Registro de calificaciones") && !htmlTrazable.includes("Pendiente de revisión docente")) {
+    throw new Error("el documento no muestra el destino o la revisión pendiente");
+  }
+  validarUnidadRenderizada(unidadTrazable, htmlTrazable);
 });
 
 check("el HTML contiene vocabulario real de la malla (lobby, entrance, do the laundry)", () => {

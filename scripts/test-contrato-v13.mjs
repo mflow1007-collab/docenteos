@@ -114,13 +114,47 @@ check("primer lote exige productoFinalNombre propio (no genérico)", () => {
   esperaError(() => validateBatch(lote, DUR, 1, foco, { semanaNum: 1, exigirNombreProducto: true }), "productoFinalNombre");
   lote.productoFinalNombre = "Presentación/producción final sobre parts of the house";
   esperaError(() => validateBatch(lote, DUR, 1, foco, { semanaNum: 1, exigirNombreProducto: true }), "genérico");
+  lote.productoFinalNombre = "My Learning Portfolio";
+  esperaError(() => validateBatch(lote, DUR, 1, foco, { semanaNum: 1, exigirNombreProducto: true }), "genérico");
   lote.productoFinalNombre = "My House Map & Tour";
+  esperaError(() => validateBatch(lote, DUR, 1, foco, { semanaNum: 1, exigirNombreProducto: true }), "audiencia");
+  lote.productoFinalNombre = "My House Map & Tour: recorrido guiado para visitantes del curso";
   validateBatch(lote, DUR, 1, foco, { semanaNum: 1, exigirNombreProducto: true });
 });
 
 check("aporteProducto genérico se rechaza", () => {
   esperaError(() => validateBatch(loteValido([{ aporteProducto: "Avance del producto" }]), DUR, 1, foco, { semanaNum: 2 }), "genérico");
   esperaError(() => validateBatch(loteValido([{ aporteProducto: "" }]), DUR, 1, foco, { semanaNum: 2 }), "sin aporteProducto");
+});
+
+check("las piezas del producto no se repiten dentro del lote ni entre semanas", () => {
+  const pieza = "Mapa escolar con espacios y etiquetas en inglés";
+  esperaError(
+    () => validateBatch(
+      loteValido([{ aporteProducto: pieza }, { dia: 2, aporteProducto: pieza }]),
+      DUR, 2, foco, { semanaNum: 2 },
+    ),
+    "repite la pieza",
+  );
+  esperaError(
+    () => validateBatch(
+      loteValido([{ aporteProducto: pieza }]),
+      DUR, 1, foco,
+      { semanaNum: 3, memoria: [{ semana: 2, dia: 1, aporteProducto: pieza }] },
+    ),
+    "repite la pieza",
+  );
+});
+
+check("apropiación también exige una pieza concreta del producto", () => {
+  esperaError(
+    () => validateBatch(
+      loteValido([{ aporteProducto: "Entrada 1 del Portafolio" }]),
+      DUR, 1, foco,
+      { semanaNum: 1, diasApropiacion: new Set([1]) },
+    ),
+    "genérico",
+  );
 });
 
 // ── 3B: técnica metodológica ──
@@ -162,7 +196,7 @@ check("la técnica puede ir en cualquier actividad, no solo la primera", () => {
 });
 
 check("dos clases del lote con la misma técnica → rechazo", () => {
-  const lote = loteValido([{}, {}]);
+  const lote = loteValido([{}, { aporteProducto: "Horario ilustrado de la rutina para el póster" }]);
   esperaError(() => validateBatch(lote, DUR, 2, foco, { semanaNum: 2 }), "repite la técnica");
 });
 
@@ -249,6 +283,28 @@ check("falta observacionesSemana → rechazo", () => {
   const lote = loteValido();
   lote.observacionesSemana = "";
   esperaError(() => validateBatch(lote, DUR, 1, foco, { semanaNum: 2 }), "observacionesSemana");
+});
+
+console.log("\n5 — contexto dentro de actividades y evidencias:");
+
+check("el contexto no puede quedarse solo en la situación de aprendizaje", () => {
+  esperaError(
+    () => validateBatch(loteValido(), DUR, 1, foco, {
+      semanaNum: 2,
+      contextoComunitario: "Muchos estudiantes realizan largas jornadas de transporte antes de llegar al centro.",
+    }),
+    "R16",
+  );
+});
+
+check("acepta el lote cuando una actividad aplica una necesidad concreta del contexto", () => {
+  const clase = claseValida();
+  clase.momentos[1].actividades[1] =
+    "Comparan rutinas de estudiantes con largas jornadas de transporte y proponen un horario responsable.";
+  validateBatch(loteValido([clase]), DUR, 1, foco, {
+    semanaNum: 2,
+    contextoComunitario: "Muchos estudiantes realizan largas jornadas de transporte antes de llegar al centro.",
+  });
 });
 
 // ── B3: system del compositor por NIVEL (antes mentía "Secundario" siempre) ──

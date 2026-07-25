@@ -473,23 +473,114 @@ export const sugerirTemasATrabajar = (curriculoData, temaLibre) => {
   };
 };
 
-const productoInicialPorRuta = (temas = [], { area = "", asignatura = "" } = {}) => {
-  const texto = _norm(temas.join(" "));
-  const esIdioma = /ingles|frances|lenguas extranjeras|english|french/.test(_norm(`${area} ${asignatura}`));
-  if (esIdioma) {
-    if (/identificacion|personal|relaciones|social|familia|amigos|people|friends/.test(texto)) {
-      return "People Around Me: Social Interaction Portfolio";
+const perfilProductoPorArea = ({ area = "", asignatura = "", tema = "" } = {}) => {
+  const clave = _norm(`${asignatura} ${area}`);
+  const temaNorm = _norm(tema);
+
+  if (/frances|french/.test(clave)) {
+    if (/escuela|educacion|ecole|education/.test(temaNorm)) {
+      return { nombre: "Guide de survie scolaire", formato: "guide bilingue", proposito: "orientar dentro del centro educativo", audiencia: "estudiantes nuevos de la comunidad escolar", socializacion: "galerie orale en français" };
     }
-    if (/rutina|vida diaria|daily|routine|habitos/.test(texto)) {
-      return "My Daily Routine and Healthy Habits Portfolio";
+    if (/identificacion|personal|relaciones|famili|amig/.test(temaNorm)) {
+      return { nombre: "Les personnes autour de moi", formato: "présentation de profils", proposito: "presentarse y fortalecer la convivencia", audiencia: "compañeros y familias del curso", socializacion: "rencontre orale en français" };
     }
-    if (/vivienda|entorno|ciudad|house|home|city/.test(texto)) {
-      return "My Home and Community Tour Portfolio";
-    }
-    return "My Learning Portfolio";
+    return { nombre: `Notre projet: ${tema}`, formato: "affiche ou guide communicatif", proposito: `comunicar información útil sobre ${tema}`, audiencia: "la communauté scolaire", socializacion: "présentation en français" };
   }
-  return `Portafolio de evidencias sobre ${temas[0] || "la unidad"}`;
+
+  if (/ingles|english|lenguas extranjeras/.test(clave)) {
+    if (/identificacion|personal|relaciones|social|familia|amigos|people|friends/.test(temaNorm)) {
+      return { nombre: "People Around Me", formato: "presentación de perfiles", proposito: "conocerse y fortalecer la convivencia", audiencia: "compañeros y familias del curso", socializacion: "encuentro oral en inglés" };
+    }
+    if (/rutina|vida diaria|daily|routine|habitos/.test(temaNorm)) {
+      return { nombre: "A Day in My Life", formato: "diario visual", proposito: "comparar rutinas y promover hábitos responsables", audiencia: "compañeros del curso", socializacion: "galería oral en inglés" };
+    }
+    if (/vivienda|entorno|ciudad|house|home|city/.test(temaNorm)) {
+      return { nombre: "My Home and Community Tour", formato: "recorrido guiado", proposito: "describir y orientar en espacios cotidianos", audiencia: "visitantes y compañeros del curso", socializacion: "recorrido oral en inglés" };
+    }
+    if (/escuela|educacion|school|education/.test(temaNorm)) {
+      return { nombre: "Our School Survival Guide", formato: "guía bilingüe", proposito: "orientar dentro del centro educativo", audiencia: "estudiantes nuevos de la comunidad escolar", socializacion: "galería oral en inglés" };
+    }
+    if (/alimentacion|comida|food|meal|nutrition/.test(temaNorm)) {
+      return { nombre: "Our Healthy School Menu", formato: "menú comentado", proposito: "promover decisiones alimentarias saludables", audiencia: "estudiantes y familias de la comunidad escolar", socializacion: "feria oral en inglés" };
+    }
+    if (/salud|cuidados|health|care|wellness/.test(temaNorm)) {
+      return { nombre: "Healthy Choices Campaign", formato: "campaña de recomendaciones", proposito: "promover el bienestar y el autocuidado", audiencia: "la comunidad escolar", socializacion: "campaña oral y visual en inglés" };
+    }
+    if (/deporte|tiempo libre|recreacion|sport|leisure|recreation/.test(temaNorm)) {
+      return { nombre: "Active Break Guide", formato: "guía de actividades recreativas", proposito: "promover un uso saludable del tiempo libre", audiencia: "la comunidad escolar", socializacion: "demostración oral en inglés" };
+    }
+    if (/clima|atmosfer|medio ambiente|weather|climate|environment/.test(temaNorm)) {
+      return { nombre: "Weather and Environment Bulletin", formato: "boletín de orientación", proposito: "informar y recomendar acciones ante condiciones ambientales", audiencia: "la comunidad escolar", socializacion: "noticiero oral en inglés" };
+    }
+    if (/viaje|turismo|travel|tourism/.test(temaNorm)) {
+      return { nombre: "Visitor's Mini Guide", formato: "guía práctica", proposito: "orientar y recomendar experiencias de viaje", audiencia: "viajeros y visitantes", socializacion: "feria oral en inglés" };
+    }
+    return { nombre: `Communicating about ${tema}`, formato: "guía comunicativa", proposito: `informar e interactuar sobre ${tema}`, audiencia: "compañeros de la comunidad escolar", socializacion: "presentación oral en inglés" };
+  }
+
+  if (/matematica/.test(clave)) {
+    return { nombre: `Matemática en acción: ${tema}`, formato: "informe de resolución y modelo aplicado", proposito: `resolver y justificar una situación cuantificable relacionada con ${tema}`, audiencia: "el curso y personas de la comunidad escolar interesadas", socializacion: "mesa de soluciones argumentadas" };
+  }
+  if (/ciencias de la naturaleza|biologia|quimica|fisica/.test(clave) && !/educacion fisica/.test(clave)) {
+    return { nombre: `Laboratorio de ${tema}`, formato: "informe experimental o modelo científico", proposito: `explicar con evidencias un fenómeno relacionado con ${tema}`, audiencia: "estudiantes y familias de la comunidad escolar", socializacion: "feria científica" };
+  }
+  if (/ciencias sociales|geografia|historia|moral y civica/.test(clave)) {
+    return { nombre: `Miradas sobre ${tema}`, formato: "mapa documental y propuesta ciudadana", proposito: `analizar fuentes y comunicar una interpretación fundamentada de ${tema}`, audiencia: "la comunidad educativa", socializacion: "foro o exposición documental" };
+  }
+  if (/lengua espanola/.test(clave)) {
+    return { nombre: `Voces sobre ${tema}`, formato: "artículo, podcast o revista escolar", proposito: `comunicar ideas y producciones textuales relacionadas con ${tema}`, audiencia: "lectores y oyentes de la comunidad escolar", socializacion: "publicación y tertulia" };
+  }
+  if (/educacion fisica/.test(clave)) {
+    return { nombre: `Movimiento y bienestar: ${tema}`, formato: "circuito o plan de actividad física", proposito: `demostrar y promover prácticas relacionadas con ${tema}`, audiencia: "compañeros y familias de la comunidad escolar", socializacion: "jornada práctica" };
+  }
+  if (/educacion artistica/.test(clave)) {
+    return { nombre: `Creaciones sobre ${tema}`, formato: "obra y exposición artística", proposito: `expresar y comunicar una interpretación creativa de ${tema}`, audiencia: "la comunidad educativa", socializacion: "muestra artística" };
+  }
+  if (/formacion integral humana|religiosa/.test(clave)) {
+    return { nombre: `Convivimos y actuamos: ${tema}`, formato: "acuerdo o campaña de convivencia", proposito: `reflexionar y promover acciones responsables relacionadas con ${tema}`, audiencia: "el curso y la comunidad educativa", socializacion: "foro y compromiso colectivo" };
+  }
+  if (/tecnologia/.test(clave)) {
+    return { nombre: `Solución tecnológica: ${tema}`, formato: "prototipo y manual de uso", proposito: `diseñar una solución funcional relacionada con ${tema}`, audiencia: "usuarios de la comunidad escolar", socializacion: "demostración tecnológica" };
+  }
+  return { nombre: `Proyecto aplicado: ${tema}`, formato: "informe o producción aplicada", proposito: `comunicar y aplicar los aprendizajes de ${tema}`, audiencia: "la comunidad escolar", socializacion: "presentación pública" };
 };
+
+export const formatearProductoFinal = (producto = {}) => {
+  if (typeof producto === "string") return String(producto).trim();
+  const nombre = String(producto.nombre || "Producto final").trim();
+  const formato = String(producto.formato || "producción aplicada").trim();
+  const proposito = String(producto.proposito || "comunicar los aprendizajes").trim();
+  const audiencia = String(producto.audiencia || "la comunidad escolar").trim();
+  const socializacion = String(producto.socializacion || "presentación pública").trim();
+  return `${nombre} — ${formato} para ${proposito}, dirigida a ${audiencia}; socialización: ${socializacion}.`;
+};
+
+export const construirProductoEstructurado = (
+  temas = [],
+  { area = "", asignatura = "", nombre = "", formato = "", proposito = "", audiencia = "", socializacion = "" } = {},
+) => {
+  const tema = (temas || []).map((t) => String(t || "").trim()).filter(Boolean).join(" + ") || "la unidad";
+  const base = perfilProductoPorArea({ area, asignatura, tema });
+  const textoNombre = String(nombre || "").trim();
+  const estructuraPrevia = textoNombre.match(
+    /^(.+?)\s+—\s+(.+?)\s+para\s+(.+?),\s+dirigida\s+a\s+(.+?);\s+socializaci[oó]n:\s+(.+?)\.?$/i
+  );
+  return {
+    nombre: String(estructuraPrevia?.[1] || textoNombre || base.nombre).trim(),
+    formato: String(formato || estructuraPrevia?.[2] || base.formato).trim(),
+    proposito: String(proposito || estructuraPrevia?.[3] || base.proposito).trim(),
+    audiencia: String(audiencia || estructuraPrevia?.[4] || base.audiencia).trim(),
+    socializacion: String(socializacion || estructuraPrevia?.[5] || base.socializacion).trim(),
+    temas: (temas || []).map((t) => String(t || "").trim()).filter(Boolean),
+    area: String(area || "").trim(),
+    asignatura: String(asignatura || "").trim(),
+  };
+};
+
+export const construirProductoAutentico = (temas = [], contexto = {}) =>
+  formatearProductoFinal(construirProductoEstructurado(temas, contexto));
+
+const productoInicialPorRuta = construirProductoAutentico;
 
 const tituloInicialPorRuta = (temas = [], { area = "", asignatura = "" } = {}) => {
   const texto = _norm(temas.join(" "));
@@ -510,21 +601,24 @@ const focoSemanalPorDistribucion = (temasRuta = [], semanas = 4, modo = "concent
   distribucion.forEach((bloque, bloqueIndex) => {
     for (let semana = bloque.semanaInicio; semana <= bloque.semanaFin; semana += 1) {
       const posEnBloque = semana - bloque.semanaInicio;
+      const totalBloque = bloque.semanaFin - bloque.semanaInicio + 1;
       let aporte;
       if (modo === "concentrada") {
         aporte = semana === 1
-          ? "Presentar la situación de aprendizaje, activar saberes previos y acordar el producto."
+          ? "Explorar la situación auténtica, activar saberes previos y definir las secciones del producto."
           : semana === semanas
-            ? "Mejorar, socializar y cerrar el producto final."
-            : posEnBloque === 0
-              ? "Construir vocabulario, funciones y ejemplos base del tema."
-              : "Aplicar el aprendizaje en una tarea comunicativa y guardar evidencia en el portafolio.";
+            ? "Revisar con los criterios acordados, socializar con la audiencia y cerrar el producto final."
+            : posEnBloque <= Math.floor((totalBloque - 1) / 2)
+              ? "Construir los conocimientos y recursos necesarios para elaborar la primera sección del producto."
+              : "Aplicar lo aprendido en una situación auténtica y completar una sección funcional del producto.";
       } else {
         aporte = bloqueIndex === 0 && posEnBloque === 0
-          ? "Presentar la situación de aprendizaje desde este tema y construir la primera pieza del producto."
+          ? "Presentar la situación de aprendizaje desde este tema y diseñar la primera pieza del producto."
           : posEnBloque === 0
             ? "Abrir este nuevo tema y conectarlo explícitamente con la situación de aprendizaje y el producto."
-            : "Profundizar este tema con una producción parcial antes de pasar al siguiente bloque.";
+            : semana === semanas
+              ? "Integrar las piezas, revisar el producto y socializarlo con su audiencia."
+              : "Profundizar este tema mediante una producción parcial distinta y conectarla con las piezas anteriores.";
       }
       salida.push({ semana, tema: bloque.tema, aporte });
     }
@@ -558,6 +652,7 @@ export const sugerirRutasInicialesAsesor = (curriculoData, contexto = {}) => {
     .filter(Boolean)
     .filter((tema, index, lista) => lista.findIndex((t) => _norm(t) === _norm(tema)) === index);
   if (!todos.length) return [];
+  const temaOficialPorClave = new Map(todos.map((tema) => [_norm(tema), tema]));
 
   // Regla 1: quitar los temas que el docente ya trabajó. Si absolutamente todos
   // están trabajados (raro), caemos a la lista completa para no dejar el asesor
@@ -571,83 +666,189 @@ export const sugerirRutasInicialesAsesor = (curriculoData, contexto = {}) => {
   const criterios = Array.isArray(curriculoData?.criteriosCombinacionTematica)
     ? curriculoData.criteriosCombinacionTematica
     : [];
-  const grupoAfinDe = (tema) => {
+  const grupoAfinExplicitoDe = (tema) => {
     const grupo = criterios.find(
       (c) => Array.isArray(c.temas) && c.temas.some((t) => _norm(t) === _norm(tema))
     );
     if (!grupo) return null;
     const miembros = grupo.temas
-      .map((t) => String(t || "").trim())
+      .map((t) => temaOficialPorClave.get(_norm(t)))
       .filter(Boolean)
       .filter((t) => !yaTrabajado(t))
       .filter((t, i, arr) => arr.findIndex((x) => _norm(x) === _norm(t)) === i);
-    return { nombre: grupo.nombre, razon: grupo.razon, duracionSugerida: grupo.duracionSugerida, miembros };
+    return miembros.length >= 2
+      ? { nombre: grupo.nombre, razon: grupo.razon, duracionSugerida: grupo.duracionSugerida, miembros }
+      : null;
   };
+
+  // Respaldo pedagógico por disciplina cuando la malla conserva los temas
+  // oficiales, pero no declara criteriosCombinacionTematica. Nunca combina por
+  // proximidad: usa núcleos conceptuales/procedimentales y cruza sus miembros
+  // contra la lista de temas de la malla activa.
+  const claveArea = _norm(`${contexto.area || ""} ${contexto.asignatura || ""}`);
+  const nucleosIdioma = [
+    { nombre: "Identidad y convivencia", patrones: [/identificacion personal|personal identification/, /relaciones humanas|human relations|social relations/], razon: "Integra la presentación personal con la interacción respetuosa y el conocimiento de las personas del entorno." },
+    { nombre: "Vida y comunidad escolar", patrones: [/actividades de la vida diaria|daily activities|daily life/, /escuela y educacion|school and education/], razon: "Conecta las rutinas, horarios y responsabilidades cotidianas con situaciones reales de comunicación en la escuela." },
+    { nombre: "Bienestar y vida activa", patrones: [/alimentacion|food|nutrition/, /salud y cuidados|health|physical care/, /deporte|tiempo libre|recreacion|sport|leisure|recreation/], razon: "Permite comunicar hábitos, decisiones y recomendaciones relacionadas con alimentación, salud y actividad física." },
+    { nombre: "Entorno y servicios de la comunidad", patrones: [/vivienda|entorno y ciudad|housing|home|city/, /bienes y servicios|goods and services/], razon: "Integra la orientación en el entorno con el acceso responsable a lugares, bienes y servicios de la comunidad." },
+    { nombre: "Comunicación y tecnología", patrones: [/lengua y comunicacion|language and communication/, /ciencia y tecnologia|science and technology/], razon: "Relaciona los medios y prácticas de comunicación con usos cotidianos de la ciencia y la tecnología." },
+    { nombre: "Clima, ambiente y movilidad", patrones: [/clima|condiciones atmosfericas|medio ambiente|weather|climate|environment/, /viajes y turismo|travel|tourism/], razon: "Conecta el clima y el ambiente con decisiones, recomendaciones y experiencias de viaje." },
+  ];
+  const nucleosPorArea = [
+    {
+      area: /matematica/,
+      nucleos: [
+        { nombre: "Números y resolución de problemas", patrones: [/numero|numeracion|operacion|calculo/, /problema|estimacion|patron/], razon: "Integra sentido numérico, estrategias de cálculo y resolución argumentada de situaciones del entorno." },
+        { nombre: "Medición, geometría y espacio", patrones: [/medida|longitud|perimetro|area|volumen/, /geometr|figura|angulo|plano|espacio/], razon: "Relaciona la medición con la representación y el análisis de formas y espacios reales." },
+        { nombre: "Datos, probabilidad y decisiones", patrones: [/estadistic|datos|grafico|tabla/, /probabilidad|azar|encuesta/], razon: "Conecta la recolección y representación de datos con la interpretación y toma de decisiones." },
+      ],
+    },
+    {
+      area: /ciencias de la naturaleza|biologia|quimica|fisica/,
+      excluir: /educacion fisica/,
+      nucleos: [
+        { nombre: "Seres vivos, ecosistemas y ambiente", patrones: [/seres vivos|celula|organismo|biodiversidad/, /ecosistema|ambiente|cadena aliment|recursos naturales/], razon: "Integra estructuras y funciones de los seres vivos con sus relaciones ecológicas y el cuidado ambiental." },
+        { nombre: "Materia, energía y transformaciones", patrones: [/materia|mezcla|sustancia|propiedad/, /energia|fuerza|movimiento|calor|electricidad/], razon: "Permite explicar transformaciones mediante observación, medición, experimentación y modelos científicos." },
+        { nombre: "Salud, cuerpo y prevención", patrones: [/cuerpo|sistema|nutricion|reproduccion/, /salud|enfermedad|higiene|prevencion/], razon: "Relaciona el funcionamiento del organismo con decisiones de salud, prevención y bienestar." },
+      ],
+    },
+    {
+      area: /ciencias sociales|historia|geografia|moral y civica/,
+      nucleos: [
+        { nombre: "Territorio, población y comunidad", patrones: [/geografia|territorio|relieve|clima|mapa/, /poblacion|comunidad|migracion|economia/], razon: "Conecta las características del territorio con la organización, movilidad y actividades de la población." },
+        { nombre: "Procesos históricos e identidad", patrones: [/historia|periodo|colonizacion|independencia/, /identidad|cultura|patrimonio|memoria/], razon: "Relaciona procesos históricos, fuentes e identidad para interpretar el presente de manera fundamentada." },
+        { nombre: "Ciudadanía, derechos y convivencia", patrones: [/ciudadania|derecho|deber|democracia/, /convivencia|participacion|institucion|constitucion/], razon: "Integra derechos, responsabilidades y participación con problemas reales de convivencia y ciudadanía." },
+      ],
+    },
+    {
+      area: /lengua espanola/,
+      nucleos: [
+        { nombre: "Comprensión y producción de textos", patrones: [/comprension|lectura|texto/, /produccion|escritura|redaccion|borrador/], razon: "Articula lectura de modelos, planificación, producción, revisión y publicación con una audiencia auténtica." },
+        { nombre: "Textos informativos y argumentativos", patrones: [/noticia|informe|articulo|expositivo/, /comentario|opinion|argument|debate/], razon: "Integra búsqueda de información, organización de ideas y sustentación de una postura comunicativa." },
+        { nombre: "Literatura, oralidad y creación", patrones: [/cuento|poesia|novela|literatura/, /oralidad|recital|dramat|teatro/], razon: "Relaciona apreciación literaria, interpretación y creación oral o escrita para una socialización real." },
+      ],
+    },
+    {
+      area: /educacion fisica/,
+      nucleos: [
+        { nombre: "Capacidades físicas y vida saludable", patrones: [/capacidades? fisicas?|resistencia|fuerza|velocidad|flexibilidad/, /salud|habito|bienestar|condicion fisica/], razon: "Integra el desarrollo motor con autorregulación, seguridad y hábitos para una vida activa." },
+        { nombre: "Coordinación, juegos y convivencia", patrones: [/coordinacion|equilibrio|habilidad motriz/, /juego|deporte|cooperacion|regla/], razon: "Relaciona habilidades motrices con reglas, cooperación, estrategia y convivencia respetuosa." },
+      ],
+    },
+    {
+      area: /educacion artistica/,
+      nucleos: [
+        { nombre: "Lenguajes, técnicas y creación artística", patrones: [/lenguaje artistico|elementos visuales|ritmo|sonido/, /tecnica|material|creacion|composicion/], razon: "Articula exploración de lenguajes y técnicas con un proceso intencional de creación y exposición." },
+        { nombre: "Patrimonio, identidad y expresión", patrones: [/patrimonio|cultura|identidad|tradicion/, /expresion|obra|apreciacion|artista/], razon: "Relaciona referentes culturales e identidad con apreciación, interpretación y producción artística." },
+      ],
+    },
+    {
+      area: /formacion integral humana|religiosa|fihr/,
+      nucleos: [
+        { nombre: "Dignidad, valores y convivencia", patrones: [/dignidad|valor|persona|familia/, /convivencia|respeto|solidaridad|paz/], razon: "Conecta la reflexión sobre la dignidad y los valores con decisiones y compromisos de convivencia." },
+        { nombre: "Fe, comunidad y compromiso", patrones: [/fe|jesus|biblia|espiritualidad/, /comunidad|servicio|compromiso|responsabilidad/], razon: "Relaciona referentes de fe y espiritualidad con acciones responsables al servicio de la comunidad." },
+      ],
+    },
+    {
+      area: /tecnologia|informatica/,
+      nucleos: [
+        { nombre: "Diseño, fabricación y solución de problemas", patrones: [/diseno|prototipo|fabricacion|material/, /problema|solucion|proceso tecnologico|prueba/], razon: "Integra identificación de necesidades, diseño, construcción, prueba y mejora de una solución funcional." },
+        { nombre: "Información, comunicación y ciudadanía digital", patrones: [/informacion|datos|internet|red/, /comunicacion|seguridad|ciudadania digital|privacidad/], razon: "Relaciona el uso de información y medios digitales con comunicación segura, crítica y responsable." },
+      ],
+    },
+  ];
+  const perfilArea = /ingles|frances|lenguas extranjeras|english|french/.test(claveArea)
+    ? { nucleos: nucleosIdioma }
+    : nucleosPorArea.find((perfil) => perfil.area.test(claveArea) && !perfil.excluir?.test(claveArea));
+  const grupoAfinTematicoDe = (tema) => {
+    if (!perfilArea) return null;
+    const clave = _norm(tema);
+    const nucleo = perfilArea.nucleos.find((n) => n.patrones.some((p) => p.test(clave)));
+    if (!nucleo) return null;
+    const miembros = temas.filter((candidato) => {
+      const c = _norm(candidato);
+      return nucleo.patrones.some((p) => p.test(c));
+    });
+    return miembros.length >= 2 ? { ...nucleo, miembros } : null;
+  };
+  const grupoAfinDe = (tema) => grupoAfinExplicitoDe(tema) || grupoAfinTematicoDe(tema);
+  const duracionTemaIndividual = (tema) => {
+    const temaNorm = _norm(tema);
+    if (/educacion fisica|educacion artistica/.test(claveArea)) return 3;
+    if (/proyecto|investigacion|argument|ecosistema|energia|estadistic|geometr|historia|produccion de textos|tecnologia/.test(temaNorm)) return 4;
+    return 3;
+  };
+  const duracionCombinada = (cantidad) => (cantidad >= 3 ? 6 : 4);
 
   const rutas = [];
   const primero = temas[0];
+  const afin = grupoAfinDe(primero);
+  const temasRecomendados = afin?.miembros?.length >= 2 ? afin.miembros.slice(0, 2) : [primero];
+  const semanasRecomendadas = temasRecomendados.length >= 2 ? 4 : duracionTemaIndividual(primero);
 
-  // Ruta 1 — Recomendación inicial: un solo tema (el primero disponible).
   rutas.push({
-    id: "primer_tema",
+    id: temasRecomendados.length >= 2 ? "recomendada_afin" : "primer_tema",
     etiqueta: "Recomendación inicial",
-    titulo: tituloInicialPorRuta([primero], contexto),
-    temas: [primero],
-    semanas: 4,
-    productoFinal: productoInicialPorRuta([primero], contexto),
-    razon: "Conviene iniciar con el primer tema oficial de la malla aún no trabajado porque permite diagnosticar saberes previos, nivelar vocabulario y construir un producto claro sin mezclar contenidos antes de tiempo.",
-    focoSemanal: focoSemanalPorDistribucion([primero], 4, "concentrada"),
+    titulo: temasRecomendados.length >= 2 ? (afin.nombre || tituloInicialPorRuta(temasRecomendados, contexto)) : tituloInicialPorRuta([primero], contexto),
+    temas: temasRecomendados,
+    semanas: semanasRecomendadas,
+    productoFinal: productoInicialPorRuta(temasRecomendados, contexto),
+    razon: temasRecomendados.length >= 2
+      ? `${afin.razon} Cada tema construye una sección distinta del mismo producto.`
+      : `Este tema no tiene otra afinidad disponible en la malla; se propone como unidad concentrada de ${semanasRecomendadas} semanas para evitar extenderlo artificialmente.`,
+    focoSemanal: focoSemanalPorDistribucion(temasRecomendados, semanasRecomendadas, temasRecomendados.length >= 2 ? "combinada" : "concentrada"),
   });
 
-  // Ruta 2 — Ruta combinada POR AFINIDAD: el grupo curricular del primer tema.
-  const afin = grupoAfinDe(primero);
-  if (afin && afin.miembros.length >= 2) {
-    const temasRuta = afin.miembros.slice(0, 3);
-    const nSug = parseInt(String(afin.duracionSugerida || ""), 10);
-    const semanas = Number.isFinite(nSug) && nSug >= 4
-      ? Math.min(8, nSug)
-      : Math.min(6, Math.max(4, temasRuta.length * 2));
+  if (temasRecomendados.length >= 2) {
+    const semanas = duracionTemaIndividual(primero);
     rutas.push({
-      id: "combinada_afin",
-      etiqueta: "Ruta combinada (temas afines)",
-      titulo: afin.nombre || `${tituloInicialPorRuta([temasRuta[0]], contexto)} integrado`,
+      id: "ruta_corta",
+      etiqueta: "Ruta corta",
+      titulo: tituloInicialPorRuta([primero], contexto),
+      temas: [primero],
+      semanas,
+      productoFinal: productoInicialPorRuta([primero], contexto),
+      razon: `Trabaja únicamente el primer tema oficial durante ${semanas} semanas cuando el grupo necesita mayor concentración o nivelación.`,
+      focoSemanal: focoSemanalPorDistribucion([primero], semanas, "concentrada"),
+    });
+  }
+
+  if (afin?.miembros?.length >= 3) {
+    const temasRuta = afin.miembros.slice(0, 3);
+    const semanas = duracionCombinada(temasRuta.length);
+    rutas.push({
+      id: "ruta_ampliada_afin",
+      etiqueta: "Ruta ampliada (temas afines)",
+      titulo: afin.nombre || tituloInicialPorRuta(temasRuta, contexto),
       temas: temasRuta,
       semanas,
       productoFinal: productoInicialPorRuta(temasRuta, contexto),
-      razon: afin.razon
-        ? `${afin.razon} Cada tema se trabaja por bloque semanal, sin mezclar contenidos dentro de una misma semana.`
-        : "Estos temas son afines según la malla oficial y se integran en un mismo producto. Cada tema se trabaja por bloque semanal, sin mezclar contenidos dentro de una misma semana.",
+      razon: `${afin.razon} Esta variante integra tres aportes temáticos distintos en un producto común.`,
       focoSemanal: focoSemanalPorDistribucion(temasRuta, semanas, "combinada"),
     });
   }
 
-  // Ruta 3 — Alternativa: el siguiente tema disponible como arranque distinto.
-  if (temas.length >= 2) {
-    const alt = temas[1];
+  const clavesUsadas = new Set(temasRecomendados.map(_norm));
+  const alt = temas.find((tema) => !clavesUsadas.has(_norm(tema)));
+  if (alt) {
     const afinAlt = grupoAfinDe(alt);
-    const temasRuta = afinAlt && afinAlt.miembros.length >= 2
-      ? afinAlt.miembros.slice(0, 3)
-      : [alt];
-    const semanas = temasRuta.length >= 2
-      ? Math.min(6, Math.max(4, temasRuta.length * 2))
-      : 4;
+    const temasRuta = afinAlt?.miembros?.length >= 2 ? afinAlt.miembros.slice(0, 2) : [alt];
+    const semanas = temasRuta.length >= 2 ? 4 : duracionTemaIndividual(alt);
     rutas.push({
       id: "alternativa_siguiente",
       etiqueta: "Alternativa",
-      titulo: temasRuta.length >= 2 && afinAlt?.nombre
-        ? afinAlt.nombre
-        : tituloInicialPorRuta(temasRuta, contexto),
+      titulo: temasRuta.length >= 2 ? (afinAlt.nombre || tituloInicialPorRuta(temasRuta, contexto)) : tituloInicialPorRuta(temasRuta, contexto),
       temas: temasRuta,
       semanas,
       productoFinal: productoInicialPorRuta(temasRuta, contexto),
-      razon: temasRuta.length >= 2 && afinAlt
-        ? (afinAlt.razon || "Otro grupo de temas afines de la malla, útil si prefieres un arranque distinto.")
-        : "Arranca desde el siguiente tema disponible de la malla si prefieres no empezar por el primero.",
+      razon: temasRuta.length >= 2
+        ? `${afinAlt.razon} Es un punto de partida diferente con afinidad pedagógica propia.`
+        : `Este siguiente tema oficial no tiene afinidad disponible; se propone como unidad corta de ${semanas} semanas.`,
       focoSemanal: focoSemanalPorDistribucion(temasRuta, semanas, temasRuta.length >= 2 ? "combinada" : "concentrada"),
     });
   }
 
-  return rutas;
+  return rutas.slice(0, 4);
 };
 
 /**

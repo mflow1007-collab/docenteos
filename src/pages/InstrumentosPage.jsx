@@ -27,6 +27,28 @@ const TIPOS_IA_PRIORITARIOS = [
   "Coevaluación",
 ];
 
+const TrazaInstrumento = ({ trazabilidad }) => {
+  if (!trazabilidad) return null;
+  const relacionada = trazabilidad.estado === "relacionado";
+  const detalle = relacionada
+    ? [
+        trazabilidad.criterioTexto,
+        trazabilidad.indicadorDescripcion,
+        trazabilidad.aporteProducto,
+      ].filter(Boolean).join(" · ")
+    : "DocenteOS no encontró correspondencia suficiente. Revisa este ítem antes de usarlo para calificar.";
+  return (
+    <small
+      className={`traza-instrumento ${relacionada ? "relacionada" : "revision"}`}
+      title={detalle}
+    >
+      {relacionada
+        ? `Trazable · ${trazabilidad.criterioId || "criterio oficial"} → ${trazabilidad.indicadorId || "indicador"}`
+        : "Trazabilidad pendiente de revisión"}
+    </small>
+  );
+};
+
 const parseInstrumentJSON = (text, prompt, curriculo, crearDraftFn, crearCriterioFn, tipo = "Rúbrica") => {
   try {
     const match = text.match(/\{[\s\S]*\}/);
@@ -1676,7 +1698,10 @@ function InstrumentosPage({
                   <div className="aplicar-items">
                     {(instrumentoAplicar.estructura?.indicadores || []).map((item) => (
                       <label key={item.id} className="aplicar-item">
-                        <span>{item.indicador}</span>
+                        <span>
+                          {item.indicador}
+                          <TrazaInstrumento trazabilidad={item.trazabilidad} />
+                        </span>
                         <div>
                           <button className={evaluacionAplicar[item.id] === true ? "toggle active" : "toggle"} onClick={() => setEvaluacionAplicar((prev) => ({ ...prev, [item.id]: true }))}>Sí</button>
                           <button className={evaluacionAplicar[item.id] === false ? "toggle active" : "toggle"} onClick={() => setEvaluacionAplicar((prev) => ({ ...prev, [item.id]: false }))}>No</button>
@@ -1690,7 +1715,10 @@ function InstrumentosPage({
                   <div className="aplicar-items">
                     {(instrumentoAplicar.estructura?.indicadores || []).map((item) => (
                       <label key={item.id} className="aplicar-item escala">
-                        <span>{item.indicador}</span>
+                        <span>
+                          {item.indicador}
+                          <TrazaInstrumento trazabilidad={item.trazabilidad} />
+                        </span>
                         <select value={evaluacionAplicar[item.id] || ""} onChange={(e) => setEvaluacionAplicar((prev) => ({ ...prev, [item.id]: e.target.value }))}>
                           <option value="">Seleccionar</option>
                           <option value="4">Excelente</option>
@@ -1709,6 +1737,7 @@ function InstrumentosPage({
                       <article key={criterio.id} className="rubrica-row">
                         <div>
                           <strong>{criterio.criterio}</strong>
+                          <TrazaInstrumento trazabilidad={criterio.trazabilidad} />
                           {Number(criterio.puntajeMaximo) > 0 && (
                             <small>{criterio.puntajeMaximo} pts</small>
                           )}

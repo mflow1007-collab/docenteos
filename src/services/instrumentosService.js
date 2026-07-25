@@ -67,6 +67,62 @@ const textoCorto = (texto = "", max = 90) => {
 
 const listaUnica = (items = []) => [...new Set(items.map((item) => String(item || "").trim()).filter(Boolean))];
 
+const tokensTrazaInstrumento = (texto = "") => String(texto || "")
+  .toLowerCase()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .split(/[^a-z0-9ñ]+/)
+  .filter((token) => token.length >= 4);
+
+const seleccionarTrazaInstrumento = (texto = "", trazas = []) => {
+  const tokensTexto = new Set(tokensTrazaInstrumento(texto));
+  const candidatos = (trazas || []).map((traza) => {
+    const referente = [
+      traza.evidenciaTexto,
+      traza.actividadTexto,
+      traza.indicadorDescripcion,
+      traza.criterioTexto,
+      traza.aporteProducto,
+    ].filter(Boolean).join(" ");
+    const comunes = tokensTrazaInstrumento(referente).filter((token) => tokensTexto.has(token));
+    return { traza, puntaje: comunes.length };
+  }).sort((a, b) => b.puntaje - a.puntaje);
+  return candidatos[0]?.puntaje > 0 ? candidatos[0].traza : null;
+};
+
+const anexarTrazabilidadEstructura = (estructura = {}, clase = {}) => {
+  const trazas = Array.isArray(clase.trazabilidadEvaluativa) ? clase.trazabilidadEvaluativa : [];
+  const enriquecer = (item, campoTexto) => {
+    const traza = seleccionarTrazaInstrumento(item?.[campoTexto], trazas);
+    return {
+      ...item,
+      trazabilidad: traza ? {
+        criterioId: traza.criterioId || "",
+        criterioTexto: traza.criterioTexto || "",
+        indicadorId: traza.indicadorId || "",
+        indicadorDescripcion: traza.indicadorDescripcion || "",
+        actividadId: traza.actividadId || "",
+        evidenciaId: traza.evidenciaId || "",
+        aporteProducto: traza.aporteProducto || "",
+        tipoRelacion: traza.tipoRelacion || "",
+        confianza: traza.confianza || "requiere_revision",
+        estado: traza.estado || "requiere_revision",
+      } : {
+        criterioId: "",
+        indicadorId: "",
+        actividadId: "",
+        evidenciaId: "",
+        estado: "requiere_revision",
+        confianza: "requiere_revision",
+      },
+    };
+  };
+  return {
+    ...estructura,
+    criterios: (estructura.criterios || []).map((item) => enriquecer(item, "criterio")),
+    indicadores: (estructura.indicadores || []).map((item) => enriquecer(item, "indicador")),
+  };
+};
+
 const evidenciasDeClase = (clase = {}) => ({
   conocimiento: listaUnica([
     ...(clase.evidencias?.conocimiento || []),
@@ -317,7 +373,10 @@ export const crearInstrumentosPlaneadosDesdePlan = async (registroPlan) => {
     const tipo = tipoSugeridoPorEvidencia(clase);
     tipos.add(tipo);
     const etiqueta = ETIQUETA_TIPO_INSTRUMENTO[tipo] || "Instrumento";
-    const estructura = estructuraParaInstrumentoPlaneado({ tipoNorm: tipo, clase, capa });
+    const estructura = anexarTrazabilidadEstructura(
+      estructuraParaInstrumentoPlaneado({ tipoNorm: tipo, clase, capa }),
+      clase,
+    );
     const evidenciaTipo = clase.evidencias?.producto?.length
       ? "producto"
       : clase.evidencias?.desempeno?.length
@@ -334,6 +393,7 @@ export const crearInstrumentosPlaneadosDesdePlan = async (registroPlan) => {
       estructura,
       origenGeneracion: "planificacion_clase",
       evidenciaTipo,
+      trazabilidadEvaluativa: clase.trazabilidadEvaluativa || [],
     });
     instrumentos.push(instrumento);
   }

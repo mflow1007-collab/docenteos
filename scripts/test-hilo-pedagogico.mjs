@@ -262,6 +262,30 @@ assert.equal(insClase.claseId, "clase-s1-d1");
 assert.equal(insClase.id, "ins-plan-parts-house-001-registro_anecdotico-clase-s1-d1");
 ok("instrumento puede ligarse a una clase específica o a la secuencia completa");
 
+const trazaAula = {
+  criterioId: "CR-OFICIAL-1",
+  criterioTexto: "Producción de textos adecuados a la situación comunicativa.",
+  indicadorId: "IL-ING-1-COM-1",
+  indicadorDescripcion: "Produce mensajes breves para una audiencia.",
+  actividadId: "S1-C1-M2-A1",
+  evidenciaId: "S1-C1-M2-E-producto-1",
+  aporteProducto: "Ficha informativa para la exposición",
+  tipoRelacion: "derivada",
+  confianza: "alta",
+  estado: "relacionado",
+};
+const insConTraza = construirInstrumentoDesdePlan({
+  planificacionId: registroPlan.id,
+  capa,
+  tipo: "lista_cotejo",
+  claseId: "clase-s1-d1",
+  trazabilidadEvaluativa: [trazaAula],
+});
+assert.deepEqual(insConTraza.criterioOficialIds, ["CR-OFICIAL-1"]);
+assert.deepEqual(insConTraza.evidenciaIds, ["S1-C1-M2-E-producto-1"]);
+assert.equal(insConTraza.trazabilidadEvaluativa[0].actividadId, "S1-C1-M2-A1");
+ok("instrumento conserva criterio → indicador → actividad → evidencia → aporte al producto");
+
 // Regla 10 — ponderación
 const pondOk = validarPonderacion(instrumentos);
 assert.equal(pondOk.total, 100);
@@ -298,6 +322,16 @@ assert.deepEqual(r1.indicadorIds, instrumentos[0].indicadorIds);
 assert.equal(r1.planificacionId, registroPlan.id);
 assert.equal(enColeccion(`usuarios/${UID}/instrumentoResultados/`).length, 3);
 ok("resultado por estudiante vinculado a curso, plan, instrumento, indicadores y aspectos");
+
+const resultadoConTraza = construirResultadoInstrumento({
+  instrumento: insConTraza,
+  estudianteId: "est-traza",
+  puntajeObtenido: 20,
+});
+assert.deepEqual(resultadoConTraza.criterioOficialIds, ["CR-OFICIAL-1"]);
+assert.deepEqual(resultadoConTraza.evidenciasIds, ["S1-C1-M2-E-producto-1"]);
+assert.equal(resultadoConTraza.trazabilidadEvaluativa[0].aporteProducto, "Ficha informativa para la exposición");
+ok("resultado evaluativo conserva la trazabilidad oficial hasta Mi Registro y el banco de evidencias");
 
 // Re-evaluación sobreescribe (mismo ID), no duplica
 evaluarJuan(instrumentos[0], 40);

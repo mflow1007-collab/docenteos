@@ -6,12 +6,18 @@ import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { getActividades } from "./bancoPedagogicoService.js";
 import { combinarActividad } from "./combinadorActividadesService.js";
 import { getCurricularContentForUnit, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "./bancoConocimientoService.js";
-import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical } from "./phaseAService.js";
-import { resolverFocosCurriculares, obtenerPerfilPedagogicoArea } from "./curriculumBrainService.js";
+import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical, validarProductoFinalAutentico } from "./phaseAService.js";
+import {
+  resolverFocosCurriculares,
+  obtenerPerfilPedagogicoArea,
+  seleccionarRelacionParaEvidencia,
+} from "./curriculumBrainService.js";
 import {
   distribuirTemasEnSemanas,
   obtenerTemaSemana,
   sugerirTemaOficial,
+  construirProductoEstructurado,
+  formatearProductoFinal,
 } from "./curriculumCombinacionService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -78,6 +84,67 @@ const getEjesTematicos = (area) => {
   return ejes[area] || ["Alfabetización Imprescindible", "Ciudadanía y Convivencia"];
 };
 
+// ─── Trazabilidad semántica dentro de la clase ───────────────────────────────
+
+const STOPWORDS_TRAZA_AULA = new Set([
+  "para", "como", "desde", "hasta", "entre", "sobre", "este", "esta", "estos",
+  "estas", "cada", "donde", "cuando", "porque", "mediante", "tambien", "luego",
+  "grupo", "clase", "actividad", "estudiante", "estudiantes", "docente",
+]);
+
+const tokensTrazaAula = (texto = "") => String(texto || "")
+  .toLowerCase()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .split(/[^a-z0-9ñ]+/)
+  .filter((token) => token.length >= 4 && !STOPWORDS_TRAZA_AULA.has(token));
+
+const idSeguroTraza = (...partes) => partes
+  .map((parte) => String(parte ?? "").trim().replace(/[^a-zA-Z0-9_-]+/g, "-"))
+  .filter(Boolean)
+  .join("-");
+
+const seleccionarActividadParaEvidencia = (evidencia, actividades = []) => {
+  const tokensEvidencia = new Set(tokensTrazaAula(evidencia));
+  const candidatos = actividades.map((actividad) => {
+    const comunes = tokensTrazaAula(actividad.texto).filter((token) => tokensEvidencia.has(token));
+    return { ...actividad, puntaje: comunes.length, coincidencias: comunes };
+  }).sort((a, b) => b.puntaje - a.puntaje);
+  return candidatos[0]?.puntaje > 0 ? candidatos[0] : null;
+};
+
+export const detectarContextoAplicado = ({ contexto = "", textos = [], referencias = [] } = {}) => {
+  const fragmentos = String(contexto || "")
+    .split(/(?<=[.!?;])\s+|\n+/)
+    .map((fragmento) => fragmento.trim())
+    .filter(Boolean);
+  const candidatos = fragmentos.map((fragmento) => {
+    const tokensFragmento = [...new Set(tokensTrazaAula(fragmento))];
+    const coincidencias = textos.map((texto, index) => {
+      const tokensTexto = new Set(tokensTrazaAula(texto));
+      const comunes = tokensFragmento.filter((token) => tokensTexto.has(token));
+      return {
+        referenciaId: referencias[index]?.id || "",
+        tipoReferencia: referencias[index]?.tipo || "",
+        comunes,
+      };
+    }).sort((a, b) => b.comunes.length - a.comunes.length)[0];
+    const distintiva = coincidencias?.comunes?.some((token) => token.length >= 8);
+    const puntaje = coincidencias?.comunes?.length || 0;
+    return { fragmento, coincidencias, puntaje, distintiva };
+  }).sort((a, b) => b.puntaje - a.puntaje);
+  const mejor = candidatos[0];
+  // Dos coincidencias significativas, o una palabra especialmente distintiva,
+  // constituyen evidencia textual. Una palabra genérica no basta.
+  if (!mejor || (mejor.puntaje < 2 && !(mejor.puntaje === 1 && mejor.distintiva))) return null;
+  return {
+    fragmento: mejor.fragmento,
+    referenciaId: mejor.coincidencias.referenciaId,
+    tipoReferencia: mejor.coincidencias.tipoReferencia,
+    coincidencias: mejor.coincidencias.comunes,
+    verificacion: "coincidencia_textual",
+  };
+};
+
 // ─── Template modelo (PDF "My Life and Daily Routines") ──────────────────────
 // Secciones agregadas 2026-07-04 siguiendo el documento modelo del docente:
 // ejes contextualizados, situación de aprendizaje narrativa, nota institucional,
@@ -105,24 +172,99 @@ const construirEjesContextualizados = (ejes, { area, tema }) => {
 // Situación de aprendizaje narrativa al estilo del documento modelo:
 // contexto del centro/comunidad → realidad observada → necesidad auténtica →
 // estrategia y recorrido → producto final progresivo.
-const construirSituacionNarrativa = ({
+export const construirSituacionNarrativa = ({
   area, tema, grado, ciclo, nivel, centro, estrategia, producto,
+  contextoComunitario = "",
 }) => {
   // "Centro Hector Francisco Lopez - Hato Nuevo" → comunidad "Hato Nuevo"
   const comunidad = String(centro || "").includes("-")
     ? String(centro).split("-").pop().trim()
     : "";
-  const ubicacion = centro
-    ? ` de ${centro}${comunidad ? `, en la comunidad de ${comunidad},` : ""}`
+  const nombreCentro = String(centro || "").split("-")[0].trim();
+  const ubicacion = nombreCentro
+    ? ` del ${nombreCentro}${comunidad ? `, en la comunidad de ${comunidad}` : ""}`
     : "";
-  const quienes = `Los estudiantes de ${grado || "este grado"} del ${ciclo || "ciclo"} del Nivel ${nivel || "Secundario"}${ubicacion} viven realidades cotidianas marcadas por jornadas escolares intensas, responsabilidades en el hogar, actividades recreativas y momentos de convivencia familiar y comunitaria.`;
+  const contextoReal = String(contextoComunitario || "").trim();
+  const quienes = `Los estudiantes de ${grado || "este grado"} del ${ciclo || "ciclo"} del Nivel ${nivel || "Secundario"}${ubicacion}`;
+  const productoLimpio = String(producto || "un producto aplicado al contexto")
+    .trim()
+    .replace(/[.\s]+$/, "");
+  const temaNorm = String(tema || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
   if (ES_IDIOMA(area)) {
     const idioma = NOMBRE_IDIOMA(area);
-    return `${quienes} En el aula, sin embargo, se observa que a muchos estudiantes les cuesta nombrar, describir y comparar en ${idioma} elementos cercanos de su vida diaria relacionados con "${tema}", aunque los reconocen en su hogar, la escuela y la comunidad. Esta dificultad limita su participación en conversaciones sencillas, descripciones orales, lecturas breves y producciones escritas sobre experiencias reales. Ante esta realidad, surge la necesidad auténtica de aprender a comunicarse sobre "${tema}" en ${idioma}, conectando el contenido con situaciones familiares, escolares y comunitarias. Mediante la estrategia de ${estrategia}, los estudiantes explorarán vocabulario, estructuras y funciones comunicativas del tema; escucharán modelos breves; practicarán diálogos, descripciones y producciones escritas; compararán sus experiencias con las de sus compañeros; y construirán evidencias progresivas en un portafolio. Como producto final, elaborarán de manera progresiva ${producto} Cada clase aportará una pieza concreta a ese producto, fortaleciendo su competencia comunicativa en ${idioma}, su autonomía, su responsabilidad personal y su capacidad de expresar su realidad con cortesía y claridad.`;
+    const necesidad = /escuela|educacion|school|education/.test(temaNorm)
+      ? `interactúan diariamente en distintos espacios y situaciones escolares; sin embargo, presentan dificultades para solicitar ayuda, pedir permiso, explicar horarios, describir espacios y ofrecer orientaciones sencillas en ${idioma}`
+      : /identificacion|personal|relaciones|social|famil|amig|people|friends/.test(temaNorm)
+        ? `conviven con personas de distintas experiencias e intereses; sin embargo, presentan dificultades para presentarse, intercambiar información personal y relacionarse con cortesía en ${idioma}`
+        : /rutina|vida diaria|daily|routine|habito|horario/.test(temaNorm)
+          ? `organizan responsabilidades escolares, familiares y recreativas; sin embargo, presentan dificultades para describir, comparar y explicar sus rutinas y horarios en ${idioma}`
+          : `reconocen situaciones cotidianas relacionadas con "${tema}"; sin embargo, presentan dificultades para comprenderlas y comunicarse sobre ellas en ${idioma}`;
+    const consecuencia = /escuela|educacion|school|education/.test(temaNorm)
+      ? "lo que limita su capacidad para desenvolverse con autonomía, orientar a otras personas y participar en intercambios reales dentro de la comunidad escolar"
+      : `lo que limita su participación en conversaciones, lecturas y producciones vinculadas con experiencias reales de su entorno`;
+    const anclaje = contextoReal
+      ? ` Esta realidad se relaciona con el contexto expresado por el centro: ${contextoReal.replace(/[.\s]+$/, "")}.`
+      : "";
+    return `${quienes} ${necesidad}, ${consecuencia}.${anclaje} Por ello, mediante ${estrategia}, los estudiantes analizarán situaciones auténticas de su entorno, explorarán el vocabulario y las funciones comunicativas de "${tema}", comprenderán modelos orales y escritos, practicarán intercambios con sus compañeros y producirán las piezas necesarias para elaborar ${productoLimpio}. Este producto será socializado con su audiencia real y permitirá demostrar una comunicación útil, cortés y vinculada con la vida del centro y la comunidad.`;
   }
 
-  return `${quienes} En el aula, sin embargo, se observa que muchos estudiantes conocen "${tema}" desde la experiencia cotidiana, pero les resulta difícil explicarlo, representarlo y aplicarlo con las herramientas propias de ${area}. Ante esta realidad, surge la necesidad auténtica de comprender "${tema}" para interpretar situaciones del entorno y actuar sobre ellas. Mediante la estrategia de ${estrategia}, los estudiantes explorarán los conceptos centrales del tema, los aplicarán en situaciones concretas de su contexto y socializarán sus hallazgos con el grupo. Como producto final, elaborarán de manera progresiva ${producto} A lo largo de la unidad, cada clase aportará una evidencia a ese producto, fortaleciendo sus competencias, su autonomía y su compromiso con la realidad de su comunidad.`;
+  const areaNorm = String(area || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const perfil = /matematica/.test(areaNorm)
+    ? {
+        dificultad: "formular, representar y justificar soluciones a situaciones cuantificables",
+        acciones: "recopilarán datos del entorno, formularán el problema, compararán estrategias de resolución, verificarán resultados y argumentarán sus conclusiones",
+        resultado: "soluciones matemáticas comprensibles y útiles",
+      }
+    : /ciencias de la naturaleza|biologia|quimica|fisica/.test(areaNorm) && !/educacion fisica/.test(areaNorm)
+      ? {
+          dificultad: "formular explicaciones comprobables y relacionar evidencias con los fenómenos observados",
+          acciones: "plantearán preguntas, formularán hipótesis, observarán o experimentarán, registrarán evidencias, analizarán resultados y comunicarán conclusiones",
+          resultado: "explicaciones científicas sustentadas en evidencias",
+        }
+      : /ciencias sociales|historia|geografia|moral y civica/.test(areaNorm)
+        ? {
+            dificultad: "interpretar fuentes, reconocer perspectivas y explicar la relación entre hechos, territorio y ciudadanía",
+            acciones: "investigarán fuentes, contrastarán perspectivas, ubicarán hechos y procesos en su contexto y formularán una interpretación o propuesta ciudadana",
+            resultado: "interpretaciones históricas, geográficas o ciudadanas fundamentadas",
+          }
+        : /lengua espanola/.test(areaNorm)
+          ? {
+              dificultad: "comprender y producir textos adecuados a una intención, una estructura y destinatarios concretos",
+              acciones: "leerán y analizarán textos modelo, planificarán su producción, escribirán o expondrán borradores, revisarán con criterios y publicarán una versión final",
+              resultado: "textos coherentes, adecuados y dirigidos a lectores u oyentes reales",
+            }
+          : /educacion fisica/.test(areaNorm)
+            ? {
+                dificultad: "ejecutar, explicar y autorregular prácticas motrices seguras y saludables",
+                acciones: "observarán su desempeño, practicarán secuencias motrices, aplicarán normas de seguridad, registrarán avances y orientarán una experiencia práctica",
+                resultado: "desempeños motrices conscientes, seguros y cooperativos",
+              }
+            : /educacion artistica/.test(areaNorm)
+              ? {
+                  dificultad: "transformar ideas y referentes del entorno en una creación con intención expresiva",
+                  acciones: "explorarán referentes y técnicas, experimentarán con materiales o lenguajes, elaborarán bocetos, recibirán retroalimentación y presentarán una obra",
+                  resultado: "creaciones artísticas intencionales y contextualizadas",
+                }
+              : /tecnologia/.test(areaNorm)
+                ? {
+                    dificultad: "definir una necesidad y convertirla en una solución tecnológica funcional y responsable",
+                    acciones: "identificarán requerimientos, investigarán alternativas, diseñarán, construirán o simularán un prototipo, lo probarán y documentarán mejoras",
+                    resultado: "soluciones tecnológicas funcionales, explicadas y evaluadas",
+                  }
+                : {
+                    dificultad: `explicar, representar y aplicar "${tema}" con las herramientas propias de ${area}`,
+                    acciones: "investigarán la situación, analizarán información del entorno, aplicarán los conceptos y procedimientos curriculares y contrastarán sus ideas",
+                    resultado: "hallazgos, propuestas o soluciones pertinentes",
+                  };
+  const anclaje = contextoReal
+    ? ` En su contexto se observa la siguiente realidad: ${contextoReal.replace(/[.\s]+$/, "")}.`
+    : "";
+  return `${quienes} reconocen "${tema}" en experiencias de su vida escolar, familiar o comunitaria; sin embargo, presentan dificultades para ${perfil.dificultad}, lo que limita su capacidad para interpretar situaciones y actuar de manera fundamentada.${anclaje} Por ello, mediante ${estrategia}, ${perfil.acciones} y construirán progresivamente ${productoLimpio}. El producto será socializado con una audiencia vinculada al contexto y permitirá comunicar ${perfil.resultado} para la comunidad.`;
 };
 
 // Nota institucional de organización temporal (versión parametrizada del modelo)
@@ -437,25 +579,100 @@ const construirModeloCurricularSuperior = ({
 
 // ─── Anexos A-L (parametrizados según el documento modelo) ───────────────────
 
-const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases = [], numSemanas = 4, aportesProducto = [] }) => {
+export const construirAnexosUnidad = ({
+  area, tema, producto, vocabulario = [], fases = [], numSemanas = 4,
+  aportesProducto = [], indicadoresPriorizados = [], recursosTecnologicos = [],
+  relacionesCriterioIndicador = [],
+}) => {
   const idioma = ES_IDIOMA(area);
   const nombreIdioma = NOMBRE_IDIOMA(area);
   const productoCorto = String(producto).replace(/\.$/, "");
 
-  const rubricaProducto = [
-    { criterio: `Contenido (${tema})`, n4: "Desarrolla el tema de forma completa, con detalles y orden.", n3: "Desarrolla la mayoría de los elementos del tema.", n2: "Desarrolla algunos elementos de forma básica.", n1: "Menciona pocos elementos sin orden." },
-    { criterio: idioma ? `Uso del ${nombreIdioma} (gramática)` : "Uso del lenguaje del área", n4: "Usa las estructuras y el vocabulario trabajados correctamente.", n3: "Usa las estructuras con errores menores.", n2: "Usa las estructuras con errores frecuentes.", n1: "Construcción de ideas muy limitada." },
-    { criterio: "Integración de los contenidos de la unidad", n4: "Integra todos los bloques de la unidad con recomendaciones propias.", n3: "Integra la mayoría de los bloques trabajados.", n2: "Integra los contenidos de forma parcial.", n1: "No integra los contenidos de la unidad." },
-    { criterio: "Diseño y organización", n4: "Producto claro y ordenado, con título, secciones e imágenes.", n3: "Producto ordenado con título y secciones.", n2: "Producto con organización parcial.", n1: "Producto desordenado o incompleto." },
-    { criterio: "Presentación oral", n4: "Presenta con fluidez, volumen y contacto visual.", n3: "Presenta con claridad y pocos titubeos.", n2: "Presenta con apoyo y pausas frecuentes.", n1: "Presenta con mucha dificultad." },
-    { criterio: "Riqueza de vocabulario", n4: "Usa vocabulario variado y preciso de la unidad.", n3: "Usa vocabulario adecuado con alguna repetición.", n2: "Usa vocabulario básico y repetitivo.", n1: "Vocabulario muy limitado." },
-    { criterio: "Claridad comunicativa", n4: "El mensaje se entiende sin esfuerzo; las ideas fluyen con orden.", n3: "El mensaje se entiende con poco esfuerzo.", n2: "El mensaje se entiende con esfuerzo del interlocutor.", n1: "El mensaje es difícil de entender." },
-    { criterio: "Interacción (responde preguntas)", n4: "Responde con seguridad y amplía sus respuestas.", n3: "Responde correctamente las preguntas.", n2: "Responde con apoyo o respuestas muy breves.", n1: "No logra responder." },
-    { criterio: "Creatividad y presentación visual", n4: "Producto original y atractivo; integra imágenes propias y diseño cuidado.", n3: "Producto atractivo con imágenes pertinentes.", n2: "Producto con elementos visuales básicos.", n1: "Producto sin recursos visuales." },
-    ...(idioma ? [{ criterio: "Pronunciación e inteligibilidad", n4: "Pronuncia de forma clara y comprensible durante toda la presentación.", n3: "Pronuncia de forma comprensible con errores menores.", n2: "La pronunciación dificulta a veces la comprensión.", n1: "La pronunciación dificulta mucho la comprensión." }] : []),
+  const criteriosBase = [
+    { criterio: `Propósito y contenido (${tema})`, n4: "Responde completamente a la necesidad y audiencia del producto con información pertinente.", n3: "Responde al propósito con la mayoría de la información necesaria.", n2: "Responde parcialmente al propósito y omite información importante.", n1: "El contenido no responde con claridad al propósito." },
+    { criterio: idioma ? `Uso comunicativo del ${nombreIdioma}` : "Aplicación del lenguaje del área", n4: "Usa con precisión los recursos trabajados para comunicar o resolver la tarea.", n3: "Usa los recursos con errores menores que no afectan el sentido.", n2: "Usa recursos básicos con errores que dificultan parcialmente el sentido.", n1: "Requiere apoyo constante para aplicar los recursos del área." },
+    { criterio: "Organización del producto", n4: "Integra todas las secciones en una secuencia clara, funcional y fácil de consultar.", n3: "Integra las secciones con un orden comprensible.", n2: "Presenta secciones incompletas o conexiones débiles.", n1: "Las piezas aparecen aisladas o desorganizadas." },
+    { criterio: "Claridad de la comunicación", n4: "El mensaje se comprende con facilidad y utiliza ejemplos pertinentes.", n3: "El mensaje se comprende con pocos apoyos.", n2: "El mensaje se comprende parcialmente y requiere aclaraciones.", n1: "El mensaje resulta difícil de comprender." },
+    { criterio: "Interacción y respuesta a la audiencia", n4: "Presenta, escucha y responde con seguridad, respeto y argumentos pertinentes.", n3: "Presenta y responde adecuadamente a la mayoría de las preguntas.", n2: "Interactúa con respuestas breves o apoyo frecuente.", n1: "No logra sostener la interacción prevista." },
+    { criterio: "Revisión y mejora", n4: "Incorpora la retroalimentación y entrega una versión final completa y cuidada.", n3: "Incorpora la mayoría de las mejoras acordadas.", n2: "Incorpora algunas mejoras, pero conserva errores señalados.", n1: "Entrega sin revisar o sin aplicar la retroalimentación." },
   ];
+  const indicadoresTrazables = (Array.isArray(indicadoresPriorizados) ? indicadoresPriorizados : [])
+    .map((ind) => typeof ind === "string"
+      ? { codigo: ind, descripcion: "" }
+      : {
+          codigo: ind?.codigo || ind?.id || ind?.codigoOficial || "",
+          descripcion: ind?.descripcion || ind?.texto || "",
+        })
+    .filter((ind) => ind.codigo || ind.descripcion);
+  const piezasTrazables = (Array.isArray(aportesProducto) ? aportesProducto : [])
+    .map((aporte) => String(aporte?.texto || aporte || "").trim())
+    .filter(Boolean);
+  const tokensTraza = (texto = "") => String(texto || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9ñ]+/)
+    .filter((token) => token.length >= 4);
+  const seleccionarPieza = (texto = "") => {
+    const tokensTexto = new Set(tokensTraza(texto));
+    const candidatos = piezasTrazables.map((pieza) => ({
+      pieza,
+      puntaje: tokensTraza(pieza).filter((token) => tokensTexto.has(token)).length,
+    })).sort((a, b) => b.puntaje - a.puntaje);
+    return candidatos[0]?.puntaje > 0 ? candidatos[0].pieza : productoCorto;
+  };
+  const crearTrazaInstrumento = ({
+    tipo,
+    item,
+    index = 0,
+    evidencia = "",
+    piezaProducto = "",
+  }) => {
+    const relacion = seleccionarRelacionParaEvidencia({
+      texto: [item, evidencia, piezaProducto].filter(Boolean).join(" "),
+      relaciones: relacionesCriterioIndicador,
+    });
+    const pieza = piezaProducto
+      || seleccionarPieza([item, evidencia].filter(Boolean).join(" "));
+    const requiereRevision = !relacion;
+    return {
+      instrumentoId: `${tipo}-${index + 1}`,
+      criterioOficialId: relacion?.criterioId || "",
+      criterioOficialTexto: relacion?.criterioTexto || "",
+      indicadorCodigo: relacion?.indicadorId || "",
+      indicadorDescripcion: relacion?.indicadorDescripcion || "",
+      tipoRelacion: relacion?.tipoRelacion || "sin_correspondencia_suficiente",
+      confianzaRelacion: relacion?.confianza || "requiere_revision",
+      justificacionRelacion: relacion?.justificacion || "Requiere revisión docente; no se asignó un indicador por posición.",
+      estadoTrazabilidad: requiereRevision ? "requiere_revision" : "relacionado",
+      evidencia: evidencia || `Desempeño observable en ${pieza}.`,
+      piezaProducto: pieza,
+      actividadOrigen: `Actividad de elaboración, práctica o revisión vinculada con ${pieza}.`,
+      destinoRegistro: relacion?.indicadorId
+        ? `Registro de calificaciones → ${relacion.indicadorId}`
+        : "Pendiente de revisión docente antes de vincular al Registro",
+      item,
+    };
+  };
+  const rubricaProducto = criteriosBase.map((criterio, index) => {
+    const piezaProducto = seleccionarPieza(criterio.criterio);
+    const traza = crearTrazaInstrumento({
+      tipo: "rubrica",
+      item: criterio.criterio,
+      index,
+      piezaProducto,
+      evidencia: index === 4
+        ? `Socialización de ${productoCorto} y respuestas ofrecidas a la audiencia.`
+        : index === 5
+          ? `Versión revisada de ${piezaProducto} con las mejoras incorporadas.`
+          : `Desempeño observable y contenido verificable en ${piezaProducto}.`,
+    });
+    return {
+      ...criterio,
+      ...traza,
+    };
+  });
 
-  const listaCotejoOral = idioma ? [
+  const listaCotejoOralBase = idioma ? [
     `Saluda y responde preguntas iniciales en ${nombreIdioma}.`,
     `Describe los contenidos de "${tema}" usando las estructuras trabajadas.`,
     "Usa el vocabulario y las expresiones de la unidad.",
@@ -470,6 +687,10 @@ const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases =
     "Relaciona el tema con situaciones de su entorno.",
     "Interactúa con cortesía y respeto con sus compañeros.",
   ];
+  const listaCotejoOral = listaCotejoOralBase.map((item, index) => ({
+    criterio: item,
+    ...crearTrazaInstrumento({ tipo: "lista-cotejo", item, index }),
+  }));
 
   const registroAnecdotico = {
     columnas: ["Fecha", "Estudiante", "Situación observada", "Interpretación / Acción de mejora"],
@@ -479,9 +700,14 @@ const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases =
       `Durante la actividad en parejas explicó el tema con seguridad, pero omitió pasos clave de "${tema}".`,
       "Comprende la idea general; reforzar con práctica guiada breve y verificar en la próxima clase.",
     ],
+    trazabilidad: crearTrazaInstrumento({
+      tipo: "registro-anecdotico",
+      item: "Situación significativa observada durante el desempeño",
+      evidencia: `Nota descriptiva sobre una actuación observable relacionada con "${tema}".`,
+    }),
   };
 
-  const autoevaluacion = idioma ? [
+  const autoevaluacionBase = idioma ? [
     `...describe "${tema}" in ${area === "Francés" ? "French" : "English"}.`,
     "...use the unit vocabulary and structures.",
     "...ask and answer questions about the topic.",
@@ -494,6 +720,33 @@ const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases =
     "...trabajar en equipo y valorar los aportes de mis compañeros.",
     "...presentar mi producto final al grupo.",
   ];
+  const autoevaluacion = autoevaluacionBase.map((item, index) => ({
+    criterio: item,
+    ...crearTrazaInstrumento({
+      tipo: "autoevaluacion",
+      item,
+      index,
+      evidencia: `Juicio del estudiante sustentado con una evidencia de ${seleccionarPieza(item)}.`,
+    }),
+  }));
+  const coevaluacion = [
+    "Una fortaleza observable del producto o desempeño.",
+    "Otra fortaleza vinculada con el indicador trabajado.",
+    "Una mejora concreta para la siguiente versión.",
+  ].map((item, index) => ({
+    criterio: item,
+    ...crearTrazaInstrumento({ tipo: "coevaluacion", item, index }),
+  }));
+  const escalaValoracion = [
+    "Demuestra el indicador en la actividad prevista.",
+    "Presenta una evidencia completa y comprensible.",
+    "Aplica retroalimentación para mejorar la pieza.",
+    "Explica cómo su aporte contribuye al producto final.",
+  ].map((item, index) => ({
+    criterio: item,
+    escala: ["Logrado", "En proceso", "Requiere apoyo"],
+    ...crearTrazaInstrumento({ tipo: "escala-valoracion", item, index }),
+  }));
 
   const glosario = (vocabulario || []).slice(0, 16).map((termino) => ({
     termino: String(termino),
@@ -552,7 +805,7 @@ const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases =
     { seccion: "Cierre", incluye: "Una reflexión o recomendación final relacionada con el tema." },
   ];
 
-  const diagnostica = idioma ? [
+  const diagnosticaBase = idioma ? [
     { habilidad: "Listening (Escuchar)", tarea: `El docente lee o reproduce oraciones sencillas sobre "${tema}"; el estudiante marca en imágenes lo que escucha.`, criterio: "Identifica 4-5 elementos = listo; 2-3 = en proceso; 0-1 = requiere apoyo intensivo de vocabulario." },
     { habilidad: "Speaking (Hablar)", tarea: `El estudiante responde oralmente preguntas básicas sobre "${tema}".`, criterio: "Responde con oraciones completas = listo; con palabras sueltas = en proceso; no responde en el idioma = requiere apoyo." },
     { habilidad: "Reading (Leer)", tarea: `El estudiante lee un texto breve (3-4 oraciones) sobre "${tema}" y responde dos preguntas de comprensión.`, criterio: "Responde ambas correctamente = listo; una = en proceso; ninguna = requiere apoyo lector." },
@@ -563,6 +816,16 @@ const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases =
     { habilidad: "Lectura", tarea: `El estudiante lee un texto breve del área y responde dos preguntas de comprensión.`, criterio: "Responde ambas = listo; una = en proceso; ninguna = requiere apoyo lector." },
     { habilidad: "Producción escrita", tarea: `El estudiante escribe tres ideas sobre "${tema}".`, criterio: "Tres ideas claras = listo; una o dos = en proceso; ninguna = requiere apoyo." },
   ];
+  const diagnostica = diagnosticaBase.map((item, index) => ({
+    ...item,
+    ...crearTrazaInstrumento({
+      tipo: "diagnostica",
+      item: item.habilidad,
+      index,
+      evidencia: item.tarea,
+      piezaProducto: `Evidencia diagnóstica de ${item.habilidad}`,
+    }),
+  }));
 
   const neaePorPerfil = [
     { perfil: "Ritmo de aprendizaje más lento", acceso: "Dar más tiempo, fragmentar las tareas en pasos cortos, usar frases modelo y apoyos visuales.", evaluacion: "Reducir el número de producciones exigidas, permitir banco de palabras y valorar el avance personal." },
@@ -572,20 +835,42 @@ const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases =
     { perfil: "Estudiantes avanzados", acceso: "Asignar retos adicionales, rol de tutor par y tareas de creación.", evaluacion: "Evaluar con criterios de mayor complejidad: riqueza de vocabulario, creatividad e interacción ampliada." },
   ];
 
-  const planB = [
-    { recurso: "TV / proyector (imágenes y videos)", alternativa: "Imágenes impresas, flashcards y dibujos en la pizarra." },
-    { recurso: "Audio / bocinas (escucha con propósito)", alternativa: "El docente lee el texto en voz alta; los estudiantes dramatizan o leen diálogos en parejas." },
-    { recurso: "Presentación digital / diapositivas", alternativa: "Carteles, papelógrafos o esquemas en la pizarra preparados con anticipación." },
-    { recurso: "Dispositivos para grabar presentaciones", alternativa: "Presentación en vivo ante el grupo y coevaluación con rúbrica impresa." },
-    { recurso: "Videos modelo", alternativa: "Lectura de un texto modelo impreso o demostración actuada por el docente." },
-  ];
+  const recursosTecUnicos = textosUnicos(
+    (Array.isArray(recursosTecnologicos) ? recursosTecnologicos : [])
+      .flatMap((recurso) => String(recurso || "").split(","))
+      .map((recurso) => recurso.trim())
+      .filter((recurso) => recurso && !/no requerido/i.test(recurso)),
+  );
+  const alternativaFisica = (recurso) => {
+    const clave = String(recurso || "").toLowerCase();
+    if (/proyector|tv/.test(clave)) return "Láminas impresas, papelógrafo o esquema previamente trazado en la pizarra.";
+    if (/video|clip|audiovisual/.test(clave)) return "Secuencia de imágenes impresas con texto breve o demostración presencial del docente.";
+    if (/audio|grabaci[oó]n|parlante|bocina/.test(clave)) return "Lectura expresiva en voz alta por el docente o diálogo dramatizado por estudiantes.";
+    if (/presentaci[oó]n digital|diapositiv/.test(clave)) return "Carteles, fichas impresas o esquema organizado en la pizarra.";
+    if (/internet|plataforma/.test(clave)) return "Fuentes, consignas y ejercicios previamente impresos para trabajo individual o cooperativo.";
+    if (/computadora|tableta|dispositivo/.test(clave)) return "Plantilla en papel, tarjetas de trabajo y registro manual en el cuaderno.";
+    return "Material impreso equivalente y ejecución presencial de la misma tarea.";
+  };
+  const planB = recursosTecUnicos.length
+    ? recursosTecUnicos.map((recurso) => ({ recurso, alternativa: alternativaFisica(recurso) }))
+    : [{
+        recurso: "No se prevén recursos tecnológicos indispensables",
+        alternativa: "La unidad puede desarrollarse con los recursos didácticos físicos indicados en cada actividad.",
+      }];
 
   return {
     rubricaProducto,
+    rubricaTrazable: true,
+    instrumentosTrazables: true,
+    indicadoresRubrica: textosUnicos(indicadoresTrazables.map((ind) =>
+      [ind.codigo, ind.descripcion].filter(Boolean).join(" — ")
+    )),
     listaCotejoOral,
     registroAnecdotico,
     twoStars: true,
+    coevaluacion,
     autoevaluacion,
+    escalaValoracion,
     glosario,
     sentenceStarters,
     checklistProducto,
@@ -593,6 +878,7 @@ const construirAnexosUnidad = ({ area, tema, producto, vocabulario = [], fases =
     diagnostica,
     neaePorPerfil,
     planB,
+    recursosTecnologicosPrevistos: recursosTecUnicos,
   };
 };
 
@@ -823,7 +1109,8 @@ const _getActsInicioIngles = (tema, fasePos, diaNum, mc = {}) => {
 // Tabla de reglas momento+fase. El Resumen de Evaluación del día se deriva de
 // esta MISMA tabla (ver generarDia) para que documento y resumen coincidan.
 //   Inicio     → Diagnóstica / heteroevaluación / observación directa / lista de cotejo
-//   Desarrollo → Formativa (Sumativa en la fase final)
+//   Desarrollo → Formativa; Sumativa únicamente en la clase de valoración
+//                final del producto, no durante toda la fase de cierre.
 //   Cierre     → Formativa / autoevaluación-coevaluación
 
 const TABLA_EVALUACION = {
@@ -837,7 +1124,7 @@ const TABLA_EVALUACION = {
     tipo: "Formativa",
     agente: "Heteroevaluación",
     tecnica: "Observación directa y revisión del trabajo",
-    instrumento: "Rúbrica analítica",
+    instrumento: "Lista de cotejo",
   },
   DesarrolloFaseFinal: {
     tipo: "Sumativa",
@@ -858,6 +1145,17 @@ const getEvaluacion = (momento, esFaseFinal = false) => {
   return TABLA_EVALUACION[momento] || TABLA_EVALUACION.Inicio;
 };
 
+export const resolverEvaluacionMomento = ({
+  momento,
+  faseIdx = 0,
+  numeroDia = 1,
+  totalDiasFase = 1,
+} = {}) => {
+  const esValoracionFinalProducto =
+    faseIdx === 3 && Number(numeroDia) === Math.max(1, Number(totalDiasFase) || 1);
+  return getEvaluacion(momento, esValoracionFinalProducto);
+};
+
 // ─── Recursos derivados de actividades ─────────────────────────────────────────
 
 const derivarRecursos = (actividades, area, _faseNum) => {
@@ -865,7 +1163,8 @@ const derivarRecursos = (actividades, area, _faseNum) => {
   const tiene = (re) => re.test(txt);
 
   const did = new Set();
-  const tec = new Set(["Pizarrón y marcadores"]);
+  const tec = new Set();
+  did.add("Pizarrón y marcadores");
 
   // Tecnológicos según actividades
   if (tiene(/video|clip|film|audiovisual/)) {
@@ -880,7 +1179,10 @@ const derivarRecursos = (actividades, area, _faseNum) => {
   if (tiene(/internet|plataforma|liveworksheet|kahoot|digital/)) {
     tec.add("Computadora o tableta"); tec.add("Acceso a internet");
   }
-  if (tiene(/proyect/) && tec.size === 1) tec.add("Proyector");
+  // "proyecto" no significa que exista un proyector.
+  if (tiene(/\bproyector\b|\bproyectan\b|\bproyecci[oó]n\b/) && tec.size === 0) {
+    tec.add("Proyector");
+  }
 
   // Didácticos según actividades
   if (tiene(/role.play|tarjeta de rol|situaci[oó]n comunicativa/)) {
@@ -918,7 +1220,7 @@ const derivarRecursos = (actividades, area, _faseNum) => {
   return {
     humanos: "Docente y estudiantes",
     didacticos: [...did].slice(0, 5).join(", "),
-    tecnologicos: [...tec].slice(0, 4).join(", "),
+    tecnologicos: [...tec].slice(0, 4).join(", ") || "No requerido para esta actividad",
   };
 };
 
@@ -986,7 +1288,7 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
   // evaluación determinística (TABLA_EVALUACION). TODO el contenido semántico
   // (título, intención, actividades, evidencias, metacognición, recursos)
   // llega del contrato validado de la IA en el merge; si falta, R3 DETIENE.
-  const esFaseFinal = faseIdx === 3;
+  const esValoracionFinalProducto = faseIdx === 3 && numDia === totalDiasFase;
 
   // R7: tiempos proporcionales a la duración real de clase
   // 45 min → 10/30/5 · 60 min → 10/40/10 · 90 min → 15/65/10
@@ -999,7 +1301,7 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
     tiempo,
     actividades: [],      // ← contrato IA (merge)
     evidencias: "",       // ← contrato IA (merge)
-    evaluacion: getEvaluacion(nombre, esFaseFinal), // determinística (política aprobada)
+    evaluacion: getEvaluacion(nombre, esValoracionFinalProducto), // determinística (política aprobada)
     recursos: { humanos: "Docente y estudiantes", didacticos: "", tecnologicos: "" }, // ← contrato IA
     metacognicion: [],    // ← contrato IA (merge)
   });
@@ -1023,12 +1325,13 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
     // Derivado de TABLA_EVALUACION (misma fuente que la columna Evaluación de
     // cada momento) — documento y resumen siempre consistentes.
     resumenEvaluacion: (() => {
-      const evaluaciones = ["Inicio", "Desarrollo", "Cierre"].map((mom) => getEvaluacion(mom, esFaseFinal));
+      const evaluaciones = ["Inicio", "Desarrollo", "Cierre"]
+        .map((mom) => getEvaluacion(mom, esValoracionFinalProducto));
       return {
         tecnicas: [...new Set(evaluaciones.map((e) => e.tecnica))],
         instrumentos: [...new Set(evaluaciones.map((e) => e.instrumento))],
         criterioPuntuacion: "El docente selecciona los instrumentos que aplicará ese día y define la puntuación según la complejidad del tema.",
-        observaciones: esFaseFinal
+        observaciones: esValoracionFinalProducto
           ? "Registrar los logros del producto final, el nivel de participación en la exposición y el desempeño en la auto y coevaluación."
           : "Registrar el desempeño general del grupo e identificar estudiantes que requieren atención diferenciada o refuerzo.",
       };
@@ -1037,6 +1340,20 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
 };
 
 const DIAS_ORDEN = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+const DIAS_FECHA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+export const validarFechaInicioHorario = (fechaInicio = "", diasClase = []) => {
+  if (!String(fechaInicio || "").trim()) return true;
+  const fecha = new Date(`${fechaInicio}T12:00:00Z`);
+  if (Number.isNaN(fecha.getTime())) throw new Error(`Fecha de inicio inválida: ${fechaInicio}`);
+  const diaFecha = DIAS_FECHA[fecha.getUTCDay()];
+  if (!(diasClase || []).includes(diaFecha)) {
+    throw new Error(
+      `La fecha de inicio ${fechaInicio} cae ${diaFecha}, pero las clases están programadas para ${(diasClase || []).join(", ") || "ningún día"}.`
+    );
+  }
+  return true;
+};
 
 const PESOS_FASE = {
   baja:    { f2: 0.38, f3: 0.22, f4: 0.40 },
@@ -3087,6 +3404,12 @@ const _generarFasesConIA = async (
       dia.indicadoresTrabajados = Array.isArray(aiClase.indicadoresTrabajados)
         ? aiClase.indicadoresTrabajados
         : [];
+      const codigosDia = new Set(dia.indicadoresTrabajados.map((indicador) =>
+        String(indicador?.codigoOficial || indicador?.codigo || indicador?.id || indicador || "").trim()
+      ).filter(Boolean));
+      const relacionesDia = (
+        specFase.arquitecturaCurricular?.evaluacion?.relacionesCriterioIndicador || []
+      ).filter((relacion) => codigosDia.has(String(relacion?.indicadorId || "").trim()));
 
       // MERGE: la estructura base (generarDia) aporta SOLO forma (momentos,
       // tiempos, calendario). TODO el contenido semántico del momento viene
@@ -3115,6 +3438,16 @@ const _generarFasesConIA = async (
         // contenido del contrato (saludo, retroalimentación de la clase
         // anterior, saberes previos, enganche, intención pedagógica).
         orig.actividades = esInicio ? construirInicioCanonico(aiClase) : aiMom.actividades;
+        const prefijoMomento = idSeguroTraza(
+          `S${fase.numero}`,
+          `C${dia.numeroGlobal || dia.numero || i + 1}`,
+          `M${mi + 1}`,
+        );
+        orig.actividadesDetalle = orig.actividades.map((actividad, ai) => ({
+          id: idSeguroTraza(prefijoMomento, `A${ai + 1}`),
+          texto: String(actividad || "").trim(),
+          tipo: "actividad",
+        }));
         if (aiMom.tiempo) orig.tiempo = aiMom.tiempo;
         // Render desagregado DENTRO de la celda Evidencias existente
         // (contenido, no columnas nuevas): **Conocimientos:** / **Desempeño:**
@@ -3132,11 +3465,70 @@ const _generarFasesConIA = async (
         // Dato estructurado para el hilo pedagógico:
         // planificación → instrumentos → registro → evidencias. El texto
         // renderizado de arriba queda intacto para el template/PDF.
-        orig.evidenciasDetalle = {
+        const evidenciasPorTipo = {
           conocimientos: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
-          conocimiento: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
           desempeno: (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean),
           producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean),
+        };
+        const evidenciasConId = Object.entries(evidenciasPorTipo).flatMap(([tipo, evidencias]) =>
+          evidencias.map((texto, ei) => ({
+            id: idSeguroTraza(prefijoMomento, `E-${tipo}-${ei + 1}`),
+            tipo,
+            texto,
+          }))
+        );
+        const trazabilidad = evidenciasConId.map((evidencia) => {
+          const actividad = seleccionarActividadParaEvidencia(evidencia.texto, orig.actividadesDetalle);
+          const relacion = seleccionarRelacionParaEvidencia({
+            texto: [
+              actividad?.texto,
+              evidencia.texto,
+              dia.aporteProducto,
+            ].filter(Boolean).join(" "),
+            relaciones: relacionesDia,
+          });
+          const relacionado = Boolean(relacion && actividad);
+          return {
+            evidenciaId: evidencia.id,
+            evidenciaTipo: evidencia.tipo,
+            evidenciaTexto: evidencia.texto,
+            actividadId: actividad?.id || "",
+            actividadTexto: actividad?.texto || "",
+            criterioId: relacion?.criterioId || "",
+            criterioTexto: relacion?.criterioTexto || "",
+            indicadorId: relacion?.indicadorId || "",
+            indicadorDescripcion: relacion?.indicadorDescripcion || "",
+            aporteProducto: dia.aporteProducto,
+            tipoRelacion: relacion?.tipoRelacion || "sin_correspondencia_suficiente",
+            confianza: relacion?.confianza || "requiere_revision",
+            estado: relacionado ? "relacionado" : "requiere_revision",
+            justificacion: relacionado
+              ? relacion.justificacion
+              : "No se forzó el vínculo: falta correspondencia semántica suficiente entre criterio, indicador, actividad y evidencia.",
+          };
+        });
+        const referenciasContexto = [
+          ...orig.actividadesDetalle.map((actividad) => ({ id: actividad.id, tipo: "actividad" })),
+          ...evidenciasConId.map((evidencia) => ({ id: evidencia.id, tipo: "evidencia" })),
+        ];
+        const contextoAplicado = detectarContextoAplicado({
+          contexto: contexto.contextoComunitario,
+          textos: [
+            ...orig.actividadesDetalle.map((actividad) => actividad.texto),
+            ...evidenciasConId.map((evidencia) => evidencia.texto),
+          ],
+          referencias: referenciasContexto,
+        });
+        orig.evidenciasDetalle = {
+          conocimientos: evidenciasPorTipo.conocimientos,
+          conocimiento: evidenciasPorTipo.conocimientos,
+          desempeno: evidenciasPorTipo.desempeno,
+          producto: evidenciasPorTipo.producto,
+          items: evidenciasConId,
+          indicadores: [...dia.indicadoresTrabajados],
+          aporteProducto: dia.aporteProducto,
+          trazabilidad,
+          contextoAplicado,
         };
         orig.metacognicion = aiMom.metacognicion;
         orig.recursos = {
@@ -3224,6 +3616,8 @@ export const generarUnidadAprendizaje = async (datos) => {
     titulo = "", numSemanas = 4,
     diasClase = [], horasPorDia = 1, duracionHoraClase = 45,
     estrategiaTexto = "", situacionTexto = "", productoFinalTexto = "",
+    productoFinalFormato = "", productoFinalProposito = "",
+    productoFinalAudiencia = "", productoFinalSocializacion = "",
     nombreDocente = "", cedula = "", regional = "", distrito = "",
     centro = "", codigoCentro = "", nivel = "Secundaria", ciclo = "Primer Ciclo",
     modalidad = "Académica", periodo = "", fechaInicio = "",
@@ -3247,38 +3641,30 @@ export const generarUnidadAprendizaje = async (datos) => {
   const durMinEf = (nivel === "Primaria" || nivel === "Inicial") ? 45 : (duracionHoraClase || 45);
   const horasSemanales = diasClaseFinal.length * horasPorDiaEf;
   const schedule = { diasClase: diasClaseFinal, horasPorDia: horasPorDiaEf, duracionHoraClase: durMinEf };
+  validarFechaInicioHorario(fechaInicio, diasClaseFinal);
 
   // Usa la asignatura si tiene entrada en los diccionarios; si no, usa el área como fallback
   const claveContenido = resolverClave(asignatura, area, ESTRATEGIAS_POR_AREA);
   const asignaturaEf = asignatura || area;
   const estrategiaEf = estrategiaTexto || getEstrategia(claveContenido);
   const ambiente = getAmbiente(claveContenido);
-  const construirProductoBase = () => {
-    const temaNorm = String(titulo || "")
-      .toLowerCase()
-      .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const esIdioma = ES_IDIOMA(claveContenido) || ES_IDIOMA(asignaturaEf);
-    if (esIdioma) {
-      if (/people|persona|relaciones|social|famil|friend|amig|conviv|courtesy|cortesia|conversation|comunicacion/.test(temaNorm)) {
-        return "People Around Me: Social Interaction Portfolio.";
-      }
-      if (/daily|routine|rutina|vida diaria|habito|schedule|horario/.test(temaNorm)) {
-        return "My Daily Routine and Healthy Habits Portfolio.";
-      }
-      if (/house|home|casa|vivienda|entorno|city|ciudad|room|habitacion/.test(temaNorm)) {
-        return "My Home and Community Tour Portfolio.";
-      }
-      return `My ${titulo || "Learning"} Portfolio.`;
-    }
-    return `Portafolio de evidencias aplicado a ${titulo || "la unidad"}.`;
-  };
-  const producto = productoFinalTexto || construirProductoBase();
+  const temasProducto = temasSeleccionados.length ? temasSeleccionados : [titulo];
+  const productoDetalleBase = construirProductoEstructurado(temasProducto, {
+    area: claveContenido,
+    asignatura: asignaturaEf,
+    nombre: productoFinalTexto,
+    formato: productoFinalFormato,
+    proposito: productoFinalProposito,
+    audiencia: productoFinalAudiencia,
+    socializacion: productoFinalSocializacion,
+  });
+  const producto = formatearProductoFinal(productoDetalleBase);
   // Situación de aprendizaje narrativa (estilo del documento modelo): contexto
   // del centro → realidad observada → necesidad auténtica → estrategia →
   // producto final progresivo. El texto del docente siempre tiene prioridad.
   const situacion = situacionTexto || construirSituacionNarrativa({
     area: claveContenido, tema: titulo, grado, ciclo, nivel, centro,
-    estrategia: estrategiaEf, producto,
+    estrategia: estrategiaEf, producto, contextoComunitario,
   });
   const ejes = getEjesTematicos(claveContenido);
   const compFundBase = COMPETENCIAS_FUND_POR_AREA[claveContenido] || ["Comunicativa", "Pensamiento Lógico, Creativo y Crítico"];
@@ -3524,6 +3910,22 @@ export const generarUnidadAprendizaje = async (datos) => {
   // 3A — producto final NOMBRADO: sustituye el rótulo genérico en todo el
   // documento (datos generales, situación, nota institucional y anexos)
   const productoNombrado = String(productoFinalNombre || "").trim() || producto;
+  validarProductoFinalAutentico(productoNombrado, titulo);
+  const productoFinalDetalle = productoFinalNombre && productoFinalNombre !== producto
+    ? {
+        ...construirProductoEstructurado(temasProducto, {
+          area: claveContenido,
+          asignatura: asignaturaEf,
+          nombre: productoNombrado,
+          formato: productoFinalFormato,
+          proposito: productoFinalProposito,
+          audiencia: productoFinalAudiencia,
+          socializacion: productoFinalSocializacion,
+        }),
+        texto: productoNombrado,
+        generadoPorIA: true,
+      }
+    : { ...productoDetalleBase, texto: productoNombrado, generadoPorIA: false };
   const situacionFinal = productoNombrado !== producto
     ? String(situacion).split(producto).join(productoNombrado)
     : situacion;
@@ -3559,6 +3961,8 @@ export const generarUnidadAprendizaje = async (datos) => {
         ? asignaturasVinculadasTexto.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
       productoFinal: productoNombrado,
+      productoFinalDetalle,
+      situacionPersonalizada: Boolean(situacionTexto),
       // Temas curriculares que el docente eligió integrar en la unidad
       // (vacío = trabaja solo el tema del título)
       temasIntegrados: rutaCurricular.temas,
@@ -3671,6 +4075,16 @@ export const generarUnidadAprendizaje = async (datos) => {
     fases: unidadResult.fasesSemanales || [],
     numSemanas,
     aportesProducto,
+    indicadoresPriorizados: competenciasDetalleEnriquecidas
+      .flatMap((comp) => comp.indicadores || [])
+      .filter((ind) => ind.aplicaTemaActual),
+    relacionesCriterioIndicador:
+      especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesCriterioIndicador || [],
+    recursosTecnologicos: (unidadResult.fasesSemanales || [])
+      .flatMap((fase) => fase.dias || [])
+      .flatMap((dia) => dia.momentos || [])
+      .map((momento) => momento.recursos?.tecnologicos || "")
+      .filter(Boolean),
   });
 
   // R1 FINAL sobre el DOCUMENTO RENDERIZADO completo (no solo el JSON de la
@@ -3695,6 +4109,72 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
 
   if (vacio(unidad?.situacionAprendizaje)) errores.push("SITUACIÓN DE APRENDIZAJE vacía");
   if (vacio(unidad?.ambienteAprendizaje)) errores.push("AMBIENTE DE APRENDIZAJE vacío");
+  if ((unidad?.anexos?.rubricaProducto || []).length > 6) {
+    errores.push(`RÚBRICA FINAL excesiva (${unidad.anexos.rubricaProducto.length} criterios; máximo 6)`);
+  }
+  if (unidad?.anexos?.rubricaTrazable) {
+    (unidad.anexos.rubricaProducto || []).forEach((criterio, index) => {
+      const ref = `RÚBRICA criterio ${index + 1}`;
+      if (
+        vacio(criterio.indicadorCodigo)
+        && vacio(criterio.indicadorDescripcion)
+        && criterio.estadoTrazabilidad !== "requiere_revision"
+      ) {
+        errores.push(`${ref} sin indicador curricular vinculado`);
+      }
+      if (
+        criterio.estadoTrazabilidad === "relacionado"
+        && (vacio(criterio.criterioOficialId) || vacio(criterio.criterioOficialTexto))
+      ) {
+        errores.push(`${ref} relacionado sin criterio oficial`);
+      }
+      if (vacio(criterio.evidencia)) errores.push(`${ref} sin evidencia observable`);
+      if (vacio(criterio.piezaProducto)) errores.push(`${ref} sin pieza del producto vinculada`);
+    });
+    const recursosPrevistos = unidad.anexos.recursosTecnologicosPrevistos || [];
+    const recursosConPlan = new Set((unidad.anexos.planB || []).map((item) => String(item.recurso || "").trim()));
+    recursosPrevistos.forEach((recurso) => {
+      if (!recursosConPlan.has(String(recurso).trim())) {
+        errores.push(`PLAN B sin alternativa para el recurso tecnológico "${recurso}"`);
+      }
+    });
+  }
+  if (unidad?.anexos?.instrumentosTrazables) {
+    const gruposInstrumentos = [
+      ["lista de cotejo", unidad.anexos.listaCotejoOral || []],
+      ["autoevaluación", unidad.anexos.autoevaluacion || []],
+      ["coevaluación", unidad.anexos.coevaluacion || []],
+      ["escala de valoración", unidad.anexos.escalaValoracion || []],
+      ["diagnóstica", unidad.anexos.diagnostica || []],
+      ["registro anecdótico", unidad.anexos.registroAnecdotico?.trazabilidad
+        ? [unidad.anexos.registroAnecdotico.trazabilidad]
+        : []],
+    ];
+    gruposInstrumentos.forEach(([nombre, items]) => {
+      if (!items.length) errores.push(`INSTRUMENTO ${nombre} sin ítems trazables`);
+      items.forEach((item, index) => {
+        const ref = `INSTRUMENTO ${nombre}, ítem ${index + 1}`;
+        if (
+          vacio(item.indicadorCodigo)
+          && vacio(item.indicadorDescripcion)
+          && item.estadoTrazabilidad !== "requiere_revision"
+        ) {
+          errores.push(`${ref} sin indicador`);
+        }
+        if (
+          item.estadoTrazabilidad === "relacionado"
+          && (vacio(item.criterioOficialId) || vacio(item.criterioOficialTexto))
+        ) {
+          errores.push(`${ref} relacionado sin criterio oficial`);
+        }
+        for (const campo of ["evidencia", "piezaProducto", "actividadOrigen", "destinoRegistro"]) {
+          if (vacio(item[campo])) errores.push(`${ref} sin ${campo}`);
+        }
+      });
+    });
+  }
+
+  const aportesVistos = new Map();
 
   for (const col of ["conceptuales", "procedimentales", "actitudinales"]) {
     if (!unidad?.contenidos?.[col]?.length) errores.push(`CONTENIDOS ${col} vacíos`);
@@ -3716,6 +4196,11 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
     if (!fase.indicadoresAvance?.length) errores.push(`fase ${fase.numero} sin indicadores de avance`);
     (fase.dias || []).forEach((dia) => {
       const ref = `fase ${fase.numero}, clase ${dia.numeroGlobal || dia.numero}`;
+      const aporte = String(dia.aporteProducto || "").replace(/\s+/g, " ").trim().toLowerCase();
+      if (aporte) {
+        if (aportesVistos.has(aporte)) errores.push(`${ref}: aporteProducto duplicado con ${aportesVistos.get(aporte)}`);
+        else aportesVistos.set(aporte, ref);
+      }
       if (vacio(dia.titulo)) errores.push(`${ref}: sin título`);
       if (vacio(dia.intencionPedagogica)) errores.push(`${ref}: sin intención pedagógica`);
       if (!dia.criteriosExito?.length) errores.push(`${ref}: sin criterios de éxito`);
@@ -3729,6 +4214,9 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
         }
         if (vacio(mom.recursos?.humanos)) errores.push(`${mref}: sin recursos humanos`);
         if (vacio(mom.recursos?.didacticos)) errores.push(`${mref}: sin recursos didácticos`);
+        if (/pizarr[oó]n|marcadores/i.test(String(mom.recursos?.tecnologicos || ""))) {
+          errores.push(`${mref}: pizarrón o marcadores mal clasificados como recursos tecnológicos`);
+        }
 
         // Contrato de estilo MINERD: voz verbo-inicial en toda actividad
         for (const act of mom.actividades || []) {
@@ -4130,6 +4618,12 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       const nivelMCERL = unidad.competencias?.nivelMCERL
         ? `<p style="margin:0 0 6pt"><em>Nivel de dominio MCERL: ${unidad.competencias.nivelMCERL}</em></p>`
         : '';
+      const leyendaIndicadores = `
+        <div style="margin:0 0 7pt;padding:5pt 7pt;border:1px solid #cbd5e1;background:#f8fafc;font-size:9.5pt">
+          <strong>● A trabajar en esta unidad</strong>
+          <span style="margin-left:12pt;text-decoration:line-through;opacity:.72">● Trabajado anteriormente</span>
+          <span style="margin-left:12pt">● Pendiente o disponible</span>
+        </div>`;
       // Indicador puede ser string (unidades guardadas legacy) u objeto
       // { codigo, descripcion } con el código oficial de la malla (IL-…)
       // Formato por estado del indicador (regla del documento modelo del dueño):
@@ -4165,7 +4659,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
               : '<em>Sin indicadores en la malla para esta competencia.</em>'}
           </td>
         </tr>`).join('');
-      return `${nivelMCERL}<table class="datos-table" style="margin-bottom:12px">
+      return `${nivelMCERL}${leyendaIndicadores}<table class="datos-table" style="margin-bottom:12px">
         <tr><td class="lbl" style="width:34%;text-align:center">Competencias</td><td class="lbl" style="text-align:center">Indicadores de Logro</td></tr>
         ${filas}
       </table>`;
@@ -4261,24 +4755,52 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     const ax = unidad.anexos;
     if (!ax) return "";
     const filaVacia = (n, cols) => Array.from({ length: n }, () => `<tr>${"<td>&nbsp;</td>".repeat(cols)}</tr>`).join("");
+    const textoItemInstrumento = (item, campo = "criterio") =>
+      typeof item === "string" ? item : (item?.[campo] || item?.item || "");
+    const trazaInstrumentoHtml = (item) => item && typeof item === "object" && (
+      item.indicadorCodigo || item.indicadorDescripcion || item.evidencia
+      || item.piezaProducto || item.estadoTrazabilidad
+    ) ? `<div style="margin-top:3px;font-size:8.5pt;color:#475569">
+      ${item.estadoTrazabilidad === "requiere_revision"
+        ? `<strong style="color:#b45309">⚠ Requiere revisión docente:</strong> ${item.justificacionRelacion || "No se encontró correspondencia suficiente."}<br>`
+        : ""}
+      ${item.criterioOficialId || item.criterioOficialTexto
+        ? `<strong>Criterio oficial:</strong> ${[item.criterioOficialId, item.criterioOficialTexto].filter(Boolean).join(" — ")}<br>`
+        : ""}
+      <strong>Indicador:</strong> ${[item.indicadorCodigo, item.indicadorDescripcion].filter(Boolean).join(" — ") || "—"}<br>
+      <strong>Evidencia:</strong> ${item.evidencia || "—"}<br>
+      <strong>Pieza:</strong> ${item.piezaProducto || "—"}<br>
+      <strong>Registro:</strong> ${item.destinoRegistro || "—"}
+    </div>` : "";
     return `
   <section class="anexos">
     <h2>ANEXOS</h2>
     <p class="nota">Instrumentos de evaluación y apoyos para el aprendizaje de la unidad ${m.titulo}.</p>
 
-    <h3>ANEXO A — Rúbrica analítica del producto final</h3>
-    <table class="rubrica">
-      <tr><th>Criterio</th><th>Nivel 4 — Excelente</th><th>Nivel 3 — Satisfactorio</th><th>Nivel 2 — En proceso</th><th>Nivel 1 — Inicial</th></tr>
-      ${(ax.rubricaProducto || []).map((r) => `<tr><td><strong>${r.criterio}</strong></td><td>${r.n4}</td><td>${r.n3}</td><td>${r.n2}</td><td>${r.n1}</td></tr>`).join("")}
+  <h3>ANEXO A — Rúbrica analítica del producto final</h3>
+  ${(ax.indicadoresRubrica || []).length
+    ? `<p><strong>Indicadores priorizados vinculados:</strong> ${ax.indicadoresRubrica.join(", ")}</p>`
+    : ""}
+  <table class="rubrica">
+      <tr><th>Criterio y trazabilidad</th><th>Nivel 4 — Excelente</th><th>Nivel 3 — Satisfactorio</th><th>Nivel 2 — En proceso</th><th>Nivel 1 — Inicial</th></tr>
+      ${(ax.rubricaProducto || []).map((r) => `<tr><td>
+        <strong>${r.criterio}</strong>
+        ${r.estadoTrazabilidad === "requiere_revision" ? `<br><small style="color:#b45309"><strong>⚠ Requiere revisión docente:</strong> ${r.justificacionRelacion || "sin correspondencia suficiente"}</small>` : ""}
+        ${r.criterioOficialId || r.criterioOficialTexto ? `<br><small><strong>Criterio oficial:</strong> ${[r.criterioOficialId, r.criterioOficialTexto].filter(Boolean).join(" — ")}</small>` : ""}
+        ${r.indicadorCodigo || r.indicadorDescripcion ? `<br><small><strong>Indicador:</strong> ${[r.indicadorCodigo, r.indicadorDescripcion].filter(Boolean).join(" — ")}</small>` : ""}
+        ${r.evidencia ? `<br><small><strong>Evidencia:</strong> ${r.evidencia}</small>` : ""}
+        ${r.piezaProducto ? `<br><small><strong>Pieza:</strong> ${r.piezaProducto}</small>` : ""}
+      </td><td>${r.n4}</td><td>${r.n3}</td><td>${r.n2}</td><td>${r.n1}</td></tr>`).join("")}
     </table>
 
     <h3>ANEXO B — Lista de cotejo para la producción oral</h3>
     <table class="rubrica">
       <tr><th>Indicador observable</th><th style="width:12%">Sí</th><th style="width:14%">En proceso</th><th style="width:12%">No</th></tr>
-      ${(ax.listaCotejoOral || []).map((i) => `<tr><td>${i}</td><td></td><td></td><td></td></tr>`).join("")}
+      ${(ax.listaCotejoOral || []).map((i) => `<tr><td>${textoItemInstrumento(i)}${trazaInstrumentoHtml(i)}</td><td></td><td></td><td></td></tr>`).join("")}
     </table>
 
     <h3>ANEXO C — Registro anecdótico</h3>
+    ${ax.registroAnecdotico?.trazabilidad ? `<p class="nota">${trazaInstrumentoHtml(ax.registroAnecdotico.trazabilidad)}</p>` : ""}
     <table class="rubrica">
       <tr>${(ax.registroAnecdotico?.columnas || []).map((c) => `<th>${c}</th>`).join("")}</tr>
       ${ax.registroAnecdotico?.ejemplo ? `<tr>${ax.registroAnecdotico.ejemplo.map((c) => `<td style="font-style:italic">${c}</td>`).join("")}</tr>` : ""}
@@ -4288,16 +4810,24 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <h3>ANEXO D — Ficha de coevaluación: Two Stars and a Wish</h3>
     <table class="rubrica">
       <tr><td style="width:55%">Evalúo a mi compañero/a:</td><td>____________________</td></tr>
-      <tr><td>⭐ Star 1 — Algo que hizo muy bien:</td><td>____________________</td></tr>
-      <tr><td>⭐ Star 2 — Otra cosa que hizo muy bien:</td><td>____________________</td></tr>
-      <tr><td>🌠 A Wish — Algo que puede mejorar:</td><td>____________________</td></tr>
+      ${(ax.coevaluacion || [
+        "⭐ Star 1 — Algo que hizo muy bien:",
+        "⭐ Star 2 — Otra cosa que hizo muy bien:",
+        "🌠 A Wish — Algo que puede mejorar:",
+      ]).map((item, index) => `<tr><td>${["⭐", "⭐", "🌠"][index] || "•"} ${textoItemInstrumento(item)}${trazaInstrumentoHtml(item)}</td><td>____________________</td></tr>`).join("")}
     </table>
 
     <h3>ANEXO E — Ficha de autoevaluación: My Learning Journey</h3>
     <table class="rubrica">
       <tr><th>Now I can...</th><th style="width:10%">Yes</th><th style="width:10%">Almost</th><th style="width:10%">Not yet</th></tr>
-      ${(ax.autoevaluacion || []).map((i) => `<tr><td>${i}</td><td></td><td></td><td></td></tr>`).join("")}
+      ${(ax.autoevaluacion || []).map((i) => `<tr><td>${textoItemInstrumento(i)}${trazaInstrumentoHtml(i)}</td><td></td><td></td><td></td></tr>`).join("")}
       <tr><td><strong>My personal goal for next time:</strong></td><td colspan="3"></td></tr>
+    </table>
+
+    <h3>ANEXO E.2 — Escala de valoración del proceso y el producto</h3>
+    <table class="rubrica">
+      <tr><th>Criterio trazable</th><th style="width:12%">Logrado</th><th style="width:14%">En proceso</th><th style="width:14%">Requiere apoyo</th></tr>
+      ${(ax.escalaValoracion || []).map((i) => `<tr><td>${textoItemInstrumento(i)}${trazaInstrumentoHtml(i)}</td><td></td><td></td><td></td></tr>`).join("")}
     </table>
 
     ${ax.glosario?.length ? `
@@ -4334,7 +4864,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <p class="nota">Aplicar al inicio de la unidad. No lleva calificación; orienta la planificación y las adaptaciones.</p>
     <table class="rubrica">
       <tr><th style="width:22%">Habilidad</th><th>Tarea</th><th>Criterio de interpretación</th></tr>
-      ${(ax.diagnostica || []).map((d) => `<tr><td><strong>${d.habilidad}</strong></td><td>${d.tarea}</td><td>${d.criterio}</td></tr>`).join("")}
+      ${(ax.diagnostica || []).map((d) => `<tr><td><strong>${d.habilidad}</strong>${trazaInstrumentoHtml(d)}</td><td>${d.tarea}</td><td>${d.criterio}</td></tr>`).join("")}
     </table>
 
     <h3>ANEXO K — Adaptaciones para estudiantes con NEAE, por perfil</h3>

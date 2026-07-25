@@ -459,7 +459,11 @@ export default function PlanificacionPage({
         ciclo: meta.ciclo || prev.ciclo || "",
         modalidad: meta.modalidad || prev.modalidad || "",
         jornada: meta.jornada || prev.jornada || "",
-        productoFinalTexto: meta.productoFinal || prev.productoFinalTexto || "",
+        productoFinalTexto: meta.productoFinalDetalle?.nombre || meta.productoFinal || prev.productoFinalTexto || "",
+        productoFinalFormato: meta.productoFinalDetalle?.formato || prev.productoFinalFormato || "",
+        productoFinalProposito: meta.productoFinalDetalle?.proposito || prev.productoFinalProposito || "",
+        productoFinalAudiencia: meta.productoFinalDetalle?.audiencia || prev.productoFinalAudiencia || "",
+        productoFinalSocializacion: meta.productoFinalDetalle?.socializacion || prev.productoFinalSocializacion || "",
         situacionTexto: contenidoNormalizado.situacionAprendizaje || prev.situacionTexto || "",
         temasSeleccionados: Array.isArray(meta.temasIntegrados) ? meta.temasIntegrados : [],
       }));

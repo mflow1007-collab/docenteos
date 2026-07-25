@@ -24,6 +24,7 @@ import {
   sugerirEfemerideParaUnidad,
   normalizarTema,
   coincideContextoTemaTrabajado,
+  construirProductoEstructurado,
 } from "../services/curriculumCombinacionService";
 import { horasOficialesSecundaria } from "../data/cargaHorariaMINERD.js";
 
@@ -168,6 +169,8 @@ export default function FormularioUnidadAprendizaje({
     titulo = "", numSemanas = 4,
     diasClase = ["Lunes", "Martes", "Miércoles"], horasPorDia = 1, duracionHoraClase = 45,
     estrategiaTexto = "", situacionTexto = "", productoFinalTexto = "",
+    productoFinalFormato = "", productoFinalProposito = "",
+    productoFinalAudiencia = "", productoFinalSocializacion = "",
     contextoComunitario = "",
     asignaturasVinculadasTexto = "",
     nombreDocente = "", cedula = "", regional = "",
@@ -482,6 +485,11 @@ export default function FormularioUnidadAprendizaje({
   const usarRutaInicial = (ruta) => {
     const temasRuta = (ruta?.temas || []).map(textoUI).filter(Boolean);
     const tituloRuta = textoUI(ruta?.titulo) || temasRuta[0] || "";
+    const productoRuta = construirProductoEstructurado(temasRuta, {
+      area,
+      asignatura,
+      nombre: textoUI(ruta?.productoFinal),
+    });
     setModoElegido(ruta?.id || "ruta_inicial");
     setMostrarPropia(false);
     setTemasPropios(temasRuta);
@@ -490,9 +498,19 @@ export default function FormularioUnidadAprendizaje({
       titulo: tituloRuta,
       temasSeleccionados: temasRuta.length > 1 ? temasRuta : [],
       numSemanas: ruta?.semanas || numSemanas,
-      productoFinalTexto: productoFinalTexto || textoUI(ruta?.productoFinal),
+      productoFinalTexto: productoFinalTexto || productoRuta.nombre,
+      productoFinalFormato: productoFinalFormato || productoRuta.formato,
+      productoFinalProposito: productoFinalProposito || productoRuta.proposito,
+      productoFinalAudiencia: productoFinalAudiencia || productoRuta.audiencia,
+      productoFinalSocializacion: productoFinalSocializacion || productoRuta.socializacion,
     });
   };
+
+  const detalleProductoRuta = (ruta) => construirProductoEstructurado(ruta?.temas || [], {
+    area,
+    asignatura,
+    nombre: textoUI(ruta?.productoFinal),
+  });
 
   const abrirPropia = () => {
     setMostrarPropia(true);
@@ -772,7 +790,10 @@ export default function FormularioUnidadAprendizaje({
                       {ruta.etiqueta}: {ruta.titulo}
                     </div>
                     <div style={{ color: "#5b21b6", fontSize: 12, marginTop: 4 }}>
-                      {ruta.semanas} semanas · Producto final: <strong>{ruta.productoFinal}</strong>
+                      {ruta.semanas} semanas · Producto final: <strong>{detalleProductoRuta(ruta).nombre}</strong>
+                    </div>
+                    <div style={{ color: "#6d28d9", fontSize: 11, marginTop: 3 }}>
+                      {detalleProductoRuta(ruta).formato} · Para {detalleProductoRuta(ruta).audiencia}
                     </div>
                   </div>
                   <button
@@ -924,7 +945,10 @@ export default function FormularioUnidadAprendizaje({
                           {index === 0 ? "✨ " : "📍 "}{ruta.etiqueta}: {ruta.titulo}
                         </span>
                         <div style={{ color: "#1e3a8a", fontSize: 12, marginTop: 3 }}>
-                          {ruta.semanas} semanas · Producto: <strong>{ruta.productoFinal}</strong>
+                          {ruta.semanas} semanas · Producto: <strong>{detalleProductoRuta(ruta).nombre}</strong>
+                        </div>
+                        <div style={{ color: "#1d4ed8", fontSize: 11, marginTop: 3 }}>
+                          {detalleProductoRuta(ruta).formato} · Para {detalleProductoRuta(ruta).audiencia}
                         </div>
                       </div>
                       <button
@@ -1433,15 +1457,53 @@ export default function FormularioUnidadAprendizaje({
       </details>
 
       <details className="pd-detalles">
-        <summary>Producto final de la unidad (opcional · mejora la recomendación)</summary>
+        <summary>Producto final de la unidad (opcional · DocenteOS completa lo que falte)</summary>
         <div className="pd-field pd-field-full">
+          <label>Nombre del producto</label>
           <textarea
             rows={2}
             value={productoFinalTexto}
             onChange={set("productoFinalTexto")}
-            placeholder="Ej: Presentación oral, proyecto, portafolio, mural..."
+            placeholder="Ej: Maqueta del sistema solar / Our School Survival Guide"
           />
         </div>
+        <div className="pd-grid-2" style={{ marginTop: 10 }}>
+          <div className="pd-field">
+            <label>Formato o artefacto</label>
+            <input
+              value={productoFinalFormato}
+              onChange={set("productoFinalFormato")}
+              placeholder="Ej: Maqueta científica, podcast, guía bilingüe..."
+            />
+          </div>
+          <div className="pd-field">
+            <label>Propósito</label>
+            <input
+              value={productoFinalProposito}
+              onChange={set("productoFinalProposito")}
+              placeholder="Ej: Explicar un fenómeno con evidencias"
+            />
+          </div>
+          <div className="pd-field">
+            <label>Audiencia</label>
+            <input
+              value={productoFinalAudiencia}
+              onChange={set("productoFinalAudiencia")}
+              placeholder="Ej: Estudiantes nuevos, familias, comunidad..."
+            />
+          </div>
+          <div className="pd-field">
+            <label>Forma de socialización</label>
+            <input
+              value={productoFinalSocializacion}
+              onChange={set("productoFinalSocializacion")}
+              placeholder="Ej: Feria científica, galería, foro..."
+            />
+          </div>
+        </div>
+        <p style={{ margin: "8px 0 0", fontSize: 12, color: "#64748b" }}>
+          Puedes escribir solo el nombre. DocenteOS propondrá formato, propósito, audiencia y socialización según el área y el tema.
+        </p>
       </details>
 
       <details className="pd-detalles">

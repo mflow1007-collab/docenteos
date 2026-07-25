@@ -314,6 +314,21 @@ const construirClase = ({
     ? indicadoresParaClase[(numeroClase - 1) % indicadoresParaClase.length]
     : null;
   const { evidencias, evidenciasEsperadas } = clasificarEvidencias(fuenteEvidencias, momentos);
+  const trazabilidadEvaluativa = momentos.flatMap((momento) =>
+    Array.isArray(momento?.evidenciasDetalle?.trazabilidad)
+      ? momento.evidenciasDetalle.trazabilidad
+      : []
+  );
+  const evidenciasDetalle = momentos.flatMap((momento) =>
+    Array.isArray(momento?.evidenciasDetalle?.items)
+      ? momento.evidenciasDetalle.items
+      : []
+  );
+  const actividadesDetalle = momentos.flatMap((momento) =>
+    Array.isArray(momento?.actividadesDetalle)
+      ? momento.actividadesDetalle
+      : []
+  );
   const claseId = `clase-s${semana}-d${dia.n || dia.numeroGlobal || numeroClase}`;
   const focoCurricular = dia.focoLinguistico || dia.focoCurricular || dia.etapaProgresion || "";
   const mapaEvaluacion = construirMapaEvaluacionClase({
@@ -349,6 +364,9 @@ const construirClase = ({
     recursos,
     evidencias,           // A5.1: clasificación MINERD { conocimiento, desempeno, producto }
     evidenciasEsperadas,  // derivado (compatibilidad con consumidores del Bloque B)
+    evidenciasDetalle,
+    actividadesDetalle,
+    trazabilidadEvaluativa,
     mapaEvaluacion,
     instrumentosPlaneados: [mapaEvaluacion.instrumentoSugerido.etiqueta],
     instrumentosReferenciaMomentos: instrumentosDeMomentos(momentos),
@@ -687,6 +705,7 @@ export const construirInstrumentoDesdePlan = ({
   estructura = null,
   origenGeneracion = "",
   evidenciaTipo = "",
+  trazabilidadEvaluativa = [],
   ahora = new Date().toISOString(),
 }) => {
   if (!planificacionId) throw new Error("planificacionId es obligatorio para crear el instrumento");
@@ -742,6 +761,9 @@ export const construirInstrumentoDesdePlan = ({
     estructura: estructura || { criterios: [], indicadores: [] },
     origenGeneracion,
     evidenciaTipo,
+    trazabilidadEvaluativa: Array.isArray(trazabilidadEvaluativa) ? trazabilidadEvaluativa : [],
+    criterioOficialIds: [...new Set((trazabilidadEvaluativa || []).map((traza) => traza?.criterioId).filter(Boolean))],
+    evidenciaIds: [...new Set((trazabilidadEvaluativa || []).map((traza) => traza?.evidenciaId).filter(Boolean))],
     vinculacion: {
       area: capa.area || "",
       asignatura: capa.asignatura || "",
@@ -864,6 +886,8 @@ export const construirResultadoInstrumento = ({
     tipoInstrumento: instrumento.tipoInstrumento || normalizarTipoInstrumento(instrumento.tipo),
     indicadorIds: instrumento.indicadorIds || [],
     aspectoRegistroIds: instrumento.aspectoRegistroIds || [],
+    criterioOficialIds: instrumento.criterioOficialIds || [],
+    trazabilidadEvaluativa: instrumento.trazabilidadEvaluativa || [],
     puntajeObtenido: puntaje,
     puntajeMaximo,
     porcentaje,
@@ -871,7 +895,7 @@ export const construirResultadoInstrumento = ({
     nivelLogro: nivelLogroDesdePorcentaje(porcentaje),
     estado,
     observacionDocente,
-    evidenciasIds,
+    evidenciasIds: evidenciasIds.length ? evidenciasIds : (instrumento.evidenciaIds || []),
     fechaEvaluacion,
     periodo: instrumento.periodo || "",
     origen: "instrumento",
@@ -909,6 +933,8 @@ export const construirEvidenciaDesdeResultado = (resultado, { instrumento = null
     resultadoId: resultado.resultadoId,
     indicadorId: resultado.indicadorIds?.[0] || "",
     indicadorIds: resultado.indicadorIds || [],
+    criterioOficialIds: resultado.criterioOficialIds || [],
+    trazabilidadEvaluativa: resultado.trazabilidadEvaluativa || [],
     aspectoId: resultado.aspectoRegistroIds?.[0] || "",
     aspectoIds: resultado.aspectoRegistroIds || [],
     tipo: "resultado_instrumento",

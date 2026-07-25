@@ -96,16 +96,269 @@ export const obtenerPerfilPedagogicoArea = (area = "", asignatura = "") => (
   PERFIL_AREA[asignatura] || PERFIL_AREA[area] || PERFIL_DEFAULT
 );
 
-const extraerCriteriosEvaluacion = (payload = {}) => {
-  const directos = [
-    ...lista(payload.criteriosEvaluacion),
-    ...lista(payload.criteriosDeEvaluacion),
-    ...lista(payload.evaluacion?.criterios),
-  ];
-  const desdeCompetencias = lista((payload.competencias || []).flatMap((comp) =>
-    comp?.criteriosEvaluacion || comp?.criterios || []
-  ));
-  return [...new Set([...directos, ...desdeCompetencias])].slice(0, 12);
+const normalizarClaveCriterio = (value = "") => limpiar(value)
+  .toLowerCase()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9]+/g, "-")
+  .replace(/^-+|-+$/g, "");
+
+const hashCriterio = (value = "") => {
+  let hash = 2166136261;
+  for (const char of String(value || "")) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36).toUpperCase();
+};
+
+const textoCriterio = (item) => limpiar(
+  typeof item === "string"
+    ? item
+    : item?.textoOficial || item?.descripcion || item?.texto || item?.criterio || item?.valor
+);
+
+/**
+ * Convierte los criterios literales de la malla en objetos estables, sin
+ * inventar relaciones. La competencia fundamental/origen solo se conserva
+ * cuando el documento la declara en su propia estructura.
+ */
+export const extraerCriteriosEvaluacionCanonicos = (payload = {}, contexto = {}) => {
+  const metadata = payload.metadata || {};
+  const base = {
+    nivel: limpiar(contexto.nivel || payload.nivel || payload.level || metadata.nivel || metadata.level),
+    ciclo: limpiar(contexto.ciclo || payload.ciclo || payload.cycle || metadata.ciclo || metadata.cycle),
+    grado: limpiar(contexto.grado || payload.grado || payload.grade || metadata.grado || metadata.grade),
+    area: limpiar(contexto.area || payload.area || metadata.area),
+    asignatura: limpiar(contexto.asignatura || payload.asignatura || payload.subject || metadata.asignatura || metadata.subject),
+  };
+  const fuentePayload = payload.fuente || metadata.fuente || {};
+  const fuenteBase = {
+    documento: limpiar(
+      typeof fuentePayload === "string"
+        ? fuentePayload
+        : fuentePayload.documento || fuentePayload.titulo || fuentePayload.nombre
+    ),
+    institucion: limpiar(
+      typeof fuentePayload === "object" ? fuentePayload.institucion || fuentePayload.organismo : ""
+    ),
+    url: limpiar(typeof fuentePayload === "object" ? fuentePayload.url : ""),
+  };
+  const candidatos = [];
+  const agregar = (items, origen, extra = {}) => {
+    (Array.isArray(items) ? items : items ? [items] : []).forEach((item) => {
+      const textoOficial = textoCriterio(item);
+      if (!textoOficial) return;
+      candidatos.push({
+        ...base,
+        textoOficial,
+        competenciaFundamental: limpiar(extra.competenciaFundamental),
+        competenciaIdDeclarada: limpiar(extra.competenciaIdDeclarada),
+        origen,
+        fuente: {
+          ...fuenteBase,
+          pagina: Number(item?.pagina || item?.page || extra.pagina || 0) || null,
+          fragmentoId: limpiar(item?.fragmentoId || item?.fragmentId || extra.fragmentoId),
+        },
+      });
+    });
+  };
+
+  agregar(payload.criteriosEvaluacion, "criteriosEvaluacion");
+  agregar(payload.criteriosDeEvaluacion, "criteriosDeEvaluacion");
+  agregar(payload.evaluacion?.criterios, "evaluacion.criterios");
+  (payload.aportesCompetenciasFundamentales || []).forEach((aporte) => {
+    agregar(aporte?.criteriosEvaluacion || aporte?.criterios, "aportesCompetenciasFundamentales", {
+      competenciaFundamental: aporte?.competenciaFundamental || aporte?.fundamental,
+      fragmentoId: aporte?.fragmentoId,
+    });
+  });
+  (payload.competencias || []).forEach((competencia) => {
+    agregar(competencia?.criteriosEvaluacion || competencia?.criterios, "competencias", {
+      competenciaFundamental: competencia?.competenciaFundamental || competencia?.fundamental,
+      competenciaIdDeclarada: competencia?.id || competencia?.codigo || competencia?.codigoOficial,
+      fragmentoId: competencia?.fragmentoId,
+    });
+  });
+
+  const unicos = new Map();
+  candidatos.forEach((criterio) => {
+    const claveTexto = normalizarClaveCriterio(criterio.textoOficial);
+    const clave = `${normalizarClaveCriterio(criterio.competenciaFundamental)}|${claveTexto}`;
+    if (!unicos.has(clave)) {
+      const prefijo = [
+        "CR",
+        normalizarClaveCriterio(criterio.asignatura || criterio.area).slice(0, 8).toUpperCase() || "AREA",
+        normalizarClaveCriterio(criterio.grado).slice(0, 5).toUpperCase() || "GRADO",
+      ].join("-");
+      unicos.set(clave, {
+        id: `${prefijo}-${hashCriterio(clave)}`,
+        ...criterio,
+        textoNormalizado: claveTexto,
+        relaciones: {
+          tipo: criterio.competenciaIdDeclarada || criterio.competenciaFundamental ? "declarada_en_fuente" : "sin_relacion_declarada",
+          competenciaIds: criterio.competenciaIdDeclarada ? [criterio.competenciaIdDeclarada] : [],
+        },
+      });
+    }
+  });
+  return [...unicos.values()];
+};
+
+export const inventariarCriteriosCurriculares = (documentos = []) =>
+  (Array.isArray(documentos) ? documentos : []).map((documento) => {
+    const payload = documento?.payload || documento || {};
+    const criterios = extraerCriteriosEvaluacionCanonicos(payload);
+    return {
+      documentoId: documento?.id || payload.id || "",
+      nivel: payload.nivel || payload.level || payload.metadata?.nivel || "",
+      ciclo: payload.ciclo || payload.cycle || payload.metadata?.ciclo || "",
+      grado: payload.grado || payload.grade || payload.metadata?.grado || "",
+      area: payload.area || payload.metadata?.area || "",
+      asignatura: payload.asignatura || payload.subject || payload.metadata?.asignatura || "",
+      cantidadCriterios: criterios.length,
+      conCompetenciaDeclarada: criterios.filter((c) =>
+        c.relaciones.tipo === "declarada_en_fuente"
+      ).length,
+      cobertura: criterios.length ? "presente" : "ausente",
+      criterios,
+    };
+  });
+
+const PALABRAS_VACIAS_RELACION = new Set([
+  "para", "como", "donde", "desde", "entre", "sobre", "mediante", "utilizando",
+  "diferentes", "distintas", "situaciones", "forma", "manera", "serie", "mismo",
+  "misma", "propios", "otras", "otros", "personas", "presentada", "concretas",
+]);
+
+const tokensRelacion = (texto = "") => normalizarClaveCriterio(texto)
+  .split("-")
+  .filter((token) => token.length >= 4 && !PALABRAS_VACIAS_RELACION.has(token));
+
+const FAMILIAS_ACCION = [
+  ["comprender", /comprend|identific|reconoc|interpre|respond/],
+  ["producir", /produc|elabor|redact|escrib|constru|crear|present/],
+  ["interactuar", /interact|dialog|convers|pregunt|respuest|comunic/],
+  ["argumentar", /argument|justific|opinion|punto de vista|critic/],
+  ["resolver", /resolv|solucion|calcular|procedimiento|estrategia/],
+  ["investigar", /investig|indag|hipotes|experiment|evidencia|datos/],
+  ["ejecutar", /ejecut|demostr|practic|motriz|movimiento/],
+  ["valorar", /valor|actitud|respeto|responsab|conviv|cuidado/],
+];
+
+const familiasDeTexto = (texto = "") => FAMILIAS_ACCION
+  .filter(([, patron]) => patron.test(normalizarClaveCriterio(texto).replaceAll("-", " ")))
+  .map(([familia]) => familia);
+
+/**
+ * Propone relaciones DERIVADAS entre criterios e indicadores. Nunca las marca
+ * como oficiales salvo que el documento declare el mismo competenciaId.
+ */
+export const relacionarCriteriosConIndicadores = ({
+  criterios = [],
+  indicadores = [],
+  competencias = [],
+} = {}) => {
+  const comps = (competencias || []).map(normalizarCompetencia);
+  const compPorId = new Map(comps.map((comp) => [comp.id, comp]));
+  const criteriosCanonicos = (criterios || []).filter((c) => c?.textoOficial);
+
+  return (indicadores || []).map(normalizarIndicador).filter((ind) => ind.id || ind.descripcion).map((indicador) => {
+    const tokensIndicador = new Set(tokensRelacion(indicador.descripcion));
+    const familiasIndicador = familiasDeTexto(indicador.descripcion);
+    const compIndicador = compPorId.get(indicador.competenciaId);
+    const candidatos = criteriosCanonicos.map((criterio) => {
+      const tokensCriterio = new Set(tokensRelacion(criterio.textoOficial));
+      const comunes = [...tokensIndicador].filter((token) => tokensCriterio.has(token));
+      const familiasCriterio = familiasDeTexto(criterio.textoOficial);
+      const familiasComunes = familiasIndicador.filter((familia) => familiasCriterio.includes(familia));
+      const mismaCompetenciaDeclarada = Boolean(
+        criterio.competenciaIdDeclarada
+        && indicador.competenciaId
+        && criterio.competenciaIdDeclarada === indicador.competenciaId
+      );
+      const mismaFundamentalDeclarada = Boolean(
+        criterio.competenciaFundamental
+        && compIndicador?.fundamental
+        && normalizarClaveCriterio(criterio.competenciaFundamental)
+          === normalizarClaveCriterio(compIndicador.fundamental)
+      );
+      const puntaje = comunes.length * 2
+        + familiasComunes.length * 4
+        + (mismaCompetenciaDeclarada ? 12 : 0)
+        + (mismaFundamentalDeclarada ? 8 : 0);
+      return {
+        criterio,
+        puntaje,
+        comunes,
+        familiasComunes,
+        mismaCompetenciaDeclarada,
+        mismaFundamentalDeclarada,
+      };
+    }).sort((a, b) => b.puntaje - a.puntaje);
+    const mejor = candidatos[0] || null;
+    if (!mejor || mejor.puntaje < 4) {
+      return {
+        indicadorId: indicador.id,
+        indicadorDescripcion: indicador.descripcion,
+        criterioId: "",
+        criterioTexto: "",
+        tipoRelacion: "sin_correspondencia_suficiente",
+        confianza: "requiere_revision",
+        puntaje: mejor?.puntaje || 0,
+        justificacion: "No existe una correspondencia semántica suficiente con los criterios oficiales disponibles.",
+      };
+    }
+    const declarada = mejor.mismaCompetenciaDeclarada;
+    const confianza = declarada || mejor.puntaje >= 10
+      ? "alta"
+      : mejor.puntaje >= 6 ? "media" : "requiere_revision";
+    return {
+      indicadorId: indicador.id,
+      indicadorDescripcion: indicador.descripcion,
+      criterioId: mejor.criterio.id,
+      criterioTexto: mejor.criterio.textoOficial,
+      tipoRelacion: declarada ? "declarada_en_fuente" : "derivada",
+      confianza,
+      puntaje: mejor.puntaje,
+      justificacion: [
+        mejor.mismaCompetenciaDeclarada ? "La fuente declara la misma competencia específica." : "",
+        mejor.mismaFundamentalDeclarada ? "Comparte la Competencia Fundamental declarada." : "",
+        mejor.familiasComunes.length ? `Coincide en la acción cognitiva: ${mejor.familiasComunes.join(", ")}.` : "",
+        mejor.comunes.length ? `Coincide en: ${mejor.comunes.slice(0, 4).join(", ")}.` : "",
+      ].filter(Boolean).join(" "),
+    };
+  });
+};
+
+export const seleccionarRelacionParaEvidencia = ({
+  texto = "",
+  relaciones = [],
+  umbral = 4,
+} = {}) => {
+  const tokensTexto = new Set(tokensRelacion(texto));
+  const familiasTexto = familiasDeTexto(texto);
+  const candidatos = (Array.isArray(relaciones) ? relaciones : [])
+    .filter((relacion) => relacion?.criterioId && relacion?.indicadorId)
+    .map((relacion) => {
+      const referente = [
+        relacion.criterioTexto,
+        relacion.indicadorDescripcion,
+      ].filter(Boolean).join(" ");
+      const tokensReferente = new Set(tokensRelacion(referente));
+      const comunes = [...tokensTexto].filter((token) => tokensReferente.has(token));
+      const familiasReferente = familiasDeTexto(referente);
+      const familiasComunes = familiasTexto.filter((familia) => familiasReferente.includes(familia));
+      return {
+        ...relacion,
+        puntajeEvidencia: comunes.length * 2 + familiasComunes.length * 4,
+        coincidenciasEvidencia: comunes,
+        familiasEvidencia: familiasComunes,
+      };
+    })
+    .sort((a, b) => b.puntajeEvidencia - a.puntajeEvidencia);
+  const mejor = candidatos[0] || null;
+  if (!mejor || mejor.puntajeEvidencia < umbral) return null;
+  return mejor;
 };
 
 const normalizarCompetencia = (comp = {}) => ({
@@ -148,7 +401,15 @@ export const construirArquitecturaUnidadMINERD = ({
   ];
   const procedimentales = lista(mallaContenidos.funcionales);
   const actitudinales = lista(mallaContenidos.actitudinales);
-  const criteriosEvaluacion = extraerCriteriosEvaluacion(mallaPayload);
+  const criteriosEvaluacionDetalle = extraerCriteriosEvaluacionCanonicos(mallaPayload, {
+    nivel, ciclo, grado, area, asignatura,
+  });
+  const criteriosEvaluacion = criteriosEvaluacionDetalle.map((criterio) => criterio.textoOficial);
+  const relacionesCriterioIndicador = relacionarCriteriosConIndicadores({
+    criterios: criteriosEvaluacionDetalle,
+    indicadores: indicadoresActuales,
+    competencias: competenciasNormalizadas,
+  });
 
   return {
     schemaVersion: "curriculumBrain-1.0",
@@ -201,6 +462,9 @@ export const construirArquitecturaUnidadMINERD = ({
     },
     evaluacion: {
       criterios: criteriosEvaluacion,
+      criteriosDetalle: criteriosEvaluacionDetalle,
+      coberturaCriterios: criteriosEvaluacionDetalle.length ? "presente" : "ausente",
+      relacionesCriterioIndicador,
       momentos: ["diagnostica", "formativa", "sumativa"],
       agentes: ["autoevaluacion", "coevaluacion", "heteroevaluacion"],
       evidenciasPreferentes: perfilArea.evidencias,

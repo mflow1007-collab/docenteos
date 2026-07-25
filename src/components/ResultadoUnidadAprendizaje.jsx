@@ -373,6 +373,16 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
             {nivelMCERL ? ` · Nivel MCERL: ${nivelMCERL}` : ""}
           </p>
         )}
+        {competenciasVisibles.length > 0 && (
+          <div
+            className="ua-text-block"
+            style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", fontSize: 12.5 }}
+          >
+            <span><strong>● A trabajar en esta unidad</strong></span>
+            <span style={{ textDecoration: "line-through", opacity: 0.72 }}>● Trabajado anteriormente</span>
+            <span>● Pendiente o disponible</span>
+          </div>
+        )}
         {competenciasVisibles.length > 0 ? (
           <table className="ua-tabla-datos">
             <tbody>
