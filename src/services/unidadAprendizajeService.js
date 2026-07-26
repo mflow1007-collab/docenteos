@@ -192,6 +192,60 @@ export const asegurarAporteProductoUnico = ({
   };
 };
 
+export const estructurarActividadesVivas = ({
+  actividades = [],
+  momento = "Desarrollo",
+  tema = "",
+  foco = "",
+  producto = "",
+  aporte = "",
+} = {}) => {
+  const limpiar = (texto) => String(texto || "").replace(/\s+/g, " ").trim();
+  const clave = (texto) => limpiar(texto).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const cerrar = (texto) => {
+    const limpio = limpiar(texto);
+    return limpio && !/[.!?]$/.test(limpio) ? `${limpio}.` : limpio;
+  };
+  const originales = actividades.map(cerrar).filter(Boolean);
+  const limite = momento === "Cierre" ? 3 : 5;
+  const bloques = originales.length > limite
+    ? [...originales.slice(0, limite - 1), originales.slice(limite - 1).join(" ")]
+    : originales;
+  const temaTx = limpiar(tema) || "el tema de la clase";
+  const focoTx = limpiar(foco) || "el contenido trabajado";
+  const productoTx = limpiar(producto) || "el producto de la unidad";
+  const aporteTx = limpiar(aporte) || "la producción de la clase";
+  const apoyos = momento === "Cierre"
+    ? [
+        `Explican qué aprendieron sobre ${focoTx} y cómo lo aplicaron en ${aporteTx}.`,
+        `Escuchan la retroalimentación del docente y de sus compañeros, y señalan una mejora concreta para ${productoTx}.`,
+        `Registran el avance alcanzado y una meta breve para continuar trabajando ${temaTx} en la próxima clase.`,
+      ]
+    : [
+        `Durante la observación, lectura o escucha, registran información clave y responden preguntas de comprensión relacionadas con ${temaTx}.`,
+        `Comparan ejemplos, identifican cómo se utiliza ${focoTx} y explican las diferencias con apoyo del docente.`,
+        `Utilizan ${focoTx} en parejas o equipos para producir ejemplos propios vinculados con ${aporteTx}.`,
+        `Socializan sus producciones, reciben retroalimentación sobre el contenido y aplican una mejora antes de integrarlas en ${productoTx}.`,
+      ];
+  const enriquecidos = bloques.map((bloque, index) => {
+    const cantidadOraciones = (bloque.match(/[.!?](?:\s|$)/g) || []).length;
+    return cantidadOraciones >= 2
+      ? bloque
+      : `${bloque} ${apoyos[Math.min(index, apoyos.length - 1)]}`;
+  });
+  if (enriquecidos.length) {
+    const ultimo = enriquecidos.length - 1;
+    const cierreProducto = momento === "Cierre"
+      ? `Conservan ${aporteTx} como evidencia del avance en ${productoTx}.`
+      : `Integran ${aporteTx} en ${productoTx} después de aplicar la retroalimentación recibida.`;
+    if (!clave(enriquecidos.join(" ")).includes(clave(productoTx))) {
+      enriquecidos[ultimo] = `${enriquecidos[ultimo]} ${cierreProducto}`;
+    }
+  }
+  return enriquecidos;
+};
+
 // ─── Template modelo (PDF "My Life and Daily Routines") ──────────────────────
 // Secciones agregadas 2026-07-04 siguiendo el documento modelo del docente:
 // ejes contextualizados, situación de aprendizaje narrativa, nota institucional,
@@ -220,7 +274,7 @@ const construirEjesContextualizados = (ejes, { area, tema }) => {
 // contexto del centro/comunidad → realidad observada → necesidad auténtica →
 // estrategia y recorrido → producto final progresivo.
 export const construirSituacionNarrativa = ({
-  area, tema, grado, ciclo, nivel, centro, estrategia, producto,
+  area, tema, grado, centro, estrategia, producto,
   contextoComunitario = "",
 }) => {
   // "Centro Hector Francisco Lopez - Hato Nuevo" → comunidad "Hato Nuevo"
@@ -232,7 +286,7 @@ export const construirSituacionNarrativa = ({
     ? ` del ${nombreCentro}${comunidad ? `, en la comunidad de ${comunidad}` : ""}`
     : "";
   const contextoReal = String(contextoComunitario || "").trim();
-  const quienes = `Los estudiantes de ${grado || "este grado"} del ${ciclo || "ciclo"} del Nivel ${nivel || "Secundario"}${ubicacion}`;
+  const quienes = `Los estudiantes de ${grado || "este grado"}${ubicacion}`;
   const productoLimpio = String(producto || "un producto aplicado al contexto")
     .trim()
     .replace(/[.\s]+$/, "");
@@ -3174,7 +3228,8 @@ const _generarFasesConIA = async (
     const evidenciaDesarrollo = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Desarrollo", piezaProducto, temaCorto, estructura: estructuraDia });
     const evidenciaCierre = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Cierre", piezaProducto, temaCorto, estructura: estructuraDia });
 
-    const actividadesDesarrollo = construirActividadesDia({
+    const actividadesDesarrollo = estructurarActividadesVivas({
+      actividades: construirActividadesDia({
       protagonista,
       perfilDia,
       temaSemana,
@@ -3185,6 +3240,12 @@ const _generarFasesConIA = async (
       indiceGlobal,
       faseNum,
       esUltimoDeSemana,
+      }),
+      momento: "Desarrollo",
+      tema: temaCorto,
+      foco: estructuraDia,
+      producto: productoNombre,
+      aporte: piezaProducto,
     });
 
     return {
@@ -3281,12 +3342,19 @@ const _generarFasesConIA = async (
         {
           nombre: "Cierre",
           tiempo: dia?.momentos?.[2]?.tiempo || "5 min",
-          actividades: [
+          actividades: estructurarActividadesVivas({
+            actividades: [
             `Comparten una evidencia o aprendizaje logrado sobre ${estructuraDia}.`,
             `Registran una mejora concreta para la próxima clase o para ${productoNombre}.`,
             `Guardan ${piezaProducto} en el portafolio para retomarla o mejorarla en la próxima clase.`,
             "Completan un ticket de salida con una idea aprendida y una pregunta pendiente.",
-          ],
+            ],
+            momento: "Cierre",
+            tema: temaCorto,
+            foco: estructuraDia,
+            producto: productoNombre,
+            aporte: piezaProducto,
+          }),
           evidencias: evidenciaCierre,
           recursos: [...recursosBase, "Ticket de salida"],
           metacognicion: metacogDia("cierre", indiceGlobal),
@@ -4386,6 +4454,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     .cont-table .cont-list { font-size: 10.5pt; padding: 2px 4px 4px 16px; }
     .cont-sub { font-weight: bold; margin: 5px 0 1px; font-size: 10.5pt; }
     .cont-tema { margin-bottom: 3px; font-size: 10.5pt; }
+    .tema-contenidos { margin: 0 0 6px; padding: 6px 9px; border: 1px solid #60a5fa; border-left: 5px solid #1d4ed8; background: #eff6ff; color: #1e3a8a; font-size: 11pt; }
     .curriculo-meta { font-size: 10.5pt; color: #334155; margin: 3px 0 8px; }
     .modelo-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
     .modelo-table th { background: #1d4ed8; color: white; border: 1px solid #1e40af; padding: 5px 6px; font-size: 10.5pt; text-align: left; }
@@ -4723,7 +4792,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       const indicadorHtml = (ind) => {
         if (typeof ind === 'string') return ind;
         const estilo = [
-          ind?.aplicaTemaActual ? 'font-weight:700' : '',
+          ind?.aplicaTemaActual ? 'display:block;font-weight:700;background:#dbeafe;border-left:4px solid #1d4ed8;padding:4px 6px;color:#172554' : '',
           ind?.trabajadoAntes ? 'text-decoration:line-through;opacity:.72' : '',
         ].filter(Boolean).join(';');
         const abrir = estilo ? `<span style="${estilo}">` : '';
@@ -4774,6 +4843,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   })()}
 
   <div class="section-head">CONTENIDOS</div>
+  <div class="tema-contenidos">
+    <strong>Tema${(unidad.contenidos?._temasActivos || []).length > 1 ? "s" : ""} trabajado${(unidad.contenidos?._temasActivos || []).length > 1 ? "s" : ""}:</strong>
+    ${(unidad.contenidos?._temasActivos || [m.titulo]).join(" · ")}
+  </div>
   ${(() => {
     // G3a — agrupación POR TEMA (documento modelo, págs. 5-8): 4 columnas
     // (Conceptos / Procedimientos / Actitudes y valores / Evidencias de

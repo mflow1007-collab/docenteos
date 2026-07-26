@@ -14,7 +14,7 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, detectarContextoAplicado, asegurarAporteProductoUnico } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import {
@@ -275,6 +275,37 @@ check("integra contexto, necesidad, consecuencia, estrategia, acciones, producto
   }
   if (/Portfolio Cada clase|Guide Cada clase/.test(situacion)) {
     throw new Error("el producto quedó unido a la oración siguiente sin puntuación");
+  }
+  if (/del Primer Ciclo|del Nivel Secundaria/i.test(situacion)) {
+    throw new Error("repitió ciclo o nivel dentro de la situación de aprendizaje");
+  }
+  if (!situacion.startsWith("Los estudiantes de 2do Secundaria del Centro Héctor Francisco López")) {
+    throw new Error("el encabezado no enlaza directamente grado y centro");
+  }
+});
+
+console.log("Actividades vivas — bloques didácticos completos:");
+check("Desarrollo conserva entre cuatro y cinco bloques vivos sin comprimir cinco actividades útiles", () => {
+  const actividades = estructurarActividadesVivas({
+    actividades: [
+      "Observan imágenes del centro educativo.",
+      "Analizan el uso de there is y there are.",
+      "Describen espacios escolares en parejas.",
+      "Redactan una orientación para estudiantes nuevos.",
+      "Socializan el texto y aplican una mejora.",
+    ],
+    momento: "Desarrollo",
+    tema: "Escuela y educación",
+    foco: "there is / there are",
+    producto: "Our School Survival Guide",
+    aporte: "descripción de espacios escolares",
+  });
+  if (actividades.length !== 5) throw new Error(`esperaba conservar 5 bloques y obtuvo ${actividades.length}`);
+  if (actividades.some((a) => (a.match(/[.!?](?:\s|$)/g) || []).length < 2)) {
+    throw new Error("quedó una microacción de una sola oración");
+  }
+  if (!actividades.join(" ").includes("Our School Survival Guide")) {
+    throw new Error("no conectó la secuencia con el producto");
   }
 });
 
@@ -576,6 +607,7 @@ const unidadFixture = {
     conceptuales: ["lobby", "entrance", "chair", "desk", "do the laundry", "There is / There are"],
     procedimentales: ["Descripción oral de las partes de la casa", "Formulación de preguntas sobre el hogar"],
     actitudinales: ["Valoración del hogar y la familia", "Respeto por las producciones de los compañeros"],
+    _temasActivos: ["Vivienda, entorno y ciudad"],
   },
   fasesSemanales: [
     {
@@ -620,6 +652,12 @@ check("unidad completa pasa la validación R1", () => {
 check("el HTML muestra el código oficial CE-LEI y los IL", () => {
   if (!html.includes("CE-LEI-1")) throw new Error("falta CE-LEI-1");
   if (!html.includes("IL-LEI-1-1")) throw new Error("falta IL-LEI-1-1");
+});
+
+check("CONTENIDOS identifica explícitamente el tema que se está trabajando", () => {
+  if (!html.includes("Tema trabajado:") || !html.includes("Vivienda, entorno y ciudad")) {
+    throw new Error("el tema activo no aparece destacado en CONTENIDOS");
+  }
 });
 
 check("el PDF explica la negrita, el tachado y los indicadores pendientes", () => {
@@ -1061,6 +1099,9 @@ check("indicadores: del tema en NEGRITA, previos TACHADOS, resto NORMAL — la t
   if (!/font-weight:700[^>]*>\s*<strong>ING-2-I01<\/strong>/.test(out)
       && !new RegExp('font-weight:700[\\s\\S]{0,40}ING-2-I01').test(out)) {
     throw new Error("el indicador del tema no salió en negrita");
+  }
+  if (!/background:#dbeafe[\s\S]{0,160}ING-2-I01/.test(out)) {
+    throw new Error("el indicador del tema no quedó resaltado visualmente");
   }
   // Ya trabajado → tachado (line-through).
   if (!new RegExp('line-through[\\s\\S]{0,60}ING-2-I02').test(out)) {
