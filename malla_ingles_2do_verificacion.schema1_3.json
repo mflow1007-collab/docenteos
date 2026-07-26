@@ -41,7 +41,12 @@
   "revision": {
     "status": "draft",
     "needsReview": false,
-    "nota": "Contenidos estructurados manualmente desde el PDF oficial 2023 (extracción asistida por columnas, verificada). Contenido cotejado como idéntico entre ediciones 2022 y 2023."
+    "nota": "Contenidos estructurados manualmente desde el PDF oficial 2023 (extracción asistida por columnas, verificada). Contenido cotejado como idéntico entre ediciones 2022 y 2023.",
+    "criteriosEvaluacion": {
+      "origen": "Criterios de Evaluación OFICIALES del Primer Ciclo (por ciclo, compartidos 1ro-2do-3ro), transcritos textualmente del PDF Adecuación Curricular Nivel Secundario 2023, páginas impresas 128-131.",
+      "fecha": "2026-07-25",
+      "verificado": true
+    }
   },
   "competencias": [
     {
@@ -65,6 +70,47 @@
           "id": "ING-2-I03",
           "descripcion": "Interactúa en forma oral o escrita a través de una serie de frases y oraciones sencillas, enlazadas por conectores, con el propósito de informar sobre actividades cotidianas, describir estados anímicos y físicos, solicitar ayuda, comprar, expresar deseo o interés, dar consejos y sugerencias, expresar planes y narrar experiencias, aunque con algunos errores básicos.",
           "competenciaId": "ING-2-C01"
+        }
+      ],
+      "criteriosEvaluacion": [
+        {
+          "textoOficial": "Comprensión de textos orales y escritos breves y sencillos compuestos por frases y expresiones básicas, relativas a necesidades concretas y temas cotidianos, apoyándose de imágenes y de modelos previstos.",
+          "competenciaFundamental": "Comunicativa",
+          "competenciaIdDeclarada": "ING-2-C01",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Producción de textos orales y escritos breves y sencillos, compuestos por una serie ensayada de oraciones básicas sobre el mismo tema, en distintas situaciones de comunicación donde se expresan puntos de vista propios y de otras personas, apoyándose de modelos y con ayuda visual.",
+          "competenciaFundamental": "Comunicativa",
+          "competenciaIdDeclarada": "ING-2-C01",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Interacción breve y sencilla mediante una serie de frases y oraciones sencillas relativas a necesidades concretas y temas cotidianos, que el interlocutor puede comprender prestando atención.",
+          "competenciaFundamental": "Comunicativa",
+          "competenciaIdDeclarada": "ING-2-C01",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
         }
       ]
     },
@@ -90,6 +136,47 @@
           "descripcion": "Interactúa en forma oral o escrita a través de una serie de oraciones breves y sencillas ordenadas de una forma lógica y presentadas de forma creativa en diferentes tipos de texto donde comparte experiencias, información, planes, sugerencias, y consejos.",
           "competenciaId": "ING-2-C02"
         }
+      ],
+      "criteriosEvaluacion": [
+        {
+          "textoOficial": "Empleo del pensamiento lógico-verbal y crítico en la comprensión de textos orales y escritos breves y sencillos para responder a preguntas e indicaciones y proponer puntos de vista a partir de la información presentada.",
+          "competenciaFundamental": "Pensamiento Lógico, Creativo y Crítico",
+          "competenciaIdDeclarada": "ING-2-C02",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Utilización del pensamiento lógico-verbal para organizar y relacionar las ideas de forma creativa en los textos orales y escritos que produce, empleando estrategias de desempeño en diferentes situaciones cotidianas de comunicación.",
+          "competenciaFundamental": "Pensamiento Lógico, Creativo y Crítico",
+          "competenciaIdDeclarada": "ING-2-C02",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Interacción sencilla en el idioma inglés, utilizando el razonamiento lógico-verbal y la expresión creativa y crítica para expresar y comprender los mensajes que se comparten en situaciones concretas de comunicación oral o escrita.",
+          "competenciaFundamental": "Pensamiento Lógico, Creativo y Crítico",
+          "competenciaIdDeclarada": "ING-2-C02",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        }
       ]
     },
     {
@@ -113,6 +200,47 @@
           "id": "ING-2-I09",
           "descripcion": "Interactúa de forma oral y escrita para solicitar o proveer información, ayuda, consejos y sugerencias sobre situaciones y problemas relativos a actividades cotidianas, intereses y estados de ánimo, utilizando con claridad frases y oraciones breves y sencillas.",
           "competenciaId": "ING-2-C03"
+        }
+      ],
+      "criteriosEvaluacion": [
+        {
+          "textoOficial": "Comprensión de informaciones contenidas en textos orales y escritos que describen situaciones y problemas cotidianos o del entorno próximo, utilizando estrategias de desempeño y aprendizaje para dar respuestas adecuadas a preguntas e indicaciones.",
+          "competenciaFundamental": "Resolución de Problemas",
+          "competenciaIdDeclarada": "ING-2-C03",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Comunicación breve y sencilla en inglés oral y escrito en la que se describen y plantean diversas circunstancias de su entorno inmediato, empleando estrategias de desempeño para hacerse comprender de forma básica ante su interlocutor.",
+          "competenciaFundamental": "Resolución de Problemas",
+          "competenciaIdDeclarada": "ING-2-C03",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Interacción sencilla en inglés donde se describen problemas y situaciones comunes de su entorno inmediato, a través de estrategias de desempeño para comunicar indicaciones, instrucciones, consejos y sugerencias, aunque su interlocutor deba hacer cierto esfuerzo para comprenderle.",
+          "competenciaFundamental": "Resolución de Problemas",
+          "competenciaIdDeclarada": "ING-2-C03",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
         }
       ]
     },
@@ -138,6 +266,47 @@
           "descripcion": "Sostiene la conversación al interactuar en forma oral o escrita, utilizando frases y oraciones estratégicas para mantener la interacción de forma cortés y respetuosa a las diferencias de la cultura personal y de otras personas.",
           "competenciaId": "ING-2-C04"
         }
+      ],
+      "criteriosEvaluacion": [
+        {
+          "textoOficial": "Reconocimiento de las diferencias y similitudes más comunes de la identidad social y cultural a nivel individual, local y global, a partir de la escucha o la lectura de textos relativos a costumbres, creencias y elementos culturales comunes en su entorno cotidiano inmediato.",
+          "competenciaFundamental": "Ética y Ciudadana",
+          "competenciaIdDeclarada": "ING-2-C04",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Comunicación en inglés en forma oral y escrita, en un plano de respeto, asertividad y cortesía, valorando las diferencias individuales básicas y las de identidad cultural propias de la cultura local y global.",
+          "competenciaFundamental": "Ética y Ciudadana",
+          "competenciaIdDeclarada": "ING-2-C04",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Interacción sencilla en el idioma inglés, participando con cortesía, asertividad y respeto, identificando y describiendo aspectos de diferencias individuales y de identidad cultural propia y de otros países.",
+          "competenciaFundamental": "Ética y Ciudadana",
+          "competenciaIdDeclarada": "ING-2-C04",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        }
       ]
     },
     {
@@ -161,6 +330,47 @@
           "id": "ING-2-I15",
           "descripcion": "Interactúa sobre temas científicos, tecnológicos y de otra índole con el propósito de pedir y dar consejos y sugerencias, de forma presencial o virtual, utilizando vocabulario común con frases y oraciones breves y sencillas.",
           "competenciaId": "ING-2-C05"
+        }
+      ],
+      "criteriosEvaluacion": [
+        {
+          "textoOficial": "Localización, utilización e intercambio de información sencilla en inglés, sobre temas de carácter científico y tecnológico en situaciones inmediatas de comunicación.",
+          "competenciaFundamental": "Científica y Tecnológica",
+          "competenciaIdDeclarada": "ING-2-C05",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Expresión oral y escrita de información, ideas y puntos de vista sobre temas de carácter científico y tecnológico, utilizando información de su entorno inmediato y textos breves con vocabulario sencillo de uso común.",
+          "competenciaFundamental": "Científica y Tecnológica",
+          "competenciaIdDeclarada": "ING-2-C05",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Interacción breve y sencilla con el propósito de compartir información, opiniones y orientaciones sobre temas de carácter científico y tecnológico, a partir de elementos comunes en su vida cotidiana.",
+          "competenciaFundamental": "Científica y Tecnológica",
+          "competenciaIdDeclarada": "ING-2-C05",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
         }
       ]
     },
@@ -186,6 +396,47 @@
           "descripcion": "Interactúa de forma adecuada en situaciones donde se promueve prácticas de hábitos saludables para las personas y amigables con el medioambiente.",
           "competenciaId": "ING-2-C06"
         }
+      ],
+      "criteriosEvaluacion": [
+        {
+          "textoOficial": "Valoración de las acciones positivas para preservar la salud y el medio ambiente al expresar sus preferencias en las actividades cotidianas que realiza.",
+          "competenciaFundamental": "Ambiental y de la Salud",
+          "competenciaIdDeclarada": "ING-2-C06",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Expresión de cuidado del medioambiente y de la salud propia y de otras personas al compartir informaciones, ideas, y preferencias en las actividades cotidianas que realiza.",
+          "competenciaFundamental": "Ambiental y de la Salud",
+          "competenciaIdDeclarada": "ING-2-C06",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Interacción donde se muestra informaciones y opiniones favorables para el cuidado de la salud y el medioambiente en las actividades cotidianas, lugares y objetos que se utilizan en su entorno inmediato.",
+          "competenciaFundamental": "Ambiental y de la Salud",
+          "competenciaIdDeclarada": "ING-2-C06",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        }
       ]
     },
     {
@@ -209,6 +460,47 @@
           "id": "ING-2-I21",
           "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas. 144",
           "competenciaId": "ING-2-C07"
+        }
+      ],
+      "criteriosEvaluacion": [
+        {
+          "textoOficial": "Identificación de las diferencias personales básicas propias y la de otras personas referente a su identidad personal, preferencias de actividades cotidianas, experiencias, apariencia y forma de ser, tanto de manera oral como escrita.",
+          "competenciaFundamental": "Desarrollo Personal y Espiritual",
+          "competenciaIdDeclarada": "ING-2-C07",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Presentación de información con aceptación, cortesía, honestidad, respeto y empatía ante las situaciones que le afectan y afectan a las demás personas.",
+          "competenciaFundamental": "Desarrollo Personal y Espiritual",
+          "competenciaIdDeclarada": "ING-2-C07",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
+        },
+        {
+          "textoOficial": "Interacción en inglés con cortesía, respeto, autocontrol y aceptación ante los talentos, capacidades, limitaciones, sentimientos y creencias propias y de las demás personas, en diversas situaciones de comunicación.",
+          "competenciaFundamental": "Desarrollo Personal y Espiritual",
+          "competenciaIdDeclarada": "ING-2-C07",
+          "fuente": {
+            "documento": "Adecuación Curricular - Nivel Secundario",
+            "organismo": "MINERD - Dirección General de Currículo",
+            "anio": 2023,
+            "paginasPdf": "128-131",
+            "seccion": "Aportes del Área de Lenguas Extranjeras (Inglés) al desarrollo de las Competencias Fundamentales en el Primer Ciclo — Criterios de Evaluación (por ciclo)",
+            "extractionMethod": "pdfjs-assisted (verificado contra PDF oficial)"
+          }
         }
       ]
     }
@@ -4496,5 +4788,28 @@
         "fuente": "Adecuación Curricular Nivel Secundario 2023, Inglés 2do, páginas 140-145"
       }
     }
+  ],
+  "criteriosEvaluacion": [
+    "Comprensión de textos orales y escritos breves y sencillos compuestos por frases y expresiones básicas, relativas a necesidades concretas y temas cotidianos, apoyándose de imágenes y de modelos previstos.",
+    "Producción de textos orales y escritos breves y sencillos, compuestos por una serie ensayada de oraciones básicas sobre el mismo tema, en distintas situaciones de comunicación donde se expresan puntos de vista propios y de otras personas, apoyándose de modelos y con ayuda visual.",
+    "Interacción breve y sencilla mediante una serie de frases y oraciones sencillas relativas a necesidades concretas y temas cotidianos, que el interlocutor puede comprender prestando atención.",
+    "Empleo del pensamiento lógico-verbal y crítico en la comprensión de textos orales y escritos breves y sencillos para responder a preguntas e indicaciones y proponer puntos de vista a partir de la información presentada.",
+    "Utilización del pensamiento lógico-verbal para organizar y relacionar las ideas de forma creativa en los textos orales y escritos que produce, empleando estrategias de desempeño en diferentes situaciones cotidianas de comunicación.",
+    "Interacción sencilla en el idioma inglés, utilizando el razonamiento lógico-verbal y la expresión creativa y crítica para expresar y comprender los mensajes que se comparten en situaciones concretas de comunicación oral o escrita.",
+    "Comprensión de informaciones contenidas en textos orales y escritos que describen situaciones y problemas cotidianos o del entorno próximo, utilizando estrategias de desempeño y aprendizaje para dar respuestas adecuadas a preguntas e indicaciones.",
+    "Comunicación breve y sencilla en inglés oral y escrito en la que se describen y plantean diversas circunstancias de su entorno inmediato, empleando estrategias de desempeño para hacerse comprender de forma básica ante su interlocutor.",
+    "Interacción sencilla en inglés donde se describen problemas y situaciones comunes de su entorno inmediato, a través de estrategias de desempeño para comunicar indicaciones, instrucciones, consejos y sugerencias, aunque su interlocutor deba hacer cierto esfuerzo para comprenderle.",
+    "Reconocimiento de las diferencias y similitudes más comunes de la identidad social y cultural a nivel individual, local y global, a partir de la escucha o la lectura de textos relativos a costumbres, creencias y elementos culturales comunes en su entorno cotidiano inmediato.",
+    "Comunicación en inglés en forma oral y escrita, en un plano de respeto, asertividad y cortesía, valorando las diferencias individuales básicas y las de identidad cultural propias de la cultura local y global.",
+    "Interacción sencilla en el idioma inglés, participando con cortesía, asertividad y respeto, identificando y describiendo aspectos de diferencias individuales y de identidad cultural propia y de otros países.",
+    "Localización, utilización e intercambio de información sencilla en inglés, sobre temas de carácter científico y tecnológico en situaciones inmediatas de comunicación.",
+    "Expresión oral y escrita de información, ideas y puntos de vista sobre temas de carácter científico y tecnológico, utilizando información de su entorno inmediato y textos breves con vocabulario sencillo de uso común.",
+    "Interacción breve y sencilla con el propósito de compartir información, opiniones y orientaciones sobre temas de carácter científico y tecnológico, a partir de elementos comunes en su vida cotidiana.",
+    "Valoración de las acciones positivas para preservar la salud y el medio ambiente al expresar sus preferencias en las actividades cotidianas que realiza.",
+    "Expresión de cuidado del medioambiente y de la salud propia y de otras personas al compartir informaciones, ideas, y preferencias en las actividades cotidianas que realiza.",
+    "Interacción donde se muestra informaciones y opiniones favorables para el cuidado de la salud y el medioambiente en las actividades cotidianas, lugares y objetos que se utilizan en su entorno inmediato.",
+    "Identificación de las diferencias personales básicas propias y la de otras personas referente a su identidad personal, preferencias de actividades cotidianas, experiencias, apariencia y forma de ser, tanto de manera oral como escrita.",
+    "Presentación de información con aceptación, cortesía, honestidad, respeto y empatía ante las situaciones que le afectan y afectan a las demás personas.",
+    "Interacción en inglés con cortesía, respeto, autocontrol y aceptación ante los talentos, capacidades, limitaciones, sentimientos y creencias propias y de las demás personas, en diversas situaciones de comunicación."
   ]
 }

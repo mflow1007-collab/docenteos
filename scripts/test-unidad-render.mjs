@@ -61,20 +61,24 @@ const esperaError = (fn, fragmento) => {
 };
 
 console.log("Criterios oficiales de evaluación — inventario y esquema canónico:");
-check("extrae los seis criterios oficiales disponibles en la malla local de Inglés de 1ro", () => {
+check("extrae los 21 criterios oficiales del Primer Ciclo en la malla local de Inglés de 1ro", () => {
   const payload = JSON.parse(readFileSync(
     join(__dir, "..", "malla_ingles_1ro_adecuacion_2023.schema1_3.json"),
     "utf8",
   ));
   const criterios = extraerCriteriosEvaluacionCanonicos(payload);
-  if (criterios.length !== 6) throw new Error(`esperaba 6 y obtuvo ${criterios.length}`);
+  // 21 criterios únicos (3 por cada una de las 7 competencias fundamentales),
+  // transcritos del PDF oficial. Aparecen como pares: uno por competencia (con
+  // competenciaFundamental declarada) y su espejo a nivel raíz (string suelto).
+  const textosUnicos = new Set(criterios.map((c) => c.textoNormalizado));
+  if (textosUnicos.size !== 21) throw new Error(`esperaba 21 textos únicos y obtuvo ${textosUnicos.size}`);
   for (const criterio of criterios) {
     if (!criterio.id.startsWith("CR-")) throw new Error(`ID no canónico: ${criterio.id}`);
     if (!criterio.textoOficial) throw new Error("perdió el texto oficial");
-    if (criterio.relaciones.tipo !== "sin_relacion_declarada") {
-      throw new Error("inventó una competencia que el JSON directo no declara");
-    }
   }
+  // Al menos los criterios por competencia declaran su Competencia Fundamental.
+  const conFundamental = criterios.filter((c) => c.relaciones.tipo === "declarada_en_fuente");
+  if (conFundamental.length !== 21) throw new Error(`esperaba 21 con competencia declarada y obtuvo ${conFundamental.length}`);
 });
 
 check("conserva la Competencia Fundamental cuando el criterio viene de la matriz de aportes", () => {
