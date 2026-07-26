@@ -11,6 +11,7 @@ import {
   resolverFocosCurriculares,
   obtenerPerfilPedagogicoArea,
   seleccionarRelacionParaEvidencia,
+  extraerCriteriosEvaluacionCanonicos,
 } from "./curriculumBrainService.js";
 import {
   distribuirTemasEnSemanas,
@@ -3978,6 +3979,24 @@ export const generarUnidadAprendizaje = async (datos) => {
   });
   const mallaContenidos = contenidosRuta.union;
   const advertencias = [];
+
+  // GUARDA DE TRAZABILIDAD (no bloquea): la malla ya está resuelta para esta
+  // unidad. Si NO trae criterios de evaluación, los anexos del PDF saldrán con
+  // "Indicador: —" porque no hay criterio↔indicador que emparejar. Que la
+  // consecuencia sea visible ANTES de generar, no después en el PDF.
+  const criteriosMalla = extraerCriteriosEvaluacionCanonicos(mallaPayload, {
+    nivel, grado, area: claveContenido,
+  });
+  if (!criteriosMalla.length) {
+    const avisoTrazabilidad =
+      `⚠️ La malla de ${claveContenido} — ${grado} no tiene criterios de evaluación. ` +
+      `La planificación se generará igual, pero la trazabilidad de los anexos (rúbricas y ` +
+      `listas de cotejo) saldrá SIN indicadores ("Indicador: —"). Para corregirlo, recarga ` +
+      `la malla con sus criterios de evaluación en Administración → Banco de Conocimiento.`;
+    console.warn(`[Unidad] ${avisoTrazabilidad}`);
+    onProgress?.(avisoTrazabilidad);
+    advertencias.push(avisoTrazabilidad);
+  }
 
   const modeloCurricularSuperior = construirModeloCurricularSuperior({
     payload: mallaPayload,

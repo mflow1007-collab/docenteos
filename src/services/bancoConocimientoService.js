@@ -1116,9 +1116,16 @@ export const analizarJsonCurricular = (parsed) => {
     { id: 'temas', label: 'Temas oficiales', count: temas.length, required: 1 },
     { id: 'conceptuales', label: 'Contenidos conceptuales', count: conceptuales.length, required: 1 },
     { id: 'procedimentales', label: 'Contenidos procedimentales', count: procedimentales.length, required: 1 },
+    // Advisory (advisory: true): mallas sin criterios siguen siendo válidas para
+    // guardar (no entra a `faltantes` ni bloquea), pero el resumen DEBE listar el
+    // conteo. Sin criterios la trazabilidad de los anexos queda rota en silencio
+    // y el importador parecía "descartarlos". Su `ok` refleja PRESENCIA (>0).
+    { id: 'criteriosEvaluacion', label: 'Criterios de evaluación', count: criteriosEvaluacion.length, required: 1, advisory: true },
   ].map(item => ({ ...item, ok: item.count >= item.required }));
 
-  const faltantes = requisitos.filter(item => !item.ok).map(item => item.label);
+  // Los bloques advisory (p. ej. criterios de evaluación) informan pero NO
+  // bloquean el guardado: se excluyen de `faltantes`/`listoParaGenerador`.
+  const faltantes = requisitos.filter(item => !item.ok && !item.advisory).map(item => item.label);
   const advertencias = [];
   if (parsed?.paquete?.errores?.length) advertencias.push(...parsed.paquete.errores);
   if (tieneRaw && (!conceptuales.length || !procedimentales.length)) {
