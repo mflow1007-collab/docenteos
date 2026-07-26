@@ -1338,6 +1338,15 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
    (c) MISIÓN/PRODUCCIÓN con NOMBRE PROPIO memorable ligado al tema y al área, usando una mecánica propia (${naturaleza.tecnicas.slice(0, 4).join(", ")}) — el estudiante crea un artefacto o resuelve un reto concreto del tipo: ${naturaleza.productos.join(", ")}.
    (d) SOCIALIZACIÓN con APORTE AL PRODUCTO: comparten, verifican entre pares y el artefacto se guarda para el producto final.`;
 
+  const reglaTiempoDesarrollo = `
+   PRESUPUESTO TEMPORAL OBLIGATORIO DEL DESARROLLO (${tDesarrollo} min):
+   - Si usas 4 bloques, diseña una secuencia ejecutable de 5 + 7 + 10 + 8 minutos.
+   - Si usas 5 bloques, diseña una secuencia ejecutable de 4 + 5 + 7 + 9 + 5 minutos.
+   - Cada bloque debe caber en su tiempo incluyendo instrucciones, organización de parejas/equipos y transición.
+   - Solo UNA tarea de alta carga por clase (redacción extensa, elaboración compleja, ensayo formal o presentación). Las demás la preparan, acompañan o revisan.
+   - No combines en la misma clase una producción extensa y una presentación formal completa.
+   - Si la clase valora el producto final, usa galería o estaciones simultáneas con cambio de roles; nunca programes presentaciones individuales consecutivas para todo el curso en 30 minutos.`;
+
   // Instrucciones sensibles al idioma. En asignaturas de idioma el término va en
   // el idioma meta EN CURSIVA y entre paréntesis, con LIBERTAD de dar oraciones
   // de ejemplo (regla del docente: en las actividades tienes margen para modelar
@@ -1408,6 +1417,7 @@ REGLAS:
 3. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
 4. VOZ OBLIGATORIA: toda actividad inicia con VERBO en tercera persona plural del presente ("Responden...", "Observan...", "Elaboran...", "Socializan..."). PROHIBIDO iniciar con sustantivos o etiquetas — escribe directamente el verbo de acción: NO "Ticket de salida: completan…" → SÍ "Completan un ticket de salida…"; NO "Reflexión: responden…" → SÍ "Reflexionan sobre…"; NO "Evaluación:" → SÍ "Completan una evaluación…". TAMBIÉN PROHIBIDO: "Los estudiantes", "El docente", "La docente", "Se".${notaIdioma} Excepciones canónicas que SÍ inician sin verbo: "Retroalimentación de…" y "Recuperación de saberes previos…". Los depósitos al portafolio se nombran explícitos ("Guardan la producción escrita como Entrada N del Portafolio.").
 ${patronDesarrollo}
+${reglaTiempoDesarrollo}
    Cierre: 3 BLOQUES de 2 a 3 oraciones conectadas — socialización de lo producido → retroalimentación y reflexión sobre UN aspecto específico del aprendizaje del día → mejora o resguardo del artefacto en el portafolio / exit ticket con una producción nueva ("Guardan … en el portafolio para el producto final."). PROHIBIDO cerrar con frases genéricas como "reflexionan sobre lo aprendido"; nombra el contenido exacto, la retroalimentación y el aporte al producto.
 ${reglaInicio}
 7. EVIDENCIAS SEGÚN LAS ACTIVIDADES, NO POR CUOTA FIJA: cada momento incluye "evidencias" como {"conocimientos":[...], "desempeno":[...], "producto":[...]}, pero solo se registran evidencias que nacen de actividades observables. Inicio: 1 evidencia diagnóstica de conocimientos si activa saberes o comprensión inicial. Desarrollo: de 1 a 3 evidencias según lo que realmente hacen; si una actividad dice elaboran/completan/redactan/presentan/guardan, debe existir evidencia de producto; si practican/simulan/dialogan/analizan, evidencia de desempeño. Cierre: 1 o 2 evidencias vinculadas al producto, ticket de salida o reflexión final. Cada evidencia debe nombrar el contenido exacto o la pieza del producto; PROHIBIDAS las no evaluables ("Participación activa en el saludo", "Atención a la explicación") y las listas largas. Además "metacognicion" (2 preguntas de reflexión para el estudiante, ${idiomaMeta}) y "recursos" (2-4 recursos didácticos concretos de ESE momento, en español). Nada puede quedar vacío.

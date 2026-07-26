@@ -14,7 +14,7 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import {
@@ -306,6 +306,16 @@ check("Desarrollo conserva entre cuatro y cinco bloques vivos sin comprimir cinc
   }
   if (!actividades.join(" ").includes("Our School Survival Guide")) {
     throw new Error("no conectó la secuencia con el producto");
+  }
+});
+
+check("el presupuesto de 4 y 5 actividades suma exactamente 30 minutos", () => {
+  const cuatro = distribuirTiempoActividades({ totalMinutos: 30, cantidad: 4, momento: "Desarrollo" });
+  const cinco = distribuirTiempoActividades({ totalMinutos: 30, cantidad: 5, momento: "Desarrollo" });
+  if (cuatro.join(",") !== "5,7,10,8") throw new Error(`patrón de 4 incorrecto: ${cuatro}`);
+  if (cinco.join(",") !== "4,5,7,9,5") throw new Error(`patrón de 5 incorrecto: ${cinco}`);
+  if (cuatro.reduce((a, b) => a + b, 0) !== 30 || cinco.reduce((a, b) => a + b, 0) !== 30) {
+    throw new Error("el presupuesto no suma 30 minutos");
   }
 });
 
@@ -652,6 +662,22 @@ check("unidad completa pasa la validación R1", () => {
 check("el HTML muestra el código oficial CE-LEI y los IL", () => {
   if (!html.includes("CE-LEI-1")) throw new Error("falta CE-LEI-1");
   if (!html.includes("IL-LEI-1-1")) throw new Error("falta IL-LEI-1-1");
+});
+
+check("cada actividad muestra su duración estimada y el Desarrollo suma 30 minutos", () => {
+  const conCinco = structuredClone(unidadFixture);
+  conCinco.fasesSemanales[0].dias[0].momentos
+    .find((momento) => momento.nombre === "Desarrollo").actividades = [
+      "Observan un modelo.",
+      "Analizan ejemplos.",
+      "Practican en parejas.",
+      "Elaboran una producción.",
+      "Socializan y mejoran el producto.",
+    ];
+  const htmlConTiempos = formatearUnidadHTML(conCinco, "");
+  for (const tiempo of ["⏱ 4 min", "⏱ 5 min", "⏱ 7 min", "⏱ 9 min"]) {
+    if (!htmlConTiempos.includes(tiempo)) throw new Error(`falta el tiempo visible ${tiempo}`);
+  }
 });
 
 check("CONTENIDOS identifica explícitamente el tema que se está trabajando", () => {

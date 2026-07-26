@@ -246,6 +246,28 @@ export const estructurarActividadesVivas = ({
   return enriquecidos;
 };
 
+export const distribuirTiempoActividades = ({
+  totalMinutos = 30,
+  cantidad = 4,
+  momento = "Desarrollo",
+} = {}) => {
+  const total = Math.max(1, Number(totalMinutos) || 1);
+  const n = Math.max(1, Number(cantidad) || 1);
+  const patrones = momento === "Cierre"
+    ? { 3: [2, 2, 1] }
+    : {
+        4: [5, 7, 10, 8],
+        5: [4, 5, 7, 9, 5],
+      };
+  const patron = patrones[n];
+  if (patron && patron.reduce((suma, minutos) => suma + minutos, 0) === total) {
+    return patron;
+  }
+  const base = Math.floor(total / n);
+  const resto = total - (base * n);
+  return Array.from({ length: n }, (_, index) => base + (index < resto ? 1 : 0));
+};
+
 // ─── Template modelo (PDF "My Life and Daily Routines") ──────────────────────
 // Secciones agregadas 2026-07-04 siguiendo el documento modelo del docente:
 // ejes contextualizados, situación de aprendizaje narrativa, nota institucional,
@@ -2804,11 +2826,11 @@ const _generarFasesConIA = async (
       }
       if (perfilDia.posicion === "cierre") {
         return [
-          `Presentan ${productoNombre} ante el grupo en turnos breves y cronometrados, para que todos alcancen su turno.`,
-          `Participan en Listen and Evaluate mientras escuchan: completan la rúbrica de coevaluación y anotan una pregunta real para cada presentador.`,
-          `Responden en el idioma trabajado una pregunta del público al cierre de su presentación.`,
-          `Completan la ficha de autoevaluación de la unidad y registran una meta personal para la siguiente.`,
-          `Exhiben los productos terminados en el aula como celebración del cierre (galería del producto).`,
+          `Organizan una galería por estaciones con ${productoNombre}: distribuyen los productos y asignan en cada equipo los roles de presentador, visitante y responsable de tiempo.`,
+          `Realizan una primera ronda simultánea de presentaciones breves. Los visitantes escuchan, completan la rúbrica de coevaluación y formulan una pregunta auténtica al equipo presentador.`,
+          `Cambian los roles y realizan una segunda ronda para que todos puedan presentar y responder preguntas utilizando las estructuras trabajadas en la unidad.`,
+          `Revisan la coevaluación recibida, aplican una mejora final posible y completan la ficha de autoevaluación con una meta personal.`,
+          `Cierran la galería con un recorrido breve por los productos terminados y seleccionan una recomendación útil para estudiantes nuevos de la comunidad escolar.`,
         ];
       }
       return [
@@ -4482,6 +4504,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     .td-momento { background: #f0f9ff; font-weight: bold; text-align: center; width: 65px; }
     .td-tiempo { text-align: center; width: 55px; }
     .td-meta { background: #d1fae5; font-style: italic; }
+    .act-time { display:inline-block; margin-right:3px; padding:1px 4px; border-radius:3px; background:#e0f2fe; color:#075985; font-size:9pt; font-weight:700; white-space:nowrap; }
     .meta-lbl { font-weight: bold; font-style: normal; color: #065f46; }
     .neae-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; margin-bottom: 8px; }
     .neae-col { border: 1px solid #e2e8f0; }
@@ -4563,11 +4586,17 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
     const diaHtml = (dia) => {
       const momentosHtml = (dia.momentos || []).map((mom) => {
+        const totalMomento = Number.parseInt(String(mom.tiempo || ""), 10) || 0;
+        const tiemposActividad = distribuirTiempoActividades({
+          totalMinutos: totalMomento,
+          cantidad: (mom.actividades || []).length,
+          momento: mom.nombre,
+        });
         const actsHtml = (mom.actividades || []).map((a, i) => {
           const html = negritaPrimeraPalabra(a)
             .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
             .replace(/_([^_]+)_/g, "<em>$1</em>");
-          return `<p style="margin:2px 0"><strong>${i + 1})</strong> ${html}</p>`;
+          return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span> ${html}</p>`;
         }).join("");
         const evalHtml = `<strong>Tipo:</strong> ${mom.evaluacion?.tipo}.<br><strong>Agente:</strong> ${mom.evaluacion?.agente}.<br><strong>Técnica:</strong> ${mom.evaluacion?.tecnica}.<br><strong>Instrumento:</strong> ${mom.evaluacion?.instrumento}.`;
         const recursos = mom.recursos || {};
