@@ -55,6 +55,7 @@ export async function logUsage({
   fromCache = false,
   exact     = false, // true = tokens EXACTOS reportados por el proveedor
   error     = null,
+  stopReason = null, // motivo de parada del proveedor (max_tokens/length/end_turn…)
 }) {
   try {
     const uid = getAuth().currentUser?.uid || null;
@@ -71,6 +72,7 @@ export async function logUsage({
       tiempoRespuesta: ms,
       cache:           fromCache,
       tokensExactos:   exact,
+      stopReason:      stopReason || null,
       error:           error || null,
     });
   } catch {

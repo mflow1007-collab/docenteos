@@ -336,6 +336,10 @@ function buildNormalizedStream(providerResponse, provider, model) {
       // Tokens EXACTOS reportados por el proveedor (facturables), si los envía
       let usageIn  = 0;
       let usageOut = 0;
+      // Motivo de parada declarado por el proveedor. Distingue truncado real
+      // (max_tokens / length) de un corte por timeout de Edge (nunca llega
+      // stop_reason → queda null y el cliente lo lee como ABORTO_POR_TIEMPO).
+      let stopReason = null;
 
       try {
         let buffer = "";
@@ -370,6 +374,11 @@ function buildNormalizedStream(providerResponse, provider, model) {
                 if (parsed.usage?.output_tokens) {
                   usageOut = parsed.usage.output_tokens;
                 }
+                // Anthropic: stop_reason y output_tokens finales en message_delta
+                if (parsed.type === "message_delta") {
+                  if (parsed.delta?.stop_reason) stopReason = parsed.delta.stop_reason;
+                  if (parsed.usage?.output_tokens) usageOut = parsed.usage.output_tokens;
+                }
               } else {
                 text = parsed.choices?.[0]?.delta?.content ?? null;
                 // OpenAI-compatible: chunk final con usage (stream_options
@@ -377,6 +386,10 @@ function buildNormalizedStream(providerResponse, provider, model) {
                 if (parsed.usage) {
                   if (parsed.usage.prompt_tokens)     usageIn  = parsed.usage.prompt_tokens;
                   if (parsed.usage.completion_tokens) usageOut = parsed.usage.completion_tokens;
+                }
+                // OpenAI-compatible: finish_reason "length" == truncado por tope
+                if (parsed.choices?.[0]?.finish_reason) {
+                  stopReason = parsed.choices[0].finish_reason;
                 }
               }
 
@@ -390,7 +403,7 @@ function buildNormalizedStream(providerResponse, provider, model) {
         if (usageIn || usageOut) {
           send({ usage: { in: usageIn, out: usageOut, exact: true } });
         }
-        send({ meta: { provider, model } });
+        send({ meta: { provider, model, stopReason } });
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       } catch (err) {
@@ -403,14 +416,21 @@ function buildNormalizedStream(providerResponse, provider, model) {
 
 async function collectNormalizedProviderText(providerResponse, provider) {
   const reader  = providerResponse.body?.getReader?.();
-  if (!reader) return { text: "", usage: null };
+  if (!reader) return { text: "", usage: null, aborted: false };
 
   const decoder = new TextDecoder();
   let buffer = "";
   let text = "";
   let usageIn  = 0;
   let usageOut = 0;
+  let stopReason = null;
+  // Si el signal aborta a los 24s, reader.read() LANZA (AbortError): sin este
+  // try el texto parcial ya acumulado se perdía y el modo de fallo nunca se
+  // podía clasificar como ABORTO_POR_TIEMPO. Capturamos, devolvemos lo parcial
+  // y marcamos aborted para que el llamador lo distinga de un fin limpio.
+  let aborted = false;
 
+  try {
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -440,11 +460,20 @@ async function collectNormalizedProviderText(providerResponse, provider) {
           if (parsed.usage?.output_tokens) {
             usageOut = parsed.usage.output_tokens;
           }
+          // Anthropic: stop_reason y output_tokens finales en message_delta
+          if (parsed.type === "message_delta") {
+            if (parsed.delta?.stop_reason) stopReason = parsed.delta.stop_reason;
+            if (parsed.usage?.output_tokens) usageOut = parsed.usage.output_tokens;
+          }
         } else {
           text += parsed.choices?.[0]?.delta?.content || "";
           if (parsed.usage) {
             if (parsed.usage.prompt_tokens)     usageIn  = parsed.usage.prompt_tokens;
             if (parsed.usage.completion_tokens) usageOut = parsed.usage.completion_tokens;
+          }
+          // OpenAI-compatible: finish_reason "length" == truncado por tope
+          if (parsed.choices?.[0]?.finish_reason) {
+            stopReason = parsed.choices[0].finish_reason;
           }
         }
       } catch {
@@ -452,14 +481,40 @@ async function collectNormalizedProviderText(providerResponse, provider) {
       }
     }
   }
+  } catch (err) {
+    // Corte del stream (timeout de Edge / AbortError). Conservamos el texto
+    // parcial ya leído; el llamador lo trata como ABORTO_POR_TIEMPO.
+    if (err?.name === "AbortError" || err?.name === "TimeoutError") {
+      aborted = true;
+    } else {
+      throw err;
+    }
+  }
 
   return {
     text,
     usage: usageIn || usageOut ? { in: usageIn, out: usageOut, exact: true } : null,
+    stopReason,
+    aborted,
   };
 }
 
-function buildCollectedTextStream(text, provider, model, usage) {
+// Respuesta de tiempo agotado que CORTA el bucle de proveedores. El timeout
+// interno (~24s) ya consumió casi todo el muro de Edge (~25s); rotar en la
+// misma invocación produciría un 504 sin logs y cobraría una segunda
+// generación. El mensaje conserva "tiempo de espera agotado" para que el
+// cliente lo clasifique como ABORTO_POR_TIEMPO. Estado 504 (Gateway Timeout).
+function respuestaTiempoAgotado(detalle) {
+  return new Response(
+    JSON.stringify({
+      error: `${detalle}. El servicio de IA no respondió dentro del tiempo disponible; reintenta con menos carga (tiempo de espera agotado).`,
+      timeout: true,
+    }),
+    { status: 504, headers: { "Content-Type": "application/json" } }
+  );
+}
+
+function buildCollectedTextStream(text, provider, model, usage, stopReason = null) {
   const encoder = new TextEncoder();
 
   return new ReadableStream({
@@ -470,7 +525,7 @@ function buildCollectedTextStream(text, provider, model, usage) {
       if (usage) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ usage })}\n\n`));
       }
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ meta: { provider, model } })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ meta: { provider, model, stopReason } })}\n\n`));
       controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       controller.close();
     },
@@ -593,12 +648,23 @@ export default async function handler(request) {
       if (requireNonEmpty) {
         const collected = await collectNormalizedProviderText(providerResponse, provider);
         if (!collected.text.trim()) {
+          // Aborto por timeout SIN texto: el timeout interno (~24s) ya consumió
+          // casi todo el muro de Edge (~25s). Rotar a otro proveedor en la MISMA
+          // invocación garantiza un 504 sin logs y cobra una segunda generación.
+          // Se corta el bucle y se devuelve el error de tiempo de inmediato.
+          if (collected.aborted) {
+            lastError = `${provider}: tiempo de espera agotado`;
+            console.error(`[AI Gateway] ${lastError} — se corta el bucle (sin rotar) para no agotar el muro de Edge`);
+            return respuestaTiempoAgotado(lastError);
+          }
           lastError = `${provider}: respuesta vacía`;
           console.error(`[AI Gateway] ${lastError}`);
           continue;
         }
 
-        return new Response(buildCollectedTextStream(collected.text, provider, model, collected.usage), {
+        // Con texto parcial de un aborto (collected.aborted), stopReason viaja
+        // null → el cliente lo clasifica ABORTO_POR_TIEMPO y no como truncado real.
+        return new Response(buildCollectedTextStream(collected.text, provider, model, collected.usage, collected.stopReason), {
           headers: {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
@@ -624,9 +690,14 @@ export default async function handler(request) {
       });
     } catch (err) {
       const isTimeout = err?.name === "TimeoutError" || err?.name === "AbortError";
-      lastError = isTimeout
-        ? `${provider}: tiempo de espera agotado`
-        : `${provider}: ${err.message}`;
+      if (isTimeout) {
+        // Igual que arriba: el timeout interno agotó el muro de Edge. NO rotar
+        // en la misma invocación (504 sin logs + doble cobro). Cortar y devolver.
+        lastError = `${provider}: tiempo de espera agotado`;
+        console.error(`[AI Gateway] Proveedor ${provider} agotó el tiempo — se corta el bucle (sin rotar):`, err);
+        return respuestaTiempoAgotado(lastError);
+      }
+      lastError = `${provider}: ${err.message}`;
       console.error(`[AI Gateway] Proveedor ${provider} falló:`, err);
       continue;
     }

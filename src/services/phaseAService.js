@@ -158,7 +158,7 @@ Responde únicamente JSON puro con "clases[]" completo.\n\n`;
 
 // ─── Registro de errores de parseo en aiLogs/ ─────────────────────────────────
 
-async function logParseError({ contexto, attempt, motivo, raw, provider, model }) {
+async function logParseError({ contexto, attempt, motivo, raw, provider, model, stopReason = null, modoFallo = null, tokensSalidaReales = null, msHastaFallo = null, signalAbortado = null }) {
   try {
     const uid = getAuth().currentUser?.uid || null;
     await addDoc(collection(db, 'aiLogs'), {
@@ -171,10 +171,21 @@ async function logParseError({ contexto, attempt, motivo, raw, provider, model }
       contexto,
       intento:         attempt,
       motivo,
+      // Diagnóstico del corte: stop_reason del proveedor y modo de fallo
+      // clasificado (TRUNCADO_REAL vs ABORTO_POR_TIEMPO). null = no aplica.
+      stopReason,
+      modoFallo,
+      // Medición directa del muro de tiempo (para confirmar el diagnóstico con
+      // datos): ms transcurridos hasta el fallo y si fue un abort de signal.
+      msHastaFallo,
+      signalAbortado,
       rawInicio:       (raw || '').slice(0, 500),
       rawFin:          (raw || '').slice(-500),
       tokensEntrada:   0,
-      tokensSalida:    Math.ceil((raw || '').length / 4),
+      // Tokens de salida REALES del proveedor si llegaron (un aborto por timeout
+      // igual los gastó); si no, estimación chars/4. Antes los abortos no
+      // registraban usage y AdminCostosIA subestimaba el gasto.
+      tokensSalida:    tokensSalidaReales || Math.ceil((raw || '').length / 4),
       costoEstimado:   '0.000000',
       tiempoRespuesta: 0,
       cache:           false,
@@ -304,11 +315,15 @@ async function callGatewayCollect(
 
   if (!response.ok) {
     let msg = `HTTP ${response.status}`;
-    try { const b = await response.json(); msg = b.error || msg; } catch {}
+    let bodyTimeout = false;
+    try { const b = await response.json(); msg = b.error || msg; bodyTimeout = b.timeout === true; } catch {}
     const error = new Error(msg);
     error.provider = response.headers.get('X-AI-Provider') || providerOrder?.[0] || 'desconocido';
     error.model = response.headers.get('X-AI-Model') || 'desconocido';
     error.status = response.status;
+    // 504 del gateway = muro de tiempo agotado (cortó el bucle sin rotar). Se
+    // marca timeout para que la escalera lo clasifique como ABORTO_POR_TIEMPO.
+    if (bodyTimeout || response.status === 504) error.timeout = true;
     throw error;
   }
 
@@ -320,6 +335,7 @@ async function callGatewayCollect(
   let buffer = '';
   let text   = '';
   let usage  = null;
+  let stopReason = null; // "max_tokens"/"length" = truncado real; null = corte por timeout
 
   while (true) {
     const { done, value } = await reader.read();
@@ -335,16 +351,23 @@ async function callGatewayCollect(
         const parsed = JSON.parse(raw);
         if (parsed.text) text += parsed.text;
         if (parsed.usage) usage = parsed.usage; // tokens EXACTOS del proveedor
+        if (parsed.meta && parsed.meta.stopReason) stopReason = parsed.meta.stopReason;
       } catch {}
     }
   }
 
-  return { text, provider: usedProvider, model: usedModel, usage };
+  return { text, provider: usedProvider, model: usedModel, usage, stopReason };
 }
 
 // ─── Extractor robusto de JSON ────────────────────────────────────────────────
 
-function extraerJSON(raw) {
+// stopReason lo aporta el gateway (message_delta de Anthropic / finish_reason
+// OpenAI). Distingue el corte real por tope de tokens ("max_tokens"/"length")
+// del corte silencioso por timeout de Edge (llega null: el proveedor nunca
+// alcanzó a declarar por qué paró).
+const esStopPorTope = (stopReason) => stopReason === 'max_tokens' || stopReason === 'length';
+
+function extraerJSON(raw, stopReason = null) {
   if (!raw || !raw.trim()) return { ok: false, motivo: 'respuesta vacía', raw };
   let s = raw.trim();
 
@@ -359,13 +382,26 @@ function extraerJSON(raw) {
 
   const abre   = (s.match(/{/g)  || []).length;
   const cierra = (s.match(/}/g)  || []).length;
-  const motivo = (i === -1)
-    ? 'el modelo respondió texto sin JSON'
-    : (abre > cierra)
-      ? `JSON TRUNCADO (${abre} llaves abren, ${cierra} cierran) — subir maxTokens`
-      : 'JSON malformado';
+  let motivo;
+  let modoFallo = null;
+  if (i === -1) {
+    motivo = 'el modelo respondió texto sin JSON';
+  } else if (abre > cierra) {
+    // JSON incompleto: ¿lo cortó el tope de tokens (TRUNCADO_REAL → subir
+    // maxTokens) o el timeout de Edge (ABORTO_POR_TIEMPO → NO subir tokens,
+    // reducir clases por lote)?
+    if (esStopPorTope(stopReason)) {
+      modoFallo = 'TRUNCADO_REAL';
+      motivo = `JSON TRUNCADO (${abre} llaves abren, ${cierra} cierran) — subir maxTokens (stop_reason=${stopReason})`;
+    } else {
+      modoFallo = 'ABORTO_POR_TIEMPO';
+      motivo = `JSON incompleto por ABORTO_POR_TIEMPO (${abre} llaves abren, ${cierra} cierran; sin stop_reason del proveedor) — reducir clases por lote, NO subir maxTokens`;
+    }
+  } else {
+    motivo = 'JSON malformado';
+  }
 
-  return { ok: false, motivo, raw };
+  return { ok: false, motivo, modoFallo, raw };
 }
 
 // ─── Jaccard para R2 ──────────────────────────────────────────────────────────
@@ -1502,13 +1538,15 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
     const providerIntento = proveedoresActivos[0];
     const proveedoresDescartados = providerOrderBase.filter(
       (p) => (fallosPorProveedor.get(p) || 0) >= MAX_INTENTOS_POR_PROVEEDOR);
+    // t0 hoisted al scope del intento: el catch mide msHastaFallo con la misma
+    // referencia que el camino de éxito (medición directa del muro de 24s).
+    const t0 = Date.now();
     try {
       const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, pedirNombreProducto);
-      const t0 = Date.now();
       lastRaw = '';
       lastProvider = providerIntento || 'desconocido';
       lastModel = 'desconocido';
-      const { text: raw, provider, model, usage } = await callGatewayCollect(
+      const { text: raw, provider, model, usage, stopReason } = await callGatewayCollect(
         prompt,
         systemFaseA,
         maxTokens,
@@ -1522,7 +1560,9 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
 
       // Registro de USO en aiLogs — tokens EXACTOS del proveedor cuando
       // llegan; estimación chars/4 si no (antes solo se registraban errores
-      // de parseo y la generación de unidades quedaba fuera del dashboard)
+      // de parseo y la generación de unidades quedaba fuera del dashboard).
+      // stopReason viaja al log para que AdminCostosIA distinga los cortes por
+      // tope de tokens de los abortos por timeout (que sí gastaron tokens).
       logUsage({
         module: MODULE_NAME,
         provider,
@@ -1531,18 +1571,38 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         tokensOut: usage?.out || Math.ceil((raw || '').length / 4),
         ms: Date.now() - t0,
         exact: Boolean(usage),
+        stopReason: stopReason || null,
       });
 
-      const result = extraerJSON(raw);
+      const result = extraerJSON(raw, stopReason);
       if (!result.ok) {
-        await logParseError({ contexto: contextoLog, attempt, motivo: result.motivo, raw, provider, model });
+        await logParseError({
+          contexto: contextoLog, attempt, motivo: result.motivo, raw, provider, model,
+          stopReason: stopReason || null,
+          modoFallo: result.modoFallo || null,
+          tokensSalidaReales: usage?.out || null,
+        });
         console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${result.motivo}`,
-          { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
+          { inicio: raw.slice(0, 300), fin: raw.slice(-300), stopReason, modoFallo: result.modoFallo });
         lastError = new Error(result.motivo);
-        if (result.motivo.includes('TRUNCADO')) {
+        lastError.modoFallo = result.modoFallo || null; // control de flujo por propiedad, no por texto
+        lastError.yaRegistrado = true; // ya se llamó logParseError arriba; el catch no re-registra
+        if (result.modoFallo === 'TRUNCADO_REAL') {
+          // Corte real por tope de tokens → subir maxTokens (comportamiento previo).
           maxTokens = count === 1 ? SINGLE_CLASS_RETRY_TOKENS : RETRY_TOKENS;
           truncadoPrevio = true;
           lastTruncationError = lastError;
+        }
+        else if (result.modoFallo === 'ABORTO_POR_TIEMPO') {
+          // Corte por timeout de Edge → subir tokens o rotar de proveedor sólo
+          // garantiza otro aborto: el muro de 24s es temporal, TODOS lo chocan
+          // igual con esta carga. Con count > 1 se ROMPE la escalera de
+          // inmediato y se propaga para que el llamador parta el lote en clases
+          // individuales (menos carga = menos tiempo). NO se toca maxTokens ni
+          // se alarga el prompt.
+          truncadoPrevio = false;
+          if (count > 1) throw lastError;
+          // count === 1: ya es la carga mínima; sólo queda rotar de proveedor.
         }
         else { prefix = JSON_REMINDER; truncadoPrevio = false; }
         const fp = provider && provider !== 'desconocido' ? provider : providerIntento;
@@ -1603,16 +1663,46 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
 
     } catch (err) {
       const msg = String(err?.message || err || '');
+      // Medición directa del muro (punto 2): tiempo real hasta el fallo y si el
+      // fallo fue por un abort de signal (timeout de Edge 24s o del fetch 90s).
+      const msHastaFallo = Date.now() - t0;
+      const signalAbortado = err?.timeout === true
+        || err?.name === 'AbortError'
+        || err?.cause?.name === 'AbortError'
+        || /tiempo de espera|timeout/i.test(msg);
+
+      // Clasificación del modo de fallo en el catch: si el intento venía marcado
+      // (throw lastError con .modoFallo) se respeta; si es un aborto de signal
+      // se etiqueta ABORTO_POR_TIEMPO aunque no haya texto parcial. Antes esta
+      // rama nunca clasificaba y todo aborto caía en "sinServicio".
+      const modoFalloCatch = err?.modoFallo
+        || (signalAbortado ? 'ABORTO_POR_TIEMPO' : null);
+
       if (truncadoPrevio && lastTruncationError && /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|503|tiempo de espera/i.test(msg)) {
         lastError = new Error(`${lastTruncationError.message}. Reintento no disponible: ${msg}`);
       } else {
         lastError = err;
       }
+      if (modoFalloCatch) lastError.modoFallo = modoFalloCatch;
       const failedProvider = (err?.provider && err.provider !== 'desconocido')
         ? err.provider
         : (lastProvider !== 'desconocido' ? lastProvider : providerIntento);
       lastProvider = failedProvider;
       if (err?.model) lastModel = err.model;
+
+      // Punto 3: ABORTO_POR_TIEMPO con count > 1 → NO rotar de proveedor (el
+      // muro es temporal, todos lo chocan igual). Se rompe la escalera y se
+      // propaga para que el llamador parta el lote en clases individuales.
+      if (modoFalloCatch === 'ABORTO_POR_TIEMPO' && count > 1) {
+        if (!err?.yaRegistrado) {
+          await logParseError({
+            contexto: contextoLog, attempt, motivo: msg,
+            raw: lastRaw, provider: lastProvider, model: lastModel,
+            modoFallo: 'ABORTO_POR_TIEMPO', msHastaFallo, signalAbortado,
+          });
+        }
+        throw lastError;
+      }
 
       // Saldo/billing agotado es definitivo para esta generación. No se rota
       // por todos los modelos ni se vuelve a intentar en las fases siguientes.
@@ -1647,6 +1737,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       await logParseError({
         contexto: contextoLog, attempt, motivo: err.message,
         raw: lastRaw, provider: lastProvider, model: lastModel,
+        modoFallo: modoFalloCatch, msHastaFallo, signalAbortado,
       });
     }
   }
@@ -1665,9 +1756,14 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   );
 }
 
-const esFalloRecuperablePorTamano = (err) =>
-  /JSON TRUNCADO|respuesta truncada|malformad|Unexpected end|respuesta vacía/i.test(String(err?.message || err || ''))
-  && !isProviderBudgetError(err);
+const esFalloRecuperablePorTamano = (err) => {
+  if (isProviderBudgetError(err)) return false;
+  // Fuente primaria: propiedad estructurada del Error (no se rompe si alguien
+  // reescribe el texto del mensaje). El regex queda sólo como respaldo para
+  // errores construidos en otras rutas que aún no propagan .modoFallo.
+  if (err?.modoFallo === 'ABORTO_POR_TIEMPO' || err?.modoFallo === 'TRUNCADO_REAL') return true;
+  return /JSON TRUNCADO|JSON incompleto|ABORTO_POR_TIEMPO|respuesta truncada|malformad|Unexpected end|respuesta vacía/i.test(String(err?.message || err || ''));
+};
 
 function agregarClasesAMemoria(clases = [], semanaNum, memoriaAcumulada) {
   clases.forEach(c => {
