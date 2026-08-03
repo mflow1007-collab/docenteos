@@ -1257,6 +1257,12 @@ const cicloDelGrado = (grado = '') => {
   return '';
 };
 
+// Claves de grado que trae la matriz de aportes (estructura DE CICLO, no de grado):
+// Primer Ciclo → 1ro/2do/3ro; Segundo Ciclo → 4to/5to/6to. Ante ciclo desconocido,
+// asume Primer Ciclo (comportamiento histórico).
+const clavesGradoDelCiclo = (ciclo = '') =>
+  /segundo/i.test(ciclo) ? ['4to', '5to', '6to'] : ['1ro', '2do', '3ro'];
+
 const gradoOrdinalDelCiclo = (grado = '') => {
   const g = normalizarGrado(grado);
   const mapa = {
@@ -1285,8 +1291,9 @@ IMPORTANTE sobre la estructura MINERD (Adecuación Curricular / Diseño Curricul
 - Si aparece el bloque "Aportes del Área de ... al desarrollo de las Competencias
   Fundamentales en el ${ciclo || 'ciclo'}", trátalo como MATRIZ DE APORTES, no como malla.
   Para cada Competencia Fundamental extrae: competenciaEspecificaCiclo, competencias
-  específicas por grado y criterios de evaluación. Para el grado seleccionado usa la columna
-  "${gradoColumna}".
+  específicas por grado y criterios de evaluación. La matriz de aportes es una estructura
+  DE CICLO: extrae las TRES columnas de grado del ciclo (${clavesGradoDelCiclo(ciclo).join(', ')}),
+  NO la filtres por el grado seleccionado.
 - Si aparece el bloque "Conexión con los Ejes Transversales: problemáticas sociales,
   comunitarias y asociación con los contenidos del Ciclo y Grados", trátalo como MATRIZ
   DE EJES TRANSVERSALES. Extrae cada eje y la descripción de la columna "${gradoColumna}".
@@ -1310,13 +1317,8 @@ Devuelve exactamente este JSON (agrega elementos solo si aparecen textualmente e
     {
       "competenciaFundamental": "",
       "competenciaEspecificaCiclo": "",
-      "competenciasEspecificasPorGrado": {
-        "1ro": "",
-        "2do": "",
-        "3ro": "",
-        "4to": "",
-        "5to": "",
-        "6to": ""
+      "competenciasEspecificasPorGrado": {${clavesGradoDelCiclo(ciclo).map(k => `
+        "${k}": ""`).join(',')}
       },
       "criteriosEvaluacion": []
     }
@@ -1501,7 +1503,10 @@ const SECCIONES_MALLA = {
   aportesArea: {
     etiqueta: 'Aportes del Área a las Competencias Fundamentales',
     instruccion: 'Extrae la matriz "Aportes del Área de Lenguas Extranjeras / Inglés al desarrollo de las Competencias Fundamentales en el [Ciclo]". Para cada Competencia Fundamental toma la específica del ciclo, las específicas por grado y los criterios de evaluación.',
-    esquema: '{"aportesCompetenciasFundamentales":[{"competenciaFundamental":"","competenciaEspecificaCiclo":"","competenciasEspecificasPorGrado":{"1ro":"","2do":"","3ro":""},"criteriosEvaluacion":[]}]}',
+    // Estructura DE CICLO: las claves de grado dependen del ciclo detectado (1ro/2do/3ro
+    // vs 4to/5to/6to), por eso el esquema es función. El consumidor (extraerSeccionCurricular)
+    // resuelve string vs función.
+    esquema: (ciclo) => `{"aportesCompetenciasFundamentales":[{"competenciaFundamental":"","competenciaEspecificaCiclo":"","competenciasEspecificasPorGrado":{${clavesGradoDelCiclo(ciclo).map(k => `"${k}":""`).join(',')}},"criteriosEvaluacion":[]}]}`,
     tieneDatos: (r) => (r?.aportesCompetenciasFundamentales || []).length,
     critica: false,
   },
@@ -1543,7 +1548,7 @@ PROTOCOLO DE FIDELIDAD (obligatorio):
 Las Competencias Específicas pueden estar definidas POR CICLO (Primer Ciclo cubre 1ro-3ro): si aparecen del ${ciclo || 'ciclo del grado'}, aplican al grado seleccionado.
 Si de verdad algo no aparece en el texto, deja el arreglo vacío (no lo inventes).
 
-Devuelve EXACTAMENTE este JSON (sin markdown): ${cfg.esquema}
+Devuelve EXACTAMENTE este JSON (sin markdown): ${typeof cfg.esquema === 'function' ? cfg.esquema(ciclo) : cfg.esquema}
 
 TEXTO DE LA MALLA:
 ${textoMalla}`;
