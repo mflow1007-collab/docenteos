@@ -3,7 +3,7 @@ import { addDoc, collection, doc, getCountFromServer, getDoc, getDocs, limit, qu
 import { db, auth } from '../../firebase.js'
 import { AIService } from '../../services/ai/AIService.js'
 import { PROVIDER_META } from '../../services/ai/providers/index.js'
-import { attachJsonToSource, validateJsonSobre } from '../../services/bancoConocimientoService.js'
+import { analizarJsonCurricular, attachJsonToSource, validateJsonSobre } from '../../services/bancoConocimientoService.js'
 
 const OPERADORES = [
   { id: 'auto', label: 'Automático', hint: 'DocenteOS decide la ruta por tipo de trabajo.' },
@@ -462,6 +462,7 @@ export default function AdminPotenteIA() {
   const [fuentes, setFuentes] = useState([])
   const [fuenteId, setFuenteId] = useState('')
   const [jsonActual, setJsonActual] = useState(null)
+  const [verJsonCompleto, setVerJsonCompleto] = useState(false)
   const [seccionCorreccion, setSeccionCorreccion] = useState('indicadoresLogro')
   const [textoCorreccion, setTextoCorreccion] = useState('')
   const [jsonCorregido, setJsonCorregido] = useState(null)
@@ -1039,7 +1040,7 @@ export default function AdminPotenteIA() {
           <div style={{ display: 'grid', gap: 12 }}>
             <div className="admin-form-group">
               <label className="admin-form-label">Fuente / malla</label>
-              <select className="admin-form-select" value={fuenteId} onChange={(e) => { setFuenteId(e.target.value); setJsonActual(null); setJsonCorregido(null); }}>
+              <select className="admin-form-select" value={fuenteId} onChange={(e) => { setFuenteId(e.target.value); setJsonActual(null); setJsonCorregido(null); setVerJsonCompleto(false); }}>
                 <option value="">Seleccionar fuente</option>
                 {fuentes.map((f) => (
                   <option key={f.id} value={f.id}>{f.title || f.description || f.id}</option>
@@ -1066,6 +1067,51 @@ export default function AdminPotenteIA() {
                 <pre style={{ margin: 0, maxHeight: 220, overflow: 'auto', fontSize: 12, color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
                   {JSON.stringify(getByPath(jsonActual, resolverRutaSeccion(jsonActual, seccionCorreccion)) ?? null, null, 2)}
                 </pre>
+              </div>
+            )}
+
+            {jsonActual && (
+              <div style={{ border: '1px solid var(--adm-border)', borderRadius: 8, padding: 10, background: 'var(--adm-surface)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                  <strong>JSON completo de la fuente</strong>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-secondary"
+                    style={{ padding: '2px 10px', fontSize: 12 }}
+                    onClick={() => setVerJsonCompleto((v) => !v)}
+                  >
+                    {verJsonCompleto ? 'Ocultar' : 'Ver completo'}
+                  </button>
+                </div>
+                {(() => {
+                  // Mismo análisis que llena el preview del convertidor PDF→JSON:
+                  // reutilizamos analizarJsonCurricular en vez de contar a mano,
+                  // así los números coinciden exactamente con "Leer JSON".
+                  let analisis
+                  try { analisis = analizarJsonCurricular(jsonActual) } catch { analisis = null }
+                  if (!analisis) return null
+                  return (
+                    <>
+                      <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, color: '#cbd5e1' }}>
+                        {analisis.requisitos.map((req) => (
+                          <li key={req.id} style={{ color: req.ok ? '#cbd5e1' : (req.advisory ? '#f59e0b' : '#fca5a5') }}>
+                            {req.label}: <strong>{req.count}</strong>{req.ok ? '' : (req.advisory ? '  ⚠️ vacío' : '  ❌ falta')}
+                          </li>
+                        ))}
+                      </ul>
+                      <div style={{ marginTop: 8, fontSize: 12, color: analisis.listoParaGenerador ? '#86efac' : '#fca5a5' }}>
+                        {analisis.listoParaGenerador
+                          ? '✅ Listo para el generador'
+                          : `❌ Faltan: ${analisis.faltantes.join(', ')}`}
+                      </div>
+                    </>
+                  )
+                })()}
+                {verJsonCompleto && (
+                  <pre style={{ margin: '8px 0 0', maxHeight: 320, overflow: 'auto', fontSize: 11, color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
+                    {JSON.stringify(jsonActual, null, 2)}
+                  </pre>
+                )}
               </div>
             )}
           </div>
