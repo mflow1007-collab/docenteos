@@ -5,6 +5,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { auth, db, guardarCurso } from '../firebase.js'
 import { guardarPerfilInstitucional } from '../services/perfilInstitucionalService.js'
 import './BienvenidaPage.css'
+import { getAreas, getAsignaturas } from '../planning/areaAsignaturaMap.js'
 
 const NOMBRES_EJEMPLO = [
   "María García", "Juan Pérez", "Carmen López", "José Rodríguez",
@@ -103,6 +104,8 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
   const [gradosDocente,   setGradosDocente]   = useState([])   // grados seleccionados
   const [jornada,         setJornada]         = useState('')
   const [periodo,         setPeriodo]         = useState('')
+  const [areaPrincipal,   setAreaPrincipal]   = useState('')
+  const [asignaturaPrincipal, setAsignaturaPrincipal] = useState('')
 
   const [cargando,        setCargando]        = useState(false)
   const [error,           setError]           = useState('')
@@ -205,6 +208,8 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
     if (gradoOptions.length > 0 && gradosDocente.length === 0) { setError('Seleccione al menos un grado en el que imparte clases.'); return }
     if (!jornada)                  { setError('Seleccione la jornada escolar.'); return }
     if (!periodo)                  { setError('Seleccione el período escolar.'); return }
+    if (!areaPrincipal)            { setError('Seleccione el área principal que imparte.'); return }
+    if (!asignaturaPrincipal)      { setError('Seleccione la asignatura principal que imparte.'); return }
     if (!user)                     { setError('Sesión no encontrada. Recargue la página.'); return }
     if (!db)                       { setError('Sin conexión con el servidor.'); return }
 
@@ -223,6 +228,8 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
         gradosDocente,
         jornadaEscolar:  jornada,
         periodoEscolar:  periodo,
+        areaPrincipal,
+        asignaturaPrincipal,
       })
 
       // Auto-crear un curso por cada grado seleccionado
@@ -237,7 +244,7 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
             nombre: `${grado} A`,
             grado,
             nivel,
-            area: 'General',
+            area: asignaturaPrincipal || areaPrincipal,
             seccion: 'A',
             estudiantes: 30,
             promedio: promedioEjemplo,
@@ -506,6 +513,22 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
                   </div>
                 </div>
               )}
+
+              <div className="bp-field">
+                <label htmlFor="bp-area" className="bp-label">Área principal que impartes</label>
+                <select id="bp-area" className="bp-input" value={areaPrincipal} onChange={(e) => { const valor = e.target.value; setAreaPrincipal(valor); const opciones = getAsignaturas(valor); setAsignaturaPrincipal(opciones.length === 1 ? opciones[0] : ''); setError('') }} disabled={cargando}>
+                  <option value="">Seleccionar…</option>
+                  {getAreas().map((area) => <option key={area}>{area}</option>)}
+                </select>
+              </div>
+
+              <div className="bp-field">
+                <label htmlFor="bp-asignatura" className="bp-label">Asignatura principal</label>
+                <select id="bp-asignatura" className="bp-input" value={asignaturaPrincipal} onChange={(e) => { setAsignaturaPrincipal(e.target.value); setError('') }} disabled={cargando || !areaPrincipal}>
+                  <option value="">Seleccionar…</option>
+                  {getAsignaturas(areaPrincipal).map((asignatura) => <option key={asignatura}>{asignatura}</option>)}
+                </select>
+              </div>
 
               {/* Jornada escolar */}
               <div className="bp-field">

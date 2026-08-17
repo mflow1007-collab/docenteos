@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { guardarPerfilInstitucional } from "../services/perfilInstitucionalService.js";
 import "./ConfiguracionPage.css";
+import { getAreas, getAsignaturas } from "../planning/areaAsignaturaMap.js";
 
 const REGIONALES = [
   "Regional 01 - Santo Domingo", "Regional 02 - Santiago", "Regional 03 - San Francisco de Macorís",
@@ -30,6 +31,8 @@ export default function ConfiguracionPage() {
     modalidad: "",
     jornadaEscolar: "",
     periodoEscolar: "",
+    areaPrincipal: "",
+    asignaturaPrincipal: "",
   });
   const [guardando, setGuardando] = useState(false);
   const [exito, setExito] = useState(false);
@@ -47,11 +50,18 @@ export default function ConfiguracionPage() {
       modalidad:       perfil.modalidad       ?? "",
       jornadaEscolar:  perfil.jornadaEscolar  ?? "",
       periodoEscolar:  perfil.periodoEscolar  ?? "",
+      areaPrincipal:   perfil.areaPrincipal   ?? perfil.area ?? "",
+      asignaturaPrincipal: perfil.asignaturaPrincipal ?? perfil.asignatura ?? "",
     });
   }, [perfil]);
 
   const set = (campo) => (e) =>
     setForm((prev) => ({ ...prev, [campo]: e.target.value }));
+  const cambiarArea = (e) => {
+    const areaPrincipal = e.target.value;
+    const opciones = getAsignaturas(areaPrincipal);
+    setForm((prev) => ({ ...prev, areaPrincipal, asignaturaPrincipal: opciones.length === 1 ? opciones[0] : "" }));
+  };
 
   const toggleNivel = (nivel) =>
     setForm((prev) => ({
@@ -152,6 +162,21 @@ export default function ConfiguracionPage() {
         <section className="cfg-seccion">
           <h2>Información académica</h2>
           <div className="cfg-grid">
+            <label className="cfg-campo">
+              <span>Área principal que impartes</span>
+              <select value={form.areaPrincipal} onChange={cambiarArea} required>
+                <option value="">Seleccionar área</option>
+                {getAreas().map((area) => <option key={area}>{area}</option>)}
+              </select>
+              <small>DocenteOS usará esta área por defecto en diagnósticos y planificaciones.</small>
+            </label>
+            <label className="cfg-campo">
+              <span>Asignatura principal</span>
+              <select value={form.asignaturaPrincipal} onChange={set("asignaturaPrincipal")} disabled={!form.areaPrincipal} required>
+                <option value="">Seleccionar asignatura</option>
+                {getAsignaturas(form.areaPrincipal).map((asignatura) => <option key={asignatura}>{asignatura}</option>)}
+              </select>
+            </label>
             <div className="cfg-campo">
               <span>Niveles que imparte</span>
               <div className="cfg-checkgroup">

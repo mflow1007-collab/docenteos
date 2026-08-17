@@ -41,6 +41,7 @@ const EstudiantesPage         = lazy(() => import("./pages/EstudiantesPage"));
 const ModoAulaPage            = lazy(() => import("./pages/ModoAulaPage"));
 const BancoEvidenciasPage     = lazy(() => import("./pages/BancoEvidenciasPage"));
 const EstudianteDetallePage   = lazy(() => import("./pages/EstudianteDetallePage"));
+const DiagnosticoPage         = lazy(() => import("./pages/DiagnosticoPage"));
 
 const CURSO_ACTIVO_KEY = "docenteos_curso_activo_id";
 const PAGINAS_APP = new Set([
@@ -53,6 +54,7 @@ const PAGINAS_APP = new Set([
   "detalle-estudiante",
   "planificacion",
   "instrumentos",
+  "diagnostico",
   "mi-registro",
   "registro",
   "curricular",
@@ -423,7 +425,7 @@ function AppInner() {
 
   const [seccionIA,        setSeccionIA]        = useState("bienvenida");
   const [grupoExpandido,   setGrupoExpandido]   = useState(() => {
-    if (["modo-aula","banco-evidencias","cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(pagina)) return "docencia";
+    if (["modo-aula","banco-evidencias","cursos","detalle-curso","planificacion","diagnostico","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(pagina)) return "docencia";
     if (["estudiantes","detalle-estudiante"].includes(pagina)) return "estudiantes";
     if (pagina === "ia" || pagina === "curriculo") return "inteligencia";
     if (["suscripcion","configuracion","asistente-personal"].includes(pagina)) return "configuracion";
@@ -436,7 +438,7 @@ function AppInner() {
   // Determina qué grupo sidebar debe estar abierto según la página activa
   const grupoDePageID = useCallback((id) => {
     if (id === "inicio")                                        return "inicio";
-    if (["modo-aula","banco-evidencias","cursos","detalle-curso","planificacion","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(id)) return "docencia";
+    if (["modo-aula","banco-evidencias","cursos","detalle-curso","planificacion","diagnostico","instrumentos","mi-registro","registro","libro-abierto","biblioteca","curricular","formatos-minerd","registros-minerd","reportes"].includes(id)) return "docencia";
     if (["estudiantes","detalle-estudiante"].includes(id))      return "estudiantes";
     if (id === "ia" || id === "curriculo")                      return "inteligencia";
     if (id === "suscripcion" || id === "configuracion")         return "configuracion";
@@ -552,6 +554,7 @@ function AppInner() {
             <SidebarItem id="modo-aula"              label="🏫 Modo Aula"          pagina={pagina} onClick={() => irA("modo-aula")} />
             {cargoTieneModulo(rol, "cursos")       && <SidebarItem id="cursos"        label="📘 Cursos"            pagina={pagina} onClick={() => irA("cursos")} />}
             <SidebarItem id="planificacion"          label="📝 Planificación"     pagina={pagina} onClick={() => irA("planificacion")} />
+            <SidebarItem id="diagnostico"            label="🧭 Evaluación diagnóstica" pagina={pagina} onClick={() => irA("diagnostico")} />
             {cargoTieneModulo(rol, "instrumentos") && <SidebarItem id="instrumentos"  label="📋 Instrumentos"      pagina={pagina} onClick={() => irA("instrumentos")} />}
             <SidebarItem id="mi-registro"            label="📓 Mi Registro"       pagina={pagina} onClick={() => irA("mi-registro")} />
             <SidebarItem id="banco-evidencias"       label="📸 Banco de Evidencias" pagina={pagina} onClick={() => irA("banco-evidencias")} />
@@ -743,6 +746,8 @@ function AppInner() {
             <ModoAulaPage
               cursos={cursos}
               cursoActivo={cursoRegistro}
+              perfil={formulario}
+              onIrA={(destino) => navegar(destino)}
               onIrA={(destino) => navegar(destino)}
               onVerPlanCompleto={(plan) => {
                 abrirPlanificacionDesdeHistorial(plan);
@@ -765,6 +770,31 @@ function AppInner() {
               accionIAActiva={accionIAActiva}
               onConsumirAccionIA={() => setAccionIAActiva(null)}
               onIrA={navegar}
+            />
+          )}
+          {pagina === "diagnostico" && (
+            <DiagnosticoPage
+              cursos={cursos}
+              cursoActivo={cursoRegistro}
+              onCrearPlanificacion={({ curso, anoEscolar, observaciones, prioritarias }) => {
+                const prioridades = prioritarias.map((item) => item.aprendizaje);
+                setPlanificacionPreCargada({
+                  accion: "duplicar",
+                  contenido: {
+                    metadatos: {
+                      grado: curso?.grado || "",
+                      seccion: curso?.seccion || "",
+                      area: curso?.area || "",
+                      tema: prioridades.length ? `Nivelación inicial: ${prioridades[0]}` : "Nivelación de aprendizajes de entrada",
+                      tipoPlanificacion: "Plan de clase",
+                      periodo: `Inicio ${anoEscolar}`,
+                      competenciaSeleccionada: prioridades.join(" · "),
+                      situacionAprendizaje: `Planificación basada en evaluación diagnóstica. Prioridades: ${prioridades.join("; ")}.${observaciones ? ` Observaciones: ${observaciones}` : ""}`,
+                    },
+                  },
+                });
+                navegar("planificacion");
+              }}
             />
           )}
           {pagina === "cursos" && (

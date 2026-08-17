@@ -1,0 +1,37 @@
+.diag-pasos { grid-template-columns: repeat(4, 1fr); }
+.diag-niveles-informe { margin-top: 18px; padding: 18px; border: 1px solid #dce6e2; border-radius: 16px; }
+.diag-niveles-informe > div { display: grid; grid-template-columns: 110px 1fr 45px; gap: 12px; align-items: center; margin-top: 10px; }
+.diag-niveles-informe i { height: 10px; background: #edf3f0; border-radius: 99px; overflow: hidden; }
+.diag-niveles-informe i b { display: block; height: 100%; background: #176b57; border-radius: inherit; }
+.diag-informe-wrap { display: grid; gap: 15px; }
+.diag-informe-toolbar { display: flex; justify-content: flex-end; gap: 10px; }
+.diag-informe { max-width: 900px; margin: auto; padding: 48px 58px; background: #fff; color: #111827; border: 1px solid #dce6e2; box-shadow: 0 12px 30px rgba(30,55,48,.08); line-height: 1.55; }
+.diag-informe header { text-align: center; border-bottom: 2px solid #176b57; padding-bottom: 18px; }
+.diag-informe header h1, .diag-informe header h2, .diag-informe header p { margin: 3px; }
+.diag-informe h3 { margin-top: 28px; color: #145c4c; border-bottom: 1px solid #cadbd5; padding-bottom: 5px; }
+.diag-informe h4 { margin: 16px 0 5px; }
+.diag-informe table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+.diag-informe th, .diag-informe td { border: 1px solid #9fb5ad; padding: 8px; text-align: left; vertical-align: top; }
+.diag-informe th { background: #e9f7f1; }
+.diag-ficha th { width: 16%; }
+.diag-grafica-informe { height: 210px; display: flex; align-items: flex-end; justify-content: center; gap: 45px; border-left: 1px solid #94a3b8; border-bottom: 1px solid #94a3b8; padding: 22px 35px 0; margin: 22px auto; width: 70%; }
+.diag-grafica-informe > div { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 80px; }
+.diag-grafica-informe b { width: 58px; min-height: 8px; background: #176b57; position: relative; }
+.diag-grafica-informe b span { position: absolute; top: -24px; width: 100%; text-align: center; }
+.diag-grafica-informe small { padding-top: 8px; }
+.diag-informe footer { display: flex; justify-content: space-between; text-align: center; margin-top: 65px; }
+@media (max-width: 800px) {
+  .diag-informe { padding: 25px 18px; }
+  .diag-grafica-informe { width: auto; gap: 15px; }
+  .diag-informe-toolbar { display: grid; }
+  .diag-informe footer { gap: 30px; }
+}
+@media print {
+  body * { visibility: hidden; }
+  .diag-informe, .diag-informe * { visibility: visible; }
+  .diag-informe { position: absolute; left: 0; top: 0; width: 100%; max-width: none; padding: 0; border: 0; box-shadow: none; }
+  .diag-informe-toolbar, .sidebar, .topbar { display: none !important; }
+  .diag-informe table { page-break-inside: avoid; }
+  .diag-informe h3 { page-break-after: avoid; }
+  @page { size: letter; margin: 16mm; }
+}
