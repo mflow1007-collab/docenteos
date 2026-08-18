@@ -776,6 +776,8 @@ function AppInner() {
             <DiagnosticoPage
               cursos={cursos}
               cursoActivo={cursoRegistro}
+              perfil={formulario}
+              onIrA={(destino) => navegar(destino)}
               onCrearPlanificacion={({ curso, anoEscolar, observaciones, prioritarias }) => {
                 const prioridades = prioritarias.map((item) => item.aprendizaje);
                 setPlanificacionPreCargada({

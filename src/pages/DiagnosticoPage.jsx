@@ -17,7 +17,7 @@ import {
   generarBancoDiagnostico,
   obtenerNaturalezaArea,
 } from "../services/diagnosticoBlueprintService.js";
-import { getAreas, getAsignaturas } from "../planning/areaAsignaturaMap.js";
+import { getAreas, getAsignaturas, getAreaCurricularDeAsignatura } from "../planning/areaAsignaturaMap.js";
 import { cargarReferentesDiagnosticos, vincularItemsAIndicadores } from "../services/diagnosticoCurricularService.js";
 import "./DiagnosticoPage.css";
 import "./DiagnosticoInforme.css";
@@ -95,8 +95,16 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
     setResultados(existente?.resultados || {});
     setMediaciones(existente?.mediaciones || {});
     setObservaciones(existente?.observaciones || "");
-    const areaInicial = existente?.area || perfil?.areaPrincipal || curso?.area || "";
-    const asignaturaInicial = existente?.asignatura || perfil?.asignaturaPrincipal || getAsignaturas(areaInicial)[0] || "";
+    // El curso suele guardar en `area` la ASIGNATURA (p. ej. "Inglés") en vez del
+    // área MINERD ("Lenguas Extranjeras"). Si el valor bruto es una asignatura
+    // conocida, lo convertimos al área correcta y fijamos la asignatura; así el
+    // diagnóstico puede buscar la malla del grado anterior y no queda vacío.
+    const areaBruta = existente?.area || perfil?.areaPrincipal || curso?.area || "";
+    const areaDesdeAsignatura = getAreaCurricularDeAsignatura(areaBruta);
+    const areaInicial = areaDesdeAsignatura || areaBruta;
+    const asignaturaInicial = existente?.asignatura || perfil?.asignaturaPrincipal
+      || (areaDesdeAsignatura ? areaBruta : "")
+      || getAsignaturas(areaInicial)[0] || "";
     setArea(areaInicial);
     setAsignatura(asignaturaInicial);
     setModalidad(existente?.modalidad || "guiado");
