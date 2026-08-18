@@ -1492,18 +1492,25 @@ export const getCurricularContentForUnit = async (subject, grade, nivel = '') =>
       };
     });
 
+    // [DIAG-TEMP] instrumentación para depurar "Sin indicadores vinculados".
+    console.log('[DIAG] getCurricularContentForUnit', { subject, grade, nivel, ns, npa, docsActivos: docsSnap.length });
+    console.table(docs.map(d => ({ id: d.id, level: d.level, grade: d.grade, subject: d.subject, area: d.area, contentType: d.contentType })));
+
     const candidates = docs.filter(d => {
       if (!hasActiveMallaSource(d, guards)) return false;
       const ds = norm(d.subject || d.payload?.subject || d.payload?.asignatura);
       const da = norm(d.area || d.payload?.area);
       return ds === ns || da === ns || ds === npa || da === npa;
     });
+    console.log('[DIAG] candidatos tras filtro subject/area:', candidates.length,
+      candidates.map(d => ({ id: d.id, level: d.level, grade: d.grade, ct: d.contentType })));
     if (!candidates.length) return null;
 
     // Regla estricta DocenteOS: la planificación solo puede usar la malla del
     // NIVEL y grado seleccionados (clave completa: level+grade+subject+
     // contentType). No se cae a otro grado ni a otro nivel de la misma área.
     const malla = seleccionarMallaParaUnidad(candidates, { nivel, grado: grade });
+    console.log('[DIAG] seleccionarMallaParaUnidad →', malla ? { id: malla.id, grade: malla.grade, level: malla.level } : 'null (no coincide nivel+grado+contentType)');
     if (!malla) return null;
 
     // Capa TOLERANTE del contrato: el lector NO bloquea docs históricos, pero
