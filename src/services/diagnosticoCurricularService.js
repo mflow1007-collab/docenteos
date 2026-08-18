@@ -51,35 +51,49 @@ const referenciaLocal = (area, asignatura, grado, nivel) => {
   }
 };
 
-export const cargarReferentesDiagnosticos = async ({ nivel, grado, area, asignatura }) => {
-  const anterior = resolverGradoAnterior({ nivel, grado });
+// Nivel del grado ACTUAL (mismo criterio que la planificación: se infiere del
+// texto del grado y, si no, del nivel recibido).
+const nivelActual = ({ nivel = "", grado = "" } = {}) => {
+  const t = `${grado} ${nivel}`.toLowerCase();
+  if (t.includes("primaria")) return "Primaria";
+  if (t.includes("inicial")) return "Inicial";
+  return "Secundaria";
+};
+// Grado sin el sufijo de nivel ("2do Secundaria" → "2do"), como la planificación.
+const gradoBase = (grado = "") => String(grado).replace(/\s*(secundaria|primaria|inicial)\s*/gi, "").trim();
 
-  // 1) Banco de Conocimiento (colección `curricularContent`): es donde el
-  // docente importa las mallas hoy. Se prioriza sobre `diseñoCurricular` para
-  // que el diagnóstico use la MISMA malla activa que el generador de planes.
-  // getCurricularContentForUnit ya selecciona la malla activa del nivel+grado
-  // exactos y normaliza el payload a competencias[].indicadoresLogro[].
+export const cargarReferentesDiagnosticos = async ({ nivel, grado, area, asignatura }) => {
+  // La práctica de recuperación mide contra la malla del GRADO ACTUAL (lo que se
+  // va a enseñar este año), igual que el generador de planificaciones. El grado
+  // anterior se conserva solo como etiqueta de referencia de saberes de entrada.
+  const anterior = resolverGradoAnterior({ nivel, grado });
+  const nivelG = nivelActual({ nivel, grado });
+  const gradoG = gradoBase(grado);
   const materia = asignatura || area;
-  if (materia) {
+
+  // 1) Banco de Conocimiento (`curricularContent`): MISMA malla activa que usa
+  // el generador de planes (getCurricularContentForUnit, clave level+grade+
+  // subject exactos). Es la fuente estricta y real.
+  if (materia && gradoG) {
     try {
-      const malla = await getCurricularContentForUnit(materia, anterior.grado, anterior.nivel);
+      const malla = await getCurricularContentForUnit(materia, gradoG, nivelG);
       const indicadores = aplanarCurriculo(malla?.payload || malla);
-      if (indicadores.length) return { anterior, indicadores, fuente: "Malla curricular importada (Banco de Conocimiento)", oficial: true };
+      if (indicadores.length) return { anterior, indicadores, fuente: `Malla curricular oficial de ${gradoG} (Banco de Conocimiento)`, oficial: true };
     } catch { /* si el Banco no está disponible, seguimos con los demás orígenes */ }
   }
 
-  // 2) Pipeline `diseñoCurricular` (importación curricular clásica).
+  // 2) Pipeline `diseñoCurricular` (importación curricular clásica), mismo grado.
   const candidatosArea = [...new Set([area, asignatura].filter(Boolean))];
   for (const nombreArea of candidatosArea) {
-    const documento = await consultarCurriculo(anterior.nivel, anterior.grado, nombreArea);
+    const documento = await consultarCurriculo(nivelG, gradoG, nombreArea);
     const indicadores = aplanarCurriculo(documento);
-    if (indicadores.length) return { anterior, indicadores, fuente: "Malla curricular importada", oficial: true };
+    if (indicadores.length) return { anterior, indicadores, fuente: `Malla curricular oficial de ${gradoG}`, oficial: true };
   }
 
   // 3) Referencia local de respaldo (requiere validación docente).
   return {
     anterior,
-    indicadores: referenciaLocal(area, asignatura, anterior.grado, anterior.nivel),
+    indicadores: referenciaLocal(area, asignatura, gradoG, nivelG),
     fuente: "Referencia curricular local; requiere validación docente",
     oficial: false,
   };
