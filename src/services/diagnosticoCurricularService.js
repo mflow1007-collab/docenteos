@@ -1,4 +1,5 @@
 import { consultarCurriculo } from "./curriculumService.js";
+import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
 import { getCompetenciasArea } from "../data/indicadoresAreasMINERD.js";
 import { getCompetenciasIdiomas } from "../data/indicadoresIdiomas.js";
 
@@ -52,12 +53,30 @@ const referenciaLocal = (area, asignatura, grado, nivel) => {
 
 export const cargarReferentesDiagnosticos = async ({ nivel, grado, area, asignatura }) => {
   const anterior = resolverGradoAnterior({ nivel, grado });
+
+  // 1) Banco de Conocimiento (colección `curricularContent`): es donde el
+  // docente importa las mallas hoy. Se prioriza sobre `diseñoCurricular` para
+  // que el diagnóstico use la MISMA malla activa que el generador de planes.
+  // getCurricularContentForUnit ya selecciona la malla activa del nivel+grado
+  // exactos y normaliza el payload a competencias[].indicadoresLogro[].
+  const materia = asignatura || area;
+  if (materia) {
+    try {
+      const malla = await getCurricularContentForUnit(materia, anterior.grado, anterior.nivel);
+      const indicadores = aplanarCurriculo(malla?.payload || malla);
+      if (indicadores.length) return { anterior, indicadores, fuente: "Malla curricular importada (Banco de Conocimiento)", oficial: true };
+    } catch { /* si el Banco no está disponible, seguimos con los demás orígenes */ }
+  }
+
+  // 2) Pipeline `diseñoCurricular` (importación curricular clásica).
   const candidatosArea = [...new Set([area, asignatura].filter(Boolean))];
   for (const nombreArea of candidatosArea) {
     const documento = await consultarCurriculo(anterior.nivel, anterior.grado, nombreArea);
     const indicadores = aplanarCurriculo(documento);
     if (indicadores.length) return { anterior, indicadores, fuente: "Malla curricular importada", oficial: true };
   }
+
+  // 3) Referencia local de respaldo (requiere validación docente).
   return {
     anterior,
     indicadores: referenciaLocal(area, asignatura, anterior.grado, anterior.nivel),
