@@ -2,9 +2,55 @@ import { consultarCurriculo } from "./curriculumService.js";
 import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
 import { getCompetenciasArea } from "../data/indicadoresAreasMINERD.js";
 import { getCompetenciasIdiomas } from "../data/indicadoresIdiomas.js";
+import { getAreaCurricularDeAsignatura, getAsignaturas } from "../planning/areaAsignaturaMap.js";
+
+/**
+ * Resuelve el contexto curricular CANÓNICO del diagnóstico, calcando la lógica
+ * de la planificación (grado + nivel canónicos, área MINERD real, asignatura).
+ * PURO y testeable: recibe curso + perfil y devuelve valores normalizados sin
+ * importar cómo estén escritos los datos de origen (el curso suele guardar la
+ * asignatura como "area", o el grado sin nivel).
+ *
+ * @returns {{ nivel, grado, gradoBase, area, asignatura, materia, valido, faltan }}
+ */
+export const resolverContextoCurricular = (curso = {}, perfil = {}) => {
+  // Grado: del curso, o del perfil. Base sin sufijo de nivel ("2do Secundaria" → "2do").
+  const gradoBruto = curso.grado || curso.grade || "";
+  const grado = gradoBase(gradoBruto);
+  // Nivel: inferido del grado (manda) y, si no, del curso/perfil.
+  const nivel = nivelActual({ nivel: curso.nivel || perfil.nivel || "", grado: gradoBruto });
+
+  // Área/asignatura: el curso suele guardar la ASIGNATURA ("Inglés") en `area`.
+  // Si el valor bruto es una asignatura conocida, convertir al área MINERD real.
+  const areaBruta = curso.area || perfil.areaPrincipal || "";
+  const areaDesdeAsignatura = getAreaCurricularDeAsignatura(areaBruta);
+  const area = areaDesdeAsignatura || areaBruta;
+  const asignatura = perfil.asignaturaPrincipal
+    || (areaDesdeAsignatura ? areaBruta : "")
+    || getAsignaturas(area)[0]
+    || "";
+
+  const materia = asignatura || area;
+  const faltan = [];
+  if (!grado) faltan.push("grado");
+  if (!materia) faltan.push("área o asignatura");
+
+  return { nivel, grado, gradoBase: grado, area, asignatura, materia, valido: faltan.length === 0, faltan };
+};
 
 const ORDINALES = { primero: 1, segundo: 2, tercero: 3, cuarto: 4, quinto: 5, sexto: 6 };
 const SUFIJOS = { 1: "1ro", 2: "2do", 3: "3ro", 4: "4to", 5: "5to", 6: "6to" };
+
+// Nivel del grado (mismo criterio que la planificación: se infiere del texto
+// del grado y, si no, del nivel recibido).
+const nivelActual = ({ nivel = "", grado = "" } = {}) => {
+  const t = `${grado} ${nivel}`.toLowerCase();
+  if (t.includes("primaria")) return "Primaria";
+  if (t.includes("inicial")) return "Inicial";
+  return "Secundaria";
+};
+// Grado sin el sufijo de nivel ("2do Secundaria" → "2do"), como la planificación.
+const gradoBase = (grado = "") => String(grado).replace(/\s*(secundaria|primaria|inicial)\s*/gi, "").trim();
 
 const numeroGrado = (grado = "") => {
   const texto = String(grado).toLowerCase();
@@ -50,17 +96,6 @@ const referenciaLocal = (area, asignatura, grado, nivel) => {
     return [];
   }
 };
-
-// Nivel del grado ACTUAL (mismo criterio que la planificación: se infiere del
-// texto del grado y, si no, del nivel recibido).
-const nivelActual = ({ nivel = "", grado = "" } = {}) => {
-  const t = `${grado} ${nivel}`.toLowerCase();
-  if (t.includes("primaria")) return "Primaria";
-  if (t.includes("inicial")) return "Inicial";
-  return "Secundaria";
-};
-// Grado sin el sufijo de nivel ("2do Secundaria" → "2do"), como la planificación.
-const gradoBase = (grado = "") => String(grado).replace(/\s*(secundaria|primaria|inicial)\s*/gi, "").trim();
 
 export const cargarReferentesDiagnosticos = async ({ nivel, grado, area, asignatura }) => {
   // La práctica de recuperación mide contra la malla del GRADO ACTUAL (lo que se

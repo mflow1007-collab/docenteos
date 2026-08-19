@@ -17,8 +17,8 @@ import {
   generarBancoDiagnostico,
   obtenerNaturalezaArea,
 } from "../services/diagnosticoBlueprintService.js";
-import { getAreas, getAsignaturas, getAreaCurricularDeAsignatura } from "../planning/areaAsignaturaMap.js";
-import { cargarReferentesDiagnosticos, vincularItemsAIndicadores } from "../services/diagnosticoCurricularService.js";
+import { getAreas, getAsignaturas } from "../planning/areaAsignaturaMap.js";
+import { cargarReferentesDiagnosticos, vincularItemsAIndicadores, resolverContextoCurricular } from "../services/diagnosticoCurricularService.js";
 import "./DiagnosticoPage.css";
 import "./DiagnosticoInforme.css";
 import "./DiagnosticoConstructor.css";
@@ -95,16 +95,15 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
     setResultados(existente?.resultados || {});
     setMediaciones(existente?.mediaciones || {});
     setObservaciones(existente?.observaciones || "");
-    // El curso suele guardar en `area` la ASIGNATURA (p. ej. "Inglés") en vez del
-    // área MINERD ("Lenguas Extranjeras"). Si el valor bruto es una asignatura
-    // conocida, lo convertimos al área correcta y fijamos la asignatura; así el
-    // diagnóstico puede buscar la malla del grado actual y no queda vacío.
-    const areaBruta = existente?.area || perfil?.areaPrincipal || curso?.area || "";
-    const areaDesdeAsignatura = getAreaCurricularDeAsignatura(areaBruta);
-    const areaInicial = areaDesdeAsignatura || areaBruta;
-    const asignaturaInicial = existente?.asignatura || perfil?.asignaturaPrincipal
-      || (areaDesdeAsignatura ? areaBruta : "")
-      || getAsignaturas(areaInicial)[0] || "";
+    // Resolución de contexto ÚNICA (misma lógica que la planificación): área
+    // MINERD real + asignatura canónica, venga el curso como venga. Si hay un
+    // diagnóstico guardado, su área/asignatura mandan.
+    const ctx = resolverContextoCurricular(
+      { ...curso, area: existente?.area || curso?.area },
+      { ...perfil, asignaturaPrincipal: existente?.asignatura || perfil?.asignaturaPrincipal }
+    );
+    const areaInicial = ctx.area;
+    const asignaturaInicial = ctx.asignatura;
     setArea(areaInicial);
     setAsignatura(asignaturaInicial);
     setModalidad(existente?.modalidad || "guiado");
@@ -118,9 +117,20 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
 
   useEffect(() => {
     let activo = true;
-    if (!curso?.grado || !area) return undefined;
+    if (!curso?.grado) return undefined;
+    // Contexto canónico desde una sola función (grado/nivel/área/asignatura),
+    // igual que la planificación. Prioriza el área/asignatura ya elegidos en el
+    // formulario; si no, los deriva del curso/perfil.
+    const ctx = resolverContextoCurricular(
+      { ...curso, area: area || curso?.area },
+      { ...perfil, asignaturaPrincipal: asignatura || perfil?.asignaturaPrincipal }
+    );
+    if (!ctx.valido) {
+      setReferentes({ indicadores: [], fuente: "", oficial: false, anterior: null, diagnostico: { busco: { materia: ctx.materia, grado: ctx.grado, nivel: ctx.nivel }, motivo: "sin_contexto", detalle: `Falta ${ctx.faltan.join(" y ")} para buscar la malla.` } });
+      return undefined;
+    }
     setCargandoReferentes(true);
-    cargarReferentesDiagnosticos({ nivel: curso.nivel, grado: curso.grado, area, asignatura })
+    cargarReferentesDiagnosticos({ nivel: ctx.nivel, grado: ctx.grado, area: ctx.area, asignatura: ctx.asignatura })
       .then((datos) => {
         if (!activo) return;
         setReferentes(datos);
@@ -128,7 +138,7 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
       })
       .finally(() => { if (activo) setCargandoReferentes(false); });
     return () => { activo = false; };
-  }, [curso?.grado, curso?.nivel, area, asignatura]);
+  }, [curso?.grado, curso?.nivel, curso?.area, area, asignatura, perfil?.areaPrincipal, perfil?.asignaturaPrincipal]);
 
   const resumen = useMemo(
     () => resumirDiagnostico({ estudiantes, aprendizajes, resultados, mediaciones }),
