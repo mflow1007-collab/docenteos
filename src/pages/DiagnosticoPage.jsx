@@ -295,7 +295,7 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
           {/* Fail-loud: cuando no hay malla oficial, decir EXACTAMENTE qué buscó y por qué no la encontró (en pantalla, sin consola). */}
           {!cargandoReferentes && !referentes.oficial && referentes.diagnostico ? (
             <p>{referentes.diagnostico.detalle || referentes.fuente}
-              {referentes.diagnostico.busco ? <><br/><small>Buscó: {referentes.diagnostico.busco.materia || "—"} · {referentes.diagnostico.busco.grado || "—"} · {referentes.diagnostico.busco.nivel || "—"} — motivo: {referentes.diagnostico.motivo || "—"}</small></> : null}
+              {referentes.diagnostico.busco ? <><br/>🔎 Buscó: <b>{referentes.diagnostico.busco.materia || "—"}</b> · <b>{referentes.diagnostico.busco.grado || "—"}</b> · <b>{referentes.diagnostico.busco.nivel || "—"}</b> — motivo: <b>{referentes.diagnostico.motivo || "—"}</b></> : null}
             </p>
           ) : (
             <p>{referentes.anterior ? `Referencia de saberes de entrada: ${referentes.anterior.etiqueta}. ` : ""}{referentes.fuente}</p>
