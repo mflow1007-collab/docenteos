@@ -71,6 +71,11 @@ export const cargarReferentesDiagnosticos = async ({ nivel, grado, area, asignat
   const gradoG = gradoBase(grado);
   const materia = asignatura || area;
 
+  // `diagnostico`: fail-LOUD. En vez de tragarse el fallo, registramos qué se
+  // buscó y por qué no hubo malla, para mostrarlo en pantalla y que el docente
+  // (o el dev) sepa exactamente qué pasó sin abrir la consola.
+  const diagnostico = { busco: { materia, grado: gradoG, nivel: nivelG }, motivo: "", detalle: "" };
+
   // 1) Banco de Conocimiento (`curricularContent`): MISMA malla activa que usa
   // el generador de planes (getCurricularContentForUnit, clave level+grade+
   // subject exactos). Es la fuente estricta y real.
@@ -78,8 +83,18 @@ export const cargarReferentesDiagnosticos = async ({ nivel, grado, area, asignat
     try {
       const malla = await getCurricularContentForUnit(materia, gradoG, nivelG);
       const indicadores = aplanarCurriculo(malla?.payload || malla);
-      if (indicadores.length) return { anterior, indicadores, fuente: `Malla curricular oficial de ${gradoG} (Banco de Conocimiento)`, oficial: true };
-    } catch { /* si el Banco no está disponible, seguimos con los demás orígenes */ }
+      if (indicadores.length) return { anterior, indicadores, fuente: `Malla curricular oficial de ${gradoG} (Banco de Conocimiento)`, oficial: true, diagnostico: { ...diagnostico, motivo: "ok" } };
+      diagnostico.motivo = malla ? "malla_sin_indicadores" : "malla_no_encontrada";
+      diagnostico.detalle = malla
+        ? `La malla de ${materia} ${gradoG} existe pero no tiene indicadores de logro.`
+        : `No hay malla activa de ${materia} ${gradoG} (${nivelG}) en el Banco de Conocimiento.`;
+    } catch (err) {
+      diagnostico.motivo = /permission|insufficient|denied/i.test(String(err?.code || err?.message)) ? "sin_permiso" : "error_lectura";
+      diagnostico.detalle = `No se pudo leer el Banco de Conocimiento: ${err?.code || err?.message}.`;
+    }
+  } else {
+    diagnostico.motivo = "sin_contexto";
+    diagnostico.detalle = "Falta asignatura o grado para buscar la malla.";
   }
 
   // 2) Pipeline `diseñoCurricular` (importación curricular clásica), mismo grado.
@@ -87,7 +102,7 @@ export const cargarReferentesDiagnosticos = async ({ nivel, grado, area, asignat
   for (const nombreArea of candidatosArea) {
     const documento = await consultarCurriculo(nivelG, gradoG, nombreArea);
     const indicadores = aplanarCurriculo(documento);
-    if (indicadores.length) return { anterior, indicadores, fuente: `Malla curricular oficial de ${gradoG}`, oficial: true };
+    if (indicadores.length) return { anterior, indicadores, fuente: `Malla curricular oficial de ${gradoG}`, oficial: true, diagnostico: { ...diagnostico, motivo: "ok_disenocurricular" } };
   }
 
   // 3) Referencia local de respaldo (requiere validación docente).
@@ -95,6 +110,7 @@ export const cargarReferentesDiagnosticos = async ({ nivel, grado, area, asignat
     anterior,
     indicadores: referenciaLocal(area, asignatura, gradoG, nivelG),
     fuente: "Referencia curricular local; requiere validación docente",
+    diagnostico,
     oficial: false,
   };
 };
