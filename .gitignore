@@ -29,4 +29,9 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+
+# Herramientas de agentes IA — config local, no parte del proyecto
 .claude/
+.agents/
+skills-lock.json
+repomix-output.xml

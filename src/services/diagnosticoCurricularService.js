@@ -133,17 +133,29 @@ export const cargarReferentesDiagnosticos = async ({ nivel, grado, area, asignat
   }
 
   // 2) Pipeline `diseñoCurricular` (importación curricular clásica), mismo grado.
+  // Fail-LOUD: si esta lectura falla (p. ej. permission-denied), NO se traga ni
+  // se pierde el diagnóstico del paso 1; se registra y se sigue al respaldo.
   const candidatosArea = [...new Set([area, asignatura].filter(Boolean))];
   for (const nombreArea of candidatosArea) {
-    const documento = await consultarCurriculo(nivelG, gradoG, nombreArea);
-    const indicadores = aplanarCurriculo(documento);
-    if (indicadores.length) return { anterior, indicadores, fuente: `Malla curricular oficial de ${gradoG}`, oficial: true, diagnostico: { ...diagnostico, motivo: "ok_disenocurricular" } };
+    try {
+      const documento = await consultarCurriculo(nivelG, gradoG, nombreArea);
+      const indicadores = aplanarCurriculo(documento);
+      if (indicadores.length) return { anterior, indicadores, fuente: `Malla curricular oficial de ${gradoG}`, oficial: true, diagnostico: { ...diagnostico, motivo: "ok_disenocurricular" } };
+    } catch (err) {
+      diagnostico.motivo = diagnostico.motivo || (/permission|insufficient|denied/i.test(String(err?.code || err?.message)) ? "sin_permiso" : "error_lectura");
+      diagnostico.detalle = diagnostico.detalle || `No se pudo leer el Diseño Curricular de ${nombreArea}: ${err?.code || err?.message}.`;
+    }
   }
 
   // 3) Referencia local de respaldo (requiere validación docente).
+  const indicadoresLocales = referenciaLocal(area, asignatura, gradoG, nivelG);
+  if (!indicadoresLocales.length && !diagnostico.motivo) {
+    diagnostico.motivo = "sin_referencia_local";
+    diagnostico.detalle = `No hay malla en el Banco ni referencia local para ${materia} ${gradoG} (${nivelG}).`;
+  }
   return {
     anterior,
-    indicadores: referenciaLocal(area, asignatura, gradoG, nivelG),
+    indicadores: indicadoresLocales,
     fuente: "Referencia curricular local; requiere validación docente",
     diagnostico,
     oficial: false,
