@@ -1098,10 +1098,22 @@ export const analizarJsonCurricular = (parsed) => {
   const ejeTematicoTransversal = asArray(parsed?.ejeTematicoTransversal || parsed?.ejeTemáticoTransversal);
   const aportesCompetenciasFundamentales = asArray(parsed?.aportesCompetenciasFundamentales);
   const ejesTransversales = asArray(parsed?.ejesTransversales);
-  const criteriosEvaluacion = [
-    ...aportesCompetenciasFundamentales.flatMap(aporte => asArray(aporte?.criteriosEvaluacion)),
-    ...asArray(parsed?.criteriosEvaluacion),
-  ];
+  // Los criterios de evaluación pueden venir en TRES sitios según el origen de
+  // la malla: (a) dentro de aportesCompetenciasFundamentales (conversión PDF→IA),
+  // (b) en la raíz criteriosEvaluacion, y (c) por competencia. Se leen de los
+  // tres para que el conteo sea robusto sin importar la estructura de origen, y
+  // se deduplican por texto porque una misma malla puede repetirlos en raíz y
+  // por competencia (no deben contarse dos veces).
+  const textoCriterio = (c) => cleanText(typeof c === 'string' ? c : (c?.descripcion || c?.texto || c?.criterio || '')).toLowerCase();
+  const criteriosEvaluacion = [...new Map(
+    [
+      ...aportesCompetenciasFundamentales.flatMap(aporte => asArray(aporte?.criteriosEvaluacion)),
+      ...asArray(parsed?.criteriosEvaluacion),
+      ...asArray(parsed?.competencias).flatMap(comp => asArray(comp?.criteriosEvaluacion)),
+    ]
+      .filter(c => textoCriterio(c))
+      .map(c => [textoCriterio(c), c])
+  ).values()];
   const tieneRaw = Boolean(cleanText(parsed?.contenidosRaw));
   const registroMINERD = parsed?.registroMINERD || parsed?.registro || {};
   const conteoRegistro = esRegistro ? contarRegistroMinerd(registroMINERD) : 0;
