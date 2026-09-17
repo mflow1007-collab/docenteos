@@ -35,3 +35,6 @@ dist-ssr
 .agents/
 skills-lock.json
 repomix-output.xml
+
+# Backups manuales de código — git ya guarda el historial
+backups/
