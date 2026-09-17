@@ -36,6 +36,7 @@ dist-ssr
 skills-lock.json
 repomix-output.xml
 .mcp.json
+graphify-out/
 
 # Backups manuales de código — git ya guarda el historial
 backups/
