@@ -188,6 +188,63 @@ export const generarBancoDiagnostico = ({ area = "", asignatura = "" } = {}) => 
   return construirGenericos(naturaleza, area).map(([dimension, tipo, dificultad, aprendizaje, consigna, apoyo], indice) => ({ id: `item-${normalizar(area).replace(/\s+/g, "-") || "general"}-${indice + 1}`, seleccionado: true, dimension, tipo, dificultad, aprendizaje, consigna, apoyo, tema: dimension, respuestaEsperada: "Evidencia el aprendizaje descrito con una respuesta comprensible y acorde con la consigna.", materiales: tipo === "Escucha" ? "Guion de lectura docente y apoyos visuales" : "Hoja del estudiante y lápiz", criterios: `Comprende la consigna; evidencia ${aprendizaje.toLowerCase()}; comunica una respuesta comprensible.` }));
 };
 
+// Deriva la dificultad por posición: los primeros indicadores son de activación,
+// el grueso esencial, los últimos de profundización. Mismo criterio de escalado
+// que el banco de idiomas, para que el diseño tenga una activación siempre.
+const dificultadPorPosicion = (indice, total) => {
+  if (total <= 3) return indice === 0 ? "Activación" : "Esencial";
+  const primerCorte = Math.max(1, Math.round(total * 0.2));
+  const segundoCorte = Math.max(primerCorte + 1, Math.round(total * 0.85));
+  if (indice < primerCorte) return "Activación";
+  if (indice < segundoCorte) return "Esencial";
+  return "Profundización";
+};
+
+/**
+ * Genera un ítem de diagnóstico POR CADA indicador oficial de la malla resuelta,
+ * en vez de partir de un banco fijo. Cada ítem queda ya vinculado a su indicador
+ * (indicadorId/indicador/competencia), reparte dimensiones y tipos según la
+ * naturaleza del área, y escala la dificultad por posición. Así el diagnóstico
+ * de 1ro y el de 6to salen distintos porque sus indicadores lo son.
+ *
+ * Devuelve [] si no hay indicadores; el llamador decide el respaldo (banco fijo).
+ */
+export const generarItemsDesdeIndicadores = (indicadores = [], { area = "", asignatura = "", grado = "" } = {}) => {
+  if (!Array.isArray(indicadores) || !indicadores.length) return [];
+  const naturaleza = obtenerNaturalezaArea(area, asignatura);
+  const dimensiones = naturaleza.dimensiones;
+  const tipos = naturaleza.tipos;
+  const total = indicadores.length;
+  const sufijoGrado = grado ? ` (${grado})` : "";
+
+  return indicadores.map((indicador, indice) => {
+    const dimension = dimensiones[indice % dimensiones.length];
+    const tipo = tipos[indice % tipos.length];
+    const dificultad = dificultadPorPosicion(indice, total);
+    const descripcion = indicador.descripcion || indicador.texto || String(indicador);
+    const aprendizajeCorto = descripcion.charAt(0).toLowerCase() + descripcion.slice(1);
+    return {
+      id: `item-malla-${normalizar(asignatura || area) || "area"}-${indicador.id || indice + 1}`,
+      seleccionado: indice < 8, // preselecciona los primeros 8 para no abrumar
+      dimension,
+      tipo,
+      dificultad,
+      // El aprendizaje observado ES el indicador oficial, literal.
+      aprendizaje: descripcion,
+      tema: indicador.competencia || dimension,
+      consigna: `Propón una actividad de ${tipo.toLowerCase()} donde el estudiante evidencie: ${aprendizajeCorto}. Ajústala al contexto del grupo${sufijoGrado}.`,
+      apoyo: "Incluye un ejemplo o apoyo visual; permite una segunda oportunidad sin revelar la respuesta.",
+      respuestaEsperada: `El estudiante evidencia, con sus propias palabras o producción, que ${aprendizajeCorto}`,
+      materiales: tipo === "Escucha" || tipo === "Lectura" ? "Guion o texto docente y apoyos visuales" : "Hoja del estudiante y lápiz",
+      criterios: `Comprende la consigna; evidencia el indicador; comunica una respuesta acorde con ${dimension.toLowerCase()}.`,
+      // Ya nace vinculado a su indicador oficial: no depende del enlace por palabras.
+      indicadorId: indicador.id || "",
+      indicador: descripcion,
+      competencia: indicador.competencia || "",
+    };
+  });
+};
+
 export const auditarDisenoDiagnostico = (items = [], naturaleza = NATURALEZA_GENERAL) => {
   const seleccionados = items.filter((item) => item.seleccionado);
   const porDificultad = { Activación: 0, Esencial: 0, Profundización: 0 };

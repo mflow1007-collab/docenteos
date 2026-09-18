@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   NIVELES_DIAGNOSTICO,
   MEDIACIONES_DIAGNOSTICO,
@@ -15,6 +15,7 @@ import {
   auditarDisenoDiagnostico,
   crearItemVacio,
   generarBancoDiagnostico,
+  generarItemsDesdeIndicadores,
   obtenerNaturalezaArea,
 } from "../services/diagnosticoBlueprintService.js";
 import { getAreas, getAsignaturas } from "../planning/areaAsignaturaMap.js";
@@ -63,6 +64,9 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   const [area, setArea] = useState(perfil?.areaPrincipal || cursoActivo?.area || "");
   const [asignatura, setAsignatura] = useState(perfil?.asignaturaPrincipal || "");
   const [items, setItems] = useState([]);
+  // Se marca cuando el docente edita/añade/quita un ítem: a partir de ahí la
+  // malla oficial ya no regenera el banco para no pisar su trabajo.
+  const bancoEditadoRef = useRef(false);
   const [contexto, setContexto] = useState({ duracion: "45", recursos: "Pizarra, hojas impresas y recursos visuales", caracteristicas: "", aplicacion: "Mixta" });
   const [referentes, setReferentes] = useState({ indicadores: [], fuente: "", oficial: false, anterior: null });
   const [cargandoReferentes, setCargandoReferentes] = useState(false);
@@ -134,7 +138,16 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
       .then((datos) => {
         if (!activo) return;
         setReferentes(datos);
-        if (datos.indicadores.length) setItems((actuales) => vincularItemsAIndicadores(actuales, datos.indicadores));
+        if (!datos.indicadores.length) return;
+        // Malla OFICIAL → generar los ítems DESDE los indicadores reales del grado
+        // (adaptados al grado y ya vinculados), salvo que el docente ya haya
+        // editado el banco (bancoEditadoRef) o guardado uno propio. Con malla no
+        // oficial (referencia local) se mantiene el enlace por palabras clásico.
+        if (datos.oficial && !bancoEditadoRef.current) {
+          const derivados = generarItemsDesdeIndicadores(datos.indicadores, { area: ctx.area, asignatura: ctx.asignatura, grado: ctx.grado });
+          if (derivados.length) { setItems(derivados); return; }
+        }
+        setItems((actuales) => vincularItemsAIndicadores(actuales, datos.indicadores));
       })
       .finally(() => { if (activo) setCargandoReferentes(false); });
     return () => { activo = false; };
@@ -194,7 +207,7 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
     setResultados({});
     setMediaciones({});
   };
-  const actualizarItem = (id, cambios) => setItems((actuales) => actuales.map((item) => item.id === id ? { ...item, ...cambios } : item));
+  const actualizarItem = (id, cambios) => { bancoEditadoRef.current = true; setItems((actuales) => actuales.map((item) => item.id === id ? { ...item, ...cambios } : item)); };
   const quitarItem = (id) => setItems((actuales) => actuales.filter((item) => item.id !== id));
   const seleccionarVisibles = (seleccionado) => {
     const ids = new Set(itemsVisibles.map((item) => item.id));
