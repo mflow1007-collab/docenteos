@@ -2562,7 +2562,7 @@
   align-items: center;
   gap: 0;
   padding: 18px 24px;
-  background: linear-gradient(130deg, #1e40af 0%, #523596 50%, #6d4bc4 100%);
+  background: linear-gradient(130deg, #1d4ed8 0%, #6d4bc4 55%, #7c3aed 100%);
   border: none;
   border-radius: 20px;
   box-shadow: 0 12px 40px rgba(30, 64, 175, 0.30),
@@ -2736,7 +2736,7 @@
   border-radius: 18px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #2563eb, #6d4bc4);
+  background: linear-gradient(135deg, #1e40af 0%, #6d4bc4 55%, #7c3aed 100%);
   color: white;
   font-weight: 900;
 }
@@ -4268,7 +4268,7 @@
   width: 100%;
   padding: 18px 32px;
   border: none;
-  background: linear-gradient(135deg, #1d4ed8 0%, #7d5bd6 50%, #6d4bc4 100%);
+  background: linear-gradient(135deg, #1e40af 0%, #6d4bc4 55%, #7c3aed 100%);
   color: #fff;
   font-weight: 800;
   font-size: 17px;
@@ -4767,7 +4767,7 @@
 .primary-btn {
   margin-top: 22px;
   border: none;
-  background: linear-gradient(135deg, #2563eb, #6d4bc4);
+  background: linear-gradient(135deg, #1e40af 0%, #6d4bc4 55%, #7c3aed 100%);
   color: white;
   padding: 14px 22px;
   border-radius: 14px;
@@ -7408,7 +7408,7 @@
   font-size: 13px;
   font-weight: 900;
   color: white;
-  background: linear-gradient(135deg, #2563eb, #6d4bc4);
+  background: linear-gradient(135deg, #1e40af 0%, #6d4bc4 55%, #7c3aed 100%);
   flex-shrink: 0;
   box-shadow: 0 3px 8px rgba(109, 75, 196, 0.3);
 }
@@ -7525,7 +7525,7 @@
   border-radius: 14px;
   border: none;
   color: #ffffff;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8 45%, #6d4bc4);
+  background: linear-gradient(135deg, #1e40af, #4f46e5 45%, #7c3aed);
   box-shadow: 0 16px 28px rgba(109, 75, 196, 0.34);
   font-size: 17px;
   font-weight: 900;
