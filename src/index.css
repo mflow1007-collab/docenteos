@@ -1,3 +1,13 @@
+:root {
+  /* Tipografía DocenteOS: serif académico para títulos, sans legible para cuerpo */
+  --fuente-titulos: "Fraunces", Georgia, "Times New Roman", serif;
+  --fuente-cuerpo: "Geist", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+
+  /* Acento de marca: violeta (transición azul→violeta en gradientes) */
+  --acento: #6d4bc4;
+  --acento-suave: rgba(109, 75, 196, 0.12);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -11,10 +21,24 @@ body,
 }
 
 body {
-  font-family: Inter, Arial, sans-serif;
+  font-family: var(--fuente-cuerpo);
   background: #f4f7fb;
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Títulos con el serif académico. Aplica salvo que un componente pida otra cosa. */
+h1,
+h2,
+h3 {
+  font-family: var(--fuente-titulos);
+  letter-spacing: -0.01em;
+}
+
+/* Cifras alineadas en tablas de registros/notas (regla del skill para UI de datos) */
+table,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 img,
@@ -29,4 +53,35 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+/* ── Feedback de interacción (Paso 3 rediseño) ──────────────────────────── */
+
+/* Clic físico: hunde ligeramente el elemento. Solo si el componente no define
+   su propio :active. transform es GPU-accelerated (regla del skill). */
+button:active,
+a:active,
+[role="button"]:active {
+  transform: translateY(1px);
+}
+
+/* Foco de teclado visible — requisito de accesibilidad. Anillo granate suave,
+   solo en navegación por teclado (no al hacer clic con mouse). */
+:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Transición suave por defecto en elementos interactivos que no la tengan */
+button,
+a,
+[role="button"] {
+  transition: background-color 0.2s ease, color 0.2s ease,
+    border-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+/* Scroll suave para anclas internas */
+html {
+  scroll-behavior: smooth;
 }
