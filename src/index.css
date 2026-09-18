@@ -1,3 +1,9 @@
+:root {
+  /* Tipografía DocenteOS: serif académico para títulos, sans legible para cuerpo */
+  --fuente-titulos: "Fraunces", Georgia, "Times New Roman", serif;
+  --fuente-cuerpo: "Geist", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -11,10 +17,24 @@ body,
 }
 
 body {
-  font-family: Inter, Arial, sans-serif;
+  font-family: var(--fuente-cuerpo);
   background: #f4f7fb;
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Títulos con el serif académico. Aplica salvo que un componente pida otra cosa. */
+h1,
+h2,
+h3 {
+  font-family: var(--fuente-titulos);
+  letter-spacing: -0.01em;
+}
+
+/* Cifras alineadas en tablas de registros/notas (regla del skill para UI de datos) */
+table,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 img,
