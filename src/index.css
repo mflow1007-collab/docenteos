@@ -3,9 +3,9 @@
   --fuente-titulos: "Fraunces", Georgia, "Times New Roman", serif;
   --fuente-cuerpo: "Geist", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 
-  /* Acento de marca: granate académico desaturado */
-  --acento: #8f3049;
-  --acento-suave: rgba(143, 48, 73, 0.12);
+  /* Acento de marca: violeta (transición azul→violeta en gradientes) */
+  --acento: #6d4bc4;
+  --acento-suave: rgba(109, 75, 196, 0.12);
 }
 
 * {
