@@ -1,0 +1,889 @@
+{
+  "schemaVersion": "1.3",
+  "level": "Secundaria",
+  "cycle": "Primer Ciclo",
+  "grade": "3ro",
+  "area": "Lenguas Extranjeras",
+  "subject": "Frances",
+  "contentType": "malla_curricular",
+  "contentId": "malla-frances-3ro-secundaria-2023",
+  "metadata": {
+    "fuente": "Adecuación Curricular Nivel Secundario MINERD 2023",
+    "paginas": [
+      188,
+      191
+    ],
+    "mcer": "A1.3"
+  },
+  "competenciasFundamentales": [
+    "Comunicativa",
+    "Pensamiento Lógico, Creativo y Crítico",
+    "Resolución de Problemas",
+    "Ética y Ciudadana",
+    "Científica y Tecnológica",
+    "Ambiental y de la Salud",
+    "Desarrollo Personal y Espiritual"
+  ],
+  "competencias": [
+    {
+      "id": "FRA-3-C01",
+      "fundamental": "Comunicativa",
+      "competenciaFundamental": "Comunicativa",
+      "especificaGrado": "Se comunica en francés oral y escrito, utilizando frases y oraciones básicas , breves y sencillas, previamente ensayadas, referentes a temas cotidianos en situaciones inmediatas comunicativas, donde indica la ubicación, describe las condiciones atmosféricas, y las actividades que se llevan cabo en planes futuros.",
+      "descripcion": "Se comunica en francés oral y escrito, utilizando frases y oraciones básicas , breves y sencillas, previamente ensayadas, referentes a temas cotidianos en situaciones inmediatas comunicativas, donde indica la ubicación, describe las condiciones atmosféricas, y las actividades que se llevan cabo en planes futuros.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-3-I01",
+          "descripcion": "Responde de manera adecuada a preguntas e indicaciones a partir de textos cortos orales o escritos, compuestos por un repertorio creciente de vocabulario y expresiones practicadas en el idioma francés, relativos a información personal básica, descripción de actividades que se llevan a cabo, así como también de planes futuros, volviendo a escuchar y releyendo cuando sea necesario.",
+          "competenciaId": "FRA-3-C01"
+        },
+        {
+          "id": "FRA-3-I02",
+          "descripcion": "Produce textos orales y escritos muy breves y sencillos que requieren cierto esfuerzo para ser comprendidos, usualmente compuestos por un repertorio limitado de vocabulario y expresiones básicas sobre informaciones personales, ubicación de lugares y condición atmosférica, actividades que se están llevando a cabo y planes futuros, apoyándose en experiencias previas y estrategias compensatorias.",
+          "competenciaId": "FRA-3-C01"
+        },
+        {
+          "id": "FRA-3-I03",
+          "descripcion": "Interactúa de forma oral y escrita, utilizando un repertorio ensayado de vocabulario y expresiones muy breves y sencillas, donde se comparte la ubicación de lugares y sus condiciones atmosféricas, actividades que se están llevando a cabo y planes futuros, necesitando ayuda de su interlocutor para comprender y hacerse comprender.",
+          "competenciaId": "FRA-3-C01"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Comprensión de textos orales y escritos muy breves y sencillos compuestos por un repertorio muy limitado de vocabulario y expresiones ensayadas en el idioma francés, relativos a necesidades concretas y temas cotidianos.",
+        "Producción de textos orales y escritos breves y sencillos, compuestos por un repertorio limitado de vocabulario y expresiones en el idioma francés, donde se tratan necesidades inmediatas y temas muy cotidianos, apoyándose en experiencias previas, imágenes y estrategias compensatorias.",
+        "Interacción oral y escrita muy breve y sencilla a partir de un repertorio ensayado de vocabulario y expresiones básicas del idioma francés, referentes a la presentación personal, su entorno inmediato y temas muy cotidianos, necesitando ayuda de su interlocutor para comprender y hacerse comprender."
+      ]
+    },
+    {
+      "id": "FRA-3-C02",
+      "fundamental": "Pensamiento Lógico, Creativo y Crítico",
+      "competenciaFundamental": "Pensamiento Lógico, Creativo y Crítico",
+      "especificaGrado": "Se comunica en el idioma francés, utilizando la lógica verbal para estructurar un repertorio creciente de frases y expresiones breves y sencillas que ensaya y presenta en distintas situaciones inmediatas de comunicación de forma creativa previamente planificada, necesitando ayuda al expresarse y esfuerzo para ser comprendido.",
+      "descripcion": "Se comunica en el idioma francés, utilizando la lógica verbal para estructurar un repertorio creciente de frases y expresiones breves y sencillas que ensaya y presenta en distintas situaciones inmediatas de comunicación de forma creativa previamente planificada, necesitando ayuda al expresarse y esfuerzo para ser comprendido.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-3-I04",
+          "descripcion": "Utiliza el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y sencillos sobre descripción de la ubicación y las condiciones atmosféricas de su entorno, así como de actividades que lleva a cabo y planes futuros, releyendo cuando sea necesario y ayudándose de las ilustraciones y otros elementos textuales y paratextuales del contexto.",
+          "competenciaId": "FRA-3-C02"
+        },
+        {
+          "id": "FRA-3-I05",
+          "descripcion": "Presenta de forma lógica y creativa la estructura y secuencia de ideas, empleando estrategias de desempeño y pensamiento creativo, tales como acompañar con dibujos, dramatizar, cantar, entre otros, aunque requiera esfuerzo poder comprender las frases y oraciones breves y sencillas que expresan en forma oral o escrita.",
+          "competenciaId": "FRA-3-C02"
+        },
+        {
+          "id": "FRA-3-I06",
+          "descripcion": "Interactúa de forma oral y escrita breve y sencilla sobre situaciones cotidianas, descripción de su entorno, actividades presentes y planes futuros, utilizando el pensamiento lógico-verbal para estructurar y seguir la secuencia de expresiones ensayadas y el pensamiento creativo al realizar el intercambio en la situación planteada.",
+          "competenciaId": "FRA-3-C02"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Utiliza el pensamiento lógico",
+        "verbal para comprender expresiones básicas previamente trabajadas, presentes en textos orales y escritos breves y sencillos sobre necesidades inmediatas y temas cotidianos.",
+        "Expresión oral y escrita breve y sencilla, empleando estrategias para presentar de forma lógica y creativa una secuencia de ideas, apoyándose con dibujos, dramatizaciones, canciones, entre otros.",
+        "Interacción oral y escrita breve y sencilla sobre situaciones inmediatas y temas cotidianos, utilizando el pensamiento lógico",
+        "verbal para estructurar la secuencia de expresiones ensayadas y el pensamiento creativo para la presentación de la situación planteada."
+      ]
+    },
+    {
+      "id": "FRA-3-C03",
+      "fundamental": "Resolución de Problemas",
+      "competenciaFundamental": "Resolución de Problemas",
+      "especificaGrado": "Comprende y expresa informaciones relevantes para resolver situaciones y problemas de su entorno cotidiano y necesidades inmediatas de comunicación, tales como la descripción de si mimo, personas, lugares, objetos, condiciones atmosféricas y planes futuros, utilizando frases hechas y oraciones muy breves y sencillas, con la ayuda de su interlocutor para poder expresarse y poder ser comprendido.",
+      "descripcion": "Comprende y expresa informaciones relevantes para resolver situaciones y problemas de su entorno cotidiano y necesidades inmediatas de comunicación, tales como la descripción de si mimo, personas, lugares, objetos, condiciones atmosféricas y planes futuros, utilizando frases hechas y oraciones muy breves y sencillas, con la ayuda de su interlocutor para poder expresarse y poder ser comprendido.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-3-I07",
+          "descripcion": "Responde de forma adecuada a preguntas en indicaciones simples de información específica, tendentes a la resolución de situaciones y problemas inmediatos, a partir de textos orales y escritos muy breves y sencillos donde se comparte información personal, y se describe actividades presentes y planes futuros, tomando en cuenta lugares, ubicación y condiciones atmosféricas.",
+          "competenciaId": "FRA-3-C03"
+        },
+        {
+          "id": "FRA-3-I08",
+          "descripcion": "Presenta información breve y sencilla sobre situaciones y problemas de su entorno, utilizando frases y oraciones escritas sueltas, y de elementos orales ensayados en colocación sucesiva, que se comprenden con cierto esfuerzo al compartir información, actividades presentes, planes futuros, además de descripción de lugares y condiciones atmosféricas y viviendas.",
+          "competenciaId": "FRA-3-C03"
+        },
+        {
+          "id": "FRA-3-I09",
+          "descripcion": "Interactúa de forma muy breve y sencilla para compartir información básica tendente a resolver situaciones o problemas planteados en su entorno cotidiano inmediato, tales como la identificación de personas, actividades variadas, ubicación de lugares y planes futuros, utilizando un repertorio limitado de vocabulario y expresiones con ayuda de su interlocutor.",
+          "competenciaId": "FRA-3-C03"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Responde preguntas en indicaciones simples sobre información específica tendentes a la resolución de situaciones y problemas, donde se necesite la localización y descripción de objetos, personas, lugares, actividades cotidianas y características del entorno, a partir de textos simples orales y escritos.",
+        "Presentación de información breve sobre aspectos básicos de su persona y entorno para lidiar con situaciones y problemas que lo requieren, mediante la producción escrita de frases y oraciones sueltas o en colocación sucesiva de elementos orales ya practicados, que se comprenden con cierto esfuerzo.",
+        "Interacción sencilla donde se comparte información básica para resolver situaciones o problemas planteados en su entorno cotidiano inmediato, tales como la identificación de personas, lugares, objetos y la descripción de los mismos, utilizando un repertorio limitado de vocabulario y expresiones."
+      ]
+    },
+    {
+      "id": "FRA-3-C04",
+      "fundamental": "Ética y Ciudadana",
+      "competenciaFundamental": "Ética y Ciudadana",
+      "especificaGrado": "Se comunica de forma oral y escrita, con cortesía, respeto y asertividad, en intercambios muy sencillos en francés, identificando las diferencias individuales y la identidad social y cultural propia y de otros países y detalles de información personal relativa a actividades cotidianas, medios de transporte, lugares, clima y planes futuros.",
+      "descripcion": "Se comunica de forma oral y escrita, con cortesía, respeto y asertividad, en intercambios muy sencillos en francés, identificando las diferencias individuales y la identidad social y cultural propia y de otros países y detalles de información personal relativa a actividades cotidianas, medios de transporte, lugares, clima y planes futuros.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-3-I10",
+          "descripcion": "Responde de forma adecuada ante las expresiones de cortesía, respeto y asertividad, identificándolas y reciprocándolas al compartir información personal, planes futuros, descripción de lugares de su comunidad, incluyendo la ubicación y el clima.",
+          "competenciaId": "FRA-3-C04"
+        },
+        {
+          "id": "FRA-3-I11",
+          "descripcion": "Se expresa con cortesía, respeto y asertividad, al compartir información personal básica, describir actividades cotidianas, condiciones atmosféricas y planes, además de personas, lugares y objetos, en textos orales y escritos muy breves y sencillos",
+          "competenciaId": "FRA-3-C04"
+        },
+        {
+          "id": "FRA-3-I12",
+          "descripcion": "Interactúa de forma oral y escrita con expresiones muy básicas de cortesía, asertividad y respeto a las diferencias individuales, costumbres y cultura de las demás personas en su entorno inmediato y próximo.",
+          "competenciaId": "FRA-3-C04"
+        }
+      ],
+      "criteriosEvaluacion": []
+    },
+    {
+      "id": "FRA-3-C05",
+      "fundamental": "Científica y Tecnológica",
+      "competenciaFundamental": "Científica y Tecnológica",
+      "especificaGrado": "Reconoce, organiza y comparte en formato físico, digital o en línea, información relativa a la ciencia y la tecnología presentes en su entorno cotidiano, utilizando un vocabulario ensayado que requiere de mínimo esfuerzo para ser comprendido.",
+      "descripcion": "Reconoce, organiza y comparte en formato físico, digital o en línea, información relativa a la ciencia y la tecnología presentes en su entorno cotidiano, utilizando un vocabulario ensayado que requiere de mínimo esfuerzo para ser comprendido.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-3-I13",
+          "descripcion": "Localiza información básica referente a aspectos de la ciencia y la tecnología, en la identificación y la descripción de objetos personas, lugares, actividades, condiciones atmosféricas y planes futuros, a partir de textos compuestos por frases y oraciones comunes muy breves y sencillas que pueda releer o escuchar de nuevo cuando sea necesario.",
+          "competenciaId": "FRA-3-C05"
+        },
+        {
+          "id": "FRA-3-I14",
+          "descripcion": "Se refiere a aspectos de la ciencia y la tecnología, a partir de un repertorio limitado de expresiones orales y escritas ensayadas, relativas a descripción de objetos, personas, actividades, condiciones atmosféricas y planes futuros, que se pueden comprender, aunque con cierto esfuerzo.",
+          "competenciaId": "FRA-3-C05"
+        },
+        {
+          "id": "FRA-3-I15",
+          "descripcion": "Interactúa en forma oral y escrita sobre temas científicos y tecnológicos en la descripción de objetos, personas, lugares, y condiciones atmosféricas, además de actividades que se están llevando a cabo y planes futuros, utilizando un repertorio limitado de expresiones ensayadas y con ayuda de su interlocutor.",
+          "competenciaId": "FRA-3-C05"
+        }
+      ],
+      "criteriosEvaluacion": []
+    },
+    {
+      "id": "FRA-3-C06",
+      "fundamental": "Ambiental y de la Salud",
+      "competenciaFundamental": "Ambiental y de la Salud",
+      "especificaGrado": "Interctua mostrando preferencia por opciones que impactan positivamente la salud y el medio ambiente, en distintas situaciones inmediatas de comunicación oral y escrita, donde identifica y describe actividades que realiza, sus planes y las condiciones del entorno.",
+      "descripcion": "Interctua mostrando preferencia por opciones que impactan positivamente la salud y el medio ambiente, en distintas situaciones inmediatas de comunicación oral y escrita, donde identifica y describe actividades que realiza, sus planes y las condiciones del entorno.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-3-I16",
+          "descripcion": "Responde a preguntas e indicaciones sobre las opciones que impactan positivamente la salud y el medio ambiente, a partir de la escucha o lectura de textos muy breves y sencillos sobre descripción de objetos, personas, lugares, condiciones atmosféricas, actividades que se realizan y planes futuros.",
+          "competenciaId": "FRA-3-C06"
+        },
+        {
+          "id": "FRA-3-I17",
+          "descripcion": "Escribe textos orales y escritos muy breves y sencillos, en los que muestra preferencia por opciones favorables para su salud, la de otras personas, y el medio ambiente, al describir objetos, personas, lugares, condiciones atmosféricas, actividades que se realizan y planes futuros.",
+          "competenciaId": "FRA-3-C06"
+        },
+        {
+          "id": "FRA-3-I18",
+          "descripcion": "Interactúa con ayuda de su interlocutor para comprender y poder ser comprendido, mostrando preferencia por opciones beneficiosas para el medio ambiente y la salud, a partir de expresiones muy sencillas y breves donde se describen objetos, personas, lugares, condiciones atmosféricas, actividades que se realizan y planes futuros",
+          "competenciaId": "FRA-3-C06"
+        }
+      ],
+      "criteriosEvaluacion": []
+    },
+    {
+      "id": "FRA-3-C07",
+      "fundamental": "Desarrollo Personal y Espiritual",
+      "competenciaFundamental": "Desarrollo Personal y Espiritual",
+      "especificaGrado": "Interactua con otras personas en el idioma francés, con cortesía actitud de respeto, honestidad y aceptación, al compartir informaciones, describir actividades cotidianas y planes, objetos de su pertenencia, lugares y condiciones atmosféricas de su comunidad",
+      "descripcion": "Interactua con otras personas en el idioma francés, con cortesía actitud de respeto, honestidad y aceptación, al compartir informaciones, describir actividades cotidianas y planes, objetos de su pertenencia, lugares y condiciones atmosféricas de su comunidad",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-3-I19",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, en un plano de cortesía, honestidad, aceptación, asertividad y respeto, a partir de la información contenida en textos orales y escritos muy breves y sencillos en el idioma francés.",
+          "competenciaId": "FRA-3-C07"
+        },
+        {
+          "id": "FRA-3-I20",
+          "descripcion": "Se expresa en forma oral y escrita con cortesía, honestidad, aceptación, asertividad y respeto por la identidad personal y modo de vida de las demás personas, sus procedencias y planes futuros, utilizando frases muy breves y sencillas en el idioma francés.",
+          "competenciaId": "FRA-3-C07"
+        },
+        {
+          "id": "FRA-3-I21",
+          "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios muy sencillos en el idioma francés donde se comparte información personal sobre actividades y planes futuros. 191",
+          "competenciaId": "FRA-3-C07"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Comprensión adecuada de información personal básica, identificación de pertenencias propias y de otras personas, sus actividades cotidianas, preferencias, y condiciones del entorno, en un plano de cortesía, honestidad, aceptación, asertividad y respeto",
+        "Expresión oral y escrita breve y sencilla en el idioma francés con cortesía, honestidad, aceptación, asertividad y respeto por la identidad personal y modo de vida de las demás personas.",
+        "Interacción oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios en el idioma francés."
+      ]
+    }
+  ],
+  "indicadoresLogro": [
+    {
+      "id": "FRA-3-I01",
+      "descripcion": "Responde de manera adecuada a preguntas e indicaciones a partir de textos cortos orales o escritos, compuestos por un repertorio creciente de vocabulario y expresiones practicadas en el idioma francés, relativos a información personal básica, descripción de actividades que se llevan a cabo, así como también de planes futuros, volviendo a escuchar y releyendo cuando sea necesario.",
+      "competenciaId": "FRA-3-C01"
+    },
+    {
+      "id": "FRA-3-I02",
+      "descripcion": "Produce textos orales y escritos muy breves y sencillos que requieren cierto esfuerzo para ser comprendidos, usualmente compuestos por un repertorio limitado de vocabulario y expresiones básicas sobre informaciones personales, ubicación de lugares y condición atmosférica, actividades que se están llevando a cabo y planes futuros, apoyándose en experiencias previas y estrategias compensatorias.",
+      "competenciaId": "FRA-3-C01"
+    },
+    {
+      "id": "FRA-3-I03",
+      "descripcion": "Interactúa de forma oral y escrita, utilizando un repertorio ensayado de vocabulario y expresiones muy breves y sencillas, donde se comparte la ubicación de lugares y sus condiciones atmosféricas, actividades que se están llevando a cabo y planes futuros, necesitando ayuda de su interlocutor para comprender y hacerse comprender.",
+      "competenciaId": "FRA-3-C01"
+    },
+    {
+      "id": "FRA-3-I04",
+      "descripcion": "Utiliza el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y sencillos sobre descripción de la ubicación y las condiciones atmosféricas de su entorno, así como de actividades que lleva a cabo y planes futuros, releyendo cuando sea necesario y ayudándose de las ilustraciones y otros elementos textuales y paratextuales del contexto.",
+      "competenciaId": "FRA-3-C02"
+    },
+    {
+      "id": "FRA-3-I05",
+      "descripcion": "Presenta de forma lógica y creativa la estructura y secuencia de ideas, empleando estrategias de desempeño y pensamiento creativo, tales como acompañar con dibujos, dramatizar, cantar, entre otros, aunque requiera esfuerzo poder comprender las frases y oraciones breves y sencillas que expresan en forma oral o escrita.",
+      "competenciaId": "FRA-3-C02"
+    },
+    {
+      "id": "FRA-3-I06",
+      "descripcion": "Interactúa de forma oral y escrita breve y sencilla sobre situaciones cotidianas, descripción de su entorno, actividades presentes y planes futuros, utilizando el pensamiento lógico-verbal para estructurar y seguir la secuencia de expresiones ensayadas y el pensamiento creativo al realizar el intercambio en la situación planteada.",
+      "competenciaId": "FRA-3-C02"
+    },
+    {
+      "id": "FRA-3-I07",
+      "descripcion": "Responde de forma adecuada a preguntas en indicaciones simples de información específica, tendentes a la resolución de situaciones y problemas inmediatos, a partir de textos orales y escritos muy breves y sencillos donde se comparte información personal, y se describe actividades presentes y planes futuros, tomando en cuenta lugares, ubicación y condiciones atmosféricas.",
+      "competenciaId": "FRA-3-C03"
+    },
+    {
+      "id": "FRA-3-I08",
+      "descripcion": "Presenta información breve y sencilla sobre situaciones y problemas de su entorno, utilizando frases y oraciones escritas sueltas, y de elementos orales ensayados en colocación sucesiva, que se comprenden con cierto esfuerzo al compartir información, actividades presentes, planes futuros, además de descripción de lugares y condiciones atmosféricas y viviendas.",
+      "competenciaId": "FRA-3-C03"
+    },
+    {
+      "id": "FRA-3-I09",
+      "descripcion": "Interactúa de forma muy breve y sencilla para compartir información básica tendente a resolver situaciones o problemas planteados en su entorno cotidiano inmediato, tales como la identificación de personas, actividades variadas, ubicación de lugares y planes futuros, utilizando un repertorio limitado de vocabulario y expresiones con ayuda de su interlocutor.",
+      "competenciaId": "FRA-3-C03"
+    },
+    {
+      "id": "FRA-3-I10",
+      "descripcion": "Responde de forma adecuada ante las expresiones de cortesía, respeto y asertividad, identificándolas y reciprocándolas al compartir información personal, planes futuros, descripción de lugares de su comunidad, incluyendo la ubicación y el clima.",
+      "competenciaId": "FRA-3-C04"
+    },
+    {
+      "id": "FRA-3-I11",
+      "descripcion": "Se expresa con cortesía, respeto y asertividad, al compartir información personal básica, describir actividades cotidianas, condiciones atmosféricas y planes, además de personas, lugares y objetos, en textos orales y escritos muy breves y sencillos",
+      "competenciaId": "FRA-3-C04"
+    },
+    {
+      "id": "FRA-3-I12",
+      "descripcion": "Interactúa de forma oral y escrita con expresiones muy básicas de cortesía, asertividad y respeto a las diferencias individuales, costumbres y cultura de las demás personas en su entorno inmediato y próximo.",
+      "competenciaId": "FRA-3-C04"
+    },
+    {
+      "id": "FRA-3-I13",
+      "descripcion": "Localiza información básica referente a aspectos de la ciencia y la tecnología, en la identificación y la descripción de objetos personas, lugares, actividades, condiciones atmosféricas y planes futuros, a partir de textos compuestos por frases y oraciones comunes muy breves y sencillas que pueda releer o escuchar de nuevo cuando sea necesario.",
+      "competenciaId": "FRA-3-C05"
+    },
+    {
+      "id": "FRA-3-I14",
+      "descripcion": "Se refiere a aspectos de la ciencia y la tecnología, a partir de un repertorio limitado de expresiones orales y escritas ensayadas, relativas a descripción de objetos, personas, actividades, condiciones atmosféricas y planes futuros, que se pueden comprender, aunque con cierto esfuerzo.",
+      "competenciaId": "FRA-3-C05"
+    },
+    {
+      "id": "FRA-3-I15",
+      "descripcion": "Interactúa en forma oral y escrita sobre temas científicos y tecnológicos en la descripción de objetos, personas, lugares, y condiciones atmosféricas, además de actividades que se están llevando a cabo y planes futuros, utilizando un repertorio limitado de expresiones ensayadas y con ayuda de su interlocutor.",
+      "competenciaId": "FRA-3-C05"
+    },
+    {
+      "id": "FRA-3-I16",
+      "descripcion": "Responde a preguntas e indicaciones sobre las opciones que impactan positivamente la salud y el medio ambiente, a partir de la escucha o lectura de textos muy breves y sencillos sobre descripción de objetos, personas, lugares, condiciones atmosféricas, actividades que se realizan y planes futuros.",
+      "competenciaId": "FRA-3-C06"
+    },
+    {
+      "id": "FRA-3-I17",
+      "descripcion": "Escribe textos orales y escritos muy breves y sencillos, en los que muestra preferencia por opciones favorables para su salud, la de otras personas, y el medio ambiente, al describir objetos, personas, lugares, condiciones atmosféricas, actividades que se realizan y planes futuros.",
+      "competenciaId": "FRA-3-C06"
+    },
+    {
+      "id": "FRA-3-I18",
+      "descripcion": "Interactúa con ayuda de su interlocutor para comprender y poder ser comprendido, mostrando preferencia por opciones beneficiosas para el medio ambiente y la salud, a partir de expresiones muy sencillas y breves donde se describen objetos, personas, lugares, condiciones atmosféricas, actividades que se realizan y planes futuros",
+      "competenciaId": "FRA-3-C06"
+    },
+    {
+      "id": "FRA-3-I19",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, en un plano de cortesía, honestidad, aceptación, asertividad y respeto, a partir de la información contenida en textos orales y escritos muy breves y sencillos en el idioma francés.",
+      "competenciaId": "FRA-3-C07"
+    },
+    {
+      "id": "FRA-3-I20",
+      "descripcion": "Se expresa en forma oral y escrita con cortesía, honestidad, aceptación, asertividad y respeto por la identidad personal y modo de vida de las demás personas, sus procedencias y planes futuros, utilizando frases muy breves y sencillas en el idioma francés.",
+      "competenciaId": "FRA-3-C07"
+    },
+    {
+      "id": "FRA-3-I21",
+      "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios muy sencillos en el idioma francés donde se comparte información personal sobre actividades y planes futuros. 191",
+      "competenciaId": "FRA-3-C07"
+    }
+  ],
+  "indicadores": [
+    {
+      "id": "FRA-3-I01",
+      "descripcion": "Responde de manera adecuada a preguntas e indicaciones a partir de textos cortos orales o escritos, compuestos por un repertorio creciente de vocabulario y expresiones practicadas en el idioma francés, relativos a información personal básica, descripción de actividades que se llevan a cabo, así como también de planes futuros, volviendo a escuchar y releyendo cuando sea necesario.",
+      "competenciaId": "FRA-3-C01"
+    },
+    {
+      "id": "FRA-3-I02",
+      "descripcion": "Produce textos orales y escritos muy breves y sencillos que requieren cierto esfuerzo para ser comprendidos, usualmente compuestos por un repertorio limitado de vocabulario y expresiones básicas sobre informaciones personales, ubicación de lugares y condición atmosférica, actividades que se están llevando a cabo y planes futuros, apoyándose en experiencias previas y estrategias compensatorias.",
+      "competenciaId": "FRA-3-C01"
+    },
+    {
+      "id": "FRA-3-I03",
+      "descripcion": "Interactúa de forma oral y escrita, utilizando un repertorio ensayado de vocabulario y expresiones muy breves y sencillas, donde se comparte la ubicación de lugares y sus condiciones atmosféricas, actividades que se están llevando a cabo y planes futuros, necesitando ayuda de su interlocutor para comprender y hacerse comprender.",
+      "competenciaId": "FRA-3-C01"
+    },
+    {
+      "id": "FRA-3-I04",
+      "descripcion": "Utiliza el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y sencillos sobre descripción de la ubicación y las condiciones atmosféricas de su entorno, así como de actividades que lleva a cabo y planes futuros, releyendo cuando sea necesario y ayudándose de las ilustraciones y otros elementos textuales y paratextuales del contexto.",
+      "competenciaId": "FRA-3-C02"
+    },
+    {
+      "id": "FRA-3-I05",
+      "descripcion": "Presenta de forma lógica y creativa la estructura y secuencia de ideas, empleando estrategias de desempeño y pensamiento creativo, tales como acompañar con dibujos, dramatizar, cantar, entre otros, aunque requiera esfuerzo poder comprender las frases y oraciones breves y sencillas que expresan en forma oral o escrita.",
+      "competenciaId": "FRA-3-C02"
+    },
+    {
+      "id": "FRA-3-I06",
+      "descripcion": "Interactúa de forma oral y escrita breve y sencilla sobre situaciones cotidianas, descripción de su entorno, actividades presentes y planes futuros, utilizando el pensamiento lógico-verbal para estructurar y seguir la secuencia de expresiones ensayadas y el pensamiento creativo al realizar el intercambio en la situación planteada.",
+      "competenciaId": "FRA-3-C02"
+    },
+    {
+      "id": "FRA-3-I07",
+      "descripcion": "Responde de forma adecuada a preguntas en indicaciones simples de información específica, tendentes a la resolución de situaciones y problemas inmediatos, a partir de textos orales y escritos muy breves y sencillos donde se comparte información personal, y se describe actividades presentes y planes futuros, tomando en cuenta lugares, ubicación y condiciones atmosféricas.",
+      "competenciaId": "FRA-3-C03"
+    },
+    {
+      "id": "FRA-3-I08",
+      "descripcion": "Presenta información breve y sencilla sobre situaciones y problemas de su entorno, utilizando frases y oraciones escritas sueltas, y de elementos orales ensayados en colocación sucesiva, que se comprenden con cierto esfuerzo al compartir información, actividades presentes, planes futuros, además de descripción de lugares y condiciones atmosféricas y viviendas.",
+      "competenciaId": "FRA-3-C03"
+    },
+    {
+      "id": "FRA-3-I09",
+      "descripcion": "Interactúa de forma muy breve y sencilla para compartir información básica tendente a resolver situaciones o problemas planteados en su entorno cotidiano inmediato, tales como la identificación de personas, actividades variadas, ubicación de lugares y planes futuros, utilizando un repertorio limitado de vocabulario y expresiones con ayuda de su interlocutor.",
+      "competenciaId": "FRA-3-C03"
+    },
+    {
+      "id": "FRA-3-I10",
+      "descripcion": "Responde de forma adecuada ante las expresiones de cortesía, respeto y asertividad, identificándolas y reciprocándolas al compartir información personal, planes futuros, descripción de lugares de su comunidad, incluyendo la ubicación y el clima.",
+      "competenciaId": "FRA-3-C04"
+    },
+    {
+      "id": "FRA-3-I11",
+      "descripcion": "Se expresa con cortesía, respeto y asertividad, al compartir información personal básica, describir actividades cotidianas, condiciones atmosféricas y planes, además de personas, lugares y objetos, en textos orales y escritos muy breves y sencillos",
+      "competenciaId": "FRA-3-C04"
+    },
+    {
+      "id": "FRA-3-I12",
+      "descripcion": "Interactúa de forma oral y escrita con expresiones muy básicas de cortesía, asertividad y respeto a las diferencias individuales, costumbres y cultura de las demás personas en su entorno inmediato y próximo.",
+      "competenciaId": "FRA-3-C04"
+    },
+    {
+      "id": "FRA-3-I13",
+      "descripcion": "Localiza información básica referente a aspectos de la ciencia y la tecnología, en la identificación y la descripción de objetos personas, lugares, actividades, condiciones atmosféricas y planes futuros, a partir de textos compuestos por frases y oraciones comunes muy breves y sencillas que pueda releer o escuchar de nuevo cuando sea necesario.",
+      "competenciaId": "FRA-3-C05"
+    },
+    {
+      "id": "FRA-3-I14",
+      "descripcion": "Se refiere a aspectos de la ciencia y la tecnología, a partir de un repertorio limitado de expresiones orales y escritas ensayadas, relativas a descripción de objetos, personas, actividades, condiciones atmosféricas y planes futuros, que se pueden comprender, aunque con cierto esfuerzo.",
+      "competenciaId": "FRA-3-C05"
+    },
+    {
+      "id": "FRA-3-I15",
+      "descripcion": "Interactúa en forma oral y escrita sobre temas científicos y tecnológicos en la descripción de objetos, personas, lugares, y condiciones atmosféricas, además de actividades que se están llevando a cabo y planes futuros, utilizando un repertorio limitado de expresiones ensayadas y con ayuda de su interlocutor.",
+      "competenciaId": "FRA-3-C05"
+    },
+    {
+      "id": "FRA-3-I16",
+      "descripcion": "Responde a preguntas e indicaciones sobre las opciones que impactan positivamente la salud y el medio ambiente, a partir de la escucha o lectura de textos muy breves y sencillos sobre descripción de objetos, personas, lugares, condiciones atmosféricas, actividades que se realizan y planes futuros.",
+      "competenciaId": "FRA-3-C06"
+    },
+    {
+      "id": "FRA-3-I17",
+      "descripcion": "Escribe textos orales y escritos muy breves y sencillos, en los que muestra preferencia por opciones favorables para su salud, la de otras personas, y el medio ambiente, al describir objetos, personas, lugares, condiciones atmosféricas, actividades que se realizan y planes futuros.",
+      "competenciaId": "FRA-3-C06"
+    },
+    {
+      "id": "FRA-3-I18",
+      "descripcion": "Interactúa con ayuda de su interlocutor para comprender y poder ser comprendido, mostrando preferencia por opciones beneficiosas para el medio ambiente y la salud, a partir de expresiones muy sencillas y breves donde se describen objetos, personas, lugares, condiciones atmosféricas, actividades que se realizan y planes futuros",
+      "competenciaId": "FRA-3-C06"
+    },
+    {
+      "id": "FRA-3-I19",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, en un plano de cortesía, honestidad, aceptación, asertividad y respeto, a partir de la información contenida en textos orales y escritos muy breves y sencillos en el idioma francés.",
+      "competenciaId": "FRA-3-C07"
+    },
+    {
+      "id": "FRA-3-I20",
+      "descripcion": "Se expresa en forma oral y escrita con cortesía, honestidad, aceptación, asertividad y respeto por la identidad personal y modo de vida de las demás personas, sus procedencias y planes futuros, utilizando frases muy breves y sencillas en el idioma francés.",
+      "competenciaId": "FRA-3-C07"
+    },
+    {
+      "id": "FRA-3-I21",
+      "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios muy sencillos en el idioma francés donde se comparte información personal sobre actividades y planes futuros. 191",
+      "competenciaId": "FRA-3-C07"
+    }
+  ],
+  "criteriosEvaluacion": [
+    "Comprensión de textos orales y escritos muy breves y sencillos compuestos por un repertorio muy limitado de vocabulario y expresiones ensayadas en el idioma francés, relativos a necesidades concretas y temas cotidianos.",
+    "Producción de textos orales y escritos breves y sencillos, compuestos por un repertorio limitado de vocabulario y expresiones en el idioma francés, donde se tratan necesidades inmediatas y temas muy cotidianos, apoyándose en experiencias previas, imágenes y estrategias compensatorias.",
+    "Interacción oral y escrita muy breve y sencilla a partir de un repertorio ensayado de vocabulario y expresiones básicas del idioma francés, referentes a la presentación personal, su entorno inmediato y temas muy cotidianos, necesitando ayuda de su interlocutor para comprender y hacerse comprender.",
+    "Utiliza el pensamiento lógico",
+    "verbal para comprender expresiones básicas previamente trabajadas, presentes en textos orales y escritos breves y sencillos sobre necesidades inmediatas y temas cotidianos.",
+    "Expresión oral y escrita breve y sencilla, empleando estrategias para presentar de forma lógica y creativa una secuencia de ideas, apoyándose con dibujos, dramatizaciones, canciones, entre otros.",
+    "Interacción oral y escrita breve y sencilla sobre situaciones inmediatas y temas cotidianos, utilizando el pensamiento lógico",
+    "verbal para estructurar la secuencia de expresiones ensayadas y el pensamiento creativo para la presentación de la situación planteada.",
+    "Responde preguntas en indicaciones simples sobre información específica tendentes a la resolución de situaciones y problemas, donde se necesite la localización y descripción de objetos, personas, lugares, actividades cotidianas y características del entorno, a partir de textos simples orales y escritos.",
+    "Presentación de información breve sobre aspectos básicos de su persona y entorno para lidiar con situaciones y problemas que lo requieren, mediante la producción escrita de frases y oraciones sueltas o en colocación sucesiva de elementos orales ya practicados, que se comprenden con cierto esfuerzo.",
+    "Interacción sencilla donde se comparte información básica para resolver situaciones o problemas planteados en su entorno cotidiano inmediato, tales como la identificación de personas, lugares, objetos y la descripción de los mismos, utilizando un repertorio limitado de vocabulario y expresiones.",
+    "Comprensión adecuada de información personal básica, identificación de pertenencias propias y de otras personas, sus actividades cotidianas, preferencias, y condiciones del entorno, en un plano de cortesía, honestidad, aceptación, asertividad y respeto",
+    "Expresión oral y escrita breve y sencilla en el idioma francés con cortesía, honestidad, aceptación, asertividad y respeto por la identidad personal y modo de vida de las demás personas.",
+    "Interacción oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios en el idioma francés."
+  ],
+  "temas": [
+    "•Actividades de la vida diaria",
+    "•Relaciones humanas y sociales",
+    "•Tiempo libre y recreación",
+    "•Educación y escuela",
+    "•Ciudad, hogar y entorno",
+    "•Medioambiente y condiciones atmosféricas",
+    "•Viajes y turismo",
+    "Vocabulario y expresiones",
+    "Para ubicar lugares:",
+    "Ciudades: Québec, Paris, Saint•Domingue...",
+    "Países: République dominicaine, Canada, Haïti...",
+    "Continentes : Asie, Afrique, Europe…",
+    "Puntos cardinales : nord, sud, ouest, est, nord•est...",
+    "Lugares en la ciudad: parc, rue, école, hôpital…",
+    "Establecimientos comerciales: magasin, épicerie, boulangerie...",
+    "Sitios de interés: musée, marché, monument historique...",
+    "Medios de transporte: vélo, voiture, bateau...",
+    "Unidades métricas: mètres, kilomètres... Números cardinales y ordinales : un, deux ; premier, deuxième...",
+    "Expresiones de cortesía: Pardon; Merci; S’il vous plaît... Para describir las condiciones atmos- féricas:",
+    "Accidentes geográficos: rivière, plage, montagne…",
+    "Tiempo y fenómenos atmosféricos: pluie, soleil, ouragan…",
+    "Estaciones del año: printemps, été, automne, hiver.",
+    "Temperatura : 36 ºC. Il fait chaud... Para hablar sobre actividades que se están llevando a cabo y planes futuros:",
+    "Actividades cotidianas : s’habiller, aller à l’école, faire les courses...",
+    "Actividades de tiempo libre : surfer sur Internet, faire du sport...",
+    "Actividades en aula y en la escuela: écrire, dessiner, peindre...",
+    "Fechas importantes del año: la fête des mères, Noël, la fête nationale...",
+    "Momentos del día: matin, après•midi, soir, nuit...",
+    "Expresiones de tiempo : la semaine prochaine, mardi, demain..."
+  ],
+  "contenidosGenerales": {
+    "conceptuales": [
+      "Temas:",
+      "• •Actividades de la vida diaria",
+      "• •Relaciones humanas y sociales",
+      "• •Tiempo libre y recreación",
+      "• •Educación y escuela",
+      "• •Ciudad, hogar y entorno",
+      "• •Medioambiente y condiciones",
+      "atmosféricas",
+      "• •Viajes y turismo",
+      "• Vocabulario y expresiones",
+      "• Para ubicar lugares:",
+      "•Ciudades: Québec, Paris,",
+      "Saint•Domingue...",
+      "•Países: République dominicaine,",
+      "Canada, Haïti...",
+      "•Continentes : Asie, Afrique, Europe…",
+      "•Puntos cardinales : nord, sud, ouest,",
+      "est, nord•est...",
+      "•Lugares en la ciudad: parc, rue, école,",
+      "hôpital…",
+      "•Establecimientos comerciales:",
+      "magasin, épicerie, boulangerie...",
+      "•Sitios de interés: musée, marché,",
+      "monument historique...",
+      "•Medios de transporte: vélo, voiture,",
+      "bateau...",
+      "•Unidades métricas: mètres,",
+      "kilomètres...",
+      "Números cardinales y ordinales : un,",
+      "deux ; premier, deuxième...",
+      "•Expresiones de cortesía: Pardon;",
+      "Merci; S’il vous plaît...",
+      "Para describir las condiciones atmos-",
+      "féricas:",
+      "• Accidentes geográficos: rivière,",
+      "plage, montagne…",
+      "• Tiempo y fenómenos atmosféricos:",
+      "pluie, soleil, ouragan…",
+      "• Estaciones del año: printemps, été,",
+      "automne, hiver.",
+      "• Temperatura : 36 ºC. Il fait chaud...",
+      "Para hablar sobre actividades que se",
+      "están llevando a cabo y planes futuros:",
+      "• Actividades cotidianas : s’habiller,",
+      "aller à l’école, faire les courses...",
+      "• Actividades de tiempo libre : surfer",
+      "sur Internet, faire du sport...",
+      "• Actividades en aula y en la escuela:",
+      "écrire, dessiner, peindre...",
+      "• Fechas importantes del año: la fête",
+      "des mères, Noël, la fête nationale...",
+      "• Momentos del día: matin, après•midi,",
+      "soir, nuit...",
+      "• Expresiones de tiempo : la semaine",
+      "prochaine, mardi, demain...",
+      "Gramática Oraciones:",
+      "•Negativas con ne … pas:",
+      "Nous n’allons pas à la plage dimanche",
+      "prochain.",
+      "•Interrogativas: las 3 formas de la",
+      "interrogación Quel temps il fait",
+      "aujourd’hui ?",
+      "Quel temps est•ce qu´il fait aujourd’hui",
+      "? Quel temps fait•il aujourd’hui ?",
+      "•Exclamativas : Quelle chaleur !Comme",
+      "il fait beau ! beau !",
+      "•Imperativas : Prenez la rue Émile Zola.",
+      "Continuez tout droit. Traversez le feu.",
+      "Artículos contractos : Le matin, il fait",
+      "du brouillard. Il y a des nuages.",
+      "Elle, elle est en train de jouer au foot.",
+      "Preposiciones de lugar : au, aux, en,",
+      "à la, chez, près de... Je suis à Bani en",
+      "République dominicaine.",
+      "Ma maison est loin d’ici. J’habite",
+      "près de la banque. Pronombres",
+      "interrogativos : que, quel, où, quand…",
+      "Que faites•vous maintenant ?",
+      "Vous allez où ?",
+      "Adverbios : vite, lentement,",
+      "doucement, mal, bien...",
+      "Conjugación:",
+      "Presente de indicativo de verbos terminados en −",
+      "ER:",
+      "Maintenant, j’écoute de la musique chez Dénise.",
+      "Nous étudions ensemble à la bibliothèque aujourd’hui.",
+      "Presente de indicativo de los verbos: être, avoir,",
+      "aller, venir, faire...",
+      "Je viens de France. Nous finissons les devoirs. Il fait",
+      "beau aujourd’hui.",
+      "Verbos impersonales: pleuvoir, neiger... Il pleut. Il",
+      "neige...",
+      "Être en train de + infinitivo: Je suis en train de manger.",
+      "Ils",
+      "sont en train d’étudier.",
+      "Futuro próximo (aller + infinitivo): Demain, nous",
+      "allons rendre visite à nos grands•parents.",
+      "Je vais voir les baleines à Samana.",
+      "Presentativo Il y a / Il n’y pas de:",
+      "Il y a des nuages et du vent en Bretagne."
+    ],
+    "procedimentales": [
+      "Funcionales",
+      "• Indicar la ubicación de personas, lugares y objetos",
+      "•Describir las condiciones atmosféricas",
+      "• Detallar actividades que se están llevando a cabo",
+      "• Solicitar y ofrecer información sobre planes futuros",
+      "Discursivos",
+      "• Comprensión de texto orales y escritos tales como:",
+      "conversaciones, tarjetas de presentación, anuncios,",
+      "poesías, canciones, rimas, letreros, avisos, afiches,",
+      "mensajes, correos electrónicos, formularios, croquis,",
+      "cuestionarios, folletos, historietas, guías turísticas y",
+      "descripciones.",
+      "• Producción de discursos orales tales como:",
+      "conversaciones, monólogos, mensajes, canciones,",
+      "rimas, poesías y descripciones.",
+      "• Producción de textos escritos tales como: mensajes,",
+      "correos electrónicos, avisos, afiches, letreros,",
+      "formularios, cuestionarios y descripciones.",
+      "Estratégicos",
+      "Comprensión oral",
+      "• Anticipación del contenido del mensaje.",
+      "• Uso del Lenguaje no verbal de su interlocutor/a.",
+      "• Escucha atenta.",
+      "• Inferencia del significado de palabras y",
+      "expresiones a partir del contexto y los",
+      "conocimientos previos.",
+      "• Solicitud de ayuda y repetición.",
+      "• Indicación de que se comprende o no.",
+      "Producción oral",
+      "• Reproducción y ensayo de palabras, expresiones",
+      "y pautas de entonación.",
+      "• Identificación de la situación de comunicación.",
+      "• Establecimiento de la intención comunicativa.",
+      "• Utilización de sinónimos y comodines.",
+      "• Utilización del Lenguaje no verbal para",
+      "comunicarse.",
+      "Comprensión escrita",
+      "• Establecimiento del propósito de la lectura.",
+      "• Identificación de la correspondencia entre la",
+      "grafía y el sonido de las palabras.",
+      "• Formulación de hipótesis a partir de los",
+      "conocimientos previos y los elementos",
+      "paratextuales.",
+      "• Inferencia del significado de palabras y",
+      "expresiones a partir del contexto y los",
+      "conocimientos adquiridos.",
+      "• Subrayado, anotación y búsqueda de palabras en",
+      "el diccionario y otras herramientas de consulta.",
+      "• Identificación de la intención comunicativa del",
+      "texto.",
+      "Producción escrita",
+      "• Establecimiento del propósito del mensaje y del",
+      "tipo de texto que se va a producir.",
+      "• Planificación y organización del mensaje.",
+      "• Utilización del diccionario y otras herramientas",
+      "de consulta.",
+      "• Revisión del sentido y la corrección del mensaje.",
+      "Otros:",
+      "• Utilización de asociaciones mentales y de la acción.",
+      "• Automotivación y control del nivel de ansiedad.",
+      "• Búsqueda de oportunidades de uso de la lengua",
+      "francesa.",
+      "Sociolingüísticos y socioculturales",
+      "• Establecimiento de contactos sociales básicos,",
+      "utilizando las fórmulas de cortesía más",
+      "comunes y sencillas.",
+      "• Comparación entre los siguientes aspectos",
+      "culturales de la República Dominicana y de los",
+      "países francófonos:",
+      "• Actividades cotidianas",
+      "• Medios de transporte",
+      "• Lugares",
+      "• Clima"
+    ],
+    "actitudinales": [
+      "• Valoración de la cultura propia y la de los países",
+      "francófonos.",
+      "• Cortesía y asertividad en la interacción con las",
+      "demás personas.",
+      "• Disposición para ayudar a las demás personas.",
+      "• Cuidado de los bienes y espacios comunes.",
+      "• Prevención ante las condiciones del tiempo que",
+      "puedan afectar la salud.",
+      "• Conciencia de la importancia y repercusión de las",
+      "acciones.",
+      "• Entrega, compromiso y entusiasmo en las",
+      "acciones que realiza.",
+      "• Uso responsable y sano de las TIC.",
+      "• Motivación para el aprendizaje del francés"
+    ],
+    "actitudesValores": [
+      "• Valoración de la cultura propia y la de los países",
+      "francófonos.",
+      "• Cortesía y asertividad en la interacción con las",
+      "demás personas.",
+      "• Disposición para ayudar a las demás personas.",
+      "• Cuidado de los bienes y espacios comunes.",
+      "• Prevención ante las condiciones del tiempo que",
+      "puedan afectar la salud.",
+      "• Conciencia de la importancia y repercusión de las",
+      "acciones.",
+      "• Entrega, compromiso y entusiasmo en las",
+      "acciones que realiza.",
+      "• Uso responsable y sano de las TIC.",
+      "• Motivación para el aprendizaje del francés"
+    ]
+  },
+  "contenidos": {
+    "conceptos": [
+      "Temas:",
+      "• •Actividades de la vida diaria",
+      "• •Relaciones humanas y sociales",
+      "• •Tiempo libre y recreación",
+      "• •Educación y escuela",
+      "• •Ciudad, hogar y entorno",
+      "• •Medioambiente y condiciones",
+      "atmosféricas",
+      "• •Viajes y turismo",
+      "• Vocabulario y expresiones",
+      "• Para ubicar lugares:",
+      "•Ciudades: Québec, Paris,",
+      "Saint•Domingue...",
+      "•Países: République dominicaine,",
+      "Canada, Haïti...",
+      "•Continentes : Asie, Afrique, Europe…",
+      "•Puntos cardinales : nord, sud, ouest,",
+      "est, nord•est...",
+      "•Lugares en la ciudad: parc, rue, école,",
+      "hôpital…",
+      "•Establecimientos comerciales:",
+      "magasin, épicerie, boulangerie...",
+      "•Sitios de interés: musée, marché,",
+      "monument historique...",
+      "•Medios de transporte: vélo, voiture,",
+      "bateau...",
+      "•Unidades métricas: mètres,",
+      "kilomètres...",
+      "Números cardinales y ordinales : un,",
+      "deux ; premier, deuxième...",
+      "•Expresiones de cortesía: Pardon;",
+      "Merci; S’il vous plaît...",
+      "Para describir las condiciones atmos-",
+      "féricas:",
+      "• Accidentes geográficos: rivière,",
+      "plage, montagne…",
+      "• Tiempo y fenómenos atmosféricos:",
+      "pluie, soleil, ouragan…",
+      "• Estaciones del año: printemps, été,",
+      "automne, hiver.",
+      "• Temperatura : 36 ºC. Il fait chaud...",
+      "Para hablar sobre actividades que se",
+      "están llevando a cabo y planes futuros:",
+      "• Actividades cotidianas : s’habiller,",
+      "aller à l’école, faire les courses...",
+      "• Actividades de tiempo libre : surfer",
+      "sur Internet, faire du sport...",
+      "• Actividades en aula y en la escuela:",
+      "écrire, dessiner, peindre...",
+      "• Fechas importantes del año: la fête",
+      "des mères, Noël, la fête nationale...",
+      "• Momentos del día: matin, après•midi,",
+      "soir, nuit...",
+      "• Expresiones de tiempo : la semaine",
+      "prochaine, mardi, demain...",
+      "Gramática Oraciones:",
+      "•Negativas con ne … pas:",
+      "Nous n’allons pas à la plage dimanche",
+      "prochain.",
+      "•Interrogativas: las 3 formas de la",
+      "interrogación Quel temps il fait",
+      "aujourd’hui ?",
+      "Quel temps est•ce qu´il fait aujourd’hui",
+      "? Quel temps fait•il aujourd’hui ?",
+      "•Exclamativas : Quelle chaleur !Comme",
+      "il fait beau ! beau !",
+      "•Imperativas : Prenez la rue Émile Zola.",
+      "Continuez tout droit. Traversez le feu.",
+      "Artículos contractos : Le matin, il fait",
+      "du brouillard. Il y a des nuages.",
+      "Elle, elle est en train de jouer au foot.",
+      "Preposiciones de lugar : au, aux, en,",
+      "à la, chez, près de... Je suis à Bani en",
+      "République dominicaine.",
+      "Ma maison est loin d’ici. J’habite",
+      "près de la banque. Pronombres",
+      "interrogativos : que, quel, où, quand…",
+      "Que faites•vous maintenant ?",
+      "Vous allez où ?",
+      "Adverbios : vite, lentement,",
+      "doucement, mal, bien...",
+      "Conjugación:",
+      "Presente de indicativo de verbos terminados en −",
+      "ER:",
+      "Maintenant, j’écoute de la musique chez Dénise.",
+      "Nous étudions ensemble à la bibliothèque aujourd’hui.",
+      "Presente de indicativo de los verbos: être, avoir,",
+      "aller, venir, faire...",
+      "Je viens de France. Nous finissons les devoirs. Il fait",
+      "beau aujourd’hui.",
+      "Verbos impersonales: pleuvoir, neiger... Il pleut. Il",
+      "neige...",
+      "Être en train de + infinitivo: Je suis en train de manger.",
+      "Ils",
+      "sont en train d’étudier.",
+      "Futuro próximo (aller + infinitivo): Demain, nous",
+      "allons rendre visite à nos grands•parents.",
+      "Je vais voir les baleines à Samana.",
+      "Presentativo Il y a / Il n’y pas de:",
+      "Il y a des nuages et du vent en Bretagne."
+    ],
+    "procedimientos": [
+      "Funcionales",
+      "• Indicar la ubicación de personas, lugares y objetos",
+      "•Describir las condiciones atmosféricas",
+      "• Detallar actividades que se están llevando a cabo",
+      "• Solicitar y ofrecer información sobre planes futuros",
+      "Discursivos",
+      "• Comprensión de texto orales y escritos tales como:",
+      "conversaciones, tarjetas de presentación, anuncios,",
+      "poesías, canciones, rimas, letreros, avisos, afiches,",
+      "mensajes, correos electrónicos, formularios, croquis,",
+      "cuestionarios, folletos, historietas, guías turísticas y",
+      "descripciones.",
+      "• Producción de discursos orales tales como:",
+      "conversaciones, monólogos, mensajes, canciones,",
+      "rimas, poesías y descripciones.",
+      "• Producción de textos escritos tales como: mensajes,",
+      "correos electrónicos, avisos, afiches, letreros,",
+      "formularios, cuestionarios y descripciones.",
+      "Estratégicos",
+      "Comprensión oral",
+      "• Anticipación del contenido del mensaje.",
+      "• Uso del Lenguaje no verbal de su interlocutor/a.",
+      "• Escucha atenta.",
+      "• Inferencia del significado de palabras y",
+      "expresiones a partir del contexto y los",
+      "conocimientos previos.",
+      "• Solicitud de ayuda y repetición.",
+      "• Indicación de que se comprende o no.",
+      "Producción oral",
+      "• Reproducción y ensayo de palabras, expresiones",
+      "y pautas de entonación.",
+      "• Identificación de la situación de comunicación.",
+      "• Establecimiento de la intención comunicativa.",
+      "• Utilización de sinónimos y comodines.",
+      "• Utilización del Lenguaje no verbal para",
+      "comunicarse.",
+      "Comprensión escrita",
+      "• Establecimiento del propósito de la lectura.",
+      "• Identificación de la correspondencia entre la",
+      "grafía y el sonido de las palabras.",
+      "• Formulación de hipótesis a partir de los",
+      "conocimientos previos y los elementos",
+      "paratextuales.",
+      "• Inferencia del significado de palabras y",
+      "expresiones a partir del contexto y los",
+      "conocimientos adquiridos.",
+      "• Subrayado, anotación y búsqueda de palabras en",
+      "el diccionario y otras herramientas de consulta.",
+      "• Identificación de la intención comunicativa del",
+      "texto.",
+      "Producción escrita",
+      "• Establecimiento del propósito del mensaje y del",
+      "tipo de texto que se va a producir.",
+      "• Planificación y organización del mensaje.",
+      "• Utilización del diccionario y otras herramientas",
+      "de consulta.",
+      "• Revisión del sentido y la corrección del mensaje.",
+      "Otros:",
+      "• Utilización de asociaciones mentales y de la acción.",
+      "• Automotivación y control del nivel de ansiedad.",
+      "• Búsqueda de oportunidades de uso de la lengua",
+      "francesa.",
+      "Sociolingüísticos y socioculturales",
+      "• Establecimiento de contactos sociales básicos,",
+      "utilizando las fórmulas de cortesía más",
+      "comunes y sencillas.",
+      "• Comparación entre los siguientes aspectos",
+      "culturales de la República Dominicana y de los",
+      "países francófonos:",
+      "• Actividades cotidianas",
+      "• Medios de transporte",
+      "• Lugares",
+      "• Clima"
+    ],
+    "actitudesValores": [
+      "• Valoración de la cultura propia y la de los países",
+      "francófonos.",
+      "• Cortesía y asertividad en la interacción con las",
+      "demás personas.",
+      "• Disposición para ayudar a las demás personas.",
+      "• Cuidado de los bienes y espacios comunes.",
+      "• Prevención ante las condiciones del tiempo que",
+      "puedan afectar la salud.",
+      "• Conciencia de la importancia y repercusión de las",
+      "acciones.",
+      "• Entrega, compromiso y entusiasmo en las",
+      "acciones que realiza.",
+      "• Uso responsable y sano de las TIC.",
+      "• Motivación para el aprendizaje del francés"
+    ]
+  }
+}

@@ -1,0 +1,854 @@
+{
+  "schemaVersion": "1.3",
+  "level": "Secundaria",
+  "cycle": "Segundo Ciclo",
+  "grade": "6to",
+  "area": "Lenguas Extranjeras",
+  "subject": "Frances",
+  "contentType": "malla_curricular",
+  "contentId": "malla-frances-6to-secundaria-2023",
+  "metadata": {
+    "fuente": "Adecuación Curricular Nivel Secundario MINERD 2023",
+    "paginas": [
+      206,
+      208
+    ],
+    "mcer": "A2.2"
+  },
+  "competenciasFundamentales": [
+    "Comunicativa",
+    "Pensamiento Lógico, Creativo y Crítico",
+    "Resolución de Problemas",
+    "Ética y Ciudadana",
+    "Científica y Tecnológica",
+    "Ambiental y de la Salud",
+    "Desarrollo Personal y Espiritual"
+  ],
+  "competencias": [
+    {
+      "id": "FRA-6-C01",
+      "fundamental": "Comunicativa",
+      "competenciaFundamental": "Comunicativa",
+      "especificaGrado": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicación, utilizando el idioma francés de forma breve y sencilla con la finalidad de procurar servicio de transporte, informar sobre viajes, relatar experiencias, interactuar en restaurantes y dar y pedir opiniones, en relación a necesidades concretas y temas cotidianos.",
+      "descripcion": "Comprende y expresa ideas, sentimientos y valores culturales en distintas situaciones de comunicación, utilizando el idioma francés de forma breve y sencilla con la finalidad de procurar servicio de transporte, informar sobre viajes, relatar experiencias, interactuar en restaurantes y dar y pedir opiniones, en relación a necesidades concretas y temas cotidianos.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-6-I01",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha de discursos breves y sencillos en francés con la intención de transportarse, interactuar en un restaurante, viajar, opinar, y relatar experiencias, en relación a necesidades concretas y temas cotidianos, siempre que se le hable de forma pausada y clara, y se le repita en caso de que así lo requiera.",
+          "competenciaId": "FRA-6-C01"
+        },
+        {
+          "id": "FRA-6-I02",
+          "descripcion": "Produce textos orales y escritos en francés de forma breve y sencillo, mediante una serie de frases y oraciones enlazadas por conectores básicos para procurar servicios de transporte, interactuar en un restaurante, viajar, opinar, y relatar experiencias, con pausas y reformulaciones en lo oral y con algunos errores básicos en lo escrito.",
+          "competenciaId": "FRA-6-C01"
+        },
+        {
+          "id": "FRA-6-I03",
+          "descripcion": "Interactúa en forma oral o escrita a través de una serie de frases y oraciones sencillas y con diversidad de vocabulario básico, enlazadas por conectores, con el propósito de transportarse, interactuar en un restaurante, viajar, opinar, y relatar experiencias, aunque con algunos errores básicos, pero con suficiente claridad para ser comprendido con un poco de esfuerzo.",
+          "competenciaId": "FRA-6-C01"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Comprensión de textos orales y escritos breves y sencillos compuestos por frases y expresiones básicas en francés, relativas a necesidades concretas y temas cotidianos, apoyándose de imágenes y de modelos previstos.",
+        "Producción de textos orales y escritos breves y sencillos, compuestos por una serie ensayada de oraciones básicas sobre el mismo tema, en distintas situaciones de comunicación donde se expresan puntos de vista propios y de otras personas, apoyándose de modelos y con ayuda visual.",
+        "Interacción breve y sencilla mediante una serie de frases y oraciones sencillas relativas a necesidades concretas y temas cotidianos, que el interlocutor puede comprender poniendo bastante atención."
+      ]
+    },
+    {
+      "id": "FRA-6-C02",
+      "fundamental": "Pensamiento Lógico, Creativo y Crítico",
+      "competenciaFundamental": "Pensamiento Lógico, Creativo y Crítico",
+      "especificaGrado": "Interactúa de forma oral y escrita en el idioma francés, empleando razonamiento lógico-verbal y estrategias de desempeño de manera creativa y crítica en distintas situaciones de comunicación, donde se busca procurar servicio de transporte, informar sobre viajes, relatar experiencias, interactuar en restaurantes y dar y pedir opiniones con expresiones breves y sencillas.",
+      "descripcion": "Interactúa de forma oral y escrita en el idioma francés, empleando razonamiento lógico-verbal y estrategias de desempeño de manera creativa y crítica en distintas situaciones de comunicación, donde se busca procurar servicio de transporte, informar sobre viajes, relatar experiencias, interactuar en restaurantes y dar y pedir opiniones con expresiones breves y sencillas.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-6-I04",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de Primer Ciclo forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+          "competenciaId": "FRA-6-C02"
+        },
+        {
+          "id": "FRA-6-I05",
+          "descripcion": "Produce textos orales y escritos breves y sencillos con claridad y creatividad, manteniendo una secuencia clara y ordenada de las ideas, mediante el uso de conectores lógicos básicos apropiados a la relación específica de las ideas, al tema y la situación, con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito.",
+          "competenciaId": "FRA-6-C02"
+        },
+        {
+          "id": "FRA-6-I06",
+          "descripcion": "Interactúa en forma oral o escrita a través de una serie de oraciones breves y sencillas ordenadas de una forma lógica y presentadas de forma creativa en diferentes tipos de texto donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+          "competenciaId": "FRA-6-C02"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Empleo del pensamiento lógico-verbal y crítico en la comprensión de textos orales y escritos breves y sencillos para responder a preguntas e indicaciones y proponer puntos de vista a partir de la información presentada, necesitando releer y del apoyo de imágenes y de elementos paratextuales, con un discurso pausado y claro.",
+        "Utilización del pensamiento lógico-verbal para organizar y relacionar las ideas de forma creativa en los textos orales y escritos que produce, empleando estrategias de desempeño en diferentes situaciones cotidianas de comunicación, acompañando con dibujos, dramatizaciones, canciones, audiovisuales, entre otros, aunque con algunos errores básicos y reformulaciones",
+        "Interacción sencilla en el idioma franclés utilizando el razonamiento lógico-verbal y la expresión creativa y crítica para expresar y comprender los mensajes que se comparten en situaciones concretas de comunicación oral o escrita."
+      ]
+    },
+    {
+      "id": "FRA-6-C03",
+      "fundamental": "Resolución de Problemas",
+      "competenciaFundamental": "Resolución de Problemas",
+      "especificaGrado": "Interactúa en francés ante diversas situaciones y problemas comunes de su entorno inmediato en las que procura servicio de transporte, informa sobre viajes, relata experiencias, interactúa en restaurantes y da y pide opiniones, empleando estrategias de desempeño oral y escrito para lograr la claridad del mensaje.",
+      "descripcion": "Interactúa en francés ante diversas situaciones y problemas comunes de su entorno inmediato en las que procura servicio de transporte, informa sobre viajes, relata experiencias, interactúa en restaurantes y da y pide opiniones, empleando estrategias de desempeño oral y escrito para lograr la claridad del mensaje.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-6-I07",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones sobre necesidades, situaciones y problemas de su entorno inmediato y temas que le son familiares, empleando estrategias a partir de textos orales y escritos breves y sencillos, aunque el interlocutor deba hacer cierto esfuerzo oral y escrito para comprenderle.",
+          "competenciaId": "FRA-6-C03"
+        },
+        {
+          "id": "FRA-6-I08",
+          "descripcion": "Se comunica mediante textos orales y escritos en francés de forma clara y comprensible, para comunicar problemas inmediatos propios, de otras personas y del entorno inmediato, utilizando frases y oraciones breves y sencillas, aunque necesite reformulaciones de ideas e informaciones en ocasiones.",
+          "competenciaId": "FRA-6-C03"
+        },
+        {
+          "id": "FRA-6-I09",
+          "descripcion": "Interactúa de forma oral y escrita para procurar servicio de transporte, informar sobre viajes, relatar experiencias, interactuar en restaurantes y dar y pedir opiniones, utilizando expresiones y frases sencillas, aunque con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito.",
+          "competenciaId": "FRA-6-C03"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Comprensión de informaciones contenidas en textos sencillos orales y escritos que describen situaciones y problemas cotidianos o del entorno próximo, utilizando estrategias de desempeño y aprendizaje para la dar las respuestas adecuadas a preguntas e indicaciones.",
+        "Comunicación breve y sencilla en francés oral y escrito en la que se describen y plantean diversas circunstancias de su entorno inmediato, empleando estrategias de desempeño para hacerse comprender de forma básica ante su interlocutor.",
+        "Interacción sencilla en francés donde se describen problemas y situaciones comunes de su entorno inmediato utilizando estrategias de desempeño para comunicar indicaciones, instrucciones, consejos y sugerencias, aunque su interlocutor deba hacer cierto esfuerzo para comprenderle."
+      ]
+    },
+    {
+      "id": "FRA-6-C04",
+      "fundamental": "Ética y Ciudadana",
+      "competenciaFundamental": "Ética y Ciudadana",
+      "especificaGrado": "Se comunica con las demás personas en el idioma francés de forma oral y escrita, con cortesía, honestidad, asertividad y respeto, en intercambios sencillos, siguiendo las normas de convivencia y organización establecidas y reconociendo las diferencias individuales y la identidad social y cultural propias de la comunidad local y global, relativas a transporte público, comidas, bebidas, lugares de interés, costumbres y tradiciones.",
+      "descripcion": "Se comunica con las demás personas en el idioma francés de forma oral y escrita, con cortesía, honestidad, asertividad y respeto, en intercambios sencillos, siguiendo las normas de convivencia y organización establecidas y reconociendo las diferencias individuales y la identidad social y cultural propias de la comunidad local y global, relativas a transporte público, comidas, bebidas, lugares de interés, costumbres y tradiciones.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-6-I10",
+          "descripcion": "Reconoce las diferencias individuales y la identidad social y cultural propia y de otros países relativas a transporte, viajes, relato de experiencias, interacciones en restaurantes y dar y pedir opiniones.",
+          "competenciaId": "FRA-6-C04"
+        },
+        {
+          "id": "FRA-6-I11",
+          "descripcion": "Se comunica con las demás personas en el idioma francés, de forma oral y escrita, con cortesía, honestidad, asertividad y respeto, en intercambios sencillos en situaciones concretas de comunicación, reconociendo las diferencias individuales y la identidad social y cultural propias de la comunidad local y global.",
+          "competenciaId": "FRA-6-C04"
+        },
+        {
+          "id": "FRA-6-I12",
+          "descripcion": "Sostiene la conversación al interactuar en forma oral o escrita, utilizando frases y oraciones sencillas para mantener la interacción de forma cortés y respetuosa a las diferencias de la cultura personal y de otras personas, relativas a transporte público, comidas, bebidas, lugares de interés, costumbres y tradiciones.",
+          "competenciaId": "FRA-6-C04"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Reconocimiento de las diferencias y similitudes más comunes de la identidad social y cultural a nivel individual, local y global, a partir de la escucha, lectura de textos relativos a costumbres, creencias y elementos sociales, en su entorno y en el ámbito cultural.",
+        "Se comunica en francés en forma oral y escrita, en un plano de respeto y cortesía, valorando las diferencias individuales básicas y las de identidad cultural propia, local y global.",
+        "Interacción sencilla en el idioma francés, participando con cortesía y respeto, describiendo aspectos de diferencias individuales y de identidad cultural propia y de otros países."
+      ]
+    },
+    {
+      "id": "FRA-6-C05",
+      "fundamental": "Científica y Tecnológica",
+      "competenciaFundamental": "Científica y Tecnológica",
+      "especificaGrado": "Se comunica en el idioma francés de forma personal, digital o virtual con el propósito de relatar experiencias, opinar e intercambiar información sobre asuntos científicos, tecnológicos y de otra índole, en distintas situaciones de comunicación.",
+      "descripcion": "Se comunica en el idioma francés de forma personal, digital o virtual con el propósito de relatar experiencias, opinar e intercambiar información sobre asuntos científicos, tecnológicos y de otra índole, en distintas situaciones de comunicación.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-6-I13",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos breves y de vocabulario y expresiones básicas y sencillas sobre asuntos científicos y tecnológicos compartidos de forma personal, digital o virtual, apoyándose de imágenes y de modelos previstos.",
+          "competenciaId": "FRA-6-C05"
+        },
+        {
+          "id": "FRA-6-I14",
+          "descripcion": "Identifica y describe aspectos científicos y tecnológicos relativos a sus actividades cotidianas y entorno inmediato, tales como servicio de transporte, información sobre viajes, relatos experiencias, interacción en restaurantes y dar y pedir opiniones, utilizando frases y oraciones breves y sencillas orales y escritas, pero con suficiente claridad para ser comprendido con un poco de esfuerzo.",
+          "competenciaId": "FRA-6-C05"
+        },
+        {
+          "id": "FRA-6-I15",
+          "descripcion": "Interactúa en forma oral o escrita por diferentes medios físicos y electrónicos, para intercambiar información, ideas y opiniones sobre aspectos científicos y tecnológicos de su entorno inmediato, servicios, opiniones y relatos, aunque con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito.",
+          "competenciaId": "FRA-6-C05"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Localización, utilización e intercambio de información sencilla en francés, sobre temas de carácter científico y tecnológico en situaciones inmediatas de comunicación.",
+        "Expresión oral y escrita de información, ideas y puntos de vista sobre temas de carácter científico y tecnológico, utilizando información de su entorno inmediato y textos breves con vocabulario sencillo de uso común.",
+        "Interacción breve y sencilla con el propósito de compartir información, opiniones y orientaciones sobre temas de carácter científico y tecnológico, a partir de elementos comunes en su vida cotidiana, a través de un repertorio limitado de expresiones ensayadas."
+      ]
+    },
+    {
+      "id": "FRA-6-C06",
+      "fundamental": "Ambiental y de la Salud",
+      "competenciaFundamental": "Ambiental y de la Salud",
+      "especificaGrado": "Muestra preferencia por opciones que impactan positivamente la salud y el medioambiente al informar sobre viajes, procurar servicio de transporte, interactuar en restaurantes y dar y pedir opiniones en diversas situaciones de comunicación en el idioma francés, utilizando frases y oraciones sencillas.",
+      "descripcion": "Muestra preferencia por opciones que impactan positivamente la salud y el medioambiente al informar sobre viajes, procurar servicio de transporte, interactuar en restaurantes y dar y pedir opiniones en diversas situaciones de comunicación en el idioma francés, utilizando frases y oraciones sencillas.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-6-I16",
+          "descripcion": "Identifica las acciones que impactan positivamente la salud y el medioambiente en las actividades cotidianas que se realizan en su entorno inmediato.",
+          "competenciaId": "FRA-6-C06"
+        },
+        {
+          "id": "FRA-6-I17",
+          "descripcion": "Describe información y estados del entorno inmediato, opinando sobre viajes, servicio de transporte y restaurantes para cuidar el medioambiente y la salud propia y de otras personas.",
+          "competenciaId": "FRA-6-C06"
+        },
+        {
+          "id": "FRA-6-I18",
+          "descripcion": "Interactúa de forma adecuada en situaciones donde se promueve prácticas de hábitos saludables para las personas y amigables con el medio ambiente en diversas situaciones de comunicación en el idioma francés, utilizando frases y oraciones sencillas.",
+          "competenciaId": "FRA-6-C06"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Valoración de opciones que impactan positivamente la salud y el medio ambiente, en distintas situaciones inmediatas de comunicación oral y escrita muy breves y sencillas.",
+        "Expresión de cuidado del medio ambiente y de la salud propia y la de otras personas al compartir informaciones, ideas, y preferencias en las actividades cotidianas que realiza.",
+        "Interacción donde se muestra informaciones y opiniones favorables para el cuidado de la salud y el medio ambiente en las actividades cotidianas, lugares y objetos que se utilizan en su entorno inmediato."
+      ]
+    },
+    {
+      "id": "FRA-6-C07",
+      "fundamental": "Desarrollo Personal y Espiritual",
+      "competenciaFundamental": "Desarrollo Personal y Espiritual",
+      "especificaGrado": "Interactúa en el idioma francés con cortesía, honestidad, asertividad, actitud de respeto y aceptación al referirse a sí mismo/a y a las demás personas, al expresar opiniones y relatar experiencias.",
+      "descripcion": "Interactúa en el idioma francés con cortesía, honestidad, asertividad, actitud de respeto y aceptación al referirse a sí mismo/a y a las demás personas, al expresar opiniones y relatar experiencias.",
+      "indicadoresLogro": [
+        {
+          "id": "FRA-6-I19",
+          "descripcion": "Muestra empatía por los sentimientos y necesidades propios y de las demás personas.",
+          "competenciaId": "FRA-6-C07"
+        },
+        {
+          "id": "FRA-6-I20",
+          "descripcion": "Muestra disposición para dar y obtener información, al interactuar con otras personas de forma colaborativa en distintas situaciones de comunicación.",
+          "competenciaId": "FRA-6-C07"
+        },
+        {
+          "id": "FRA-6-I21",
+          "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación. 208",
+          "competenciaId": "FRA-6-C07"
+        }
+      ],
+      "criteriosEvaluacion": [
+        "Identificación de las diferencias personales básicas propias y la de otras personas referente a su identidad personal, preferencias de actividades cotidianas, experiencias, apariencia y forma de ser, tanto en forma oral como escrita.",
+        "Presentación de información con aceptación, cortesía, honestidad, respeto y empatía ante las situaciones que le afectan a sí mismo y a los demás.",
+        "Interacción en francés con cortesía, respeto, autocontrol y aceptación ante los talentos, capacidades, limitaciones, sentimientos y creencias propias y de las demás personas, en diversas situaciones de comunicación."
+      ]
+    }
+  ],
+  "indicadoresLogro": [
+    {
+      "id": "FRA-6-I01",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha de discursos breves y sencillos en francés con la intención de transportarse, interactuar en un restaurante, viajar, opinar, y relatar experiencias, en relación a necesidades concretas y temas cotidianos, siempre que se le hable de forma pausada y clara, y se le repita en caso de que así lo requiera.",
+      "competenciaId": "FRA-6-C01"
+    },
+    {
+      "id": "FRA-6-I02",
+      "descripcion": "Produce textos orales y escritos en francés de forma breve y sencillo, mediante una serie de frases y oraciones enlazadas por conectores básicos para procurar servicios de transporte, interactuar en un restaurante, viajar, opinar, y relatar experiencias, con pausas y reformulaciones en lo oral y con algunos errores básicos en lo escrito.",
+      "competenciaId": "FRA-6-C01"
+    },
+    {
+      "id": "FRA-6-I03",
+      "descripcion": "Interactúa en forma oral o escrita a través de una serie de frases y oraciones sencillas y con diversidad de vocabulario básico, enlazadas por conectores, con el propósito de transportarse, interactuar en un restaurante, viajar, opinar, y relatar experiencias, aunque con algunos errores básicos, pero con suficiente claridad para ser comprendido con un poco de esfuerzo.",
+      "competenciaId": "FRA-6-C01"
+    },
+    {
+      "id": "FRA-6-I04",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de Primer Ciclo forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+      "competenciaId": "FRA-6-C02"
+    },
+    {
+      "id": "FRA-6-I05",
+      "descripcion": "Produce textos orales y escritos breves y sencillos con claridad y creatividad, manteniendo una secuencia clara y ordenada de las ideas, mediante el uso de conectores lógicos básicos apropiados a la relación específica de las ideas, al tema y la situación, con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito.",
+      "competenciaId": "FRA-6-C02"
+    },
+    {
+      "id": "FRA-6-I06",
+      "descripcion": "Interactúa en forma oral o escrita a través de una serie de oraciones breves y sencillas ordenadas de una forma lógica y presentadas de forma creativa en diferentes tipos de texto donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+      "competenciaId": "FRA-6-C02"
+    },
+    {
+      "id": "FRA-6-I07",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones sobre necesidades, situaciones y problemas de su entorno inmediato y temas que le son familiares, empleando estrategias a partir de textos orales y escritos breves y sencillos, aunque el interlocutor deba hacer cierto esfuerzo oral y escrito para comprenderle.",
+      "competenciaId": "FRA-6-C03"
+    },
+    {
+      "id": "FRA-6-I08",
+      "descripcion": "Se comunica mediante textos orales y escritos en francés de forma clara y comprensible, para comunicar problemas inmediatos propios, de otras personas y del entorno inmediato, utilizando frases y oraciones breves y sencillas, aunque necesite reformulaciones de ideas e informaciones en ocasiones.",
+      "competenciaId": "FRA-6-C03"
+    },
+    {
+      "id": "FRA-6-I09",
+      "descripcion": "Interactúa de forma oral y escrita para procurar servicio de transporte, informar sobre viajes, relatar experiencias, interactuar en restaurantes y dar y pedir opiniones, utilizando expresiones y frases sencillas, aunque con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito.",
+      "competenciaId": "FRA-6-C03"
+    },
+    {
+      "id": "FRA-6-I10",
+      "descripcion": "Reconoce las diferencias individuales y la identidad social y cultural propia y de otros países relativas a transporte, viajes, relato de experiencias, interacciones en restaurantes y dar y pedir opiniones.",
+      "competenciaId": "FRA-6-C04"
+    },
+    {
+      "id": "FRA-6-I11",
+      "descripcion": "Se comunica con las demás personas en el idioma francés, de forma oral y escrita, con cortesía, honestidad, asertividad y respeto, en intercambios sencillos en situaciones concretas de comunicación, reconociendo las diferencias individuales y la identidad social y cultural propias de la comunidad local y global.",
+      "competenciaId": "FRA-6-C04"
+    },
+    {
+      "id": "FRA-6-I12",
+      "descripcion": "Sostiene la conversación al interactuar en forma oral o escrita, utilizando frases y oraciones sencillas para mantener la interacción de forma cortés y respetuosa a las diferencias de la cultura personal y de otras personas, relativas a transporte público, comidas, bebidas, lugares de interés, costumbres y tradiciones.",
+      "competenciaId": "FRA-6-C04"
+    },
+    {
+      "id": "FRA-6-I13",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos breves y de vocabulario y expresiones básicas y sencillas sobre asuntos científicos y tecnológicos compartidos de forma personal, digital o virtual, apoyándose de imágenes y de modelos previstos.",
+      "competenciaId": "FRA-6-C05"
+    },
+    {
+      "id": "FRA-6-I14",
+      "descripcion": "Identifica y describe aspectos científicos y tecnológicos relativos a sus actividades cotidianas y entorno inmediato, tales como servicio de transporte, información sobre viajes, relatos experiencias, interacción en restaurantes y dar y pedir opiniones, utilizando frases y oraciones breves y sencillas orales y escritas, pero con suficiente claridad para ser comprendido con un poco de esfuerzo.",
+      "competenciaId": "FRA-6-C05"
+    },
+    {
+      "id": "FRA-6-I15",
+      "descripcion": "Interactúa en forma oral o escrita por diferentes medios físicos y electrónicos, para intercambiar información, ideas y opiniones sobre aspectos científicos y tecnológicos de su entorno inmediato, servicios, opiniones y relatos, aunque con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito.",
+      "competenciaId": "FRA-6-C05"
+    },
+    {
+      "id": "FRA-6-I16",
+      "descripcion": "Identifica las acciones que impactan positivamente la salud y el medioambiente en las actividades cotidianas que se realizan en su entorno inmediato.",
+      "competenciaId": "FRA-6-C06"
+    },
+    {
+      "id": "FRA-6-I17",
+      "descripcion": "Describe información y estados del entorno inmediato, opinando sobre viajes, servicio de transporte y restaurantes para cuidar el medioambiente y la salud propia y de otras personas.",
+      "competenciaId": "FRA-6-C06"
+    },
+    {
+      "id": "FRA-6-I18",
+      "descripcion": "Interactúa de forma adecuada en situaciones donde se promueve prácticas de hábitos saludables para las personas y amigables con el medio ambiente en diversas situaciones de comunicación en el idioma francés, utilizando frases y oraciones sencillas.",
+      "competenciaId": "FRA-6-C06"
+    },
+    {
+      "id": "FRA-6-I19",
+      "descripcion": "Muestra empatía por los sentimientos y necesidades propios y de las demás personas.",
+      "competenciaId": "FRA-6-C07"
+    },
+    {
+      "id": "FRA-6-I20",
+      "descripcion": "Muestra disposición para dar y obtener información, al interactuar con otras personas de forma colaborativa en distintas situaciones de comunicación.",
+      "competenciaId": "FRA-6-C07"
+    },
+    {
+      "id": "FRA-6-I21",
+      "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación. 208",
+      "competenciaId": "FRA-6-C07"
+    }
+  ],
+  "indicadores": [
+    {
+      "id": "FRA-6-I01",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha de discursos breves y sencillos en francés con la intención de transportarse, interactuar en un restaurante, viajar, opinar, y relatar experiencias, en relación a necesidades concretas y temas cotidianos, siempre que se le hable de forma pausada y clara, y se le repita en caso de que así lo requiera.",
+      "competenciaId": "FRA-6-C01"
+    },
+    {
+      "id": "FRA-6-I02",
+      "descripcion": "Produce textos orales y escritos en francés de forma breve y sencillo, mediante una serie de frases y oraciones enlazadas por conectores básicos para procurar servicios de transporte, interactuar en un restaurante, viajar, opinar, y relatar experiencias, con pausas y reformulaciones en lo oral y con algunos errores básicos en lo escrito.",
+      "competenciaId": "FRA-6-C01"
+    },
+    {
+      "id": "FRA-6-I03",
+      "descripcion": "Interactúa en forma oral o escrita a través de una serie de frases y oraciones sencillas y con diversidad de vocabulario básico, enlazadas por conectores, con el propósito de transportarse, interactuar en un restaurante, viajar, opinar, y relatar experiencias, aunque con algunos errores básicos, pero con suficiente claridad para ser comprendido con un poco de esfuerzo.",
+      "competenciaId": "FRA-6-C01"
+    },
+    {
+      "id": "FRA-6-I04",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de Primer Ciclo forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+      "competenciaId": "FRA-6-C02"
+    },
+    {
+      "id": "FRA-6-I05",
+      "descripcion": "Produce textos orales y escritos breves y sencillos con claridad y creatividad, manteniendo una secuencia clara y ordenada de las ideas, mediante el uso de conectores lógicos básicos apropiados a la relación específica de las ideas, al tema y la situación, con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito.",
+      "competenciaId": "FRA-6-C02"
+    },
+    {
+      "id": "FRA-6-I06",
+      "descripcion": "Interactúa en forma oral o escrita a través de una serie de oraciones breves y sencillas ordenadas de una forma lógica y presentadas de forma creativa en diferentes tipos de texto donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+      "competenciaId": "FRA-6-C02"
+    },
+    {
+      "id": "FRA-6-I07",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones sobre necesidades, situaciones y problemas de su entorno inmediato y temas que le son familiares, empleando estrategias a partir de textos orales y escritos breves y sencillos, aunque el interlocutor deba hacer cierto esfuerzo oral y escrito para comprenderle.",
+      "competenciaId": "FRA-6-C03"
+    },
+    {
+      "id": "FRA-6-I08",
+      "descripcion": "Se comunica mediante textos orales y escritos en francés de forma clara y comprensible, para comunicar problemas inmediatos propios, de otras personas y del entorno inmediato, utilizando frases y oraciones breves y sencillas, aunque necesite reformulaciones de ideas e informaciones en ocasiones.",
+      "competenciaId": "FRA-6-C03"
+    },
+    {
+      "id": "FRA-6-I09",
+      "descripcion": "Interactúa de forma oral y escrita para procurar servicio de transporte, informar sobre viajes, relatar experiencias, interactuar en restaurantes y dar y pedir opiniones, utilizando expresiones y frases sencillas, aunque con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito.",
+      "competenciaId": "FRA-6-C03"
+    },
+    {
+      "id": "FRA-6-I10",
+      "descripcion": "Reconoce las diferencias individuales y la identidad social y cultural propia y de otros países relativas a transporte, viajes, relato de experiencias, interacciones en restaurantes y dar y pedir opiniones.",
+      "competenciaId": "FRA-6-C04"
+    },
+    {
+      "id": "FRA-6-I11",
+      "descripcion": "Se comunica con las demás personas en el idioma francés, de forma oral y escrita, con cortesía, honestidad, asertividad y respeto, en intercambios sencillos en situaciones concretas de comunicación, reconociendo las diferencias individuales y la identidad social y cultural propias de la comunidad local y global.",
+      "competenciaId": "FRA-6-C04"
+    },
+    {
+      "id": "FRA-6-I12",
+      "descripcion": "Sostiene la conversación al interactuar en forma oral o escrita, utilizando frases y oraciones sencillas para mantener la interacción de forma cortés y respetuosa a las diferencias de la cultura personal y de otras personas, relativas a transporte público, comidas, bebidas, lugares de interés, costumbres y tradiciones.",
+      "competenciaId": "FRA-6-C04"
+    },
+    {
+      "id": "FRA-6-I13",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de la escucha o lectura de textos breves y de vocabulario y expresiones básicas y sencillas sobre asuntos científicos y tecnológicos compartidos de forma personal, digital o virtual, apoyándose de imágenes y de modelos previstos.",
+      "competenciaId": "FRA-6-C05"
+    },
+    {
+      "id": "FRA-6-I14",
+      "descripcion": "Identifica y describe aspectos científicos y tecnológicos relativos a sus actividades cotidianas y entorno inmediato, tales como servicio de transporte, información sobre viajes, relatos experiencias, interacción en restaurantes y dar y pedir opiniones, utilizando frases y oraciones breves y sencillas orales y escritas, pero con suficiente claridad para ser comprendido con un poco de esfuerzo.",
+      "competenciaId": "FRA-6-C05"
+    },
+    {
+      "id": "FRA-6-I15",
+      "descripcion": "Interactúa en forma oral o escrita por diferentes medios físicos y electrónicos, para intercambiar información, ideas y opiniones sobre aspectos científicos y tecnológicos de su entorno inmediato, servicios, opiniones y relatos, aunque con pausas y reformulaciones en lo oral y con posibles errores básicos en lo escrito.",
+      "competenciaId": "FRA-6-C05"
+    },
+    {
+      "id": "FRA-6-I16",
+      "descripcion": "Identifica las acciones que impactan positivamente la salud y el medioambiente en las actividades cotidianas que se realizan en su entorno inmediato.",
+      "competenciaId": "FRA-6-C06"
+    },
+    {
+      "id": "FRA-6-I17",
+      "descripcion": "Describe información y estados del entorno inmediato, opinando sobre viajes, servicio de transporte y restaurantes para cuidar el medioambiente y la salud propia y de otras personas.",
+      "competenciaId": "FRA-6-C06"
+    },
+    {
+      "id": "FRA-6-I18",
+      "descripcion": "Interactúa de forma adecuada en situaciones donde se promueve prácticas de hábitos saludables para las personas y amigables con el medio ambiente en diversas situaciones de comunicación en el idioma francés, utilizando frases y oraciones sencillas.",
+      "competenciaId": "FRA-6-C06"
+    },
+    {
+      "id": "FRA-6-I19",
+      "descripcion": "Muestra empatía por los sentimientos y necesidades propios y de las demás personas.",
+      "competenciaId": "FRA-6-C07"
+    },
+    {
+      "id": "FRA-6-I20",
+      "descripcion": "Muestra disposición para dar y obtener información, al interactuar con otras personas de forma colaborativa en distintas situaciones de comunicación.",
+      "competenciaId": "FRA-6-C07"
+    },
+    {
+      "id": "FRA-6-I21",
+      "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación. 208",
+      "competenciaId": "FRA-6-C07"
+    }
+  ],
+  "criteriosEvaluacion": [
+    "Comprensión de textos orales y escritos breves y sencillos compuestos por frases y expresiones básicas en francés, relativas a necesidades concretas y temas cotidianos, apoyándose de imágenes y de modelos previstos.",
+    "Producción de textos orales y escritos breves y sencillos, compuestos por una serie ensayada de oraciones básicas sobre el mismo tema, en distintas situaciones de comunicación donde se expresan puntos de vista propios y de otras personas, apoyándose de modelos y con ayuda visual.",
+    "Interacción breve y sencilla mediante una serie de frases y oraciones sencillas relativas a necesidades concretas y temas cotidianos, que el interlocutor puede comprender poniendo bastante atención.",
+    "Empleo del pensamiento lógico-verbal y crítico en la comprensión de textos orales y escritos breves y sencillos para responder a preguntas e indicaciones y proponer puntos de vista a partir de la información presentada, necesitando releer y del apoyo de imágenes y de elementos paratextuales, con un discurso pausado y claro.",
+    "Utilización del pensamiento lógico-verbal para organizar y relacionar las ideas de forma creativa en los textos orales y escritos que produce, empleando estrategias de desempeño en diferentes situaciones cotidianas de comunicación, acompañando con dibujos, dramatizaciones, canciones, audiovisuales, entre otros, aunque con algunos errores básicos y reformulaciones",
+    "Interacción sencilla en el idioma franclés utilizando el razonamiento lógico-verbal y la expresión creativa y crítica para expresar y comprender los mensajes que se comparten en situaciones concretas de comunicación oral o escrita.",
+    "Comprensión de informaciones contenidas en textos sencillos orales y escritos que describen situaciones y problemas cotidianos o del entorno próximo, utilizando estrategias de desempeño y aprendizaje para la dar las respuestas adecuadas a preguntas e indicaciones.",
+    "Comunicación breve y sencilla en francés oral y escrito en la que se describen y plantean diversas circunstancias de su entorno inmediato, empleando estrategias de desempeño para hacerse comprender de forma básica ante su interlocutor.",
+    "Interacción sencilla en francés donde se describen problemas y situaciones comunes de su entorno inmediato utilizando estrategias de desempeño para comunicar indicaciones, instrucciones, consejos y sugerencias, aunque su interlocutor deba hacer cierto esfuerzo para comprenderle.",
+    "Reconocimiento de las diferencias y similitudes más comunes de la identidad social y cultural a nivel individual, local y global, a partir de la escucha, lectura de textos relativos a costumbres, creencias y elementos sociales, en su entorno y en el ámbito cultural.",
+    "Se comunica en francés en forma oral y escrita, en un plano de respeto y cortesía, valorando las diferencias individuales básicas y las de identidad cultural propia, local y global.",
+    "Interacción sencilla en el idioma francés, participando con cortesía y respeto, describiendo aspectos de diferencias individuales y de identidad cultural propia y de otros países.",
+    "Localización, utilización e intercambio de información sencilla en francés, sobre temas de carácter científico y tecnológico en situaciones inmediatas de comunicación.",
+    "Expresión oral y escrita de información, ideas y puntos de vista sobre temas de carácter científico y tecnológico, utilizando información de su entorno inmediato y textos breves con vocabulario sencillo de uso común.",
+    "Interacción breve y sencilla con el propósito de compartir información, opiniones y orientaciones sobre temas de carácter científico y tecnológico, a partir de elementos comunes en su vida cotidiana, a través de un repertorio limitado de expresiones ensayadas.",
+    "Valoración de opciones que impactan positivamente la salud y el medio ambiente, en distintas situaciones inmediatas de comunicación oral y escrita muy breves y sencillas.",
+    "Expresión de cuidado del medio ambiente y de la salud propia y la de otras personas al compartir informaciones, ideas, y preferencias en las actividades cotidianas que realiza.",
+    "Interacción donde se muestra informaciones y opiniones favorables para el cuidado de la salud y el medio ambiente en las actividades cotidianas, lugares y objetos que se utilizan en su entorno inmediato.",
+    "Identificación de las diferencias personales básicas propias y la de otras personas referente a su identidad personal, preferencias de actividades cotidianas, experiencias, apariencia y forma de ser, tanto en forma oral como escrita.",
+    "Presentación de información con aceptación, cortesía, honestidad, respeto y empatía ante las situaciones que le afectan a sí mismo y a los demás.",
+    "Interacción en francés con cortesía, respeto, autocontrol y aceptación ante los talentos, capacidades, limitaciones, sentimientos y creencias propias y de las demás personas, en diversas situaciones de comunicación."
+  ],
+  "temas": [],
+  "contenidosGenerales": {
+    "conceptuales": [
+      "• Relaciones humanas y sociales",
+      "• Vivienda, entorno y ciudad",
+      "• Alimentación.",
+      "• Actividades de la vida diaria y de recreación. Salud y cuidados",
+      "físicos.",
+      "• Lenguas y comunicación",
+      "• Viajes y lugares turísticos",
+      "• Medioambiente",
+      "• Vocabulario y expresiones",
+      "Vocabulario y expresiones",
+      "Dar y obtener información sobre viajes",
+      "• Lugares : pays, ville, plage, montagne, monument, musée…",
+      "• Alojamiento : logement, hôtel, auberge, chambre…",
+      "• Transporte: bus, avion, train, bateau, vélo, voiture…",
+      "• Tecnologías : ordinateur, souris, page web, courriel, connexion",
+      "wifi…",
+      "• Actividades : faire du sport, aller à la plage, visiter un musée…",
+      "• Expresiones comunes :",
+      "Pension complète ou demi• pension ? Le petit déjeuner est inclus.",
+      "• Procurar servicios de transporte",
+      "• Medios de transporte: bus, train, metro, taxi, avión…",
+      "• Lugares : arrêt de bus, station de métro, gare, aéroport, guichet…",
+      "• Ocupaciones : contrôleur, chauffeur…",
+      "Formas de pago: en espèces, par carte bancaire, carte de métro…",
+      "Señales e indicaciones: quai n°1, compostez votre billet, femme",
+      "enceinte, handicapé, arrêt, attention au départ…",
+      "Dar y pedir opiniones",
+      "• Opinar: Je pense que…, Je crois que…, À mon avis…, Selon moi…",
+      "• Dar una opinión positiva: J’aime beaucoup…, J’adore…, C’est gé-",
+      "nial ! C’est merveilleux ! Je suis d’accord…",
+      "• Dar una opinión negativa : Je déteste…, Ça n’a aucun intérêt.",
+      "C’est ennuyant ! Je ne suis pas d’accord…",
+      "• Eventos: festival, carnaval, match de baseball, concert, exposi-",
+      "tion…",
+      "Reservar, ordenar y pagar en un restaurante",
+      "Restaurante: menu, addition, entrée, plat principal, dessert…",
+      "Menú: salade, steak, frites, poulet, riz, tarte, thé, lait, eau, jus… Co-",
+      "midas: petit déjeuner, déjeuner, dîner…",
+      "Utensilios : carafe, verre, assiette, fourchette, couteau, cuillère…",
+      "Expresiones de cantidad:",
+      "Je voudrais un peu d’eau.",
+      "Donnez• moi beaucoup de pain. J’en veux plus/Je n’en veux plus.",
+      "Expresiones comunes:",
+      "Je voudrais faire une réservation pour samedi.",
+      "Garçon, s’il vous plaît !",
+      "Qu’est• ce que vous nous conseillez ?",
+      "L’addition, s’il vous plaît.",
+      "• Relatar hechos y experiencias",
+      "• Estudios:",
+      "J’ai étudié et j’ai réussi mon examen.",
+      "J’ai fait mes devoirs.",
+      "J’ai présenté mon exposé.",
+      "• Actividades cotidianas:",
+      "J’ai fait les courses.",
+      "J’ai mangé avec ma famille.",
+      "Je suis allé au centre commercial.",
+      "• Actividades de recreación:",
+      "Je suis allé à la plage.",
+      "J’ai visité un musée.",
+      "J’ai joué au football.",
+      "Gramática",
+      "Oraciones interrogativas",
+      "• Con pronombres interrogativos:",
+      "À quelle heure part le train pour Paris ?",
+      "Quels sont les horaires du métro ? Combien ça coûte?",
+      "• Las tres formas de la interrogación:",
+      "Il y a une chambre disponible ?",
+      "Est• ce qu’il y a une chambre disponible ?",
+      "Y a• t• il une chambre disponible ?"
+    ],
+    "procedimentales": [
+      "Funcionales",
+      "• Dar y obtener información sobre",
+      "viajes.",
+      "• Dar y pedir opiniones.",
+      "• Procurar servicios de transporte",
+      "• Reservar, ordenar y pagar en un",
+      "restaurante.",
+      "• Relatar hechos y experiencias.",
+      "Discursivos",
+      "• Comprensión de discursos orales,",
+      "tales como conversaciones,",
+      "indicaciones, anuncios, poesías,",
+      "canciones, avisos, mensajes de voz",
+      "y descripciones.",
+      "• Producción de discursos orales,",
+      "tales como diálogos, preguntas,",
+      "mensajes, canciones, relatos y",
+      "opiniones.",
+      "• Comprensión de textos escritos en",
+      "formato físico, digital y virtual, tales",
+      "como instrucciones, tarjetas, listas,",
+      "menús, letreros, afiches, correos",
+      "electrónicos, formularios, agendas,",
+      "cartas, croquis, cuestionarios,",
+      "facturas, folletos, tiras cómicas,",
+      "guías turísticas y catálogos.",
+      "• Producción de textos escritos en",
+      "formato físico, digital y virtual, tales",
+      "como llenado de formularios, cartas,",
+      "mensajes, correos electrónicos,",
+      "invitaciones, afiches, letreros, relatos",
+      "y opiniones.",
+      "Estratégicos Comprensión oral",
+      "• Anticipación del contenido del",
+      "mensaje.",
+      "Escucha atenta.",
+      "• Uso del lenguaje no verbal de su",
+      "interlocutor/a para comprender el",
+      "mensaje.",
+      "• Inferencia del significado de palabras",
+      "y expresiones, a partir de las pistas",
+      "del contexto y los conocimientos",
+      "previos.",
+      "• Solicitud de ayuda y repetición.",
+      "Indicación de que se comprende o no.",
+      "Producción oral",
+      "• Reproducción y ensayo de palabras,",
+      "expresiones y pautas de entonación.",
+      "• Identificación de la situación de",
+      "comunicación.",
+      "• Establecimiento de la intención",
+      "comunicativa.",
+      "• Planificación del mensaje.",
+      "• Uso del lenguaje no verbal para",
+      "comunicarse.",
+      "• Comprensión escrita",
+      "• Establecimiento del propósito de la",
+      "lectura.",
+      "• Formulación de hipótesis a partir",
+      "de los conocimientos previos y los",
+      "elementos paratextuales.",
+      "• Inferencia del significado de palabras",
+      "y expresiones, a partir de las pistas",
+      "textuales y los conocimientos",
+      "previos",
+      "• Subrayado, anotación y búsqueda",
+      "de palabras en el diccionario y otras",
+      "herramientas de consulta.",
+      "Producción escrita",
+      "• Establecimiento del propósito del",
+      "mensaje y del tipo de texto que se",
+      "va a producir.",
+      "• Planificación y organización del",
+      "mensaje.",
+      "• Uso del diccionario y otras",
+      "herramientas de consulta.",
+      "• Revisión del sentido y de la",
+      "corrección del mensaje."
+    ],
+    "actitudinales": [
+      "• Motivación para el aprendizaje del",
+      "idioma francés.",
+      "• Uso sano, responsable y seguro",
+      "de las TIC en las actividades",
+      "informativas, formativas y",
+      "recreativas que realiza.",
+      "• Cortesía, asertividad y respeto",
+      "al interactuar con las demás",
+      "personas.",
+      "• Respeto a la diversidad,",
+      "reconociendo las diferencias",
+      "individuales por edad,",
+      "características étnicas, creencias",
+      "religiosas, situación económica y",
+      "condición especial, entre otras.",
+      "• Trabajo en equipo de forma eficaz",
+      "y eficiente.",
+      "• Valoración de la identidad",
+      "personal, social y cultural propia y",
+      "de las demás personas.",
+      "• Respeto a las normas de",
+      "convivencia y de",
+      "• organización en el aula con",
+      "igualdad y equidad."
+    ],
+    "actitudesValores": [
+      "• Motivación para el aprendizaje del",
+      "idioma francés.",
+      "• Uso sano, responsable y seguro",
+      "de las TIC en las actividades",
+      "informativas, formativas y",
+      "recreativas que realiza.",
+      "• Cortesía, asertividad y respeto",
+      "al interactuar con las demás",
+      "personas.",
+      "• Respeto a la diversidad,",
+      "reconociendo las diferencias",
+      "individuales por edad,",
+      "características étnicas, creencias",
+      "religiosas, situación económica y",
+      "condición especial, entre otras.",
+      "• Trabajo en equipo de forma eficaz",
+      "y eficiente.",
+      "• Valoración de la identidad",
+      "personal, social y cultural propia y",
+      "de las demás personas.",
+      "• Respeto a las normas de",
+      "convivencia y de",
+      "• organización en el aula con",
+      "igualdad y equidad."
+    ]
+  },
+  "contenidos": {
+    "conceptos": [
+      "• Relaciones humanas y sociales",
+      "• Vivienda, entorno y ciudad",
+      "• Alimentación.",
+      "• Actividades de la vida diaria y de recreación. Salud y cuidados",
+      "físicos.",
+      "• Lenguas y comunicación",
+      "• Viajes y lugares turísticos",
+      "• Medioambiente",
+      "• Vocabulario y expresiones",
+      "Vocabulario y expresiones",
+      "Dar y obtener información sobre viajes",
+      "• Lugares : pays, ville, plage, montagne, monument, musée…",
+      "• Alojamiento : logement, hôtel, auberge, chambre…",
+      "• Transporte: bus, avion, train, bateau, vélo, voiture…",
+      "• Tecnologías : ordinateur, souris, page web, courriel, connexion",
+      "wifi…",
+      "• Actividades : faire du sport, aller à la plage, visiter un musée…",
+      "• Expresiones comunes :",
+      "Pension complète ou demi• pension ? Le petit déjeuner est inclus.",
+      "• Procurar servicios de transporte",
+      "• Medios de transporte: bus, train, metro, taxi, avión…",
+      "• Lugares : arrêt de bus, station de métro, gare, aéroport, guichet…",
+      "• Ocupaciones : contrôleur, chauffeur…",
+      "Formas de pago: en espèces, par carte bancaire, carte de métro…",
+      "Señales e indicaciones: quai n°1, compostez votre billet, femme",
+      "enceinte, handicapé, arrêt, attention au départ…",
+      "Dar y pedir opiniones",
+      "• Opinar: Je pense que…, Je crois que…, À mon avis…, Selon moi…",
+      "• Dar una opinión positiva: J’aime beaucoup…, J’adore…, C’est gé-",
+      "nial ! C’est merveilleux ! Je suis d’accord…",
+      "• Dar una opinión negativa : Je déteste…, Ça n’a aucun intérêt.",
+      "C’est ennuyant ! Je ne suis pas d’accord…",
+      "• Eventos: festival, carnaval, match de baseball, concert, exposi-",
+      "tion…",
+      "Reservar, ordenar y pagar en un restaurante",
+      "Restaurante: menu, addition, entrée, plat principal, dessert…",
+      "Menú: salade, steak, frites, poulet, riz, tarte, thé, lait, eau, jus… Co-",
+      "midas: petit déjeuner, déjeuner, dîner…",
+      "Utensilios : carafe, verre, assiette, fourchette, couteau, cuillère…",
+      "Expresiones de cantidad:",
+      "Je voudrais un peu d’eau.",
+      "Donnez• moi beaucoup de pain. J’en veux plus/Je n’en veux plus.",
+      "Expresiones comunes:",
+      "Je voudrais faire une réservation pour samedi.",
+      "Garçon, s’il vous plaît !",
+      "Qu’est• ce que vous nous conseillez ?",
+      "L’addition, s’il vous plaît.",
+      "• Relatar hechos y experiencias",
+      "• Estudios:",
+      "J’ai étudié et j’ai réussi mon examen.",
+      "J’ai fait mes devoirs.",
+      "J’ai présenté mon exposé.",
+      "• Actividades cotidianas:",
+      "J’ai fait les courses.",
+      "J’ai mangé avec ma famille.",
+      "Je suis allé au centre commercial.",
+      "• Actividades de recreación:",
+      "Je suis allé à la plage.",
+      "J’ai visité un musée.",
+      "J’ai joué au football.",
+      "Gramática",
+      "Oraciones interrogativas",
+      "• Con pronombres interrogativos:",
+      "À quelle heure part le train pour Paris ?",
+      "Quels sont les horaires du métro ? Combien ça coûte?",
+      "• Las tres formas de la interrogación:",
+      "Il y a une chambre disponible ?",
+      "Est• ce qu’il y a une chambre disponible ?",
+      "Y a• t• il une chambre disponible ?"
+    ],
+    "procedimientos": [
+      "Funcionales",
+      "• Dar y obtener información sobre",
+      "viajes.",
+      "• Dar y pedir opiniones.",
+      "• Procurar servicios de transporte",
+      "• Reservar, ordenar y pagar en un",
+      "restaurante.",
+      "• Relatar hechos y experiencias.",
+      "Discursivos",
+      "• Comprensión de discursos orales,",
+      "tales como conversaciones,",
+      "indicaciones, anuncios, poesías,",
+      "canciones, avisos, mensajes de voz",
+      "y descripciones.",
+      "• Producción de discursos orales,",
+      "tales como diálogos, preguntas,",
+      "mensajes, canciones, relatos y",
+      "opiniones.",
+      "• Comprensión de textos escritos en",
+      "formato físico, digital y virtual, tales",
+      "como instrucciones, tarjetas, listas,",
+      "menús, letreros, afiches, correos",
+      "electrónicos, formularios, agendas,",
+      "cartas, croquis, cuestionarios,",
+      "facturas, folletos, tiras cómicas,",
+      "guías turísticas y catálogos.",
+      "• Producción de textos escritos en",
+      "formato físico, digital y virtual, tales",
+      "como llenado de formularios, cartas,",
+      "mensajes, correos electrónicos,",
+      "invitaciones, afiches, letreros, relatos",
+      "y opiniones.",
+      "Estratégicos Comprensión oral",
+      "• Anticipación del contenido del",
+      "mensaje.",
+      "Escucha atenta.",
+      "• Uso del lenguaje no verbal de su",
+      "interlocutor/a para comprender el",
+      "mensaje.",
+      "• Inferencia del significado de palabras",
+      "y expresiones, a partir de las pistas",
+      "del contexto y los conocimientos",
+      "previos.",
+      "• Solicitud de ayuda y repetición.",
+      "Indicación de que se comprende o no.",
+      "Producción oral",
+      "• Reproducción y ensayo de palabras,",
+      "expresiones y pautas de entonación.",
+      "• Identificación de la situación de",
+      "comunicación.",
+      "• Establecimiento de la intención",
+      "comunicativa.",
+      "• Planificación del mensaje.",
+      "• Uso del lenguaje no verbal para",
+      "comunicarse.",
+      "• Comprensión escrita",
+      "• Establecimiento del propósito de la",
+      "lectura.",
+      "• Formulación de hipótesis a partir",
+      "de los conocimientos previos y los",
+      "elementos paratextuales.",
+      "• Inferencia del significado de palabras",
+      "y expresiones, a partir de las pistas",
+      "textuales y los conocimientos",
+      "previos",
+      "• Subrayado, anotación y búsqueda",
+      "de palabras en el diccionario y otras",
+      "herramientas de consulta.",
+      "Producción escrita",
+      "• Establecimiento del propósito del",
+      "mensaje y del tipo de texto que se",
+      "va a producir.",
+      "• Planificación y organización del",
+      "mensaje.",
+      "• Uso del diccionario y otras",
+      "herramientas de consulta.",
+      "• Revisión del sentido y de la",
+      "corrección del mensaje."
+    ],
+    "actitudesValores": [
+      "• Motivación para el aprendizaje del",
+      "idioma francés.",
+      "• Uso sano, responsable y seguro",
+      "de las TIC en las actividades",
+      "informativas, formativas y",
+      "recreativas que realiza.",
+      "• Cortesía, asertividad y respeto",
+      "al interactuar con las demás",
+      "personas.",
+      "• Respeto a la diversidad,",
+      "reconociendo las diferencias",
+      "individuales por edad,",
+      "características étnicas, creencias",
+      "religiosas, situación económica y",
+      "condición especial, entre otras.",
+      "• Trabajo en equipo de forma eficaz",
+      "y eficiente.",
+      "• Valoración de la identidad",
+      "personal, social y cultural propia y",
+      "de las demás personas.",
+      "• Respeto a las normas de",
+      "convivencia y de",
+      "• organización en el aula con",
+      "igualdad y equidad."
+    ]
+  }
+}
