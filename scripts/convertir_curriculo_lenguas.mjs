@@ -186,3 +186,54 @@ for (const idiomaKey of ["ingles", "frances"]) {
 
 console.log(`Escritas ${resumen.length} mallas en ${OUT}\n`);
 console.table(resumen);
+
+// ─── Módulo derivado compacto para el diagnóstico (Paso 3) ───────────────────
+// Expone SOLO los indicadores oficiales por idioma+grado (no las mallas enteras),
+// para que referenciaLocal del diagnóstico ofrezca los 21 indicadores reales
+// como respaldo cuando la malla no está en Firestore. Se regenera con este script.
+const indicadoresPorIdiomaGrado = {};
+for (const idiomaKey of ["ingles", "frances"]) {
+  const idioma = fuente.idiomas[idiomaKey];
+  const subject = SUBJECT[idiomaKey];
+  indicadoresPorIdiomaGrado[subject] = {};
+  for (const ciclo of idioma.ciclos) {
+    for (const malla of ciclo.mallas_curriculares || []) {
+      const grade = GRADO_A_SUFIJO[malla.grado];
+      if (!grade) continue;
+      const comps = malla.competencias_especificas_del_grado || [];
+      const indics = (malla.indicadores_de_logro || []).map((d) => String(d).trim()).filter(Boolean);
+      // Empareja cada indicador con su competencia (bloques de 3).
+      indicadoresPorIdiomaGrado[subject][grade] = indics.map((descripcion, i) => ({
+        descripcion,
+        competencia: comps[Math.floor(i / 3)]?.competencia_fundamental || "",
+      }));
+    }
+  }
+}
+const modulo = `// GENERADO por scripts/convertir_curriculo_lenguas.mjs — no editar a mano.
+// Indicadores de logro OFICIALES (MINERD 2023) por asignatura y grado, para el
+// respaldo del diagnóstico cuando la malla no está en el Banco de Conocimiento.
+// Fuente: src/data/curriculo/curriculo-lenguas-extranjeras-secundaria-2023.json
+
+export const INDICADORES_OFICIALES_IDIOMAS = ${JSON.stringify(indicadoresPorIdiomaGrado, null, 2)};
+
+const TABLA_GRADO = {
+  "1ro": "1ro", primero: "1ro", first: "1ro", "1": "1ro",
+  "2do": "2do", segundo: "2do", second: "2do", "2": "2do",
+  "3ro": "3ro", tercero: "3ro", third: "3ro", "3": "3ro",
+  "4to": "4to", cuarto: "4to", fourth: "4to", "4": "4to",
+  "5to": "5to", quinto: "5to", fifth: "5to", "5": "5to",
+  "6to": "6to", sexto: "6to", sixth: "6to", "6": "6to",
+};
+const normGrado = (g = "") => TABLA_GRADO[String(g).toLowerCase().trim().split(/\\s+/)[0]] || "";
+const normAsig = (a = "") => /fran|french/i.test(a) ? "Frances" : "Ingles";
+
+/** Devuelve los 21 indicadores oficiales del idioma+grado, o [] si no hay. */
+export const getIndicadoresOficialesIdioma = (asignatura, grado) => {
+  const g = normGrado(grado);
+  const banco = INDICADORES_OFICIALES_IDIOMAS[normAsig(asignatura)] || {};
+  return banco[g] || [];
+};
+`;
+writeFileSync(join(ROOT, "src/data/indicadoresIdiomasOficiales.js"), modulo);
+console.log("\nMódulo derivado: src/data/indicadoresIdiomasOficiales.js");

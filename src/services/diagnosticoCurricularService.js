@@ -2,6 +2,7 @@ import { consultarCurriculo } from "./curriculumService.js";
 import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
 import { getCompetenciasArea } from "../data/indicadoresAreasMINERD.js";
 import { getCompetenciasIdiomas } from "../data/indicadoresIdiomas.js";
+import { getIndicadoresOficialesIdioma } from "../data/indicadoresIdiomasOficiales.js";
 import { getAreaCurricularDeAsignatura, getAsignaturas } from "../planning/areaAsignaturaMap.js";
 
 /**
@@ -82,6 +83,20 @@ const referenciaLocal = (area, asignatura, grado, nivel) => {
   // para Primaria porque una referencia del nivel equivocado sería engañosa.
   if (nivel !== "Secundaria") return [];
   try {
+    // Idiomas: preferir los 21 indicadores OFICIALES (MINERD 2023) derivados del
+    // currículo literal. Es el respaldo más fiel cuando la malla no está en el
+    // Banco. Si no hay (idioma/grado no cubierto), cae a la selección curada.
+    if (area === "Lenguas Extranjeras") {
+      const oficiales = getIndicadoresOficialesIdioma(asignatura || "Inglés", grado);
+      if (oficiales.length) {
+        return oficiales.map((ind, indice) => ({
+          id: `ref-oficial-${indice + 1}`,
+          descripcion: ind.descripcion,
+          competencia: ind.competencia || "",
+          competenciaId: "referencia-oficial",
+        }));
+      }
+    }
     const datos = area === "Lenguas Extranjeras"
       ? getCompetenciasIdiomas(asignatura || "Inglés", grado)
       : getCompetenciasArea(area, grado);
