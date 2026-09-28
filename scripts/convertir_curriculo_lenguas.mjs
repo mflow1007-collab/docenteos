@@ -136,6 +136,50 @@ const extraerSeccion = (conceptosLineas = [], claveSeccion) => {
   return items.filter(Boolean);
 };
 
+// Reúne los indicadores de logro partidos por la maquetación del PDF: una línea
+// que empieza en minúscula es continuación de la anterior (el PDF cortó la frase,
+// típicamente en "…lógico-" / "verbal…"). Devuelve la lista con cada indicador
+// completo en un solo elemento. Evita indicadores espurios ("verbal para…") y que
+// el reparto en tríadas descarte los indicadores reales del final.
+// Repara el fragmento huérfano "verbal para responder/comprender…" que aparece en
+// el indicador COMPR de la competencia de Pensamiento Lógico-Verbal (inglés 6to,
+// francés 2do y 4to): la conversión del PDF perdió su arranque ("Responde/Comprende
+// … utilizando el pensamiento lógico-"). Se antepone ese arranque, que es la fórmula
+// LITERAL del propio currículo MINERD en los demás grados — no inventa contenido.
+const repararFragmentoLogicoVerbal = (t) => {
+  if (/^verbal para responder\b/i.test(t)) {
+    return `Responde de forma adecuada a preguntas e indicaciones utilizando el pensamiento lógico-${t}`;
+  }
+  if (/^verbal para comprender\b/i.test(t)) {
+    // Evita "Comprende … para comprender": usa "Responde" como arranque, igual que
+    // el patrón de los demás grados para el indicador COMPR de esta competencia.
+    return `Responde utilizando el pensamiento lógico-${t}`;
+  }
+  return t;
+};
+
+const unirIndicadoresPartidos = (lineas = []) => {
+  const unidos = [];
+  for (const linea of lineas) {
+    const t = String(linea).trim();
+    if (!t) continue;
+    const c = t[0];
+    const empiezaMinuscula = c === c.toLowerCase() && c !== c.toUpperCase();
+    const previo = unidos[unidos.length - 1] || "";
+    // La continuación se une al anterior SOLO si este quedó cortado a media frase
+    // (no termina en signo de cierre). Así "…elementos lógico" + "verbales básicos…"
+    // se reúnen, pero una línea que empieza en minúscula tras un indicador ya
+    // cerrado (termina en ".") NO se absorbe: es un indicador partido aparte.
+    const previoCortado = previo && !/[.!?:;]$/.test(previo);
+    if (empiezaMinuscula && previoCortado) {
+      unidos[unidos.length - 1] = `${previo} ${t}`.trim();
+    } else {
+      unidos.push(repararFragmentoLogicoVerbal(t));
+    }
+  }
+  return unidos;
+};
+
 // Los TEMAS oficiales son la sección "Temas". Algunos grados (p. ej. francés 6to)
 // omiten el encabezado "Temas:" y arrancan directo con las viñetas de tema; en ese
 // caso se toman las viñetas iniciales hasta el primer encabezado conocido.
@@ -175,11 +219,18 @@ for (const idiomaKey of ["ingles", "frances"]) {
       const nGrado = grade.replace(/\D/g, ""); // "1", "2"...
 
       const compsFuente = malla.competencias_especificas_del_grado || [];
-      const indicadores = (malla.indicadores_de_logro || []).map((d) => String(d).trim()).filter(Boolean);
+      // La maquetación del PDF parte algunos indicadores en dos líneas: la segunda
+      // empieza en minúscula (p. ej. "…pensamiento lógico-" / "verbal para responder…").
+      // Se reunen esas continuaciones con su indicador para no generar indicadores
+      // espurios ni perder los del final por el reparto en tríadas. (Sin esto,
+      // inglés 5to/6to y francés 2do salían con 22-23 líneas, con basura a media frase.)
+      const indicadores = unirIndicadoresPartidos(
+        (malla.indicadores_de_logro || []).map((d) => String(d).trim()).filter(Boolean)
+      );
 
-      // El PDF trae 21 indicadores por grado en el mismo orden de las 7 CF
-      // (3 por competencia: comprensión, producción, interacción). Se reparten
-      // en bloques de 3 para anidarlos bajo su competencia.
+      // El PDF trae ~21 indicadores por grado en el mismo orden de las 7 CF
+      // (normalmente 3 por competencia: comprensión, producción, interacción). Se
+      // reparten en bloques de 3 para anidarlos bajo su competencia.
       const competencias = compsFuente.map((comp, i) => {
         const cf = comp.competencia_fundamental;
         const ck = claveCF(cf);
@@ -296,7 +347,11 @@ for (const idiomaKey of ["ingles", "frances"]) {
       const grade = GRADO_A_SUFIJO[malla.grado];
       if (!grade) continue;
       const comps = malla.competencias_especificas_del_grado || [];
-      const indics = (malla.indicadores_de_logro || []).map((d) => String(d).trim()).filter(Boolean);
+      // Misma unión de indicadores partidos que en las mallas, para no exponer
+      // fragmentos a media frase ni descontar indicadores del final.
+      const indics = unirIndicadoresPartidos(
+        (malla.indicadores_de_logro || []).map((d) => String(d).trim()).filter(Boolean)
+      );
       // Empareja cada indicador con su competencia (bloques de 3).
       indicadoresPorIdiomaGrado[subject][grade] = indics.map((descripcion, i) => ({
         descripcion,

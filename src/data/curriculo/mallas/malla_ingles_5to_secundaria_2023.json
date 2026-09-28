@@ -73,7 +73,7 @@
         },
         {
           "id": "ING-5-I06",
-          "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico",
+          "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
           "competenciaId": "ING-5-C02"
         }
       ],
@@ -94,17 +94,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-5-I07",
-          "descripcion": "verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
-          "competenciaId": "ING-5-C03"
-        },
-        {
-          "id": "ING-5-I08",
           "descripcion": "Plantea respuestas y alternativas a preguntas e indicaciones, a partir de la lectura o escucha de la descripción de problemas, y situaciones relativas a su entorno y temas que le son familiares, analizando puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
           "competenciaId": "ING-5-C03"
         },
         {
-          "id": "ING-5-I09",
+          "id": "ING-5-I08",
           "descripcion": "Produce textos orales y escritos sencillos y comprensibles, con capacidad para estructurar y presentar información de manera coherente y justificar posibles soluciones sobre problemas, y situaciones de su entorno y temas que le son familiares, analizando puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
+          "competenciaId": "ING-5-C03"
+        },
+        {
+          "id": "ING-5-I09",
+          "descripcion": "Interactúa de manera sostenida y comprensible sobre problemas y situaciones de su entorno inmediato, integrando diferentes informaciones, perspectivas y puntos de vista, argumentos y razonamientos sencillos para justificar posibles soluciones.",
           "competenciaId": "ING-5-C03"
         }
       ],
@@ -119,17 +119,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-5-I10",
-          "descripcion": "Interactúa de manera sostenida y comprensible sobre problemas y situaciones de su entorno inmediato, integrando diferentes informaciones, perspectivas y puntos de vista, argumentos y razonamientos sencillos para justificar posibles soluciones.",
-          "competenciaId": "ING-5-C04"
-        },
-        {
-          "id": "ING-5-I11",
           "descripcion": "Analiza las diferencias y similitudes individuales y la identidad social y cultural propia y de otros países en los textos que lee o escucha.",
           "competenciaId": "ING-5-C04"
         },
         {
-          "id": "ING-5-I12",
+          "id": "ING-5-I11",
           "descripcion": "Produce textos orales o escritos con conciencia de las diferencias individuales generales de las personas y culturas diferentes, con una buena pronunciación, fluidez y corrección aceptable.",
+          "competenciaId": "ING-5-C04"
+        },
+        {
+          "id": "ING-5-I12",
+          "descripcion": "Interactúa en el idioma inglés en situaciones habituales, con cortesía y respeto, valorando de forma crítica las diferencias individuales y la identidad sociocultural local y global.",
           "competenciaId": "ING-5-C04"
         }
       ],
@@ -148,17 +148,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-5-I13",
-          "descripcion": "Interactúa en el idioma inglés en situaciones habituales, con cortesía y respeto, valorando de forma crítica las diferencias individuales y la identidad sociocultural local y global.",
-          "competenciaId": "ING-5-C05"
-        },
-        {
-          "id": "ING-5-I14",
           "descripcion": "Identifica y utiliza información relevante y actualizada, y es capaz de presentarla de forma estructurada y sencilla en formato físico, digital o virtual, atendiendo a preguntas e indicaciones previstas.",
           "competenciaId": "ING-5-C05"
         },
         {
-          "id": "ING-5-I15",
+          "id": "ING-5-I14",
           "descripcion": "Comunica información en el idioma inglés sobre temas de carácter científico y tecnológico de forma estructurada y con un vocabulario sencillo referente a temas que le son familiares, aunque con algunos errores gramaticales y de pronunciación.",
+          "competenciaId": "ING-5-C05"
+        },
+        {
+          "id": "ING-5-I15",
+          "descripcion": "Interactúa en el idioma inglés de forma sencilla y sostenida, para explicar y justificar puntos de vista sobre temas de carácter científico y tecnológico en situaciones que le son familiares o de su entorno, aunque con algunas dificultades para la fluidez y corrección gramatical.",
           "competenciaId": "ING-5-C05"
         }
       ],
@@ -177,17 +177,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-5-I16",
-          "descripcion": "Interactúa en el idioma inglés de forma sencilla y sostenida, para explicar y justificar puntos de vista sobre temas de carácter científico y tecnológico en situaciones que le son familiares o de su entorno, aunque con algunas dificultades para la fluidez y corrección gramatical.",
-          "competenciaId": "ING-5-C06"
-        },
-        {
-          "id": "ING-5-I17",
           "descripcion": "Identifica y utiliza información relevante sobre el cuidado de la salud y el medioambiente de manera clara y coherente, con un vocabulario sencillo y adecuado.",
           "competenciaId": "ING-5-C06"
         },
         {
-          "id": "ING-5-I18",
+          "id": "ING-5-I17",
           "descripcion": "Demuestra valoración del cuidado de la salud y el medioambiente, y es capaz de comunicarse con expresiones sencillas sobre el tema, compartiendo explicaciones, consejos y sugerencias en situaciones habituales o de su interés.",
+          "competenciaId": "ING-5-C06"
+        },
+        {
+          "id": "ING-5-I18",
+          "descripcion": "Identifica y valora las opciones que impactan el cuidado de la salud y del medioambiente, justificando acciones y su propia impresión en situaciones de interacción en inglés.",
           "competenciaId": "ING-5-C06"
         }
       ],
@@ -206,17 +206,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-5-I19",
-          "descripcion": "Identifica y valora las opciones que impactan el cuidado de la salud y del medioambiente, justificando acciones y su propia impresión en situaciones de interacción en inglés.",
-          "competenciaId": "ING-5-C07"
-        },
-        {
-          "id": "ING-5-I20",
           "descripcion": "Identifica y comprende deseos, aspiraciones, planes y experiencias personales propios y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
           "competenciaId": "ING-5-C07"
         },
         {
-          "id": "ING-5-I21",
+          "id": "ING-5-I20",
           "descripcion": "Expresa información, perspectivas, sugerencias, consejos e instrucciones con cortesía, respeto y tolerancia en situaciones propias de su cotidianidad y entorno.",
+          "competenciaId": "ING-5-C07"
+        },
+        {
+          "id": "ING-5-I21",
+          "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias. 167",
           "competenciaId": "ING-5-C07"
         }
       ],
@@ -255,82 +255,82 @@
     },
     {
       "id": "ING-5-I06",
-      "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico",
+      "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
       "competenciaId": "ING-5-C02"
     },
     {
       "id": "ING-5-I07",
-      "descripcion": "verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
-      "competenciaId": "ING-5-C03"
-    },
-    {
-      "id": "ING-5-I08",
       "descripcion": "Plantea respuestas y alternativas a preguntas e indicaciones, a partir de la lectura o escucha de la descripción de problemas, y situaciones relativas a su entorno y temas que le son familiares, analizando puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
       "competenciaId": "ING-5-C03"
     },
     {
-      "id": "ING-5-I09",
+      "id": "ING-5-I08",
       "descripcion": "Produce textos orales y escritos sencillos y comprensibles, con capacidad para estructurar y presentar información de manera coherente y justificar posibles soluciones sobre problemas, y situaciones de su entorno y temas que le son familiares, analizando puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
       "competenciaId": "ING-5-C03"
     },
     {
-      "id": "ING-5-I10",
+      "id": "ING-5-I09",
       "descripcion": "Interactúa de manera sostenida y comprensible sobre problemas y situaciones de su entorno inmediato, integrando diferentes informaciones, perspectivas y puntos de vista, argumentos y razonamientos sencillos para justificar posibles soluciones.",
-      "competenciaId": "ING-5-C04"
+      "competenciaId": "ING-5-C03"
     },
     {
-      "id": "ING-5-I11",
+      "id": "ING-5-I10",
       "descripcion": "Analiza las diferencias y similitudes individuales y la identidad social y cultural propia y de otros países en los textos que lee o escucha.",
       "competenciaId": "ING-5-C04"
     },
     {
-      "id": "ING-5-I12",
+      "id": "ING-5-I11",
       "descripcion": "Produce textos orales o escritos con conciencia de las diferencias individuales generales de las personas y culturas diferentes, con una buena pronunciación, fluidez y corrección aceptable.",
       "competenciaId": "ING-5-C04"
     },
     {
-      "id": "ING-5-I13",
+      "id": "ING-5-I12",
       "descripcion": "Interactúa en el idioma inglés en situaciones habituales, con cortesía y respeto, valorando de forma crítica las diferencias individuales y la identidad sociocultural local y global.",
-      "competenciaId": "ING-5-C05"
+      "competenciaId": "ING-5-C04"
     },
     {
-      "id": "ING-5-I14",
+      "id": "ING-5-I13",
       "descripcion": "Identifica y utiliza información relevante y actualizada, y es capaz de presentarla de forma estructurada y sencilla en formato físico, digital o virtual, atendiendo a preguntas e indicaciones previstas.",
       "competenciaId": "ING-5-C05"
     },
     {
-      "id": "ING-5-I15",
+      "id": "ING-5-I14",
       "descripcion": "Comunica información en el idioma inglés sobre temas de carácter científico y tecnológico de forma estructurada y con un vocabulario sencillo referente a temas que le son familiares, aunque con algunos errores gramaticales y de pronunciación.",
       "competenciaId": "ING-5-C05"
     },
     {
-      "id": "ING-5-I16",
+      "id": "ING-5-I15",
       "descripcion": "Interactúa en el idioma inglés de forma sencilla y sostenida, para explicar y justificar puntos de vista sobre temas de carácter científico y tecnológico en situaciones que le son familiares o de su entorno, aunque con algunas dificultades para la fluidez y corrección gramatical.",
-      "competenciaId": "ING-5-C06"
+      "competenciaId": "ING-5-C05"
     },
     {
-      "id": "ING-5-I17",
+      "id": "ING-5-I16",
       "descripcion": "Identifica y utiliza información relevante sobre el cuidado de la salud y el medioambiente de manera clara y coherente, con un vocabulario sencillo y adecuado.",
       "competenciaId": "ING-5-C06"
     },
     {
-      "id": "ING-5-I18",
+      "id": "ING-5-I17",
       "descripcion": "Demuestra valoración del cuidado de la salud y el medioambiente, y es capaz de comunicarse con expresiones sencillas sobre el tema, compartiendo explicaciones, consejos y sugerencias en situaciones habituales o de su interés.",
       "competenciaId": "ING-5-C06"
     },
     {
-      "id": "ING-5-I19",
+      "id": "ING-5-I18",
       "descripcion": "Identifica y valora las opciones que impactan el cuidado de la salud y del medioambiente, justificando acciones y su propia impresión en situaciones de interacción en inglés.",
-      "competenciaId": "ING-5-C07"
+      "competenciaId": "ING-5-C06"
     },
     {
-      "id": "ING-5-I20",
+      "id": "ING-5-I19",
       "descripcion": "Identifica y comprende deseos, aspiraciones, planes y experiencias personales propios y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
       "competenciaId": "ING-5-C07"
     },
     {
-      "id": "ING-5-I21",
+      "id": "ING-5-I20",
       "descripcion": "Expresa información, perspectivas, sugerencias, consejos e instrucciones con cortesía, respeto y tolerancia en situaciones propias de su cotidianidad y entorno.",
+      "competenciaId": "ING-5-C07"
+    },
+    {
+      "id": "ING-5-I21",
+      "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias. 167",
       "competenciaId": "ING-5-C07"
     }
   ],
@@ -362,82 +362,82 @@
     },
     {
       "id": "ING-5-I06",
-      "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico",
+      "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
       "competenciaId": "ING-5-C02"
     },
     {
       "id": "ING-5-I07",
-      "descripcion": "verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
-      "competenciaId": "ING-5-C03"
-    },
-    {
-      "id": "ING-5-I08",
       "descripcion": "Plantea respuestas y alternativas a preguntas e indicaciones, a partir de la lectura o escucha de la descripción de problemas, y situaciones relativas a su entorno y temas que le son familiares, analizando puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
       "competenciaId": "ING-5-C03"
     },
     {
-      "id": "ING-5-I09",
+      "id": "ING-5-I08",
       "descripcion": "Produce textos orales y escritos sencillos y comprensibles, con capacidad para estructurar y presentar información de manera coherente y justificar posibles soluciones sobre problemas, y situaciones de su entorno y temas que le son familiares, analizando puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
       "competenciaId": "ING-5-C03"
     },
     {
-      "id": "ING-5-I10",
+      "id": "ING-5-I09",
       "descripcion": "Interactúa de manera sostenida y comprensible sobre problemas y situaciones de su entorno inmediato, integrando diferentes informaciones, perspectivas y puntos de vista, argumentos y razonamientos sencillos para justificar posibles soluciones.",
-      "competenciaId": "ING-5-C04"
+      "competenciaId": "ING-5-C03"
     },
     {
-      "id": "ING-5-I11",
+      "id": "ING-5-I10",
       "descripcion": "Analiza las diferencias y similitudes individuales y la identidad social y cultural propia y de otros países en los textos que lee o escucha.",
       "competenciaId": "ING-5-C04"
     },
     {
-      "id": "ING-5-I12",
+      "id": "ING-5-I11",
       "descripcion": "Produce textos orales o escritos con conciencia de las diferencias individuales generales de las personas y culturas diferentes, con una buena pronunciación, fluidez y corrección aceptable.",
       "competenciaId": "ING-5-C04"
     },
     {
-      "id": "ING-5-I13",
+      "id": "ING-5-I12",
       "descripcion": "Interactúa en el idioma inglés en situaciones habituales, con cortesía y respeto, valorando de forma crítica las diferencias individuales y la identidad sociocultural local y global.",
-      "competenciaId": "ING-5-C05"
+      "competenciaId": "ING-5-C04"
     },
     {
-      "id": "ING-5-I14",
+      "id": "ING-5-I13",
       "descripcion": "Identifica y utiliza información relevante y actualizada, y es capaz de presentarla de forma estructurada y sencilla en formato físico, digital o virtual, atendiendo a preguntas e indicaciones previstas.",
       "competenciaId": "ING-5-C05"
     },
     {
-      "id": "ING-5-I15",
+      "id": "ING-5-I14",
       "descripcion": "Comunica información en el idioma inglés sobre temas de carácter científico y tecnológico de forma estructurada y con un vocabulario sencillo referente a temas que le son familiares, aunque con algunos errores gramaticales y de pronunciación.",
       "competenciaId": "ING-5-C05"
     },
     {
-      "id": "ING-5-I16",
+      "id": "ING-5-I15",
       "descripcion": "Interactúa en el idioma inglés de forma sencilla y sostenida, para explicar y justificar puntos de vista sobre temas de carácter científico y tecnológico en situaciones que le son familiares o de su entorno, aunque con algunas dificultades para la fluidez y corrección gramatical.",
-      "competenciaId": "ING-5-C06"
+      "competenciaId": "ING-5-C05"
     },
     {
-      "id": "ING-5-I17",
+      "id": "ING-5-I16",
       "descripcion": "Identifica y utiliza información relevante sobre el cuidado de la salud y el medioambiente de manera clara y coherente, con un vocabulario sencillo y adecuado.",
       "competenciaId": "ING-5-C06"
     },
     {
-      "id": "ING-5-I18",
+      "id": "ING-5-I17",
       "descripcion": "Demuestra valoración del cuidado de la salud y el medioambiente, y es capaz de comunicarse con expresiones sencillas sobre el tema, compartiendo explicaciones, consejos y sugerencias en situaciones habituales o de su interés.",
       "competenciaId": "ING-5-C06"
     },
     {
-      "id": "ING-5-I19",
+      "id": "ING-5-I18",
       "descripcion": "Identifica y valora las opciones que impactan el cuidado de la salud y del medioambiente, justificando acciones y su propia impresión en situaciones de interacción en inglés.",
-      "competenciaId": "ING-5-C07"
+      "competenciaId": "ING-5-C06"
     },
     {
-      "id": "ING-5-I20",
+      "id": "ING-5-I19",
       "descripcion": "Identifica y comprende deseos, aspiraciones, planes y experiencias personales propios y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
       "competenciaId": "ING-5-C07"
     },
     {
-      "id": "ING-5-I21",
+      "id": "ING-5-I20",
       "descripcion": "Expresa información, perspectivas, sugerencias, consejos e instrucciones con cortesía, respeto y tolerancia en situaciones propias de su cotidianidad y entorno.",
+      "competenciaId": "ING-5-C07"
+    },
+    {
+      "id": "ING-5-I21",
+      "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias. 167",
       "competenciaId": "ING-5-C07"
     }
   ],

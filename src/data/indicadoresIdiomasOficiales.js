@@ -371,12 +371,8 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
-        "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico",
+        "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
-      },
-      {
-        "descripcion": "verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
-        "competencia": "Resolución de Problemas"
       },
       {
         "descripcion": "Plantea respuestas y alternativas a preguntas e indicaciones, a partir de la lectura o escucha de la descripción de problemas, y situaciones relativas a su entorno y temas que le son familiares, analizando puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
@@ -388,7 +384,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Interactúa de manera sostenida y comprensible sobre problemas y situaciones de su entorno inmediato, integrando diferentes informaciones, perspectivas y puntos de vista, argumentos y razonamientos sencillos para justificar posibles soluciones.",
-        "competencia": "Ética y Ciudadana"
+        "competencia": "Resolución de Problemas"
       },
       {
         "descripcion": "Analiza las diferencias y similitudes individuales y la identidad social y cultural propia y de otros países en los textos que lee o escucha.",
@@ -400,7 +396,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Interactúa en el idioma inglés en situaciones habituales, con cortesía y respeto, valorando de forma crítica las diferencias individuales y la identidad sociocultural local y global.",
-        "competencia": "Científica y Tecnológica"
+        "competencia": "Ética y Ciudadana"
       },
       {
         "descripcion": "Identifica y utiliza información relevante y actualizada, y es capaz de presentarla de forma estructurada y sencilla en formato físico, digital o virtual, atendiendo a preguntas e indicaciones previstas.",
@@ -412,7 +408,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Interactúa en el idioma inglés de forma sencilla y sostenida, para explicar y justificar puntos de vista sobre temas de carácter científico y tecnológico en situaciones que le son familiares o de su entorno, aunque con algunas dificultades para la fluidez y corrección gramatical.",
-        "competencia": "Ambiental y de la Salud"
+        "competencia": "Científica y Tecnológica"
       },
       {
         "descripcion": "Identifica y utiliza información relevante sobre el cuidado de la salud y el medioambiente de manera clara y coherente, con un vocabulario sencillo y adecuado.",
@@ -424,7 +420,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Identifica y valora las opciones que impactan el cuidado de la salud y del medioambiente, justificando acciones y su propia impresión en situaciones de interacción en inglés.",
-        "competencia": "Desarrollo Personal y Espiritual"
+        "competencia": "Ambiental y de la Salud"
       },
       {
         "descripcion": "Identifica y comprende deseos, aspiraciones, planes y experiencias personales propios y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
@@ -436,7 +432,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias. 167",
-        "competencia": ""
+        "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
     "6to": [
@@ -453,24 +449,16 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
+        "descripcion": "Responde de forma adecuada a preguntas e indicaciones utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
-        "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico",
+        "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
-        "descripcion": "verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
+        "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
-      },
-      {
-        "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico",
-        "competencia": "Resolución de Problemas"
-      },
-      {
-        "descripcion": "verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
-        "competencia": "Resolución de Problemas"
       },
       {
         "descripcion": "Localiza y estructura información a partir de lectura de textos orales y escritos, sobre descripción de problemas relativos a su entorno cotidiano y temas que le son familiares, visualizando o ejecutando su resolución mediante la contraposición de puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
@@ -478,11 +466,11 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Produce textos sencillos orales y escritos que describen y plantean problemas de su entorno inmediato y temas de su interés, aportando posibles soluciones de manera clara y comprensible, al justificar acciones y puntos de vista de manera adecuada.",
-        "competencia": "Ética y Ciudadana"
+        "competencia": "Resolución de Problemas"
       },
       {
         "descripcion": "Interactúa de forma sostenida en inglés oral y escrito, sobre problemas y situaciones que le son familiares y temas culturales de su interés, aclarando detalles y razonamientos que conducen a la resolución.",
-        "competencia": "Ética y Ciudadana"
+        "competencia": "Resolución de Problemas"
       },
       {
         "descripcion": "Comprende y valora las diferencias individuales y la identidad social y cultural propia y de otras personas, identificando elementos detallados de varias perspectivas y razonamientos al interactuar.",
@@ -490,11 +478,11 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Se expresa en forma oral y escrita valorando las diferencias y similitudes individuales y la identidad social y cultural propia y de otros países.",
-        "competencia": "Científica y Tecnológica"
+        "competencia": "Ética y Ciudadana"
       },
       {
         "descripcion": "Emite y reflexiona sobre juicios de valor ante hechos de injusticia, discriminación e inequidad, mediante un discurso oral o texto escrito sencillo, pero comprensible.",
-        "competencia": "Científica y Tecnológica"
+        "competencia": "Ética y Ciudadana"
       },
       {
         "descripcion": "Identifica y utiliza información relevante, y es capaz de organizarla de forma adecuada para responder a preguntas e indicaciones sobre temas científicos y tecnológicos de forma presencial o virtual, utilizando un discurso sencillo.",
@@ -502,11 +490,11 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Produce textos orales y escritos en inglés de forma estructurada y con un vocabulario técnico sencillo y comprensible sobre temas científicos y tecnológicos inherentes a su vida cotidiana o temas de su interés, compartiendo información en formato presencial, digital o virtual.",
-        "competencia": "Ambientaly de la Salud"
+        "competencia": "Científica y Tecnológica"
       },
       {
         "descripcion": "Interactúa de forma sostenida en lo oral y con suficiente detalle en lo escrito con el propósito de opinar, explicar y justificar informaciones y puntos de vista sobre temas de carácter científico y tecnológico en espacios presenciales, digitales o virtuales.",
-        "competencia": "Ambientaly de la Salud"
+        "competencia": "Científica y Tecnológica"
       },
       {
         "descripcion": "Valora los estilos de vida saludables y el cuidado del medioambiente, expuestos en el mensaje y los detalles de discursos orales o escritos de considerable extensión.",
@@ -514,11 +502,11 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Muestra valoración por estilos de vida saludables y cuidado del medioambiente, justificando acciones y puntos de vista favorables en un discurso sencillo oral o escrito.",
-        "competencia": "Desarrollo Personal y Espiritual"
+        "competencia": "Ambientaly de la Salud"
       },
       {
         "descripcion": "Identifica y valora opciones que impactan el cuidado de la salud y el medioambiente, justificando acciones y razones de forma comprensible en situaciones de interacción en inglés.",
-        "competencia": "Desarrollo Personal y Espiritual"
+        "competencia": "Ambientaly de la Salud"
       },
       {
         "descripcion": "Demuestra una comprensión justa de los deseos, aspiraciones, planes y experiencias personales propias y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
@@ -526,11 +514,11 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Exhibe una actitud y conducta cortés, respetuosa al expresar y justificar información, razonamientos y perspectivas.",
-        "competencia": ""
+        "competencia": "Desarrollo Personal y Espiritual"
       },
       {
         "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas 173",
-        "competencia": ""
+        "competencia": "Desarrollo Personal y Espiritual"
       }
     ]
   },
@@ -635,7 +623,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "verbal para comprender expresiones básicas en textos orales y escritos muy breves y senillos sobre identificación personal, actividades inmediatas y descripción de su entorno, releyendo cuando sea necesario y ayudándose de las ilustraciones y otros elementos textuales y paratextuales del contexto.",
+        "descripcion": "Responde utilizando el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y senillos sobre identificación personal, actividades inmediatas y descripción de su entorno, releyendo cuando sea necesario y ayudándose de las ilustraciones y otros elementos textuales y paratextuales del contexto.",
         "competencia": "Pensamiento Lógico, Crítico y Creativo"
       },
       {
@@ -643,12 +631,8 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Pensamiento Lógico, Crítico y Creativo"
       },
       {
-        "descripcion": "Interactúa de forma oral y escrita muy breve y sencilla sobre situaciones de identificación personal, descripción de su entorno, actividades cotidianas y gustos y preferencias, utilizando el pensamiento lógico",
+        "descripcion": "Interactúa de forma oral y escrita muy breve y sencilla sobre situaciones de identificación personal, descripción de su entorno, actividades cotidianas y gustos y preferencias, utilizando el pensamiento lógico verbal para estructurar y seguir la secuencia de expresiones ensayadas y el pensamiento creativo para realizar el intercambio en la situación planteada.",
         "competencia": "Pensamiento Lógico, Crítico y Creativo"
-      },
-      {
-        "descripcion": "verbal para estructurar y seguir la secuencia de expresiones ensayadas y el pensamiento creativo para realizar el intercambio en la situación planteada.",
-        "competencia": "Resolución de Problemas"
       },
       {
         "descripcion": "Responde de forma adecuada a preguntas en indicaciones simples de información específica, tendentes a la resolución de situaciones y problemas inmediatos, a partir de textos orales y escritos simples donde se comparte información personal, y se describe actividades cotidianas, la vivienda y los gustos y preferencias.",
@@ -660,7 +644,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Interactúa de forma muy breve y sencilla para compartir información básica tendente a resolver situaciones o problemas planteados en su entorno cotidiano inmediato, tales como información personal básica, descripción de vivienda, actividades cotidianas y gustos y preferencias, utilizando un repertorio limitado de vocabulario y expresiones con ayuda de su interlocutor.",
-        "competencia": "Ética y Ciudadana"
+        "competencia": "Resolución de Problemas"
       },
       {
         "descripcion": "Responde de forma adecuada ante las expresiones de cortesía y respeto, identificándolas al compartir información personal, sus actividades cotidianas, descripción de su vivienda y sus preferencias.",
@@ -672,7 +656,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Interactúa de forma oral y escrita con expresiones básicas de cortesía, tolerancia y respeto a las diferencias individuales, costumbres y cultura de las demás personas.",
-        "competencia": "Científica y Tecnológica"
+        "competencia": "Ética y Ciudadana"
       },
       {
         "descripcion": "Localiza información referente a aspectos de la ciencia y la tecnología, en la identificación personal de otras personas, en sus actividades cotidianas, gustos y preferencias y descripción de viviendas, siempre que el texto esté compuesto por frases y oraciones comunes sencillas y pueda releer o escuchar de nuevo cuando sea necesario.",
@@ -684,7 +668,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Interactúa en forma oral y escrita empleando aspectos científicos y tecnológicos propios de la identificación de las personas, gustos y preferencias, vivienda y actividades cotidianas, a través de un repertorio limitado de expresiones ensayadas.",
-        "competencia": "Ambiental y de la Salud"
+        "competencia": "Científica y Tecnológica"
       },
       {
         "descripcion": "Responde a preguntas e indicaciones de reflexión sobre las opciones que impactan positivamente la salud y el medio ambiente, a partir de la escucha lectura de textos breves sobre situaciones inmediatas de comunicación.",
@@ -696,7 +680,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Interactúa mostrando preferencia por opciones beneficiosas para el medioambiente y la salud, a partir de expresiones breves.",
-        "competencia": "Desarrollo Personal y Espiritual"
+        "competencia": "Ambiental y de la Salud"
       },
       {
         "descripcion": "Responde de forma adecuada y en un plano de cortesía, honestidad, aceptación, asertividad y respeto, a preguntas e indicaciones, a partir de la escucha o lectura de textos sencillos que contienen información personal básica, y descripción de actividades cotidianas y objetos de su vivienda y entorno.",
@@ -708,7 +692,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
       },
       {
         "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios sencillos en el idioma francés. 187",
-        "competencia": ""
+        "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
     "3ro": [
@@ -811,7 +795,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "verbal para comprender expresiones básicas en textos orales y escritos muy breves y sencillos sobre descripción de información personal propia y de otros y de estados físicos y anímicos, así como para adquisición de bienes y servicios, releyendo cuando sea necesario y ayudándose de imágenes y otros elementos textuales y paratextuales del contexto.",
+        "descripcion": "Responde utilizando el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y sencillos sobre descripción de información personal propia y de otros y de estados físicos y anímicos, así como para adquisición de bienes y servicios, releyendo cuando sea necesario y ayudándose de imágenes y otros elementos textuales y paratextuales del contexto.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {

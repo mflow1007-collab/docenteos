@@ -63,17 +63,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-6-I04",
-          "descripcion": "verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
           "competenciaId": "ING-6-C02"
         },
         {
           "id": "ING-6-I05",
-          "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico",
+          "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
           "competenciaId": "ING-6-C02"
         },
         {
           "id": "ING-6-I06",
-          "descripcion": "verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
+          "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
           "competenciaId": "ING-6-C02"
         }
       ],
@@ -94,17 +94,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-6-I07",
-          "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico",
+          "descripcion": "Localiza y estructura información a partir de lectura de textos orales y escritos, sobre descripción de problemas relativos a su entorno cotidiano y temas que le son familiares, visualizando o ejecutando su resolución mediante la contraposición de puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
           "competenciaId": "ING-6-C03"
         },
         {
           "id": "ING-6-I08",
-          "descripcion": "verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
+          "descripcion": "Produce textos sencillos orales y escritos que describen y plantean problemas de su entorno inmediato y temas de su interés, aportando posibles soluciones de manera clara y comprensible, al justificar acciones y puntos de vista de manera adecuada.",
           "competenciaId": "ING-6-C03"
         },
         {
           "id": "ING-6-I09",
-          "descripcion": "Localiza y estructura información a partir de lectura de textos orales y escritos, sobre descripción de problemas relativos a su entorno cotidiano y temas que le son familiares, visualizando o ejecutando su resolución mediante la contraposición de puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
+          "descripcion": "Interactúa de forma sostenida en inglés oral y escrito, sobre problemas y situaciones que le son familiares y temas culturales de su interés, aclarando detalles y razonamientos que conducen a la resolución.",
           "competenciaId": "ING-6-C03"
         }
       ],
@@ -119,17 +119,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-6-I10",
-          "descripcion": "Produce textos sencillos orales y escritos que describen y plantean problemas de su entorno inmediato y temas de su interés, aportando posibles soluciones de manera clara y comprensible, al justificar acciones y puntos de vista de manera adecuada.",
+          "descripcion": "Comprende y valora las diferencias individuales y la identidad social y cultural propia y de otras personas, identificando elementos detallados de varias perspectivas y razonamientos al interactuar.",
           "competenciaId": "ING-6-C04"
         },
         {
           "id": "ING-6-I11",
-          "descripcion": "Interactúa de forma sostenida en inglés oral y escrito, sobre problemas y situaciones que le son familiares y temas culturales de su interés, aclarando detalles y razonamientos que conducen a la resolución.",
+          "descripcion": "Se expresa en forma oral y escrita valorando las diferencias y similitudes individuales y la identidad social y cultural propia y de otros países.",
           "competenciaId": "ING-6-C04"
         },
         {
           "id": "ING-6-I12",
-          "descripcion": "Comprende y valora las diferencias individuales y la identidad social y cultural propia y de otras personas, identificando elementos detallados de varias perspectivas y razonamientos al interactuar.",
+          "descripcion": "Emite y reflexiona sobre juicios de valor ante hechos de injusticia, discriminación e inequidad, mediante un discurso oral o texto escrito sencillo, pero comprensible.",
           "competenciaId": "ING-6-C04"
         }
       ],
@@ -148,17 +148,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-6-I13",
-          "descripcion": "Se expresa en forma oral y escrita valorando las diferencias y similitudes individuales y la identidad social y cultural propia y de otros países.",
+          "descripcion": "Identifica y utiliza información relevante, y es capaz de organizarla de forma adecuada para responder a preguntas e indicaciones sobre temas científicos y tecnológicos de forma presencial o virtual, utilizando un discurso sencillo.",
           "competenciaId": "ING-6-C05"
         },
         {
           "id": "ING-6-I14",
-          "descripcion": "Emite y reflexiona sobre juicios de valor ante hechos de injusticia, discriminación e inequidad, mediante un discurso oral o texto escrito sencillo, pero comprensible.",
+          "descripcion": "Produce textos orales y escritos en inglés de forma estructurada y con un vocabulario técnico sencillo y comprensible sobre temas científicos y tecnológicos inherentes a su vida cotidiana o temas de su interés, compartiendo información en formato presencial, digital o virtual.",
           "competenciaId": "ING-6-C05"
         },
         {
           "id": "ING-6-I15",
-          "descripcion": "Identifica y utiliza información relevante, y es capaz de organizarla de forma adecuada para responder a preguntas e indicaciones sobre temas científicos y tecnológicos de forma presencial o virtual, utilizando un discurso sencillo.",
+          "descripcion": "Interactúa de forma sostenida en lo oral y con suficiente detalle en lo escrito con el propósito de opinar, explicar y justificar informaciones y puntos de vista sobre temas de carácter científico y tecnológico en espacios presenciales, digitales o virtuales.",
           "competenciaId": "ING-6-C05"
         }
       ],
@@ -177,17 +177,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-6-I16",
-          "descripcion": "Produce textos orales y escritos en inglés de forma estructurada y con un vocabulario técnico sencillo y comprensible sobre temas científicos y tecnológicos inherentes a su vida cotidiana o temas de su interés, compartiendo información en formato presencial, digital o virtual.",
+          "descripcion": "Valora los estilos de vida saludables y el cuidado del medioambiente, expuestos en el mensaje y los detalles de discursos orales o escritos de considerable extensión.",
           "competenciaId": "ING-6-C06"
         },
         {
           "id": "ING-6-I17",
-          "descripcion": "Interactúa de forma sostenida en lo oral y con suficiente detalle en lo escrito con el propósito de opinar, explicar y justificar informaciones y puntos de vista sobre temas de carácter científico y tecnológico en espacios presenciales, digitales o virtuales.",
+          "descripcion": "Muestra valoración por estilos de vida saludables y cuidado del medioambiente, justificando acciones y puntos de vista favorables en un discurso sencillo oral o escrito.",
           "competenciaId": "ING-6-C06"
         },
         {
           "id": "ING-6-I18",
-          "descripcion": "Valora los estilos de vida saludables y el cuidado del medioambiente, expuestos en el mensaje y los detalles de discursos orales o escritos de considerable extensión.",
+          "descripcion": "Identifica y valora opciones que impactan el cuidado de la salud y el medioambiente, justificando acciones y razones de forma comprensible en situaciones de interacción en inglés.",
           "competenciaId": "ING-6-C06"
         }
       ],
@@ -206,17 +206,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-6-I19",
-          "descripcion": "Muestra valoración por estilos de vida saludables y cuidado del medioambiente, justificando acciones y puntos de vista favorables en un discurso sencillo oral o escrito.",
+          "descripcion": "Demuestra una comprensión justa de los deseos, aspiraciones, planes y experiencias personales propias y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
           "competenciaId": "ING-6-C07"
         },
         {
           "id": "ING-6-I20",
-          "descripcion": "Identifica y valora opciones que impactan el cuidado de la salud y el medioambiente, justificando acciones y razones de forma comprensible en situaciones de interacción en inglés.",
+          "descripcion": "Exhibe una actitud y conducta cortés, respetuosa al expresar y justificar información, razonamientos y perspectivas.",
           "competenciaId": "ING-6-C07"
         },
         {
           "id": "ING-6-I21",
-          "descripcion": "Demuestra una comprensión justa de los deseos, aspiraciones, planes y experiencias personales propias y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
+          "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas 173",
           "competenciaId": "ING-6-C07"
         }
       ],
@@ -245,92 +245,92 @@
     },
     {
       "id": "ING-6-I04",
-      "descripcion": "verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I05",
-      "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico",
+      "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I06",
-      "descripcion": "verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
+      "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I07",
-      "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico",
-      "competenciaId": "ING-6-C03"
-    },
-    {
-      "id": "ING-6-I08",
-      "descripcion": "verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
-      "competenciaId": "ING-6-C03"
-    },
-    {
-      "id": "ING-6-I09",
       "descripcion": "Localiza y estructura información a partir de lectura de textos orales y escritos, sobre descripción de problemas relativos a su entorno cotidiano y temas que le son familiares, visualizando o ejecutando su resolución mediante la contraposición de puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
       "competenciaId": "ING-6-C03"
     },
     {
-      "id": "ING-6-I10",
+      "id": "ING-6-I08",
       "descripcion": "Produce textos sencillos orales y escritos que describen y plantean problemas de su entorno inmediato y temas de su interés, aportando posibles soluciones de manera clara y comprensible, al justificar acciones y puntos de vista de manera adecuada.",
-      "competenciaId": "ING-6-C04"
+      "competenciaId": "ING-6-C03"
     },
     {
-      "id": "ING-6-I11",
+      "id": "ING-6-I09",
       "descripcion": "Interactúa de forma sostenida en inglés oral y escrito, sobre problemas y situaciones que le son familiares y temas culturales de su interés, aclarando detalles y razonamientos que conducen a la resolución.",
-      "competenciaId": "ING-6-C04"
+      "competenciaId": "ING-6-C03"
     },
     {
-      "id": "ING-6-I12",
+      "id": "ING-6-I10",
       "descripcion": "Comprende y valora las diferencias individuales y la identidad social y cultural propia y de otras personas, identificando elementos detallados de varias perspectivas y razonamientos al interactuar.",
       "competenciaId": "ING-6-C04"
     },
     {
-      "id": "ING-6-I13",
+      "id": "ING-6-I11",
       "descripcion": "Se expresa en forma oral y escrita valorando las diferencias y similitudes individuales y la identidad social y cultural propia y de otros países.",
-      "competenciaId": "ING-6-C05"
+      "competenciaId": "ING-6-C04"
     },
     {
-      "id": "ING-6-I14",
+      "id": "ING-6-I12",
       "descripcion": "Emite y reflexiona sobre juicios de valor ante hechos de injusticia, discriminación e inequidad, mediante un discurso oral o texto escrito sencillo, pero comprensible.",
-      "competenciaId": "ING-6-C05"
+      "competenciaId": "ING-6-C04"
     },
     {
-      "id": "ING-6-I15",
+      "id": "ING-6-I13",
       "descripcion": "Identifica y utiliza información relevante, y es capaz de organizarla de forma adecuada para responder a preguntas e indicaciones sobre temas científicos y tecnológicos de forma presencial o virtual, utilizando un discurso sencillo.",
       "competenciaId": "ING-6-C05"
     },
     {
-      "id": "ING-6-I16",
+      "id": "ING-6-I14",
       "descripcion": "Produce textos orales y escritos en inglés de forma estructurada y con un vocabulario técnico sencillo y comprensible sobre temas científicos y tecnológicos inherentes a su vida cotidiana o temas de su interés, compartiendo información en formato presencial, digital o virtual.",
-      "competenciaId": "ING-6-C06"
+      "competenciaId": "ING-6-C05"
     },
     {
-      "id": "ING-6-I17",
+      "id": "ING-6-I15",
       "descripcion": "Interactúa de forma sostenida en lo oral y con suficiente detalle en lo escrito con el propósito de opinar, explicar y justificar informaciones y puntos de vista sobre temas de carácter científico y tecnológico en espacios presenciales, digitales o virtuales.",
-      "competenciaId": "ING-6-C06"
+      "competenciaId": "ING-6-C05"
     },
     {
-      "id": "ING-6-I18",
+      "id": "ING-6-I16",
       "descripcion": "Valora los estilos de vida saludables y el cuidado del medioambiente, expuestos en el mensaje y los detalles de discursos orales o escritos de considerable extensión.",
       "competenciaId": "ING-6-C06"
     },
     {
-      "id": "ING-6-I19",
+      "id": "ING-6-I17",
       "descripcion": "Muestra valoración por estilos de vida saludables y cuidado del medioambiente, justificando acciones y puntos de vista favorables en un discurso sencillo oral o escrito.",
+      "competenciaId": "ING-6-C06"
+    },
+    {
+      "id": "ING-6-I18",
+      "descripcion": "Identifica y valora opciones que impactan el cuidado de la salud y el medioambiente, justificando acciones y razones de forma comprensible en situaciones de interacción en inglés.",
+      "competenciaId": "ING-6-C06"
+    },
+    {
+      "id": "ING-6-I19",
+      "descripcion": "Demuestra una comprensión justa de los deseos, aspiraciones, planes y experiencias personales propias y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
       "competenciaId": "ING-6-C07"
     },
     {
       "id": "ING-6-I20",
-      "descripcion": "Identifica y valora opciones que impactan el cuidado de la salud y el medioambiente, justificando acciones y razones de forma comprensible en situaciones de interacción en inglés.",
+      "descripcion": "Exhibe una actitud y conducta cortés, respetuosa al expresar y justificar información, razonamientos y perspectivas.",
       "competenciaId": "ING-6-C07"
     },
     {
       "id": "ING-6-I21",
-      "descripcion": "Demuestra una comprensión justa de los deseos, aspiraciones, planes y experiencias personales propias y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
+      "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas 173",
       "competenciaId": "ING-6-C07"
     }
   ],
@@ -352,92 +352,92 @@
     },
     {
       "id": "ING-6-I04",
-      "descripcion": "verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I05",
-      "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico",
+      "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I06",
-      "descripcion": "verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
+      "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I07",
-      "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico",
-      "competenciaId": "ING-6-C03"
-    },
-    {
-      "id": "ING-6-I08",
-      "descripcion": "verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
-      "competenciaId": "ING-6-C03"
-    },
-    {
-      "id": "ING-6-I09",
       "descripcion": "Localiza y estructura información a partir de lectura de textos orales y escritos, sobre descripción de problemas relativos a su entorno cotidiano y temas que le son familiares, visualizando o ejecutando su resolución mediante la contraposición de puntos de vista, razonamientos, planes, instrucciones, y experiencias propias y de otras personas.",
       "competenciaId": "ING-6-C03"
     },
     {
-      "id": "ING-6-I10",
+      "id": "ING-6-I08",
       "descripcion": "Produce textos sencillos orales y escritos que describen y plantean problemas de su entorno inmediato y temas de su interés, aportando posibles soluciones de manera clara y comprensible, al justificar acciones y puntos de vista de manera adecuada.",
-      "competenciaId": "ING-6-C04"
+      "competenciaId": "ING-6-C03"
     },
     {
-      "id": "ING-6-I11",
+      "id": "ING-6-I09",
       "descripcion": "Interactúa de forma sostenida en inglés oral y escrito, sobre problemas y situaciones que le son familiares y temas culturales de su interés, aclarando detalles y razonamientos que conducen a la resolución.",
-      "competenciaId": "ING-6-C04"
+      "competenciaId": "ING-6-C03"
     },
     {
-      "id": "ING-6-I12",
+      "id": "ING-6-I10",
       "descripcion": "Comprende y valora las diferencias individuales y la identidad social y cultural propia y de otras personas, identificando elementos detallados de varias perspectivas y razonamientos al interactuar.",
       "competenciaId": "ING-6-C04"
     },
     {
-      "id": "ING-6-I13",
+      "id": "ING-6-I11",
       "descripcion": "Se expresa en forma oral y escrita valorando las diferencias y similitudes individuales y la identidad social y cultural propia y de otros países.",
-      "competenciaId": "ING-6-C05"
+      "competenciaId": "ING-6-C04"
     },
     {
-      "id": "ING-6-I14",
+      "id": "ING-6-I12",
       "descripcion": "Emite y reflexiona sobre juicios de valor ante hechos de injusticia, discriminación e inequidad, mediante un discurso oral o texto escrito sencillo, pero comprensible.",
-      "competenciaId": "ING-6-C05"
+      "competenciaId": "ING-6-C04"
     },
     {
-      "id": "ING-6-I15",
+      "id": "ING-6-I13",
       "descripcion": "Identifica y utiliza información relevante, y es capaz de organizarla de forma adecuada para responder a preguntas e indicaciones sobre temas científicos y tecnológicos de forma presencial o virtual, utilizando un discurso sencillo.",
       "competenciaId": "ING-6-C05"
     },
     {
-      "id": "ING-6-I16",
+      "id": "ING-6-I14",
       "descripcion": "Produce textos orales y escritos en inglés de forma estructurada y con un vocabulario técnico sencillo y comprensible sobre temas científicos y tecnológicos inherentes a su vida cotidiana o temas de su interés, compartiendo información en formato presencial, digital o virtual.",
-      "competenciaId": "ING-6-C06"
+      "competenciaId": "ING-6-C05"
     },
     {
-      "id": "ING-6-I17",
+      "id": "ING-6-I15",
       "descripcion": "Interactúa de forma sostenida en lo oral y con suficiente detalle en lo escrito con el propósito de opinar, explicar y justificar informaciones y puntos de vista sobre temas de carácter científico y tecnológico en espacios presenciales, digitales o virtuales.",
-      "competenciaId": "ING-6-C06"
+      "competenciaId": "ING-6-C05"
     },
     {
-      "id": "ING-6-I18",
+      "id": "ING-6-I16",
       "descripcion": "Valora los estilos de vida saludables y el cuidado del medioambiente, expuestos en el mensaje y los detalles de discursos orales o escritos de considerable extensión.",
       "competenciaId": "ING-6-C06"
     },
     {
-      "id": "ING-6-I19",
+      "id": "ING-6-I17",
       "descripcion": "Muestra valoración por estilos de vida saludables y cuidado del medioambiente, justificando acciones y puntos de vista favorables en un discurso sencillo oral o escrito.",
+      "competenciaId": "ING-6-C06"
+    },
+    {
+      "id": "ING-6-I18",
+      "descripcion": "Identifica y valora opciones que impactan el cuidado de la salud y el medioambiente, justificando acciones y razones de forma comprensible en situaciones de interacción en inglés.",
+      "competenciaId": "ING-6-C06"
+    },
+    {
+      "id": "ING-6-I19",
+      "descripcion": "Demuestra una comprensión justa de los deseos, aspiraciones, planes y experiencias personales propias y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
       "competenciaId": "ING-6-C07"
     },
     {
       "id": "ING-6-I20",
-      "descripcion": "Identifica y valora opciones que impactan el cuidado de la salud y el medioambiente, justificando acciones y razones de forma comprensible en situaciones de interacción en inglés.",
+      "descripcion": "Exhibe una actitud y conducta cortés, respetuosa al expresar y justificar información, razonamientos y perspectivas.",
       "competenciaId": "ING-6-C07"
     },
     {
       "id": "ING-6-I21",
-      "descripcion": "Demuestra una comprensión justa de los deseos, aspiraciones, planes y experiencias personales propias y de otras personas en un plano de aceptación, cortesía, honestidad y respeto.",
+      "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas 173",
       "competenciaId": "ING-6-C07"
     }
   ],
