@@ -2661,8 +2661,10 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         });
       } else if (hayMallaOficial(pdfContexto)) {
         // PRIORIDAD 1 — el grado ya está en el currículo oficial verificado.
-        // Se usa esa malla como base (sin gastar IA) y, para no perder lo que el
-        // PDF pudiera aportar, se compara con la extracción como respaldo.
+        // Se usa esa malla como base (competencias, indicadores y criterios
+        // verificados) pero se CONSERVA de la extracción de IA su contenidosPorTema
+        // (vocabulario/gramática repartidos por tema), que la malla oficial no trae
+        // y que el generador de unidades necesita para no mezclar temas.
         setProgresoPdf('Malla oficial disponible para este grado: usándola como fuente verificada…');
         const oficial = await cargarMallaOficial(pdfContexto);
         const sobreExtraido = await convertirMallaPdfCompleto({
@@ -2670,7 +2672,14 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         }).catch(() => null); // si la extracción falla, la oficial basta
         // PRIORIDAD 3 — reportar diferencias entre lo extraído y lo oficial.
         reporteOficial = sobreExtraido ? compararConOficial(sobreExtraido, oficial) : null;
-        jsonTextGenerado = JSON.stringify(oficial, null, 2);
+        // Injerta el contenido POR TEMA de la extracción sobre la base oficial. La
+        // oficial manda en lo verificado; la IA aporta la segmentación por tema.
+        const base = { ...oficial };
+        if (Array.isArray(sobreExtraido?.contenidosPorTema) && sobreExtraido.contenidosPorTema.length) {
+          base.contenidosPorTema = sobreExtraido.contenidosPorTema;
+          setProgresoPdf('Malla oficial + contenido por tema de la extracción (para planificar cada tema con su gramática).');
+        }
+        jsonTextGenerado = JSON.stringify(base, null, 2);
       } else {
         // Grado/área no cubierto por el oficial: extracción normal del PDF…
         const sobre = await convertirMallaPdfCompleto({
@@ -2714,8 +2723,14 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         return;
       }
       aplicarJsonValidado(res);
-      // Aviso de diferencias PDF↔malla oficial (Prioridad 3), si las hubo.
-      if (reporteOficial && !reporteOficial.coincide) {
+      // Aviso si la malla quedó SIN contenidosPorTema: el Asesor/generador de
+      // unidades lo exige para planificar cada tema con su propia gramática. Sin
+      // él, esa generación se cancelará (aunque la malla sirva para el diagnóstico).
+      const sinContenidoPorTema = !Array.isArray(res.parsed?.contenidosPorTema) || !res.parsed.contenidosPorTema.length;
+      if (sinContenidoPorTema) {
+        setProgresoPdf('⚠️ La malla no trae contenido por tema (contenidosPorTema). Sirve para el diagnóstico, pero el generador de unidades lo necesita: usa "Potente IA" para extraerlo del PDF antes de generar planificaciones por tema.');
+      } else if (reporteOficial && !reporteOficial.coincide) {
+        // Aviso de diferencias PDF↔malla oficial (Prioridad 3), si las hubo.
         setProgresoPdf(`PDF convertido con la malla oficial. La extracción del PDF difería: ${reporteOficial.diferencias.join(' ')} Se usó la versión oficial verificada. Revisa antes de guardar.`);
       } else if (reporteOficial && reporteOficial.coincide) {
         setProgresoPdf('PDF convertido. La extracción coincide con la malla oficial verificada. Revisa antes de guardar.');
