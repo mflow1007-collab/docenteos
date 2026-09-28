@@ -2064,9 +2064,18 @@ const _resolverContenidoTemaEstricto = ({ mallaPayload, curricularDoc, tema }) =
   const temaEnriquecido = resolverTemaEnriquecido(curricularDoc?.enriquecimientoTema, tema);
   const contenido = _extraerContenidosMallaCorpus(mallaPayload, tema, temaEnriquecido);
   if (!temaEnriquecido && contenido.fuenteContenido !== "contenidosPorTema") {
+    // Diagnóstico fail-loud: decir QUÉ trae la malla para no adivinar la causa
+    // (malla vieja sin el campo, campo vacío, o tema que no casa por su nombre).
+    const bloques = Array.isArray(mallaPayload?.contenidosPorTema) ? mallaPayload.contenidosPorTema : null;
+    const temasDisponibles = bloques ? bloques.map((b) => b?.tema || b?.conceptos?.temas?.[0]).filter(Boolean) : [];
+    const detalle = bloques === null
+      ? "la malla NO trae el campo contenidosPorTema (probablemente se guardó con una versión anterior — reimpórtala y guárdala)"
+      : bloques.length === 0
+        ? "el campo contenidosPorTema existe pero está VACÍO"
+        : `contenidosPorTema trae ${bloques.length} tema(s) [${temasDisponibles.join(" · ")}], pero ninguno casa con "${tema}"`;
     throw new Error(
       `La malla no tiene contenidosPorTema confiables para "${tema}". ` +
-      `DocenteOS canceló la generación para evitar mezclar contenidos globales del grado. ` +
+      `Diagnóstico: ${detalle}. ` +
       `Corrige el JSON en Administración → Potente IA/Banco de Conocimiento.`
     );
   }

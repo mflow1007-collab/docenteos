@@ -11,8 +11,32 @@ import {
 import { SCHEMA_VERSION_CANONICA } from '../../services/curricularSchema.js';
 import { AIService } from '../../services/ai/AIService.js';
 import { hayMallaOficial, cargarMallaOficial, completarConOficial, compararConOficial } from '../../data/mallaOficialLookup.js';
+import { construirContenidosPorTema } from '../../data/repartoContenidoPorTema.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Garantiza que un sobre curricular tenga `contenidosPorTema` no vacío (lo exige el
+// generador de unidades). Si falta, lo construye repartiendo el vocabulario/gramática
+// global por tema con palabras clave. Muta el sobre in-place; devuelve true si lo
+// añadió. No hace nada si el sobre no tiene temas ni contenido del que repartir.
+const garantizarContenidosPorTema = (sobre) => {
+  if (!sobre || typeof sobre !== 'object') return false;
+  if (Array.isArray(sobre.contenidosPorTema) && sobre.contenidosPorTema.length) return false;
+  const temas = Array.isArray(sobre.temas) ? sobre.temas.filter(Boolean) : [];
+  const conceptos = sobre?.contenidos?.conceptos || {};
+  const vocabulario = Array.isArray(conceptos.vocabulario) ? conceptos.vocabulario : [];
+  const gramatica = Array.isArray(conceptos.gramatica) ? conceptos.gramatica : [];
+  if (!temas.length || (!vocabulario.length && !gramatica.length)) return false;
+  sobre.contenidosPorTema = construirContenidosPorTema({
+    temas,
+    vocabulario,
+    gramatica,
+    expresiones: Array.isArray(conceptos.expresiones) ? conceptos.expresiones : [],
+    procedimientosFuncionales: sobre?.contenidosGenerales?.procedimentales || [],
+    actitudinales: sobre?.contenidosGenerales?.actitudinales || [],
+  });
+  return Array.isArray(sobre.contenidosPorTema) && sobre.contenidosPorTema.length > 0;
+};
 
 const fmtFecha = (ts) => {
   if (!ts) return '—';
@@ -2672,12 +2696,17 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         }).catch(() => null); // si la extracción falla, la oficial basta
         // PRIORIDAD 3 — reportar diferencias entre lo extraído y lo oficial.
         reporteOficial = sobreExtraido ? compararConOficial(sobreExtraido, oficial) : null;
-        // Injerta el contenido POR TEMA de la extracción sobre la base oficial. La
-        // oficial manda en lo verificado; la IA aporta la segmentación por tema.
         const base = { ...oficial };
+        // GARANTÍA de contenidosPorTema (lo exige el generador de unidades):
+        //  1º el de la extracción de IA si vino bien; si no,
+        //  2º el que ya trae la malla oficial del repo; si tampoco,
+        //  3º se construye determinísticamente repartiendo su vocab/gramática por
+        //     tema con palabras clave. Así NUNCA queda sin contenidosPorTema.
         if (Array.isArray(sobreExtraido?.contenidosPorTema) && sobreExtraido.contenidosPorTema.length) {
           base.contenidosPorTema = sobreExtraido.contenidosPorTema;
           setProgresoPdf('Malla oficial + contenido por tema de la extracción (para planificar cada tema con su gramática).');
+        } else if (garantizarContenidosPorTema(base)) {
+          setProgresoPdf('Malla oficial: se repartió el contenido por tema para poder planificar cada tema.');
         }
         jsonTextGenerado = JSON.stringify(base, null, 2);
       } else {
@@ -2691,14 +2720,18 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         // PRIORIDAD 2 — si aun así hay malla oficial (otra forma de detectarla),
         // completar los huecos de la extracción con la oficial.
         const oficial = await cargarMallaOficial(pdfContexto);
-        if (oficial) {
-          const { sobre: completado, completado: huboCambios, cambios } = completarConOficial(sobre, oficial);
-          if (huboCambios) setProgresoPdf(`Completado con la malla oficial: ${cambios.join(', ')}.`);
-          reporteOficial = compararConOficial(sobre, oficial);
-          jsonTextGenerado = JSON.stringify(completado, null, 2);
-        } else {
-          jsonTextGenerado = JSON.stringify(sobre, null, 2);
-        }
+        const sobreFinal = oficial
+          ? (() => {
+              const { sobre: completado, completado: huboCambios, cambios } = completarConOficial(sobre, oficial);
+              if (huboCambios) setProgresoPdf(`Completado con la malla oficial: ${cambios.join(', ')}.`);
+              reporteOficial = compararConOficial(sobre, oficial);
+              return completado;
+            })()
+          : sobre;
+        // GARANTÍA de contenidosPorTema también aquí: si la IA no lo trajo, se
+        // construye repartiendo el vocab/gramática por tema (el generador lo exige).
+        garantizarContenidosPorTema(sobreFinal);
+        jsonTextGenerado = JSON.stringify(sobreFinal, null, 2);
       }
       const jsonText = auditarLiteralidadCurricular(jsonTextGenerado, textoPdf);
       if (jsonTextRef.current) jsonTextRef.current.value = jsonText;
