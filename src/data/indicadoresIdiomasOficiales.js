@@ -449,7 +449,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "Responde de forma adecuada a preguntas e indicaciones utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
+        "descripcion": "Utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
@@ -623,7 +623,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "Responde utilizando el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y senillos sobre identificación personal, actividades inmediatas y descripción de su entorno, releyendo cuando sea necesario y ayudándose de las ilustraciones y otros elementos textuales y paratextuales del contexto.",
+        "descripcion": "Utilizando el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y senillos sobre identificación personal, actividades inmediatas y descripción de su entorno, releyendo cuando sea necesario y ayudándose de las ilustraciones y otros elementos textuales y paratextuales del contexto.",
         "competencia": "Pensamiento Lógico, Crítico y Creativo"
       },
       {
@@ -795,7 +795,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "Responde utilizando el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y sencillos sobre descripción de información personal propia y de otros y de estados físicos y anímicos, así como para adquisición de bienes y servicios, releyendo cuando sea necesario y ayudándose de imágenes y otros elementos textuales y paratextuales del contexto.",
+        "descripcion": "Utilizando el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y sencillos sobre descripción de información personal propia y de otros y de estados físicos y anímicos, así como para adquisición de bienes y servicios, releyendo cuando sea necesario y ayudándose de imágenes y otros elementos textuales y paratextuales del contexto.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {

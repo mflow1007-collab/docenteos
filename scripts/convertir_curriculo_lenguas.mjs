@@ -143,17 +143,16 @@ const extraerSeccion = (conceptosLineas = [], claveSeccion) => {
 // el reparto en tríadas descarte los indicadores reales del final.
 // Repara el fragmento huérfano "verbal para responder/comprender…" que aparece en
 // el indicador COMPR de la competencia de Pensamiento Lógico-Verbal (inglés 6to,
-// francés 2do y 4to): la conversión del PDF perdió su arranque ("Responde/Comprende
-// … utilizando el pensamiento lógico-"). Se antepone ese arranque, que es la fórmula
-// LITERAL del propio currículo MINERD en los demás grados — no inventa contenido.
+// francés 2do y 4to): la conversión del PDF perdió su arranque ("…utilizando el
+// pensamiento lógico-"), que quedó pegado al indicador anterior. Se antepone ese
+// arranque literal, sin duplicar el verbo que el fragmento ya trae.
 const repararFragmentoLogicoVerbal = (t) => {
-  if (/^verbal para responder\b/i.test(t)) {
-    return `Responde de forma adecuada a preguntas e indicaciones utilizando el pensamiento lógico-${t}`;
-  }
-  if (/^verbal para comprender\b/i.test(t)) {
-    // Evita "Comprende … para comprender": usa "Responde" como arranque, igual que
-    // el patrón de los demás grados para el indicador COMPR de esta competencia.
-    return `Responde utilizando el pensamiento lógico-${t}`;
+  // El fragmento ya trae el verbo y el complemento ("verbal para responder/comprender
+  // …"); solo le falta el arranque "…utilizando el pensamiento lógico-" que el PDF
+  // dejó pegado al indicador anterior. Se antepone únicamente ese arranque para no
+  // duplicar el verbo (así no queda "Responde … para responder …").
+  if (/^verbal para (responder|comprender)\b/i.test(t)) {
+    return `Utilizando el pensamiento lógico-${t}`;
   }
   return t;
 };
