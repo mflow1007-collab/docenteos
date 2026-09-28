@@ -51,25 +51,105 @@ const claveCF = (cf = "") => {
   return n;
 };
 
-// Extrae los TEMAS oficiales del bloque "Temas" de conceptos: son las viñetas
-// (líneas que empiezan con •) entre el encabezado "Temas" y el siguiente
-// sub-encabezado ("Vocabulario"). Une las líneas de continuación (sin viñeta)
-// a la viñeta anterior, respetando la maquetación del PDF.
-const extraerTemas = (conceptosLineas = []) => {
-  const temas = [];
+// Encabezados de sección del bloque "conceptos" del PDF. Cada sección corre desde
+// su encabezado hasta el siguiente. Los encabezados se matchean como LÍNEA COMPLETA
+// (con ":" y espacios finales opcionales) para NO confundir una entrada de
+// vocabulario que empieza igual ("Expresiones de cortesía:", "Vocabulario básico:")
+// con un encabezado de sección. Las únicas colas admitidas son las que el PDF pega
+// de verdad al título: "Vocabulario y expresiones" (francés fusiona ambas bajo la
+// clave `vocabulario`) y "Gramática Oraciones:" (variante del título de gramática).
+const ENCABEZADOS_CONCEPTOS = [
+  { clave: "temas", re: /^temas\s*:?\s*$/i },
+  { clave: "vocabulario", re: /^vocabulario(\s+y\s+expresiones)?\s*:?\s*$/i },
+  { clave: "expresiones", re: /^expresiones\s*:?\s*$/i },
+  { clave: "gramatica", re: /^gram[aá]tica(\s+oraciones)?\s*:?\s*$/i },
+];
+// La maquetación del PDF a veces antepone una o dos viñetas al propio título de
+// sección ("• Vocabulario y expresiones", "• •Actividades…"). Se quitan antes de
+// testear si la línea es un encabezado, sin alterar la línea para la extracción.
+const sinVinetasIniciales = (linea) => linea.replace(/^(?:•\s*)+/, "").trim();
+const encabezadoDeLinea = (linea) => {
+  const limpia = sinVinetasIniciales(linea);
+  return ENCABEZADOS_CONCEPTOS.find((h) => h.re.test(limpia));
+};
+
+// ¿Una línea SIN viñeta inicia un ÍTEM nuevo, o continúa el anterior (ejemplo/texto
+// partido por maquetación)? El PDF marca las estructuras gramaticales de dos formas:
+//  · con etiqueta y dos puntos: "Artículos contractos :", "Conjugación:"
+//  · con un sustantivo de categoría gramatical al frente: "Oraciones negativas…",
+//    "Presente de indicativo…", "Futuro próximo…", "Imperativo…", "Preposiciones…"
+// Las CONTINUACIONES son ejemplos en el idioma meta o fragmentos: empiezan en
+// minúscula, en signo de puntuación, o con un pronombre/artículo francés de ejemplo.
+const CATEGORIAS_GRAMATICA = /^(Oraci[oó]n|Oraciones|Presente|Pasado|Pret[eé]rito|Futuro|Imperativo|Condicional|Subjuntivo|Conjugaci[oó]n|Art[ií]culos?|Preposici|Adverbio|Adjetivo|Pronombre|Sustantivo|Verbos?|Conectores|Marcadores|Negativ|Interrogativ|Exclamativ|Imperativ|Afirmativ|Comparativ|Superlativ|Presentativo|Expresi[oó]n)/;
+const EJEMPLO_FRANCES = /^(Je |Tu |Il |Elle |On |Nous |Vous |Ils |Elles |C['’]est|Qu['’]|Quel|Quelle|Comment|Combien|Pourquoi|Quand|Où|Prenez|Continuez|Cliquez|Traversez|Ouvre|Allumez|Maintenant|Demain|Aujourd|À |Au |Aux )/;
+const pareceContinuacion = (linea) => {
+  if (!linea) return true;
+  const c = linea[0];
+  if (c === c.toLowerCase() && c !== c.toUpperCase()) return true; // empieza minúscula
+  if ("?!.,;)«»…".includes(c)) return true;                        // empieza en signo
+  if (EJEMPLO_FRANCES.test(linea)) return true;                    // oración de ejemplo
+  return false;
+};
+// Inicia ítem si tiene etiqueta con dos puntos, o empieza con categoría gramatical,
+// y NO parece una continuación/ejemplo.
+const iniciaItem = (linea) =>
+  !pareceContinuacion(linea) && (/^[A-ZÀ-Ý][^:]{2,45}\s?:/.test(linea) || CATEGORIAS_GRAMATICA.test(linea));
+
+// Ensambla las líneas de una sección en ítems, respetando la maquetación del PDF:
+//  · viñeta "•"            → nuevo ítem
+//  · sin viñeta + etiqueta → nuevo ítem (gramática en prosa)
+//  · sin viñeta, no etiqueta → continuación del ítem anterior
+// Si no hay ítem previo al que anexar, la línea arranca uno (no se pierde nada).
+const empujarLinea = (items, linea) => {
+  if (linea.startsWith("•")) {
+    items.push(sinVinetasIniciales(linea));
+  } else if (items.length && !iniciaItem(linea)) {
+    items[items.length - 1] = `${items[items.length - 1]} ${linea}`.trim();
+  } else {
+    items.push(linea);
+  }
+};
+
+// Red de seguridad HONESTA: toda la sección unida en un texto legible, uniendo las
+// líneas partidas por maquetación. Nunca pierde ni corrompe contenido; sirve cuando
+// la segmentación en ítems de un grado no sea perfecta.
+const unirComoTexto = (items = []) => items.join(" ").replace(/\s+/g, " ").trim();
+
+// Extrae una SECCIÓN del bloque "conceptos" (Temas, Vocabulario, Expresiones o
+// Gramática): las líneas entre su encabezado y el siguiente encabezado conocido.
+// El texto que venga PEGADO al encabezado ("Gramática Oraciones:") se conserva
+// como primer elemento. Devuelve las viñetas limpias (sin el "• ").
+const extraerSeccion = (conceptosLineas = [], claveSeccion) => {
+  const objetivo = ENCABEZADOS_CONCEPTOS.find((h) => h.clave === claveSeccion);
+  if (!objetivo) return [];
+  const items = [];
   let dentro = false;
   for (const raw of conceptosLineas) {
     const linea = String(raw).trim();
-    if (/^temas:?$/i.test(linea)) { dentro = true; continue; }
+    if (!linea) continue;
+    const head = encabezadoDeLinea(linea);
+    if (head && head.clave === claveSeccion) { dentro = true; continue; }
     if (!dentro) continue;
-    if (/^(vocabulario|expresiones|gram[aá]tica)/i.test(linea)) break;
-    if (linea.startsWith("•")) {
-      temas.push(linea.replace(/^•\s*/, "").trim());
-    } else if (temas.length) {
-      temas[temas.length - 1] = `${temas[temas.length - 1]} ${linea}`.trim();
-    }
+    if (head) break; // llegó otro encabezado conocido
+    empujarLinea(items, linea);
   }
-  return temas.filter(Boolean);
+  return items.filter(Boolean);
+};
+
+// Los TEMAS oficiales son la sección "Temas". Algunos grados (p. ej. francés 6to)
+// omiten el encabezado "Temas:" y arrancan directo con las viñetas de tema; en ese
+// caso se toman las viñetas iniciales hasta el primer encabezado conocido.
+const extraerTemas = (conceptosLineas = []) => {
+  const porEncabezado = extraerSeccion(conceptosLineas, "temas");
+  if (porEncabezado.length) return porEncabezado;
+  const items = [];
+  for (const raw of conceptosLineas) {
+    const linea = String(raw).trim();
+    if (!linea) continue;
+    if (encabezadoDeLinea(linea)) break; // llegó "Vocabulario…"/"Gramática": fin de temas
+    empujarLinea(items, linea);
+  }
+  return items.filter(Boolean);
 };
 
 const fuente = JSON.parse(readFileSync(FUENTE, "utf8"));
@@ -135,6 +215,11 @@ for (const idiomaKey of ["ingles", "frances"]) {
       // Temas oficiales: las viñetas del bloque "Temas" (hasta el sub-encabezado
       // "Vocabulario"). Son las líneas con viñeta antes de esa marca.
       const temas = extraerTemas(conceptosLineas);
+      // Secciones conceptuales separadas (el contrato del Banco exige vocabulario
+      // y gramática oficiales bajo contenidos.conceptos.{vocabulario,gramatica}).
+      const vocabulario = extraerSeccion(conceptosLineas, "vocabulario");
+      const expresiones = extraerSeccion(conceptosLineas, "expresiones");
+      const gramatica = extraerSeccion(conceptosLineas, "gramatica");
 
       const sobre = {
         schemaVersion: "1.3",
@@ -164,9 +249,19 @@ for (const idiomaKey of ["ingles", "frances"]) {
           actitudinales: actitudLineas,
           actitudesValores: actitudLineas,
         },
-        // Se conserva también la forma cruda del PDF para trazabilidad.
+        // Contrato del Banco (curricularSchema): conceptos SEPARADOS en vocabulario
+        // y gramática oficiales. `*Texto` son la red de seguridad (todo el contenido
+        // unido y legible, sin pérdida) por si la segmentación en ítems de un grado
+        // no fuera perfecta; `lineas` son las líneas crudas del PDF para trazabilidad.
         contenidos: {
-          conceptos: conceptosLineas,
+          conceptos: {
+            vocabulario,
+            gramatica,
+            expresiones,
+            vocabularioTexto: unirComoTexto(vocabulario),
+            gramaticaTexto: unirComoTexto(gramatica),
+            lineas: conceptosLineas,
+          },
           procedimientos: procedLineas,
           actitudesValores: actitudLineas,
         },
