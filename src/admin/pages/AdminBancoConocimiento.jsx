@@ -10,6 +10,7 @@ import {
 } from '../../services/bancoConocimientoService.js';
 import { SCHEMA_VERSION_CANONICA } from '../../services/curricularSchema.js';
 import { AIService } from '../../services/ai/AIService.js';
+import { hayMallaOficial, cargarMallaOficial, completarConOficial, compararConOficial } from '../../data/mallaOficialLookup.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -2633,6 +2634,7 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
       // todo el texto de la asignatura, no un recorte de 65K chars). Registro
       // MINERD: vía anterior (documentos cortos, una sola llamada).
       let jsonTextGenerado;
+      let reporteOficial = null; // diferencias PDF↔malla oficial (para mostrar)
       if (pdfContexto.tipoDocumento === 'registro_minerd') {
         jsonTextGenerado = await convertirPdfCurricularAJson({
           fileName: file.name,
@@ -2640,14 +2642,37 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
           contexto: pdfContexto,
           onProgress: setProgresoPdf,
         });
+      } else if (hayMallaOficial(pdfContexto)) {
+        // PRIORIDAD 1 — el grado ya está en el currículo oficial verificado.
+        // Se usa esa malla como base (sin gastar IA) y, para no perder lo que el
+        // PDF pudiera aportar, se compara con la extracción como respaldo.
+        setProgresoPdf('Malla oficial disponible para este grado: usándola como fuente verificada…');
+        const oficial = await cargarMallaOficial(pdfContexto);
+        const sobreExtraido = await convertirMallaPdfCompleto({
+          fileName: file.name, paginas, contexto: pdfContexto, onProgress: setProgresoPdf,
+        }).catch(() => null); // si la extracción falla, la oficial basta
+        // PRIORIDAD 3 — reportar diferencias entre lo extraído y lo oficial.
+        reporteOficial = sobreExtraido ? compararConOficial(sobreExtraido, oficial) : null;
+        jsonTextGenerado = JSON.stringify(oficial, null, 2);
       } else {
+        // Grado/área no cubierto por el oficial: extracción normal del PDF…
         const sobre = await convertirMallaPdfCompleto({
           fileName: file.name,
           paginas,
           contexto: pdfContexto,
           onProgress: setProgresoPdf,
         });
-        jsonTextGenerado = JSON.stringify(sobre, null, 2);
+        // PRIORIDAD 2 — si aun así hay malla oficial (otra forma de detectarla),
+        // completar los huecos de la extracción con la oficial.
+        const oficial = await cargarMallaOficial(pdfContexto);
+        if (oficial) {
+          const { sobre: completado, completado: huboCambios, cambios } = completarConOficial(sobre, oficial);
+          if (huboCambios) setProgresoPdf(`Completado con la malla oficial: ${cambios.join(', ')}.`);
+          reporteOficial = compararConOficial(sobre, oficial);
+          jsonTextGenerado = JSON.stringify(completado, null, 2);
+        } else {
+          jsonTextGenerado = JSON.stringify(sobre, null, 2);
+        }
       }
       const jsonText = auditarLiteralidadCurricular(jsonTextGenerado, textoPdf);
       if (jsonTextRef.current) jsonTextRef.current.value = jsonText;
@@ -2672,7 +2697,14 @@ function FuenteForm({ inicial, onGuardar, onCancelar, guardando }) {
         return;
       }
       aplicarJsonValidado(res);
-      setProgresoPdf('PDF convertido. Revisa el diagnóstico antes de guardar.');
+      // Aviso de diferencias PDF↔malla oficial (Prioridad 3), si las hubo.
+      if (reporteOficial && !reporteOficial.coincide) {
+        setProgresoPdf(`PDF convertido con la malla oficial. La extracción del PDF difería: ${reporteOficial.diferencias.join(' ')} Se usó la versión oficial verificada. Revisa antes de guardar.`);
+      } else if (reporteOficial && reporteOficial.coincide) {
+        setProgresoPdf('PDF convertido. La extracción coincide con la malla oficial verificada. Revisa antes de guardar.');
+      } else {
+        setProgresoPdf('PDF convertido. Revisa el diagnóstico antes de guardar.');
+      }
     } catch (err) {
       setErrSubida(`No se pudo convertir el PDF: ${err.message}`);
       setProgresoPdf('');
