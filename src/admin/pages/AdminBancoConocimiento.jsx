@@ -795,11 +795,28 @@ const detectarAnioCurricularEnTexto = (texto = '') => {
   return years.includes('2023') ? '2023' : (years[0] || '');
 };
 
+// Coincidencia por PALABRA COMPLETA (no subcadena): evita que "otras"/"nosotras"
+// activen el área comodín "Otra", o que fragmentos parciales den falsos positivos.
+const contienePalabra = (texto, termino) => {
+  const t = normalizarMalla(termino);
+  if (!t) return false;
+  return new RegExp(`(^|[^a-z0-9])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z0-9]|$)`).test(texto);
+};
+
 const confirmarAreaEnTexto = (texto = '', area = '') => {
   const t = normalizarMalla(texto);
   const esperado = normalizarMalla(area);
-  if (esperado && t.includes(esperado)) return area;
-  const detectada = BC_AREAS.find(item => t.includes(normalizarMalla(item)));
+  if (esperado && contienePalabra(t, esperado)) return area;
+  // Tolerancia para idiomas: la página de la malla puede decir "lengua extranjera"
+  // (singular) o el idioma, aunque el título plural "Lenguas Extranjeras" esté en la
+  // portada de la sección, páginas antes del rango del grado.
+  if (esperado === normalizarMalla('Lenguas Extranjeras') &&
+      (contienePalabra(t, 'lengua extranjera') || contienePalabra(t, 'ingles') || contienePalabra(t, 'frances'))) {
+    return area;
+  }
+  // "Otra" es un valor comodín MANUAL: nunca debe auto-detectarse desde el texto.
+  const detectada = BC_AREAS.filter(item => item !== 'Otra')
+    .find(item => contienePalabra(t, item));
   return detectada || '';
 };
 
