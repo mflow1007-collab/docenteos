@@ -16,6 +16,7 @@ import {
   crearItemVacio,
   generarBancoDiagnostico,
   generarItemsDesdeIndicadores,
+  generarItemsObjetivosVinculados,
   obtenerNaturalezaArea,
 } from "../services/diagnosticoBlueprintService.js";
 import { getAreas, getAsignaturas } from "../planning/areaAsignaturaMap.js";
@@ -75,6 +76,10 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   const [busquedaItem, setBusquedaItem] = useState("");
   const [presetFormato, setPresetFormato] = useState("mixto");
   const [formatoPersonalizado, setFormatoPersonalizado] = useState({ seleccion_multiple: 80, verdadero_falso: 10, completar: 5, pareado: 5 });
+  // Con malla oficial de idiomas, el docente elige cómo derivar el banco:
+  //  · "objetivo"    → preguntas objetivas del banco + vínculo al indicador (imprimible)
+  //  · "desempenos"  → una actividad de respuesta abierta por indicador (fiel al currículo)
+  const [modoGeneracion, setModoGeneracion] = useState("objetivo");
 
   const curso = cursos.find((item) => String(item.id) === String(cursoId)) || null;
   const estudiantes = useMemo(() => (curso?.estudiantesDetalle || []).map((item, indice) => ({
@@ -83,6 +88,12 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   })), [curso]);
   const asignaturas = useMemo(() => getAsignaturas(area), [area]);
   const naturaleza = useMemo(() => obtenerNaturalezaArea(area, asignatura), [area, asignatura]);
+  // El toggle de modo de generación solo tiene sentido con malla oficial de idioma
+  // (único caso con banco fijo de vocabulario para producir preguntas objetivas).
+  const idiomaConOficial = useMemo(
+    () => referentes.oficial && (area === "Lenguas Extranjeras" || ["Inglés", "Francés"].includes(asignatura)),
+    [referentes.oficial, area, asignatura]
+  );
   const auditoria = useMemo(() => auditarDisenoDiagnostico(items, naturaleza), [items, naturaleza]);
   const itemsSeleccionados = useMemo(() => items.filter((item) => item.seleccionado), [items]);
   const temasDisponibles = useMemo(() => ["Todos", ...new Set(items.map((item) => item.tema).filter(Boolean))], [items]);
@@ -144,14 +155,20 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
         // editado el banco (bancoEditadoRef) o guardado uno propio. Con malla no
         // oficial (referencia local) se mantiene el enlace por palabras clásico.
         if (datos.oficial && !bancoEditadoRef.current) {
-          const derivados = generarItemsDesdeIndicadores(datos.indicadores, { area: ctx.area, asignatura: ctx.asignatura, grado: ctx.grado });
+          const esIdioma = ctx.area === "Lenguas Extranjeras" || ["Inglés", "Francés"].includes(ctx.asignatura);
+          // Modo "objetivo" (solo idiomas): preguntas objetivas del banco vinculadas
+          // al indicador oficial. Si no es idioma, no hay banco con vocabulario →
+          // se usa el derivado por indicador (desempeños) como en el modo fiel.
+          const derivados = (modoGeneracion === "objetivo" && esIdioma)
+            ? generarItemsObjetivosVinculados(datos.indicadores, { area: ctx.area, asignatura: ctx.asignatura })
+            : generarItemsDesdeIndicadores(datos.indicadores, { area: ctx.area, asignatura: ctx.asignatura, grado: ctx.grado });
           if (derivados.length) { setItems(derivados); return; }
         }
         setItems((actuales) => vincularItemsAIndicadores(actuales, datos.indicadores));
       })
       .finally(() => { if (activo) setCargandoReferentes(false); });
     return () => { activo = false; };
-  }, [curso?.grado, curso?.nivel, curso?.area, area, asignatura, perfil?.areaPrincipal, perfil?.asignaturaPrincipal]);
+  }, [curso?.grado, curso?.nivel, curso?.area, area, asignatura, perfil?.areaPrincipal, perfil?.asignaturaPrincipal, modoGeneracion]);
 
   const resumen = useMemo(
     () => resumirDiagnostico({ estudiantes, aprendizajes, resultados, mediaciones }),
@@ -312,6 +329,7 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
           <label>Duración<input type="number" min="15" max="120" value={contexto.duracion} onChange={(e) => setContexto({ ...contexto, duracion: e.target.value })} /><small>minutos</small></label>
         </div>
         <div className="diag-config-ancha"><label>Recursos realmente disponibles<input value={contexto.recursos} onChange={(e) => setContexto({ ...contexto, recursos: e.target.value })} /></label><label>Características del grupo<textarea rows="2" value={contexto.caracteristicas} onChange={(e) => setContexto({ ...contexto, caracteristicas: e.target.value })} placeholder="Ej.: grupo heterogéneo, dos estudiantes requieren instrucciones leídas…" /></label></div>
+        {idiomaConOficial && <section className="diag-modo-generacion"><div><h3>¿Cómo derivar el banco desde la malla oficial?</h3><p>Hay malla oficial vinculada. Elige el tipo de instrumento que quieres generar.</p></div><div className="diag-modo-opciones"><button type="button" className={modoGeneracion === "objetivo" ? "activo" : ""} onClick={() => { bancoEditadoRef.current = false; setModoGeneracion("objetivo"); }}><strong>Prueba objetiva vinculada</strong><small>Preguntas de opción múltiple, completar y pareado imprimibles, cada una enlazada a un indicador oficial.</small></button><button type="button" className={modoGeneracion === "desempenos" ? "activo" : ""} onClick={() => { bancoEditadoRef.current = false; setModoGeneracion("desempenos"); }}><strong>Desempeños desde la malla</strong><small>Una actividad de respuesta abierta por indicador oficial, valorada con rúbrica. Fiel al currículo.</small></button></div></section>}
         <section className="diag-formato-config"><div><h3>Composición de la prueba escrita</h3><p>Las actividades orales o prácticas se valoran aparte mediante rúbrica.</p></div><div className="diag-presets-formato">{PRESETS_FORMATO.map((preset) => <button type="button" key={preset.id} className={presetFormato === preset.id ? "activo" : ""} onClick={() => setPresetFormato(preset.id)}><strong>{preset.nombre}</strong><small>{preset.descripcion}</small></button>)}</div>{presetFormato === "personalizado" && <div className="diag-porcentajes">{Object.entries(formatoPersonalizado).map(([formato, porcentaje]) => <label key={formato}>{etiquetaFormato[formato]}<input type="number" min="0" max="100" value={porcentaje} onChange={(e) => setFormatoPersonalizado((actual) => ({ ...actual, [formato]: Number(e.target.value) }))}/><span>%</span></label>)}</div>}<button type="button" className="diag-aplicar-formato" onClick={aplicarFormatoPrueba}>Aplicar composición a 20 ítems</button></section>
         <div className="diag-cobertura"><div><strong>{auditoria.total}</strong><span>ítems seleccionados</span></div>{Object.entries(auditoria.porDificultad).map(([nivel, cantidad]) => <div key={nivel}><strong>{cantidad}</strong><span>{nivel}</span></div>)}</div>
         <div className={`diag-curriculo-status ${referentes.oficial ? "oficial" : "revision"}`}><div><strong>{cargandoReferentes ? "Consultando currículo…" : referentes.oficial ? `${referentes.indicadores.length} indicadores de la malla oficial` : "Sin malla oficial vinculada"}</strong>

@@ -14,6 +14,7 @@
 .diag-config-grid label:last-child small { grid-column: 2; grid-row: 2; align-self: center; }
 .diag-config-ancha { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 11px; }
 .diag-formato-config{margin-top:16px;padding:17px;border:1px solid #dce6e2;border-radius:15px;background:#fafcfb}.diag-formato-config h3,.diag-formato-config p{margin:0 0 5px}.diag-formato-config p{color:#64748b}.diag-presets-formato{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:13px}.diag-presets-formato button{display:grid;gap:4px;text-align:left;padding:12px;border:1px solid #dce6e2;border-radius:11px;background:#fff;cursor:pointer}.diag-presets-formato button.activo{border:2px solid #176b57;background:#f0faf6}.diag-presets-formato small{color:#64748b}.diag-porcentajes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.diag-porcentajes label{display:grid;grid-template-columns:1fr auto;gap:5px;font-size:11px;font-weight:800}.diag-porcentajes input{width:65px;padding:7px;border:1px solid #cbdad5;border-radius:8px}.diag-porcentajes span{align-self:center}.diag-aplicar-formato{margin-top:12px;border:0;border-radius:10px;padding:10px 14px;background:#176b57;color:#fff;font-weight:800;cursor:pointer}
+.diag-modo-generacion{margin-top:16px;padding:17px;border:1px solid #dce6e2;border-radius:15px;background:#fafcfb}.diag-modo-generacion h3,.diag-modo-generacion p{margin:0 0 5px}.diag-modo-generacion p{color:#64748b}.diag-modo-opciones{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}.diag-modo-opciones button{display:grid;gap:4px;text-align:left;padding:14px;border:1px solid #dce6e2;border-radius:11px;background:#fff;cursor:pointer}.diag-modo-opciones button.activo{border:2px solid #176b57;background:#f0faf6}.diag-modo-opciones small{color:#64748b;line-height:1.4}
 .diag-cobertura { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin: 18px 0; }
 .diag-cobertura div { padding: 12px; border: 1px solid #dce6e2; border-radius: 12px; }
 .diag-cobertura strong { display: block; font-size: 22px; color: #145c4c; }
@@ -93,6 +94,7 @@
   .diag-graficos-grid { grid-template-columns: 1fr; }
   .diag-filtros-items { grid-template-columns: 1fr 1fr; }
   .diag-presets-formato,.diag-porcentajes { grid-template-columns:1fr 1fr; }
+  .diag-modo-opciones { grid-template-columns:1fr; }
 }
 @media (max-width: 600px) {
   .diag-modalidades, .diag-config-grid, .diag-config-ancha, .diag-cobertura { grid-template-columns: 1fr; }

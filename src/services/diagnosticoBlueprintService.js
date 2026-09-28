@@ -36,7 +36,25 @@ const rotarOpciones = (opciones, semilla = "") => {
 
 const escaparRegExp = (texto) => String(texto).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// Un ítem solo puede convertirse en pregunta OBJETIVA real (opción múltiple,
+// completar, pareado) si trae vocabulario propio del que salgan respuesta +
+// distractores. Los ítems derivados de indicadores oficiales son metas de
+// desempeño abstractas (sin vocabulario/textoBase), así que NO cumplen: forzarlos
+// producía "Opción 2/3/4" con la respuesta correcta delatada. Estos van a
+// respuesta abierta / desempeño, que es lo honesto para un indicador curricular.
+const tieneMaterialObjetivo = (item = {}) =>
+  Array.isArray(item.vocabulario) && item.vocabulario.filter(Boolean).length >= 2;
+
+// Formato de respuesta abierta: honesto cuando no hay material para una pregunta
+// objetiva. Reusa la consigna real del indicador; se valora con la clave/rúbrica.
+const contenidoDesempeno = (item = {}) => ({
+  consignaObjetiva: item.consigna || item.aprendizaje || "Realiza la actividad indicada.",
+  respuestaCorrecta: item.respuestaEsperada || "Valorar con la rúbrica según el indicador.",
+});
+
 const contenidoPorFormato = (item, formato, contexto = {}) => {
+  // Sin material objetivo → respuesta abierta, sin fabricar opciones falsas.
+  if (!tieneMaterialObjetivo(item)) return contenidoDesempeno(item);
   const palabras = Array.isArray(item.vocabulario) ? item.vocabulario.filter(Boolean) : [];
   const correcta = palabras[0] || item.respuestaEsperada || "Respuesta correcta";
   const distractores = (contexto.vocabulario || []).filter((palabra) => palabra !== correcta && !palabras.includes(palabra)).slice(0, 3);
@@ -69,13 +87,20 @@ export const aplicarComposicionPrueba = (items = [], { total = 20, porcentajes }
   const elegibles = items.filter((item) => item.dimension !== "Producción oral");
   const preferidos = [...elegibles.filter((item) => item.seleccionado), ...elegibles.filter((item) => !item.seleccionado)].slice(0, total);
   const idsPrueba = new Set(preferidos.map((item) => item.id));
-  const composicion = calcularComposicionFormatos(Math.min(total, preferidos.length), porcentajes);
+  // La composición de formatos OBJETIVOS solo se reparte entre los ítems que
+  // tienen material para serlo; los indicadores abstractos van a desempeño y no
+  // consumen un slot de selección múltiple (evita "Opción 2/3/4" degradadas).
+  const objetivos = preferidos.filter((item) => tieneMaterialObjetivo(item));
+  const composicion = calcularComposicionFormatos(objetivos.length, porcentajes);
   const secuencia = Object.entries(composicion).flatMap(([formato, cantidad]) => Array(cantidad).fill(formato));
   const contexto = { vocabulario: [...new Set(elegibles.flatMap((item) => item.vocabulario || []))], temas: [...new Set(elegibles.map((item) => item.tema).filter(Boolean))] };
   let indiceFormato = 0;
   return items.map((item) => {
-    if (item.dimension === "Producción oral") return { ...item, componente: "desempeno", seleccionado: item.seleccionado };
+    if (item.dimension === "Producción oral") return { ...item, componente: "desempeno", seleccionado: item.seleccionado, formatoRespuesta: "desempeno", ...contenidoDesempeno(item) };
     if (!idsPrueba.has(item.id)) return { ...item, componente: "prueba_escrita", seleccionado: false };
+    // Ítem sin material objetivo → desempeño de respuesta abierta (no cuenta para
+    // la composición objetiva ni consume un formato de la secuencia).
+    if (!tieneMaterialObjetivo(item)) return { ...item, componente: "desempeno", seleccionado: true, formatoRespuesta: "desempeno", ...contenidoDesempeno(item) };
     const formatoRespuesta = secuencia[indiceFormato++] || "seleccion_multiple";
     return { ...item, componente: "prueba_escrita", seleccionado: true, formatoRespuesta, ...contenidoPorFormato(item, formatoRespuesta, { ...contexto, indice: indiceFormato - 1 }) };
   });
@@ -241,6 +266,35 @@ export const generarItemsDesdeIndicadores = (indicadores = [], { area = "", asig
       indicadorId: indicador.id || "",
       indicador: descripcion,
       competencia: indicador.competencia || "",
+    };
+  });
+};
+
+const esIdiomaContexto = ({ area = "", asignatura = "" } = {}) =>
+  area === "Lenguas Extranjeras" || ["Inglés", "Francés"].includes(asignatura);
+
+/**
+ * MODO HÍBRIDO — para idiomas: genera las preguntas OBJETIVAS desde el banco fijo
+ * (que sí trae vocabulario/textoBase reales, así la prueba escrita es imprimible)
+ * pero VINCULA cada ítem a un indicador oficial de la malla, dando trazabilidad
+ * curricular. Los indicadores se reparten en orden entre los ítems del banco.
+ *
+ * Solo aplica a idiomas (Inglés/Francés): otras áreas no tienen banco fijo con
+ * vocabulario, así que el llamador debe usar generarItemsDesdeIndicadores.
+ * Devuelve [] si no es idioma o no hay indicadores (el llamador decide el respaldo).
+ */
+export const generarItemsObjetivosVinculados = (indicadores = [], { area = "", asignatura = "" } = {}) => {
+  if (!esIdiomaContexto({ area, asignatura }) || !Array.isArray(indicadores) || !indicadores.length) return [];
+  const banco = generarBancoDiagnostico({ area, asignatura });
+  return banco.map((item, indice) => {
+    const indicador = indicadores[indice % indicadores.length];
+    return {
+      ...item,
+      // Preserva el material objetivo del banco (vocabulario/textoBase) y añade el
+      // vínculo curricular oficial, para que la clave docente muestre el indicador.
+      indicadorId: indicador.id || "",
+      indicador: indicador.descripcion || "",
+      competencia: indicador.competencia || item.tema || "",
     };
   });
 };
