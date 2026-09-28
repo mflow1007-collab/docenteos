@@ -1406,19 +1406,28 @@ const bcNivelDesdeGrado = (g) => {
  * (malla_curricular), NIVEL y grado. Clave incompleta o sin coincidencia
  * de nivel → null (fail closed: el candado detiene, nunca hereda otro nivel).
  */
-export const seleccionarMallaParaUnidad = (docs, { nivel = '', grado = '' } = {}) => {
+export const seleccionarMallaParaUnidad = (docs, { nivel = '', grado = '', subject = '' } = {}) => {
   const ng = bcNormGrade(grado);
   // El nivel EMBEBIDO en el grado que eligió el docente ("1ro Primaria") MANDA
   // sobre el parámetro nivel, que puede llegar rancio desde un formulario cuyo
   // campo Nivel no se sincronizó (bypass real detectado en el Asesor).
   const nn = bcNivelDesdeGrado(grado) || bcNormalizarNivel(nivel);
   if (!ng || !nn) return null;
+  // La ASIGNATURA también manda cuando se conoce: Inglés y Francés comparten el
+  // área "Lenguas Extranjeras", así que sin este filtro la búsqueda de Inglés podía
+  // quedarse con la malla de Francés del mismo nivel/grado (bug real del Asesor).
+  const ns = bcNorm(subject);
   return (docs || []).find((d) => {
     const tipo = bcNorm(d.contentType || d.payload?.contentType || 'malla_curricular');
     if (tipo !== 'malla_curricular') return false;
     const nivelDoc = bcNormalizarNivel(d.level || d.payload?.level || d.payload?.nivel);
     if (!nivelDoc || nivelDoc !== nn) return false;
-    return bcNormGrade(d.grade) === ng;
+    if (bcNormGrade(d.grade) !== ng) return false;
+    if (ns) {
+      const ds = bcNorm(d.subject || d.payload?.subject || d.payload?.asignatura);
+      if (ds && ds !== ns) return false; // asignatura conocida y distinta → descartar
+    }
+    return true;
   }) || null;
 };
 
@@ -1515,7 +1524,7 @@ export const getCurricularContentForUnit = async (subject, grade, nivel = '') =>
     // Regla estricta DocenteOS: la planificación solo puede usar la malla del
     // NIVEL y grado seleccionados (clave completa: level+grade+subject+
     // contentType). No se cae a otro grado ni a otro nivel de la misma área.
-    const malla = seleccionarMallaParaUnidad(candidates, { nivel, grado: grade });
+    const malla = seleccionarMallaParaUnidad(candidates, { nivel, grado: grade, subject });
     if (!malla) return null;
 
     // Capa TOLERANTE del contrato: el lector NO bloquea docs históricos, pero
