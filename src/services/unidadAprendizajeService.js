@@ -3949,8 +3949,18 @@ export const generarUnidadAprendizaje = async (datos) => {
 
   // FUENTE ÚNICA: mismos temas oficiales que consume el selector del Asesor
   const temasOficiales = temasOficialesDeMalla(mallaPayload);
-  // Resuelve el título del docente contra los temas oficiales → devuelve string
-  const temaMallaStr   = _resolverTemaMalla(titulo, temasOficiales);
+  // Resuelve el título del docente contra los temas oficiales → devuelve string.
+  // Los NÚCLEOS COMBINADOS del Asesor ("Identidad y convivencia") son etiquetas
+  // llamativas vinculadas a temas oficiales, que llegan en temasSeleccionados. Si
+  // el título llamativo no casa como tema literal, se resuelve contra esos temas
+  // oficiales vinculados (el título llamativo se conserva como nombre visible).
+  let temaMallaStr = _resolverTemaMalla(titulo, temasOficiales);
+  if (!temaMallaStr && Array.isArray(temasSeleccionados) && temasSeleccionados.length) {
+    for (const miembro of temasSeleccionados) {
+      const resuelto = _resolverTemaMalla(miembro, temasOficiales);
+      if (resuelto) { temaMallaStr = resuelto; break; }
+    }
+  }
   if (temasOficiales.length && !temaMallaStr) {
     throw new Error(
       `El tema "${titulo}" no coincide con un tema oficial de la malla de ${claveContenido} — ${grado}. ` +
