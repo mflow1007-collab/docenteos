@@ -32,6 +32,44 @@ const NOMBRES_FASES = [
   "Cierre, socialización y evaluación sumativa",
 ];
 
+// Pasos que PROGRESAN en los días de desarrollo de la fase final (integración).
+// Antes todos los días de desarrollo repetían el mismo ensayo; ahora cada uno
+// avanza hacia el producto (redactar → mejorar/integrar → afinar). Se conserva
+// la esencia (fase de integración/socialización) pero los días no se clonan.
+// Cada entrada es un micro-momento: { rotulo, actividades(ctx) }.
+const INTEGRACION_DESARROLLO_PASOS = [
+  {
+    rotulo: "Redacción y primer ensayo del producto",
+    intencion: ({ productoNombre, piezaProducto }) => `Desde el inicio hasta el final de la clase, los estudiantes redactan y ensayan por primera vez ${piezaProducto}, recibiendo retroalimentación de sus pares para avanzar hacia ${productoNombre}.`,
+    actividades: ({ productoNombre, piezaProducto }) => [
+      `Observan con propósito (Listen and Evaluate) una presentación modelo y evalúan con una rúbrica sencilla qué la hace clara (volumen, orden, contacto visual).`,
+      `Redactan ${piezaProducto} con introducción, secciones del producto y un cierre con recomendación.`,
+      `Ensayan en parejas (Pair Rehearsal): uno presenta y el otro completa una ficha de retroalimentación "dos estrellas y un deseo".`,
+      `Ajustan ${piezaProducto} con la retroalimentación recibida antes de integrarlo a ${productoNombre}.`,
+    ],
+  },
+  {
+    rotulo: "Mejora e integración de las piezas",
+    intencion: ({ productoNombre }) => `Desde el inicio hasta el final de la clase, los estudiantes integran y mejoran las piezas del portafolio para consolidar ${productoNombre}, verificando su coherencia y aplicando la retroalimentación recibida.`,
+    actividades: ({ productoNombre, piezaProducto }) => [
+      `Revisan todas las piezas del portafolio y verifican que ${productoNombre} esté completo, ordenado y coherente entre sus secciones.`,
+      `Integran la retroalimentación del ensayo anterior en ${piezaProducto}, mejorando claridad, vocabulario y transiciones.`,
+      `Practican en tríos una ronda de presentación cronometrada y anotan un aspecto a pulir en cada intervención.`,
+      `Aplican una mejora concreta a ${productoNombre} y registran su avance en el portafolio.`,
+    ],
+  },
+  {
+    rotulo: "Afinamiento y preparación de la presentación final",
+    intencion: ({ productoNombre }) => `Desde el inicio hasta el final de la clase, los estudiantes afinan y ensayan la versión final de ${productoNombre}, dejándolo listo para socializar ante su audiencia.`,
+    actividades: ({ productoNombre, piezaProducto }) => [
+      `Escuchan una presentación modelo final (Listen and Decide) y deciden qué estrategias la hacen convincente para su audiencia.`,
+      `Afinan ${piezaProducto}: ensayan la entrada, el orden de las secciones y el cierre con una recomendación auténtica.`,
+      `Realizan un ensayo general ante otro grupo, reciben coevaluación con la rúbrica del producto y ajustan lo señalado.`,
+      `Dejan ${productoNombre} listo para socializar y preparan los apoyos (imágenes, guion, materiales) de la presentación.`,
+    ],
+  },
+];
+
 const ESTRATEGIAS_POR_AREA = {
   "Inglés": "Enfoque Comunicativo (Communicative Language Teaching)",
   "Lengua Española": "Enfoque Comunicativo Funcional y Lectoescritura",
@@ -2843,12 +2881,13 @@ const _generarFasesConIA = async (
           `Cierran la galería con un recorrido breve por los productos terminados y seleccionan una recomendación útil para estudiantes nuevos de la comunidad escolar.`,
         ];
       }
-      return [
-        `Observan con propósito (Listen and Evaluate) una presentación modelo y evalúan con una rúbrica sencilla qué la hace clara (volumen, orden, contacto visual).`,
-        `Redactan su guion de presentación con introducción, secciones del producto y un cierre con recomendación.`,
-        `Ensayan en parejas (Pair Rehearsal): uno presenta y el otro completa una ficha de retroalimentación "dos estrellas y un deseo".`,
-        `Ajustan ${piezaProducto} con la retroalimentación recibida antes del segundo ensayo.`,
+      // Días de DESARROLLO de la fase final: en vez de repetir el mismo ensayo,
+      // progresan hacia el producto según su orden. inicio=índice 0, así que el
+      // 1er día de desarrollo es índice 1 → paso 0; el 2do → paso 1; etc.
+      const pasoIntegracion = INTEGRACION_DESARROLLO_PASOS[
+        Math.max(0, (perfilDia.indiceEnFase || 1) - 1) % INTEGRACION_DESARROLLO_PASOS.length
       ];
+      return pasoIntegracion.actividades({ productoNombre, piezaProducto });
     }
 
     if (esUltimoDeSemana) {
@@ -3200,6 +3239,10 @@ const _generarFasesConIA = async (
       pieza,
       etapa: perfil.etapa,
       posicion: pos,
+      // Orden del día DENTRO de la fase: distingue el 1er del 2do día de
+      // "desarrollo" para que la fase de integración progrese en vez de clonar.
+      indiceEnFase,
+      totalDias,
       proposito: perfil.proposito,
       evidenciaCentral: perfil.evidenciaCentral,
       instrumentoSugerido: perfil.instrumentoSugerido,
@@ -3309,6 +3352,15 @@ const _generarFasesConIA = async (
       // que quepa sin cortar a media palabra como pasaba en Semana 4.
       titulo: (() => {
         const focoCorto = String(foco).split(" · ")[0].trim();
+        // Fase final: los días de DESARROLLO progresan con su micro-momento (no
+        // se clonan); el cierre y el último día de semana conservan el título de
+        // integración/socialización, que ya es distinto por sí mismo.
+        if (faseNum >= 4 && perfilDia.posicion === "desarrollo") {
+          const paso = INTEGRACION_DESARROLLO_PASOS[
+            Math.max(0, (perfilDia.indiceEnFase || 1) - 1) % INTEGRACION_DESARROLLO_PASOS.length
+          ];
+          return paso.rotulo;
+        }
         if (esUltimoDeSemana || faseNum >= 4) {
           return `Integración de la semana: ${focoCorto} (integración)`;
         }
@@ -3327,9 +3379,13 @@ const _generarFasesConIA = async (
       estrategiasDia: [estrategia, "práctica guiada", "socialización"].filter(Boolean).join(" · "),
       // La intención pedagógica es la banda de párrafo del día (documento modelo
       // del dueño): completa, sin truncar. El corte a 230 producía "…" en el PDF.
-      intencionPedagogica: esUltimoDeSemana
-        ? `Desde el inicio hasta el final de la clase, los estudiantes integran lo trabajado en la semana sobre ${temaCorto} y construyen ${piezaProducto} para ${productoNombre}.`
-        : `Desde el inicio hasta el final de la clase, los estudiantes trabajan ${estructuraDia} aplicado a ${temaCorto}, con práctica guiada y producción propia, aportando ${piezaProducto} a ${productoNombre}.`,
+      intencionPedagogica: (faseNum >= 4 && perfilDia.posicion === "desarrollo")
+        ? INTEGRACION_DESARROLLO_PASOS[
+            Math.max(0, (perfilDia.indiceEnFase || 1) - 1) % INTEGRACION_DESARROLLO_PASOS.length
+          ].intencion({ productoNombre, piezaProducto })
+        : esUltimoDeSemana
+          ? `Desde el inicio hasta el final de la clase, los estudiantes integran lo trabajado en la semana sobre ${temaCorto} y construyen ${piezaProducto} para ${productoNombre}.`
+          : `Desde el inicio hasta el final de la clase, los estudiantes trabajan ${estructuraDia} aplicado a ${temaCorto}, con práctica guiada y producción propia, aportando ${piezaProducto} a ${productoNombre}.`,
       saludoInicial: area === "Inglés"
         ? "Good morning. Today we will use English to connect the class topic with our final product."
         : "Buenos días. Hoy conectaremos el tema de la clase con el producto final de la unidad.",
