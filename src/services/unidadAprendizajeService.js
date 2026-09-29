@@ -4704,23 +4704,22 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         </table>`;
     };
 
-    // RESUMEN SEMANAL (documento modelo): tabla al CIERRE de cada semana
-    // calendario, compuesta determinísticamente de los días de esa semana.
-    // La última semana de la fase carga además las observaciones (R14).
-    const resumenSemanaHtml = (g, esUltimaDeFase) => {
-      const dias = g.dias || [];
+    // RESUMEN por FASE (no por semana): el cierre de evaluación corresponde a la
+    // FASE completa, emitido cuando la fase termina, con TODOS sus días. Una fase
+    // puede abarcar parte de una semana y toda la siguiente; cerrar por semana
+    // partía el cierre en pedazos y duplicaba el resumen de la semana de frontera.
+    const resumenFaseHtml = () => {
+      const dias = fase.dias || [];
       const unicos = (arr) => [...new Set(arr.filter(Boolean))];
       const indicadores = unicos(dias.flatMap((d) => d.indicadoresTrabajados || []));
       const tipos = unicos(dias.flatMap((d) => (d.momentos || []).map((mm) => mm.evaluacion?.tipo)));
       const tecnicas = unicos(dias.flatMap((d) => (d.momentos || []).map((mm) => mm.evaluacion?.tecnica)));
       const instrumentos = unicos(dias.flatMap((d) => (d.momentos || []).map((mm) => mm.evaluacion?.instrumento)));
       const aportes = dias.map((d) => String(d.aporteProducto || "").trim()).filter(Boolean);
-      if (!tipos.length && !indicadores.length) return ""; // unidad legacy sin datos por semana
-      const obs = esUltimaDeFase
-        ? String(fase.observacionesSemana || dias[0]?.resumenEvaluacion?.observaciones || "").trim()
-        : "";
+      if (!tipos.length && !indicadores.length) return ""; // unidad legacy sin datos
+      const obs = String(fase.observacionesSemana || dias[0]?.resumenEvaluacion?.observaciones || "").trim();
       return `
-      <div class="section-head" style="background:#0e7490">RESUMEN DE EVALUACIÓN — SEMANA ${g.semana}</div>
+      <div class="section-head" style="background:#0e7490">RESUMEN DE EVALUACIÓN — FASE ${fase.numero}</div>
       <table class="checkpoint-table">
         <tr><th style="width:20%">Indicadores trabajados</th><th style="width:16%">Tipos de evaluación</th><th style="width:22%">Técnicas</th><th style="width:18%">Instrumentos</th><th>Aportes al producto final</th></tr>
         <tr>
@@ -4730,18 +4729,18 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           <td>${instrumentos.join(", ") || "—"}</td>
           <td>${aportes.map((a) => `• ${a}`).join("<br>") || "—"}</td>
         </tr>
-        ${obs ? `<tr><td colspan="5"><strong>Observaciones de la semana:</strong> ${obs}</td></tr>` : ""}
+        ${obs ? `<tr><td colspan="5"><strong>Observaciones de la fase:</strong> ${obs}</td></tr>` : ""}
       </table>`;
     };
-    const resumenesSemanas = gruposSemana.map((g, i) => resumenSemanaHtml(g, i === gruposSemana.length - 1));
-    const hayResumenSemanal = resumenesSemanas.some(Boolean);
+    const resumenFase = resumenFaseHtml();
+    const hayResumenSemanal = Boolean(resumenFase);
 
-    // Banda por semana calendario dentro de la fase, con el título de semana
-    // que aportó la IA (o el de la fase para unidades guardadas legacy)
-    const diasHtml = gruposSemana.map((g, i) => {
+    // Banda por semana calendario dentro de la fase (separador visual). El cierre
+    // de evaluación ya NO va por semana: se emite una vez por fase (abajo).
+    const diasHtml = gruposSemana.map((g) => {
       const tituloSem = String(g.dias[0]?.tituloSemana || fase.tituloSemana || "").trim();
       const banda = `<div class="semana-band">${m.titulo} — SEMANA ${g.semana} (${g.dias.length} día${g.dias.length === 1 ? "" : "s"})${tituloSem ? `: "${tituloSem}"` : ""}</div>`;
-      return banda + g.dias.map(diaHtml).join("") + resumenesSemanas[i];
+      return banda + g.dias.map(diaHtml).join("");
     }).join("");
 
     // ADAPTACIONES NEAE del bloque, LIGADAS AL FOCO (contrato R14). Fallback a
@@ -4786,6 +4785,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       <div class="fase-band">FASE ${fase.numero} — ${fase.nombre}</div>
       <div class="est-band">Estrategia de enseñanza y de aprendizaje: ${fase.estrategia}</div>
       ${diasHtml}
+      ${resumenFase}
       ${neaeHtml}
       ${resumenHtml}
       ${checkpointHtml}`;
