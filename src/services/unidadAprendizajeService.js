@@ -1818,6 +1818,37 @@ const _resolverContenidoPorTema = (contenidosPorTema = [], temaFiltro = '') => {
 
 const _normTexto = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
 
+// Palabras significativas (≥4 letras, sin vacías) de un texto — para medir la
+// pertinencia de un contenido del grado respecto al tema y sus funciones. Se usa
+// en la cascada de contenidos: un ítem del grado es pertinente si comparte una de
+// estas palabras con la señal (tema + funciones comunicativas del tema).
+const _STOP_PERTINENCIA = new Set([
+  'para', 'como', 'donde', 'desde', 'entre', 'sobre', 'mediante', 'utilizando',
+  'sencillas', 'sencillos', 'breves', 'forma', 'oral', 'escrita', 'idioma',
+  'informacion', 'personas', 'cotidianas', 'situaciones', 'temas', 'ingles',
+]);
+const normPertinencia = (texto = '') => _normTexto(texto)
+  .replace(/[^a-z0-9\s]/g, ' ')
+  .split(/\s+/)
+  .filter((w) => w.length >= 4 && !_STOP_PERTINENCIA.has(w));
+
+// Relaciones EXPLÍCITAS y revisables función comunicativa → pistas de la estructura
+// que suele requerir. Es una AYUDA de selección (no una correspondencia curricular
+// oficial): cuando la gramática del tema está vacía, se buscan en la GRAMÁTICA REAL
+// del grado las estructuras cuyas pistas casen con las funciones del tema. Nunca se
+// inventa una estructura que no exista en la fuente; solo se prioriza lo pertinente.
+// Cada pista se compara por raíz contra las estructuras de la malla del grado.
+const RELACIONES_FUNCION_ESTRUCTURA = [
+  { funcion: /solicitar|ofrecer|informacion personal|presentar/, pistas: ['presente simple', 'pronombres interrogativos', 'question tags', 'articulos definidos'] },
+  { funcion: /describir.*persona|apariencia|forma de ser|caracter/, pistas: ['presente simple', 'adjetivos calificativos', 'adjetivos posesivos', 'pronombres posesivos', 'grados comparativo', 'there + be'] },
+  { funcion: /gustos|preferencias|opinion/, pistas: ['verbos like', 'presente simple'] },
+  { funcion: /rutina|actividad|cotidian|frecuencia/, pistas: ['presente simple', 'adverbios de frecuencia', 'expresiones de tiempo'] },
+  { funcion: /experiencia|pasado|narrar/, pistas: ['pasado simple', 'presente perfecto'] },
+  { funcion: /plan|futuro|invitar|sugerir|consejo/, pistas: ['will y be going', 'would para', 'should', 'modo imperativo'] },
+  { funcion: /instruccion|indicacion|orden/, pistas: ['modo imperativo'] },
+  { funcion: /lugar|ubicar|describir lugares/, pistas: ['there + be', 'preposiciones de'] },
+];
+
 export const resolverTemaEnriquecido = (enriquecimientoDoc, temaOficial) => {
   const temas = enriquecimientoDoc?.payload?.temas || enriquecimientoDoc?.temas;
   if (!Array.isArray(temas) || !temas.length || !temaOficial) return null;
@@ -1851,7 +1882,7 @@ const _filtrarPorEstructura = (items, estructuras) => {
 
 // Lee del payload de nivel-grado del corpus: contenidos.conceptos + contenidos.procedimientos
 // (exportada para tests)
-export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', temaEnriquecido = null) => {
+export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', temaEnriquecido = null, { productoFinal = '' } = {}) => {
   const bloqueTema = _resolverContenidoPorTema(mallaPayload?.contenidosPorTema, temaFiltro);
   if (bloqueTema) {
     const conceptos = bloqueTema.conceptos || {};
@@ -1900,22 +1931,103 @@ export const _extraerContenidosMallaCorpus = (mallaPayload, temaFiltro = '', tem
       ...toArray(bloqueTema.evidenciasAprendizaje).map(String),
       ...toArray(bloqueTema.evidenciasEsperadas).map(String),
     ].map((t) => t.trim()).filter(Boolean));
+    // CASCADA DE CONTENIDOS por PERTINENCIA (Regla 1): un tema puede traer
+    // funcionales pero vocabulario/gramática vacíos. Se completa con el contenido
+    // del GRADO **pertinente** a lo que el estudiante necesita para la tarea (tema
+    // + funciones comunicativas), NO volcando todo el grado. Si no se identifica
+    // contenido pertinente, se conserva lo verificado y se marca revisión interna
+    // (sin regla absoluta "nunca vacío"). La procedencia (tema/grado) es interna.
+    const gradoConceptos = mallaPayload?.contenidos?.conceptos || {};
+    // Señal de pertinencia: tema + funciones comunicativas + PRODUCTO FINAL dan las
+    // palabras clave de lo que hay que comunicar (Regla 1 / tarea 1). Un contenido
+    // del grado es pertinente si comparte una raíz léxica con esa señal.
+    // Raíz = prefijo de 5 ("alimentacion"/"alimentos" comparten "alime"), para casar
+    // familias léxicas sin traer contenido ajeno ("deportes").
+    const raiz = (w) => w.slice(0, 5);
+    const raicesSeñal = new Set(
+      normPertinencia([temaFiltro, ...funcionales, productoFinal].join(" ")).map(raiz)
+    );
+    const esPertinente = (texto) => {
+      const palabras = normPertinencia(texto);
+      return palabras.some((w) => raicesSeñal.has(raiz(w)));
+    };
+    // AYUDA para GRAMÁTICA (tarea 2): además de la raíz léxica, usa relaciones
+    // explícitas función→estructura. Una estructura del grado es pertinente si sus
+    // pistas casan (por raíz) con las de alguna función del tema. Consulta la
+    // gramática REAL del grado; no inventa estructuras.
+    // Pistas función→estructura como FRASES completas (no raíces sueltas): "presente
+    // simple" debe casar "presente simple" pero NO "presente perfecto"/"presente
+    // continuo". Se comparan como substring sobre el texto normalizado de la estructura.
+    const pistasFuncionales = (() => {
+      const funcTxt = normPertinencia(funcionales.join(" ")).join(" ");
+      const frases = new Set();
+      for (const rel of RELACIONES_FUNCION_ESTRUCTURA) {
+        if (rel.funcion.test(funcTxt) || rel.funcion.test(_normTexto(temaFiltro))) {
+          rel.pistas.forEach((p) => frases.add(_normTexto(p)));
+        }
+      }
+      return [...frases];
+    })();
+    // La gramática se selecciona SOLO por las pistas función→estructura (precisas):
+    // el texto de la estructura debe contener una frase-pista completa. La raíz
+    // léxica es ruidosa aquí (casi toda estructura menciona "personal"), por eso no
+    // se usa. Sin pistas conocidas → no se completa y se marca revisión.
+    const esGramaticaPertinente = (texto) => {
+      if (!pistasFuncionales.length) return false;
+      const t = _normTexto(texto);
+      return pistasFuncionales.some((frase) => t.includes(frase));
+    };
+    // Completa una columna vacía SOLO con lo pertinente del grado. Nunca vuelca el
+    // grado entero; si no hay match, devuelve [] y marca revisión. Para gramática se
+    // usa el criterio ampliado (raíz léxica + relaciones función→estructura).
+    const completarPertinente = (delTema, campoGrado, filtro = esPertinente) => {
+      if (delTema.length) return { items: delTema.map((t) => ({ texto: t, _procedencia: "tema" })), revisar: false };
+      const globalTxt = textosUnicos(extraerEjemplos(gradoConceptos[campoGrado] || []));
+      const pertinentes = globalTxt.filter(filtro);
+      if (pertinentes.length) {
+        return { items: pertinentes.map((t) => ({ texto: t, _procedencia: "grado" })), revisar: false };
+      }
+      // Sin contenido pertinente identificable: conservar lo verificado (nada) y
+      // registrar la necesidad de revisión — no rellenar con contenido ajeno.
+      return { items: [], revisar: true };
+    };
+    const vocabRes = completarPertinente(vocabulario, "vocabulario");
+    const gramRes = gramatica.length
+      ? { items: gramatica.map((t) => ({ texto: t, _procedencia: "tema" })), revisar: false }
+      : completarPertinente([], "gramatica", esGramaticaPertinente);
+    const vocabularioFinal = textosUnicos(vocabRes.items.map((x) => x.texto));
+    const gramaticaFinal = textosUnicos(gramRes.items.map((x) => x.texto));
+    // gramaticaDetalle: del tema con ejemplos; si se completó del grado, se
+    // reconstruye desde las estructuras pertinentes (con ejemplos si la malla los trae).
+    const gramaticaDetalleFinal = gramatica.length
+      ? gramaticaDetalle
+      : toArray(gradoConceptos.gramatica)
+          .map((g) => (g && typeof g === "object"
+            ? { estructura: String(g.estructura || "").trim(), ejemplos: textosUnicos(toArray(g.ejemplos).map(String)) }
+            : { estructura: String(g || "").trim(), ejemplos: [] }))
+          .filter((g) => g.estructura && gramaticaFinal.includes(g.estructura));
     const conceptuales = textosUnicos([
-      ...vocabulario,
-      ...gramatica,
+      ...vocabularioFinal,
+      ...gramaticaFinal,
       ...expresiones,
     ]);
     return {
-      vocabulario,
-      gramatica,
-      gramaticaDetalle,
+      vocabulario: vocabularioFinal,
+      gramatica: gramaticaFinal,
+      gramaticaDetalle: gramaticaDetalleFinal.length ? gramaticaDetalleFinal : gramaticaFinal.map((g) => ({ estructura: g, ejemplos: [] })),
       expresiones,
       funcionales,
       actitudinales,
       evidenciasAprendizaje,
       conceptuales,
       procedimentales: funcionales,
-      fuenteContenido: 'contenidosPorTema',
+      // Procedencia interna (Regla 1): trazable, no se imprime en el documento.
+      _procedenciaVocabulario: vocabRes.items,
+      _procedenciaGramatica: gramRes.items,
+      // Marca de revisión interna cuando no se halló contenido pertinente (Regla 1:
+      // "conserva lo verificado y registra internamente la necesidad de revisión").
+      _revisarPertinencia: [vocabRes.revisar && "vocabulario", gramRes.revisar && "gramatica"].filter(Boolean),
+      fuenteContenido: "contenidosPorTema",
       temaContenido: bloqueTema.tema || temaFiltro,
     };
   }
@@ -2111,9 +2223,9 @@ const _validarAfinidadContenidoTema = ({ mallaPayload, tema, contenido }) => {
   );
 };
 
-const _resolverContenidoTemaEstricto = ({ mallaPayload, curricularDoc, tema }) => {
+const _resolverContenidoTemaEstricto = ({ mallaPayload, curricularDoc, tema, productoFinal = "" }) => {
   const temaEnriquecido = resolverTemaEnriquecido(curricularDoc?.enriquecimientoTema, tema);
-  const contenido = _extraerContenidosMallaCorpus(mallaPayload, tema, temaEnriquecido);
+  const contenido = _extraerContenidosMallaCorpus(mallaPayload, tema, temaEnriquecido, { productoFinal });
   if (!temaEnriquecido && contenido.fuenteContenido !== "contenidosPorTema") {
     // Diagnóstico fail-loud: decir QUÉ trae la malla para no adivinar la causa
     // (malla vieja sin el campo, campo vacío, o tema que no casa por su nombre).
@@ -2139,10 +2251,10 @@ const _resolverContenidoTemaEstricto = ({ mallaPayload, curricularDoc, tema }) =
   };
 };
 
-const _construirContenidosPorRuta = ({ mallaPayload, curricularDoc, rutaCurricular }) => {
+const _construirContenidosPorRuta = ({ mallaPayload, curricularDoc, rutaCurricular, productoFinal = "" }) => {
   const porTema = new Map();
   for (const tema of rutaCurricular?.temas || []) {
-    porTema.set(tema, _resolverContenidoTemaEstricto({ mallaPayload, curricularDoc, tema }));
+    porTema.set(tema, _resolverContenidoTemaEstricto({ mallaPayload, curricularDoc, tema, productoFinal }));
   }
   const todos = [...porTema.values()];
   return {
@@ -4064,6 +4176,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     mallaPayload,
     curricularDoc,
     rutaCurricular,
+    productoFinal: producto,
   });
   const mallaContenidos = contenidosRuta.union;
   const advertencias = [];
