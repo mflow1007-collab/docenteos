@@ -413,6 +413,22 @@ const sanearTextoModelo = (raw) => {
   return { tipo, titulo, lineas };
 };
 
+// Nombre CORTO de una estructura gramatical, para títulos/actividades/intención.
+// Las estructuras de la malla vienen con descripción larga + ejemplos:
+// "Presente simple para solicitar y ofrecer información personal; referirse a
+//  actividades cotidianas; … : I live in San Juan. I go to school…"
+// Se corta en el primer " para ", " (", ":" o ";" para quedarnos con el nombre
+// ("Presente simple"). Antes el respaldo imprimía TODO el bloque repetido en cada
+// celda de las fases 3-4, volviendo el documento ilegible.
+const nombreCortoEstructuraLocal = (estructura = "") => {
+  const txt = String(estructura || "").trim();
+  if (!txt) return "";
+  const corto = txt.split(/\s+para\s+|\s*[·:;(]/)[0].replace(/[.,;:\s]+$/, "").trim();
+  // Si el corte dejó algo demasiado breve (p. ej. la estructura no tenía
+  // separadores), conserva el original recortado a un largo razonable.
+  return corto.length >= 3 ? corto : txt.slice(0, 60).trim();
+};
+
 // Descripciones de ejes transversales contextualizadas al tema y al área
 const construirEjesContextualizados = (ejes, { area, tema }) => {
   const idioma = ES_IDIOMA(area);
@@ -3057,7 +3073,7 @@ const _generarFasesConIA = async (
     esUltimoDeSemana = false,
   }) => {
     const vocabTxt = vocabulario.length ? vocabulario.join(", ") : "palabras clave del tema";
-    const estructura = protagonista?.texto || "la estructura comunicativa trabajada";
+    const estructura = nombreCortoEstructuraLocal(protagonista?.texto) || "la estructura comunicativa trabajada";
     const funcion = (funcionales[0] || "comunicarse en una situación cotidiana")
       .replace(/^(Funcional|Discursivo):\s*/i, "").toLowerCase();
     const lv = LISTENING_VARIANTES[indiceGlobal % LISTENING_VARIANTES.length];
@@ -3250,7 +3266,7 @@ const _generarFasesConIA = async (
       && (protagonista.tipo === "estructura"
         || protagonista.tipo === "reaplicacion"
         || protagonista.tipo === "integracion")) {
-      const estructura = limpiarEtiquetaContenido(protagonista.texto);
+      const estructura = nombreCortoEstructuraLocal(limpiarEtiquetaContenido(protagonista.texto));
       const vocabProt = tomarVentana(specActual.contenidosClaves?.vocabulario, indiceGlobal, 2)
         .map(limpiarEtiquetaContenido).filter(Boolean);
       return recortar(
@@ -3524,7 +3540,9 @@ const _generarFasesConIA = async (
       && (indiceEnFase === (fase?.dias?.length || 1) - 1 || fase?.dias?.[indiceEnFase + 1]?.semana !== dia?.semana);
 
     const temaCorto = String(temaSemana).split(" · ")[0].trim();
-    const estructuraDia = protagonista.texto;
+    // Nombre CORTO para título, intención, evidencias y recursos: sin el bloque
+    // largo de ejemplos que hacía ilegibles las fases 3-4.
+    const estructuraDia = nombreCortoEstructuraLocal(protagonista.texto) || protagonista.texto;
     const piezaProducto = piezaDelDia({ protagonista, perfilDia, temaCorto, esUltimoDeSemana, faseNum, indiceEnFase });
     const recursosBase = [
       "Pizarra y marcadores",
