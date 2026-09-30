@@ -398,6 +398,21 @@ const describirZonaEscolar = (zona = "") => {
   }
 };
 
+// Sanea el textoModelo que produce la IA (mini-diálogo/texto modelo por clase).
+// Devuelve {tipo, titulo, lineas[]} o null si viene vacío/malformado. Limita a
+// 8 líneas para que sea un modelo breve, no un texto largo.
+const sanearTextoModelo = (raw) => {
+  if (!raw || typeof raw !== "object") return null;
+  const lineas = (Array.isArray(raw.lineas) ? raw.lineas : [])
+    .map((l) => String(l || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  if (lineas.length < 2) return null;
+  const tipo = raw.tipo === "texto" ? "texto" : "dialogo";
+  const titulo = String(raw.titulo || "").replace(/\s+/g, " ").trim();
+  return { tipo, titulo, lineas };
+};
+
 // Descripciones de ejes transversales contextualizadas al tema y al área
 const construirEjesContextualizados = (ejes, { area, tema }) => {
   const idioma = ES_IDIOMA(area);
@@ -3834,6 +3849,9 @@ const _generarFasesConIA = async (
             mecanica: String(aiClase.actividadCLT.mecanica || "").trim(),
           }
         : null;
+      // Fase 1 (textos modelo): mini-diálogo/texto modelo real que la IA escribe
+      // por clase (solo idiomas). Se sanea a {tipo, titulo, lineas[]}.
+      dia.textoModelo = sanearTextoModelo(aiClase.textoModelo);
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
         tipo: "unidad_aprendizaje",
         faseNumero: fase.numero,
@@ -4804,6 +4822,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     .est-band { background: #2563eb; color: white; padding: 4px 10px; font-size: 10pt; }
     .semana-band { background: #3b82f6; color: white; padding: 5px 10px; font-weight: bold; font-size: 11pt; margin-top: 12px; }
     .intencion-band { background: #eff6ff; border: 1px solid #93c5fd; padding: 5px 10px; font-size: 12pt; margin-bottom: 6px; }
+    .modelo-band { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 4px; padding: 6px 10px; font-size: 11pt; margin-bottom: 8px; }
+    .modelo-head { font-weight: 600; color: #92400e; margin-bottom: 4px; font-size: 10pt; }
+    .modelo-body { padding-left: 4px; }
+    .modelo-linea { margin: 1px 0; }
     .dia-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
     .dia-table th { background: #1d4ed8; color: white; padding: 5px; font-size: 11pt; font-weight: bold; border: 1px solid #1e40af; text-align: left; }
     .dia-table td { border: 1px solid #93c5fd; padding: 4px 6px; font-size: 12pt; vertical-align: top; }
@@ -4839,6 +4861,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       .dia-table { break-inside: auto; page-break-inside: auto; margin-bottom: 6px; }
       .semana-band { break-after: avoid; page-break-after: avoid; }
       .intencion-band { break-after: avoid; page-break-after: avoid; }
+      .modelo-band { break-inside: avoid; page-break-inside: avoid; }
       .fase-band { break-before: auto; page-break-before: auto; break-after: avoid; page-break-after: avoid; }
       .section-head { break-after: avoid; page-break-after: avoid; }
       .neae-grid { break-inside: auto; page-break-inside: auto; }
@@ -4955,10 +4978,18 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       const estrategiaDiaHtml = dia.estrategiasDia
         ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${dia.estrategiasDia}</div>`
         : "";
+      // Fase 1 — texto modelo real (mini-diálogo) que ancla la observación del
+      // día. Se muestra como recuadro antes de los momentos, con el estilo del
+      // libro oficial (título + líneas de diálogo).
+      const tm = dia.textoModelo;
+      const textoModeloHtml = tm && Array.isArray(tm.lineas) && tm.lineas.length
+        ? `<div class="modelo-band"><div class="modelo-head">Texto modelo${tm.titulo ? `: ${tm.titulo}` : ""}</div><div class="modelo-body">${tm.lineas.map((l) => `<div class="modelo-linea">${l}</div>`).join("")}</div></div>`
+        : "";
       return `
         <div class="semana-band">Día ${dia.numeroEnSemana || dia.dia || dia.numero || dia.numeroGlobal}: "${dia.titulo}"${focoHtml}</div>
         ${estrategiaDiaHtml}
         <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${dia.intencionPedagogica}</div>
+        ${textoModeloHtml}
         <table class="dia-table">
           <colgroup>
             <col style="width:65px">
