@@ -70,6 +70,71 @@ const INTEGRACION_DESARROLLO_PASOS = [
   },
 ];
 
+// ─── Gramática FUNCIONAL en las clases de práctica (Fase 2-3, idiomas) ─────────
+// El usuario pidió que la estructura no se enseñe como regla suelta ni con una
+// plantilla idéntica cada día, sino "aprendiendo haciendo": modelo
+// contextualizado → observación → explicación breve SOLO cuando hace falta →
+// tarea comunicativa → retroalimentación y mejora. Para que no se repita, hay
+// varias secuencias que rotan por día; además se distingue si la estructura es
+// NUEVA (necesita descubrimiento + explicación breve) o una REAPLICACIÓN (se
+// recupera y se transfiere a un contexto nuevo, sin re-explicar la regla).
+//
+// Cada variante recibe {estructura, funcion, vocabTxt, temaSemana, interaccion,
+// piezaProducto, productoNombre, listening} y devuelve los pasos del Desarrollo.
+const SECUENCIAS_GRAMATICA_FUNCIONAL = [
+  {
+    rotulo: "Modelo → uso guiado → producción",
+    nueva: ({ estructura, funcion, vocabTxt, temaSemana, interaccion, piezaProducto, productoNombre, listening }) => [
+      `Escuchan o leen con propósito (${listening.nombre}) un modelo auténtico sobre ${temaSemana} donde alguien usa ${estructura} para ${funcion}; ${listening.consigna}.`,
+      `Observan cómo funciona ${estructura} en ese modelo: subrayan los ejemplos e infieren en parejas cuándo y para qué se usa. El docente aclara en no más de tres minutos la forma clave (solo lo imprescindible para usarla).`,
+      interaccion,
+      `Elaboran ${piezaProducto} usando ${estructura} con vocabulario del tema (${vocabTxt}) para ${funcion} en su propio contexto. (Aporte a ${productoNombre}.)`,
+      `Socializan su producción, reciben retroalimentación de un compañero ("una estrella y un deseo") y corrigen un detalle de ${estructura} antes de guardarla en el portafolio.`,
+    ],
+    reaplicacion: ({ estructura, funcion, vocabTxt, temaSemana, interaccion, piezaProducto, productoNombre, listening }) => [
+      `Recuperan ${estructura} con un ejemplo breve de la clase anterior y anticipan cómo la usarán hoy para ${funcion} en un nuevo contexto de ${temaSemana}.`,
+      `Escuchan o leen con propósito (${listening.nombre}) un modelo nuevo y ${listening.consigna}, comparándolo con lo que ya practicaron.`,
+      interaccion,
+      `Amplían ${piezaProducto} transfiriendo ${estructura} a situaciones y vocabulario nuevos del tema (${vocabTxt}). (Aporte a ${productoNombre}.)`,
+      `Intercambian su producción, reciben una sugerencia concreta y aplican una mejora antes de integrarla al portafolio.`,
+    ],
+  },
+  {
+    rotulo: "Tarea comunicativa → necesidad de la estructura",
+    nueva: ({ estructura, funcion, vocabTxt, temaSemana, interaccion, piezaProducto, productoNombre, listening }) => [
+      `Enfrentan una tarea comunicativa breve sobre ${temaSemana} (${funcion}) y descubren que les falta una forma para lograrla con claridad.`,
+      `Observan un modelo (${listening.nombre}) donde ${estructura} resuelve esa necesidad; ${listening.consigna}. El docente da una explicación breve (dos o tres minutos) solo de lo necesario para usarla.`,
+      interaccion,
+      `Vuelven a la tarea y la completan ahora con ${estructura} y vocabulario del tema (${vocabTxt}), elaborando ${piezaProducto}. (Aporte a ${productoNombre}.)`,
+      `Presentan su versión mejorada a un compañero, reciben retroalimentación y ajustan ${estructura} antes de archivarla en el portafolio.`,
+    ],
+    reaplicacion: ({ estructura, funcion, vocabTxt, temaSemana, interaccion, piezaProducto, productoNombre, listening }) => [
+      `Retoman una tarea comunicativa de ${temaSemana} (${funcion}) y valoran qué de lo ya aprendido pueden reutilizar.`,
+      `Comparan con un modelo breve (${listening.nombre}) y ${listening.consigna}, notando variantes de ${estructura} sin necesidad de re-explicar la regla.`,
+      interaccion,
+      `Resuelven la tarea con ${estructura} aplicada a vocabulario nuevo del tema (${vocabTxt}) y suman el resultado a ${piezaProducto}. (Aporte a ${productoNombre}.)`,
+      `Socializan, reciben una sugerencia y aplican una mejora concreta antes de guardar la pieza.`,
+    ],
+  },
+  {
+    rotulo: "Observación de contrastes → uso propio",
+    nueva: ({ estructura, funcion, vocabTxt, temaSemana, interaccion, piezaProducto, productoNombre, listening }) => [
+      `Escuchan o leen con propósito (${listening.nombre}) dos ejemplos contrastados sobre ${temaSemana}: uno que usa ${estructura} correctamente y otro que no logra ${funcion}; ${listening.consigna}.`,
+      `En parejas, descubren qué hace funcionar el primer ejemplo y formulan con sus palabras cómo se usa ${estructura}. El docente confirma o precisa en pocas palabras solo lo esencial.`,
+      interaccion,
+      `Producen su propio ejemplo usando ${estructura} y vocabulario del tema (${vocabTxt}) para ${funcion}, elaborando ${piezaProducto}. (Aporte a ${productoNombre}.)`,
+      `Intercambian producciones, marcan una fortaleza y una mejora en el uso de ${estructura} y ajustan antes de guardarla.`,
+    ],
+    reaplicacion: ({ estructura, funcion, vocabTxt, temaSemana, interaccion, piezaProducto, productoNombre, listening }) => [
+      `Revisan un ejemplo propio de la clase anterior con ${estructura} y deciden cómo mejorarlo o ampliarlo para ${funcion}.`,
+      `Escuchan o leen con propósito (${listening.nombre}) un modelo más completo y ${listening.consigna}, tomando ideas para su nueva versión.`,
+      interaccion,
+      `Reescriben o amplían ${piezaProducto} aplicando ${estructura} a vocabulario nuevo del tema (${vocabTxt}). (Aporte a ${productoNombre}.)`,
+      `Comparten, reciben retroalimentación y aplican una mejora concreta antes de integrarla al portafolio.`,
+    ],
+  },
+];
+
 const ESTRATEGIAS_POR_AREA = {
   "Inglés": "Enfoque Comunicativo (Communicative Language Teaching)",
   "Lengua Española": "Enfoque Comunicativo Funcional y Lectoescritura",
@@ -3070,15 +3135,18 @@ const _generarFasesConIA = async (
       ];
     }
 
-    return [
-      `Escuchan con propósito (${lv.nombre}) un texto breve sobre ${temaSemana} y ${lv.consigna}.`,
-      protagonista?.esNueva
-        ? `Descubren el uso de ${estructura} mediante ejemplos contextualizados y lo relacionan con el vocabulario del tema (${vocabTxt}).`
-        : `Reaplican ${estructura} a vocabulario y situaciones nuevas del tema (${vocabTxt}), ampliando sus ejemplos anteriores.`,
-      interaccion,
-      `Elaboran ${piezaProducto}, incorporando ${estructura} y al menos tres palabras del vocabulario trabajado. (Aporte a ${productoNombre}.)`,
-      `Socializan su producción con un compañero y aplican una mejora concreta ("una estrella y un deseo") antes de guardarla en el portafolio.`,
-    ];
+    // GRAMÁTICA FUNCIONAL (aprender haciendo): en vez de un molde fijo, se toma
+    // una de varias secuencias que rotan por día y se adapta a si la estructura
+    // es NUEVA (descubrimiento + explicación breve) o una REAPLICACIÓN (recuperar
+    // y transferir, sin re-explicar la regla). Así cada clase de práctica pasa
+    // por modelo → observación → explicación breve cuando hace falta → tarea
+    // comunicativa → retroalimentación y mejora, sin repetir el mismo texto.
+    const secuencia = SECUENCIAS_GRAMATICA_FUNCIONAL[indiceGlobal % SECUENCIAS_GRAMATICA_FUNCIONAL.length];
+    const construirPasos = protagonista?.esNueva ? secuencia.nueva : secuencia.reaplicacion;
+    return construirPasos({
+      estructura, funcion, vocabTxt, temaSemana, interaccion,
+      piezaProducto, productoNombre, listening: lv,
+    });
   };
 
   // G3d — metacognición VARIADA por día (banco rotativo; en el idioma meta
