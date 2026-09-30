@@ -795,22 +795,35 @@ export const construirAnexosUnidad = ({
     });
     const pieza = piezaProducto
       || seleccionarPieza([item, evidencia].filter(Boolean).join(" "));
-    const requiereRevision = !relacion || relacion.confianza === "requiere_revision";
+    // FALLBACK: los ítems de anexo de puro meta-lenguaje ("Demuestra el indicador
+    // en la actividad prevista", "Una fortaleza observable del producto") no tienen
+    // tokens de contenido y no alcanzan el umbral de emparejamiento. En vez de
+    // dejarlos sin indicador (hueco "requiere revisión — Indicador: —"), se vinculan
+    // al indicador PRIORIZADO de la unidad como VÍNCULO GENERAL transparente: el
+    // instrumento valora el desempeño global de la unidad, cuyo eje es ese indicador.
+    const dominante = indicadoresTrazables.find((ind) => ind.codigo) || null;
+    const usarFallback = !relacion && Boolean(dominante);
+    const codigoFinal = relacion?.indicadorId || (usarFallback ? dominante.codigo : "");
+    const descripcionFinal = relacion?.indicadorDescripcion || (usarFallback ? dominante.descripcion : "");
+    const requiereRevision = !relacion && !usarFallback;
     return {
       instrumentoId: `${tipo}-${index + 1}`,
       criterioOficialId: relacion?.criterioId || "",
       criterioOficialTexto: relacion?.criterioTexto || "",
-      indicadorCodigo: relacion?.indicadorId || "",
-      indicadorDescripcion: relacion?.indicadorDescripcion || "",
-      tipoRelacion: relacion?.tipoRelacion || "sin_correspondencia_suficiente",
-      confianzaRelacion: relacion?.confianza || "requiere_revision",
-      justificacionRelacion: relacion?.justificacion || "Requiere revisión docente; no se asignó un indicador por posición.",
+      indicadorCodigo: codigoFinal,
+      indicadorDescripcion: descripcionFinal,
+      tipoRelacion: relacion?.tipoRelacion || (usarFallback ? "vinculo_general_unidad" : "sin_correspondencia_suficiente"),
+      confianzaRelacion: relacion?.confianza || (usarFallback ? "general" : "requiere_revision"),
+      justificacionRelacion: relacion?.justificacion
+        || (usarFallback
+          ? "Vínculo general con el indicador priorizado de la unidad; ajústelo si otro encaja mejor."
+          : "Requiere revisión docente; no se asignó un indicador por posición."),
       estadoTrazabilidad: requiereRevision ? "requiere_revision" : "relacionado",
       evidencia: evidencia || `Desempeño observable en ${pieza}.`,
       piezaProducto: pieza,
       actividadOrigen: `Actividad de elaboración, práctica o revisión vinculada con ${pieza}.`,
-      destinoRegistro: relacion?.indicadorId
-        ? `Registro de calificaciones → ${relacion.indicadorId}`
+      destinoRegistro: codigoFinal
+        ? `Registro de calificaciones → ${codigoFinal}`
         : "Pendiente de revisión docente antes de vincular al Registro",
       item,
     };
@@ -837,16 +850,16 @@ export const construirAnexosUnidad = ({
   const listaCotejoOralBase = idioma ? [
     `Saluda y responde preguntas iniciales en ${nombreIdioma}.`,
     `Describe los contenidos de "${tema}" usando las estructuras trabajadas.`,
-    "Usa el vocabulario y las expresiones de la unidad.",
-    "Formula y responde preguntas sobre el tema.",
-    "Da recomendaciones o sugerencias relacionadas con el tema.",
+    `Usa el vocabulario y las expresiones de "${tema}".`,
+    `Formula y responde preguntas sobre "${tema}".`,
+    `Ofrece recomendaciones o instrucciones sobre "${tema}".`,
     "Interactúa con cortesía y respeto con sus compañeros.",
   ] : [
     "Participa activamente en las actividades de la clase.",
     `Explica con sus palabras los contenidos centrales de "${tema}".`,
-    "Usa el vocabulario técnico del área con propiedad.",
-    "Formula y responde preguntas sobre el tema.",
-    "Relaciona el tema con situaciones de su entorno.",
+    `Usa el vocabulario técnico de "${tema}" con propiedad.`,
+    `Formula y responde preguntas sobre "${tema}".`,
+    `Relaciona "${tema}" con situaciones de su entorno.`,
     "Interactúa con cortesía y respeto con sus compañeros.",
   ];
   const listaCotejoOral = listaCotejoOralBase.map((item, index) => ({
@@ -892,18 +905,18 @@ export const construirAnexosUnidad = ({
     }),
   }));
   const coevaluacion = [
-    "Una fortaleza observable del producto o desempeño.",
-    "Otra fortaleza vinculada con el indicador trabajado.",
-    "Una mejora concreta para la siguiente versión.",
+    `Una fortaleza observable en ${productoCorto}.`,
+    `Otra fortaleza en el desempeño sobre "${tema}".`,
+    `Una mejora concreta para la siguiente versión de ${productoCorto}.`,
   ].map((item, index) => ({
     criterio: item,
     ...crearTrazaInstrumento({ tipo: "coevaluacion", item, index }),
   }));
   const escalaValoracion = [
-    "Demuestra el indicador en la actividad prevista.",
-    "Presenta una evidencia completa y comprensible.",
-    "Aplica retroalimentación para mejorar la pieza.",
-    "Explica cómo su aporte contribuye al producto final.",
+    `Demuestra el aprendizaje priorizado al trabajar "${tema}".`,
+    `Presenta una evidencia completa y comprensible en ${productoCorto}.`,
+    `Aplica la retroalimentación para mejorar ${productoCorto}.`,
+    `Explica cómo su aporte contribuye a ${productoCorto}.`,
   ].map((item, index) => ({
     criterio: item,
     escala: ["Logrado", "En proceso", "Requiere apoyo"],
@@ -5048,7 +5061,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     ) ? `<div style="margin-top:3px;font-size:8.5pt;color:#475569">
       ${item.estadoTrazabilidad === "requiere_revision"
         ? `<strong style="color:#b45309">⚠ Requiere revisión docente:</strong> ${item.justificacionRelacion || "No se encontró correspondencia suficiente."}<br>`
-        : ""}
+        : item.confianzaRelacion === "general"
+          ? `<em style="color:#64748b">Vínculo general con el indicador priorizado de la unidad; ajústelo si otro encaja mejor.</em><br>`
+          : ""}
       ${item.criterioOficialId || item.criterioOficialTexto
         ? `<strong>Criterio oficial:</strong> ${[item.criterioOficialId, item.criterioOficialTexto].filter(Boolean).join(" — ")}<br>`
         : ""}
