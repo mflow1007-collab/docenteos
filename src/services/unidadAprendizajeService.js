@@ -916,7 +916,15 @@ export const construirAnexosUnidad = ({
         || (usarFallback
           ? "Vínculo general con el indicador priorizado de la unidad; ajústelo si otro encaja mejor."
           : "Requiere revisión docente; no se asignó un indicador por posición."),
-      estadoTrazabilidad: requiereRevision ? "requiere_revision" : "relacionado",
+      // Estado fiel: "relacionado" SOLO cuando hay criterio oficial real
+      // (viene de `relacion`). El fallback vincula al indicador dominante pero
+      // NO a un criterio oficial, así que su estado es "vinculo_general" — no
+      // debe declararse "relacionado" sin criterio (rompía R1 del render).
+      estadoTrazabilidad: requiereRevision
+        ? "requiere_revision"
+        : usarFallback
+          ? "vinculo_general"
+          : "relacionado",
       evidencia: evidencia || `Desempeño observable en ${pieza}.`,
       piezaProducto: pieza,
       actividadOrigen: `Actividad de elaboración, práctica o revisión vinculada con ${pieza}.`,
