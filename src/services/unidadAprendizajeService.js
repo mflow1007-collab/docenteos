@@ -429,6 +429,19 @@ const nombreCortoEstructuraLocal = (estructura = "") => {
   return corto.length >= 3 ? corto : txt.slice(0, 60).trim();
 };
 
+// Nombre CORTO del producto final para las actividades del día. El nombre
+// completo ("A Day in My Life — diario visual para comparar rutinas y promover
+// hábitos responsables, dirigida a compañeros del curso; socialización: …") se
+// conserva en Datos Generales, Situación de Aprendizaje y Rúbrica; pero repetido
+// entero en cada actividad cansa la lectura, así que en las actividades se usa
+// solo el nombre propio (lo anterior al primer "—", ":" o "(").
+const nombreCortoProducto = (producto = "") => {
+  const txt = String(producto || "").trim();
+  if (!txt) return "";
+  const corto = txt.split(/\s*[—–:(]/)[0].replace(/[.,;:\s-]+$/, "").trim();
+  return corto.length >= 3 ? corto : txt;
+};
+
 // Descripciones de ejes transversales contextualizadas al tema y al área
 const construirEjesContextualizados = (ejes, { area, tema }) => {
   const idioma = ES_IDIOMA(area);
@@ -3517,7 +3530,11 @@ const _generarFasesConIA = async (
     const funcionales = tomarVentana(specActual.contenidosClaves?.funcionales, indiceGlobal, 2);
     const indicadores = tomarIndicadoresBase(specActual, indiceGlobal);
     const codigosIndicadores = indicadores.map((ind) => ind.codigo).filter(Boolean);
-    const productoNombre = specActual.productoFinalNombre || productoFinal || "el producto final";
+    // Nombre CORTO en las actividades/intención/evidencias del día; el nombre
+    // completo del producto se conserva en Datos Generales, Situación y Rúbrica.
+    const productoNombre = nombreCortoProducto(
+      specActual.productoFinalNombre || productoFinal
+    ) || "el producto final";
     const faseNum = fase?.numero || 1;
     const perfilDia = obtenerPerfilDidacticoDia({
       fase,
@@ -3647,7 +3664,7 @@ const _generarFasesConIA = async (
       // documento modelo): completos, sin truncar. El corte producía "…con
       // ejemplos…" y "…Presente simple para… y…" en las semanas de integración.
       retroalimentacionPrevia: protagonistaPrevio?.texto
-        ? `Retroalimentación de la clase anterior: recuerdan ${protagonistaPrevio.texto} con ejemplos propios antes de avanzar.`
+        ? `Retroalimentación de la clase anterior: recuerdan ${nombreCortoEstructuraLocal(protagonistaPrevio.texto)} con ejemplos propios antes de avanzar.`
         : "Recuperan brevemente lo trabajado en la clase anterior y aclaran una duda frecuente antes de avanzar.",
       saberesPrevios: `Recuperación de saberes previos sobre ${temaSemana} mediante preguntas orales y ejemplos cercanos.`,
       actividadEnganche: `Observan una situación breve, imagen o ejemplo relacionado con ${foco} y predicen qué aprenderán.`,
