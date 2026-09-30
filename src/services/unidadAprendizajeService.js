@@ -1984,6 +1984,89 @@ const RELACIONES_FUNCION_ESTRUCTURA = [
   { funcion: /lugar|ubicar|describir lugares/, pistas: ['there + be', 'preposiciones de'] },
 ];
 
+// "OJO DOCENTE" para la Guía del Maestro: errores típicos que comete el
+// estudiante con cada estructura y cómo corregirlos en el momento. Es el saber
+// de aula que un profe con experiencia tiene en la cabeza y que ningún documento
+// oficial da masticado. Se empareja por el nombre corto de la estructura del día.
+const ERRORES_COMUNES_ESTRUCTURA = [
+  {
+    clave: /presente simple|present simple/,
+    errores: [
+      'Olvidan la -s en 3ra persona → "She go to school". Corrige en el acto: "She GOES". Ponlo grande en la pizarra.',
+      'Meten el verbo to be de más → "I am wake up". Recuérdales: con una ACCIÓN no va am/is/are.',
+      'En preguntas olvidan do/does → "What you do?". Modela: "What DO you do?".',
+    ],
+  },
+  {
+    clave: /there \+ be|there is|there are/,
+    errores: [
+      'Confunden singular/plural → "There is three schools". Corrige: "There ARE three schools".',
+      'Olvidan "there" y dicen solo "is a park". Insiste en la fórmula completa: There + is/are.',
+    ],
+  },
+  {
+    clave: /adjetivos calificativos|adjetivo calificativo/,
+    errores: [
+      'Ponen el adjetivo después del sustantivo (calco del español) → "a girl tall". Corrige: "a TALL girl".',
+      'Pluralizan el adjetivo → "tolls boys". El adjetivo en inglés NO cambia: "tall boys".',
+    ],
+  },
+  {
+    clave: /comparativ|superlativ|grados/,
+    errores: [
+      'Usan "more" con adjetivos cortos → "more tall". Corrige: "taller". "more" solo con largos (more beautiful).',
+      'Olvidan "than" en la comparación → "Maria is taller Ana". Corrige: "taller THAN Ana".',
+      'Olvidan "the" en el superlativo → "she is tallest". Corrige: "THE tallest".',
+    ],
+  },
+  {
+    clave: /adjetivos posesivos|adjetivo posesivo/,
+    errores: [
+      'Confunden his/her por el género de quien habla, no del dueño → "My mother and HIS car". Corrige: "HER car".',
+      'Usan "your" para "su/sus" de tercera persona. "your" es solo de "tú/usted".',
+    ],
+  },
+  {
+    clave: /pronombres posesivos|pronombre posesivo/,
+    errores: [
+      'Mezclan adjetivo y pronombre → "It is my" o "This book is my". Corrige: "It is MINE".',
+      'Ponen sustantivo después del pronombre → "mine book". El pronombre va SOLO: "It is mine".',
+    ],
+  },
+  {
+    clave: /interrogativ|wh|question/,
+    errores: [
+      'Invierten el orden → "Where she is from?". Corrige: "Where IS she from?".',
+      'Mezclan la Wh- con do/does incorrectamente. Modela la pregunta completa en la pizarra.',
+    ],
+  },
+  {
+    clave: /pasado simple|past simple/,
+    errores: [
+      'Regularizan verbos irregulares → "I goed". Corrige: "I WENT". Ten a mano la lista de irregulares.',
+      'Dejan la -ed en preguntas/negaciones → "Did you played?". Corrige: "Did you PLAY?".',
+    ],
+  },
+  {
+    clave: /presente perfecto|present perfect/,
+    errores: [
+      'Usan pasado simple en vez del participio → "I have went". Corrige: "I have GONE".',
+      'Confunden have/has con el sujeto → "She have". Corrige: "She HAS".',
+    ],
+  },
+];
+
+// Errores de la estructura del día; si no hay coincidencia, tips genéricos útiles.
+const erroresComunesDeEstructura = (estructuraTexto = "") => {
+  const t = _normTexto(estructuraTexto);
+  const hit = ERRORES_COMUNES_ESTRUCTURA.find((e) => e.clave.test(t));
+  if (hit) return hit.errores;
+  return [
+    'Verifica que produzcan oraciones COMPLETAS, no palabras sueltas.',
+    'Corrige en el momento el error que más se repita; anótalo en la pizarra para todos.',
+  ];
+};
+
 export const resolverTemaEnriquecido = (enriquecimientoDoc, temaOficial) => {
   const temas = enriquecimientoDoc?.payload?.temas || enriquecimientoDoc?.temas;
   if (!Array.isArray(temas) || !temas.length || !temaOficial) return null;
@@ -5466,6 +5549,141 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   })()}
 </div>
 <div style="position:fixed;bottom:20px;right:20px;z-index:999;display:flex;gap:8px">
+  <button onclick="window.print()" style="background:#1d4ed8;color:white;border:none;padding:10px 20px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">🖨️ Guardar como PDF</button>
+  <button onclick="window.close()" style="background:#64748b;color:white;border:none;padding:10px 16px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">✕ Cerrar</button>
+</div>
+</body></html>`;
+};
+
+// ─── Guía del Maestro ─────────────────────────────────────────────────────────
+// Documento DERIVADO de la planificación ya generada (no vuelve a llamar a la
+// IA): expande cada clase en un guion de aula detallado para que CUALQUIER
+// docente la dé. Una ficha por clase con: texto modelo + cómo usarlo, guion
+// Inicio/Desarrollo/Cierre con tiempos, "Ojo docente" (errores típicos y tips),
+// Plan B y criterio de logro. Formato ficha limpia (no tabla), como acordamos.
+export const formatearGuiaMaestroHTML = (unidad, logoUrl = "") => {
+  if (!unidad) return "";
+  const m = unidad.metadatos || {};
+  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const productoCorto = nombreCortoProducto(m.productoFinal) || "el producto final";
+
+  let claseNum = 0;
+
+  const fichasHtml = (unidad.fasesSemanales || []).map((fase) =>
+    (fase.dias || []).map((dia) => {
+      claseNum += 1;
+      const estructura = nombreCortoEstructuraLocal(dia.focoLinguistico || dia.titulo || "");
+      const tm = dia.textoModelo;
+
+      const modeloHtml = tm && Array.isArray(tm.lineas) && tm.lineas.length
+        ? `<div class="gm-modelo">
+             <div class="gm-modelo-head">📄 Texto modelo${tm.titulo ? `: ${esc(tm.titulo)}` : ""} — tenlo en la pizarra o impreso</div>
+             <div class="gm-modelo-body">${tm.lineas.map((l) => `<div>${esc(l)}</div>`).join("")}</div>
+             <div class="gm-modelo-tip"><strong>Cómo usarlo:</strong> léelo tú haciendo las dos voces, o actúalo con un estudiante. Léelo DOS veces: la 1ra normal; la 2da parando en la estructura del día (${esc(estructura || "la forma clave")}) para que la noten.</div>
+             <div class="gm-modelo-tip"><strong>Pregunta sobre el modelo:</strong> "¿Qué palabras se repiten? ¿Para qué las usa?" — así descubren el uso antes de que tú expliques.</div>
+           </div>`
+        : "";
+
+      const momentosHtml = (dia.momentos || []).map((mom) => {
+        const total = Number.parseInt(String(mom.tiempo || ""), 10) || 0;
+        const tiempos = distribuirTiempoActividades({
+          totalMinutos: total,
+          cantidad: (mom.actividades || []).length,
+          momento: mom.nombre,
+        });
+        const pasos = (mom.actividades || []).map((a, i) =>
+          `<li><span class="gm-min">${tiempos[i]}′</span> ${esc(String(a).replace(/\*\*|__?/g, ""))}</li>`
+        ).join("");
+        const icono = mom.nombre === "Inicio" ? "⏱" : mom.nombre === "Cierre" ? "🏁" : "▶";
+        return `<div class="gm-momento">
+            <div class="gm-momento-head">${icono} ${esc(mom.nombre)} (${esc(mom.tiempo)})</div>
+            <ol class="gm-pasos">${pasos}</ol>
+          </div>`;
+      }).join("");
+
+      const errores = erroresComunesDeEstructura(estructura || dia.focoLinguistico || "");
+      const ojoHtml = `<div class="gm-ojo">
+          <div class="gm-ojo-head">👁 OJO DOCENTE — errores típicos y tips</div>
+          <ul>${errores.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>
+          <div class="gm-ojo-tip">Si el tiempo aprieta, recorta la práctica y protege la PRODUCCIÓN: es lo que va al portafolio.</div>
+        </div>`;
+
+      const aporte = esc(dia.aporteProducto || "una pieza para el producto");
+
+      return `<section class="gm-ficha">
+          <div class="gm-ficha-head">
+            <div class="gm-clase">CLASE ${claseNum}</div>
+            <div class="gm-titulo">${esc(dia.titulo || "")}</div>
+            <div class="gm-meta">${estructura ? `Estructura: <strong>${esc(estructura)}</strong> · ` : ""}Aporte: ${aporte}</div>
+          </div>
+          <div class="gm-logro">🎯 <strong>Lo que logras hoy:</strong> ${esc(dia.intencionPedagogica || "")}</div>
+          ${modeloHtml}
+          <div class="gm-guion">${momentosHtml}</div>
+          ${ojoHtml}
+          <div class="gm-pie">
+            <span>🔌 <strong>Sin luz/internet:</strong> las actividades con TV/audio se hacen con pizarra, flashcards y lectura en voz alta (Anexo L).</span>
+            <span>♿ <strong>Si alguien se queda:</strong> dale banco de palabras/frases modelo y valora el avance personal (Anexo K).</span>
+            <span>✅ <strong>La clase funcionó si:</strong> cada estudiante produjo su ${aporte.toLowerCase()} y la guardó en el portafolio.</span>
+          </div>
+        </section>`;
+    }).join("")
+  ).join("");
+
+  const estilos = `
+    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12pt; line-height: 1.35; color: #1e293b; margin: 0; background: #f8fafc; }
+    .gm-page { max-width: 960px; margin: 0 auto; padding: 24px; }
+    .gm-header { text-align: center; border-bottom: 3px solid #1d4ed8; padding-bottom: 14px; margin-bottom: 18px; }
+    .gm-header img { width: 180px; max-width: 55mm; height: auto; display: block; margin: 0 auto 8px; }
+    .gm-header h1 { color: #1e3a8a; font-size: 18pt; margin: 4px 0; }
+    .gm-header .gm-sub { color: #475569; font-size: 12pt; }
+    .gm-intro { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin-bottom: 18px; font-size: 11pt; color: #1e40af; }
+    .gm-ficha { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); page-break-inside: avoid; }
+    .gm-ficha-head { border-bottom: 2px solid #1d4ed8; padding-bottom: 8px; margin-bottom: 10px; }
+    .gm-clase { display: inline-block; background: #1d4ed8; color: white; font-weight: bold; font-size: 10pt; padding: 2px 10px; border-radius: 12px; }
+    .gm-titulo { font-size: 14pt; font-weight: bold; color: #0f172a; margin: 6px 0 2px; }
+    .gm-meta { font-size: 10.5pt; color: #475569; }
+    .gm-logro { background: #fefce8; border-left: 4px solid #eab308; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 11pt; }
+    .gm-modelo { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+    .gm-modelo-head { font-weight: 600; color: #92400e; font-size: 10.5pt; margin-bottom: 6px; }
+    .gm-modelo-body { font-family: 'Courier New', monospace; font-size: 11pt; color: #1e293b; padding: 6px 8px; background: white; border-radius: 4px; margin-bottom: 6px; }
+    .gm-modelo-body div { margin: 2px 0; }
+    .gm-modelo-tip { font-size: 10pt; color: #78350f; margin-top: 4px; }
+    .gm-guion { margin-bottom: 12px; }
+    .gm-momento { margin-bottom: 8px; }
+    .gm-momento-head { font-weight: bold; color: #1d4ed8; font-size: 11.5pt; margin-bottom: 3px; }
+    .gm-pasos { margin: 0 0 0 4px; padding-left: 20px; }
+    .gm-pasos li { margin-bottom: 4px; font-size: 11pt; }
+    .gm-min { display: inline-block; background: #e0e7ff; color: #3730a3; font-size: 8.5pt; font-weight: bold; padding: 0 5px; border-radius: 8px; margin-right: 4px; }
+    .gm-ojo { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+    .gm-ojo-head { font-weight: bold; color: #b91c1c; font-size: 10.5pt; margin-bottom: 4px; }
+    .gm-ojo ul { margin: 0 0 0 4px; padding-left: 18px; }
+    .gm-ojo li { margin-bottom: 3px; font-size: 10.5pt; color: #7f1d1d; }
+    .gm-ojo-tip { font-size: 10pt; color: #991b1b; margin-top: 4px; font-style: italic; }
+    .gm-pie { display: flex; flex-direction: column; gap: 3px; border-top: 1px dashed #cbd5e1; padding-top: 8px; font-size: 10pt; color: #475569; }
+    @media print { body { background: white; } .gm-ficha { box-shadow: none; } .gm-no-print { display: none; } }
+  `;
+
+  const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="MINERD">` : "";
+
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Guía del Maestro — ${esc(m.titulo || "")}</title>
+<style>${estilos}</style></head><body>
+<div class="gm-page">
+  <div class="gm-header">
+    ${logoHtml}
+    <h1>Guía del Maestro</h1>
+    <div class="gm-sub">${esc(m.titulo || "")} · ${esc(m.asignatura || m.area || "")} · ${esc(m.grado || "")} ${esc(m.seccion || "")}</div>
+    <div class="gm-sub">Producto final: <strong>${esc(productoCorto)}</strong></div>
+  </div>
+  <div class="gm-intro">
+    Esta guía acompaña la planificación de la unidad. Cada ficha te dice, clase por clase,
+    qué decir y hacer paso a paso, cómo usar el texto modelo, los errores típicos a vigilar
+    y qué hacer sin luz o internet. Es tu libreta de aula — la planificación va a coordinación;
+    esta guía va contigo al salón.
+  </div>
+  ${fichasHtml}
+</div>
+<div class="gm-no-print" style="position:fixed;bottom:20px;right:20px;z-index:999;display:flex;gap:8px">
   <button onclick="window.print()" style="background:#1d4ed8;color:white;border:none;padding:10px 20px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">🖨️ Guardar como PDF</button>
   <button onclick="window.close()" style="background:#64748b;color:white;border:none;padding:10px 16px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">✕ Cerrar</button>
 </div>

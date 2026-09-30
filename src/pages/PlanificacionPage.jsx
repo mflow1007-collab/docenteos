@@ -137,7 +137,7 @@ export default function PlanificacionPage({
     cargandoUnidad, guardandoUnidad, mensajeUnidad, setMensajeUnidad,
     manejarGenerarUnidad, manejarGenerarUnidadForzado,
     manejarGuardarUnidad, manejarDescargarUnidad,
-    manejarVerUnidad, manejarNuevaUnidad, manejarAplicarAcciones,
+    manejarVerUnidad, manejarVerGuia, manejarNuevaUnidad, manejarAplicarAcciones,
   } = unidadHook;
 
   // ── IA sobre planificación generada ───────────────────────────────────────
@@ -2082,6 +2082,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
               onGuardar={manejarGuardarUnidad}
               onDescargar={manejarDescargarUnidad}
               onVer={manejarVerUnidad}
+              onVerGuia={manejarVerGuia}
               onNueva={manejarNuevaUnidad}
               onAplicarAcciones={manejarAplicarAcciones}
               onEditarUnidad={setUnidad}

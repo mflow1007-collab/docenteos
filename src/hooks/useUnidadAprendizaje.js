@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { generarUnidadAprendizaje, formatearUnidadHTML } from "../services/unidadAprendizajeService";
+import { generarUnidadAprendizaje, formatearUnidadHTML, formatearGuiaMaestroHTML } from "../services/unidadAprendizajeService";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
@@ -224,6 +224,24 @@ export function useUnidadAprendizaje() {
     }
   };
 
+  // GUÍA DEL MAESTRO: documento derivado de la planificación ya generada.
+  const manejarVerGuia = () => {
+    if (!unidad) return;
+    try {
+      const logoUrl = `${window.location.origin}/logo-minerd.svg`;
+      const html = formatearGuiaMaestroHTML(unidad, logoUrl);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      if (!win) {
+        setMensajeUnidad({ tipo: "error", texto: "❌ Bloqueado por el navegador. Permite ventanas emergentes." });
+      }
+    } catch (error) {
+      setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
+    }
+  };
+
   const manejarNuevaUnidad = () => {
     clearGenerationJob(UNIDAD_JOB_ID);
     setUnidad(null);
@@ -302,6 +320,6 @@ export function useUnidadAprendizaje() {
     cargandoUnidad, guardandoUnidad, mensajeUnidad, setMensajeUnidad,
     manejarGenerarUnidad, manejarGenerarUnidadForzado,
     manejarGuardarUnidad, manejarDescargarUnidad,
-    manejarVerUnidad, manejarNuevaUnidad, manejarAplicarAcciones,
+    manejarVerUnidad, manejarVerGuia, manejarNuevaUnidad, manejarAplicarAcciones,
   };
 }

@@ -17,7 +17,7 @@ const textoSeguro = (value) => {
   ].map(textoSeguro).filter(Boolean).join(" · ");
 };
 
-export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onNueva, onAplicarAcciones, onEditarUnidad, guardando, mensaje, onIrAModoAula }) {
+export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onVerGuia, onNueva, onAplicarAcciones, onEditarUnidad, guardando, mensaje, onIrAModoAula }) {
   const [mostrarAuditoria, setMostrarAuditoria] = useState(false);
   // Modo edición (Bloque 1): permite al docente elegir qué indicadores trabaja
   // el plan. Los cambios se elevan al padre vía onEditarUnidad para persistirlos.
@@ -244,6 +244,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
         )}
         <button className="export-btn" onClick={onDescargar}>🖨️ Guardar como PDF</button>
         <button className="export-btn ua-ver-btn" onClick={onVer}>👁️ Ver PDF</button>
+        {onVerGuia && <button className="export-btn" onClick={onVerGuia} title="Guion de aula detallado, clase por clase">📖 Guía del Maestro</button>}
         <button className="audit-trigger-btn" onClick={() => setMostrarAuditoria(true)}>🔍 Auditar con IA</button>
         <button className="reset-btn" onClick={onNueva}>↻ Nuevo</button>
         {onIrAModoAula && (
@@ -621,6 +622,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
         </button>
         <button className="export-btn" onClick={onDescargar}>🖨️ Guardar como PDF</button>
         <button className="export-btn ua-ver-btn" onClick={onVer}>👁️ Ver PDF</button>
+        {onVerGuia && <button className="export-btn" onClick={onVerGuia} title="Guion de aula detallado, clase por clase">📖 Guía del Maestro</button>}
         <button className="audit-trigger-btn" onClick={() => setMostrarAuditoria(true)}>🔍 Auditar con IA</button>
         <button className="reset-btn" onClick={onNueva}>↻ Nueva unidad</button>
         {onIrAModoAula && (
