@@ -19,6 +19,7 @@ const DATOS_INICIALES = {
   productoFinalFormato: "", productoFinalProposito: "",
   productoFinalAudiencia: "", productoFinalSocializacion: "",
   contextoComunitario: "",
+  zonaEscolar: "",
   asignaturasVinculadasTexto: "",
   nombreDocente: "", regional: "", distrito: "",
   centro: "", codigoCentro: "",

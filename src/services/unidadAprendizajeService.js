@@ -380,6 +380,24 @@ export const distribuirTiempoActividades = ({
 const ES_IDIOMA = (area) => area === "Inglés" || area === "Francés";
 const NOMBRE_IDIOMA = (area) => (area === "Francés" ? "francés" : "inglés");
 
+// Zona escolar → frase orientativa para la IA. No inventa datos locales; solo
+// indica el TIPO de referentes cotidianos y de acceso tecnológico, para que los
+// ejemplos, situaciones y el Plan B se ajusten (ciudad vs campo). El usuario
+// pidió explícitamente diferenciar urbano/rural (no es igual un estudiante de la
+// ciudad de San Juan que uno del campo de San Juan).
+const describirZonaEscolar = (zona = "") => {
+  switch (String(zona || "").toLowerCase().trim()) {
+    case "urbana":
+      return "Estudiantes de ZONA URBANA (ciudad): usa referentes de ciudad (transporte público, comercios, internet más disponible) en ejemplos y situaciones.";
+    case "periurbana":
+      return "Estudiantes de ZONA PERIURBANA (afueras/barrios): combina referentes de ciudad y de barrio; el acceso a internet y equipos puede ser intermitente.";
+    case "rural":
+      return "Estudiantes de ZONA RURAL (campo): usa referentes del entorno rural (conuco, comunidad, familia, naturaleza); prioriza actividades que NO dependan de internet o proyector y refuerza el Plan B tecnológico.";
+    default:
+      return "";
+  }
+};
+
 // Descripciones de ejes transversales contextualizadas al tema y al área
 const construirEjesContextualizados = (ejes, { area, tema }) => {
   const idioma = ES_IDIOMA(area);
@@ -4061,6 +4079,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     modalidad = "Académica", periodo = "", fechaInicio = "",
     asignaturasVinculadasTexto = "",
     contextoComunitario = "",
+    zonaEscolar = "",
     jornada = "Extendida",
     competenciasFundamentalesSeleccionadas = [],
     temasSeleccionados = [],
@@ -4353,11 +4372,20 @@ export const generarUnidadAprendizaje = async (datos) => {
     temasActivos: rutaCurricular.temas,
   });
 
+  // ZONA (urbana/periurbana/rural): se fusiona al contexto que viaja a la IA
+  // como una frase explícita, para que adapte ejemplos, situaciones y Plan B.
+  // No inventa datos locales: solo orienta el tipo de referentes cotidianos.
+  const contextoConZona = [describirZonaEscolar(zonaEscolar), contextoComunitario]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
   const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], combinacionesCreadas = [] } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
     {
       grado, nivel,
-      contextoComunitario,
+      contextoComunitario: contextoConZona,
+      zonaEscolar,
       // Si el docente escribió su propio producto, ese nombre MANDA y la IA
       // no propone otro; el nombre generado solo sustituye el genérico.
       productoPropio: productoFinalTexto ? producto : "",

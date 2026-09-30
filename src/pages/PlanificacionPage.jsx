@@ -198,6 +198,7 @@ export default function PlanificacionPage({
   const perfilJornada = perfilForm?.jornada || "";
   const perfilPeriodo = perfilForm?.periodo || "";
   const perfilContextoComunitario = perfilForm?.contextoComunitario || "";
+  const perfilZonaEscolar = perfilForm?.zonaEscolar || "";
 
   // ── Auto-completar formularios desde el perfil institucional ─────────────
   useEffect(() => {
@@ -221,8 +222,9 @@ export default function PlanificacionPage({
       // Prellenar el contexto comunitario del perfil solo si el docente aún
       // no escribió uno en esta unidad (no sobreescribir lo que ya editó)
       contextoComunitario: prev.contextoComunitario || perfilContextoComunitario,
+      zonaEscolar: prev.zonaEscolar || perfilZonaEscolar,
     }));
-  }, [perfilNombreDocente, perfilRegional, perfilDistrito, perfilCentro, perfilCodigoCentro, perfilNivel, perfilModalidad, perfilCiclo, perfilJornada, perfilPeriodo, perfilContextoComunitario]);
+  }, [perfilNombreDocente, perfilRegional, perfilDistrito, perfilCentro, perfilCodigoCentro, perfilNivel, perfilModalidad, perfilCiclo, perfilJornada, perfilPeriodo, perfilContextoComunitario, perfilZonaEscolar]);
 
   // ── Estado de generación (planificación general) ──
   const [cargando, setCargando] = useState(false);

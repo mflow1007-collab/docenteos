@@ -189,6 +189,7 @@ export default function FormularioUnidadAprendizaje({
     productoFinalFormato = "", productoFinalProposito = "",
     productoFinalAudiencia = "", productoFinalSocializacion = "",
     contextoComunitario = "",
+    zonaEscolar = "",
     asignaturasVinculadasTexto = "",
     nombreDocente = "", cedula = "", regional = "",
     distrito = "", centro = "", codigoCentro = "",
@@ -1539,7 +1540,21 @@ export default function FormularioUnidadAprendizaje({
 
       <details className="pd-detalles">
         <summary>Tu comunidad y tu centro (opcional · aterriza la situación de aprendizaje)</summary>
+        <div className="pd-field">
+          <label>Zona de tus estudiantes</label>
+          <select value={zonaEscolar} onChange={set("zonaEscolar")}>
+            <option value="">Sin especificar</option>
+            <option value="urbana">Urbana (ciudad)</option>
+            <option value="periurbana">Periurbana (afueras / barrios)</option>
+            <option value="rural">Rural (campo)</option>
+          </select>
+          <p className="pd-hint" style={{ marginTop: 4 }}>
+            Ajusta ejemplos, situaciones y el Plan B tecnológico. No es lo mismo un
+            estudiante de la ciudad que uno del campo.
+          </p>
+        </div>
         <div className="pd-field pd-field-full">
+          <label>Realidad de tus estudiantes</label>
           <textarea
             rows={3}
             value={contextoComunitario}

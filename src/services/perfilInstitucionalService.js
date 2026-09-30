@@ -106,5 +106,7 @@ export function normalizarPerfilParaFormulario(perfil) {
     // Contexto de la comunidad/centro en palabras del docente: se reutiliza
     // como base de la situación de aprendizaje en cada unidad
     contextoComunitario: perfil.contextoComunitario ?? '',
+    // Zona urbana/periurbana/rural: ajusta ejemplos, situaciones y Plan B
+    zonaEscolar:         perfil.zonaEscolar ?? '',
   }
 }
