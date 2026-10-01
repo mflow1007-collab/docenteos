@@ -61,6 +61,13 @@ const PLAN_JOB_ID = "planificacion-inteligente";
 const ES_TIPO_UNIDAD = (t) =>
   t === "Unidad de Aprendizaje" || t === "Secuencia Didáctica";
 
+// La Guía del Maestro (texto modelo, OJO DOCENTE por estructura) es propia de
+// idiomas; el botón solo se ofrece cuando el área/asignatura es lengua extranjera.
+const esAreaIdioma = (area = "") =>
+  /lenguas extranjeras|ingles|frances|ingl[eé]s|franc[eé]s/i.test(
+    String(area || "")
+  );
+
 const textoUI = (valor, fallback = "") => {
   if (typeof valor === "string" || typeof valor === "number") return String(valor).trim();
   if (!valor || typeof valor !== "object") return fallback;
@@ -2082,7 +2089,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
               onGuardar={manejarGuardarUnidad}
               onDescargar={manejarDescargarUnidad}
               onVer={manejarVerUnidad}
-              onVerGuia={manejarVerGuia}
+              onVerGuia={esAreaIdioma(unidad?.metadatos?.area || unidad?.metadatos?.asignatura) ? manejarVerGuia : undefined}
               onNueva={manejarNuevaUnidad}
               onAplicarAcciones={manejarAplicarAcciones}
               onEditarUnidad={setUnidad}
