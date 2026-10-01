@@ -2061,6 +2061,9 @@ const ERRORES_COMUNES_ESTRUCTURA = [
 ];
 
 // Errores de la estructura del día; si no hay coincidencia, tips genéricos útiles.
+// Reservado como fallback determinístico para el Banco de Guías (increment 2):
+// cuando una ficha cosechada no traiga errores propios, se completan por estructura.
+// eslint-disable-next-line no-unused-vars
 const erroresComunesDeEstructura = (estructuraTexto = "") => {
   const t = _normTexto(estructuraTexto);
   const hit = ERRORES_COMUNES_ESTRUCTURA.find((e) => e.clave.test(t));
@@ -5560,78 +5563,164 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 };
 
 // ─── Guía del Maestro ─────────────────────────────────────────────────────────
-// Documento DERIVADO de la planificación ya generada (no vuelve a llamar a la
-// IA): expande cada clase en un guion de aula detallado para que CUALQUIER
-// docente la dé. Una ficha por clase con: texto modelo + cómo usarlo, guion
-// Inicio/Desarrollo/Cierre con tiempos, "Ojo docente" (errores típicos y tips),
-// Plan B y criterio de logro. Formato ficha limpia (no tabla), como acordamos.
-export const formatearGuiaMaestroHTML = (unidad, logoUrl = "") => {
-  if (!unidad) return "";
-  const m = unidad.metadatos || {};
+// Renderiza la GUÍA GENERADA (objeto { metadatos, fichas } de guiaMaestroService)
+// en un documento de aula listo para dar clase: por cada clase, una ficha con
+// propósito, materiales reproducibles, los 3 momentos paso por paso (qué dice /
+// qué hace / qué hacen los estudiantes / respuesta esperada), el recurso de
+// destreza completo (lectura/guion de escucha/diálogo + respuestas), gramática
+// funcional, apoyos, errores, alternativa sin luz y evaluación.
+// `guia` puede traer `metadatos` y `fichas`. Si se le pasa por error una unidad
+// sin fichas, devuelve un documento con aviso en vez de romper.
+export const formatearGuiaMaestroHTML = (guia, logoUrl = "") => {
+  if (!guia) return "";
+  const m = guia.metadatos || {};
   const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const arr = (v) => (Array.isArray(v) ? v : []);
   const productoCorto = nombreCortoProducto(m.productoFinal) || "el producto final";
+  const fichas = arr(guia.fichas);
 
-  let claseNum = 0;
+  const bloqueLineas = (titulo, lineas, clase) =>
+    lineas.length
+      ? `<div class="gm-recurso ${clase || ""}">
+           ${titulo ? `<div class="gm-recurso-head">${esc(titulo)}</div>` : ""}
+           <div class="gm-recurso-body">${lineas.map((l) => `<div>${esc(l)}</div>`).join("")}</div>
+         </div>`
+      : "";
 
-  const fichasHtml = (unidad.fasesSemanales || []).map((fase) =>
-    (fase.dias || []).map((dia) => {
-      claseNum += 1;
-      const estructura = nombreCortoEstructuraLocal(dia.focoLinguistico || dia.titulo || "");
-      const tm = dia.textoModelo;
+  const bloqueTabla = (titulo, tabla) => {
+    const filas = arr(tabla).filter((f) => Array.isArray(f) && f.length);
+    if (!filas.length) return "";
+    const filasHtml = filas.map((fila, i) =>
+      `<tr>${fila.map((c) => (i === 0 ? `<th>${esc(c)}</th>` : `<td>${esc(c)}</td>`)).join("")}</tr>`
+    ).join("");
+    return `<div class="gm-recurso">
+        ${titulo ? `<div class="gm-recurso-head">${esc(titulo)}</div>` : ""}
+        <table class="gm-tabla">${filasHtml}</table>
+      </div>`;
+  };
 
-      const modeloHtml = tm && Array.isArray(tm.lineas) && tm.lineas.length
-        ? `<div class="gm-modelo">
-             <div class="gm-modelo-head">📄 Texto modelo${tm.titulo ? `: ${esc(tm.titulo)}` : ""} — tenlo en la pizarra o impreso</div>
-             <div class="gm-modelo-body">${tm.lineas.map((l) => `<div>${esc(l)}</div>`).join("")}</div>
-             <div class="gm-modelo-tip"><strong>Cómo usarlo:</strong> léelo tú haciendo las dos voces, o actúalo con un estudiante. Léelo DOS veces: la 1ra normal; la 2da parando en la estructura del día (${esc(estructura || "la forma clave")}) para que la noten.</div>
-             <div class="gm-modelo-tip"><strong>Pregunta sobre el modelo:</strong> "¿Qué palabras se repiten? ¿Para qué las usa?" — así descubren el uso antes de que tú expliques.</div>
-           </div>`
-        : "";
+  const recursoHtml = (r = {}) => {
+    if (arr(r.tabla).length) return bloqueTabla(r.titulo, r.tabla);
+    return bloqueLineas(r.titulo ? `📄 ${r.titulo}` : "📄 Recurso", arr(r.lineas));
+  };
 
-      const momentosHtml = (dia.momentos || []).map((mom) => {
-        const total = Number.parseInt(String(mom.tiempo || ""), 10) || 0;
-        const tiempos = distribuirTiempoActividades({
-          totalMinutos: total,
-          cantidad: (mom.actividades || []).length,
-          momento: mom.nombre,
-        });
-        const pasos = (mom.actividades || []).map((a, i) =>
-          `<li><span class="gm-min">${tiempos[i]}′</span> ${esc(String(a).replace(/\*\*|__?/g, ""))}</li>`
-        ).join("");
-        const icono = mom.nombre === "Inicio" ? "⏱" : mom.nombre === "Cierre" ? "🏁" : "▶";
-        return `<div class="gm-momento">
-            <div class="gm-momento-head">${icono} ${esc(mom.nombre)} (${esc(mom.tiempo)})</div>
-            <ol class="gm-pasos">${pasos}</ol>
-          </div>`;
-      }).join("");
+  const pasoHtml = (p = {}, idx = 0) => {
+    const min = Number.parseInt(p.minutos, 10);
+    const org = esc(p.organizacion || "");
+    const dice = esc(p.docenteDice || "");
+    const aclara = esc(p.aclaracionEs || "");
+    const partes = [
+      esc(p.docenteHace || ""),
+      dice ? `<span class="gm-dice">“${dice}”</span>` : "",
+      aclara ? `<span class="gm-aclara">(${aclara})</span>` : "",
+      p.muestra ? `<em>Muestra: ${esc(p.muestra)}.</em>` : "",
+      p.estudiantesHacen ? `<span class="gm-estud">Estudiantes: ${esc(p.estudiantesHacen)}.</span>` : "",
+      p.resultadoEsperado ? `<span class="gm-esp">Se espera: ${esc(p.resultadoEsperado)}.</span>` : "",
+      p.comoRevisa ? `<span class="gm-rev">Revisa: ${esc(p.comoRevisa)}.</span>` : "",
+    ].filter(Boolean).join(" ");
+    return `<li>
+        <span class="gm-min">${Number.isFinite(min) ? `${min}′` : (idx + 1)}</span>
+        ${org ? `<span class="gm-org">${org}</span> ` : ""}${partes}
+      </li>`;
+  };
 
-      const errores = erroresComunesDeEstructura(estructura || dia.focoLinguistico || "");
-      const ojoHtml = `<div class="gm-ojo">
-          <div class="gm-ojo-head">👁 OJO DOCENTE — errores típicos y tips</div>
-          <ul>${errores.map((e) => `<li>${esc(e)}</li>`).join("")}</ul>
-          <div class="gm-ojo-tip">Si el tiempo aprieta, recorta la práctica y protege la PRODUCCIÓN: es lo que va al portafolio.</div>
-        </div>`;
+  const momentoHtml = (mom = {}) => {
+    const icono = mom.nombre === "Inicio" ? "⏱" : mom.nombre === "Cierre" ? "🏁" : "▶";
+    const pasos = arr(mom.pasos).map(pasoHtml).join("");
+    const total = Number.parseInt(mom.minutos, 10);
+    return `<div class="gm-momento">
+        <div class="gm-momento-head">${icono} ${esc(mom.nombre)}${Number.isFinite(total) ? ` — ${total} min` : ""}</div>
+        <ol class="gm-pasos">${pasos}</ol>
+      </div>`;
+  };
 
-      const aporte = esc(dia.aporteProducto || "una pieza para el producto");
+  const ETIQUETA_DESTREZA = { reading: "📖 Reading (lectura)", listening: "🎧 Listening (escucha)", speaking: "🗣️ Speaking (habla)", writing: "✍️ Writing (escritura)" };
+  const destrezaHtml = (d = {}) => {
+    const tipo = String(d.tipo || "").toLowerCase();
+    if (!tipo || tipo === "ninguna") return "";
+    const guion = arr(d.guion);
+    const esEscucha = tipo === "listening";
+    const avisoAudio = esEscucha
+      ? `<div class="gm-recurso-tip">🔊 <strong>No hay audio grabado:</strong> lee tú este guion en voz alta, con ritmo claro.</div>`
+      : "";
+    const propositos = arr(d.propositoEscuchas).length
+      ? `<div class="gm-recurso-tip"><strong>Propósito de cada escucha:</strong> ${arr(d.propositoEscuchas).map(esc).join(" → ")}.</div>`
+      : "";
+    const items = arr(d.ejercicio?.items);
+    const respuestas = arr(d.respuestasEsperadas);
+    const ejercicio = (d.ejercicio?.enunciado || items.length)
+      ? `<div class="gm-recurso-sub"><strong>Ejercicio:</strong> ${esc(d.ejercicio?.enunciado || "")}</div>
+         ${items.length ? `<div class="gm-recurso-body">${items.map((i) => `<div>${esc(i)}</div>`).join("")}</div>` : ""}`
+      : "";
+    const respHtml = respuestas.length
+      ? `<div class="gm-respuestas"><strong>Respuestas esperadas:</strong> ${respuestas.map(esc).join(" · ")}</div>`
+      : "";
+    return `<div class="gm-destreza">
+        <div class="gm-destreza-head">${ETIQUETA_DESTREZA[tipo] || esc(tipo)}${d.titulo ? ` — ${esc(d.titulo)}` : ""}</div>
+        ${guion.length ? `<div class="gm-recurso-body gm-guion-texto">${guion.map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
+        ${d.instruccionesDocente ? `<div class="gm-recurso-tip"><strong>Cómo usarlo:</strong> ${esc(d.instruccionesDocente)}</div>` : ""}
+        ${avisoAudio}${propositos}${ejercicio}${respHtml}
+      </div>`;
+  };
 
-      return `<section class="gm-ficha">
-          <div class="gm-ficha-head">
-            <div class="gm-clase">CLASE ${claseNum}</div>
-            <div class="gm-titulo">${esc(dia.titulo || "")}</div>
-            <div class="gm-meta">${estructura ? `Estructura: <strong>${esc(estructura)}</strong> · ` : ""}Aporte: ${aporte}</div>
-          </div>
-          <div class="gm-logro">🎯 <strong>Lo que logras hoy:</strong> ${esc(dia.intencionPedagogica || "")}</div>
-          ${modeloHtml}
-          <div class="gm-guion">${momentosHtml}</div>
-          ${ojoHtml}
-          <div class="gm-pie">
-            <span>🔌 <strong>Sin luz/internet:</strong> las actividades con TV/audio se hacen con pizarra, flashcards y lectura en voz alta (Anexo L).</span>
-            <span>♿ <strong>Si alguien se queda:</strong> dale banco de palabras/frases modelo y valora el avance personal (Anexo K).</span>
-            <span>✅ <strong>La clase funcionó si:</strong> cada estudiante produjo su ${aporte.toLowerCase()} y la guardó en el portafolio.</span>
-          </div>
-        </section>`;
-    }).join("")
-  ).join("");
+  const gramaticaHtml = (g) => {
+    if (!g || typeof g !== "object") return "";
+    const partes = [
+      g.forma ? `<strong>Forma:</strong> ${esc(g.forma)}` : "",
+      g.observacion ? `<strong>Observar:</strong> ${esc(g.observacion)}` : "",
+      g.explicacionBreve ? `<strong>Explicación breve:</strong> ${esc(g.explicacionBreve)}` : "",
+      g.practicaAplicada ? `<strong>Práctica:</strong> ${esc(g.practicaAplicada)}` : "",
+    ].filter(Boolean);
+    if (!partes.length) return "";
+    return `<div class="gm-gramatica"><div class="gm-gramatica-head">🔤 Gramática funcional</div>${partes.map((p) => `<div>${p}</div>`).join("")}</div>`;
+  };
+
+  const listaBloque = (titulo, items, clase, render) => {
+    const xs = arr(items);
+    if (!xs.length) return "";
+    return `<div class="${clase}"><div class="gm-sub-head">${titulo}</div><ul>${xs.map(render).join("")}</ul></div>`;
+  };
+
+  const fichaHtml = (f = {}) => {
+    const prepara = arr(f.prepara);
+    const recursos = arr(f.recursos).map(recursoHtml).join("");
+    const momentos = arr(f.momentos).map(momentoHtml).join("");
+    const apoyos = listaBloque("♿ Apoyos para quien lo necesite", f.apoyos, "gm-apoyos", (a) => `<li>${esc(a)}</li>`);
+    const errores = listaBloque("👁 Errores previsibles y cómo atenderlos", f.errores, "gm-ojo",
+      (e) => `<li><strong>${esc(e.error || "")}</strong> → ${esc(e.correccion || "")}</li>`);
+    const ev = f.evaluacion || {};
+    const evalHtml = (ev.evidencia || ev.instrumento || ev.comprobacion)
+      ? `<div class="gm-eval"><div class="gm-sub-head">✅ Comprobar el aprendizaje</div>
+           ${ev.comprobacion ? `<div><strong>Logro:</strong> ${esc(ev.comprobacion)}</div>` : ""}
+           ${ev.evidencia ? `<div><strong>Evidencia:</strong> ${esc(ev.evidencia)}</div>` : ""}
+           ${ev.instrumento ? `<div><strong>Instrumento:</strong> ${esc(ev.instrumento)}</div>` : ""}
+         </div>`
+      : "";
+    const sinLuz = f.sinLuz && String(f.sinLuz).toLowerCase() !== "null"
+      ? `<div class="gm-pie"><span>🔌 <strong>Sin luz/internet:</strong> ${esc(f.sinLuz)}</span></div>` : "";
+
+    return `<section class="gm-ficha">
+        <div class="gm-ficha-head">
+          <div class="gm-clase">CLASE ${esc(f.numeroClase ?? "")}</div>
+          <div class="gm-titulo">${esc(f.titulo || "")}</div>
+          ${f.aporteProducto ? `<div class="gm-meta">Aporte: ${esc(f.aporteProducto)}</div>` : ""}
+        </div>
+        ${f.proposito ? `<div class="gm-logro">🎯 <strong>Propósito:</strong> ${esc(f.proposito)}</div>` : ""}
+        ${prepara.length ? `<div class="gm-prepara"><strong>Prepara:</strong> ${prepara.map(esc).join(" · ")}</div>` : ""}
+        ${recursos}
+        ${destrezaHtml(f.destreza)}
+        ${gramaticaHtml(f.gramatica)}
+        <div class="gm-guion">${momentos}</div>
+        ${apoyos}
+        ${errores}
+        ${evalHtml}
+        ${sinLuz}
+      </section>`;
+  };
+
+  const fichasHtml = fichas.length
+    ? fichas.map(fichaHtml).join("")
+    : `<div class="gm-intro">Esta guía aún no tiene clases generadas. Genera la Guía del Maestro desde el resultado de la unidad.</div>`;
 
   const estilos = `
     body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12pt; line-height: 1.35; color: #1e293b; margin: 0; background: #f8fafc; }
@@ -5646,23 +5735,44 @@ export const formatearGuiaMaestroHTML = (unidad, logoUrl = "") => {
     .gm-clase { display: inline-block; background: #1d4ed8; color: white; font-weight: bold; font-size: 10pt; padding: 2px 10px; border-radius: 12px; }
     .gm-titulo { font-size: 14pt; font-weight: bold; color: #0f172a; margin: 6px 0 2px; }
     .gm-meta { font-size: 10.5pt; color: #475569; }
-    .gm-logro { background: #fefce8; border-left: 4px solid #eab308; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 11pt; }
-    .gm-modelo { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
-    .gm-modelo-head { font-weight: 600; color: #92400e; font-size: 10.5pt; margin-bottom: 6px; }
-    .gm-modelo-body { font-family: 'Courier New', monospace; font-size: 11pt; color: #1e293b; padding: 6px 8px; background: white; border-radius: 4px; margin-bottom: 6px; }
-    .gm-modelo-body div { margin: 2px 0; }
-    .gm-modelo-tip { font-size: 10pt; color: #78350f; margin-top: 4px; }
-    .gm-guion { margin-bottom: 12px; }
-    .gm-momento { margin-bottom: 8px; }
+    .gm-logro { background: #fefce8; border-left: 4px solid #eab308; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 11pt; }
+    .gm-prepara { font-size: 10.5pt; color: #334155; margin-bottom: 10px; }
+    .gm-recurso { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+    .gm-recurso-head { font-weight: 600; color: #92400e; font-size: 10.5pt; margin-bottom: 6px; }
+    .gm-recurso-body { font-family: 'Courier New', monospace; font-size: 10.5pt; color: #1e293b; padding: 6px 8px; background: white; border-radius: 4px; }
+    .gm-recurso-body div { margin: 2px 0; }
+    .gm-recurso-sub { font-size: 10.5pt; color: #334155; margin: 6px 0 2px; }
+    .gm-recurso-tip { font-size: 9.5pt; color: #78350f; margin-top: 5px; }
+    .gm-tabla { border-collapse: collapse; width: 100%; font-size: 10pt; }
+    .gm-tabla th, .gm-tabla td { border: 1px solid #e2e8f0; padding: 4px 8px; text-align: left; }
+    .gm-tabla th { background: #f1f5f9; font-weight: 700; }
+    .gm-destreza { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+    .gm-destreza-head { font-weight: 700; color: #0369a1; font-size: 10.5pt; margin-bottom: 6px; }
+    .gm-guion-texto { font-family: 'Courier New', monospace; }
+    .gm-respuestas { background: #ecfdf5; border-left: 3px solid #10b981; padding: 5px 9px; border-radius: 4px; font-size: 10pt; color: #065f46; margin-top: 6px; }
+    .gm-gramatica { background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 9px 12px; margin-bottom: 10px; font-size: 10.5pt; }
+    .gm-gramatica-head { font-weight: 700; color: #7e22ce; font-size: 10.5pt; margin-bottom: 4px; }
+    .gm-gramatica div { margin: 2px 0; }
+    .gm-guion { margin-bottom: 10px; }
+    .gm-momento { margin-bottom: 10px; }
     .gm-momento-head { font-weight: bold; color: #1d4ed8; font-size: 11.5pt; margin-bottom: 3px; }
-    .gm-pasos { margin: 0 0 0 4px; padding-left: 20px; }
-    .gm-pasos li { margin-bottom: 4px; font-size: 11pt; }
+    .gm-pasos { margin: 0 0 0 4px; padding-left: 22px; }
+    .gm-pasos li { margin-bottom: 6px; font-size: 10.5pt; line-height: 1.45; }
     .gm-min { display: inline-block; background: #e0e7ff; color: #3730a3; font-size: 8.5pt; font-weight: bold; padding: 0 5px; border-radius: 8px; margin-right: 4px; }
-    .gm-ojo { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
-    .gm-ojo-head { font-weight: bold; color: #b91c1c; font-size: 10.5pt; margin-bottom: 4px; }
-    .gm-ojo ul { margin: 0 0 0 4px; padding-left: 18px; }
-    .gm-ojo li { margin-bottom: 3px; font-size: 10.5pt; color: #7f1d1d; }
-    .gm-ojo-tip { font-size: 10pt; color: #991b1b; margin-top: 4px; font-style: italic; }
+    .gm-org { display: inline-block; background: #f1f5f9; color: #475569; font-size: 8pt; text-transform: uppercase; letter-spacing: .3px; padding: 0 5px; border-radius: 6px; }
+    .gm-dice { color: #0f172a; font-weight: 600; }
+    .gm-aclara { color: #64748b; font-style: italic; }
+    .gm-estud, .gm-esp, .gm-rev { display: block; font-size: 10pt; color: #475569; margin-top: 2px; }
+    .gm-sub-head { font-weight: 700; font-size: 10.5pt; margin-bottom: 3px; }
+    .gm-apoyos { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
+    .gm-apoyos ul { margin: 0; padding-left: 18px; font-size: 10pt; color: #334155; }
+    .gm-ojo { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 9px 12px; margin-bottom: 10px; }
+    .gm-ojo .gm-sub-head { color: #b91c1c; }
+    .gm-ojo ul { margin: 0; padding-left: 18px; }
+    .gm-ojo li { margin-bottom: 3px; font-size: 10pt; color: #7f1d1d; }
+    .gm-eval { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 9px 12px; margin-bottom: 10px; font-size: 10.5pt; color: #065f46; }
+    .gm-eval .gm-sub-head { color: #047857; }
+    .gm-eval div { margin: 2px 0; }
     .gm-pie { display: flex; flex-direction: column; gap: 3px; border-top: 1px dashed #cbd5e1; padding-top: 8px; font-size: 10pt; color: #475569; }
     @media print { body { background: white; } .gm-ficha { box-shadow: none; } .gm-no-print { display: none; } }
   `;
@@ -5680,10 +5790,12 @@ export const formatearGuiaMaestroHTML = (unidad, logoUrl = "") => {
     <div class="gm-sub">Producto final: <strong>${esc(productoCorto)}</strong></div>
   </div>
   <div class="gm-intro">
-    Esta guía acompaña la planificación de la unidad. Cada ficha te dice, clase por clase,
-    qué decir y hacer paso a paso, cómo usar el texto modelo, los errores típicos a vigilar
-    y qué hacer sin luz o internet. Es tu libreta de aula — la planificación va a coordinación;
-    esta guía va contigo al salón.
+    Esta guía desarrolla la planificación clase por clase, con todo lo que necesitas para darla:
+    propósito, materiales listos para usar, el paso a paso de Inicio/Desarrollo/Cierre (qué dices,
+    qué muestras, qué hacen los estudiantes y qué respuesta esperar), las lecturas y guiones
+    completos con sus respuestas, los apoyos para quien lo necesite, los errores a vigilar y cómo
+    comprobar el aprendizaje. Los textos en el idioma son materiales didácticos originales; si hay
+    un guion de escucha, léelo tú en voz alta (no necesitas audio ni internet).
   </div>
   ${fichasHtml}
 </div>

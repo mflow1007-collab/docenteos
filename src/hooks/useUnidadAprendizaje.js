@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { generarUnidadAprendizaje, formatearUnidadHTML, formatearGuiaMaestroHTML } from "../services/unidadAprendizajeService";
+import { generarGuiaMaestro } from "../services/guiaMaestroService.js";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
@@ -224,21 +225,47 @@ export function useUnidadAprendizaje() {
     }
   };
 
-  // GUÍA DEL MAESTRO: documento derivado de la planificación ya generada.
-  const manejarVerGuia = () => {
+  // GUÍA DEL MAESTRO: desarrolla la planificación en un guion de aula completo.
+  // Se GENERA con IA por lotes (una llamada por semana, con progreso) la primera
+  // vez y se CACHEA en unidad.guiaMaestro para no volver a gastar IA al reabrirla.
+  const abrirGuiaHTML = (guia) => {
+    const logoUrl = `${window.location.origin}/logo-minerd.svg`;
+    const html = formatearGuiaMaestroHTML(guia, logoUrl);
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    if (!win) {
+      setMensajeUnidad({ tipo: "error", texto: "❌ Bloqueado por el navegador. Permite ventanas emergentes." });
+    }
+  };
+
+  const manejarVerGuia = async () => {
     if (!unidad) return;
-    try {
-      const logoUrl = `${window.location.origin}/logo-minerd.svg`;
-      const html = formatearGuiaMaestroHTML(unidad, logoUrl);
-      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      if (!win) {
-        setMensajeUnidad({ tipo: "error", texto: "❌ Bloqueado por el navegador. Permite ventanas emergentes." });
+    // Caché: si ya se generó, ábrela al instante.
+    if (unidad.guiaMaestro?.fichas?.length) {
+      try { abrirGuiaHTML(unidad.guiaMaestro); } catch (error) {
+        setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
       }
+      return;
+    }
+    setMensajeUnidad({ tipo: "loading", texto: "📖 Preparando la Guía del Maestro…" });
+    try {
+      const guia = await generarGuiaMaestro(unidad, {
+        onProgreso: ({ fase, totalFases, clasesListas, totalClases }) => {
+          setMensajeUnidad({
+            tipo: "loading",
+            texto: `📖 Generando la Guía del Maestro — semana ${fase}/${totalFases} (${clasesListas}/${totalClases} clases)…`,
+          });
+        },
+      });
+      // Cachear en la unidad (sesión) para reaperturas sin gastar IA.
+      const unidadConGuia = { ...unidad, guiaMaestro: guia };
+      setUnidad(unidadConGuia);
+      setMensajeUnidad({ tipo: "success", texto: "✅ Guía del Maestro lista." });
+      abrirGuiaHTML(guia);
     } catch (error) {
-      setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
+      setMensajeUnidad({ tipo: "error", texto: `❌ No se pudo generar la Guía: ${error.message}` });
     }
   };
 

@@ -359,6 +359,16 @@ async function callGatewayCollect(
   return { text, provider: usedProvider, model: usedModel, usage, stopReason };
 }
 
+// ─── Puente para la Guía del Maestro ──────────────────────────────────────────
+// La Guía se genera por LOTES de una semana (ver guiaMaestroService). Reusa toda
+// la infra del gateway (auth, config admin de proveedores/modelos, timeout,
+// streaming de tokens) sin duplicarla. Devuelve el JSON crudo + metadatos; el
+// parseo/validación viven en guiaMaestroService. maxTokens alto: cada ficha trae
+// lecturas/guiones/ejercicios con respuestas, muy densos.
+const GUIA_MAX_TOKENS = 16000;
+export const generarGuiaSemanaRaw = async (prompt, system, { maxTokens = GUIA_MAX_TOKENS } = {}) =>
+  callGatewayCollect(prompt, system, maxTokens);
+
 // ─── Extractor robusto de JSON ────────────────────────────────────────────────
 
 // stopReason lo aporta el gateway (message_delta de Anthropic / finish_reason
@@ -367,7 +377,7 @@ async function callGatewayCollect(
 // alcanzó a declarar por qué paró).
 const esStopPorTope = (stopReason) => stopReason === 'max_tokens' || stopReason === 'length';
 
-function extraerJSON(raw, stopReason = null) {
+export function extraerJSON(raw, stopReason = null) {
   if (!raw || !raw.trim()) return { ok: false, motivo: 'respuesta vacía', raw };
   let s = raw.trim();
 
