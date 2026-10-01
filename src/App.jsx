@@ -748,7 +748,6 @@ function AppInner() {
               cursoActivo={cursoRegistro}
               perfil={formulario}
               onIrA={(destino) => navegar(destino)}
-              onIrA={(destino) => navegar(destino)}
               onVerPlanCompleto={(plan) => {
                 abrirPlanificacionDesdeHistorial(plan);
                 navegar("planificacion");

@@ -19,6 +19,21 @@ import {
 import { obtenerEstudiantesPorCurso } from '../services/estudiantesService.js'
 import { estadoDocencia, diasDocenciaPrevios } from '../data/calendarioEscolarMINERD.js'
 import { crearEvidencia } from '../services/evidenciasService.js'
+import { formatearUnidadHTML, formatearGuiaMaestroHTML } from '../services/unidadAprendizajeService.js'
+
+// La Guía del Maestro (texto modelo, OJO DOCENTE por estructura) es propia de
+// idiomas; su botón solo se ofrece cuando el área/asignatura es lengua extranjera.
+const esAreaIdioma = (area = '') =>
+  /lenguas extranjeras|ingles|frances|ingl[eé]s|franc[eé]s/i.test(String(area || ''))
+
+// Abre un documento HTML (unidad o guía) en una pestaña nueva, como en Planificación.
+function abrirHTMLEnPestana(html) {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const win = window.open(url, '_blank')
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
+  return Boolean(win)
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECCIÓN 1 — ADAPTADORES Y UTILIDADES DE DATOS
@@ -2313,10 +2328,37 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                 <div style={{ fontSize:13, fontWeight:900, color:'#0f172a', textTransform:'uppercase', letterSpacing:'.25px' }}>Plan de clase</div>
               </div>
             </div>
-            <button onClick={() => onVerPlanCompleto ? onVerPlanCompleto(planActivo) : onIrA?.('planificacion')} style={{
-              background:'#fff', border:'1px solid #cbd5e1', color:'#4f46e5',
-              borderRadius:8, padding:'8px 13px', fontSize:12, fontWeight:900, cursor:'pointer',
-            }}>↔ Ver planificación completa</button>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <button onClick={() => {
+                const unidad = planActivo?.contenido
+                if (!unidad) { onVerPlanCompleto ? onVerPlanCompleto(planActivo) : onIrA?.('planificacion'); return }
+                try {
+                  const logoUrl = `${window.location.origin}/logo-minerd.svg`
+                  abrirHTMLEnPestana(formatearUnidadHTML(unidad, logoUrl))
+                } catch (error) {
+                  console.error('[ModoAula] No se pudo abrir la planificación:', error)
+                  onVerPlanCompleto ? onVerPlanCompleto(planActivo) : onIrA?.('planificacion')
+                }
+              }} style={{
+                background:'#fff', border:'1px solid #cbd5e1', color:'#4f46e5',
+                borderRadius:8, padding:'8px 13px', fontSize:12, fontWeight:900, cursor:'pointer',
+              }}>📄 Cargar planificación</button>
+
+              {esAreaIdioma(claseNorm?.area || planActivo?.contenido?.metadatos?.area || planActivo?.contenido?.metadatos?.asignatura)
+                && Array.isArray(planActivo?.contenido?.fasesSemanales) && planActivo.contenido.fasesSemanales.length > 0 && (
+                <button onClick={() => {
+                  try {
+                    const logoUrl = `${window.location.origin}/logo-minerd.svg`
+                    abrirHTMLEnPestana(formatearGuiaMaestroHTML(planActivo.contenido, logoUrl))
+                  } catch (error) {
+                    console.error('[ModoAula] No se pudo abrir la Guía del Maestro:', error)
+                  }
+                }} style={{
+                  background:'#fff', border:'1px solid #cbd5e1', color:'#4f46e5',
+                  borderRadius:8, padding:'8px 13px', fontSize:12, fontWeight:900, cursor:'pointer',
+                }}>📖 Cargar guía</button>
+              )}
+            </div>
           </div>
 
           {/* Intención pedagógica */}
