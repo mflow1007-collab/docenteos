@@ -26,8 +26,8 @@
  */
 
 import {
-  collection, addDoc, doc, getDoc, getDocs, updateDoc,
-  serverTimestamp, query, where, limit,
+  collection, addDoc, doc, getDoc, getDocs, updateDoc, setDoc,
+  serverTimestamp, query, where, limit, orderBy,
 } from 'firebase/firestore';
 import { db, auth } from '../firebase.js';
 
@@ -183,4 +183,40 @@ export const marcarFichaRevision = async (docId, motivos = []) => {
       updatedAt: serverTimestamp(),
     });
   } catch { /* no-fatal */ }
+};
+
+// ─── Administración (panel del admin) ─────────────────────────────────────────
+
+// Lista fichas del banco para revisión (más recientes primero). Opcionalmente
+// filtra por estado. No aplica el gate: el admin ve todo.
+export const listarFichasBanco = async ({ estado = '', max = 200 } = {}) => {
+  if (!db) return [];
+  try {
+    const filtros = [collection(db, BG_COLLECTION)];
+    if (estado) filtros.push(where('estado', '==', estado));
+    filtros.push(orderBy('createdAt', 'desc'), limit(max));
+    const snap = await getDocs(query(...filtros));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (err) {
+    console.error('[bancoGuias] listarFichasBanco:', err);
+    return [];
+  }
+};
+
+// Cambia el estado de una ficha (cosechada → validada → retirada). Solo estados
+// válidos. 'retirada' NO borra: deja el doc archivado y fuera de servicio.
+export const cambiarEstadoFicha = async (docId, nuevoEstado) => {
+  if (!db || !_texto(docId)) throw new Error('docId requerido');
+  if (!BG_ESTADOS.includes(nuevoEstado)) throw new Error(`Estado inválido: ${nuevoEstado}`);
+  await updateDoc(doc(db, BG_COLLECTION, docId), {
+    estado: nuevoEstado,
+    active: nuevoEstado !== 'retirada',
+    updatedAt: serverTimestamp(),
+  });
+};
+
+// Enciende/apaga el gate del servicio (config/banco-guias.enabled).
+export const setBancoGuiasGate = async (enabled) => {
+  if (!db) throw new Error('Sin base de datos');
+  await setDoc(doc(db, BG_CONFIG_DOC), { enabled: enabled === true, updatedAt: serverTimestamp() }, { merge: true });
 };
