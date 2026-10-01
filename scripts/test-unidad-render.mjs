@@ -747,9 +747,14 @@ check("cada criterio nuevo se vincula semánticamente o queda marcado para revis
     }
     const relacionado = criterio.estadoTrazabilidad === "relacionado"
       && criterio.indicadorCodigo && criterio.criterioOficialId;
+    // Fallback del fallo #4: sin criterio oficial pero vinculado al indicador
+    // priorizado de la unidad (nota "Vínculo general"). Tiene indicador y NO
+    // criterio oficial — honesto, no ambiguo.
+    const vinculoGeneral = criterio.estadoTrazabilidad === "vinculo_general"
+      && criterio.indicadorCodigo && !criterio.criterioOficialId;
     const revisionHonesta = criterio.estadoTrazabilidad === "requiere_revision"
-      && !criterio.indicadorCodigo;
-    if (!relacionado && !revisionHonesta) {
+      && !criterio.criterioOficialId;
+    if (!relacionado && !vinculoGeneral && !revisionHonesta) {
       throw new Error(`criterio ${index + 1} tiene trazabilidad ambigua`);
     }
   }
@@ -842,11 +847,14 @@ check("el HTML contiene vocabulario real de la malla (lobby, entrance, do the la
   }
 });
 
-check("resumen semanal al CIERRE de cada semana (documento modelo)", () => {
-  if (!html.includes("RESUMEN DE EVALUACIÓN — SEMANA 1")) throw new Error("falta el resumen de la semana 1");
+check("resumen de evaluación al CIERRE de cada FASE (documento modelo)", () => {
+  // Fallo #1 (commit 84a07b0): el cierre de evaluación va por FASE, no por
+  // semana partida — si la Fase 1 termina a mitad de semana, no puedes cerrar
+  // la semana con la Fase 2 ya abierta. El encabezado es por fase.
+  if (!html.includes("RESUMEN DE EVALUACIÓN — FASE 1")) throw new Error("falta el resumen de la fase 1");
   if (!html.includes("Boceto del plano de la casa")) throw new Error("el resumen no lista los aportes al producto");
-  if (!html.includes("Observaciones de la semana:")) throw new Error("falta la fila de observaciones en la última semana de la fase");
-  if (html.includes("RESUMEN DE EVALUACIÓN Y OBSERVACIONES")) throw new Error("con datos por semana, el bloque legacy por fase no debe emitirse");
+  if (!html.includes("Observaciones de la fase:")) throw new Error("falta la fila de observaciones de la fase");
+  if (html.includes("RESUMEN DE EVALUACIÓN Y OBSERVACIONES")) throw new Error("con datos por fase, el bloque legacy no debe emitirse");
 });
 
 check("el HTML nunca serializa un objeto como texto ('[object Object]')", () => {

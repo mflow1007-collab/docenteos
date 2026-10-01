@@ -929,10 +929,14 @@ export const construirAnexosUnidad = ({
     // al indicador PRIORIZADO de la unidad como VÍNCULO GENERAL transparente: el
     // instrumento valora el desempeño global de la unidad, cuyo eje es ese indicador.
     const dominante = indicadoresTrazables.find((ind) => ind.codigo) || null;
+    // Una relación de confianza "requiere_revision" existe pero NO está confirmada:
+    // conserva su indicador/criterio como propuesta, pero el estado debe ser
+    // "requiere_revision" (jamás "relacionado"), para no presentarla como cierta.
+    const relacionDebil = relacion?.confianza === "requiere_revision";
     const usarFallback = !relacion && Boolean(dominante);
     const codigoFinal = relacion?.indicadorId || (usarFallback ? dominante.codigo : "");
     const descripcionFinal = relacion?.indicadorDescripcion || (usarFallback ? dominante.descripcion : "");
-    const requiereRevision = !relacion && !usarFallback;
+    const requiereRevision = (!relacion && !usarFallback) || relacionDebil;
     return {
       instrumentoId: `${tipo}-${index + 1}`,
       criterioOficialId: relacion?.criterioId || "",
