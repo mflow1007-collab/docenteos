@@ -21,6 +21,7 @@
  */
 
 import { generarGuiaSemanaRaw, extraerJSON } from './phaseAService.js';
+import { construirHuellaDesde, servirFichaPorHuella } from './bancoGuiasService.js';
 
 const _texto = (v) => String(v ?? '').trim();
 const _arr = (v) => (Array.isArray(v) ? v : []);
@@ -210,10 +211,43 @@ export const validarFichaGuia = (ficha, { idioma = false } = {}) => {
   return { ok: motivos.length === 0, motivos };
 };
 
-// ─── Generación de una semana (una llamada, con 1 reintento) ──────────────────
+// Intenta servir TODAS las clases de la semana desde el Banco de Guías (verbatim,
+// por huella exacta). Solo cuenta si están TODAS: así el batching por semana se
+// mantiene (o toda la semana del banco, o toda la semana por IA). El gate del
+// banco está apagado por defecto → devuelve null sin tocar red, y el generador
+// sigue con IA. Fail-closed: cualquier error se trata como "no servible".
+const servirSemanaDelBanco = async ({ unidad, fase, numeroPrimeraClase, area }) => {
+  const m = unidad.metadatos || {};
+  const dias = _arr(fase.dias);
+  const tema = _texto(m.titulo);
+  const grado = _texto(m.grado);
+  try {
+    const fichas = [];
+    for (let i = 0; i < dias.length; i += 1) {
+      const numeroClase = numeroPrimeraClase + i;
+      const huella = construirHuellaDesde({
+        area, grado, tema, numeroClase, focoLinguistico: _texto(dias[i].focoLinguistico),
+      });
+      const ficha = await servirFichaPorHuella(huella.clave);
+      if (!ficha) return null; // falta al menos una → la semana la hace la IA
+      fichas.push({ ...ficha, numeroClase, _origen: 'banco' });
+    }
+    return fichas.length === dias.length ? fichas : null;
+  } catch {
+    return null;
+  }
+};
+
+// ─── Generación de una semana (banco → IA, con 1 reintento) ───────────────────
 
 const generarSemana = async ({ unidad, fase, numeroPrimeraClase, area, nivel }) => {
   const idioma = ES_IDIOMA(area);
+
+  // 1) Banco de Guías: si cubre la semana completa, se sirve verbatim (0 IA).
+  const delBanco = await servirSemanaDelBanco({ unidad, fase, numeroPrimeraClase, area });
+  if (delBanco) return { ok: true, fichas: delBanco, origen: 'banco' };
+
+  // 2) IA: genera la semana completa.
   const system = buildSystemPromptGuia(area, nivel);
   const prompt = buildPromptGuiaSemana({ unidad, fase, numeroPrimeraClase });
   const esperadas = _arr(fase.dias).length;

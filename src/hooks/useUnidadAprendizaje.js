@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { generarUnidadAprendizaje, formatearUnidadHTML, formatearGuiaMaestroHTML } from "../services/unidadAprendizajeService";
 import { generarGuiaMaestro } from "../services/guiaMaestroService.js";
+import { cosecharGuia } from "../services/bancoGuiasService.js";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
@@ -150,6 +151,13 @@ export function useUnidadAprendizaje() {
         metadatos: { ...unidad.metadatos, tema: unidad.metadatos?.titulo },
       };
       const resultadoGuardado = await guardarPlanificacionConHilo(payload, { cosecharActividades });
+      // Banco de Guías: con el mismo consentimiento del docente, cosecha las
+      // fichas de la guía YA generada (si existe). No-fatal: nunca bloquea el
+      // guardado. El banco empieza apagado al servir; esto solo llena la memoria.
+      if (cosecharActividades && unidad.guiaMaestro?.fichas?.length) {
+        cosecharGuia({ guia: unidad.guiaMaestro, consentimiento: true })
+          .catch((e) => console.warn("[Guía] No se pudo cosechar la guía:", e));
+      }
       EventTracker.track(LEARNING_EVENTS.PLANIFICACION_ACEPTADA, {
         agentId: AGENT_IDS.PLANIFICADOR,
         area:       unidadDatos.area ?? null,
