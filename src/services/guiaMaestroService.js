@@ -131,27 +131,30 @@ const resumirClaseParaPrompt = (dia, numeroClase) => {
   };
 };
 
-export const buildPromptGuiaSemana = ({ unidad, fase, numeroPrimeraClase }) => {
+// UNA clase por llamada: las fichas de la Guía son muy densas (lectura/guion +
+// respuestas + 3 momentos paso a paso); generar varias de golpe desborda el
+// timeout del gateway (ABORTO_POR_TIEMPO con JSON incompleto). Una clase por
+// llamada es rápida, no aborta, y da progreso granular (clase N/total).
+export const buildPromptGuiaClase = ({ unidad, dia, numeroClase }) => {
   const m = unidad.metadatos || {};
   const area = _texto(m.area || m.asignatura);
   const idioma = ES_IDIOMA(area);
-  const dias = _arr(fase.dias);
-  const clases = dias.map((dia, i) => resumirClaseParaPrompt(dia, numeroPrimeraClase + i));
+  const clase = resumirClaseParaPrompt(dia, numeroClase);
 
   return [
     `UNIDAD: "${_texto(m.titulo)}" — ${area} — ${_texto(m.grado)} — Producto final: "${_texto(m.productoFinal)}".`,
     m.contextoComunitario ? `Contexto/zona: ${_texto(m.contextoComunitario)}.` : '',
     '',
-    'Desarrolla la GUÍA DE AULA de estas clases de la planificación aprobada. Conserva su',
-    'número, título base, foco e intención; NO cambies la secuencia. Para cada clase entrega',
-    'una ficha COMPLETA con sus recursos (el docente no debe inventar nada).',
-    idioma ? 'Los textos modelo dados son el punto de partida; desarróllalos y añade lo que falte (actividad previa, preguntas, respuestas).' : '',
+    'Desarrolla la GUÍA DE AULA de UNA clase de la planificación aprobada. Conserva su',
+    'número, título base, foco e intención; NO cambies la secuencia. Entrega una ficha',
+    'COMPLETA con sus recursos (el docente no debe inventar nada).',
+    idioma ? 'El texto modelo dado es el punto de partida; desarróllalo y añade lo que falte (actividad previa, preguntas, respuestas).' : '',
     '',
-    'CLASES DE ESTA SEMANA (fuente fiel, en JSON):',
-    JSON.stringify(clases),
+    'CLASE (fuente fiel, en JSON):',
+    JSON.stringify(clase),
     '',
-    `Devuelve un JSON: {"clases":[ ${esquemaFichaTexto(idioma)} ]} con una ficha por clase, en orden.`,
-    'Cada ficha: Inicio 10 + Desarrollo 25 + Cierre 10, con pasos cuyos minutos sumen cada total.',
+    `Devuelve un JSON: {"clases":[ ${esquemaFichaTexto(idioma)} ]} con EXACTAMENTE una ficha (esta clase).`,
+    'La ficha: Inicio 10 + Desarrollo 25 + Cierre 10, con pasos cuyos minutos sumen cada total.',
     'Prohibido devolver pasos vagos o recursos solo nombrados. JSON puro, sin markdown.',
   ].filter(Boolean).join('\n');
 };
@@ -211,109 +214,92 @@ export const validarFichaGuia = (ficha, { idioma = false } = {}) => {
   return { ok: motivos.length === 0, motivos };
 };
 
-// Intenta servir TODAS las clases de la semana desde el Banco de Guías (verbatim,
-// por huella exacta). Solo cuenta si están TODAS: así el batching por semana se
-// mantiene (o toda la semana del banco, o toda la semana por IA). El gate del
-// banco está apagado por defecto → devuelve null sin tocar red, y el generador
-// sigue con IA. Fail-closed: cualquier error se trata como "no servible".
-const servirSemanaDelBanco = async ({ unidad, fase, numeroPrimeraClase, area }) => {
-  const m = unidad.metadatos || {};
-  const dias = _arr(fase.dias);
-  const tema = _texto(m.titulo);
-  const grado = _texto(m.grado);
+// Intenta servir UNA clase desde el Banco de Guías (verbatim, por huella exacta).
+// Gate apagado por defecto → null sin tocar red. Fail-closed: cualquier error =
+// "no servible" y la clase la genera la IA.
+const servirClaseDelBanco = async ({ dia, numeroClase, area, grado, tema }) => {
   try {
-    const fichas = [];
-    for (let i = 0; i < dias.length; i += 1) {
-      const numeroClase = numeroPrimeraClase + i;
-      const huella = construirHuellaDesde({
-        area, grado, tema, numeroClase, focoLinguistico: _texto(dias[i].focoLinguistico),
-      });
-      const ficha = await servirFichaPorHuella(huella.clave);
-      if (!ficha) return null; // falta al menos una → la semana la hace la IA
-      fichas.push({ ...ficha, numeroClase, _origen: 'banco' });
-    }
-    return fichas.length === dias.length ? fichas : null;
+    const huella = construirHuellaDesde({
+      area, grado, tema, numeroClase, focoLinguistico: _texto(dia.focoLinguistico),
+    });
+    const ficha = await servirFichaPorHuella(huella.clave);
+    return ficha ? { ...ficha, numeroClase, _origen: 'banco' } : null;
   } catch {
     return null;
   }
 };
 
-// ─── Generación de una semana (banco → IA, con 1 reintento) ───────────────────
+// ─── Generación de UNA clase (banco → IA, con 1 reintento) ────────────────────
+// Una clase por llamada: evita el ABORTO_POR_TIEMPO que provocaba generar la
+// semana entera (fichas demasiado densas para una sola llamada de 90s).
 
-const generarSemana = async ({ unidad, fase, numeroPrimeraClase, area, nivel }) => {
+const generarClase = async ({ unidad, dia, numeroClase, area, nivel, grado, tema }) => {
   const idioma = ES_IDIOMA(area);
 
-  // 1) Banco de Guías: si cubre la semana completa, se sirve verbatim (0 IA).
-  const delBanco = await servirSemanaDelBanco({ unidad, fase, numeroPrimeraClase, area });
-  if (delBanco) return { ok: true, fichas: delBanco, origen: 'banco' };
+  // 1) Banco de Guías: si la ficha está servible, verbatim (0 IA).
+  const delBanco = await servirClaseDelBanco({ dia, numeroClase, area, grado, tema });
+  if (delBanco) return { ok: true, ficha: delBanco, origen: 'banco' };
 
-  // 2) IA: genera la semana completa.
+  // 2) IA: genera solo esta clase.
   const system = buildSystemPromptGuia(area, nivel);
-  const prompt = buildPromptGuiaSemana({ unidad, fase, numeroPrimeraClase });
-  const esperadas = _arr(fase.dias).length;
+  const prompt = buildPromptGuiaClase({ unidad, dia, numeroClase });
 
   let ultimoMotivo = '';
   for (let intento = 0; intento < 2; intento += 1) {
     const { text, stopReason } = await generarGuiaSemanaRaw(prompt, system);
     const parsed = extraerJSON(text, stopReason);
     if (!parsed.ok) { ultimoMotivo = parsed.motivo || 'JSON inválido'; continue; }
+    // Acepta {clases:[ficha]} o la ficha suelta, por robustez ante el modelo.
     const clases = _arr(parsed.data?.clases);
-    if (clases.length !== esperadas) {
-      ultimoMotivo = `la IA devolvió ${clases.length} fichas; se esperaban ${esperadas}`;
-      continue;
-    }
-    const fichas = [];
-    let hayFallo = false;
-    for (let i = 0; i < clases.length; i += 1) {
-      const ficha = { ...clases[i], numeroClase: numeroPrimeraClase + i };
-      const v = validarFichaGuia(ficha, { idioma });
-      if (!v.ok) { hayFallo = true; ultimoMotivo = `clase ${ficha.numeroClase}: ${v.motivos.join('; ')}`; break; }
-      fichas.push(ficha);
-    }
-    if (!hayFallo) return { ok: true, fichas };
+    const bruta = clases.length ? clases[0] : parsed.data;
+    const ficha = { ...bruta, numeroClase };
+    const v = validarFichaGuia(ficha, { idioma });
+    if (v.ok) return { ok: true, ficha, origen: 'ia' };
+    ultimoMotivo = v.motivos.join('; ');
   }
   return { ok: false, motivo: ultimoMotivo };
 };
 
-// ─── API pública: generar la Guía completa por lotes, con progreso ────────────
-// onProgreso?: ({ fase, totalFases, clasesListas, totalClases }) => void
+// ─── API pública: generar la Guía completa clase por clase, con progreso ──────
+// onProgreso?: ({ clasesListas, totalClases, numeroClase }) => void
 
 export const generarGuiaMaestro = async (unidad, { onProgreso } = {}) => {
   if (!unidad) throw new Error('Sin unidad para generar la guía.');
   const m = unidad.metadatos || {};
   const area = _texto(m.area || m.asignatura);
   const nivel = _texto(m.nivel);
+  const grado = _texto(m.grado);
+  const tema = _texto(m.titulo);
   const fases = _arr(unidad.fasesSemanales);
   if (!fases.length) throw new Error('La unidad no tiene fases con clases.');
 
-  const totalClases = fases.reduce((acc, f) => acc + _arr(f.dias).length, 0);
-  const fichasPorClase = new Map();
-  let numero = 1;
-  let clasesListas = 0;
-
-  for (let fi = 0; fi < fases.length; fi += 1) {
-    const fase = fases[fi];
-    const nDias = _arr(fase.dias).length;
-    if (!nDias) continue;
-    onProgreso?.({ fase: fi + 1, totalFases: fases.length, clasesListas, totalClases });
-    const res = await generarSemana({ unidad, fase, numeroPrimeraClase: numero, area, nivel });
-    if (!res.ok) {
-      throw new Error(`No se pudo generar la guía de la semana ${fi + 1}: ${res.motivo}`);
-    }
-    res.fichas.forEach((ficha) => fichasPorClase.set(ficha.numeroClase, ficha));
-    numero += nDias;
-    clasesListas += nDias;
-    onProgreso?.({ fase: fi + 1, totalFases: fases.length, clasesListas, totalClases });
+  // Aplana todas las clases en orden, numerándolas 1..N (como el render/huella).
+  const clasesPlan = [];
+  for (const fase of fases) {
+    for (const dia of _arr(fase.dias)) clasesPlan.push(dia);
   }
+  const totalClases = clasesPlan.length;
+  if (!totalClases) throw new Error('La unidad no tiene clases.');
+
+  const fichas = [];
+  for (let i = 0; i < clasesPlan.length; i += 1) {
+    const numeroClase = i + 1;
+    onProgreso?.({ clasesListas: i, totalClases, numeroClase });
+    const res = await generarClase({ unidad, dia: clasesPlan[i], numeroClase, area, nivel, grado, tema });
+    if (!res.ok) {
+      throw new Error(`No se pudo generar la guía de la clase ${numeroClase}: ${res.motivo}`);
+    }
+    fichas.push(res.ficha);
+  }
+  onProgreso?.({ clasesListas: totalClases, totalClases, numeroClase: totalClases });
 
   return {
     schemaVersion: '1.0',
     generadaEn: new Date().toISOString(),
     metadatos: {
-      titulo: _texto(m.titulo), area, grado: _texto(m.grado), seccion: _texto(m.seccion),
+      titulo: tema, area, grado, seccion: _texto(m.seccion),
       productoFinal: _texto(m.productoFinal), nivel,
     },
-    // Fichas ordenadas por número de clase.
-    fichas: [...fichasPorClase.values()].sort((a, b) => a.numeroClase - b.numeroClase),
+    fichas: fichas.sort((a, b) => a.numeroClase - b.numeroClase),
   };
 };

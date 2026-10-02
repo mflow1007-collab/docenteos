@@ -2359,8 +2359,8 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                   setGuiaEstado({ cargando: true, texto: 'Preparando la Guía del Maestro…' })
                   try {
                     const guia = await generarGuiaMaestro(unidad, {
-                      onProgreso: ({ fase, totalFases, clasesListas, totalClases }) =>
-                        setGuiaEstado({ cargando: true, texto: `Semana ${fase}/${totalFases} (${clasesListas}/${totalClases} clases)…` }),
+                      onProgreso: ({ clasesListas, totalClases }) =>
+                        setGuiaEstado({ cargando: true, texto: `Clase ${Math.min(clasesListas + 1, totalClases)}/${totalClases}…` }),
                     })
                     const contenidoConGuia = { ...unidad, guiaMaestro: guia }
                     const planActualizado = { ...planActivo, contenido: contenidoConGuia }

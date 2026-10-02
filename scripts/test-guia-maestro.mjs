@@ -1,9 +1,9 @@
 /**
  * test-guia-maestro.mjs — verifica el generador y el render de la Guía del Maestro
- * sin navegador ni IA: prueba la lógica pura (validarFichaGuia, buildPromptGuiaSemana,
+ * sin navegador ni IA: prueba la lógica pura (validarFichaGuia, buildPromptGuiaClase,
  * formatearGuiaMaestroHTML) contra fichas de ejemplo.
  */
-import { validarFichaGuia, buildPromptGuiaSemana, buildSystemPromptGuia, MOMENTOS_MINUTOS } from '../src/services/guiaMaestroService.js';
+import { validarFichaGuia, buildPromptGuiaClase, buildSystemPromptGuia, MOMENTOS_MINUTOS } from '../src/services/guiaMaestroService.js';
 import { formatearGuiaMaestroHTML } from '../src/services/unidadAprendizajeService.js';
 
 let pasos = 0, fallos = 0;
@@ -93,15 +93,16 @@ check('sin criterio de comprobación → falla', () => {
   assert(!v.ok && v.motivos.some((m) => /comprobaci/.test(m)), 'no exigió el criterio de comprobación');
 });
 
-console.log('Prompt por semana:');
-check('el prompt incluye la fuente fiel de las clases y pide JSON con fichas', () => {
+console.log('Prompt por clase:');
+check('el prompt de una clase incluye la fuente fiel y pide UNA ficha', () => {
   const unidad = {
     metadatos: { titulo: 'People Around Me', area: 'Inglés', grado: '1ro Secundaria', productoFinal: 'Perfil personal', nivel: 'A1' },
     fasesSemanales: [{ dias: [{ titulo: 'Clase A', focoLinguistico: 'presentarse', intencionPedagogica: 'avanza', momentos: [] }] }],
   };
-  const p = buildPromptGuiaSemana({ unidad, fase: unidad.fasesSemanales[0], numeroPrimeraClase: 1 });
+  const p = buildPromptGuiaClase({ unidad, dia: unidad.fasesSemanales[0].dias[0], numeroClase: 1 });
   assert(/People Around Me/.test(p), 'no incluye el título de la unidad');
-  assert(/CLASES DE ESTA SEMANA/.test(p), 'no incluye la fuente fiel');
+  assert(/CLASE \(fuente fiel/.test(p), 'no incluye la fuente fiel de la clase');
+  assert(/EXACTAMENTE una ficha/.test(p), 'no pide exactamente una ficha');
   assert(/"clases"/.test(p), 'no pide el JSON con clases');
   const sys = buildSystemPromptGuia('Inglés', 'A1');
   assert(/NO afirmes que existe un audio grabado|GUION/.test(sys), 'el system prompt no prohíbe inventar audio');

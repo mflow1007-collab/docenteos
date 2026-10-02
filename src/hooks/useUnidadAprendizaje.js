@@ -260,10 +260,10 @@ export function useUnidadAprendizaje() {
     setMensajeUnidad({ tipo: "loading", texto: "📖 Preparando la Guía del Maestro…" });
     try {
       const guia = await generarGuiaMaestro(unidad, {
-        onProgreso: ({ fase, totalFases, clasesListas, totalClases }) => {
+        onProgreso: ({ clasesListas, totalClases }) => {
           setMensajeUnidad({
             tipo: "loading",
-            texto: `📖 Generando la Guía del Maestro — semana ${fase}/${totalFases} (${clasesListas}/${totalClases} clases)…`,
+            texto: `📖 Generando la Guía del Maestro — clase ${Math.min(clasesListas + 1, totalClases)}/${totalClases}…`,
           });
         },
       });
