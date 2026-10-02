@@ -2380,7 +2380,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                 }} style={{
                   background:'#fff', border:'1px solid #cbd5e1', color: guiaEstado?.cargando ? '#94a3b8' : '#4f46e5',
                   borderRadius:8, padding:'8px 13px', fontSize:12, fontWeight:900, cursor: guiaEstado?.cargando ? 'wait' : 'pointer',
-                }}>{guiaEstado?.cargando ? '⏳ Generando…' : '📖 Cargar guía'}</button>
+                }}>{guiaEstado?.cargando ? '⏳ Generando…' : (planActivo?.contenido?.guiaMaestro?.fichas?.length ? '👁 Ver guía' : '📖 Cargar guía')}</button>
               )}
             </div>
           </div>
