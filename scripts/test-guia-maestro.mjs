@@ -55,11 +55,28 @@ check('una ficha completa (10+25+10) pasa la validación', () => {
 check('los minutos canónicos son Inicio 10 / Desarrollo 25 / Cierre 10', () => {
   assert(MOMENTOS_MINUTOS.Inicio === 10 && MOMENTOS_MINUTOS.Desarrollo === 25 && MOMENTOS_MINUTOS.Cierre === 10, 'reparto incorrecto');
 });
-check('un momento cuyos pasos NO suman su total → falla', () => {
+check('minutos ligeramente desajustados (8 vs 10) se CUADRAN al normalizar, no se rechazan', () => {
+  const bruta = {
+    titulo: 'Clase', proposito: 'p', destreza: { tipo: 'ninguna' }, evaluacion: { comprobacion: 'ok' },
+    momentos: [
+      { nombre: 'Inicio', pasos: [{ minutos: 4, docenteHace: 'a' }, { minutos: 4, docenteHace: 'b' }] }, // 8, no 10
+      { nombre: 'Desarrollo', pasos: [{ minutos: 12, docenteHace: 'c' }, { minutos: 12, docenteHace: 'd' }] }, // 24, no 25
+      { nombre: 'Cierre', pasos: [{ minutos: 9, docenteHace: 'e' }] }, // 9, no 10
+    ],
+  };
+  const f = normalizarFichaGuia(bruta, 1);
+  const suma = (nombre) => f.momentos.find((m) => m.nombre === nombre).pasos.reduce((a, p) => a + p.minutos, 0);
+  assert(suma('Inicio') === 10, 'Inicio no cuadró a 10: ' + suma('Inicio'));
+  assert(suma('Desarrollo') === 25, 'Desarrollo no cuadró a 25: ' + suma('Desarrollo'));
+  assert(suma('Cierre') === 10, 'Cierre no cuadró a 10: ' + suma('Cierre'));
+  const v = validarFichaGuia(f, { idioma: false });
+  assert(v.ok, 'una ficha con minutos cuadrados no debería fallar: ' + v.motivos.join('; '));
+});
+check('un momento SIN pasos → sí falla (patológico)', () => {
   const f = fichaOK();
-  f.momentos[1].pasos = [{ minutos: 5, docenteHace: 'x', docenteDice: 'y' }]; // Desarrollo = 5, no 25
+  f.momentos[1].pasos = [];
   const v = validarFichaGuia(f, { idioma: true });
-  assert(!v.ok && v.motivos.some((m) => /Desarrollo/.test(m)), 'no detectó la suma incorrecta');
+  assert(!v.ok && v.motivos.some((m) => /sin pasos/.test(m)), 'no detectó el momento sin pasos');
 });
 check('falta un momento (Cierre) → falla', () => {
   const f = fichaOK();

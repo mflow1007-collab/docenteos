@@ -227,10 +227,42 @@ const normalizarPaso = (p = {}) => {
   };
 };
 
+// Ajusta los minutos de los pasos para que sumen EXACTO el total del momento.
+// El modelo redondea y rara vez cuadra (p. ej. 4+4=8 en vez de 10); en vez de
+// rechazar una ficha útil por 1-2 min, se reparte la diferencia. Si los pasos no
+// traen minutos, se reparten equitativamente. Solo ajusta cuando hay un total
+// canónico conocido (Inicio 10 / Desarrollo 25 / Cierre 10).
+const cuadrarMinutos = (pasos, total) => {
+  if (!total || !pasos.length) return pasos;
+  const actuales = pasos.map((p) => Math.max(0, _num(p.minutos)));
+  let suma = actuales.reduce((a, b) => a + b, 0);
+  if (suma === total) return pasos;
+  if (suma === 0) {
+    // Sin minutos: reparto equitativo, el resto al último.
+    const base = Math.floor(total / pasos.length);
+    const nuevos = pasos.map(() => base);
+    nuevos[nuevos.length - 1] += total - base * pasos.length;
+    return pasos.map((p, i) => ({ ...p, minutos: nuevos[i] }));
+  }
+  // Escala proporcional y corrige el redondeo en el último paso (nunca < 1).
+  const escalados = actuales.map((m) => Math.max(1, Math.round((m / suma) * total)));
+  suma = escalados.reduce((a, b) => a + b, 0);
+  escalados[escalados.length - 1] += total - suma;
+  if (escalados[escalados.length - 1] < 1) { // ajuste cayó por debajo de 1: reparte desde el mayor
+    escalados[escalados.length - 1] = 1;
+    const resto = total - escalados.reduce((a, b) => a + b, 0);
+    const idxMax = escalados.indexOf(Math.max(...escalados));
+    escalados[idxMax] += resto;
+  }
+  return pasos.map((p, i) => ({ ...p, minutos: escalados[i] }));
+};
+
 const normalizarMomento = (mom = {}, nombreSugerido = '') => {
   const nombre = CANON_MOMENTO(mom.nombre ?? mom.momento ?? mom.fase ?? mom.etapa ?? nombreSugerido);
-  const pasosRaw = _arr(mom.pasos ?? mom.actividades ?? mom.steps ?? mom.acciones);
-  return { nombre, minutos: _num(mom.minutos ?? mom.tiempo ?? MOMENTOS_MINUTOS[nombre]), pasos: pasosRaw.map(normalizarPaso) };
+  const total = MOMENTOS_MINUTOS[nombre] || _num(mom.minutos ?? mom.tiempo);
+  const pasosRaw = _arr(mom.pasos ?? mom.actividades ?? mom.steps ?? mom.acciones).map(normalizarPaso);
+  const pasos = cuadrarMinutos(pasosRaw, MOMENTOS_MINUTOS[nombre] || 0);
+  return { nombre, minutos: total, pasos };
 };
 
 export const normalizarFichaGuia = (bruta = {}, numeroClase) => {
@@ -275,8 +307,10 @@ export const validarFichaGuia = (ficha, { idioma = false } = {}) => {
     const esperado = MOMENTOS_MINUTOS[mom.nombre] || 0;
     const suma = pasos.reduce((acc, p) => acc + (Number.parseInt(p.minutos, 10) || 0), 0);
     sumaTotal += suma;
-    // Tolerancia ±1 por redondeos de reparto.
-    if (esperado && Math.abs(suma - esperado) > 1) {
+    // Los minutos ya se CUADRAN en la normalización (cuadrarMinutos). Este check
+    // es solo red de seguridad para un desajuste grande que la normalización no
+    // haya podido corregir — tolerancia amplia, no rechazar por redondeo.
+    if (esperado && Math.abs(suma - esperado) > 3) {
       motivos.push(`${etiqueta}: los pasos suman ${suma}′ (debía ser ${esperado}′)`);
     }
     for (const p of pasos) {
@@ -286,7 +320,7 @@ export const validarFichaGuia = (ficha, { idioma = false } = {}) => {
       }
     }
   }
-  if (sumaTotal && Math.abs(sumaTotal - TOTAL_MINUTOS) > 2) {
+  if (sumaTotal && Math.abs(sumaTotal - TOTAL_MINUTOS) > 5) {
     motivos.push(`la clase suma ${sumaTotal}′ (debía ser ${TOTAL_MINUTOS}′)`);
   }
 
