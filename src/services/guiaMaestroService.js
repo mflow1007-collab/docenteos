@@ -155,8 +155,70 @@ export const buildPromptGuiaClase = ({ unidad, dia, numeroClase }) => {
     '',
     `Devuelve un JSON: {"clases":[ ${esquemaFichaTexto(idioma)} ]} con EXACTAMENTE una ficha (esta clase).`,
     'La ficha: Inicio 10 + Desarrollo 25 + Cierre 10, con pasos cuyos minutos sumen cada total.',
+    '"momentos" DEBE ser un ARRAY de 3 objetos, cada uno con "nombre" ("Inicio"/"Desarrollo"/"Cierre") y "pasos" (array). No uses un objeto con claves inicio/desarrollo/cierre.',
     'Prohibido devolver pasos vagos o recursos solo nombrados. JSON puro, sin markdown.',
   ].filter(Boolean).join('\n');
+};
+
+// ─── Normalización de la ficha de la IA ───────────────────────────────────────
+// El modelo no siempre respeta las claves exactas. Antes de validar, se toleran
+// variantes razonables y se mapean al esquema canónico: momentos puede venir como
+// objeto {inicio,desarrollo,cierre} o como array; el nombre bajo nombre/momento/
+// fase/etapa; los pasos bajo pasos/actividades/steps; minutos bajo minutos/tiempo/min.
+
+const _num = (v) => {
+  const n = Number.parseInt(String(v ?? '').replace(/[^\d]/g, ''), 10);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const CANON_MOMENTO = (raw = '') => {
+  const t = String(raw).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (t.includes('inicio') || t.includes('apertura') || t.includes('start')) return 'Inicio';
+  if (t.includes('desarrollo') || t.includes('development') || t.includes('centro')) return 'Desarrollo';
+  if (t.includes('cierre') || t.includes('closing') || t.includes('final')) return 'Cierre';
+  return raw ? String(raw) : '';
+};
+
+const normalizarPaso = (p = {}) => {
+  if (typeof p === 'string') return { minutos: 0, docenteHace: p };
+  return {
+    minutos: _num(p.minutos ?? p.tiempo ?? p.min ?? p.duracion),
+    docenteHace: _texto(p.docenteHace ?? p.accion ?? p.hace ?? p.docente ?? ''),
+    docenteDice: _texto(p.docenteDice ?? p.dice ?? p.instruccion ?? p.frase ?? ''),
+    aclaracionEs: _texto(p.aclaracionEs ?? p.aclaracion ?? ''),
+    muestra: _texto(p.muestra ?? p.modela ?? ''),
+    estudiantesHacen: _texto(p.estudiantesHacen ?? p.estudiantes ?? p.alumnos ?? ''),
+    organizacion: _texto(p.organizacion ?? p.agrupamiento ?? ''),
+    resultadoEsperado: _texto(p.resultadoEsperado ?? p.resultado ?? p.esperado ?? ''),
+    comoRevisa: _texto(p.comoRevisa ?? p.revisa ?? p.retroalimentacion ?? ''),
+  };
+};
+
+const normalizarMomento = (mom = {}, nombreSugerido = '') => {
+  const nombre = CANON_MOMENTO(mom.nombre ?? mom.momento ?? mom.fase ?? mom.etapa ?? nombreSugerido);
+  const pasosRaw = _arr(mom.pasos ?? mom.actividades ?? mom.steps ?? mom.acciones);
+  return { nombre, minutos: _num(mom.minutos ?? mom.tiempo ?? MOMENTOS_MINUTOS[nombre]), pasos: pasosRaw.map(normalizarPaso) };
+};
+
+export const normalizarFichaGuia = (bruta = {}, numeroClase) => {
+  if (!bruta || typeof bruta !== 'object') return bruta;
+  // momentos: objeto {inicio,desarrollo,cierre} → array; array → se respeta.
+  let momentos = bruta.momentos ?? bruta.secuencia ?? bruta.desarrollo;
+  if (momentos && !Array.isArray(momentos) && typeof momentos === 'object') {
+    const orden = ['inicio', 'desarrollo', 'cierre'];
+    momentos = orden
+      .filter((k) => momentos[k])
+      .map((k) => normalizarMomento(momentos[k], k));
+  } else {
+    momentos = _arr(momentos).map((m) => normalizarMomento(m));
+  }
+  return {
+    ...bruta,
+    numeroClase: numeroClase ?? bruta.numeroClase,
+    titulo: _texto(bruta.titulo ?? bruta.title ?? bruta.nombre),
+    proposito: _texto(bruta.proposito ?? bruta.objetivo ?? bruta.proposit ?? bruta.purpose),
+    momentos,
+  };
 };
 
 // ─── Validación de una ficha (propiedades fuertes) ────────────────────────────
@@ -174,18 +236,19 @@ export const validarFichaGuia = (ficha, { idioma = false } = {}) => {
   }
   let sumaTotal = 0;
   for (const mom of momentos) {
+    const etiqueta = _texto(mom.nombre) || 'momento sin nombre';
     const pasos = _arr(mom.pasos);
-    if (!pasos.length) { motivos.push(`${mom.nombre}: sin pasos`); continue; }
+    if (!pasos.length) { motivos.push(`${etiqueta}: sin pasos`); continue; }
     const esperado = MOMENTOS_MINUTOS[mom.nombre] || 0;
     const suma = pasos.reduce((acc, p) => acc + (Number.parseInt(p.minutos, 10) || 0), 0);
     sumaTotal += suma;
     // Tolerancia ±1 por redondeos de reparto.
     if (esperado && Math.abs(suma - esperado) > 1) {
-      motivos.push(`${mom.nombre}: los pasos suman ${suma}′ (debía ser ${esperado}′)`);
+      motivos.push(`${etiqueta}: los pasos suman ${suma}′ (debía ser ${esperado}′)`);
     }
     for (const p of pasos) {
       if (!_texto(p.docenteHace) && !_texto(p.docenteDice)) {
-        motivos.push(`${mom.nombre}: un paso sin acción ni instrucción (vago)`);
+        motivos.push(`${etiqueta}: un paso sin acción ni instrucción (vago)`);
         break;
       }
     }
@@ -249,10 +312,12 @@ const generarClase = async ({ unidad, dia, numeroClase, area, nivel, grado, tema
     const { text, stopReason } = await generarGuiaSemanaRaw(prompt, system);
     const parsed = extraerJSON(text, stopReason);
     if (!parsed.ok) { ultimoMotivo = parsed.motivo || 'JSON inválido'; continue; }
-    // Acepta {clases:[ficha]} o la ficha suelta, por robustez ante el modelo.
+    // Acepta {clases:[ficha]}, {ficha:{...}} o la ficha suelta, por robustez.
     const clases = _arr(parsed.data?.clases);
-    const bruta = clases.length ? clases[0] : parsed.data;
-    const ficha = { ...bruta, numeroClase };
+    const bruta = clases.length ? clases[0] : (parsed.data?.ficha || parsed.data);
+    // Normaliza variantes de formato de la IA antes de validar (momentos como
+    // objeto, claves alternativas, pasos bajo "actividades", etc.).
+    const ficha = normalizarFichaGuia(bruta, numeroClase);
     const v = validarFichaGuia(ficha, { idioma });
     if (v.ok) return { ok: true, ficha, origen: 'ia' };
     ultimoMotivo = v.motivos.join('; ');

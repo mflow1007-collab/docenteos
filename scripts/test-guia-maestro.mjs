@@ -3,7 +3,7 @@
  * sin navegador ni IA: prueba la lógica pura (validarFichaGuia, buildPromptGuiaClase,
  * formatearGuiaMaestroHTML) contra fichas de ejemplo.
  */
-import { validarFichaGuia, buildPromptGuiaClase, buildSystemPromptGuia, MOMENTOS_MINUTOS } from '../src/services/guiaMaestroService.js';
+import { validarFichaGuia, normalizarFichaGuia, buildPromptGuiaClase, buildSystemPromptGuia, MOMENTOS_MINUTOS } from '../src/services/guiaMaestroService.js';
 import { formatearGuiaMaestroHTML } from '../src/services/unidadAprendizajeService.js';
 
 let pasos = 0, fallos = 0;
@@ -91,6 +91,43 @@ check('sin criterio de comprobación → falla', () => {
   f.evaluacion.comprobacion = '';
   const v = validarFichaGuia(f, { idioma: true });
   assert(!v.ok && v.motivos.some((m) => /comprobaci/.test(m)), 'no exigió el criterio de comprobación');
+});
+
+console.log('Normalización de variantes de la IA (regresión del error real):');
+check('momentos como OBJETO {inicio,desarrollo,cierre} → array canónico que valida', () => {
+  const bruta = {
+    titulo: 'Clase', proposito: 'p',
+    momentos: {
+      inicio: { pasos: [{ minutos: 10, docenteHace: 'a', docenteDice: 'b' }] },
+      desarrollo: { pasos: [{ minutos: 25, docenteHace: 'c', docenteDice: 'd' }] },
+      cierre: { pasos: [{ minutos: 10, docenteHace: 'e', docenteDice: 'f' }] },
+    },
+    destreza: { tipo: 'ninguna' }, evaluacion: { comprobacion: 'ok' },
+  };
+  const f = normalizarFichaGuia(bruta, 2);
+  assert(Array.isArray(f.momentos) && f.momentos.length === 3, 'no convirtió el objeto en array');
+  assert(f.momentos.map((m) => m.nombre).join(',') === 'Inicio,Desarrollo,Cierre', 'nombres canónicos mal: ' + f.momentos.map((m) => m.nombre));
+  const v = validarFichaGuia(f, { idioma: false });
+  assert(v.ok, 'no valida tras normalizar: ' + v.motivos.join('; '));
+});
+check('claves alternativas (momento/tiempo/actividades) → normaliza y valida', () => {
+  const bruta = {
+    titulo: 'Clase', proposito: 'p',
+    momentos: [
+      { momento: 'Inicio', tiempo: '10 min', actividades: [{ min: 10, accion: 'a', instruccion: 'b' }] },
+      { momento: 'Desarrollo', actividades: [{ min: 25, accion: 'c' }] },
+      { momento: 'Cierre', actividades: [{ min: 10, accion: 'e' }] },
+    ],
+    destreza: { tipo: 'ninguna' }, evaluacion: { comprobacion: 'ok' },
+  };
+  const f = normalizarFichaGuia(bruta, 3);
+  const v = validarFichaGuia(f, { idioma: false });
+  assert(v.ok, 'no valida tras normalizar claves alternativas: ' + v.motivos.join('; '));
+});
+check('un momento sin nombre reconocible NO reporta "undefined"', () => {
+  const f = { titulo: 'x', proposito: 'p', momentos: [{ pasos: [] }], evaluacion: { comprobacion: 'ok' } };
+  const v = validarFichaGuia(f, { idioma: false });
+  assert(!v.motivos.some((m) => /undefined/.test(m)), 'aún dice undefined: ' + v.motivos.join('; '));
 });
 
 console.log('Prompt por clase:');
