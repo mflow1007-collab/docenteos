@@ -93,6 +93,54 @@ check('sin criterio de comprobación → falla', () => {
   assert(!v.ok && v.motivos.some((m) => /comprobaci/.test(m)), 'no exigió el criterio de comprobación');
 });
 
+console.log('Reglas de calidad (feedback del usuario):');
+check('reading SIN antes/global/después de leer → falla', () => {
+  const f = fichaOK();
+  f.destreza = { tipo: 'reading', titulo: 'Meet Ana', guion: ['Hello! My name is Ana.'], ejercicio: { enunciado: 'x', items: ['Name: ___'] }, respuestasEsperadas: ['Ana'] };
+  const v = validarFichaGuia(f, { idioma: true });
+  assert(!v.ok, 'debía fallar un reading sin sus partes');
+  assert(v.motivos.some((m) => /ANTES de leer/.test(m)), 'no exige tarea previa');
+  assert(v.motivos.some((m) => /comprensión global/.test(m)), 'no exige comprensión global');
+  assert(v.motivos.some((m) => /posterior/.test(m)), 'no exige actividad posterior');
+});
+check('reading COMPLETO (6 partes) pasa', () => {
+  const f = fichaOK();
+  f.destreza = { tipo: 'reading', titulo: 'Meet Ana', guion: ['Hello! My name is Ana.', 'I am thirteen years old.'],
+    antesDeLeer: '¿Qué datos crees que encontraremos?', comprensionGlobal: '¿De quién trata?',
+    ejercicio: { enunciado: 'Completa', items: ['Name: ___', 'Age: ___'] }, respuestasEsperadas: ['Ana', '13'],
+    despuesDeLeer: 'Escribe tu propia presentación con el modelo.' };
+  const v = validarFichaGuia(f, { idioma: true });
+  assert(v.ok, 'un reading completo no debería fallar: ' + v.motivos.join('; '));
+});
+check('clave con MÁS respuestas que ítems → falla (clave no cuadra)', () => {
+  const f = fichaOK();
+  f.destreza.ejercicio = { enunciado: 'x', items: ['Name: ___'] };
+  f.destreza.respuestasEsperadas = ['Ana', '12', 'Santo Domingo'];
+  const v = validarFichaGuia(f, { idioma: true });
+  assert(!v.ok && v.motivos.some((m) => /clave no cuadra/.test(m)), 'no detectó el desajuste clave/ítems');
+});
+check('rúbrica sin niveles → falla; con criterios+niveles → pasa', () => {
+  const f = fichaOK();
+  f.recursos.push({ tipo: 'rubrica', titulo: 'Rúbrica de presentación', criterios: ['Comunica los datos'] });
+  let v = validarFichaGuia(f, { idioma: true });
+  assert(!v.ok && v.motivos.some((m) => /niveles/.test(m)), 'no exigió niveles en la rúbrica');
+  f.recursos[f.recursos.length - 1].niveles = ['Logrado: comunica los 4 datos', 'En proceso: 2-3 datos', 'Inicial: con apoyo'];
+  v = validarFichaGuia(f, { idioma: true });
+  assert(v.ok, 'una rúbrica con criterios y niveles debería pasar: ' + v.motivos.join('; '));
+});
+check('lista de cotejo sin criterios → falla', () => {
+  const f = fichaOK();
+  f.recursos.push({ tipo: 'lista_cotejo', titulo: 'Cotejo' });
+  const v = validarFichaGuia(f, { idioma: true });
+  assert(!v.ok && v.motivos.some((m) => /criterios/.test(m)), 'no exigió criterios en el cotejo');
+});
+check('comprobación vaga ("estudiantes motivados") → falla', () => {
+  const f = fichaOK();
+  f.evaluacion.comprobacion = 'Estudiantes motivados y con buena atención.';
+  const v = validarFichaGuia(f, { idioma: true });
+  assert(!v.ok && v.motivos.some((m) => /vaga/.test(m)), 'no rechazó la comprobación vaga');
+});
+
 console.log('Normalización de variantes de la IA (regresión del error real):');
 check('momentos como OBJETO {inicio,desarrollo,cierre} → array canónico que valida', () => {
   const bruta = {

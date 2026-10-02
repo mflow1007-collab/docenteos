@@ -5599,9 +5599,31 @@ export const formatearGuiaMaestroHTML = (guia, logoUrl = "") => {
       </div>`;
   };
 
+  const ICONO_RECURSO = { lista_cotejo: "☑️", rubrica: "📊", autoevaluacion: "🪞", tarjetas: "🃏", plantilla: "🧩", texto: "📄", ficha: "📄", tabla: "📋" };
   const recursoHtml = (r = {}) => {
+    const criterios = arr(r.criterios);
+    const niveles = arr(r.niveles);
+    // Instrumentos de evaluación: criterios (+ niveles para rúbrica).
+    if (criterios.length || niveles.length) {
+      const icono = ICONO_RECURSO[r.tipo] || "📋";
+      const esCotejo = r.tipo === "lista_cotejo";
+      const critHtml = criterios.length
+        ? (esCotejo
+            ? `<table class="gm-tabla"><tr><th>Criterio</th><th>Sí</th><th>Todavía no</th></tr>${criterios.map((c) => `<tr><td>${esc(c)}</td><td>☐</td><td>☐</td></tr>`).join("")}</table>`
+            : `<ul class="gm-crit">${criterios.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>`)
+        : "";
+      const nivHtml = niveles.length
+        ? `<div class="gm-recurso-sub"><strong>Niveles de desempeño:</strong></div><ul class="gm-crit">${niveles.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`
+        : "";
+      return `<div class="gm-recurso gm-instrumento">
+          <div class="gm-recurso-head">${icono} ${esc(r.titulo || "Instrumento de evaluación")}</div>
+          ${critHtml}${nivHtml}
+          ${arr(r.lineas).length ? `<div class="gm-recurso-body">${arr(r.lineas).map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
+        </div>`;
+    }
     if (arr(r.tabla).length) return bloqueTabla(r.titulo, r.tabla);
-    return bloqueLineas(r.titulo ? `📄 ${r.titulo}` : "📄 Recurso", arr(r.lineas));
+    const icono = ICONO_RECURSO[r.tipo] || "📄";
+    return bloqueLineas(r.titulo ? `${icono} ${r.titulo}` : `${icono} Recurso`, arr(r.lineas));
   };
 
   const pasoHtml = (p = {}, idx = 0) => {
@@ -5655,11 +5677,16 @@ export const formatearGuiaMaestroHTML = (guia, logoUrl = "") => {
     const respHtml = respuestas.length
       ? `<div class="gm-respuestas"><strong>Respuestas esperadas:</strong> ${respuestas.map(esc).join(" · ")}</div>`
       : "";
+    // Reading: tareas antes / comprensión global / después (hacia la producción).
+    const antes = d.antesDeLeer ? `<div class="gm-recurso-sub"><strong>Antes de leer:</strong> ${esc(d.antesDeLeer)}</div>` : "";
+    const global = d.comprensionGlobal ? `<div class="gm-recurso-sub"><strong>Comprensión global:</strong> ${esc(d.comprensionGlobal)}</div>` : "";
+    const despues = d.despuesDeLeer ? `<div class="gm-recurso-sub"><strong>Después de leer (producción):</strong> ${esc(d.despuesDeLeer)}</div>` : "";
     return `<div class="gm-destreza">
         <div class="gm-destreza-head">${ETIQUETA_DESTREZA[tipo] || esc(tipo)}${d.titulo ? ` — ${esc(d.titulo)}` : ""}</div>
+        ${antes}
         ${guion.length ? `<div class="gm-recurso-body gm-guion-texto">${guion.map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
         ${d.instruccionesDocente ? `<div class="gm-recurso-tip"><strong>Cómo usarlo:</strong> ${esc(d.instruccionesDocente)}</div>` : ""}
-        ${avisoAudio}${propositos}${ejercicio}${respHtml}
+        ${avisoAudio}${propositos}${global}${ejercicio}${respHtml}${despues}
       </div>`;
   };
 
@@ -5773,8 +5800,12 @@ export const formatearGuiaMaestroHTML = (guia, logoUrl = "") => {
     .gm-eval { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 9px 12px; margin-bottom: 10px; font-size: 10.5pt; color: #065f46; }
     .gm-eval .gm-sub-head { color: #047857; }
     .gm-eval div { margin: 2px 0; }
+    .gm-instrumento { background: #fdf4ff; border-color: #e9d5ff; }
+    .gm-instrumento .gm-recurso-head { color: #7e22ce; }
+    .gm-crit { margin: 4px 0 0; padding-left: 18px; font-size: 10pt; color: #334155; }
+    .gm-crit li { margin-bottom: 2px; }
     .gm-pie { display: flex; flex-direction: column; gap: 3px; border-top: 1px dashed #cbd5e1; padding-top: 8px; font-size: 10pt; color: #475569; }
-    @media print { body { background: white; } .gm-ficha { box-shadow: none; } .gm-no-print { display: none; } }
+    @media print { body { background: white; } .gm-ficha { box-shadow: none; } .gm-no-print, .gm-no-print * { display: none !important; } }
   `;
 
   const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="MINERD">` : "";
