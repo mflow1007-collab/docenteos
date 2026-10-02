@@ -144,7 +144,7 @@ export default function PlanificacionPage({
     cargandoUnidad, guardandoUnidad, mensajeUnidad, setMensajeUnidad,
     manejarGenerarUnidad, manejarGenerarUnidadForzado,
     manejarGuardarUnidad, manejarDescargarUnidad,
-    manejarVerUnidad, manejarVerGuia, manejarNuevaUnidad, manejarAplicarAcciones,
+    manejarVerUnidad, manejarVerGuia, manejarRegenerarGuia, manejarNuevaUnidad, manejarAplicarAcciones,
   } = unidadHook;
 
   // ── IA sobre planificación generada ───────────────────────────────────────
@@ -2090,6 +2090,7 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
               onDescargar={manejarDescargarUnidad}
               onVer={manejarVerUnidad}
               onVerGuia={esAreaIdioma(unidad?.metadatos?.area || unidad?.metadatos?.asignatura) ? manejarVerGuia : undefined}
+              onRegenerarGuia={esAreaIdioma(unidad?.metadatos?.area || unidad?.metadatos?.asignatura) ? manejarRegenerarGuia : undefined}
               onNueva={manejarNuevaUnidad}
               onAplicarAcciones={manejarAplicarAcciones}
               onEditarUnidad={setUnidad}

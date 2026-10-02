@@ -1439,6 +1439,38 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     }
   }
 
+  // Genera (o regenera) la Guía del Maestro del plan activo. forzar=true ignora
+  // la guía cacheada y la vuelve a generar con IA (p. ej. tras cambiar el generador).
+  const generarGuiaModoAula = async ({ forzar = false } = {}) => {
+    const logoUrl = `${window.location.origin}/logo-minerd.svg`
+    const unidad = planActivo?.contenido
+    if (!unidad) return
+    if (!forzar && unidad.guiaMaestro?.fichas?.length) {
+      try { abrirHTMLEnPestana(formatearGuiaMaestroHTML(unidad.guiaMaestro, logoUrl)) } catch (e) { console.error('[ModoAula] abrir guía:', e) }
+      return
+    }
+    setGuiaEstado({ cargando: true, texto: forzar ? 'Regenerando la Guía del Maestro…' : 'Preparando la Guía del Maestro…' })
+    try {
+      const guia = await generarGuiaMaestro(unidad, {
+        onProgreso: ({ clasesListas, totalClases }) =>
+          setGuiaEstado({ cargando: true, texto: `Clase ${Math.min(clasesListas + 1, totalClases)}/${totalClases}…` }),
+      })
+      const contenidoConGuia = { ...unidad, guiaMaestro: guia }
+      const planActualizado = { ...planActivo, contenido: contenidoConGuia }
+      setPlanActivo(planActualizado)
+      setPlanes(prev => prev.map((p) => String(p.id) === String(planActivo.id) ? planActualizado : p))
+      if (planActivo?.id && !String(planActivo.id).startsWith('local_')) {
+        actualizarPlanificacionDetallada(planActivo.id, { contenido: contenidoConGuia }).catch((e) =>
+          console.warn('[ModoAula] No se pudo persistir la guía:', e))
+      }
+      setGuiaEstado(null)
+      abrirHTMLEnPestana(formatearGuiaMaestroHTML(guia, logoUrl))
+    } catch (error) {
+      console.error('[ModoAula] generar guía:', error)
+      setGuiaEstado({ error: error.message || 'No se pudo generar la guía.' })
+    }
+  }
+
   const actualizarPuntajeInstrumento = (valor) => {
     const numero = Math.min(100, Math.max(1, Number(valor) || 1))
     setPuntajeInstrumento(numero)
@@ -2348,39 +2380,18 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
 
               {esAreaIdioma(claseNorm?.area || planActivo?.contenido?.metadatos?.area || planActivo?.contenido?.metadatos?.asignatura)
                 && Array.isArray(planActivo?.contenido?.fasesSemanales) && planActivo.contenido.fasesSemanales.length > 0 && (
-                <button disabled={guiaEstado?.cargando} onClick={async () => {
-                  const logoUrl = `${window.location.origin}/logo-minerd.svg`
-                  const unidad = planActivo?.contenido
-                  // Caché: si ya se generó, ábrela al instante.
-                  if (unidad?.guiaMaestro?.fichas?.length) {
-                    try { abrirHTMLEnPestana(formatearGuiaMaestroHTML(unidad.guiaMaestro, logoUrl)) } catch (e) { console.error('[ModoAula] abrir guía:', e) }
-                    return
-                  }
-                  setGuiaEstado({ cargando: true, texto: 'Preparando la Guía del Maestro…' })
-                  try {
-                    const guia = await generarGuiaMaestro(unidad, {
-                      onProgreso: ({ clasesListas, totalClases }) =>
-                        setGuiaEstado({ cargando: true, texto: `Clase ${Math.min(clasesListas + 1, totalClases)}/${totalClases}…` }),
-                    })
-                    const contenidoConGuia = { ...unidad, guiaMaestro: guia }
-                    const planActualizado = { ...planActivo, contenido: contenidoConGuia }
-                    setPlanActivo(planActualizado)
-                    setPlanes(prev => prev.map((p) => String(p.id) === String(planActivo.id) ? planActualizado : p))
-                    // Persistir en Firestore (ignora errores de red: la guía ya está en memoria).
-                    if (planActivo?.id && !String(planActivo.id).startsWith('local_')) {
-                      actualizarPlanificacionDetallada(planActivo.id, { contenido: contenidoConGuia }).catch((e) =>
-                        console.warn('[ModoAula] No se pudo persistir la guía:', e))
-                    }
-                    setGuiaEstado(null)
-                    abrirHTMLEnPestana(formatearGuiaMaestroHTML(guia, logoUrl))
-                  } catch (error) {
-                    console.error('[ModoAula] generar guía:', error)
-                    setGuiaEstado({ error: error.message || 'No se pudo generar la guía.' })
-                  }
-                }} style={{
-                  background:'#fff', border:'1px solid #cbd5e1', color: guiaEstado?.cargando ? '#94a3b8' : '#4f46e5',
-                  borderRadius:8, padding:'8px 13px', fontSize:12, fontWeight:900, cursor: guiaEstado?.cargando ? 'wait' : 'pointer',
-                }}>{guiaEstado?.cargando ? '⏳ Generando…' : (planActivo?.contenido?.guiaMaestro?.fichas?.length ? '👁 Ver guía' : '📖 Cargar guía')}</button>
+                <>
+                  <button disabled={guiaEstado?.cargando} onClick={() => generarGuiaModoAula()} style={{
+                    background:'#fff', border:'1px solid #cbd5e1', color: guiaEstado?.cargando ? '#94a3b8' : '#4f46e5',
+                    borderRadius:8, padding:'8px 13px', fontSize:12, fontWeight:900, cursor: guiaEstado?.cargando ? 'wait' : 'pointer',
+                  }}>{guiaEstado?.cargando ? '⏳ Generando…' : (planActivo?.contenido?.guiaMaestro?.fichas?.length ? '👁 Ver guía' : '📖 Cargar guía')}</button>
+                  {!guiaEstado?.cargando && planActivo?.contenido?.guiaMaestro?.fichas?.length ? (
+                    <button onClick={() => generarGuiaModoAula({ forzar: true })} title="Genera una guía nueva con IA (ignora la ya guardada)" style={{
+                      background:'#fff', border:'1px solid #cbd5e1', color:'#4f46e5',
+                      borderRadius:8, padding:'8px 13px', fontSize:12, fontWeight:900, cursor:'pointer',
+                    }}>↻ Regenerar</button>
+                  ) : null}
+                </>
               )}
             </div>
           </div>

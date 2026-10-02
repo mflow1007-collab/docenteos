@@ -17,7 +17,7 @@ const textoSeguro = (value) => {
   ].map(textoSeguro).filter(Boolean).join(" · ");
 };
 
-export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onVerGuia, onNueva, onAplicarAcciones, onEditarUnidad, guardando, mensaje, onIrAModoAula }) {
+export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescargar, onVer, onVerGuia, onRegenerarGuia, onNueva, onAplicarAcciones, onEditarUnidad, guardando, mensaje, onIrAModoAula }) {
   const [mostrarAuditoria, setMostrarAuditoria] = useState(false);
   // Modo edición (Bloque 1): permite al docente elegir qué indicadores trabaja
   // el plan. Los cambios se elevan al padre vía onEditarUnidad para persistirlos.
@@ -245,6 +245,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
         <button className="export-btn" onClick={onDescargar}>🖨️ Guardar como PDF</button>
         <button className="export-btn ua-ver-btn" onClick={onVer}>👁️ Ver PDF</button>
         {onVerGuia && <button className="export-btn" onClick={onVerGuia} title="Guion de aula detallado, clase por clase">{unidad?.guiaMaestro?.fichas?.length ? "👁️ Ver guía" : "📖 Guía del Maestro"}</button>}
+        {onRegenerarGuia && unidad?.guiaMaestro?.fichas?.length ? <button className="export-btn" onClick={onRegenerarGuia} title="Genera una guía nueva con IA (ignora la ya guardada)">↻ Regenerar guía</button> : null}
         <button className="audit-trigger-btn" onClick={() => setMostrarAuditoria(true)}>🔍 Auditar con IA</button>
         <button className="reset-btn" onClick={onNueva}>↻ Nuevo</button>
         {onIrAModoAula && (
@@ -623,6 +624,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
         <button className="export-btn" onClick={onDescargar}>🖨️ Guardar como PDF</button>
         <button className="export-btn ua-ver-btn" onClick={onVer}>👁️ Ver PDF</button>
         {onVerGuia && <button className="export-btn" onClick={onVerGuia} title="Guion de aula detallado, clase por clase">{unidad?.guiaMaestro?.fichas?.length ? "👁️ Ver guía" : "📖 Guía del Maestro"}</button>}
+        {onRegenerarGuia && unidad?.guiaMaestro?.fichas?.length ? <button className="export-btn" onClick={onRegenerarGuia} title="Genera una guía nueva con IA (ignora la ya guardada)">↻ Regenerar guía</button> : null}
         <button className="audit-trigger-btn" onClick={() => setMostrarAuditoria(true)}>🔍 Auditar con IA</button>
         <button className="reset-btn" onClick={onNueva}>↻ Nueva unidad</button>
         {onIrAModoAula && (

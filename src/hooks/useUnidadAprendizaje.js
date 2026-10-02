@@ -248,15 +248,7 @@ export function useUnidadAprendizaje() {
     }
   };
 
-  const manejarVerGuia = async () => {
-    if (!unidad) return;
-    // Caché: si ya se generó, ábrela al instante.
-    if (unidad.guiaMaestro?.fichas?.length) {
-      try { abrirGuiaHTML(unidad.guiaMaestro); } catch (error) {
-        setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
-      }
-      return;
-    }
+  const generarYAbrirGuia = async () => {
     setMensajeUnidad({ tipo: "loading", texto: "📖 Preparando la Guía del Maestro…" });
     try {
       const guia = await generarGuiaMaestro(unidad, {
@@ -268,13 +260,30 @@ export function useUnidadAprendizaje() {
         },
       });
       // Cachear en la unidad (sesión) para reaperturas sin gastar IA.
-      const unidadConGuia = { ...unidad, guiaMaestro: guia };
-      setUnidad(unidadConGuia);
+      setUnidad({ ...unidad, guiaMaestro: guia });
       setMensajeUnidad({ tipo: "success", texto: "✅ Guía del Maestro lista." });
       abrirGuiaHTML(guia);
     } catch (error) {
       setMensajeUnidad({ tipo: "error", texto: `❌ No se pudo generar la Guía: ${error.message}` });
     }
+  };
+
+  const manejarVerGuia = async () => {
+    if (!unidad) return;
+    // Caché: si ya se generó, ábrela al instante.
+    if (unidad.guiaMaestro?.fichas?.length) {
+      try { abrirGuiaHTML(unidad.guiaMaestro); } catch (error) {
+        setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
+      }
+      return;
+    }
+    await generarYAbrirGuia();
+  };
+
+  // Fuerza una guía NUEVA ignorando la caché (p. ej. tras cambiar el generador).
+  const manejarRegenerarGuia = async () => {
+    if (!unidad) return;
+    await generarYAbrirGuia();
   };
 
   const manejarNuevaUnidad = () => {
@@ -355,6 +364,6 @@ export function useUnidadAprendizaje() {
     cargandoUnidad, guardandoUnidad, mensajeUnidad, setMensajeUnidad,
     manejarGenerarUnidad, manejarGenerarUnidadForzado,
     manejarGuardarUnidad, manejarDescargarUnidad,
-    manejarVerUnidad, manejarVerGuia, manejarNuevaUnidad, manejarAplicarAcciones,
+    manejarVerUnidad, manejarVerGuia, manejarRegenerarGuia, manejarNuevaUnidad, manejarAplicarAcciones,
   };
 }
