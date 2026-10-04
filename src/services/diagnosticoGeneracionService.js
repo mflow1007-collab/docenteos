@@ -270,3 +270,111 @@ export const generarPruebaDiagnostica = async ({ area, asignatura, grado, nivel,
   }
   throw new Error(`No se pudo generar la prueba: ${ultimoMotivo}`);
 };
+
+// ─── Exportación a HTML/PDF (vista del estudiante / del docente) ──────────────
+// Documento imprimible tipo MINERD. conClave=false → prueba del ESTUDIANTE (sin
+// respuestas); conClave=true → versión del DOCENTE (clave marcada + guía de los
+// abiertos). Los controles (imprimir/cerrar) se ocultan en el PDF (@media print).
+export const formatearPruebaDiagnosticaHTML = (prueba, { conClave = false, logoUrl = "" } = {}) => {
+  if (!prueba) return "";
+  const m = prueba.metadatos || {};
+  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const estimulosPorId = Object.fromEntries(_arr(prueba.estimulos).map((e) => [e.id, e]));
+  const abiertos = _arr(prueba.items).filter((i) => i.tipo === "abierta").length;
+  const multiples = _arr(prueba.items).length - abiertos;
+
+  const estimuloHtml = (est) => {
+    if (!est) return "";
+    const lineas = esc(est.texto).split("\n").map((l) => `<p>${l}</p>`).join("");
+    return `<div class="estimulo">
+        <div class="estimulo-head">${esc(est.titulo) || esc(est.tipo).toUpperCase()}</div>
+        <div class="estimulo-body">${lineas}</div>
+        ${est.fuente ? `<div class="estimulo-fuente">Fuente: ${esc(est.fuente)}</div>` : ""}
+      </div>`;
+  };
+
+  // Imprime los estímulos en el orden en que aparecen referenciados por primera vez.
+  let itemNum = 0;
+  const estimulosImpresos = new Set();
+  const cuerpo = _arr(prueba.items).map((it) => {
+    itemNum += 1;
+    const est = it.estimuloId ? estimulosPorId[it.estimuloId] : null;
+    let bloqueEstimulo = "";
+    if (est && !estimulosImpresos.has(est.id)) { estimulosImpresos.add(est.id); bloqueEstimulo = estimuloHtml(est); }
+
+    const esMultiple = it.tipo === "opcion_multiple";
+    const claveLetra = _texto(it.claveIA).toLowerCase();
+    const opcionesHtml = esMultiple
+      ? `<ol class="opciones" type="a">${_arr(it.opciones).map((op) => {
+          const txt = esc(String(op).replace(/^[a-dA-D][).]\s*/, ""));
+          const letra = (String(op).match(/^([a-dA-D])[).]/) || [])[1]?.toLowerCase();
+          const correcta = conClave && letra && letra === claveLetra;
+          return `<li class="${correcta ? "correcta" : ""}">${txt}${correcta ? " ✓" : ""}</li>`;
+        }).join("")}</ol>`
+      : `<div class="espacio-abierto">${conClave ? `<div class="guia-doc"><strong>Guía de corrección:</strong> ${esc(it.respuestaAbiertaGuia)}</div>` : "Espacio para la respuesta:<br><br><br>"}</div>`;
+
+    const claveDoc = conClave && esMultiple && it.claveJustificacion
+      ? `<div class="guia-doc"><strong>Clave:</strong> ${esc(claveLetra)}) — ${esc(it.claveJustificacion)}</div>` : "";
+
+    return `${bloqueEstimulo}<div class="item">
+        <p class="item-enun"><span class="item-num">${itemNum}.</span> ${esc(it.enunciado)}</p>
+        ${opcionesHtml}${claveDoc}
+      </div>`;
+  }).join("");
+
+  const estilos = `
+    body { font-family: 'Book Antiqua', Palatino, 'Palatino Linotype', serif; font-size: 12pt; line-height: 1.3; color: #111; margin: 0; background: #f8fafc; }
+    .page { max-width: 900px; margin: 0 auto; padding: 24px; background: #fff; }
+    .header { text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 14px; }
+    .header img { width: 180px; max-width: 55mm; display: block; margin: 0 auto 8px; }
+    .header h1 { font-size: 15pt; color: #1e3a8a; margin: 2px 0; }
+    .header .sub { font-size: 12.5pt; color: #1d4ed8; font-weight: bold; }
+    .datos { width: 100%; border-collapse: collapse; margin: 10px 0 12px; }
+    .datos td { border: 1px solid #93c5fd; padding: 5px 8px; font-size: 11pt; }
+    .datos .lbl { background: #dbeafe; font-weight: bold; width: 150px; }
+    .intro { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 12px; font-size: 10.5pt; color: #1e40af; margin-bottom: 10px; }
+    .instrucciones { font-size: 11pt; margin-bottom: 12px; }
+    .instrucciones b { color: #1e3a8a; }
+    .estimulo { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin: 12px 0 8px; background: #f8fafc; page-break-inside: avoid; }
+    .estimulo-head { font-weight: bold; color: #1e3a8a; font-size: 11pt; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .3px; }
+    .estimulo-body p { margin: 0 0 4px; }
+    .estimulo-fuente { font-size: 9pt; color: #64748b; font-style: italic; margin-top: 5px; }
+    .item { margin: 10px 0; page-break-inside: avoid; }
+    .item-enun { font-weight: 600; }
+    .item-num { color: #1d4ed8; font-weight: bold; }
+    .opciones { margin: 4px 0 0 8px; padding-left: 24px; }
+    .opciones li { margin-bottom: 3px; }
+    .opciones li.correcta { background: #dcfce7; font-weight: bold; border-radius: 3px; padding: 0 4px; }
+    .espacio-abierto { border: 1px dashed #94a3b8; border-radius: 6px; padding: 8px 12px; margin-top: 5px; color: #475569; font-size: 10.5pt; }
+    .guia-doc { background: #fef9c3; border-left: 3px solid #eab308; padding: 5px 9px; margin-top: 5px; font-size: 10pt; color: #713f12; }
+    @media print { body { background: #fff; } .page { max-width: none; } .no-print, .no-print * { display: none !important; } }
+  `;
+
+  const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="MINERD">` : "";
+  const titulo = conClave ? "Evaluación Diagnóstica — Versión del docente (con clave)" : "Evaluación Diagnóstica";
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>${esc(titulo)} — ${esc(m.asignatura || m.area)} ${esc(m.grado)}</title>
+<style>${estilos}</style></head><body>
+<div class="page">
+  <div class="header">
+    ${logoHtml}
+    <h1>${esc(titulo)}</h1>
+    <div class="sub">${esc(m.asignatura || m.area || "")} · ${esc(m.grado || "")} de ${esc(m.nivel || "Secundaria")}</div>
+  </div>
+  <table class="datos">
+    <tr><td class="lbl">Nombre del estudiante</td><td></td><td class="lbl">No. Orden</td><td></td></tr>
+    <tr><td class="lbl">Centro educativo</td><td></td><td class="lbl">Sección</td><td></td></tr>
+    <tr><td class="lbl">Fecha</td><td></td><td class="lbl">Tiempo</td><td>${esc(m.tiempoMinutos || 90)} minutos</td></tr>
+  </table>
+  <div class="intro">Esta evaluación es DIAGNÓSTICA: identifica tus saberes de entrada y <b>no afecta tu calificación</b>. Responde con calma y honestidad.</div>
+  <div class="instrucciones"><b>Instrucciones.</b> Lee cada texto y cada pregunta con atención.
+    En los ${multiples} ítems de opción múltiple, marca la opción correcta.
+    ${abiertos ? `Los ${abiertos} ítems de respuesta abierta se desarrollan por escrito.` : ""}</div>
+  ${cuerpo}
+</div>
+<div class="no-print" style="position:fixed;bottom:20px;right:20px;z-index:999;display:flex;gap:8px">
+  <button onclick="window.print()" style="background:#1d4ed8;color:white;border:none;padding:10px 20px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">🖨️ Guardar como PDF</button>
+  <button onclick="window.close()" style="background:#64748b;color:white;border:none;padding:10px 16px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">✕ Cerrar</button>
+</div>
+</body></html>`;
+};
