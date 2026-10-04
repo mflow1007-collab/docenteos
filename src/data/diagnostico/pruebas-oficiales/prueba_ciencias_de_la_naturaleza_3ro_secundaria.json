@@ -1,0 +1,290 @@
+{
+  "metadatos": {
+    "area": "Ciencias de la Naturaleza",
+    "grado": "3ro",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 3,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "texto",
+      "texto": "Tercer Grado de Educación Secundaria\n desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los\n resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas\n y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando tus\n competencias durante este año escolar.\n de ella se hace una pregunta; luego se proponen 4 opciones de posibles respuestas donde solo\n una es la correcta.\n sombreando la letra que corresponda o subrayándola.\n Lee, analiza y selecciona la respuesta correcta",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante una práctica de laboratorio, un grupo de estudiantes calienta hielo y observa que primero se derrite, luego el agua aumenta su temperatura y finalmente hierve. ¿Qué explicación permite comprender mejor lo ocurrido?",
+      "opciones": [
+        "a) La materia desaparece cuando recibe calor.",
+        "b) El calor puede producir cambios de estado y aumentar el movimiento de las partículas.",
+        "c) La temperatura no se relaciona con los cambios de estado.",
+        "d) El agua solo cambia de estado cuando se mezcla con otra sustancia."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una estudiante coloca agua líquida en una nevera y, después de varias horas, observa que se convierte en hielo. ¿Cómo se llama este cambio de estado?",
+      "opciones": [
+        "a) Fusión.",
+        "b) Evaporación.",
+        "c) Solidificación.",
+        "d) Condensación."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En la mañana, se observan pequeñas gotas de agua en la parte externa de un vaso con jugo frío. ¿Qué proceso físico explica la formación de esas gotas?",
+      "opciones": [
+        "a) Sublimación del vidrio.",
+        "b) Condensación del vapor de agua del aire.",
+        "c) Fusión del vaso.",
+        "d) Cristalización del oxígeno."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Al calentar agua en una olla, llega un momento en que se forman burbujas en todo el líquido y el agua pasa rápidamente a vapor. ¿Qué cambio de estado se evidencia?",
+      "opciones": [
+        "a) Ebullición.",
+        "b) Solidificación.",
+        "c) Licuefacción.",
+        "d) Cristalización."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Cuando se deja un perfume abierto, su olor se dispersa por la habitación. ¿Qué explicación científica describe mejor este fenómeno?",
+      "opciones": [
+        "a) Las partículas del perfume se solidifican.",
+        "b) Las partículas del perfume se evaporan y se mueven en el aire.",
+        "c) El perfume aumenta su masa al mezclarse con el aire.",
+        "d) El perfume se convierte directamente en sólido."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En una investigación, los estudiantes observan que la naftalina disminuye de tamaño sin formar líquido visible. ¿Qué cambio de estado explica este comportamiento?",
+      "opciones": [
+        "a) Fusión.",
+        "b) Sublimación.",
+        "c) Condensación.",
+        "d) Licuefacción."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Un técnico observa que los cables eléctricos se ven más flojos en días calurosos y más tensos en días fríos. ¿Qué propiedad de la materia permite explicar este fenómeno?",
+      "opciones": [
+        "a) La dilatación térmica de los cuerpos.",
+        "b) La cristalización de los metales.",
+        "c) La evaporación del cobre. d) La disminución de la masa del cable."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante un experimento, se mide la temperatura del agua cada minuto mientras se calienta. Los datos se representan en una gráfica llamada curva de calentamiento. ¿Para qué sirve principalmente esta gráfica?",
+      "opciones": [
+        "a) Para mostrar cómo varía la temperatura durante el calentamiento y los cambios de estado.",
+        "b) Para medir la masa exacta del recipiente.",
+        "c) Para identificar el color del líquido.",
+        "d) Para calcular la cantidad de estudiantes del grupo."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Dos objetos tienen la misma temperatura, pero uno contiene mayor cantidad de materia. ¿Cuál afirmación diferencia correctamente calor y temperatura? en transferencia.",
+      "opciones": [
+        "a) Calor y temperatura significan exactamente lo mismo.",
+        "b) La temperatura mide el grado de agitación de las partículas, mientras el calor es energía",
+        "c) El calor solo existe en los sólidos.",
+        "d) La temperatura siempre depende del color del objeto."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En una práctica sobre conductividad térmica, se coloca una cuchara metálica y una de madera en agua caliente. La cuchara metálica se calienta más rápido. ¿Qué conclusión es más adecuada?",
+      "opciones": [
+        "a) El metal conduce mejor el calor que la madera.",
+        "b) La madera tiene mayor conductividad térmica que el metal.",
+        "c) Ambos materiales conducen el calor de la misma forma.",
+        "d) El calor no se transfiere entre cuerpos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Un estudiante compara dos líquidos usando una balanza y una probeta. Observa que tienen igual volumen, pero diferente masa. ¿Qué propiedad permite explicar esta diferencia?",
+      "opciones": [
+        "a) La temperatura. b) La densidad.",
+        "c) La evaporación. d) La ebullición."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En un modelo con jeringas conectadas por una manguera con agua, al presionar una jeringa, la fuerza se transmite a la otra. ¿Qué principio físico se demuestra?",
+      "opciones": [
+        "a) Principio de Arquímedes.",
+        "b) Principio de Pascal.",
+        "c) Sublimación. d) Dilatación térmica."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Al introducir un objeto en agua, se observa que recibe un empuje hacia arriba. Si el empuje es mayor que su peso, el objeto flota. ¿Qué principio explica este fenómeno?",
+      "opciones": [
+        "a) Principio de Pascal.",
+        "b) Principio de Arquímedes.",
+        "c) Ley de conservación de la masa.",
+        "d) Evaporación."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Un grupo de estudiantes calienta el aire dentro de una botella con un globo en la boca. El globo aumenta de tamaño. ¿Qué relación permite explicar lo ocurrido?",
+      "opciones": [
+        "a) Al aumentar la temperatura, el gas puede expandirse y ocupar mayor volumen.",
+        "b) Al aumentar la temperatura, el gas desaparece.",
+        "c) El volumen del gas siempre disminuye al calentarse.",
+        "d) La presión no se relaciona con los gases."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Al construir modelos moleculares de los estados de la materia, los estudiantes representan partículas juntas en sólidos, menos juntas en líquidos y muy separadas en gases. ¿Qué idea científica se refuerza con esta actividad? su estado.",
+      "opciones": [
+        "a) La materia está formada por partículas en movimiento con distinta organización según",
+        "b) La materia solo existe cuando puede verse a simple vista.",
+        "c) Los gases no tienen partículas.",
+        "d) Los sólidos no poseen estructura interna."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

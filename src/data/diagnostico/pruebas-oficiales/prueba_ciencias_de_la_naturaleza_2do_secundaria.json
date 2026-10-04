@@ -1,0 +1,283 @@
+{
+  "metadatos": {
+    "area": "Ciencias de la Naturaleza",
+    "grado": "2do",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 7,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "texto",
+      "texto": "Segundo Grado de Educación Secundaria\n desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los\n resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y\n necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando tus competencias\n durante este año escolar.\n de ella, se formula una pregunta. Luego, se presentan cuatro opciones de posibles respuestas, de las\n cuales solo una es correcta.\n correcta.",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En una comunidad cercana a un río, los estudiantes observan que algunas plantas acuáticas han disminuido y que hay menos peces que antes. Si se analiza esta situación desde el funcionamiento de un ecosistema, ¿qué explicación permite comprender mejor lo ocurrido? relaciones entre los seres vivos. las condiciones ambientales permanezcan.",
+      "opciones": [
+        "a) Los organismos de un ecosistema no dependen unos de otros para sobrevivir.",
+        "b) La alteración de un componente del ecosistema puede afectar la biodiversidad y las",
+        "c) La disminución se debe a que los organismos de un ecosistema cambian de lugar, aunque",
+        "d) Los ciclos de los elementos no influyen en la vida de los organismos acuáticos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Al comparar la célula con una fábrica que necesita explica la producción de Adenosín Trifosfato (ATP) que permite realizar sus actividades vitales?",
+      "opciones": [
+        "a) La membrana celular.",
+        "b) El citoplasma.",
+        "c) La mitocondria.",
+        "d) El aparato de Golgi."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Para comprender cómo se organiza el cuerpo humano, ¿cuál secuencia representa correctamente los niveles de organización biológica desde la unidad más simple hasta el sistema funcional más complejo?",
+      "opciones": [
+        "a) Órgano → Tejido → Célula → Sistema.",
+        "b) Célula → Tejido → Órgano → Sistema.",
+        "c) Sistema → Órgano → Tejido → Célula.",
+        "d) Tejido → Célula → Sistema → Órgano."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una persona necesita energía para crecer, reparar tejidos y realizar sus funciones vitales; ¿qué explicación describe mejor la importancia de la nutrición?",
+      "opciones": [
+        "a) Se utiliza para eliminar los desechos del cuerpo.",
+        "b) Sirve para obtener energía para las funciones vitales.",
+        "c) Permite la transformación del oxígeno.",
+        "d) Ayuda a mover los músculos durante el ejercicio de masticación."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Al realizar ejercicio intenso, el cuerpo aumenta la sudoración y el ritmo cardíaco para responder a los cambios internos. ¿Qué proceso biológico permite mantener el equilibrio del organismo ante esta situación?",
+      "opciones": [
+        "a) Respiración celular",
+        "b) Homeostasis",
+        "c) División celular d) Digestión química"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En los alvéolos pulmonares se produce un intercambio de gases necesario para obtener energía en las células. ¿Cuál opción identifica correctamente el gas que entra a la sangre y el gas que se elimina al exterior?",
+      "opciones": [
+        "a) Entra nitrógeno y sale oxígeno.",
+        "b) Entra dióxido de carbono y sale oxígeno.",
+        "c) Entra oxígeno y sale dióxido de carbono.",
+        "d) Entra hidrógeno y sale vapor de agua."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una persona entra en contacto con virus o bacterias, el cuerpo activa mecanismos de defensa. ¿Cuál es la función principal del sistema inmunológico en la protección de la salud?",
+      "opciones": [
+        "a) Transportar nutrientes por todo el cuerpo.",
+        "b) Atacar agentes extraños.",
+        "c) Producir hormonas para el crecimiento.",
+        "d) Filtrar la sangre para producir orina."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En un arrecife de coral, el pez payaso obtiene protección de la anémona y esta recibe nutrientes del pez. A partir de esta evidencia, ¿qué tipo de relación ecológica se establece entre ambos organismos?",
+      "opciones": [
+        "a) Parasitismo.",
+        "b) Competencia.",
+        "c) Mutualismo.",
+        "d) Comensalismo."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante la pubertad ocurren cambios biológicos relacionados con la producción de hormonas y la maduración del organismo. ¿Qué función explica la importancia del sistema reproductor humano para la continuidad de la especie? madurez sexual. de los órganos sexuales. hembras y varones.",
+      "opciones": [
+        "a) Asegurar la supervivencia de la especie mediante la generación de nuevos individuos.",
+        "b) Controlar los cambios físicos y hormonales que preparan al organismo para alcanzar la",
+        "c) Producir sustancias y células reproductoras necesarias para el funcionamiento adecuado",
+        "d) Regular los cambios corporales que diferencian las características sexuales entre"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "El VIH afecta el sistema inmunológico y puede transmitirse por contacto sexual sin protección. Se tiene la siguiente lista de acciones: ¿Cuáles de estas decisiones contribuyen de manera más efectiva a prevenir la enfermedad nombrada en el ítem o pregunta número 10?\na) Lavarse las manos frecuentemente. b) Abstenerse de tener relaciones sexuales. c) Uso constante de preservativo. d) Tener relaciones con una persona seria.",
+      "opciones": [
+        "a) 1 y 2",
+        "b) 1 y 4",
+        "c) 2 y 3",
+        "d) 3 y 4"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Si la capa de ozono disminuyera considerablemente, aumentaría la exposición de los seres vivos a la radiación ultravioleta. ¿Qué consecuencia explica mejor el impacto de este fenómeno en la biosfera?",
+      "opciones": [
+        "a) El ciclo hidrológico se detendría por falta de agua.",
+        "b) Daños graves en su ADN y tejidos por la radiación UV.",
+        "c) Las placas tectónicas dejarían de moverse.",
+        "d) La gravedad de la Tierra desaparecería."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Cuando una herida en la piel cicatriza, nuevas células sustituyen a las dañadas para reparar el tejido. ¿Qué proceso de división celular permite explicar esta recuperación?",
+      "opciones": [
+        "a) Meiosis.",
+        "b) Mitosis.",
+        "c) Fotosíntesis.",
+        "d) Fermentación."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Una adolescente observa cambios físicos y hormonales propios de su desarrollo. ¿En qué etapa del crecimiento humano se explican científicamente estos cambios?",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "El cuerpo necesita eliminar desechos tóxicos producidos por el metabolismo, por ejemplo, la orina que se produce al filtrar la sangre. ¿Qué órgano del sistema excretor se encarga de esta filtración?",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante una actividad física intensa, una persona aumenta su frecuencia respiratoria y cardíaca para llevar más oxígeno a los músculos. A partir de esta situación, ¿qué relación entre sistemas del cuerpo humano permite explicar esta respuesta del organismo? las células. orina.",
+      "opciones": [
+        "a) El sistema digestivo produce hormonas y el sistema excretor transporta oxígeno.",
+        "b) El sistema respiratorio incorpora oxígeno y el sistema circulatorio lo transporta hacia",
+        "c) El sistema inmunológico elimina dióxido de carbono y el sistema endocrino produce",
+        "d) El sistema reproductor regula la entrada de aire y el sistema digestivo bombea sangre."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

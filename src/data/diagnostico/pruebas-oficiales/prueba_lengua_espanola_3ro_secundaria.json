@@ -1,0 +1,308 @@
+{
+  "metadatos": {
+    "area": "Lengua Española",
+    "grado": "3ro",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 8,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "poema",
+      "texto": "Tercer Grado del Nivel Secundario\ndesarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los resultados\nno afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y necesidades, y\npuedan brindarte el apoyo necesario para continuar desarrollando tus competencias durante este año\nescolar.\n• En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona únicamente\n la opción que consideres correcta.\n• Los ítems 14 y 15 son de respuesta abierta. En ellos deberás escribir y desarrollar tu respuesta de\n acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\nLee atentamente la siguiente décima espinela y, a continuación, responde las preguntas 1, 2 y 3\n Décima espinela: Cuentan de un sabio que un día\n Cuentan de un sabio que un día Pedro Calderón de la Barca\n tan pobre y mísero estaba, Fragmento de La vida es sueño\n que solo se sustentaba\n Tomado de Pedro Calderón de la Barca, La\n de unas hierbas que cogía.\n vida es sueño. Biblioteca Virtual Miguel de\n ¿Habrá otro, entre sí decía,\n Cervantes. Adaptación ortográfica.\n más pobre y triste que yo?\n Link: https://www.cervantesvirtual.com/\n Y cuando el rostro volvió,\n obra-visor/la-vida-es-sueno--0/html/\n halló la respuesta, viendo\n fedc73fa-82b1-11df-acc7-002185ce\n que otro sabio iba cogiendo\n 6064_2.html\n las hierbas que él arrojó.",
+      "requiereImagen": false
+    },
+    {
+      "id": "E2",
+      "tipo": "noticia",
+      "texto": "Lee atentamente el siguiente fragmento de un artículo expositivo y, a continuación, responde las\npreguntas 4, 5 y 6.\n Fragmento: Los microplásticos: un problema que exige soluciones\n El mundo produce anualmente más de 430 millones de toneladas de\n plástico. Dos tercios corresponden a productos de corta duración\n que, después de utilizarse durante pocos minutos, se convierten en\n basura. Al descomponerse, muchos de estos residuos originan\n microplásticos: partículas de hasta cinco milímetros que se\n dispersan en el suelo, el aire y el agua.\n Los microplásticos también proceden de objetos de uso cotidiano.\n Algunas prendas fabricadas con materiales como poliéster, acrílico\n y nailon desprenden pequeñas fibras al utilizarse o lavarse.\n Asimismo, ciertos cosméticos, envases y filtros de cigarrillos\n pueden liberar partículas que llegan a las tuberías y, posteriormente,\n a los ríos y océanos.\n Cuando los peces, las aves y otros animales ingieren estas partículas, pueden sufrir daños, como la\n disminución de su alimentación, cambios de comportamiento y alteraciones en su organismo. Los seres\n humanos también pueden inhalar microplásticos presentes en el aire, ingerirlos mediante el agua y algunos\n alimentos o entrar en contacto con ellos a través de productos de uso personal. Por esta razón, la\n contaminación por microplásticos representa una amenaza para los ecosistemas y genera preocupación por\n sus posibles efectos en la salud.\n Enfrentar este problema requiere acciones conjuntas. Las empresas pueden disminuir el uso de\n microplásticos desde el diseño y la fabricación de sus productos. Los gobiernos pueden establecer normas,\n mejorar los sistemas de recogida de residuos y promover investigaciones sobre sus efectos. Por su parte, la\n ciudadanía puede reducir el consumo de plásticos desechables, reutilizar los productos y depositar\n correctamente los residuos. La participación de todos resulta necesaria para disminuir la contaminación y\n proteger la salud del planeta.\n Tomado de Programa de las Naciones Unidas para el Medio Ambiente (PNUMA), «Microplásticos:\n consecuencias históricas de la contaminación por plásticos», 2023. Fragmento adaptado. Link:\n https://www.unep.org/es/noticias-y-reportajes/reportajes/microplasticos-consecuencias-historicas-de-la-\n contaminacion-por",
+      "requiereImagen": false
+    },
+    {
+      "id": "E3",
+      "tipo": "cuento",
+      "texto": "Lee atentamente el siguiente fragmento del cuento El amigo fiel y, a continuación, responde las\npreguntas 7, 8 y 9.\n El amigo fiel - Oscar Wilde (Fragmento)\n ¡Qué día más duro! -se dijo Hans al meterse en la cama- Pero me alegra mucho no haberme negado, porque el\n molinero es mi mejor amigo […] A la mañana siguiente, muy temprano, el molinero llegó por el dinero de su saco\n de harina, pero el pequeño Hans estaba tan rendido, que no se había levantado aún de la cama.\n - ¡Palabra! -exclamó el molinero-. Eres muy perezoso. Cuando pienso que acabo de darte mi carretilla, creo que\n podrías trabajar con más ardor […]\n - Lo siento mucho -respondió el pequeño Hans, restregándose los ojos y quitándose el gorro de dormir-. Pero estaba\n tan rendido, que creía haberme acostado hace poco y escuchaba cantar a los pájaros. […]\n - ¡Bueno, tanto mejor! -replicó el molinero dándole una palmada en el hombro-; porque necesito que arregles la\n techumbre de mi granero.\n El pequeño Hans tenía gran necesidad de ir a trabajar a su jardín porque hacía dos días que no regaba sus flores,\n pero no quiso decir que no al molinero, que era un buen amigo para él.\n - ¿Crees que no sería amistoso decirte que tengo que hacer? -preguntó con voz humilde y tímida.\n - No creí nunca, a fe mía -contestó el molinero-, que fuese mucho pedirte, teniendo en cuenta que acabo de regalarte\n mi carretilla, pero claro es que lo haré yo mismo si te niegas.\n - ¡Oh, de ningún modo! -exclamó el pequeño Hans, saltando de su cama. Se vistió y fue\n al granero. Trabajó allí durante todo el día hasta el anochecer, y al ponerse el sol, vino\n el molinero a ver hasta dónde había llegado.\n - ¿Has tapado el boquete del techo, pequeño Hans? -gritó el molinero con tono alegre.\n - Está casi terminado -respondió Hans, bajando de la, escalera.\n - ¡Ah! -dijo el molinero- No hay trabajo tan delicioso como el que se hace por otro.\n - ¡Es un encanto oírte hablar! -respondió el pequeño Hans, que descansaba secándose la\n frente- Es un encanto, pero temo no tener yo nunca ideas tan hermosas como tú.\n - ¡Oh, ya las tendrás! -dijo el molinero-; pero habrás de tomarte más trabajo. Por ahora no\n posees más que la práctica de la amistad. Algún día poseerás también la teoría…\n (Continúa)\n Tomado de Oscar Wilde, El amigo fiel. Biblioteca Virtual Miguel de Cervantes. Fragmento. Link:\n https://www.cervantesvirtual.com/obra-visor/el-amigo-fiel--0/html/ff0cfd36-82b1-11df-acc7-002185ce6064_ 1.htm",
+      "requiereImagen": false
+    },
+    {
+      "id": "E4",
+      "tipo": "cronica",
+      "texto": "Lee atentamente el siguiente fragmento de una crónica deportiva y, a continuación, responde las\npreguntas 10, 11 y 12.\n Crónica deportiva – Adaptado.\nRepública Dominicana recupera cetro de la Serie del Caribe al vencer a México\nMEXICALI - Llegó a su fin la Serie del Caribe 2025 en Mexicali con un\ntremendo duelo dominado por los lanzadores. República Dominicana se\nlleva su título número 23° de Serie del Caribe al vencer (1-0) a México en\nel Nido de las Águilas.\nEsmil Rogers por el Escogido lanzó hasta la cuarta entrada juego sin hit ni\ncarrera, terminó llevándose la victoria en actuación de 6.0 innings con un\nimparable recibido, cinco bases por bolas y cuatro ponches. De México,\nManny Bañuelos tuvo una breve actuación de 4.0 entradas de tres hits y una\ncarrera limpia, que fue la determinante para la derrota en la final.\nMéxico desperdició el único bache que tuvo la actuación de Esmil Rogers en la segunda entrada cuando llenó las\nbases con tres pasaportes. Alfredo Hurtado terminó fallando con un elevado y después de este trance, fue el\ndominio de Rogers donde solo recibió el imparable por parte de Reynaldo Rodríguez en el cuarto inning.\nEl descontrol de Manny Bañuelos fue bien aprovechado por República Dominicana para anotar la única carrera\ndel juego en el tercer inning. El lanzador mexicano otorgó tres pasaportes consecutivos a la parte alta del lineup\npara dejar a Robinson Canó con las bases llenas. El segunda base bateó un rolling para doble play, pero fue\nsuficiente para que pudiera anotar Junior Lake.\nUna vez salieron los lanzadores abridores del juego, el relevo siguió luciendo de gran forma por República\nDominicana para colgar los ceros en el último tercio del juego.\nTomado de Enrique Ortega, «República Dominicana recupera cetro de la Serie del Caribe al vencer a México»,\nESPN Digital, 8 de febrero de 2025. Fragmento. Link: https://espndeportes.espn.com/beisbol/serie-del-\naribe/cronica/_/juegoId/401740929?utm_source =chatgpt.com",
+      "requiereImagen": false
+    },
+    {
+      "id": "E5",
+      "tipo": "articulo",
+      "texto": "Lee atentamente el siguiente fragmento adaptado de un artículo de opinión y, a continuación,\nresponde las preguntas 13, 14 y 15. En las preguntas 14 y 15, deberás redactar tus respuestas. Hazlo\ncon claridad y apóyalas en las ideas del texto.\n Articulo expositivo - Fragmento\n ¿Estamos preparados para una educación con IA centrada en el estudiante? Adaptado\n Por Jacqueline Malagón · 22/12/2025 · 12:06 AM\n La inteligencia artificial irrumpió en la educación sin pedir permiso.\n Hoy forma parte del entorno en el que niños y jóvenes aprenden, se\n comunican y construyen su identidad. Por eso, la pregunta ya no es si\n debemos incorporarla, sino cómo gestionarla y con qué criterios\n utilizarla.\n La IA puede personalizar el aprendizaje, adaptando contenidos, ritmos\n y niveles de dificultad a las necesidades de cada estudiante. También\n facilita tutorías inmediatas y retroalimentación constante. Además,\n libera al docente de tareas repetitivas y le permite concentrarse en\n orientar, acompañar y cuidar la dimensión humana del aprendizaje.\n Pero estas oportunidades no llegan solas. La inteligencia artificial plantea riesgos relacionados con la protección\n de los datos personales, el fraude académico, las desigualdades de acceso y el uso de herramientas que\n «piensan» por el estudiante. Sin embargo, el mayor riesgo es formar estudiantes dependientes de la tecnología,\n con escasa capacidad crítica y frágil juicio ético.\n Educar para convivir con la inteligencia artificial exige revisar qué enseñamos, cómo evaluamos y qué\n entendemos por aprender. No se trata de prohibir la tecnología, sino de integrarla con criterio, promoviendo el\n pensamiento reflexivo, la argumentación, la creatividad y la responsabilidad.\n En este proceso, los docentes ocupan un lugar central. La IA no los sustituye; los interpela. También será\n necesario actualizar los currículos, fortalecer la formación docente, garantizar la equidad digital y establecer\n normas que protejan los derechos de los estudiantes. Bien gestionada, la inteligencia artificial puede mejorar la\n educación; mal gestionada, puede profundizar las desigualdades y empobrecer la formación humana.\n (Continúa)\n Fuente: Tomado y adaptado de Jacqueline Malagón, «¿Estamos preparados para una educación con IA centrada en el\n estudiante?», Acento, 22 de diciembre de 2025. Link: https://acento.com.do/opinion/estamos-preparados-para-una-\n educacion-con-ia-centrada-en-el-estudiante-9594756.html?utm_source=chatgpt.com",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Según el texto, ¿qué vio el primer sabio cuando volvió el rostro?",
+      "opciones": [
+        "a) A una persona que sembraba nuevas hierbas.",
+        "b) A otro sabio que recogía las hierbas que él desechaba.",
+        "c) A un hombre que le ofrecía alimentos para ayudarlo.",
+        "d) A otro sabio que se alejaba por el mismo camino."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué comprendió el primer sabio al observar al otro?",
+      "opciones": [
+        "a) Que debía guardar todas las hierbas que encontraba.",
+        "b) Que los demás eran responsables de su pobreza.",
+        "c) Que su sabiduría le permitiría abandonar aquel lugar.",
+        "d) Que otra persona se encontraba en una situación más difícil."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué reflexión sobre la vida se comunica principalmente mediante la situación de los dos sabios?",
+      "opciones": [
+        "a) Comparar una situación con la de otros puede ayudarnos a ver una perspectiva diferente.",
+        "b) Las dificultades solo se resuelven cuando vemos a otras personas pasar calamidades.",
+        "c) Quienes poseen conocimientos de las acciones de otras personas, siempre encuentran la paz.",
+        "d) Las personas deben conformarse con sus problemas, pues otros están en peores condiciones."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "Según el texto, ¿qué son los microplásticos?",
+      "opciones": [
+        "a) Productos reutilizables diseñados para proteger los océanos.",
+        "b) Residuos orgánicos que contaminan la cadena alimenticia.",
+        "c) Partículas de plástico de hasta cinco milímetros.",
+        "d) Sustancias naturales absorbidas por peces y plantas que al ingerirse afectan la salud humana."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Por qué el texto plantea que empresas, gobiernos y ciudadanía deben participar en la solución?",
+      "opciones": [
+        "a) Porque un solo sector no basta para enfrentar las distintas causas del problema.",
+        "b) Porque hay que enfrentar la ciudadanía para disminuir el consumo de productos plásticos.",
+        "c) Porque los gobiernos fabrican la mayoría de los productos plásticos desechables.",
+        "d) Porque las empresas tienen el compromiso de reutilizar los productos plásticos vendidos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una comunidad organiza jornadas para recoger plásticos, pero continúa utilizando la misma cantidad de productos desechables. De acuerdo con el texto, ¿cómo debe valorarse esta iniciativa?",
+      "opciones": [
+        "a) Es innecesaria, porque recoger los residuos no elimina la producción de microplásticos.",
+        "b) Es suficiente, porque elimina solo los plásticos presentes en los ríos.",
+        "c) Es perjudicial, porque la ciudadanía no debe intervenir en bosques, ríos y parques.",
+        "d) Es una medida positiva, pero insuficiente si no se reduce también el consumo de plásticos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Por qué Hans todavía no se había levantado cuando llegó el molinero?",
+      "opciones": [
+        "a) Porque había quedado de encontrarse a las 11:00 am con su amigo molinero.",
+        "b) Porque estaba agotado después del trabajo realizado.",
+        "c) Porque quería escuchar el canto de los pájaros al quedarse recostado en la cama.",
+        "d) Porque sabía que el molinero llegaría por el dinero de su saco de harina."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué motivó principalmente a Hans a aceptar la reparación del granero?",
+      "opciones": [
+        "a) Deseaba aprender las ideas del molinero sobre el trabajo que debía realizar.",
+        "b) Necesitaba conseguir dinero para recuperar sus pertenencias.",
+        "c) Consideraba que negarse podía hacerlo parecer un mal amigo.",
+        "d) Quería evitar que el molinero llevara sus carneros a la montaña el solo."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué contradicción se evidencia cuando el molinero afirma que «No hay trabajo tan delicioso como el que se hace por otro»?",
+      "opciones": [
+        "a) Elogia el servicio a los demás mientras se beneficia continuamente del esfuerzo de Hans.",
+        "b) valora profundamente servirle a los demás como lo hace él con sus amigos.",
+        "c) El molinero reconoce que Hans trabaja en beneficio de los demás y valora su esfuerzo.",
+        "d) Defiende la sinceridad entre amigos, pero se niega a reconocer el esfuerzo de Hans."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E4",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué información aporta la expresión «(1-0)» en el primer párrafo?",
+      "opciones": [
+        "a) La cantidad de entradas disputadas en el trascurso del juego.",
+        "b) El número de títulos obtenidos por Republica Dominicana en la Serie del Caribe.",
+        "c) El resultado final favorable para República Dominicana.",
+        "d) La cantidad de lanzadores utilizados por ambos equipos en el título número 23°."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E4",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál opción presenta los acontecimientos en el orden en que sucedieron durante el partido?",
+      "opciones": [
+        "a) Reynaldo Rodríguez conectó un imparable, México llenó las bases y Junior Lake anotó.",
+        "b) México llenó las bases, Robinson Canó bateó un Rolling y Junior Lake anotó carrera.",
+        "c) Junior Lake anotó, Reynaldo Rodríguez conectó un imparable y México llenó las bases.",
+        "d) México llenó las bases, Reynaldo Rodríguez conectó un imparable y Junior Lake anotó."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E4",
+      "tipo": "opcion_multiple",
+      "enunciado": "El autor afirma que la carrera permitida por Manny Bañuelos fue «determinante para la derrota». ¿Cuál evidencia respalda mejor esa afirmación?",
+      "opciones": [
+        "a) México disputó la final contra República Dominicana, perdiendo en el primer inning 1-0.",
+        "b) Esmil Rogers terminó con una sequía de seis entradas limpias para Republica Dominicana.",
+        "c) Manny Bañuelos logró ponchar a tos los bateadores durante las cuatro entradas que lanzó.",
+        "d) Rogers y los relevistas dominicanos impidieron anotaciones, por lo que el marcador terminó 1-0."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E5",
+      "tipo": "opcion_multiple",
+      "enunciado": "Según el texto, ¿qué debe hacerse con la inteligencia artificial en la educación?",
+      "opciones": [
+        "a) Prohibirla en los centros educativos hasta que desaparezcan sus riesgos éticos.",
+        "b) Permitir que los estudiantes la utilicen sin restricciones en los centros educativos y sus hogares.",
+        "c) Integrarla en el desarrollo de aprendizajes con criterios pedagógicos y éticos.",
+        "d) Emplearla para sustituir progresivamente a los docentes, debido la alta eficiencia de las respuestas."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E5",
+      "tipo": "abierta",
+      "enunciado": "En dos o tres oraciones, explica qué significa la afirmación «La IA no los sustituye; los interpela» y menciona una responsabilidad que deben asumir los docentes ante esta tecnología.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E5",
+      "tipo": "abierta",
+      "enunciado": "Redacta un párrafo de cuatro a seis oraciones en el que expreses tu posición sobre el uso de la inteligencia artificial en tu centro educativo. Sustenta tu opinión con un beneficio y un riesgo señalados en el texto y propone una medida para utilizarla responsablemente. Emplea al menos un conector, como «porque», «sin embargo» o «por eso».",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

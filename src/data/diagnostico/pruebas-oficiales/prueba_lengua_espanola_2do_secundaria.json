@@ -1,0 +1,302 @@
+{
+  "metadatos": {
+    "area": "Lengua Española",
+    "grado": "2do",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 7,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "texto",
+      "texto": "Segundo Grado del Nivel Secundario\ndesarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los resultados\nno afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y necesidades, y\npuedan brindarte el apoyo necesario para continuar desarrollando tus competencias durante este año\nescolar.\n• En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona\n únicamente la opción que consideres correcta.\n• Los ítems 14 y 15 son de respuesta abierta. En ellos deberás escribir y desarrollar tu respuesta de\n acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\n BLOQUE I. Texto: La aventura de los tres estudiantes — Arthur Conan Doyle\n Lee el texto y responde las preguntas del 1 al 4.\n «En el año noventa y cinco se produjo una suma de acontecimientos, en la que no es\n necesario entrar, que motivó que el señor Sherlock Holmes y yo pasáramos unas\n semanas en una de nuestras grandes ciudades universitarias, y durante esa época nos\n sucedió la pequeña —pero instructiva— experiencia que me dispongo a relatar».\n «El profesor Hilton Soames había venido a nosotros en un estado de gran agitación.\n Al día siguiente tenía que celebrarse un examen para una importante beca, y los\n papeles del examen habían llegado recientemente y estaban bajo su custodia».\n «Holmes, con su habitual tranquilidad, comenzó a examinar las circunstancias y las señales que encontraba\n en la habitación, procurando reconstruir lo ocurrido a partir de las evidencias». Fuente: Doyle, Arthur Conan.\n La aventura de los tres estudiantes. Publicado originalmente en The Strand Magazine, junio de 1904;\n posteriormente incluido en The Return of Sherlock Holmes. Texto digital consultado en Ciudad Seva.",
+      "requiereImagen": false
+    },
+    {
+      "id": "E2",
+      "tipo": "texto",
+      "texto": "BLOQUE II. Texto: El hombre que contaba historias — Oscar Wilde\n Lee el texto y responde las preguntas del 5 al 8.\n«Había una vez un hombre muy querido de su pueblo porque contaba historias. Todas las mañanas salía\ndel pueblo y, cuando volvía por las noches, todos los trabajadores del pueblo, tras haber bregado todo\nel día, se reunían a su alrededor y le decían:\n—Vamos, cuenta, ¿qué has visto hoy?» El hombre les hablaba de criaturas fantásticas que decía haber\nencontrado durante sus recorridos. Los habitantes escuchaban con interés sus relatos.\n«Una mañana dejó su pueblo, como todas las mañanas… Mas al llegar a la orilla del mar, he aquí que\nvio a tres sirenas, tres sirenas que, al filo de las olas, peinaban sus cabellos verdes con un peine de oro.\nY, como continuara su paseo, en llegando cerca del bosque, vio a un fauno que tañía su flauta y a un\ncorro de silvanos».\nCuando regresó al pueblo y le preguntaron nuevamente qué había visto, respondió:\n«—No he visto nada».\nFuente: Wilde, Oscar. El hombre que contaba historias. Texto completo disponible en Ciudad Seva.",
+      "requiereImagen": false
+    },
+    {
+      "id": "E3",
+      "tipo": "texto",
+      "texto": "BLOQUE III. Texto: El Ferrocarril Central — Juan Antonio Alix\n Lee el texto y responde las preguntas del 9 al 12.",
+      "requiereImagen": false
+    },
+    {
+      "id": "E4",
+      "tipo": "texto",
+      "texto": "BLOQUE IV. Texto: Reglas y consejos sobre investigación científica — Santiago Ramón y Cajal\n Lee el texto y responde la pregunta 13. Luego, desarrolla tus respuestas en los ítems 14 y 15, utilizando\n información de los textos para fundamentar tus ideas.",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál característica del narrador se puede identificar a partir de su participación en los acontecimientos del fragmento?",
+      "opciones": [
+        "a) Es protagonista porque dirige las acciones necesarias para resolver el caso",
+        "b) Es omnisciente porque conoce lo que piensan y sienten todos los personajes.",
+        "c) Es testigo porque participa en los acontecimientos y relata experiencias relacionadas con Holmes.",
+        "d) Es externo porque observa los acontecimientos sin intervenir en ellos"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Por qué la expresión «pequeña —pero instructiva— experiencia» resulta significativa para comprender el relato? particular de Holmes.",
+      "opciones": [
+        "a) Porque presenta el caso como un acontecimiento de poca importancia para la investigación.",
+        "b) Porque señala que, aunque el acontecimiento parece limitado, permite mostrar una cualidad",
+        "c) Porque muestra que el narrador todavía no comprende lo ocurrido en la experiencia.",
+        "d) Porque sugiere que el profesor tendrá un papel decisivo en la resolución del problema."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué procedimiento utiliza principalmente Holmes para aproximarse a la solución del caso? por el profesor.",
+      "opciones": [
+        "a) Considera las versiones disponibles y selecciona la que parece más coherente con la situación.",
+        "b) Fórmula una explicación inicial y posteriormente busca elementos que puedan confirmarla.",
+        "c) Relaciona los indicios y evidencias para reconstruir lo ocurrido.",
+        "d) Examina las circunstancias del caso y se apoya principalmente en la información proporcionada"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál característica permite clasificar el texto como cuento policíaco o detectivesco? enfrentan. solución.",
+      "opciones": [
+        "a) Presenta un conflicto cuya explicación requiere investigar los hechos e interpretar indicios.",
+        "b) Presenta un acontecimiento que modifica la situación de los personajes y genera un conflicto.",
+        "c) Desarrolla una experiencia en la que los personajes deben comprender las circunstancias que",
+        "d) Narra hechos relacionados con un problema que despierta preocupación y requiere encontrar una"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué relación se establece entre las historias que el hombre contaba y los acontecimientos que experimenta posteriormente?",
+      "opciones": [
+        "a) Los acontecimientos posteriores contradicen las historias que había contado a los habitantes.",
+        "b) Algunos elementos de sus relatos anteriores coinciden con lo que posteriormente observa.",
+        "c) Los acontecimientos posteriores muestran que los habitantes habían creado sus propias historias.",
+        "d) Las nuevas experiencias hacen que el protagonista cambie las historias que acostumbraba a contar."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Por qué el final del cuento resulta paradójico? visto nada. sus historias. contar lo sucedido. comunicarse con ellas.",
+      "opciones": [
+        "a) Porque después de encontrar elementos semejantes a los que antes imaginaba, el hombre afirma que no ha",
+        "b) Porque después de contar durante mucho tiempo sus experiencias, los habitantes dejan de interesarse por",
+        "c) Porque después de recorrer nuevamente los lugares conocidos, el hombre decide regresar al pueblo sin",
+        "d) Porque después de encontrar criaturas semejantes a las de sus relatos, el hombre descubre que no puede"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál interpretación explica mejor el cambio producido en el protagonista? observa. relatos. imaginado. sus historias.",
+      "opciones": [
+        "a) La experiencia directa modifica la relación entre lo que imaginaba, lo que narraba y lo que finalmente",
+        "b) La experiencia directa hace que el protagonista cuestione la manera en que los habitantes escuchaban sus",
+        "c) La experiencia directa lo lleva a comprender que sus recorridos tenían un propósito diferente al que había",
+        "d) La experiencia directa modifica su manera de relacionarse con el pueblo y con las personas que escuchaban"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "La imagen del autor y el título del cuento funcionan como elementos paratextuales. ¿Cuál es su principal aporte a la lectura?",
+      "opciones": [
+        "a) Permiten anticipar algunos acontecimientos y conocer de antemano el desenlace del cuento.",
+        "b) Ayudan a contextualizar la obra y a formular anticipaciones sobre su contenido.",
+        "c) Permiten comprobar que los personajes y acontecimientos del cuento corresponden a hechos reales.",
+        "d) Ayudan a comprender el contenido general de la obra sin necesidad de leer el texto completo."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué información permite inferir el fragmento sobre la función que tenía la décima de Alix? experiencia del autor.",
+      "opciones": [
+        "a) Permitía expresar una valoración personal sobre acontecimientos que interesaban al autor.",
+        "b) Permitía comunicar acontecimientos de interés colectivo.",
+        "c) Describía acontecimientos históricos utilizando principalmente recursos propios de la poesía.",
+        "d) Presentaba información sobre hechos públicos desde una perspectiva relacionada con la"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué significado adquiere «damos hoy conocimiento / al público en general» dentro del texto?",
+      "opciones": [
+        "a) La voz poética está informando a la comunidad sobre un acontecimiento.",
+        "b) La voz poética está compartiendo con la comunidad una valoración sobre el acontecimiento.",
+        "c) La voz poética está explicando las características del ferrocarril a quienes lo desconocen.",
+        "d) La voz poética está anunciando una actividad en la que participará la comunidad."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué relación se establece entre la información del texto y la imagen histórica del ferrocarril? directa. los descritos en la décima. perspectiva histórica.",
+      "opciones": [
+        "a) La imagen amplía el contenido del texto al mostrar detalles que la décima explica de manera",
+        "b) La imagen aporta una referencia visual que ayuda a contextualizar el acontecimiento mencionado.",
+        "c) La imagen permite comprobar que todos los elementos representados coinciden exactamente con",
+        "d) La imagen presenta información diferente de la del texto y permite interpretarlo desde otra"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál característica formal permite reconocer el texto como una décima espinela? determinado. de la rima.",
+      "opciones": [
+        "a) Está constituido por diez versos de arte menor organizados mediante un esquema de rima",
+        "b) Está constituido por diez versos de extensión variable organizados mediante una distribución libre",
+        "c) Está constituido por ocho versos de arte menor organizados mediante un esquema regular de rima.",
+        "d) Está constituido por catorce versos organizados en una estructura poética de rima consonante."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E4",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál es la idea que articula principalmente el fragmento sobre la investigación científica? nuevas explicaciones. investigador. sobre los fenómenos.",
+      "opciones": [
+        "a) La investigación científica requiere cuestionar las ideas previamente aceptadas para construir",
+        "b) La investigación científica requiere observar, formular explicaciones y comprobarlas.",
+        "c) La investigación científica depende de relacionar la información disponible con las ideas del",
+        "d) La investigación científica necesita reunir información suficiente antes de formular explicaciones"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E4",
+      "tipo": "abierta",
+      "enunciado": "¡En el ítem 14, te corresponde producir! Comprensión y producción En el cuento de Conan Doyle, Holmes intenta comprender una situación mediante la observación de indicios. En el texto de Ramón y Cajal, la observación constituye una etapa fundamental de la investigación. Consigna: Explica qué relación puedes establecer entre la manera en que Holmes observa las evidencias y la concepción de la observación científica planteada por Ramón y Cajal. Tu respuesta debe presentar una idea central, utilizar información de ambos textos, establecer al menos una semejanza, señalar una diferencia o una limitación y fundamentar la explicación con evidencias.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E4",
+      "tipo": "abierta",
+      "enunciado": "En este ítem realizarás una lectura crítica y responderás de forma escrita. Lectura crítica y producción escrita La décima de Juan Antonio Alix comunica un acontecimiento de interés colectivo; el texto de Ramón y Cajal explica procedimientos relacionados con la construcción del conocimiento. Consigna: Responde de manera escrita: ¿Qué muestran estos dos textos sobre la capacidad de los textos escritos para comunicar conocimientos sobre la realidad? Construye una respuesta en la que: 1) plantees una idea central; 2) utilices información de ambos textos; 3) expliques una diferencia entre las formas de comunicar; y 4) presentes una conclusión propia.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

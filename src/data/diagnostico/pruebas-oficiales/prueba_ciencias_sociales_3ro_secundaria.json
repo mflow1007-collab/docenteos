@@ -1,0 +1,301 @@
+{
+  "metadatos": {
+    "area": "Ciencias Sociales",
+    "grado": "3ro",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 6,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "texto",
+      "texto": "Tercer Grado del Nivel Secundario\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\ncontenido. Lee detenidamente cada texto y analiza cada pregunta antes de responder.\n • En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d).\n Selecciona únicamente la opción que consideres correcta.\n • El ítem 15 es de respuesta abierta. En este deberás escribir y desarrollar tu respuesta de\n acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\nLee la siguiente situación y responde las preguntas 1, 2 y 3.\nDurante la conquista de la isla de Santo Domingo, el cacique Enriquillo se levantó en\narmas en la Sierra de Bahoruco. Los conquistadores españoles lo calificaron como un\nrebelde y traidor a la Corona, mientras que sus seguidores taínos y africanos lo\nconsideraban un líder defensor de la libertad y de la dignidad de su pueblo.\n Fuente: Museo del hombre dominicano",
+      "requiereImagen": false
+    },
+    {
+      "id": "E2",
+      "tipo": "texto",
+      "texto": "El aumento del nivel del mar impacta de manera significativa la vida de\nlas comunidades y los ecosistemas, especialmente en las zonas costeras de\ntodo el mundo. La acelerada pérdida de hielo en la Antártida occidental y\nen Groenlandia está intensificando este fenómeno más rápido de lo\nprevisto, y se estima que para el año 2100 el nivel del mar podría elevarse\nmás de 65 centímetros.\n Fuente: CCN, EE. UU.",
+      "requiereImagen": false
+    },
+    {
+      "id": "E3",
+      "tipo": "texto",
+      "texto": "La fuga de cerebros representa un desafío prioritario para la República Dominicana, ya que el\n país supera el promedio de la región en la emigración de jóvenes profesionales. Según datos\n del Banco Mundial para el año 2018, cerca del 6.8 % del talento capacitado emigró en busca\n de mejores oportunidades, sobrepasando la media regional del 5.8 %. Esta pérdida de capital\n humano compromete directamente la innovación, la competitividad y el desarrollo a largo\n plazo de la nación.\n Fuente: Diario Libre",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "De acuerdo con la situación descrita, ¿por qué surgen dos explicaciones distintas sobre la figura de Enriquillo?",
+      "opciones": [
+        "a) Porque los españoles no conocían el territorio donde se ocultaba Enriquillo.",
+        "b) Porque las leyes coloniales apoyaban la libre expresión de ideas.",
+        "c) Porque los intereses y posiciones sociales de los españoles y de los taínos eran opuestos.",
+        "d) Porque Enriquillo cambió sus propuestas de paz a lo largo del conflicto militar."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Si un estudiante desea investigar el conflicto de la Sierra de Bahoruco y conocer cómo los seguidores de Enriquillo comprendían las causas de su lucha, ¿cuál de las siguientes fuentes sería más útil para acercarse a esa visión?",
+      "opciones": [
+        "a) Cartas oficiales de los conquistadores españoles a la Corona.",
+        "b) Un mapa geográfico actual de la Sierra de Bahoruco.",
+        "c) Leyes de comercio de la colonia en el siglo XVI.",
+        "d) Testimonios y relatos sobre las demandas de los aborígenes sublevados."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Por qué un mismo hecho histórico puede interpretarse de distintas maneras? II. Lee la siguiente información y responde la pregunta 4.",
+      "opciones": [
+        "a) Porque los historiadores analizan el hecho desde diferentes fuentes, contextos y puntos de vista.",
+        "b) Porque los hechos del pasado tienen una única interpretación que no depende de actores.",
+        "c) Porque las fuentes históricas siempre contienen datos falsos o incompletos.",
+        "d) Porque cada país orienta sus propios hechos históricos para enseñar en las escuelas."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál de las siguientes consecuencias del aumento del nivel del mar, tiene un impacto global? todo el mundo. III. Lee el siguiente texto y responde las preguntas 5 y 6. A finales del siglo XIX y principios del XX, Estados Unidos vivió un rápido crecimiento industrial y buscó controlar puntos marítimos estratégicos en el caribe como el Canal de Panamá y la Bahía de Samaná en R.D., puntos de gran importancia económica.",
+      "opciones": [
+        "a) Reducción de la temperatura global.",
+        "b) Creación de nuevas tierras habitables en áreas costeras, debido a la expansión de los océanos.",
+        "c) Pérdida de biodiversidad en ecosistemas costeros y marinos, afectando la pesca y el turismo en",
+        "d) Aparición de nuevos sistemas montañosos, debido al desplazamiento del mar."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál era el principal objetivo geopolítico de Estados Unidos al controlar estas zonas? presencia europea.",
+      "opciones": [
+        "a) Consolidar su influencia comercial y militar estratégica para proteger sus rutas e impedir la",
+        "b) Fomentar el turismo internacional entre las islas del Caribe y Europa.",
+        "c) Ayudar a las naciones caribeñas a colonizar territorios en otros continentes.",
+        "d) Crear apertura para el desarrollo económico de los países del mundo."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "De los siguientes términos ¿cuál describe mejor la relación en la que una potencia interviene y controla la economía de un país con menor desarrollo? IV. Lee la siguiente situación y responde las preguntas 7, 8 y 9. En el municipio de San Antonio, la gran cantidad de desechos orgánicos generados diariamente en el mercado local estaba provocando acumulación de basura y malos olores. Ante esta problemática, un grupo de estudiantes de la escuela comunidad propuso una solución: instalar una abonera comunitaria (compostera) en el huerto escolar para transformar los restos de frutas y vegetales en abono natural. Este abono se utiliza en los cultivos locales, reduciendo el uso de químicos y mejorando la calidad de la tierra de la comunidad.",
+      "opciones": [
+        "a) Integración regional participativa.",
+        "b) Autonomía financiera absoluta.",
+        "c) Injerencia y dependencia económica.",
+        "d) Cooperación cultural comunitaria."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir de la situación descrita, ¿qué principio de la gestión ambiental de residuos se aplica en esta propuesta?",
+      "opciones": [
+        "a) Incineración masiva a cielo abierto.",
+        "b) Desplazamiento de basura hacia zonas de reserva forestal.",
+        "c) Valorización y reciclaje de materia orgánica.",
+        "d) Exportación de residuos hacia otros municipios."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué concepto de la geografía define la capacidad de una comunidad de gestionar sus recursos sin agotar el medioambiente para las futuras generaciones?",
+      "opciones": [
+        "a) Desarrollo sostenible.",
+        "b) Extractivismo acelerado.",
+        "c) Dependencia comercial externa.",
+        "d) Urbanización desorganizada."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué impacto positivo tiene en el suelo la sustitución de fertilizantes químicos por el abono orgánico producido en la comunidad? acuíferos. V. Lee la siguiente información y responde la pregunta 10. Al finalizar la Primera Guerra Mundial, los grandes imperios europeos colapsaron y surgieron nuevos países independientes. En este proceso cobró fuerza la idea de la autodeterminación de los pueblos, que defiende el derecho de cada nación a gobernarse a sí misma.",
+      "opciones": [
+        "a) Aumenta la salinidad y erosión del terreno cultivable.",
+        "b) Acelera el proceso de desertificación en las zonas montañosas.",
+        "c) Impide el crecimiento de todo tipo de vegetación nativa.",
+        "d) Mejora la estructura del suelo, la retención de agua y evita la contaminación de"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cómo influyeron estos hechos e ideas en las colonias de Asia y África? VI. Lee la siguiente información y responde la pregunta 11. Durante la Guerra Fría, la República Dominicana vivió fuertes tensiones políticas. Ante esta situación, surgieron distintas opiniones: mientras algunos sectores defendían que era necesario un gobierno de mano dura para mantener el orden, otros exigían garantizar los derechos y libertades de la población.",
+      "opciones": [
+        "a) Llevaron a las colonias a renunciar a su soberanía.",
+        "b) Impulsaron movimientos que lucharon por su independencia.",
+        "c) Provocaron el fin inmediato del comercio entre continentes.",
+        "d) Motivaron a la población a aceptar gobiernos imperiales."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "De los siguientes argumentos, ¿cuál equilibra la necesidad de orden con el respeto a los derechos ciudadanos en la Guerra Fría? VII. Lee la siguiente noticia y responde las preguntas 12, 13 y 14. “Fuga de cerebros”.",
+      "opciones": [
+        "a) El orden es necesario, pero sin violar los derechos ni la democracia.",
+        "b) El orden es necesario, por lo que se deben limitar las libertades.",
+        "c) El orden es secundario, por lo que los derechos van por encima del Estado.",
+        "d) El orden es innecesario, debido a que la seguridad no exige control del Estado."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir de la información dada, ¿cuál es una consecuencia directa de la fuga de jóvenes profesionales para República Dominicana? Dominicana.",
+      "opciones": [
+        "a) El aumento de empleos especializados disponibles para los jóvenes dominicanos.",
+        "b) La pérdida de personas capacitadas que podrían contribuir al desarrollo del país.",
+        "c) La reducción de la necesidad de formar nuevos profesionales en el país.",
+        "d) El aumento de profesionales capacitados que permanecen trabajando en República"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál de las siguientes situaciones pudiera ser una causa de la salida de jóvenes profesionales de República Dominicana hacia otros países?",
+      "opciones": [
+        "a) El aumento de empleos especializados y mejores salarios en República Dominicana.",
+        "b) La ampliación de oportunidades laborales para profesionales dentro del país.",
+        "c) Los salarios bajos y la limitada oferta de empleos de alto nivel.",
+        "d) El aumento de la inversión en empleos de alto nivel para jóvenes capacitados."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál de las siguientes medidas pudiera contribuir a reducir la fuga de cerebros en el país? VIII. Lee la siguiente información y responde la pregunta 15. Las montañas dominicanas son vitales porque producen agua y albergan gran variedad de plantas y animales. Sin embargo, se están deteriorando por la deforestación y la agricultura. Para protegerlas, el país debe buscar formas de conservar la naturaleza sin dejar sin sustento a las familias campesinas que viven de la tierra.",
+      "opciones": [
+        "a) Promover inversiones en sectores clave para generar empleos bien pagados.",
+        "b) Prohibir la salida del país a los profesionales universitarios.",
+        "c) Reducir el presupuesto asignado a las universidades públicas.",
+        "d) Aumentar los impuestos a las empresas que contraten profesionales."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E3",
+      "tipo": "abierta",
+      "enunciado": "¿Cuáles dos medidas ayudarían a proteger las montañas y generar ingresos para los campesinos? Al lado de cada una, describe cómo beneficia al medioambiente y a la comunidad. Espacio para la respuesta:",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

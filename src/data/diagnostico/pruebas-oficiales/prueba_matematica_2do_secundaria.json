@@ -1,0 +1,291 @@
+{
+  "metadatos": {
+    "area": "Matemática",
+    "grado": "2do",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 3,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "texto",
+      "texto": "Segundo Grado de Educación Secundaria\nNombre del/la estudiante:\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\n correcta. En la pregunta 15, deberás escribir tu respuesta.\ncalificación.",
+      "requiereImagen": false
+    },
+    {
+      "id": "E2",
+      "tipo": "grafico",
+      "texto": "La siguiente tabla muestra la cantidad de estudiantes inscritos en cuatro actividades\nextracurriculares de una escuela.\n Actividad Cantidad de estudiantes\n Baloncesto 25\n Voleibol 18\n Atletismo 30\n Natación 12",
+      "requiereImagen": false
+    },
+    {
+      "id": "E3",
+      "tipo": "grafico",
+      "texto": "La siguiente tabla muestra las calificaciones obtenidas por 20 estudiantes en una\nprueba.\n Calificación Cantidad de estudiantes\n 60 – 69 4\n 70 – 79 8\n 80 – 89 5\n 90 – 100 3",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Un autobús realiza una ruta que tarda 5 horas en completar. En un determinado momento, ya ha recorrido 3/5 del tiempo total de la ruta. ¿Cuántos minutos han transcurrido hasta ese momento?",
+      "opciones": [
+        "a) 180 minutos.",
+        "b) 150 minutos.",
+        "c) 200 minutos.",
+        "d) 240 minutos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Durante una actividad, cuatro estudiantes registraron la cantidad de agua que bebieron: 3 2 • Perla: L • Marta: L 4 3 • Luis: 0.6 L • José: 0.7 L ¿Quién bebió mayor cantidad de agua?",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una tienda deportiva anuncia un descuento del 20 % en todos sus artículos. Un par de tenis cuesta RD$2,500. Después de aplicado el descuento, ¿cuánto pagará un cliente por el par de tenis?",
+      "opciones": [
+        "a) RD$500",
+        "b) RD$2,200",
+        "c) RD$2,000",
+        "d) RD$2,300"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En una panadería, 3 panes cuestan RD$90. A ese mismo precio, un cliente desea comprar 7 panes. ¿Cuánto pagará el cliente por los 7 panes?",
+      "opciones": [
+        "a) RD$180",
+        "b) RD$210",
+        "c) RD$240",
+        "d) RD$270"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una estudiante gana “n” pesos por hora trabajando en el negocio de su familia. Si trabaja 5 horas y además recibe RD$200 de propina. ¿Cuál de las siguientes expresiones representa el total de dinero que recibe?",
+      "opciones": [
+        "a) 5 + n + 200",
+        "b) 5n − 200",
+        "c) 5n + 200",
+        "d) n + 200 ÷ 5"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Carlos tiene el triple de edad que su prima Valeria. Si entre los dos suman 24 años, ¿cuántos años tiene Carlos?",
+      "opciones": [
+        "a) 6 años.",
+        "b) 12 años.",
+        "c) 18 años.",
+        "d) 20 años."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E2",
+      "tipo": "abierta",
+      "enunciado": "¿Cuántos estudiantes más están inscritos en Atletismo que en Voleibol?",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una cancha rectangular de baloncesto mide 28 metros de largo y 15 metros de ancho, ¿Cuál es el área de esa cancha?",
+      "opciones": [
+        "a) 86 m²",
+        "b) 210 m²",
+        "c) 420 m²",
+        "d) 43 m²"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "Luisa debe RD$350 a una amiga y tiene RD$120 en su cartera. Si utiliza todo el dinero que tiene para pagar parte de la deuda, ¿cómo se representa su situación económica después del pago?",
+      "opciones": [
+        "a) 470",
+        "b) 230",
+        "c) −230",
+        "d) −350"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "Observa la siguiente sucesión numérica: 5, 9, 13, 17, 21…, ¿cuál es la regla que sigue el patrón y cuál sería el séptimo término de la sucesión? séptimo término es séptimo término séptimo término por 2; el séptimo 23 es 29 es 25 término es 320",
+      "opciones": [
+        "a) Se suma 3; el",
+        "b) Se suma 4; el",
+        "c) Se suma 4; el",
+        "d) Se multiplica"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "Pedro afirma: \"Más de la mitad de los estudiantes obtuvo una calificación de 70 o más.\" ¿Cuál de las siguientes opciones permite comprobar si la afirmación de Pedro es correcta?",
+      "opciones": [
+        "a) No es correcta, porque solo 8 estudiantes obtuvieron entre 80 y 100.",
+        "b) Sí es correcta, porque 16 estudiantes obtuvieron 70 o más.",
+        "c) No es correcta, porque la mayoría obtuvo entre 60 y 79.",
+        "d) Sí es correcta, porque 13 estudiantes obtuvieron 70 o más."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "En el plano cartesiano, cada punto se ubica mediante un par ordenado (x, y), donde x indica el desplazamiento horizontal e y el vertical. El punto A tiene coordenadas (3, −2). ¿En qué cuadrante se encuentra el punto A (3, −2)? cuadrante (I). (II). (III). cuadrante (IV).",
+      "opciones": [
+        "a) Primer",
+        "b) Segundo cuadrante",
+        "c) Tercer cuadrante",
+        "d) Cuarto"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una bicicleta recorre una distancia constante cada 10 minutos. La tabla muestra la relación entre el tiempo transcurrido y la distancia recorrida. Tiempo (minutos) Distancia (km) 10 2 20 4 30 6 40 ? Si se mantiene el mismo ritmo, ¿qué distancia habrá recorrido la bicicleta en 40 minutos?",
+      "opciones": [
+        "a) 6 km",
+        "b) 7 km",
+        "c) 8 km",
+        "d) 10 km"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "En un experimento de ciencias, una bacteria se duplica cada hora. Al inicio del experimento hay 1 bacteria. ¿Cuántas bacterias habrá después de 5 horas?",
+      "opciones": [
+        "a) 10",
+        "b) 16",
+        "c) 25",
+        "d) 32"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E3",
+      "tipo": "abierta",
+      "enunciado": "Un servicio de taxi cobra RD$50 por la salida más RD$30 por cada kilómetro recorrido. Pedro afirma que, si recorre 5 km, pagará RD$180. ¿Es correcta la afirmación de Pedro? ¿Por qué?",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

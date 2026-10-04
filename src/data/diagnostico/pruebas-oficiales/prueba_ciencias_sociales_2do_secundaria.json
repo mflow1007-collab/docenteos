@@ -1,0 +1,289 @@
+{
+  "metadatos": {
+    "area": "Ciencias Sociales",
+    "grado": "2do",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 5,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "texto",
+      "texto": "Segundo Grado del Nivel Secundario\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\ncontenido. Lee detenidamente cada texto y analiza cada pregunta antes de responder.\n • En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona\n únicamente la opción que consideres correcta.\n • El ítem 15 es de respuesta abierta. En este deberás escribir y desarrollar tu respuesta de\n acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\nI. Lee la siguiente situación y responde las preguntas 1 y 2.\n José está investigando sobre el origen de las naciones y encuentra dos fuentes que presentan\n explicaciones distintas:\n Fuente A (Proceso histórico): \"Las naciones no han existido siempre. Surgieron en la Edad Moderna\n gracias al desarrollo de las leyes, la educación pública y la necesidad de los Estados de unificar a la\n población bajo una misma lengua e historia.\"\n Fuente B (Identidad y cultura): \"La nación es una comunidad antigua que vive en el sentimiento de los\n pueblos. Existe desde tiempos remotos, unida por los antepasados, la cultura compartida y la tradición de\n su gente.\"",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Al comparar ambas fuentes, ¿Qué se puede concluir sobre el origen del concepto de nación? culturales e identitarios.",
+      "opciones": [
+        "a) Que las naciones surgen únicamente debido a la creación de las leyes y los Estados modernos.",
+        "b) Que las naciones siempre han existido igual a lo largo del tiempo gracias a la sangre y la herencia.",
+        "c) Que el origen de una nación se puede explicar tanto por cambios históricos como por lazos",
+        "d) Que ambas fuentes coinciden en que la educación es el único factor para crear un país."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál es la principal diferencia en la manera de explicar el origen de la nación? modernos. países. II. Observa el siguiente gráfico.",
+      "opciones": [
+        "a) La Fuente A señala que surge en la Antigüedad y la Fuente B la relaciona con los Estados",
+        "b) La Fuente A la explica a partir de cambios modernos y la Fuente B a partir de tradiciones antiguas.",
+        "c) La Fuente A la justifica desde la religión y la Fuente B la fundamenta en el crecimiento económico.",
+        "d) La Fuente A la atribuye al aislamiento geográfico y la Fuente B al intercambio comercial entre"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Según los datos del gráfico de la República Dominicana, ¿Qué sucedió con las muertes de bebés a medida que aumentaron los partos en los hospitales? III. Lee el siguiente hecho y responde la pregunta 4. A finales del siglo XIX, pensadores como Eugenio María de Hostos, Ramón Emeterio Betances y José Martí propusieron la unión política y cultural de Cuba, Puerto Rico y la República Dominicana. Este proyecto, conocido como el antillanismo, buscaba garantizar la independencia definitiva de las islas y evitar la intervención de las grandes potencias extranjeras en la región del Caribe.",
+      "opciones": [
+        "a) Aumentó la mortalidad infantil.",
+        "b) Se mantuvo constante la mortalidad infantil.",
+        "c) Aumentó la atención en los hospitales.",
+        "d) Disminuyó la mortalidad infantil."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Según el texto, ¿Qué postura asumían los pensadores antillanos frente al control de las potencias extranjeras en el Caribe? IV. Lee el siguiente hecho y responde las preguntas 5 y 6. En una comunidad cercana al río Ozama, el vertido incontrolado de basura en sus márgenes provocó el estancamiento de aguas y la proliferación de mosquitos. Esto produjo un brote de dengue que afectó al centro de salud local. Además, se suspendieron las clases y se paralizó el comercio del barrio por varias semanas debido a las protestas de los vecinos que exigían agua limpia y recogida de desechos. Adaptación de informe técnico del Ministerio de Medio Ambiente, RD.",
+      "opciones": [
+        "a) Defender la independencia uniendo las islas del Caribe.",
+        "b) Aceptar la intervención de los países europeos.",
+        "c) Entregar la soberanía de las islas a Estados Unidos.",
+        "d) Mantener la dominación colonial de España en la región."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál de las siguientes afirmaciones explica mejor cómo la contaminación afectó la vida de la comunidad?",
+      "opciones": [
+        "a) La contaminación solo causó un problema de apariencia en el río.",
+        "b) La contaminación causó una crisis de salud pública y protestas.",
+        "c) El problema se solucionó automáticamente al suspender las clases.",
+        "d) Las protestas fueron la causa principal de que se acumulara la basura en el río."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Para probar que la información sobre el brote de dengue es confiable, ¿A cuál de las siguientes fuentes deberían acudir los estudiantes? V. Observa la infografía siguiente sobre Francia antes y después de 1789 y responde las preguntas 7 y 8.",
+      "opciones": [
+        "a) Al boletín epidemiológico oficial del Ministerio de Salud Pública.",
+        "b) A comentarios publicados en redes sociales por personas de otros municipios.",
+        "c) A un anuncio publicitario de una empresa privada de limpieza.",
+        "d) Al comentario personal de un bloguero de viajes sobre el río Ozama."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir de la infografía anterior, ¿A cuáles sectores de la sociedad se les redujeron sus privilegios y poder tras la Revolución Francesa?",
+      "opciones": [
+        "a) A los campesinos y a los trabajadores urbanos.",
+        "b) A los comerciantes y a los dueños de fábricas.",
+        "c) A la monarquía absoluta y al clero (la Iglesia).",
+        "d) A la ciudadanía general y a los líderes republicanos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Observa la pirámide en la sección \"Antes de 1789\", ¿Qué problema o injusticia se cuestiona sobre la situación del pueblo en la sociedad francesa? VI. Lee la siguiente información y responde las preguntas 9 y 10. Durante la temporada de lluvias, intensos aguaceros cayeron sobre la ciudad de Valle Verde en pocas horas. El agua acumulada en las partes altas bajó con fuerza hacia la zona baja, donde se ubica el barrio Los Cerezos. En este sector, los cauces naturales de los ríos habían sido rellenados para construir viviendas sin planificación y la basura acumulada tapó los drenajes de las calles, como resultado, en menos de una hora las casas quedaron totalmente inundadas y cientos de familias perdieron sus pertenencias.",
+      "opciones": [
+        "a) El pueblo compartía el poder político en igualdad con el rey y los nobles.",
+        "b) El pueblo sostenía a los grupos privilegiados a pesar de tener pocos derechos.",
+        "c) El pueblo recibía grandes riquezas y ayuda económica por parte de la Iglesia.",
+        "d) El pueblo tenía los mismos privilegios fiscales que los grupos de la cima."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál combinación de factores explica por qué la inundación en el barrio Los Cerezos fue un desastre tan grave?",
+      "opciones": [
+        "a) El calor del verano junto con el aumento de vehículos en las calles del sector.",
+        "b) Las intensas lluvias del clima junto con la acumulación de basura en los drenajes.",
+        "c) El tipo de suelo de la montaña junto con la falta de agua potable en las casas.",
+        "d) La brisa de la tarde junto con el uso constante del transporte público local."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "De las siguientes acciones, ¿Cuál demuestra un manejo consciente del espacio geográfico y del medio ambiente? VII. Lee la siguiente información y responde las preguntas 11, 12 y 13. Durante el siglo XX, los geógrafos y sociólogos dividieron al mundo en dos grandes bloques socioeconómicos para representar diferencias en las condiciones de vida y desarrollo de los países: el Norte (países industrializados, con altos ingresos y tecnología) y el Sur (países en desarrollo, exportadores de materias primas y con brechas de pobreza).",
+      "opciones": [
+        "a) Diseñar drenajes respetando los ríos e instalando mallas para retener la basura.",
+        "b) Pavimentar todas las calles y cañadas para acelerar el paso del agua de lluvia.",
+        "c) Levantar muros de concreto en el río sin evaluar el impacto en las zonas bajas.",
+        "d) Evaluar los riesgos del terreno y conservar áreas verdes en las zonas urbanas."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Según la información, ¿Cuáles características se relacionan con las naciones del Sur? sociales.",
+      "opciones": [
+        "a) Una mayor dependencia de la producción y exportación de materias primas y desigualdades",
+        "b) Altos niveles de industrialización, acceso a la tecnología y bajas tasas de natalidad.",
+        "c) Un mayor control del comercio mundial y de los bancos internacionales.",
+        "d) Menores problemas sociales, ambientales y de servicios básicos entre sus habitantes."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Considerando que, la situación social está estrechamente ligada con la situación económica y analizando las diferencias en torno a los países del Norte y del Sur, ¿cuál de estos aspectos del orden social estaría más acordes con los países del Sur?",
+      "opciones": [
+        "a) Predominio de empleos formales con salarios elevados.",
+        "b) Cobertura total de viviendas y transporte moderno.",
+        "c) Reducción rápida de la pobreza entre sus habitantes.",
+        "d) Menor acceso a servicios de salud y educación para la población."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál grupos de los países siguientes pertenecen al bloque del Norte industrializado? VIII. Lee la siguiente situación y los artículos de la Constitución de la República Dominicana. Luego, responde las preguntas 14 y 15. En una comunidad del Gran Santo Domingo, varios residentes se encuentran preocupados por el incremento de los robos. Tras identificar a un ciudadano como posible responsable, un grupo propone apresarlo y castigarlo por cuenta propia. Sin embargo, otros comunitarios afirman que deben respetarse las garantías institucionales y acudir a las autoridades correspondientes. Esta última postura se fundamenta en los mandatos de la Constitución de la República Dominicana, los cuales establecen: • Artículo 8. Función esencial del Estado: Es función esencial del Estado la protección efectiva de los derechos de la persona y el respeto de su dignidad. • Artículo 39. Derecho a la igualdad: Todas las personas nacen libres e iguales ante la ley, reciben la misma protección y trato de las instituciones sin discriminación. • Artículo 69. Tutela judicial efectiva y debido proceso: Toda persona tiene derecho a ser escuchada y juzgada en un tribunal conforme a la ley antes de recibir cualquier sanción.",
+      "opciones": [
+        "a) Haití, Bolivia y Madagascar.",
+        "b) Japón, Canadá y EE. UU.",
+        "c) EE. UU, China y Uruguay.",
+        "d) Japón, Guatemala y República Dominicana."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Por qué la propuesta de castigar a una persona sin una investigación ni un proceso legal contradice los derechos establecidos en la Constitución?",
+      "opciones": [
+        "a) Porque el Artículo 69 exige un juicio por un tribunal antes de sancionar a alguien.",
+        "b) Porque el Artículo 8 prohíbe que los vecinos hagan denuncias sobre robos.",
+        "c) Porque el Artículo 39 exige que la junta de vecinos apruebe los castigos.",
+        "d) Porque la Constitución permite a las autoridades arrestar personas sin juicio."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Si fueras mediador en esta situación, ¿Cuáles soluciones justas propondrías para atender el reclamo de los vecinos y respetar el trabajo de las autoridades? Espacio para la respuesta:",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

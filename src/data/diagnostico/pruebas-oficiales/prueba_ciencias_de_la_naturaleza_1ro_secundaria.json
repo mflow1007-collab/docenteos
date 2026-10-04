@@ -1,0 +1,269 @@
+{
+  "metadatos": {
+    "area": "Ciencias de la Naturaleza",
+    "grado": "1ro",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 10,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "texto",
+      "texto": "Primer Grado de Educación Secundaria\ndesarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los resultados\nno afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y necesidades, y\npuedan brindarte el apoyo necesario para continuar desarrollando tus competencias durante este año\nescolar.\npregunta; luego se proponen 4 opciones de posibles respuestas donde solo una es la correcta.\nletra que corresponda o subrayándola.\nLee, analiza y selecciona la respuesta correcta\nLa tierra es el lugar donde habitan todos los seres vivos. La tierra, cuando nos referimos\nal planeta, es el tercero del sistema solar que se distancia del sol a unos 150 millones de\nkilómetros y formado al mismo tiempo que este y el resto del sistema solar, se habla del\nalrededor de 4.570 millones de años, que además hasta los momentos es el único planeta\ndel sistema solar donde se ha comprobado vida alguna. La Geología es la ciencia que\nestudia los fenómenos que ocurren en el interior y exterior de la corteza terrestre, sus\npropiedades y procesos. Partiendo de todo lo antes expuesto podemos responder las\npreguntas de la 1 a 4.",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir de la lectura del texto anterior, identifica el estado físico en que se presenta la Tierra considerando sus diferentes capas y componentes.",
+      "opciones": [
+        "a) Toda ella es sólida.",
+        "b) Por haberse enfriado, solo es sólida la corteza.",
+        "c) Solo permanece fundido el centro y el resto es sólido.",
+        "d) Siempre se encuentra en estado sólido, líquido y gaseoso."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir del estudio de cómo es el movimiento de las ondas sísmicas (ondas que viajan por el interior de la tierra cuando ocurre un temblor o terremoto), los científicos descubrieron que las ondas secundarias (ondas S) no pueden atravesar cierta capa profunda de la tierra. ¿Qué conclusión sobre el estado físico de esa capa, llamado núcleo externo, nos permite deducir esta evidencia?",
+      "opciones": [
+        "a) El núcleo externo es completamente sólido, porque las ondas S chocan y rebotan con mucha fuerza.",
+        "b) El núcleo externo es líquido, porque las ondas S no pueden viajar a través de los líquidos.",
+        "c) El núcleo externo es gaseoso, porque los gases hacen que las ondas se vuelvan más rápidas.",
+        "d) l núcleo externo es un espacio vació, por lo que las ondas desaparecen por completo."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Reconoce las partes de la estructura terrestre que conforman la litosfera.",
+      "opciones": [
+        "a) La Corteza, el Manto y Núcleo.",
+        "b) El Manto, Ionosfera y Núcleo.",
+        "c) Sólo la parte superior del Manto.",
+        "d) La Corteza más la parte superior del Manto."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Analiza la relación entre la litósfera y la astenosfera para resolver cuál afirmación describe correctamente el concepto de placas tectónicas. fluida de la astenosfera.",
+      "opciones": [
+        "a) Las placas rígidas de la litosfera flotan y se mueven lentamente sobre la capa más blanda y",
+        "b) La astenosfera es una capa sólida y fría que se desliza por encima de la litosfera.",
+        "c) La litosfera y la astenosfera forman una sola capa fija que nunca cambia de posición.",
+        "d) Las corrientes de agua en la litosfera empujan a las rocas de la astenosfera."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Se desea comprender qué capa de la Tierra ayuda a proteger la vida, regular la energía solar y mantener gases necesarios para la respiración; selecciona la opción que permite tomar una decisión científica correcta sobre su importancia.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Para valorar la importancia del agua en la vida diaria y en el equilibrio del planeta, identifica la capa terrestre cuya conservación contribuye al ciclo hidrológico, la regulación del clima y el desarrollo de los seres vivos.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Al reconocer la importancia de proteger los seres vivos y sus ambientes, selecciona la capa de la Tierra que integra todas las formas de vida y orienta decisiones responsables para conservar los ecosistemas.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Reconoce las características de la capa más rígida y externa de la Tierra, formada por la corteza terrestre y la parte superior del manto, y selecciona la opción que corresponde a dicha capa.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Analiza la coherencia del texto incompleto sobre las características de la Tierra y resuelve cuál combinación de palabras permite completarlo de forma lógica y científicamente adecuada.",
+      "opciones": [
+        "a) Sólida, achatada, líquida, esférica y gaseosa.",
+        "b) Esférica, redonda, esférica, maciza y gaseosa.",
+        "c) Gorda, redonda, aplastada, esférica y gaseosa.",
+        "d) Solida, achatada, líquida, redonda y Plasmática."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Interpreta el concepto general de universo y selecciona la opción que expresa de forma más precisa su significado.",
+      "opciones": [
+        "a) El conjunto de todo lo existente.",
+        "b) El conjunto de planetas y estrellas.",
+        "c) El espacio sideral.",
+        "d) El espacio que ocupa el sistema solar."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Para comunicar correctamente información científica sobre la ubicación de la Tierra, completa la frase seleccionando la opción que permite usar de manera adecuada el conocimiento sobre el sistema solar. La Tierra forma parte del sistema __________, el cual está integrado por el ________, los _______ que giran a su alrededor y otros _________, como cometas, asteroides y meteoros.",
+      "opciones": [
+        "a) Universo, sol, astro y satélite.",
+        "b) Solar, estrellas, planetas y meteoros.",
+        "c) Solar, sol, planetas y cuerpos celestes.",
+        "d) Solar, estrellas, planetas y astros."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Observa la situación descrita sobre la disminución de la temperatura y de las horas de luz en el hemisferio sur; analiza la evidencia y determina a qué estación del año corresponde.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Reconoce las teorías que explican la organización del sistema solar y selecciona aquella que plantea que el Sol ocupa la posición central.",
+      "opciones": [
+        "a) Big Bang.",
+        "b) Heliocéntrico.",
+        "c) Orbital.",
+        "d) Geocéntrico."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una comunidad costera necesita comprender los cambios del nivel del mar para prevenir riesgos, selecciona la explicación científica que permite tomar decisiones informadas sobre la causa principal de las mareas.",
+      "opciones": [
+        "a) La atracción conjunta del sol y la luna.",
+        "b) El movimiento de traslación de la tierra.",
+        "c) La acción de los cometas.",
+        "d) El movimiento de rotación de la tierra."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Analiza el proceso de fragmentación del Pangea y el desplazamiento de las placas continentales hasta la distribución actual de los continentes y masas oceánicas; luego resuelve cuál científico propuso la teoría de la deriva continental.",
+      "opciones": [
+        "a) Gregorio Mendel.",
+        "b) John Dalton.",
+        "c) Alfred Wegener.",
+        "d) Jean-Baptiste Lamarck."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

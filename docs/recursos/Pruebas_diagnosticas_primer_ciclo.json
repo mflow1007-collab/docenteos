@@ -1,0 +1,1224 @@
+{
+  "titulo": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+  "archivo_fuente": "Pruebas diagnostica de las areas objeto de pruebas nacionales, 1er ciclo (3).pdf",
+  "institucion": "Ministerio de Educación de la República Dominicana (MINERD)",
+  "nivel": "Secundario",
+  "ciclo": "Primer ciclo",
+  "ano_escolar": "2026-2027",
+  "total_paginas": 62,
+  "formato": "Texto extraído del PDF, organizado por área, grado y página",
+  "notas_conversion": [
+    "Se conserva el texto extraído sin añadir respuestas ni corregir el contenido original.",
+    "Los espacios y saltos de línea conservan la disposición aproximada de tablas y columnas.",
+    "Las imágenes y gráficos se señalan por página; su contenido visual no está transcrito.",
+    "El orden de lectura y algunos símbolos matemáticos pueden requerir comparación con el PDF original."
+  ],
+  "evaluaciones": [
+    {
+      "area": "Lengua Española",
+      "grado": 1,
+      "pagina_inicio_pdf": 1,
+      "pagina_fin_pdf": 6,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 1,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                            Dirección de Educación Secundaria\n                               Departamento del Primer Ciclo\n                                  Área de Lengua Española\n\n                  Evaluación Diagnóstica de Lengua Española\n\n                                       PRIMER GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las necesidades de\naprendizaje de los estudiantes de primer grado del Nivel Secundario y orientar la planificación\ndocente, las acciones de nivelación y el acompañamiento pedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados para asignar\ncalificaciones ni determinar la promoción de los estudiantes.\n\n\n\n                                           Septiembre\n                                      Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                243.7,
+                45.55,
+                386.18,
+                122.95
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                150.25,
+                286.52,
+                477.65,
+                557.17
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 2,
+          "tipo": "evaluacion",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                                         Dirección de Educación Secundaria\n                                            Departamento del Primer Ciclo\n                                               Área de Lengua Española\n\n                         EVALUACIÓN DIAGNÓSTICA DE LENGUA ESPAÑOLA\n                                  Primer Grado del Nivel Secundario\n\n         Nombre del estudiante:\n         Centro educativo:\n         Sección:                                   No. Orden                                 Fecha:\n\n  ¡Hola, querido/a estudiante!\n\n  Nos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que has\n  desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los resultados\n  no afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y necesidades, y\n  puedan brindarte el apoyo necesario para continuar desarrollando tus competencias durante este año escolar.\n\n  INSTRUCCIONES\n  En esta evaluación encontrarás varios textos acompañados de preguntas relacionadas con su contenido.\n  Lee detenidamente cada texto y analiza cada pregunta antes de responder.\n  • En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona\n    únicamente la opción que consideres correcta.\n  • Los ítems 14 y 15 son de respuesta abierta. En ellos deberás escribir y desarrollar tu respuesta de\n    acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\n  Procura realizar un análisis cuidadoso y responder todos los ítems con claridad y precisión\n  Tiempo: 90 minutos\n       Lee el siguiente fragmento de una noticia y responde los ítems del 1 al 3, seleccionando la\n       opción correcta.\nFragmento de una noticia\nLa Circunscripción 3 del Distrito Nacional registra el mayor déficit de árboles en la capital\nCada vivienda debe tener al menos dos                                                         Asimismo, recordó que cada vivienda debería\nárboles, pero la norma se incumple dice                                                       disponer de espacio para sembrar árboles y que\nexperta                                                                                       frente a cada casa deberían plantarse, al menos,\n                                                                                              dos ejemplares, aunque reconoció que esta\nAdalberto de la Rosa                                                                          práctica se ha perdido con las remodelaciones y el\nSanto Domingo - ago. 03, 2026 | 12:02 a. m                                                    desarrollo urbano.\n\nLa Circunscripción 3 del Distrito Nacional es la                                                  La legislación dominicana sobre ordenamiento\ndemarcación con la menor cantidad y calidad de Solhanlle Bonilla, economista ambiental e territorial establece un mínimo de nueve metros\nárboles y, por ende, la que registra las investigadora del Inte atribuye el déficit de cuadrados de áreas verdes por habitante, por lo\ntemperaturas más elevadas. En contraste, la árboles en algunas zonas al crecimiento vertical que considera indispensable que los municipios\ncircunscripción 2 presenta la mejor cobertura de la ciudad, que ha sustituido viviendas con incorporen la arborización en la planificación\narbórea, de acuerdo con un estudio realizado por patios y jardines por edificios de apartamentos, urbana. […] (Continúa)\ninvestigadores del Intec.                        eliminando gran parte del arbolado existente.\nFragmento tomado y adaptado de Diario Libre el (3 de agosto de 2026). La Circunscripción 3 del Distrito Nacional registra el mayor\ndéficit de árboles en la capital. Diario Libre. Link: https://www.diariolibre.com/actualidad/ciudad/2026/08/03/ circunscripcion-3-del-\ndistrito-nacional-es-la-que-tiene-menos-arboles/3615317\n   Evaluación Diagnóstica 1.º grado               Área de Lengua Española Nivel Secundario MINERD 2026                           1 de 5",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                240.15,
+                28.85,
+                382.63,
+                106.25
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                223.45,
+                573.61,
+                383.0,
+                651.01
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 3,
+          "tipo": "evaluacion",
+          "texto": "1. ¿Qué diferencia señala la noticia entre las circunscripciones 2 y 3 del Distrito Nacional?\n         a) La Circunscripción 2 tiene temperaturas más elevadas que la Circunscripción 3.\n         b) La Circunscripción 2 posee mejor cobertura de árboles que la Circunscripción 3.\n         c) La Circunscripción 3 posee más áreas verdes que la Circunscripción 2.\n         d) La Circunscripción 3 tiene mayor cantidad de especies nativas que la Circunscripción 2.\n   2. Según la noticia, ¿por qué el crecimiento vertical de la ciudad ha contribuido a la disminución\n      de los árboles?\n       a) Porque ha provocado que las personas abandonen el Distrito Nacional.\n       b) Porque ha impedido que los investigadores estudien las áreas verdes.\n       c) Porque las viviendas con patios y jardines han sido sustituidas por edificios.\n       d) Porque los edificios impiden la producción de árboles procedentes de otros lugares.\n\n   3. Una comunidad presenta altas temperaturas y pocas áreas verdes. ¿Cuál de las siguientes\n       acciones responde mejor a las recomendaciones de la noticia?\n        a) Construir parques y áreas verdes en los edificios para la siembra de árboles.\n        b) Sustituir los árboles antiguos por edificios de apartamentos.\n        c) Sembrar especies introducidas y reducir los espacios destinados a la fauna.\n        d) Recuperar las áreas verdes, proteger los árboles y sembrar especies nativas.\n\n   Observa y lee atentamente el siguiente fragmento de una guía turística sobre el patrimonio\n   arquitectónico de Barahona. Luego, responde los ítems del 4 al 6, seleccionando la opción\n   correcta en cada caso.\n\n    Competencias y contenidos del Primer Grado\n    Fragmento de guía turística\n\n\n\n\n    Fuente: Tomado de Descubre Barahona y Pedernales: guía turística, Centro Cuesta Nacional, pp. 32-33.\n    https://orgullodemitierra.com.do/pdfs/barahona-pedernales/guia-turistica-barahona.pdf\n\n  4. ¿Cómo contribuyen las fotografías a la información presentada en la guía turística?\n      a)   Muestran la apariencia de las construcciones descritas.\n      b)   Indican la ruta exacta para llegar a cada construcción.\n      c)   Explican las fechas en que fueron construidos los edificios.\n      d)   Sustituyen las informaciones históricas presentadas en los textos.\n\nEvaluación Diagnóstica 1.º grado       Área de Lengua Española Nivel Secundario MINERD 2026           2 de 5",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                77.4,
+                395.38,
+                531.55,
+                636.61
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 4,
+          "tipo": "evaluacion",
+          "texto": "5. En la expresión «joyas de cemento de la provincia», ¿qué quiere comunicar el autor sobre las\n        construcciones?\n         a) Que fueron construidas con cemento importado de alta calidad.\n         b) Que son edificaciones costosas y difíciles de mantener.\n         c) Que poseen un importante valor arquitectónico y cultural.\n         d) Que presentan una apariencia brillante y llamativa para la sociedad.\n   6.    En la expresión «dignas de conocer y visitar», ¿qué estrategia utiliza el autor para despertar el\n         interés del lector por estas construcciones?\n        a) Presenta un lenguaje poético para obligar al lector a visitar.\n        b) Emplea un vocabulario valorativo para motivar al lector.\n        c) Explica como conocer los procedimientos para construirlas.\n        d) Advierte sobre la importancia de visitarlas y conocer sus atributos.\n   Lee atentamente el siguiente informe de lectura sobre el cuento El hombre grama. Luego,\n   responde los ítems del 7 al 9, seleccionando la opción correcta en cada caso.\n                  Informe de lectura sobre el cuento «El hombre grama» - Francisco Cruz (Fragmento)\n    1. El cuento El hombre grama forma parte de la antología de cuentos infantiles editada\n        por Eleanor Grimaldi Silié publicada en 2009. Su autor es el periodista dominicano\n        Luis Martín Gómez, quien ganó el Premio Nacional de Literatura Infantil en 2003, el\n        Primer lugar en el concurso de cuento Virgilio Díaz Grullón (2002), entre otros\n        galardones. El hombre grama constituye un cuento lleno de enseñanzas sobre todo las\n        que se relacionan con la necesidad de pensar y actuar en armonía con la naturaleza.\n    2. La historia presenta cuatro partes bien diferenciadas. En la primera, el Hombre Grama\n        no pensaba, no tenía ideas y, por tanto, era como un desierto en el que no se daban ni\n        yerbas ni plantas.\n    3. Luego, este hombre hace uso de su imaginación y piensa en elementos de la naturaleza,\n        por lo cual le nace una grama verde que poco a poco se convierte en una selva.\n    4. La tercera parte del cuento muestra a un Hombre Grama distinto que, debido a la influencia de un insecto dañino,\n        empezó a fumar, razón por la que incendia toda la grama y como consecuencia vuelve a convertirse en desierto.\n        Esta etapa del Hombre Grama nos refleja cómo un simple descuido puede traer efectos negativos para el bienestar\n        nuestro y el de los demás. […]\n    5. Con las diferentes etapas de la vida del Hombre Grama, el autor nos muestra que nuestras buenas acciones o\n        muchas veces la falta del ejercicio de estas, tienen sus consecuencias. Por ejemplo, cuando este personaje no\n        quería pensar, no tenía mucha vida como sucede en los desiertos. […] Continúa\n    Fuente: Cruz, Francisco. «Informe de lectura sobre el cuento El hombre grama». Tomado de Scribd. Link:\n    https://es.scribd.com/ document/714270363/El-hombre-grama-Lengua-Espanola-web-completa\n\n   7.    ¿Qué función cumple el primer párrafo dentro de la estructura del informe de lectura?\n           a) Presenta la obra, su autor y el contenido a analizar.\n           b) Ofrece recomendaciones para pensar y actuar en armonía con la naturaleza.\n           c) Hace una cronología de los años de publicación de la obra infantil.\n           d) Explica estrictamente la vida de Hombre Grama.\n   8.    ¿Cuál de las siguientes opciones resume mejor el contenido del informe?\n           a) El Hombre Grama recibió la ayuda de la tierra y del viento para convertirse en un personaje famoso.\n           b) Describe etapas del Hombre Grama y cómo sus acciones influyen en la naturaleza y en su comunidad.\n           c) El cuento presenta a un insecto que destruye un bosque y obliga a sus habitantes a abandonar el lugar.\n           d) El autor informa sobre los premios recibidos por Luis Martín Gómez y sobre la publicación de sus\n              cuentos.\n   9.    En el último párrafo del fragmento, ¿para qué se utiliza el conector «Por ejemplo»?\n           a) Para introducir un caso que demuestra la idea expresada anteriormente.\n           b) Para señalar una consecuencia de las acciones del Hombre Grama.\n           c) Para establecer una oposición entre dos partes del cuento establecidas anteriormente.\n           d) Para presentar la conclusión general del informe al demostrar el uso de la imaginación.\n\nEvaluación Diagnóstica 1.º grado         Área de Lengua Española Nivel Secundario MINERD 2026                     3 de 5",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                447.0,
+                279.25,
+                541.1,
+                405.4
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 5,
+          "tipo": "evaluacion",
+          "texto": "Lee detenidamente el siguiente fragmento del cuento La Enemiga. Luego, selecciona la\n   opción correcta en los ítems del 10 al 12.\n                                La enemiga - Virgilio Díaz Grullón (Fragmento)\n    […] Después las aguas volvieron a su nivel y Esther no mencionó más la muñeca.\n    El resto de las vacaciones fue transcurriendo plácidamente y ya a mediados del\n    verano habíamos terminado el refugio y allí pasábamos muchas horas del día\n    pegando nuestros sellos en el álbum y organizando la colección de mariposas.\n    Fue hacia fines del verano cuando llegó la segunda muñeca. Esta vez fue mamá\n    quien la trajo y no vino dentro de una caja de cartón, como la otra, sino envuelta\n    en una frazada color de rosa. Esther y yo presenciamos cómo mamá la colocaba\n    con mucho cuidado en su propia cama hablándole con voz suave, como si ella\n    pudiese oírla. En ese momento, mirando de reojo a Esther, descubrí en su actitud\n    un sospechoso interés por el nuevo juguete que me ha convencido de que debo librarme también de este otro\n    estorbo antes de que me arruine el final de las vacaciones […]\n    Fuente: Literatura.us. La enemiga. Virgilio Díaz Grullón. (Santiago, Rep. Dom., 1924 - Santo Domingo, 2001)\n    Link: https://www.literatura.us/virgilio/enemiga.html\n\n   10. ¿Qué información del fragmento permite inferir que la «segunda muñeca» no es un juguete?\n        a) Esther muestra poco interés por su llegada y muestra complicidad con la madre.\n        b) Llega hacia finales de las vacaciones de verano una segunda muñeca.\n        c) Mamá la lleva envuelta en una frazada, la coloca en su cama y le habla.\n        d) El narrador considera que puede arruinarle el final de las vacaciones.\n   11. ¿Por qué el narrador quiere librarse de la segunda «muñeca»?\n        a) Porque teme que capte la atención de Esther y altere sus planes con ella.\n        b) Porque piensa que su madre la dejará abandonada durante las vacaciones.\n        c) Porque considera que Esther ya tiene demasiados juguetes en su habitación.\n        d) Porque quiere recuperar la frazada en la que llegó envuelta la madre al final del verano.\n   12. ¿Qué tipo de narrador cuenta los acontecimientos de este fragmento?\n        a) Un narrador externo que conoce todo lo que sienten los personajes.\n        b) Un narrador personaje que participa en los acontecimientos.\n        c) Un narrador que describe únicamente lo que hace Esther.\n        d) Un narrador externo que relata los hechos sin participar en ellos.\n\n   A partir del siguiente fragmento, selecciona la opción correcta en el ítem 13 y en los 14 y 15,\n   desarrolla tu respuesta.\n                      La NASA y los huracanes: Cinco datos rápidos (Fragmento)\n    […] Los instrumentos de radar y microondas de la misión de Medición de\n    Precipitación Global de la NASA permiten ver a través de las nubes de las\n    tormentas para observar la estructura de precipitaciones de la tormenta y\n    medir la cantidad total de lluvia que cae… […]\n    Es probable que el cambio climático esté haciendo que las tormentas se\n    comporten de manera diferente…, la velocidad de los vientos aumenta 56\n    kilómetros por hora (35 millas por hora) o más en apenas 24 horas. Estos\n    cambios pueden hacer que las comunidades a su paso no tengan tiempo de\n    prepararse. […]\n    La NASA proporcionó datos… para identificar las regiones afectadas por\n    los huracanes. Por medio del modelo se ayuda a identificar las comunidades\n    vulnerables y a tomar decisiones acerca de dónde enviar los recursos. […]\n    Fuente: Tomado de NASA Ciencia. (2021). La NASA y los huracanes: cinco datos rápidos. Administración\n    Nacional de Aeronáutica y el Espacio (NASA). Link: https://ciencia.nasa.gov/ciencias-terrestres/la-nasa-y-los-\n    huracanes-cinco-datos/\n\n\nEvaluación Diagnóstica 1.º grado         Área de Lengua Española Nivel Secundario MINERD 2026                  4 de 5",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                413.75,
+                108.05,
+                532.05,
+                204.85
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                384.9,
+                558.71,
+                535.96,
+                694.01
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 6,
+          "tipo": "evaluacion",
+          "texto": "13. ¿Para qué se utilizan los instrumentos de radar y microondas mencionados en el texto?\n      a) Para intentar disminuir la cantidad de lluvia que producen los huracanes y evitar daños.\n      b) Para observar la estructura de las precipitaciones y medir la cantidad de lluvia.\n      c) Para aumentar el tiempo de preparación de las comunidades al estar informadas por la NASA.\n      d) Para modificar la velocidad de los vientos durante una tormenta con apoyo de herramientas\n         confiables.\n\n   14. ¿Por qué la intensificación rápida de los huracanes representa un riesgo para las\n       comunidades? Explica tu respuesta a partir de la información del texto.\n\n\n\n\n   15. ¿Qué problema busca ayudar a resolver el modelo desarrollado por los investigadores\n       de la NASA? Explica tu respuesta.\n\n\n\n\nEvaluación Diagnóstica 1.º grado   Área de Lengua Española Nivel Secundario MINERD 2026     5 de 5",
+          "elementos_visuales_no_transcritos": []
+        }
+      ]
+    },
+    {
+      "area": "Lengua Española",
+      "grado": 2,
+      "pagina_inicio_pdf": 7,
+      "pagina_fin_pdf": 12,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 7,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                         Dirección de Educación Secundaria\n                           Departamento del Primer Ciclo\n                               Área de Lengua Española\n\n               Evaluación Diagnóstica de Lengua Española\n\n                                  SEGUNDO GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las necesidades de\naprendizaje de los estudiantes de segundo grado del Nivel Secundario y orientar la\nplanificación docente, las acciones de nivelación y el acompañamiento pedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados para\nasignar calificaciones ni determinar la promoción de los estudiantes.\n\n\n\n                                       Septiembre\n                                  Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                220.55,
+                33.65,
+                391.19,
+                126.35
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                173.3,
+                279.42,
+                454.4,
+                547.97
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 8,
+          "tipo": "evaluacion",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                                     Dirección de Educación Secundaria\n                                       Departamento del Primer Ciclo\n                                          Área de Lengua Española\n\n                     EVALUACIÓN DIAGNÓSTICA DE LENGUA ESPAÑOLA\n                             Segundo Grado del Nivel Secundario\n    Nombre del estudiante:\n    Centro educativo:\n    Sección:                             No. Orden                           Fecha:\n\n¡Hola, querido/a estudiante!\n\nNos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que has\ndesarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los resultados\nno afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y necesidades, y\npuedan brindarte el apoyo necesario para continuar desarrollando tus competencias durante este año\nescolar.\nINSTRUCCIONES\nEn esta evaluación encontrarás varios textos acompañados de preguntas relacionadas con su contenido.\nLee detenidamente cada texto y analiza cada pregunta antes de responder.\n• En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona\n  únicamente la opción que consideres correcta.\n•     Los ítems 14 y 15 son de respuesta abierta. En ellos deberás escribir y desarrollar tu respuesta de\n      acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\nProcura realizar un análisis cuidadoso y responder todos los ítems con claridad y precisión\n\nTiempo: 90 minutos\n\n                BLOQUE I. Texto: La aventura de los tres estudiantes — Arthur Conan Doyle\n                                 Lee el texto y responde las preguntas del 1 al 4.\n    «En el año noventa y cinco se produjo una suma de acontecimientos, en la que no es\n    necesario entrar, que motivó que el señor Sherlock Holmes y yo pasáramos unas\n    semanas en una de nuestras grandes ciudades universitarias, y durante esa época nos\n    sucedió la pequeña —pero instructiva— experiencia que me dispongo a relatar».\n\n    «El profesor Hilton Soames había venido a nosotros en un estado de gran agitación.\n    Al día siguiente tenía que celebrarse un examen para una importante beca, y los\n    papeles del examen habían llegado recientemente y estaban bajo su custodia».\n\n    «Holmes, con su habitual tranquilidad, comenzó a examinar las circunstancias y las señales que encontraba\n    en la habitación, procurando reconstruir lo ocurrido a partir de las evidencias». Fuente: Doyle, Arthur Conan.\n    La aventura de los tres estudiantes. Publicado originalmente en The Strand Magazine, junio de 1904;\n    posteriormente incluido en The Return of Sherlock Holmes. Texto digital consultado en Ciudad Seva.\n\n\n    Evaluación Diagnóstica 2.º grado Área de Lengua Española Nivel Secundario MINERD 2026                     1 de 5",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                246.05,
+                30.55,
+                365.33,
+                95.35
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                439.1,
+                554.81,
+                538.65,
+                665.71
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 9,
+          "tipo": "evaluacion",
+          "texto": "1.    ¿Cuál característica del narrador se puede identificar a partir de su participación en los\n         acontecimientos del fragmento?\n        a) Es protagonista porque dirige las acciones necesarias para resolver el caso\n        b) Es omnisciente porque conoce lo que piensan y sienten todos los personajes.\n        c) Es testigo porque participa en los acontecimientos y relata experiencias relacionadas con Holmes.\n        d) Es externo porque observa los acontecimientos sin intervenir en ellos\n\n   2.    ¿Por qué la expresión «pequeña —pero instructiva— experiencia» resulta significativa para\n         comprender el relato?\n        a) Porque presenta el caso como un acontecimiento de poca importancia para la investigación.\n        b) Porque señala que, aunque el acontecimiento parece limitado, permite mostrar una cualidad\n           particular de Holmes.\n        c) Porque muestra que el narrador todavía no comprende lo ocurrido en la experiencia.\n        d) Porque sugiere que el profesor tendrá un papel decisivo en la resolución del problema.\n   3.    ¿Qué procedimiento utiliza principalmente Holmes para aproximarse a la solución del caso?\n        a) Considera las versiones disponibles y selecciona la que parece más coherente con la situación.\n        b) Fórmula una explicación inicial y posteriormente busca elementos que puedan confirmarla.\n        c) Relaciona los indicios y evidencias para reconstruir lo ocurrido.\n        d) Examina las circunstancias del caso y se apoya principalmente en la información proporcionada\n           por el profesor.\n   4.    ¿Cuál característica permite clasificar el texto como cuento policíaco o detectivesco?\n        a) Presenta un conflicto cuya explicación requiere investigar los hechos e interpretar indicios.\n        b) Presenta un acontecimiento que modifica la situación de los personajes y genera un conflicto.\n        c) Desarrolla una experiencia en la que los personajes deben comprender las circunstancias que\n           enfrentan.\n        d) Narra hechos relacionados con un problema que despierta preocupación y requiere encontrar una\n           solución.\n                          BLOQUE II. Texto: El hombre que contaba historias — Oscar Wilde\n                                      Lee el texto y responde las preguntas del 5 al 8.\n«Había una vez un hombre muy querido de su pueblo porque contaba historias. Todas las mañanas salía\ndel pueblo y, cuando volvía por las noches, todos los trabajadores del pueblo, tras haber bregado todo\nel día, se reunían a su alrededor y le decían:\n—Vamos, cuenta, ¿qué has visto hoy?» El hombre les hablaba de criaturas fantásticas que decía haber\nencontrado durante sus recorridos. Los habitantes escuchaban con interés sus relatos.\n«Una mañana dejó su pueblo, como todas las mañanas… Mas al llegar a la orilla del mar, he aquí que\nvio a tres sirenas, tres sirenas que, al filo de las olas, peinaban sus cabellos verdes con un peine de oro.\nY, como continuara su paseo, en llegando cerca del bosque, vio a un fauno que tañía su flauta y a un\ncorro de silvanos».\nCuando regresó al pueblo y le preguntaron nuevamente qué había visto, respondió:\n«—No he visto nada».\nFuente: Wilde, Oscar. El hombre que contaba historias. Texto completo disponible en Ciudad Seva.\n\n   5.    ¿Qué relación se establece entre las historias que el hombre contaba y los acontecimientos que\n         experimenta posteriormente?\n        a) Los acontecimientos posteriores contradicen las historias que había contado a los habitantes.\n        b) Algunos elementos de sus relatos anteriores coinciden con lo que posteriormente observa.\n        c) Los acontecimientos posteriores muestran que los habitantes habían creado sus propias historias.\n        d) Las nuevas experiencias hacen que el protagonista cambie las historias que acostumbraba a contar.\n\n\n     Evaluación Diagnóstica 2.º grado Área de Lengua Española Nivel Secundario MINERD 2026                     2 de 5",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                502.8,
+                476.26,
+                570.4,
+                577.06
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 10,
+          "tipo": "evaluacion",
+          "texto": "6.  ¿Por qué el final del cuento resulta paradójico?\n   a) Porque después de encontrar elementos semejantes a los que antes imaginaba, el hombre afirma que no ha\n      visto nada.\n   b) Porque después de contar durante mucho tiempo sus experiencias, los habitantes dejan de interesarse por\n      sus historias.\n   c) Porque después de recorrer nuevamente los lugares conocidos, el hombre decide regresar al pueblo sin\n      contar lo sucedido.\n   d) Porque después de encontrar criaturas semejantes a las de sus relatos, el hombre descubre que no puede\n      comunicarse con ellas.\n7. ¿Cuál interpretación explica mejor el cambio producido en el protagonista?\n   a) La experiencia directa modifica la relación entre lo que imaginaba, lo que narraba y lo que finalmente\n      observa.\n   b) La experiencia directa hace que el protagonista cuestione la manera en que los habitantes escuchaban sus\n      relatos.\n   c) La experiencia directa lo lleva a comprender que sus recorridos tenían un propósito diferente al que había\n      imaginado.\n   d) La experiencia directa modifica su manera de relacionarse con el pueblo y con las personas que escuchaban\n      sus historias.\n8.    La imagen del autor y el título del cuento funcionan como elementos paratextuales. ¿Cuál es\n      su principal aporte a la lectura?\n     a) Permiten anticipar algunos acontecimientos y conocer de antemano el desenlace del cuento.\n     b) Ayudan a contextualizar la obra y a formular anticipaciones sobre su contenido.\n     c) Permiten comprobar que los personajes y acontecimientos del cuento corresponden a hechos reales.\n     d) Ayudan a comprender el contenido general de la obra sin necesidad de leer el texto completo.\n\n                   BLOQUE III. Texto: El Ferrocarril Central — Juan Antonio Alix\n                       Lee el texto y responde las preguntas del 9 al 12.\n\n\n\n\n9.    ¿Qué información permite inferir el fragmento sobre la función que tenía la décima de Alix?\n     a) Permitía expresar una valoración personal sobre acontecimientos que interesaban al autor.\n     b) Permitía comunicar acontecimientos de interés colectivo.\n     c) Describía acontecimientos históricos utilizando principalmente recursos propios de la poesía.\n     d) Presentaba información sobre hechos públicos desde una perspectiva relacionada con la\n        experiencia del autor.\n\n Evaluación Diagnóstica 2.º grado Área de Lengua Española Nivel Secundario MINERD 2026                   3 de 5",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                116.65,
+                406.69,
+                464.65,
+                648.42
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 11,
+          "tipo": "evaluacion",
+          "texto": "10. ¿Qué significado adquiere «damos hoy conocimiento / al público en general» dentro del texto?\n   a) La voz poética está informando a la comunidad sobre un acontecimiento.\n   b) La voz poética está compartiendo con la comunidad una valoración sobre el acontecimiento.\n   c) La voz poética está explicando las características del ferrocarril a quienes lo desconocen.\n   d) La voz poética está anunciando una actividad en la que participará la comunidad.\n11. ¿Qué relación se establece entre la información del texto y la imagen histórica del ferrocarril?\n   a) La imagen amplía el contenido del texto al mostrar detalles que la décima explica de manera\n      directa.\n   b) La imagen aporta una referencia visual que ayuda a contextualizar el acontecimiento mencionado.\n   c) La imagen permite comprobar que todos los elementos representados coinciden exactamente con\n      los descritos en la décima.\n   d) La imagen presenta información diferente de la del texto y permite interpretarlo desde otra\n      perspectiva histórica.\n12. ¿Cuál característica formal permite reconocer el texto como una décima espinela?\n   a) Está constituido por diez versos de arte menor organizados mediante un esquema de rima\n      determinado.\n   b) Está constituido por diez versos de extensión variable organizados mediante una distribución libre\n      de la rima.\n   c) Está constituido por ocho versos de arte menor organizados mediante un esquema regular de rima.\n   d) Está constituido por catorce versos organizados en una estructura poética de rima consonante.\n\n  BLOQUE IV. Texto: Reglas y consejos sobre investigación científica — Santiago Ramón y Cajal\n  Lee el texto y responde la pregunta 13. Luego, desarrolla tus respuestas en los ítems 14 y 15, utilizando\n  información de los textos para fundamentar tus ideas.\n\n\n\n\n13. ¿Cuál es la idea que articula principalmente el fragmento sobre la investigación científica?\n   a) La investigación científica requiere cuestionar las ideas previamente aceptadas para construir\n      nuevas explicaciones.\n   b) La investigación científica requiere observar, formular explicaciones y comprobarlas.\n   c) La investigación científica depende de relacionar la información disponible con las ideas del\n      investigador.\n   d) La investigación científica necesita reunir información suficiente antes de formular explicaciones\n      sobre los fenómenos.\n Evaluación Diagnóstica 2.º grado Área de Lengua Española Nivel Secundario MINERD 2026                  4 de 5",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                69.2,
+                398.07,
+                353.94,
+                609.82
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 12,
+          "tipo": "evaluacion",
+          "texto": "14. ¡En el ítem 14, te corresponde producir!\n                                      Comprensión y producción\n     En el cuento de Conan Doyle, Holmes intenta comprender una situación mediante la observación de\n     indicios. En el texto de Ramón y Cajal, la observación constituye una etapa fundamental de la\n     investigación.\n\n     Consigna:\n     Explica qué relación puedes establecer entre la manera en que Holmes observa las evidencias y la\n     concepción de la observación científica planteada por Ramón y Cajal.\n     Tu respuesta debe presentar una idea central, utilizar información de ambos textos, establecer al menos\n     una semejanza, señalar una diferencia o una limitación y fundamentar la explicación con evidencias.\n\n\n\n\n15. En este ítem realizarás una lectura crítica y responderás de forma escrita.\n\n                               Lectura crítica y producción escrita\n     La décima de Juan Antonio Alix comunica un acontecimiento de interés colectivo; el texto de\n     Ramón y Cajal explica procedimientos relacionados con la construcción del conocimiento.\n\n                                              Consigna:\n     Responde de manera escrita:\n     ¿Qué muestran estos dos textos sobre la capacidad de los textos escritos para comunicar\n     conocimientos sobre la realidad?\n     Construye una respuesta en la que:\n     1) plantees una idea central; 2) utilices información de ambos textos; 3) expliques una\n     diferencia entre las formas de comunicar; y 4) presentes una conclusión propia.\n\n\n\n\n Evaluación Diagnóstica 2.º grado Área de Lengua Española Nivel Secundario MINERD 2026                   5 de 5",
+          "elementos_visuales_no_transcritos": []
+        }
+      ]
+    },
+    {
+      "area": "Lengua Española",
+      "grado": 3,
+      "pagina_inicio_pdf": 13,
+      "pagina_fin_pdf": 19,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 13,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                               Dirección de Educación Secundaria\n                                  Departamento del Primer Ciclo\n                                     Área de Lengua Española\n\n\n                    Evaluación Diagnóstica de Lengua Española\n\n                                        TERCER GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las necesidades de aprendizaje\nde los estudiantes de tercer grado del Nivel Secundario y orientar la planificación docente, las acciones\nde nivelación y el acompañamiento pedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados para asignar\ncalificaciones ni determinar la promoción de los estudiantes.\n\n\n                                             Septiembre\n                                        Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                161.25,
+                285.57,
+                427.15,
+                562.27
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                228.62,
+                45.45,
+                383.43,
+                129.55
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 14,
+          "tipo": "evaluacion",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                                  Dirección de Educación Secundaria\n                                     Departamento del Primer Ciclo\n                                        Área de Lengua Española\n\n                   EVALUACIÓN DIAGNÓSTICA DE LENGUA ESPAÑOLA\n                            Tercer Grado del Nivel Secundario\n\n    Nombre del estudiante:\n    Centro educativo:\n    Sección:                          No. Orden                         Fecha:\n\n¡Hola, querido/a estudiante!\n\nNos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que has\ndesarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los resultados\nno afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y necesidades, y\npuedan brindarte el apoyo necesario para continuar desarrollando tus competencias durante este año\nescolar.\n\nINSTRUCCIONES\nEn esta evaluación encontrarás varios textos acompañados de preguntas relacionadas con su contenido.\nLee detenidamente cada texto y analiza cada pregunta antes de responder.\n•     En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona únicamente\n      la opción que consideres correcta.\n•     Los ítems 14 y 15 son de respuesta abierta. En ellos deberás escribir y desarrollar tu respuesta de\n      acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\nProcura realizar un análisis cuidadoso y responder todos los ítems con claridad y precisión\nTiempo: 90 minutos\n\nLee atentamente la siguiente décima espinela y, a continuación, responde las preguntas 1, 2 y 3\n\n                             Décima espinela: Cuentan de un sabio que un día\n     Cuentan de un sabio que un día    Pedro Calderón de la Barca\n     tan pobre y mísero estaba,        Fragmento de La vida es sueño\n     que solo se sustentaba\n                                       Tomado de Pedro Calderón de la Barca, La\n     de unas hierbas que cogía.\n                                       vida es sueño. Biblioteca Virtual Miguel de\n     ¿Habrá otro, entre sí decía,\n                                       Cervantes. Adaptación ortográfica.\n     más pobre y triste que yo?\n                                       Link: https://www.cervantesvirtual.com/\n     Y cuando el rostro volvió,\n                                       obra-visor/la-vida-es-sueno--0/html/\n     halló la respuesta, viendo\n                                       fedc73fa-82b1-11df-acc7-002185ce\n     que otro sabio iba cogiendo\n                                       6064_2.html\n     las hierbas que él arrojó.\n\n\n\n    Evaluación Diagnóstica 3.º grado Área de Lengua Española Nivel Secundario MINERD 2026             1 de 6",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                437.75,
+                589.08,
+                539.9,
+                719.95
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                249.7,
+                34.3,
+                368.95,
+                99.08
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 15,
+          "tipo": "evaluacion",
+          "texto": "1) Según el texto, ¿qué vio el primer sabio cuando volvió el rostro?\n   a) A una persona que sembraba nuevas hierbas.\n   b) A otro sabio que recogía las hierbas que él desechaba.\n   c) A un hombre que le ofrecía alimentos para ayudarlo.\n   d) A otro sabio que se alejaba por el mismo camino.\n2) ¿Qué comprendió el primer sabio al observar al otro?\n   a) Que debía guardar todas las hierbas que encontraba.\n   b) Que los demás eran responsables de su pobreza.\n   c) Que su sabiduría le permitiría abandonar aquel lugar.\n   d) Que otra persona se encontraba en una situación más difícil.\n3) ¿Qué reflexión sobre la vida se comunica principalmente mediante la situación de los dos\n   sabios?\n   a) Comparar una situación con la de otros puede ayudarnos a ver una perspectiva diferente.\n   b) Las dificultades solo se resuelven cuando vemos a otras personas pasar calamidades.\n   c) Quienes poseen conocimientos de las acciones de otras personas, siempre encuentran la paz.\n   d) Las personas deben conformarse con sus problemas, pues otros están en peores condiciones.\nLee atentamente el siguiente fragmento de un artículo expositivo y, a continuación, responde las\npreguntas 4, 5 y 6.\n\n                 Fragmento: Los microplásticos: un problema que exige soluciones\n  El mundo produce anualmente más de 430 millones de toneladas de\n  plástico. Dos tercios corresponden a productos de corta duración\n  que, después de utilizarse durante pocos minutos, se convierten en\n  basura. Al descomponerse, muchos de estos residuos originan\n  microplásticos: partículas de hasta cinco milímetros que se\n  dispersan en el suelo, el aire y el agua.\n  Los microplásticos también proceden de objetos de uso cotidiano.\n  Algunas prendas fabricadas con materiales como poliéster, acrílico\n  y nailon desprenden pequeñas fibras al utilizarse o lavarse.\n  Asimismo, ciertos cosméticos, envases y filtros de cigarrillos\n  pueden liberar partículas que llegan a las tuberías y, posteriormente,\n  a los ríos y océanos.\n  Cuando los peces, las aves y otros animales ingieren estas partículas, pueden sufrir daños, como la\n  disminución de su alimentación, cambios de comportamiento y alteraciones en su organismo. Los seres\n  humanos también pueden inhalar microplásticos presentes en el aire, ingerirlos mediante el agua y algunos\n  alimentos o entrar en contacto con ellos a través de productos de uso personal. Por esta razón, la\n  contaminación por microplásticos representa una amenaza para los ecosistemas y genera preocupación por\n  sus posibles efectos en la salud.\n  Enfrentar este problema requiere acciones conjuntas. Las empresas pueden disminuir el uso de\n  microplásticos desde el diseño y la fabricación de sus productos. Los gobiernos pueden establecer normas,\n  mejorar los sistemas de recogida de residuos y promover investigaciones sobre sus efectos. Por su parte, la\n  ciudadanía puede reducir el consumo de plásticos desechables, reutilizar los productos y depositar\n  correctamente los residuos. La participación de todos resulta necesaria para disminuir la contaminación y\n  proteger la salud del planeta.\n  Tomado de Programa de las Naciones Unidas para el Medio Ambiente (PNUMA), «Microplásticos:\n  consecuencias históricas de la contaminación por plásticos», 2023. Fragmento adaptado. Link:\n  https://www.unep.org/es/noticias-y-reportajes/reportajes/microplasticos-consecuencias-historicas-de-la-\n  contaminacion-por\n\n\n Evaluación Diagnóstica 3.º grado Área de Lengua Española Nivel Secundario MINERD 2026                   2 de 6",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                374.0,
+                353.93,
+                545.5,
+                493.68
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 16,
+          "tipo": "evaluacion",
+          "texto": "4) Según el texto, ¿qué son los microplásticos?\n   a) Productos reutilizables diseñados para proteger los océanos.\n   b) Residuos orgánicos que contaminan la cadena alimenticia.\n   c) Partículas de plástico de hasta cinco milímetros.\n   d) Sustancias naturales absorbidas por peces y plantas que al ingerirse afectan la salud humana.\n5) ¿Por qué el texto plantea que empresas, gobiernos y ciudadanía deben participar en la\n   solución?\n   a) Porque un solo sector no basta para enfrentar las distintas causas del problema.\n   b) Porque hay que enfrentar la ciudadanía para disminuir el consumo de productos plásticos.\n   c) Porque los gobiernos fabrican la mayoría de los productos plásticos desechables.\n   d) Porque las empresas tienen el compromiso de reutilizar los productos plásticos vendidos.\n6) Una comunidad organiza jornadas para recoger plásticos, pero continúa utilizando la misma\n   cantidad de productos desechables. De acuerdo con el texto, ¿cómo debe valorarse esta\n   iniciativa?\n   a) Es innecesaria, porque recoger los residuos no elimina la producción de microplásticos.\n   b) Es suficiente, porque elimina solo los plásticos presentes en los ríos.\n   c) Es perjudicial, porque la ciudadanía no debe intervenir en bosques, ríos y parques.\n   d) Es una medida positiva, pero insuficiente si no se reduce también el consumo de plásticos.\n\nLee atentamente el siguiente fragmento del cuento El amigo fiel y, a continuación, responde las\npreguntas 7, 8 y 9.\n                                  El amigo fiel - Oscar Wilde (Fragmento)\n ¡Qué día más duro! -se dijo Hans al meterse en la cama- Pero me alegra mucho no haberme negado, porque el\n molinero es mi mejor amigo […] A la mañana siguiente, muy temprano, el molinero llegó por el dinero de su saco\n de harina, pero el pequeño Hans estaba tan rendido, que no se había levantado aún de la cama.\n  - ¡Palabra! -exclamó el molinero-. Eres muy perezoso. Cuando pienso que acabo de darte mi carretilla, creo que\n    podrías trabajar con más ardor […]\n  - Lo siento mucho -respondió el pequeño Hans, restregándose los ojos y quitándose el gorro de dormir-. Pero estaba\n    tan rendido, que creía haberme acostado hace poco y escuchaba cantar a los pájaros. […]\n  - ¡Bueno, tanto mejor! -replicó el molinero dándole una palmada en el hombro-; porque necesito que arregles la\n    techumbre de mi granero.\n    El pequeño Hans tenía gran necesidad de ir a trabajar a su jardín porque hacía dos días que no regaba sus flores,\n    pero no quiso decir que no al molinero, que era un buen amigo para él.\n  - ¿Crees que no sería amistoso decirte que tengo que hacer? -preguntó con voz humilde y tímida.\n  - No creí nunca, a fe mía -contestó el molinero-, que fuese mucho pedirte, teniendo en cuenta que acabo de regalarte\n    mi carretilla, pero claro es que lo haré yo mismo si te niegas.\n  - ¡Oh, de ningún modo! -exclamó el pequeño Hans, saltando de su cama. Se vistió y fue\n    al granero. Trabajó allí durante todo el día hasta el anochecer, y al ponerse el sol, vino\n    el molinero a ver hasta dónde había llegado.\n  - ¿Has tapado el boquete del techo, pequeño Hans? -gritó el molinero con tono alegre.\n  - Está casi terminado -respondió Hans, bajando de la, escalera.\n  - ¡Ah! -dijo el molinero- No hay trabajo tan delicioso como el que se hace por otro.\n  - ¡Es un encanto oírte hablar! -respondió el pequeño Hans, que descansaba secándose la\n    frente- Es un encanto, pero temo no tener yo nunca ideas tan hermosas como tú.\n  - ¡Oh, ya las tendrás! -dijo el molinero-; pero habrás de tomarte más trabajo. Por ahora no\n    posees más que la práctica de la amistad. Algún día poseerás también la teoría…\n    (Continúa)\n Tomado de Oscar Wilde, El amigo fiel. Biblioteca Virtual Miguel de Cervantes. Fragmento. Link:\n https://www.cervantesvirtual.com/obra-visor/el-amigo-fiel--0/html/ff0cfd36-82b1-11df-acc7-002185ce6064_ 1.htm\n\n\n\n\n Evaluación Diagnóstica 3.º grado Área de Lengua Española Nivel Secundario MINERD 2026                          3 de 6",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                447.35,
+                547.78,
+                548.9,
+                683.38
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 17,
+          "tipo": "evaluacion",
+          "texto": "7)   ¿Por qué Hans todavía no se había levantado cuando llegó el molinero?\n     a) Porque había quedado de encontrarse a las 11:00 am con su amigo molinero.\n     b) Porque estaba agotado después del trabajo realizado.\n     c) Porque quería escuchar el canto de los pájaros al quedarse recostado en la cama.\n     d) Porque sabía que el molinero llegaría por el dinero de su saco de harina.\n8)   ¿Qué motivó principalmente a Hans a aceptar la reparación del granero?\n     a) Deseaba aprender las ideas del molinero sobre el trabajo que debía realizar.\n     b) Necesitaba conseguir dinero para recuperar sus pertenencias.\n     c) Consideraba que negarse podía hacerlo parecer un mal amigo.\n     d) Quería evitar que el molinero llevara sus carneros a la montaña el solo.\n9)   ¿Qué contradicción se evidencia cuando el molinero afirma que «No hay trabajo tan delicioso como el\n     que se hace por otro»?\n     a) Elogia el servicio a los demás mientras se beneficia continuamente del esfuerzo de Hans.\n     b) valora profundamente servirle a los demás como lo hace él con sus amigos.\n     c) El molinero reconoce que Hans trabaja en beneficio de los demás y valora su esfuerzo.\n     d) Defiende la sinceridad entre amigos, pero se niega a reconocer el esfuerzo de Hans.\n\nLee atentamente el siguiente fragmento de una crónica deportiva y, a continuación, responde las\npreguntas 10, 11 y 12.\n                                      Crónica deportiva – Adaptado.\nRepública Dominicana recupera cetro de la Serie del Caribe al vencer a México\nMEXICALI - Llegó a su fin la Serie del Caribe 2025 en Mexicali con un\ntremendo duelo dominado por los lanzadores. República Dominicana se\nlleva su título número 23° de Serie del Caribe al vencer (1-0) a México en\nel Nido de las Águilas.\nEsmil Rogers por el Escogido lanzó hasta la cuarta entrada juego sin hit ni\ncarrera, terminó llevándose la victoria en actuación de 6.0 innings con un\nimparable recibido, cinco bases por bolas y cuatro ponches. De México,\nManny Bañuelos tuvo una breve actuación de 4.0 entradas de tres hits y una\ncarrera limpia, que fue la determinante para la derrota en la final.\nMéxico desperdició el único bache que tuvo la actuación de Esmil Rogers en la segunda entrada cuando llenó las\nbases con tres pasaportes. Alfredo Hurtado terminó fallando con un elevado y después de este trance, fue el\ndominio de Rogers donde solo recibió el imparable por parte de Reynaldo Rodríguez en el cuarto inning.\nEl descontrol de Manny Bañuelos fue bien aprovechado por República Dominicana para anotar la única carrera\ndel juego en el tercer inning. El lanzador mexicano otorgó tres pasaportes consecutivos a la parte alta del lineup\npara dejar a Robinson Canó con las bases llenas. El segunda base bateó un rolling para doble play, pero fue\nsuficiente para que pudiera anotar Junior Lake.\nUna vez salieron los lanzadores abridores del juego, el relevo siguió luciendo de gran forma por República\nDominicana para colgar los ceros en el último tercio del juego.\nTomado de Enrique Ortega, «República Dominicana recupera cetro de la Serie del Caribe al vencer a México»,\nESPN Digital, 8 de febrero de 2025. Fragmento. Link: https://espndeportes.espn.com/beisbol/serie-del-\naribe/cronica/_/juegoId/401740929?utm_source =chatgpt.com\n10) ¿Qué información aporta la expresión «(1-0)» en el primer párrafo?\n    a) La cantidad de entradas disputadas en el trascurso del juego.\n    b) El número de títulos obtenidos por Republica Dominicana en la Serie del Caribe.\n    c) El resultado final favorable para República Dominicana.\n    d) La cantidad de lanzadores utilizados por ambos equipos en el título número 23°.\n\n\n\n Evaluación Diagnóstica 3.º grado Área de Lengua Española Nivel Secundario MINERD 2026                     4 de 6",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                393.0,
+                368.39,
+                550.35,
+                468.55
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 18,
+          "tipo": "evaluacion",
+          "texto": "11) ¿Cuál opción presenta los acontecimientos en el orden en que sucedieron durante el partido?\n    a) Reynaldo Rodríguez conectó un imparable, México llenó las bases y Junior Lake anotó.\n    b) México llenó las bases, Robinson Canó bateó un Rolling y Junior Lake anotó carrera.\n    c) Junior Lake anotó, Reynaldo Rodríguez conectó un imparable y México llenó las bases.\n    d) México llenó las bases, Reynaldo Rodríguez conectó un imparable y Junior Lake anotó.\n12) El autor afirma que la carrera permitida por Manny Bañuelos fue «determinante para la derrota».\n    ¿Cuál evidencia respalda mejor esa afirmación?\n    a) México disputó la final contra República Dominicana, perdiendo en el primer inning 1-0.\n    b) Esmil Rogers terminó con una sequía de seis entradas limpias para Republica Dominicana.\n    c) Manny Bañuelos logró ponchar a tos los bateadores durante las cuatro entradas que lanzó.\n    d) Rogers y los relevistas dominicanos impidieron anotaciones, por lo que el marcador terminó 1-0.\nLee atentamente el siguiente fragmento adaptado de un artículo de opinión y, a continuación,\nresponde las preguntas 13, 14 y 15. En las preguntas 14 y 15, deberás redactar tus respuestas. Hazlo\ncon claridad y apóyalas en las ideas del texto.\n\n                                       Articulo expositivo - Fragmento\n ¿Estamos preparados para una educación con IA centrada en el estudiante? Adaptado\n\n Por Jacqueline Malagón · 22/12/2025 · 12:06 AM\n\n La inteligencia artificial irrumpió en la educación sin pedir permiso.\n Hoy forma parte del entorno en el que niños y jóvenes aprenden, se\n comunican y construyen su identidad. Por eso, la pregunta ya no es si\n debemos incorporarla, sino cómo gestionarla y con qué criterios\n utilizarla.\n La IA puede personalizar el aprendizaje, adaptando contenidos, ritmos\n y niveles de dificultad a las necesidades de cada estudiante. También\n facilita tutorías inmediatas y retroalimentación constante. Además,\n libera al docente de tareas repetitivas y le permite concentrarse en\n orientar, acompañar y cuidar la dimensión humana del aprendizaje.\n Pero estas oportunidades no llegan solas. La inteligencia artificial plantea riesgos relacionados con la protección\n de los datos personales, el fraude académico, las desigualdades de acceso y el uso de herramientas que\n «piensan» por el estudiante. Sin embargo, el mayor riesgo es formar estudiantes dependientes de la tecnología,\n con escasa capacidad crítica y frágil juicio ético.\n Educar para convivir con la inteligencia artificial exige revisar qué enseñamos, cómo evaluamos y qué\n entendemos por aprender. No se trata de prohibir la tecnología, sino de integrarla con criterio, promoviendo el\n pensamiento reflexivo, la argumentación, la creatividad y la responsabilidad.\n En este proceso, los docentes ocupan un lugar central. La IA no los sustituye; los interpela. También será\n necesario actualizar los currículos, fortalecer la formación docente, garantizar la equidad digital y establecer\n normas que protejan los derechos de los estudiantes. Bien gestionada, la inteligencia artificial puede mejorar la\n educación; mal gestionada, puede profundizar las desigualdades y empobrecer la formación humana.\n (Continúa)\n Fuente: Tomado y adaptado de Jacqueline Malagón, «¿Estamos preparados para una educación con IA centrada en el\n estudiante?», Acento, 22 de diciembre de 2025. Link: https://acento.com.do/opinion/estamos-preparados-para-una-\n educacion-con-ia-centrada-en-el-estudiante-9594756.html?utm_source=chatgpt.com\n13) Según el texto, ¿qué debe hacerse con la inteligencia artificial en la educación?\n    A. Prohibirla en los centros educativos hasta que desaparezcan sus riesgos éticos.\n    B. Permitir que los estudiantes la utilicen sin restricciones en los centros educativos y sus hogares.\n    C. Integrarla en el desarrollo de aprendizajes con criterios pedagógicos y éticos.\n    D. Emplearla para sustituir progresivamente a los docentes, debido la alta eficiencia de las respuestas.\n\n Evaluación Diagnóstica 3.º grado Área de Lengua Española Nivel Secundario MINERD 2026                        5 de 6",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                381.4,
+                333.58,
+                539.55,
+                444.43
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 19,
+          "tipo": "evaluacion",
+          "texto": "14) En dos o tres oraciones, explica qué significa la afirmación «La IA no los sustituye; los interpela» y\n    menciona una responsabilidad que deben asumir los docentes ante esta tecnología.\n\n\n\n\n15) Redacta un párrafo de cuatro a seis oraciones en el que expreses tu posición sobre el uso de la\n    inteligencia artificial en tu centro educativo. Sustenta tu opinión con un beneficio y un riesgo señalados en\n    el texto y propone una medida para utilizarla responsablemente. Emplea al menos un conector, como\n    «porque», «sin embargo» o «por eso».\n\n\n\n\n Evaluación Diagnóstica 3.º grado Área de Lengua Española Nivel Secundario MINERD 2026                   6 de 6",
+          "elementos_visuales_no_transcritos": []
+        }
+      ]
+    },
+    {
+      "area": "Matemática",
+      "grado": 1,
+      "pagina_inicio_pdf": 20,
+      "pagina_fin_pdf": 23,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 20,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                        Dirección de Educación Secundaria\n                          Departamento del Primer Ciclo\n                                Área de Matemática\n\n                 Evaluación Diagnóstica de Matemática\n\n                                  PRIMER GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las\nnecesidades de aprendizaje de los estudiantes de primer grado del Nivel Secundario y\norientar la planificación docente, las acciones de nivelación y el acompañamiento\npedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados\npara asignar calificaciones ni determinar la promoción de los estudiantes.\n\n\n\n\n                                     Septiembre\n                                Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                105.84,
+                274.68,
+                489.84,
+                541.32
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                107.9,
+                276.76,
+                483.51,
+                534.96
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                223.75,
+                34.85,
+                366.23,
+                112.25
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 21,
+          "tipo": "evaluacion",
+          "texto": "EVALUACIÓN DIAGNÓSTICA DE MATEMÁTICA\n                         Primer Grado de Educación Secundaria\n DATOS DEL ESTUDIANTE\nRegional:\nDistrito:\nCentro Educativo:\nNombre del/la estudiante:\nGrado y Sección:\nFecha:\n\n¡Hola, querido/a estudiante!\n\nNos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\n INSTRUCCIONES PARA EL ESTUDIANTE\nLee con atención las siguientes instrucciones antes de comenzar:\n  1. Lee cuidadosamente cada pregunta antes de responder.\n  2. Catorce preguntas tienen opciones de respuestas (A, B, C y D). Solo una de ellas es\n     correcta. En la pregunta 11, deberás escribir tu respuesta.\n  3. Marca con una X o encierra en un círculo la letra de la opción que consideres correcta.\n  4. No utilices calculadora.\n  5. Dispones de 90 minutos para completar la prueba.\n\nImportante: Los resultados de esta prueba tienen carácter diagnóstico y no afectarán tu\ncalificación.\n\n1. Durante una campaña nacional de reciclaje, se recolectaron 4,758,392 envases\n   plásticos. Un estudiante analiza el número para comprender la cantidad\n   recolectada en cada orden de magnitud.\n   ¿Qué valor representa el dígito 5 en la cantidad 4,758,392?\n    A) 5,00                 B) 5,000                  C) 50,000     D) 500,000\n\n2. En una escuela se repartieron 840 lápices entre 35 estudiantes por igual. ¿Cuántos\n    lápices recibió cada estudiante?\n A) 20 lápices         B) 24 lápices       C) 28 lápices         D) 32 lápices\n\n3. Durante una jornada solidaria, una escuela preparó kits de útiles escolares para\n   donar a estudiantes de una comunidad. Para elaborar los kits se dispone de 12\n   cuadernos, 24 lápices y 18 borradores, y se desea que todos los kits contengan\n   exactamente la misma cantidad de cada tipo de material sin que sobre ningún\n   artículo. Al analizar la situación, tres estudiantes propusieron diferentes cantidades\n   de kits: Ana sugirió formar 3 kits, Luis propuso 6 kits y María consideró que podían\n   prepararse 12 kits.\n\n                                                                                             1/3\n\n  Evaluación Diagnóstica   1.º grado   Área de Matemática   Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        },
+        {
+          "numero_pagina_pdf": 22,
+          "tipo": "evaluacion",
+          "texto": "¿Cuál de los estudiantes propuso la mayor cantidad posible de kits que se pueden formar\n    cumpliendo las condiciones establecidas y por qué?\n    A) Ana, porque 3 divide exactamente las cantidades de los tres materiales.\n    B) Luis, porque 6 es el mayor número que divide exactamente 12, 24 y 18.\n    C) María, porque 12 divide exactamente la cantidad de cuadernos.\n    D) Ninguno, porque se necesita conocer el costo de los materiales.\n                      𝟐                                 𝟑\n4. Carmen caminó 𝟓 de kilómetro por la mañana y 𝟏𝟎 de kilómetro por la tarde.\n    ¿Cuánto caminó en total?\n    5                         7                     1                         5\n A) 15 km                B) 10km                C) 2km                   D) 10km\n\n5. En una papelería cercana a la escuela, 4 cuadernos cuestan RD$120. Si todos los\n    cuadernos tienen el mismo precio, ¿cuánto deberá pagar un estudiante por 7\n    cuadernos?\n A) RD$180            B) RD$200              C) RD$210           D) RD$240\n\n6. Durante una jornada escolar, los estudiantes fueron distribuidos en cuatro secciones\n   para participar en diferentes actividades. La dirección registró la cantidad de\n   estudiantes asignados a cada sección para organizar los espacios y materiales\n   necesarios.\n\n\n\n\n¿Cuál es la diferencia entre la sección que tiene mayor cantidad de estudiantes y la que tiene\nmenor cantidad?\n     A) 7                  B) 8                   C) 10                    D) RD$240\n\n7. Un patio rectangular mide 12 m de largo y 8 m de ancho. ¿Cuál es su área?\n      A) 40 m²                B) 80 m²               C) 96 m²               D) 20 m²\n\n8. Durante una feria científica, un grupo de estudiantes construyó un tanque\n   rectangular para almacenar agua. El tanque tiene 2 m de largo, 1.5 m de ancho y 1 m\n   de profundidad. Al calcular su volumen, tres estudiantes obtuvieron los siguientes\n   resultados:\n    • Carlos: 2 × 1.5 × 1 = 3𝑚3\n    • Laura: 2 + 1.5 + 1 = 4.5𝑚3\n    • Miguel: 2 × 1.5 = 3𝑚3\n  ¿Cuál de los estudiantes realizó el procedimiento correcto para determinar el volumen del\n  tanque y por qué?\n  A) Carlos, porque multiplicó las tres dimensiones para obtener el volumen del tanque.\n  B) Laura, porque para obtener la capacidad se suman las dimensiones.\n  C) Miguel, porque basta con calcular el área de la base.\n  D) Ninguno, porque se necesita conocer la cantidad de agua disponible.\n                                                                                              2/3\n\n  Evaluación Diagnóstica    1.º grado   Área de Matemática   Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                140.15,
+                328.92,
+                454.6,
+                459.7
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 23,
+          "tipo": "evaluacion",
+          "texto": "9. Observa la siguiente sucesión: 3, 7, 15, 31, 63, … ¿Cuál es el siguiente número?\n A) 95                B) 121                  C) 127                  D) 135\n\n10. El doble de un número aumentado en 5 es igual a 21. ¿Cuál es la expresión\n    algebraica que representa esta situación?\n     A) 2 + n + 5 = 21   B) 2n + 5 = 21       C) 2(n + 5) = 21      D) n² + 5 = 21\n\n11. Un estudiante debe resolver la siguiente ecuación: 3x – 7 = 14 ¿Cuál es el valor de x?\n    Resuelve la ecuación detallando cada paso del procedimiento y explica cómo\n    determinaste el valor de x.\n\n\n\n\n12. Una tienda cobra RD$15 por cada hora de conexión a internet. ¿Cuál expresión\n    representa el costo total (C) según las horas (h)?\n     A) C = h + 15         B) C = 15 − h        C) C = 15h        D) C = h/15\n\n13. En el estacionamiento subterráneo de un edificio, el nivel de la calle se representa\n    con 0. Los niveles que están por debajo se representan con números enteros\n    negativos. Por ejemplo, el nivel −2 está dos pisos por debajo de la calle y el nivel −7\n    está siete pisos por debajo. En este estacionamiento se encuentran los niveles −8,\n    −3, −5, −10, −2, −7 y 0.\n    ¿Cuál de las siguientes comparaciones entre números enteros es correcta?\n     A) −8 > −3               B) −5 < −10           C) −2 > −7               D) 0 < −4\n\n14. En una madrugada fría en Valle Nuevo, Constanza, los meteorólogos registraron\n    una temperatura de −10 °C, una de las más bajas reportadas en la República\n    Dominicana. Observa los termómetros y selecciona el que representa la\n    temperatura registrada.\n\n\n\n\n15. Observa la imagen y responde.\n¿Cuál es la medida del tercer ángulo?\n      A) 33°                  B) 43°\n      C) 47°                  D) 53°\n\n\n\n                                                                                              3/3\n\n  Evaluación Diagnóstica   1.º grado    Área de Matemática   Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                56.7,
+                503.54,
+                526.85,
+                637.34
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                280.2,
+                646.14,
+                439.3,
+                770.94
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "area": "Matemática",
+      "grado": 2,
+      "pagina_inicio_pdf": 24,
+      "pagina_fin_pdf": 27,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 24,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                        Dirección de Educación Secundaria\n                          Departamento del Primer Ciclo\n                                Área de Matemática\n\n                 Evaluación Diagnóstica de Matemática\n\n                                 SEGUNDO GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las\nnecesidades de aprendizaje de los estudiantes de primer grado del Nivel Secundario y\norientar la planificación docente, las acciones de nivelación y el acompañamiento\npedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados\npara asignar calificaciones ni determinar la promoción de los estudiantes.\n\n\n\n\n                                     Septiembre\n                                Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                96.84,
+                274.68,
+                498.36,
+                533.52
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                98.9,
+                276.76,
+                492.43,
+                527.56
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                223.75,
+                34.85,
+                366.23,
+                112.25
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 25,
+          "tipo": "evaluacion",
+          "texto": "EVALUACIÓN DIAGNÓSTICA DE MATEMÁTICA\n                         Segundo Grado de Educación Secundaria\n DATOS DEL ESTUDIANTE\nRegional:\nDistrito:\nCentro Educativo:\nNombre del/la estudiante:\nGrado y Sección:\nFecha:\n\n¡Hola, querido/a estudiante!\n\nNos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\n INSTRUCCIONES PARA EL ESTUDIANTE\nLee con atención las siguientes instrucciones antes de comenzar:\n  1. Lee cuidadosamente cada pregunta antes de responder.\n  2. Catorce preguntas tienen opciones de respuestas (A, B, C y D). Solo una de ellas es\n     correcta. En la pregunta 15, deberás escribir tu respuesta.\n  3. Marca con una X o encierra en un círculo la letra de la opción que consideres correcta.\n  4. No utilices calculadora.\n  5. Dispones de 90 minutos para completar la prueba.\nImportante: Los resultados de esta prueba tienen carácter diagnóstico y no afectarán tu\ncalificación.\n\n1. Un autobús realiza una ruta que tarda 5 horas en completar. En un determinado\n    momento, ya ha recorrido 3/5 del tiempo total de la ruta.\n¿Cuántos minutos han transcurrido hasta ese momento?\n A) 180 minutos.       B) 150 minutos.        C) 200 minutos.    D) 240 minutos.\n\n2. Durante una actividad, cuatro estudiantes registraron la cantidad de agua que\n    bebieron:\n             3                                             2\n   • Perla: L                                    • Marta: L\n             4                                             3\n   • Luis: 0.6 L                                 • José: 0.7 L\n ¿Quién bebió mayor cantidad de agua?\n  A) Perla.             B) Luis.            C) Marta.             D) José.\n\n3. Una tienda deportiva anuncia un descuento del 20 % en todos sus artículos. Un par\n   de tenis cuesta RD$2,500. Después de aplicado el descuento, ¿cuánto pagará un\n   cliente por el par de tenis?\n   A) RD$500              B) RD$2,200       C) RD$2,000          D) RD$2,300\n\n\n                                                                                            1/3\n Evaluación Diagnóstica   2.º grado   Área de Matemática   Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        },
+        {
+          "numero_pagina_pdf": 26,
+          "tipo": "evaluacion",
+          "texto": "4. En una panadería, 3 panes cuestan RD$90. A ese mismo precio, un cliente desea\n    comprar 7 panes.\n¿Cuánto pagará el cliente por los 7 panes?\n A) RD$180                B) RD$210               C) RD$240               D) RD$270\n\n5. Una estudiante gana “n” pesos por hora trabajando en el negocio de su familia. Si\n   trabaja 5 horas y además recibe RD$200 de propina. ¿Cuál de las siguientes\n   expresiones representa el total de dinero que recibe?\n   A) 5 + n + 200       B) 5n − 200           C) 5n + 200          D) n + 200 ÷ 5\n\n6. Carlos tiene el triple de edad que su prima Valeria. Si entre los dos suman 24 años,\n    ¿cuántos años tiene Carlos?\n A) 6 años.            B) 12 años.           C) 18 años.            D) 20 años.\n\nLa siguiente tabla muestra la cantidad de estudiantes inscritos en cuatro actividades\nextracurriculares de una escuela.\n                  Actividad                        Cantidad de estudiantes\n                  Baloncesto                                  25\n                   Voleibol                                   18\n                   Atletismo                                  30\n                Natación                               12\n7. ¿Cuántos estudiantes más están inscritos en Atletismo que en Voleibol?\n   A) 7              B) 12                 C) 18                B) 48\n\n8. Una cancha rectangular de baloncesto mide 28 metros de largo y 15 metros de\n   ancho, ¿Cuál es el área de esa cancha?\n   A) 86 m²            B) 210 m²          C) 420 m²            D) 43 m²\n\n9. Luisa debe RD$350 a una amiga y tiene RD$120 en su cartera. Si utiliza todo el\n   dinero que tiene para pagar parte de la deuda, ¿cómo se representa su situación\n   económica después del pago?\n   A) 470            B) 230                 C) −230             D) −350\n\n10. Observa la siguiente sucesión numérica: 5, 9, 13, 17, 21…, ¿cuál es la regla que\n    sigue el patrón y cuál sería el séptimo término de la sucesión?\n    A) Se suma 3; el           B) Se suma 4; el        C) Se suma 4; el        D) Se multiplica\n    séptimo término es         séptimo término         séptimo término         por 2; el séptimo\n    23                         es 29                   es 25                   término es 320\n\nLa siguiente tabla muestra las calificaciones obtenidas por 20 estudiantes en una\nprueba.\n                 Calificación                   Cantidad de estudiantes\n                    60 – 69                                    4\n                    70 – 79                                    8\n                    80 – 89                                    5\n                    90 – 100                                   3\n                                                                                            2/3\n Evaluación Diagnóstica   2.º grado   Área de Matemática   Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        },
+        {
+          "numero_pagina_pdf": 27,
+          "tipo": "evaluacion",
+          "texto": "11. Pedro afirma: \"Más de la mitad de los estudiantes obtuvo una calificación de 70 o\n    más.\" ¿Cuál de las siguientes opciones permite comprobar si la afirmación de\n    Pedro es correcta?\n    A) No es correcta, porque solo 8 estudiantes obtuvieron entre 80 y 100.\n    B) Sí es correcta, porque 16 estudiantes obtuvieron 70 o más.\n    C) No es correcta, porque la mayoría obtuvo entre 60 y 79.\n    D) Sí es correcta, porque 13 estudiantes obtuvieron 70 o más.\n\n12. En el plano cartesiano, cada punto se ubica mediante un par ordenado (x, y), donde\n    x indica el desplazamiento horizontal e y el vertical. El punto A tiene coordenadas\n    (3, −2). ¿En qué cuadrante se encuentra el punto A (3, −2)?\n    A) Primer           B) Segundo cuadrante     C) Tercer cuadrante     D) Cuarto\n    cuadrante (I).      (II).                    (III).                  cuadrante (IV).\n\n13. Una bicicleta recorre una distancia constante cada 10 minutos. La tabla muestra la\n    relación entre el tiempo transcurrido y la distancia recorrida.\n              Tiempo (minutos)                         Distancia (km)\n                      10                                      2\n                      20                                      4\n                      30                                      6\n                      40                                      ?\n  Si se mantiene el mismo ritmo, ¿qué distancia habrá recorrido la bicicleta en 40 minutos?\n  A) 6 km                B) 7 km                C) 8 km                  D) 10 km\n\n14. En un experimento de ciencias, una bacteria se duplica cada hora. Al inicio del\n    experimento hay 1 bacteria.\n¿Cuántas bacterias habrá después de 5 horas?\n A) 10                 B) 16                 C) 25                D) 32\n\n15. Un servicio de taxi cobra RD$50 por la salida más RD$30 por cada kilómetro\n    recorrido. Pedro afirma que, si recorre 5 km, pagará RD$180.\n  ¿Es correcta la afirmación de Pedro? ¿Por qué?\n\n\n\n\n                                                                                            3/3\n Evaluación Diagnóstica   2.º grado   Área de Matemática   Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        }
+      ]
+    },
+    {
+      "area": "Matemática",
+      "grado": 3,
+      "pagina_inicio_pdf": 28,
+      "pagina_fin_pdf": 32,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 28,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                        Dirección de Educación Secundaria\n                          Departamento del Primer Ciclo\n                                Área de Matemática\n\n                 Evaluación Diagnóstica de Matemática\n\n                                  TERCER GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las\nnecesidades de aprendizaje de los estudiantes de primer grado del Nivel Secundario y\norientar la planificación docente, las acciones de nivelación y el acompañamiento\npedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados\npara asignar calificaciones ni determinar la promoción de los estudiantes.\n\n\n\n\n                                     Septiembre\n                                Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                99.36,
+                266.16,
+                496.92,
+                541.8
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                223.75,
+                41.19,
+                366.23,
+                118.59
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 29,
+          "tipo": "evaluacion",
+          "texto": "EVALUACIÓN DIAGNÓSTICA DE MATEMÁTICA\n                             Tercer Grado de Educación Secundaria\n\n DATOS DEL ESTUDIANTE\nRegional:\nDistrito:\nCentro Educativo:\nNombre del/la estudiante:\nGrado y Sección:\nFecha:\n\n¡Hola, querido/a estudiante!\n\nNos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que has\ndesarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los\nresultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando tus\ncompetencias durante este año escolar.\n\n INSTRUCCIONES PARA EL ESTUDIANTE\nLee con atención las siguientes instrucciones antes de comenzar:\n  1. Lee cuidadosamente cada pregunta antes de responder.\n  2. Catorce preguntas tienen opciones de respuestas (A, B, C y D). Solo una de ellas es correcta.\n     En las preguntas 5 y 10, deberás escribir tu respuesta.\n  3. Marca con una X o encierra en un círculo la letra de la opción que consideres correcta.\n  4. No utilices calculadora.\n  5. Dispones de 90 minutos para completar la prueba.\n\nImportante: Los resultados de esta prueba tienen carácter diagnóstico y no afectarán tu\ncalificación.\n\n1.   Observa la gráfica. Los puntos A y B\n     se encuentran sobre la misma línea\n     horizontal del plano cartesiano.\n\n¿Cuál es la distancia entre ambos puntos?\n    A) 3 unidades.          B) 5 unidades.\n    C) 7 unidades.          D) 8 unidades.\n\n\n\n2.   Una persona solicita un viaje mediante una aplicación de transporte. El servicio cobra una\n     tarifa inicial de RD$150 y agrega RD$25 por cada kilómetro recorrido. Al finalizar el viaje,\n     la aplicación indica que el costo total fue de RD$350. ¿Cuántos kilómetros recorrió\n     aproximadamente el vehículo?\n      A) 6 km               B) 8 km               C) 10 km              D) 14 km\n\n3.   Un estudiante tiene 3 puntos acumulados en una actividad. Por cada ejercicio que resuelve\n     correctamente, obtiene 2 puntos adicionales. Para participar en una actividad especial\n     debe tener menos de 11 puntos. Si x representa la cantidad de ejercicios resueltos\n     correctamente, ¿cuál conjunto de valores satisface esta condición?\n     A) x < 4               B) x > 4              C) x < 7              D) x > 7\n                                                                                                   2/4\n     Evaluación Diagnóstica    3.º grado     Área de Matemática   Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                289.4,
+                488.34,
+                542.75,
+                622.34
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 30,
+          "tipo": "evaluacion",
+          "texto": "4.   Una compañía de internet ofrece una promoción especial durante los meses de agosto y\n     septiembre. Para contratar el servicio, se paga una tarifa única de RD$500 por instalación\n     y RD$300 por cada mes de servicio. Si m representa la cantidad de meses contratados\n     durante la promoción, ¿qué expresión permite calcular el costo total?\n     A) 500m + 300         B) 300m + 500             C) 700(m+100)         D) 500(m + 300)\n\n5.    Durante una clase de Matemática, los estudiantes midieron diferentes objetos y\n      registraron los siguientes valores:\n     • Longitud de una mesa: 0.75 m\n                              7\n     • Longitud de una cinta: m\n                                 4\n     •    Diagonal de una pieza cuadrada: √2 m\n     •    Temperatura registrada: −3 °C\n\nEl profesor les pide analizar los valores registrados y determinar cuál corresponde a un número\nirracional.\n ¿Cuál de los valores representa un número irracional? Explica cómo lo sabes y justifica\n por qué los demás valores no son irracionales\n\n\n\n\n6.   Pedro está resolviendo un problema financiero sobre interés compuesto. Después de\n     completar el procedimiento, su profesor reconoce su avance y le indica que ha cometido\n     un error y le solicita revisar cuidadosamente cada paso para identificarlo.\n     Situación a resolver:\n\n         Se depositan RD$10,000 en una cuenta que genera un interés compuesto del 10 % anual.\n         ¿Cuál será el monto acumulado al finalizar dos años?\n\n     Procedimiento realizado:\n     Paso 1: Utiliza la fórmula del interés compuesto:\n     𝑀 = 𝐶(1 + 𝑖)𝑛\n     Paso 2: Sustituye en la fórmula el capital inicial, la tasa de interés y el tiempo.\n     𝑀 = 10,000(1 + 0.10)2\n     Paso 3: Suma 1 y la tasa de interés expresada en forma decimal.\n     𝑀 = 10,000(1.20)2\n     Paso 4: Calcula la potencia\n     𝑀 = 10,000(1.44)\n     Paso 5: Multiplica el capital inicial por el factor acumulado para obtener el monto final.\n     𝑀 = 10,000(1.20)2\n\n     ¿En cuál paso se encuentra el error?\n      A) En el paso 1, porque la fórmula utilizada es incorrecta.\n      B) En el paso 2, porque se sustituyeron incorrectamente los valores.\n      C) En el paso 3, porque (1+0.10) = 1.10 y no es igual a 1.20.\n      D) En el paso 5, porque la multiplicación final está mal realizada.\n\n7.   Durante una jornada de mantenimiento, una escalera se apoya contra una pared para\n     alcanzar una ventana situada a 3 m de altura. Por seguridad, la base de la escalera se\n     coloca a 4 m de la pared, formando un ángulo recto con el suelo, como se muestra en la\n     imagen.\n\n                                                                                                  3/4\n     Evaluación Diagnóstica     3.º grado   Área de Matemática   Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        },
+        {
+          "numero_pagina_pdf": 31,
+          "tipo": "evaluacion",
+          "texto": "¿Cuál es la longitud de la escalera?\n     A) 5 m\n     B) 6 m\n     C) 7 m\n     D) 8 m\n\n\n\n\n8.   Durante el diseño de un parque comunitario, se reservará un terreno triangular para\n     construir un jardín. El plano indica que la base del terreno mide 18 m y la altura\n     perpendicular a la base mide 10 m.\n     Tres estudiantes propusieron distintas soluciones para calcular la superficie del jardín:\n                    Soluciones propuestas                              Superficie del jardín\n\n\n\n\n     ¿Cuál estudiante realizó el procedimiento correcto y\n     por qué?\n\n     A) Luis, porque utilizó correctamente la fórmula del área del triángulo al calcular (base × altura) ÷2\n     B) María, porque para calcular el área se suman la base y la altura y luego se divide entre 2.\n     C) Ana, porque el área siempre se obtiene multiplicando la base por la altura.\n     D) Ninguno, porque para calcular el área se necesita conocer los tres lados del triángulo.\n\n9.   La mediana es el valor que queda en el centro de un conjunto de datos cuando estos están\n     organizados de menor a mayor o de mayor a menor. Durante una práctica de atletismo,\n     siete estudiantes registraron los tiempos, en minutos, que tardaron en completar un\n     recorrido. Los tiempos obtenidos, organizados de menor a mayor, fueron:\n     12, 15, 15, 18, 20, 22 y 25. ¿Cuál es la mediana de los tiempos registrados?\n     A) 15 minutos.            B) 18 minutos.            C) 20 minutos.           D) 25 minutos.\n\n10. Durante una feria escolar se organiza un juego de azar. Cada participante debe lanzar una\n    moneda y un dado al mismo tiempo. Para ganar un premio, debe obtener cara en la moneda y un\n    número par en el dado. A continuación, se presentan dos procedimientos de Pedro y Juana.\n\n\n\n\n      Analiza los procedimientos de Pedro y Juana. Explica cuál de los procedimientos es correcto\n      o si ambos lo son. Justifica tu respuesta utilizando argumentos matemáticos.\n\n                                                                                                  4/4\n     Evaluación Diagnóstica   3.º grado   Área de Matemática   Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                72.68,
+                567.62,
+                522.08,
+                738.6
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                75.6,
+                251.82,
+                284.7,
+                319.62
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                367.55,
+                255.12,
+                554.45,
+                359.32
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                302.6,
+                29.9,
+                547.28,
+                172.85
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 32,
+          "tipo": "evaluacion",
+          "texto": "11. Durante una investigación científica, los especialistas observan que la cantidad de\n    microorganismos presentes en una muestra se duplica en cada registro. Los primeros\n    registros obtenidos fueron: 3, 6, 12, 24, 48, ...\n    Según el patrón observado, ¿cuál será la cantidad de microorganismos en el sexto registro?\n    A) 48                   B) 72                     C) 96                  D) 192\n12. Analiza las dimensiones del rectángulo\n    representado. Si el ancho es x metros y el\n    largo es (x + 5) metros.\n    ¿Cuál de las siguientes expresiones modela el\n    área de la figura?\n     A) 2x + 5                B) x² + 5x\n     C) x² + 5                D) 5x²\n\n13. En una fábrica de paneles metálicos, una máquina divide una lámina cuadrada de 11\n    metros de lado en dos piezas cuadradas. La primera pieza tiene un lado de “a” metros y la\n    segunda tiene un lado de (11 - a) metros. Antes de poner en funcionamiento la máquina,\n    un operador configura el valor a = 3\n    Utilizando la información de la imagen y la expresión 𝑨(𝒂) = 𝟑𝟐 + (𝟏𝟏 − 𝟑)𝟐\n\n\n\n\n    ¿Cuál es el área total de las dos piezas obtenidas?\n    A) 22 m2                   B) 58 m2                 C) 64 m2                 D) 73 m2\n\n14. Analiza el polinomio P(x) = 4x³ − 2x² + 7, ¿Cuál de las siguientes afirmaciones describe\n    correctamente una de sus características?\n    A) Su grado es 2.     B) Su coeficiente      C) Su término          D) Tiene cuatro\n                          principal es −2.       independiente es 7.    términos.\n\n15. ¿Cuál expresión es equivalente a 2(x+3) + x(x−1)?\n    A) x² + x + 6         B) x² + 3x + 6         C) 2x² + 5                      D) x² − x + 6\n\n\n\n                                                                                                    5/4\n    Evaluación Diagnóstica   3.º grado   Área de Matemática        Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                304.8,
+                222.6,
+                543.5,
+                320.63
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                76.1,
+                414.56,
+                519.25,
+                598.8
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "area": "Ciencias Sociales",
+      "grado": 1,
+      "pagina_inicio_pdf": 33,
+      "pagina_fin_pdf": 38,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 33,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                      Dirección de Educación Secundaria\n                        Departamento del Primer Ciclo\n                            Área de Ciencias Sociales\n\n            Evaluación Diagnóstica de Ciencias Sociales\n\n                                 PRIMER GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las\nnecesidades de aprendizaje de los estudiantes de primer grado del Nivel Secundario y\norientar la planificación docente, las acciones de nivelación y el acompañamiento\npedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán\nutilizados para asignar calificaciones ni determinar la promoción de los estudiantes.\n\n\n\n                                   Septiembre\n                              Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                135.12,
+                276.36,
+                476.52,
+                506.76
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                137.25,
+                278.39,
+                470.25,
+                500.39
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                239.25,
+                41.25,
+                381.73,
+                118.65
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 34,
+          "tipo": "evaluacion",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                              Dirección de Educación Secundaria\n                                Departamento del Primer Ciclo\n                                    Área de Ciencias Sociales\n\n                     EVALUACIÓN DIAGNÓSTICA DE CIENCIAS SOCIALES\n                            Primer Grado del Nivel Secundario\n\nNombre del estudiante:\nCentro educativo:\nSección:                           No. Orden                          Fecha:\n\n¡Hola, querido/a estudiante!\nNos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\nINSTRUCCIONES\nEn esta evaluación encontrarás varios textos acompañados de preguntas relacionadas con su\ncontenido. Lee detenidamente cada texto y analiza cada pregunta antes de responder.\n•   En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona\n    únicamente la opción que consideres correcta.\n•   El ítem 15 es de respuesta abierta. En este deberás escribir y desarrollar tu respuesta de\n    acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\nLee cuidadosamente cada pregunta y selecciona la respuesta correcta.\nTiempo: 90 minutos\n\nI. Lee el siguiente texto y responde las preguntas 1 y 2.\nEn la República Dominicana, la Constitución reconoce y garantiza derechos fundamentales para todos los\nciudadanos. Asimismo, establece los principios que rigen el Estado, asegurando el respeto al estado de\nderecho, el equilibrio entre los poderes públicos y la defensa de la soberanía nacional. En una comunidad, las\nfamilias de varios estudiantes solicitaron a las autoridades locales ayuda para mejorar las condiciones de la\nescuela y garantizar que sus hijos pudieran continuar sus estudios. La solicitud fue recibida y enviada a las\ninstituciones correspondientes para que cada una atendiera la parte que le correspondía.\n\n1. ¿Cuál de los siguientes derechos están exigiendo las familias para sus hijos en la situación\ndescrita?\n    A) El derecho a la propiedad.\n    B) El derecho a la educación.\n    C) El derecho al trabajo.\n    D) El derecho a la libertad de tránsito.\n\n                                                                                                          1/5\n Evaluación Diagnóstica     1.º grado   Área de Ciencias Sociales Nivel Secundario      MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                234.35,
+                30.1,
+                376.83,
+                107.5
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 35,
+          "tipo": "evaluacion",
+          "texto": "2. ¿A cuál de los poderes del Estado corresponde atender esta solicitud?\n    A) Poder Legislativo.\n    B) Poder Ejecutivo.\n    C) Poder Judicial.\n    D) Poder municipal.\n\nII. Lee el siguiente texto y responde las preguntas 3 y 4.\nDurante el siglo XVI y principios del XVII, la isla de Santo Domingo experimentó profundas transformaciones.\nTras el agotamiento de los yacimientos de oro, los colonos debieron desarrollar nuevas actividades\nproductivas para sostener la economía local. Al mismo tiempo, el comercio no autorizado con otras potencias\neuropeas se multiplicó en las zonas alejadas de la capital. Para frenar esta situación, el gobernador Antonio\nde Osorio ejecutó entre 1605 y 1606 la orden de despoblar y destruir las villas del norte y del noroeste,\nobligando a sus habitantes a trasladarse cerca de Santo Domingo.\n\n3. A partir del texto anterior, ¿Qué consecuencia geopolítica generó la medida tomada por el\ngobernador Osorio?\n    A) Las zonas evacuadas quedaron bajo un estricto control militar español.\n    B) El contrabando desapareció por completo en toda la isla.\n    C) El abandono de esos territorios facilitó la penetración y asentamiento francés.\n    D) Los pobladores trasladados se establecieron de forma permanente en la banda occidental.\n\n4. ¿Qué actividad económica impulsaron los españoles en la isla tras la disminución de la\nextracción de oro?\n    A) Producción de azúcar.\n    B) Producción de cacao.\n    C) Producción de café.\n    D) Producción industrial.\n\nIII. Lee el siguiente diálogo entre dos estudiantes que analizan un mapa histórico y\nresponde las preguntas 5 y 6.\nDurante la clase de Ciencias Sociales, dos estudiantes observan un mapa de la isla de Santo Domingo\ndibujado en el siglo XVIII por cartógrafos franceses y lo comparan con un mapa moderno. Al analizarlo,\nexpresan lo siguiente:\n   ▪ Estudiante 1: \"Este mapa muestra cómo los franceses veían la isla y qué territorios les interesaba\n       destacar según sus propios objetivos.\"\n   ▪ Estudiante 2: \"Este mapa solo muestra la tierra tal como era, porque un mapa dibuja la realidad\n       exactamente igual sin importar quién lo haga.\"\n\n5. Al comparar ambas opiniones, ¿cuál de los estudiantes analiza el mapa desde una perspectiva\nhistórica adecuada?\n    A) El Estudiante 1, porque comprende que los mapas históricos reflejan la realidad geográfica, pero\n        también las intenciones e intereses de quienes los crearon.\n    B) El Estudiante 2, porque demuestra que los mapas antiguos son copias exactas de la realidad y no\n        cambian según la época.\n    C) Ambos estudiantes, porque los dos coinciden en que la intención de quien dibuja un mapa no\n        influye en la información que muestra.\n    D) Ninguno de los dos, porque los mapas del pasado no aportan información válida sobre el\n        territorio.\n\n\n\n                                                                                                         2/5\n Evaluación Diagnóstica     1.º grado   Área de Ciencias Sociales Nivel Secundario     MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        },
+        {
+          "numero_pagina_pdf": 36,
+          "tipo": "evaluacion",
+          "texto": "6. Considerando lo comentado por los estudiantes sobre la elaboración de los mapas, ¿cuál de las\nsiguientes opciones explica mejor su función en la sociedad?\n    A) Los mapas solo sirven para conocer la forma de los territorios, pero no permiten conocer\n       problemas geográficos reales.\n    B) Los mapas actuales han demostrado la necesidad de eliminar los límites entre países.\n    C) Los mapas pueden apoyar la planificación, administración y la organización del territorio.\n    D) Los mapas no tienen relación con las decisiones que toman las autoridades.\n\nIV. Lee el siguiente texto y responde las preguntas 7 y 8.\nEl cambio climático está alterando las temperaturas y las lluvias en todo el planeta debido a la\ndeforestación y la quema de combustibles. Ante esta situación, existen dos opiniones distintas:\n    ▪ Una organización ambientalista señala que los países en desarrollo son los más perjudicados, pues\n       cuentan con menos recursos para enfrentar sequías y tormentas.\n    ▪ Un sector industrial argumenta que, si se imponen leyes ambientales estrictas, las empresas\n       deberán reducir sus actividades, lo que afectaría la economía y el empleo.\n7. ¿Cuál de las siguientes propuestas representa una solución equilibrada entre la organización\nambientalista y el sector industrial?\n    A) Proteger las industrias, aunque aumenten los daños del clima.\n    B) Aprobar leyes sostenibles, para cuidar la naturaleza sin perder empleos.\n    C) Cerrar las fábricas, sin importar el aumento del desempleo.\n    D) Dejar actuar a cada grupo, sin buscar un acuerdo común.\n8. ¿Qué relación existe entre las acciones humanas y el cambio climático?\n    A) La deforestación y la quema de combustibles aumentan los gases que calientan el planeta.\n    B) La deforestación y la quema de combustibles ayudan a mantener estable la temperatura de la\n       Tierra.\n    C) La deforestación y la quema de combustibles evitan las variaciones extremas en el clima mundial.\n    D) La deforestación y la quema de combustibles reducen la contaminación en las zonas industriales.\nV. Lee la siguiente información y responde la pregunta 9.\nEn una provincia costera, un pequeño pueblo de pescadores cambió rápidamente en diez años. La\nconstrucción de un puerto comercial y de varios hoteles atrajo a cientos de familias en busca de empleo. Para\ndar respuesta a este crecimiento, las autoridades y los vecinos dividieron el territorio en áreas específicas:\nuna zona para el turismo, un sector para el comercio y un área residencial con viviendas, escuelas y un centro\nde salud. Sin embargo, el aumento de la población también redujo los bosques locales y cambió la forma en\nque la comunidad utiliza el agua y la tierra.\n9. A partir del texto, ¿De qué manera la geografía humana ayuda a comprender la transformación\nde este pueblo?\n    A) Permite explicar el relieve y el clima.\n    B) Permite señalar cambios naturales.\n    C) Permite vincular el crecimiento con el mar.\n    D) Permite relacionar población, actividades y territorio.\n\nVI. Lee el siguiente texto y responde las preguntas 10 y 11.\nLas primeras grandes civilizaciones de la historia, como la Mesopotamia cerca de los ríos Tigris y Éufrates o\nEgipto junto al río Nilo, se desarrollaron en valles fértiles. La presencia constante de agua permitió a estas\nsociedades inventar sistemas de riego para cultivar alimentos a gran escala. Al producir más comida de la\nque necesitaban para sobrevivir diariamente, la población aumentó rápidamente. Esto llevó a las\ncomunidades a organizarse mejor: construyeron las primeras ciudades, crearon leyes, dividieron los trabajos\nentre artesanos, agricultores y gobernantes, y desarrollaron los primeros sistemas de escritura.\n\n                                                                                                          3/5\n Evaluación Diagnóstica     1.º grado   Área de Ciencias Sociales Nivel Secundario      MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        },
+        {
+          "numero_pagina_pdf": 37,
+          "tipo": "evaluacion",
+          "texto": "10. A partir del texto, ¿qué relación existió entre los grandes ríos y el desarrollo de la agricultura\nen las primeras civilizaciones?\n    A) El agua de los ríos permitió crear sistemas de riego y obtener alimentos suficientes para sostener a\n        más población.\n    B) Los ríos impedían el cultivo porque provocaban inundaciones que destruían todas las cosechas.\n    C) Los ríos solo se utilizaban para navegar entre ciudades, ya que la agricultura dependía\n        exclusivamente de la lluvia.\n    D) La presencia de los ríos obligó a las personas a abandonar la agricultura para dedicarse\n        únicamente a la pesca.\n\n11.A). Lee el siguiente texto y responde las preguntas 11.\nDebido al relieve montañoso de la región del mar Mediterráneo, los antiguos griegos vivieron en\nciudades independientes. En Atenas, los habitantes crearon una forma de gobierno donde la\ncomunidad se reunía a debatir y decidir las leyes. En estas ciudades también se promovió la\nreflexión sobre el mundo, la actuación en escenarios y los torneos deportivos entre pueblos.\n\n11.B). A partir de la experiencia ateniense descrita en el texto, ¿qué forma de gobierno legó la\nantigua Grecia a la humanidad?\n   A) La democracia basada en la participación ciudadana.\n   B) El gobierno de un rey con poder absoluto.\n   C) El control total del país por los militares.\n   D) La administración del Estado por jefes religiosos.\n\nVII. Lee el siguiente texto y observa el mapa. Luego responde las preguntas de la 12 a la 15:\nLos flujos migratorios entre África y Europa se han mantenido a lo\nlargo de la historia. En la actualidad, las causas y consecuencias de la\nmigración se analizan desde distintas perspectivas: para las\norganizaciones internacionales se trata de un tema de derechos\nhumanos y protección al refugiado; para los gobiernos de los países\nreceptores representa un reto de seguridad y gasto público; y para las\ncomunidades de origen supone la pérdida de mano de obra joven,\npero también el ingreso de remesas para las familias.\n\n12. Observa las flechas en el mapa, ¿Desde qué región de origen sale el mayor número de rutas\nmigratorias?\n    A) Medio Oriente.\n    B) África del Norte y Occidental.\n    C) Europa Central.\n    D) Asia Oriental.\n\n13. Al comparar los puntos de vista del texto, ¿en qué se diferencian las prioridades de las\norganizaciones internacionales y de los gobiernos receptores?\n   A) Las organizaciones internacionales priorizan el aumento del turismo, mientras que los gobiernos\n       buscan reducir la población de sus ciudades.\n   B) Las organizaciones internacionales promueven el cobro de remesas, mientras que los gobiernos\n       buscan contratar únicamente mano de obra joven.\n   C) Ambos sectores coinciden en que la migración es un fenómeno que solo afecta la economía de las\n       comunidades de origen.\n   D) Las organizaciones internacionales se enfocan en la protección y los derechos de las personas,\n       mientras que los gobiernos se concentran en la seguridad nacional y el presupuesto.\n\n                                                                                                       4/5\n Evaluación Diagnóstica     1.º grado   Área de Ciencias Sociales Nivel Secundario    MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                385.6,
+                372.4,
+                554.4,
+                484.75
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 38,
+          "tipo": "evaluacion",
+          "texto": "14. A partir del contexto, ¿cuál argumento sustenta una perspectiva favorable a la diversidad\ncultural generada por la migración?\n    A) La migración aumenta el gasto público de los países receptores.\n    B) El intercambio migratorio incorpora nuevas costumbres y formas de vida.\n    C) La salida de jóvenes reduce la mano de obra en los países de origen.\n    D) La protección de los migrantes plantea nuevos retos para los gobiernos.\n\n15. Escribe un texto en el que describas dos problemáticas causadas por la migración en una\ncomunidad y expliques cómo estas afectan la convivencia entre sus habitantes.\nEspacio para la respuesta:\n\n\n\n\n                                                                                                 5/5\n Evaluación Diagnóstica   1.º grado   Área de Ciencias Sociales Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        }
+      ]
+    },
+    {
+      "area": "Ciencias Sociales",
+      "grado": 2,
+      "pagina_inicio_pdf": 39,
+      "pagina_fin_pdf": 44,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 39,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                          Dirección de Educación Secundaria\n                            Departamento del Primer Ciclo\n                                Área de Ciencias Sociales\n\n                Evaluación Diagnóstica de Ciencias Sociales\n\n                                    SEGUNDO GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las necesidades de\naprendizaje de los estudiantes de primer grado del Nivel Secundario y orientar la\nplanificación docente, las acciones de nivelación y el acompañamiento pedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados para\nasignar calificaciones ni determinar la promoción de los estudiantes.\n\n\n\n\n                                       Septiembre\n                                  Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                125.85,
+                259.12,
+                486.15,
+                499.41
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                248.25,
+                32.05,
+                390.73,
+                109.45
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 40,
+          "tipo": "evaluacion",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                             Dirección de Educación Secundaria\n                               Departamento del Primer Ciclo\n                                   Área de Ciencias Sociales\n\n                    EVALUACIÓN DIAGNÓSTICA DE CIENCIAS SOCIALES\n                          Segundo Grado del Nivel Secundario\n\nNombre del estudiante:\nCentro educativo:\nSección:                         No. Orden                       Fecha:\n\n¡Hola, querido/a estudiante!\n\nNos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\n\nINSTRUCCIONES\nEn esta evaluación encontrarás varios textos acompañados de preguntas relacionadas con su\ncontenido. Lee detenidamente cada texto y analiza cada pregunta antes de responder.\n •   En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona\n     únicamente la opción que consideres correcta.\n •   El ítem 15 es de respuesta abierta. En este deberás escribir y desarrollar tu respuesta de\n     acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\n\nLee cuidadosamente cada pregunta y selecciona la respuesta correcta.\n\nTiempo: 90 minutos\n\nI. Lee la siguiente situación y responde las preguntas 1 y 2.\n José está investigando sobre el origen de las naciones y encuentra dos fuentes que presentan\n explicaciones distintas:\n Fuente A (Proceso histórico): \"Las naciones no han existido siempre. Surgieron en la Edad Moderna\n gracias al desarrollo de las leyes, la educación pública y la necesidad de los Estados de unificar a la\n población bajo una misma lengua e historia.\"\n Fuente B (Identidad y cultura): \"La nación es una comunidad antigua que vive en el sentimiento de los\n pueblos. Existe desde tiempos remotos, unida por los antepasados, la cultura compartida y la tradición de\n su gente.\"\n\n\n                                                                                                      1/5\n Evaluación Diagnóstica   2.º grado   Área de Ciencias Sociales Nivel Secundario     MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                243.3,
+                56.72,
+                385.78,
+                134.12
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 41,
+          "tipo": "evaluacion",
+          "texto": "1.    Al comparar ambas fuentes, ¿Qué se puede concluir sobre el origen del concepto de nación?\n     A) Que las naciones surgen únicamente debido a la creación de las leyes y los Estados modernos.\n     B) Que las naciones siempre han existido igual a lo largo del tiempo gracias a la sangre y la herencia.\n     C) Que el origen de una nación se puede explicar tanto por cambios históricos como por lazos\n         culturales e identitarios.\n     D) Que ambas fuentes coinciden en que la educación es el único factor para crear un país.\n\n2.    ¿Cuál es la principal diferencia en la manera de explicar el origen de la nación?\n     A) La Fuente A señala que surge en la Antigüedad y la Fuente B la relaciona con los Estados\n        modernos.\n     B) La Fuente A la explica a partir de cambios modernos y la Fuente B a partir de tradiciones antiguas.\n     C) La Fuente A la justifica desde la religión y la Fuente B la fundamenta en el crecimiento económico.\n     D) La Fuente A la atribuye al aislamiento geográfico y la Fuente B al intercambio comercial entre\n        países.\n\nII. Observa el siguiente gráfico.\n\n\n\n\n3.    Según los datos del gráfico de la República Dominicana, ¿Qué sucedió con las muertes de bebés\n      a medida que aumentaron los partos en los hospitales?\n     A) Aumentó la mortalidad infantil.\n     B) Se mantuvo constante la mortalidad infantil.\n     C) Aumentó la atención en los hospitales.\n     D) Disminuyó la mortalidad infantil.\n\nIII. Lee el siguiente hecho y responde la pregunta 4.\n     A finales del siglo XIX, pensadores como Eugenio María de Hostos, Ramón Emeterio Betances y José\n     Martí propusieron la unión política y cultural de Cuba, Puerto Rico y la República Dominicana. Este\n     proyecto, conocido como el antillanismo, buscaba garantizar la independencia definitiva de las islas y\n     evitar la intervención de las grandes potencias extranjeras en la región del Caribe.\n\n4.    Según el texto, ¿Qué postura asumían los pensadores antillanos frente al control de las\n      potencias extranjeras en el Caribe?\n     A) Defender la independencia uniendo las islas del Caribe.\n     B) Aceptar la intervención de los países europeos.\n     C) Entregar la soberanía de las islas a Estados Unidos.\n     D) Mantener la dominación colonial de España en la región.\n\n                                                                                                         2/5\n Evaluación Diagnóstica     2.º grado   Área de Ciencias Sociales Nivel Secundario      MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                78.0,
+                279.58,
+                430.25,
+                462.18
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 42,
+          "tipo": "evaluacion",
+          "texto": "IV. Lee el siguiente hecho y responde las preguntas 5 y 6.\n     En una comunidad cercana al río Ozama, el vertido incontrolado de basura en sus márgenes provocó el\n     estancamiento de aguas y la proliferación de mosquitos. Esto produjo un brote de dengue que afectó al\n     centro de salud local. Además, se suspendieron las clases y se paralizó el comercio del barrio por varias\n     semanas debido a las protestas de los vecinos que exigían agua limpia y recogida de desechos.\n                                                                Adaptación de informe técnico del Ministerio de Medio Ambiente, RD.\n\n5.    ¿Cuál de las siguientes afirmaciones explica mejor cómo la contaminación afectó la vida de la\n      comunidad?\n     A) La contaminación solo causó un problema de apariencia en el río.\n     B) La contaminación causó una crisis de salud pública y protestas.\n     C) El problema se solucionó automáticamente al suspender las clases.\n     D) Las protestas fueron la causa principal de que se acumulara la basura en el río.\n\n6.    Para probar que la información sobre el brote de dengue es confiable, ¿A cuál de las siguientes\n      fuentes deberían acudir los estudiantes?\n     A) Al boletín epidemiológico oficial del Ministerio de Salud Pública.\n     B) A comentarios publicados en redes sociales por personas de otros municipios.\n     C) A un anuncio publicitario de una empresa privada de limpieza.\n     D) Al comentario personal de un bloguero de viajes sobre el río Ozama.\n\nV. Observa la infografía siguiente sobre Francia antes y después de 1789 y\nresponde las preguntas 7 y 8.\n\n\n\n\n7.    A partir de la infografía anterior, ¿A cuáles sectores de la sociedad se les redujeron sus\n      privilegios y poder tras la Revolución Francesa?\n     A) A los campesinos y a los trabajadores urbanos.\n     B) A los comerciantes y a los dueños de fábricas.\n     C) A la monarquía absoluta y al clero (la Iglesia).\n     D) A la ciudadanía general y a los líderes republicanos.\n                                                                                                                             3/5\n Evaluación Diagnóstica     2.º grado   Área de Ciencias Sociales Nivel Secundario                 MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                56.7,
+                373.56,
+                534.7,
+                635.3
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 43,
+          "tipo": "evaluacion",
+          "texto": "8.   Observa la pirámide en la sección \"Antes de 1789\", ¿Qué problema o injusticia se cuestiona\n     sobre la situación del pueblo en la sociedad francesa?\n     A) El pueblo compartía el poder político en igualdad con el rey y los nobles.\n     B) El pueblo sostenía a los grupos privilegiados a pesar de tener pocos derechos.\n     C) El pueblo recibía grandes riquezas y ayuda económica por parte de la Iglesia.\n     D) El pueblo tenía los mismos privilegios fiscales que los grupos de la cima.\n\nVI. Lee la siguiente información y responde las preguntas 9 y 10.\n     Durante la temporada de lluvias, intensos aguaceros cayeron sobre la ciudad de Valle Verde en pocas\n     horas. El agua acumulada en las partes altas bajó con fuerza hacia la zona baja, donde se ubica el barrio\n     Los Cerezos. En este sector, los cauces naturales de los ríos habían sido rellenados para construir\n     viviendas sin planificación y la basura acumulada tapó los drenajes de las calles, como resultado, en\n     menos de una hora las casas quedaron totalmente inundadas y cientos de familias perdieron sus\n     pertenencias.\n\n9.   ¿Cuál combinación de factores explica por qué la inundación en el barrio Los Cerezos fue un\n     desastre tan grave?\n     A) El calor del verano junto con el aumento de vehículos en las calles del sector.\n     B) Las intensas lluvias del clima junto con la acumulación de basura en los drenajes.\n     C) El tipo de suelo de la montaña junto con la falta de agua potable en las casas.\n     D) La brisa de la tarde junto con el uso constante del transporte público local.\n\n10. De las siguientes acciones, ¿Cuál demuestra un manejo consciente del espacio geográfico y del\n    medio ambiente?\n   A) Diseñar drenajes respetando los ríos e instalando mallas para retener la basura.\n   B) Pavimentar todas las calles y cañadas para acelerar el paso del agua de lluvia.\n   C) Levantar muros de concreto en el río sin evaluar el impacto en las zonas bajas.\n   D) Evaluar los riesgos del terreno y conservar áreas verdes en las zonas urbanas.\n\nVII. Lee la siguiente información y responde las preguntas 11, 12 y 13.\n     Durante el siglo XX, los geógrafos y sociólogos dividieron al mundo en dos grandes bloques\n     socioeconómicos para representar diferencias en las condiciones de vida y desarrollo de los países: el\n     Norte (países industrializados, con altos ingresos y tecnología) y el Sur (países en desarrollo,\n     exportadores de materias primas y con brechas de pobreza).\n\n11. Según la información, ¿Cuáles características se relacionan con las naciones del Sur?\n   A) Una mayor dependencia de la producción y exportación de materias primas y desigualdades\n       sociales.\n   B) Altos niveles de industrialización, acceso a la tecnología y bajas tasas de natalidad.\n   C) Un mayor control del comercio mundial y de los bancos internacionales.\n   D) Menores problemas sociales, ambientales y de servicios básicos entre sus habitantes.\n\n12. Considerando que, la situación social está estrechamente ligada con la situación económica y\n    analizando las diferencias en torno a los países del Norte y del Sur, ¿cuál de estos aspectos del\n    orden social estaría más acordes con los países del Sur?\n   A) Predominio de empleos formales con salarios elevados.\n   B) Cobertura total de viviendas y transporte moderno.\n   C) Reducción rápida de la pobreza entre sus habitantes.\n   D) Menor acceso a servicios de salud y educación para la población.\n\n                                                                                                          4/5\n Evaluación Diagnóstica     2.º grado   Área de Ciencias Sociales Nivel Secundario      MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        },
+        {
+          "numero_pagina_pdf": 44,
+          "tipo": "evaluacion",
+          "texto": "13. ¿Cuál grupos de los países siguientes pertenecen al bloque del Norte industrializado?\n   A) Haití, Bolivia y Madagascar.\n   B) Japón, Canadá y EE. UU.\n   C) EE. UU, China y Uruguay.\n   D) Japón, Guatemala y República Dominicana.\n\nVIII. Lee la siguiente situación y los artículos de la Constitución de la República\nDominicana. Luego, responde las preguntas 14 y 15.\n    En una comunidad del Gran Santo Domingo, varios residentes se encuentran preocupados por el\n    incremento de los robos. Tras identificar a un ciudadano como posible responsable, un grupo propone\n    apresarlo y castigarlo por cuenta propia. Sin embargo, otros comunitarios afirman que deben respetarse\n    las garantías institucionales y acudir a las autoridades correspondientes. Esta última postura se\n    fundamenta en los mandatos de la Constitución de la República Dominicana, los cuales establecen:\n\n   •   Artículo 8. Función esencial del Estado: Es función esencial del Estado la protección efectiva de\n       los derechos de la persona y el respeto de su dignidad.\n   •   Artículo 39. Derecho a la igualdad: Todas las personas nacen libres e iguales ante la ley, reciben la\n       misma protección y trato de las instituciones sin discriminación.\n   •   Artículo 69. Tutela judicial efectiva y debido proceso: Toda persona tiene derecho a ser\n       escuchada y juzgada en un tribunal conforme a la ley antes de recibir cualquier sanción.\n\n14. ¿Por qué la propuesta de castigar a una persona sin una investigación ni un proceso legal\n    contradice los derechos establecidos en la Constitución?\n   A) Porque el Artículo 69 exige un juicio por un tribunal antes de sancionar a alguien.\n   B) Porque el Artículo 8 prohíbe que los vecinos hagan denuncias sobre robos.\n   C) Porque el Artículo 39 exige que la junta de vecinos apruebe los castigos.\n   D) Porque la Constitución permite a las autoridades arrestar personas sin juicio.\n\n15. Si fueras mediador en esta situación, ¿Cuáles soluciones justas propondrías para atender el\n    reclamo de los vecinos y respetar el trabajo de las autoridades?\n\n  Espacio para la respuesta:\n\n\n\n\n                                                                                                        5/5\n Evaluación Diagnóstica    2.º grado   Área de Ciencias Sociales Nivel Secundario     MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        }
+      ]
+    },
+    {
+      "area": "Ciencias Sociales",
+      "grado": 3,
+      "pagina_inicio_pdf": 45,
+      "pagina_fin_pdf": 50,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 45,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                         Dirección de Educación Secundaria\n                           Departamento del Primer Ciclo\n                               Área de Ciencias Sociales\n\n               Evaluación Diagnóstica de Ciencias Sociales\n\n                                    TERCER GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las necesidades de\naprendizaje de los estudiantes de primer grado del Nivel Secundario y orientar la\nplanificación docente, las acciones de nivelación y el acompañamiento pedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados\npara asignar calificaciones ni determinar la promoción de los estudiantes.\n\n\n\n\n                                      Septiembre\n                                 Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                131.32,
+                260.21,
+                484.57,
+                495.71
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                207.95,
+                27.4,
+                350.43,
+                104.8
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 46,
+          "tipo": "evaluacion",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                             Dirección de Educación Secundaria\n                               Departamento del Primer Ciclo\n                                   Área de Ciencias Sociales\n\n                      EVALUACIÓN DIAGNÓSTICA DE CIENCIAS SOCIALES\n                             Tercer Grado del Nivel Secundario\n\nNombre del estudiante:\nCentro educativo:\nSección:                         No. Orden                        Fecha:\n\n¡Hola, querido/a estudiante!\n\nNos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\n\nINSTRUCCIONES\nEn esta evaluación encontrarás varios textos acompañados de preguntas relacionadas con su\ncontenido. Lee detenidamente cada texto y analiza cada pregunta antes de responder.\n    • En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d).\n      Selecciona únicamente la opción que consideres correcta.\n    • El ítem 15 es de respuesta abierta. En este deberás escribir y desarrollar tu respuesta de\n      acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\n\nLee cuidadosamente cada pregunta y selecciona la respuesta correcta.\n\nLee la siguiente situación y responde las preguntas 1, 2 y 3.\nDurante la conquista de la isla de Santo Domingo, el cacique Enriquillo se levantó en\narmas en la Sierra de Bahoruco. Los conquistadores españoles lo calificaron como un\nrebelde y traidor a la Corona, mientras que sus seguidores taínos y africanos lo\nconsideraban un líder defensor de la libertad y de la dignidad de su pueblo.\n                                                              Fuente: Museo del hombre dominicano\n\n\n1. De acuerdo con la situación descrita, ¿por qué surgen dos explicaciones distintas sobre la\n   figura de Enriquillo?\n  A) Porque los españoles no conocían el territorio donde se ocultaba Enriquillo.\n  B) Porque las leyes coloniales apoyaban la libre expresión de ideas.\n  C) Porque los intereses y posiciones sociales de los españoles y de los taínos eran opuestos.\n  D) Porque Enriquillo cambió sus propuestas de paz a lo largo del conflicto militar.\n\n                                                                                                                  1/5\n Evaluación Diagnóstica    3.º grado   Área de Ciencias Sociales Nivel Secundario                   MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                469.95,
+                511.55,
+                562.5,
+                620.0
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                240.65,
+                34.2,
+                383.13,
+                111.6
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 47,
+          "tipo": "evaluacion",
+          "texto": "2. Si un estudiante desea investigar el conflicto de la Sierra de Bahoruco y conocer cómo los\n   seguidores de Enriquillo comprendían las causas de su lucha, ¿cuál de las siguientes fuentes\n   sería más útil para acercarse a esa visión?\n    A) Cartas oficiales de los conquistadores españoles a la Corona.\n    B) Un mapa geográfico actual de la Sierra de Bahoruco.\n    C) Leyes de comercio de la colonia en el siglo XVI.\n    D) Testimonios y relatos sobre las demandas de los aborígenes sublevados.\n\n3. ¿Por qué un mismo hecho histórico puede interpretarse de distintas maneras?\n    A) Porque los historiadores analizan el hecho desde diferentes fuentes, contextos y puntos de vista.\n    B) Porque los hechos del pasado tienen una única interpretación que no depende de actores.\n    C) Porque las fuentes históricas siempre contienen datos falsos o incompletos.\n    D) Porque cada país orienta sus propios hechos históricos para enseñar en las escuelas.\n\nII. Lee la siguiente información y responde la pregunta 4.\nEl aumento del nivel del mar impacta de manera significativa la vida de\nlas comunidades y los ecosistemas, especialmente en las zonas costeras de\ntodo el mundo. La acelerada pérdida de hielo en la Antártida occidental y\nen Groenlandia está intensificando este fenómeno más rápido de lo\nprevisto, y se estima que para el año 2100 el nivel del mar podría elevarse\nmás de 65 centímetros.\n\n                                                                                              Fuente: CCN, EE. UU.\n4. ¿Cuál de las siguientes consecuencias del aumento del nivel del mar, tiene un impacto global?\n    A) Reducción de la temperatura global.\n    B) Creación de nuevas tierras habitables en áreas costeras, debido a la expansión de los océanos.\n    C) Pérdida de biodiversidad en ecosistemas costeros y marinos, afectando la pesca y el turismo en\n       todo el mundo.\n    D) Aparición de nuevos sistemas montañosos, debido al desplazamiento del mar.\n\nIII. Lee el siguiente texto y responde las preguntas 5 y 6.\n    A finales del siglo XIX y principios del XX, Estados Unidos vivió un rápido crecimiento industrial y buscó\n    controlar puntos marítimos estratégicos en el caribe como el Canal de Panamá y la Bahía de Samaná\n    en R.D., puntos de gran importancia económica.\n\n5. ¿Cuál era el principal objetivo geopolítico de Estados Unidos al controlar estas zonas?\n   A) Consolidar su influencia comercial y militar estratégica para proteger sus rutas e impedir la\n      presencia europea.\n   B) Fomentar el turismo internacional entre las islas del Caribe y Europa.\n   C) Ayudar a las naciones caribeñas a colonizar territorios en otros continentes.\n   D) Crear apertura para el desarrollo económico de los países del mundo.\n\n6. De los siguientes términos ¿cuál describe mejor la relación en la que una potencia interviene\n   y controla la economía de un país con menor desarrollo?\n   A) Integración regional participativa.\n   B) Autonomía financiera absoluta.\n   C) Injerencia y dependencia económica.\n   D) Cooperación cultural comunitaria.\n\n\n                                                                                                            2/5\n Evaluación Diagnóstica     3.º grado   Área de Ciencias Sociales Nivel Secundario        MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                411.5,
+                252.95,
+                577.4,
+                359.55
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 48,
+          "tipo": "evaluacion",
+          "texto": "IV. Lee la siguiente situación y responde las preguntas 7, 8 y 9.\nEn el municipio de San Antonio, la gran cantidad de desechos orgánicos\ngenerados diariamente en el mercado local estaba provocando\nacumulación de basura y malos olores. Ante esta problemática, un grupo\nde estudiantes de la escuela comunidad propuso una solución: instalar una\nabonera comunitaria (compostera) en el huerto escolar para transformar\nlos restos de frutas y vegetales en abono natural. Este abono se utiliza en\nlos cultivos locales, reduciendo el uso de químicos y mejorando la calidad\nde la tierra de la comunidad.\n\n7. A partir de la situación descrita, ¿qué principio de la gestión ambiental de residuos se\n   aplica en esta propuesta?\n    A) Incineración masiva a cielo abierto.\n    B) Desplazamiento de basura hacia zonas de reserva forestal.\n    C) Valorización y reciclaje de materia orgánica.\n    D) Exportación de residuos hacia otros municipios.\n\n8. ¿Qué concepto de la geografía define la capacidad de una comunidad de gestionar sus\n   recursos sin agotar el medioambiente para las futuras generaciones?\n    A) Desarrollo sostenible.\n    B) Extractivismo acelerado.\n    C) Dependencia comercial externa.\n    D) Urbanización desorganizada.\n\n9. ¿Qué impacto positivo tiene en el suelo la sustitución de fertilizantes químicos por el\n   abono orgánico producido en la comunidad?\n    A) Aumenta la salinidad y erosión del terreno cultivable.\n    B) Acelera el proceso de desertificación en las zonas montañosas.\n    C) Impide el crecimiento de todo tipo de vegetación nativa.\n    D) Mejora la estructura del suelo, la retención de agua y evita la contaminación de\n       acuíferos.\n\nV. Lee la siguiente información y responde la pregunta 10.\nAl finalizar la Primera Guerra Mundial, los grandes imperios europeos colapsaron y surgieron\nnuevos países independientes. En este proceso cobró fuerza la idea de la autodeterminación de los\npueblos, que defiende el derecho de cada nación a gobernarse a sí misma.\n\n10. ¿Cómo influyeron estos hechos e ideas en las colonias de Asia y África?\n   A) Llevaron a las colonias a renunciar a su soberanía.\n   B) Impulsaron movimientos que lucharon por su independencia.\n   C) Provocaron el fin inmediato del comercio entre continentes.\n   D) Motivaron a la población a aceptar gobiernos imperiales.\n\n\n\n\n                                                                                                  3/5\n Evaluación Diagnóstica    3.º grado   Área de Ciencias Sociales Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                416.05,
+                90.35,
+                580.9,
+                213.5
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 49,
+          "tipo": "evaluacion",
+          "texto": "VI. Lee la siguiente información y responde la pregunta 11.\nDurante la Guerra Fría, la República Dominicana vivió fuertes tensiones políticas. Ante esta\nsituación, surgieron distintas opiniones: mientras algunos sectores defendían que era necesario un\ngobierno de mano dura para mantener el orden, otros exigían garantizar los derechos y libertades\nde la población.\n\n11. De los siguientes argumentos, ¿cuál equilibra la necesidad de orden con el respeto a\n    los derechos ciudadanos en la Guerra Fría?\n   A) El orden es necesario, pero sin violar los derechos ni la democracia.\n   B) El orden es necesario, por lo que se deben limitar las libertades.\n   C) El orden es secundario, por lo que los derechos van por encima del Estado.\n   D) El orden es innecesario, debido a que la seguridad no exige control del Estado.\n\nVII. Lee la siguiente noticia y responde las preguntas 12, 13 y 14.\n     “Fuga de cerebros”.\n     La fuga de cerebros representa un desafío prioritario para la República Dominicana, ya que el\n     país supera el promedio de la región en la emigración de jóvenes profesionales. Según datos\n     del Banco Mundial para el año 2018, cerca del 6.8 % del talento capacitado emigró en busca\n     de mejores oportunidades, sobrepasando la media regional del 5.8 %. Esta pérdida de capital\n     humano compromete directamente la innovación, la competitividad y el desarrollo a largo\n     plazo de la nación.\n                                                                              Fuente: Diario Libre\n\n12. A partir de la información dada, ¿cuál es una consecuencia directa de la fuga de\n    jóvenes profesionales para República Dominicana?\n   A) El aumento de empleos especializados disponibles para los jóvenes dominicanos.\n   B) La pérdida de personas capacitadas que podrían contribuir al desarrollo del país.\n   C) La reducción de la necesidad de formar nuevos profesionales en el país.\n   D) El aumento de profesionales capacitados que permanecen trabajando en República\n       Dominicana.\n\n13. ¿Cuál de las siguientes situaciones pudiera ser una causa de la salida de jóvenes\n    profesionales de República Dominicana hacia otros países?\n   A) El aumento de empleos especializados y mejores salarios en República Dominicana.\n   B) La ampliación de oportunidades laborales para profesionales dentro del país.\n   C) Los salarios bajos y la limitada oferta de empleos de alto nivel.\n   D) El aumento de la inversión en empleos de alto nivel para jóvenes capacitados.\n\n14. ¿Cuál de las siguientes medidas pudiera contribuir a reducir la fuga de cerebros en el\n    país?\n   A) Promover inversiones en sectores clave para generar empleos bien pagados.\n   B) Prohibir la salida del país a los profesionales universitarios.\n   C) Reducir el presupuesto asignado a las universidades públicas.\n   D) Aumentar los impuestos a las empresas que contraten profesionales.\n\n\n                                                                                                 4/5\n Evaluación Diagnóstica   3.º grado   Área de Ciencias Sociales Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        },
+        {
+          "numero_pagina_pdf": 50,
+          "tipo": "evaluacion",
+          "texto": "VIII. Lee la siguiente información y responde la pregunta 15.\n      Las montañas dominicanas son vitales porque producen agua y albergan gran variedad de\n      plantas y animales. Sin embargo, se están deteriorando por la deforestación y la agricultura.\n      Para protegerlas, el país debe buscar formas de conservar la naturaleza sin dejar sin\n      sustento a las familias campesinas que viven de la tierra.\n\n15. ¿Cuáles dos medidas ayudarían a proteger las montañas y generar ingresos para los\n    campesinos? Al lado de cada una, describe cómo beneficia al medioambiente y a la\n    comunidad.\n\nEspacio para la respuesta:\n\n\n\n\n                                                                                                 5/5\n Evaluación Diagnóstica   3.º grado   Área de Ciencias Sociales Nivel Secundario   MINERD 2026",
+          "elementos_visuales_no_transcritos": []
+        }
+      ]
+    },
+    {
+      "area": "Ciencias de la Naturaleza",
+      "grado": 1,
+      "pagina_inicio_pdf": 51,
+      "pagina_fin_pdf": 54,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 51,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                               Dirección de Educación Secundaria\n                                  Departamento del Primer Ciclo\n                                 Área de Ciencias de la Naturaleza\n\n               Evaluación Diagnóstica de Ciencias de la Naturaleza\n\n                                        PRIMER GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las necesidades de aprendizaje\nde los estudiantes de primer grado del Nivel Secundario y orientar la planificación docente, las acciones\nde nivelación y el acompañamiento pedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados para asignar\ncalificaciones ni determinar la promoción de los estudiantes.\n\n\n\n                                             Septiembre\n                                        Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                228.4,
+                45.5,
+                370.88,
+                122.9
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                186.96,
+                281.16,
+                425.1,
+                536.22
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 52,
+          "tipo": "evaluacion",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                                  Dirección de Educación Secundaria\n                                     Departamento del Primer Ciclo\n                                    Área de Ciencias de la Naturaleza\n\n          EVALUACIÓN DIAGNÓSTICA DE CIENCIAS DE LA NATURALEZA\n                      Primer Grado de Educación Secundaria\n\n Nombre del estudiante:\n Centro educativo:\n Sección:                              No. Orden                            Fecha:\n\n¡Hola, querido/a estudiante!\n\nNos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que has\ndesarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los resultados\nno afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y necesidades, y\npuedan brindarte el apoyo necesario para continuar desarrollando tus competencias durante este año\nescolar.\nInstrucciones generales:\nA continuación, te presentamos 15 preguntas; en cada una se da una situación inicial y a partir de ella se hace una\npregunta; luego se proponen 4 opciones de posibles respuestas donde solo una es la correcta.\nLee detenidamente cada situación y luego analiza cada opción: selecciona la alternativa correcta sombreando la\nletra que corresponda o subrayándola.\n¡Mucho éxito en tu proceso de aprendizaje y descubrimiento científico!\nTiempo: 90 minutos\n\nLee, analiza y selecciona la respuesta correcta\nLa tierra es el lugar donde habitan todos los seres vivos. La tierra, cuando nos referimos\nal planeta, es el tercero del sistema solar que se distancia del sol a unos 150 millones de\nkilómetros y formado al mismo tiempo que este y el resto del sistema solar, se habla del\nalrededor de 4.570 millones de años, que además hasta los momentos es el único planeta\ndel sistema solar donde se ha comprobado vida alguna. La Geología es la ciencia que\nestudia los fenómenos que ocurren en el interior y exterior de la corteza terrestre, sus\npropiedades y procesos. Partiendo de todo lo antes expuesto podemos responder las\npreguntas de la 1 a 4.\n\n1. A partir de la lectura del texto anterior, identifica el estado físico en que se presenta la Tierra\n   considerando sus diferentes capas y componentes.\n   a) Toda ella es sólida.\n   b) Por haberse enfriado, solo es sólida la corteza.\n   c) Solo permanece fundido el centro y el resto es sólido.\n   d) Siempre se encuentra en estado sólido, líquido y gaseoso.\n\n\nEvaluación Diagnóstica 1.º grado Área de Ciencias de la Naturaleza Nivel Secundario MINERD 2026 1/3",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                451.2,
+                511.66,
+                570.6,
+                622.66
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                231.4,
+                31.7,
+                373.88,
+                109.1
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 53,
+          "tipo": "evaluacion",
+          "texto": "2. A partir del estudio de cómo es el movimiento de las ondas sísmicas (ondas\n   que viajan por el interior de la tierra cuando ocurre un temblor o\n   terremoto), los científicos descubrieron que las ondas secundarias (ondas\n   S) no pueden atravesar cierta capa profunda de la tierra.\n   ¿Qué conclusión sobre el estado físico de esa capa, llamado núcleo externo,\n   nos permite deducir esta evidencia?\n   a) El núcleo externo es completamente sólido, porque las ondas S chocan y rebotan con mucha fuerza.\n   b) El núcleo externo es líquido, porque las ondas S no pueden viajar a través de los líquidos.\n   c) El núcleo externo es gaseoso, porque los gases hacen que las ondas se vuelvan más rápidas.\n   d) l núcleo externo es un espacio vació, por lo que las ondas desaparecen por completo.\n3. Reconoce las partes de la estructura terrestre que conforman la litosfera.\n   a) La Corteza, el Manto y Núcleo.\n   b) El Manto, Ionosfera y Núcleo.\n   c) Sólo la parte superior del Manto.\n   d) La Corteza más la parte superior del Manto.\n4. Analiza la relación entre la litósfera y la astenosfera para resolver cuál afirmación describe\n   correctamente el concepto de placas tectónicas.\n   a) Las placas rígidas de la litosfera flotan y se mueven lentamente sobre la capa más blanda y\n      fluida de la astenosfera.\n   b) La astenosfera es una capa sólida y fría que se desliza por encima de la litosfera.\n   c) La litosfera y la astenosfera forman una sola capa fija que nunca cambia de posición.\n   d) Las corrientes de agua en la litosfera empujan a las rocas de la astenosfera.\n5. Se desea comprender qué capa de la Tierra ayuda a proteger la vida,\n   regular la energía solar y mantener gases necesarios para la respiración;\n   selecciona la opción que permite tomar una decisión científica correcta\n   sobre su importancia.\n   a) Biósfera. b) Litósfera. c) Atmósfera. d) Hidrósfera.\n6. Para valorar la importancia del agua en la vida diaria y en el equilibrio\n   del planeta, identifica la capa terrestre cuya conservación contribuye al ciclo hidrológico, la\n   regulación del clima y el desarrollo de los seres vivos.\n   a) Biósfera. b) Litósfera. c) Atmósfera.         d) Hidrósfera.\n7. Al reconocer la importancia de proteger los seres vivos y sus ambientes, selecciona\n   la capa de la Tierra que integra todas las formas de vida y orienta decisiones\n   responsables para conservar los ecosistemas.\n   a) Biósfera.      b) Litósfera.        c) Atmósfera.          d) Hidrósfera.\n8. Reconoce las características de la capa más rígida y externa de la Tierra,\n   formada por la corteza terrestre y la parte superior del manto, y selecciona\n   la opción que corresponde a dicha capa.\n   a) Biósfera.      b) Litósfera.         c) Atmósfera.        d) Hidrósfera.\n\n9. Analiza la coherencia del texto incompleto sobre las características de la Tierra y resuelve cuál\n   combinación de palabras permite completarlo de forma lógica y científicamente adecuada.\n\n\n\n\nEvaluación Diagnóstica 1.º grado Área de Ciencias de la Naturaleza Nivel Secundario MINERD 2026 2/3",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                70.9,
+                678.01,
+                553.6,
+                734.4
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                443.35,
+                381.07,
+                565.05,
+                469.97
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                454.95,
+                56.8,
+                575.7,
+                138.4
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                459.55,
+                526.57,
+                577.4,
+                606.62
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 54,
+          "tipo": "evaluacion",
+          "texto": "a) Sólida, achatada, líquida, esférica y gaseosa.\n  b) Esférica, redonda, esférica, maciza y gaseosa.\n  c) Gorda, redonda, aplastada, esférica y gaseosa.\n  d) Solida, achatada, líquida, redonda y Plasmática.\n\n10. Interpreta el concepto general de universo y selecciona la opción que expresa de forma más\n    precisa su significado.\n   a) El conjunto de todo lo existente.\n   b) El conjunto de planetas y estrellas.\n   c) El espacio sideral.\n   d) El espacio que ocupa el sistema solar.\n11. Para comunicar correctamente información científica sobre la ubicación de la Tierra,\n    completa la frase seleccionando la opción que permite usar de manera adecuada el\n    conocimiento sobre el sistema solar.\nLa Tierra forma parte del sistema __________, el cual está integrado por el ________, los _______\nque giran a su alrededor y otros _________, como cometas, asteroides y meteoros.\n   a) Universo, sol, astro y satélite.\n   b) Solar, estrellas, planetas y meteoros.\n   c) Solar, sol, planetas y cuerpos celestes.\n   d) Solar, estrellas, planetas y astros.\n12. Observa la situación descrita sobre la disminución de la temperatura y de las horas de luz en\n    el hemisferio sur; analiza la evidencia y determina a qué estación del año corresponde.\n       a) Primavera.          b) Verano.            c) Otoño.    d) Invierno.\n13. Reconoce las teorías que explican la organización del sistema solar y selecciona aquella que\n    plantea que el Sol ocupa la posición central.\n a) Big Bang.          b) Heliocéntrico.    c) Orbital.          d) Geocéntrico.\n14. Una comunidad costera necesita comprender los cambios del nivel del mar para prevenir\n    riesgos, selecciona la explicación científica que permite tomar decisiones informadas sobre la\n    causa principal de las mareas.\n   a) La atracción conjunta del sol y la luna.\n   b) El movimiento de traslación de la tierra.\n   c) La acción de los cometas.\n   d) El movimiento de rotación de la tierra.\n\n15. Analiza el proceso de fragmentación del Pangea y el desplazamiento de las\n    placas continentales hasta la distribución actual de los continentes y masas\n    oceánicas; luego resuelve cuál científico propuso la teoría de la deriva\n    continental.\n       a) Gregorio Mendel.\n       b) John Dalton.\n       c) Alfred Wegener.\n       d) Jean-Baptiste Lamarck.\n\n\nEvaluación Diagnóstica 1.º grado Área de Ciencias de la Naturaleza Nivel Secundario MINERD 2026 3/3",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                370.1,
+                32.35,
+                532.1,
+                113.14
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                460.85,
+                594.0,
+                577.35,
+                726.45
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "area": "Ciencias de la Naturaleza",
+      "grado": 2,
+      "pagina_inicio_pdf": 55,
+      "pagina_fin_pdf": 58,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 55,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                        Dirección de Educación Secundaria\n                          Departamento del Primer Ciclo\n                         Área de Ciencias de la Naturaleza\n\n\n\n       Evaluación Diagnóstica de Ciencias de la Naturaleza\n\n\n                               SEGUNDO GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las necesidades\nde aprendizaje de los estudiantes de primer grado del Nivel Secundario y orientar la\nplanificación docente, las acciones de nivelación y el acompañamiento pedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados\npara asignar calificaciones ni determinar la promoción de los estudiantes.\n\n\n\n\n                                     Septiembre\n                                Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                214.55,
+                41.45,
+                357.03,
+                118.85
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                150.96,
+                317.04,
+                454.62,
+                578.22
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 56,
+          "tipo": "evaluacion",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                                Dirección de Educación Secundaria\n                                  Departamento del Primer Ciclo\n                                 Área de Ciencias de la Naturaleza\n\n          EVALUACIÓN DIAGNÓSTICA DE CIENCIAS DE LA NATURALEZA\n                      Segundo Grado de Educación Secundaria\n\n   Nombre del estudiante:\n   Centro educativo:\n   Sección:                       No. Orden                     Fecha:\n\n  ¡Hola, querido/a estudiante!\n  Nos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que has\n  desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los\n  resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y\n  necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando tus competencias\n  durante este año escolar.\n  Instrucciones generales\n  A continuación, te presentamos 15 preguntas. En cada una se plantea una situación inicial y, a partir\n  de ella, se formula una pregunta. Luego, se presentan cuatro opciones de posibles respuestas, de las\n  cuales solo una es correcta.\n  Lee detenidamente cada situación y analiza cada opción. Selecciona con una X la alternativa\n  correcta.\n  ¡Mucho éxito en tu proceso de descubrimiento!\n  Tiempo: 90 minutos\n\n  1.   En una comunidad cercana a un río, los estudiantes observan que algunas\n       plantas acuáticas han disminuido y que hay menos peces que antes. Si se analiza esta\n       situación desde el funcionamiento de un ecosistema, ¿qué explicación permite comprender\n       mejor lo ocurrido?\n        a) Los organismos de un ecosistema no dependen unos de otros para sobrevivir.\n        b) La alteración de un componente del ecosistema puede afectar la biodiversidad y las\n           relaciones entre los seres vivos.\n        c) La disminución se debe a que los organismos de un ecosistema cambian de lugar, aunque\n           las condiciones ambientales permanezcan.\n        d) Los ciclos de los elementos no influyen en la vida de los organismos acuáticos.\n  2.   Al comparar la célula con una fábrica que necesita\n       instrucciones y energía para funcionar, ¿qué organelo\n       explica la producción de Adenosín Trifosfato (ATP) que\n       permite realizar sus actividades vitales?\n       a) La membrana celular.\n       b) El citoplasma.\n       c) La mitocondria.\n       d) El aparato de Golgi.\n\nEvaluación Diagnóstica 2.º grado Área de Ciencias de la Naturaleza Nivel Secundario MINERD 2026 1/3",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                368.4,
+                670.8,
+                555.6,
+                789.6
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                225.6,
+                42.55,
+                368.08,
+                119.95
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 57,
+          "tipo": "evaluacion",
+          "texto": "3.   Para comprender cómo se organiza el cuerpo humano, ¿cuál secuencia representa\n       correctamente los niveles de organización biológica desde la unidad más simple hasta\n       el sistema funcional más complejo?\n       a) Órgano → Tejido → Célula → Sistema.\n       b) Célula → Tejido → Órgano → Sistema.\n       c) Sistema → Órgano → Tejido → Célula.\n       d) Tejido → Célula → Sistema → Órgano.\n  4.   Una persona necesita energía para crecer, reparar tejidos y realizar sus funciones\n       vitales; ¿qué explicación describe mejor la importancia de la nutrición?\n       a) Se utiliza para eliminar los desechos del cuerpo.\n       b) Sirve para obtener energía para las funciones vitales.\n       c) Permite la transformación del oxígeno.\n       d) Ayuda a mover los músculos durante el ejercicio de masticación.\n  5.   Al realizar ejercicio intenso, el cuerpo aumenta la sudoración y el ritmo\n       cardíaco para responder a los cambios internos. ¿Qué proceso biológico permite\n       mantener el equilibrio del organismo ante esta situación?\n       a) Respiración celular         b) Homeostasis\n       c) División celular                   d) Digestión química\n  6.   En los alvéolos pulmonares se produce un intercambio de gases necesario para\n       obtener energía en las células. ¿Cuál opción identifica\n       correctamente el gas que entra a la sangre y el gas que se\n       elimina al exterior?\n       a) Entra nitrógeno y sale oxígeno.\n       b) Entra dióxido de carbono y sale oxígeno.\n       c) Entra oxígeno y sale dióxido de carbono.\n       d) Entra hidrógeno y sale vapor de agua.\n  7.   Una persona entra en contacto con virus o bacterias, el cuerpo activa mecanismos de\n       defensa. ¿Cuál es la función principal del sistema inmunológico en la protección de la\n       salud?\n       a) Transportar nutrientes por todo el cuerpo.\n       b) Atacar agentes extraños.\n       c) Producir hormonas para el crecimiento.\n       d) Filtrar la sangre para producir orina.\n  8.   En un arrecife de coral, el pez payaso obtiene protección de la anémona y esta recibe\n       nutrientes del pez. A partir de esta evidencia, ¿qué tipo de relación ecológica se\n       establece entre ambos organismos?\n       a) Parasitismo.\n       b) Competencia.\n       c) Mutualismo.\n       d) Comensalismo.\n  9.   Durante la pubertad ocurren cambios biológicos relacionados con la producción de\n       hormonas y la maduración del organismo. ¿Qué función explica la importancia del\n       sistema reproductor humano para la continuidad de la especie?\n       a) Asegurar la supervivencia de la especie mediante la generación de nuevos individuos.\n       b) Controlar los cambios físicos y hormonales que preparan al organismo para alcanzar la\n          madurez sexual.\n       c) Producir sustancias y células reproductoras necesarias para el funcionamiento adecuado\n          de los órganos sexuales.\n       d) Regular los cambios corporales que diferencian las características sexuales entre\n          hembras y varones.\n\n\nEvaluación Diagnóstica 2.º grado Área de Ciencias de la Naturaleza Nivel Secundario MINERD 2026 2/3",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                403.35,
+                342.75,
+                563.82,
+                432.8
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                455.8,
+                168.96,
+                540.1,
+                245.56
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 58,
+          "tipo": "evaluacion",
+          "texto": "10. El VIH afecta el sistema inmunológico y puede transmitirse por contacto sexual sin\n      protección. Se tiene la siguiente lista de acciones:\n      a) Lavarse las manos frecuentemente.\n      b) Abstenerse de tener relaciones sexuales.\n      c) Uso constante de preservativo.\n      d) Tener relaciones con una persona seria.\n      ¿Cuáles de estas decisiones contribuyen de manera más\n      efectiva a prevenir la enfermedad nombrada en el ítem o\n      pregunta número 10?\n      a) 1 y 2         b) 1 y 4      c) 2 y 3              d) 3 y 4\n\n  11. Si la capa de ozono disminuyera considerablemente, aumentaría la exposición de los\n      seres vivos a la radiación ultravioleta. ¿Qué consecuencia explica mejor el impacto de\n      este fenómeno en la biosfera?\n      a) El ciclo hidrológico se detendría por falta de agua.\n      b) Daños graves en su ADN y tejidos por la radiación UV.\n      c) Las placas tectónicas dejarían de moverse.\n      d) La gravedad de la Tierra desaparecería.\n\n  12. Cuando una herida en la piel cicatriza, nuevas células sustituyen a las dañadas para\n      reparar el tejido. ¿Qué proceso de división celular permite explicar esta\n      recuperación?\n      a) Meiosis.         b) Mitosis.           c) Fotosíntesis.      d) Fermentación.\n\n  13. Una adolescente observa cambios físicos y hormonales propios de su desarrollo. ¿En\n      qué etapa del crecimiento humano se explican científicamente estos cambios?\n      a) En la adultez.     b) En la vejez.     c) En la pubertad.  d) En la niñez.\n\n  14. El cuerpo necesita eliminar desechos tóxicos producidos por el metabolismo, por\n      ejemplo, la orina que se produce al filtrar la sangre. ¿Qué órgano del sistema excretor\n      se encarga de esta filtración?\n      a) La vejiga            b) La uretra.         c) Los riñones.    d) El páncreas.\n\n  15. Durante una actividad física intensa, una persona aumenta su frecuencia respiratoria\n      y cardíaca para llevar más oxígeno a los músculos. A partir de esta situación, ¿qué\n      relación entre sistemas del cuerpo humano permite explicar esta respuesta del\n      organismo?\n     a) El sistema digestivo produce hormonas y el sistema excretor transporta oxígeno.\n     b) El sistema respiratorio incorpora oxígeno y el sistema circulatorio lo transporta hacia\n         las células.\n     c) El sistema inmunológico elimina dióxido de carbono y el sistema endocrino produce\n         orina.\n     d) El sistema reproductor regula la entrada de aire y el sistema digestivo bombea sangre.\n\n\n\n\nEvaluación Diagnóstica 2.º grado Área de Ciencias de la Naturaleza Nivel Secundario MINERD 2026 3/3",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                389.55,
+                91.94,
+                532.55,
+                187.29
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "area": "Ciencias de la Naturaleza",
+      "grado": 3,
+      "pagina_inicio_pdf": 59,
+      "pagina_fin_pdf": 62,
+      "paginas": [
+        {
+          "numero_pagina_pdf": 59,
+          "tipo": "portada",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                        Dirección de Educación Secundaria\n                           Departamento del Primer Ciclo\n                          Área de Ciencias de la Naturaleza\n\n\n\n        Evaluación Diagnóstica de Ciencias de la Naturaleza\n\n\n                                 TERCER GRADO\n\n\n\n\nLos resultados obtenidos servirán como punto de partida para identificar las necesidades\nde aprendizaje de los estudiantes de primer grado del Nivel Secundario y orientar la\nplanificación docente, las acciones de nivelación y el acompañamiento pedagógico.\n\nEsta evaluación tiene carácter diagnóstico; por tanto, sus resultados no serán utilizados para\nasignar calificaciones ni determinar la promoción de los estudiantes.\n\n\n\n\n                                       Septiembre\n                                  Año escolar 2026-2027",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                222.9,
+                33.7,
+                365.38,
+                111.1
+              ]
+            },
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                123.0,
+                292.92,
+                430.02,
+                517.14
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 60,
+          "tipo": "evaluacion",
+          "texto": "Viceministerio de Servicios Técnicos y Pedagógicos\n                              Dirección de Educación Secundaria\n                                 Departamento del Primer Ciclo\n                                Área de Ciencias de la Naturaleza\n\n         EVALUACIÓN DIAGNÓSTICA DE CIENCIAS DE LA NATURALEZA\n                     Tercer Grado de Educación Secundaria\n\n     Nombre del estudiante:\n     Centro educativo:\n     Sección:                         No. Orden                       Fecha:\n\n    ¡Hola, querido/a estudiante!\n\n    Nos alegra que participes en esta evaluación. Su propósito es determinar los aprendizajes que has\n    desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los\n    resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas\n    y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando tus\n    competencias durante este año escolar.\n\n    Instrucciones generales:\n    A continuación, te presentamos 15 preguntas; en cada una se da una situación inicial y a partir\n    de ella se hace una pregunta; luego se proponen 4 opciones de posibles respuestas donde solo\n    una es la correcta.\n\n    Lee detenidamente cada situación y luego analiza cada opción: selecciona la alternativa correcta\n    sombreando la letra que corresponda o subrayándola.\n\n    ¡Mucho éxito en tu proceso de aprendizaje y descubrimiento científico!\n\n    Tiempo: 90 minutos\n\n    Lee, analiza y selecciona la respuesta correcta\n\n    1. Durante una práctica de laboratorio, un grupo de estudiantes calienta hielo y\n        observa que primero se derrite, luego el agua aumenta su temperatura y finalmente\n        hierve. ¿Qué explicación permite comprender mejor lo ocurrido?\n      a) La materia desaparece cuando recibe calor.\n      b) El calor puede producir cambios de estado y aumentar el movimiento de las partículas.\n      c) La temperatura no se relaciona con los cambios de estado.\n      d) El agua solo cambia de estado cuando se mezcla con otra sustancia.\n\n    2. Una estudiante coloca agua líquida en una nevera y, después de varias horas,\n       observa que se convierte en hielo. ¿Cómo se llama este cambio de estado?\n          a) Fusión.    b) Evaporación.      c) Solidificación.  d) Condensación.\n\n\n\nEvaluación Diagnóstica 3.º grado Área de Ciencias de la Naturaleza Nivel Secundario MINERD 2026 1/3",
+          "elementos_visuales_no_transcritos": [
+            {
+              "tipo": "imagen",
+              "posicion_puntos_pdf": [
+                213.55,
+                45.0,
+                356.03,
+                122.4
+              ]
+            }
+          ]
+        },
+        {
+          "numero_pagina_pdf": 61,
+          "tipo": "evaluacion",
+          "texto": "3. En la mañana, se observan pequeñas gotas de agua en la parte externa de un vaso con\n       jugo frío. ¿Qué proceso físico explica la formación de esas gotas?\n       a) Sublimación del vidrio.\n       b) Condensación del vapor de agua del aire.\n       c) Fusión del vaso.\n       d) Cristalización del oxígeno.\n\n    4. Al calentar agua en una olla, llega un momento en que se forman burbujas en todo el\n       líquido y el agua pasa rápidamente a vapor. ¿Qué cambio de estado se evidencia?\n           a) Ebullición.   b) Solidificación. c) Licuefacción. d) Cristalización.\n\n    5. Cuando se deja un perfume abierto, su olor se dispersa por la habitación. ¿Qué\n       explicación científica describe mejor este fenómeno?\n       a) Las partículas del perfume se solidifican.\n       b) Las partículas del perfume se evaporan y se mueven en el aire.\n       c) El perfume aumenta su masa al mezclarse con el aire.\n       d) El perfume se convierte directamente en sólido.\n\n    6. En una investigación, los estudiantes observan que la naftalina disminuye de tamaño\n       sin formar líquido visible. ¿Qué cambio de estado explica este comportamiento?\n           a) Fusión.   b) Sublimación.    c) Condensación.    d) Licuefacción.\n\n    7. Un técnico observa que los cables eléctricos se ven más flojos en días calurosos y más\n       tensos en días fríos. ¿Qué propiedad de la materia permite explicar este fenómeno?\n          a) La dilatación térmica de los cuerpos.    b) La cristalización de los metales.\n          c) La evaporación del cobre.         d) La disminución de la masa del cable.\n\n    8. Durante un experimento, se mide la temperatura del agua cada minuto mientras se\n       calienta. Los datos se representan en una gráfica llamada curva de calentamiento. ¿Para\n       qué sirve principalmente esta gráfica?\n       a) Para mostrar cómo varía la temperatura durante el calentamiento y los cambios de estado.\n       b) Para medir la masa exacta del recipiente.\n       c) Para identificar el color del líquido.\n       d) Para calcular la cantidad de estudiantes del grupo.\n\n    9. Dos objetos tienen la misma temperatura, pero uno contiene mayor cantidad de\n       materia. ¿Cuál afirmación diferencia correctamente calor y temperatura?\n       a) Calor y temperatura significan exactamente lo mismo.\n       b) La temperatura mide el grado de agitación de las partículas, mientras el calor es energía\n          en transferencia.\n       c) El calor solo existe en los sólidos.\n       d) La temperatura siempre depende del color del objeto.\n\n    10. En una práctica sobre conductividad térmica, se coloca una cuchara metálica y una de\n        madera en agua caliente. La cuchara metálica se calienta más rápido. ¿Qué conclusión\n        es más adecuada?\n        a) El metal conduce mejor el calor que la madera.\n        b) La madera tiene mayor conductividad térmica que el metal.\n        c) Ambos materiales conducen el calor de la misma forma.\n        d) El calor no se transfiere entre cuerpos.\n\n\nEvaluación Diagnóstica 3.º grado Área de Ciencias de la Naturaleza Nivel Secundario MINERD 2026 2/3",
+          "elementos_visuales_no_transcritos": []
+        },
+        {
+          "numero_pagina_pdf": 62,
+          "tipo": "evaluacion",
+          "texto": "11. Un estudiante compara dos líquidos usando una balanza y una probeta. Observa que\n        tienen igual volumen, pero diferente masa. ¿Qué propiedad permite explicar esta\n        diferencia?\n            a) La temperatura.         b) La densidad.\n            c) La evaporación.         d) La ebullición.\n\n    12. En un modelo con jeringas conectadas por una manguera con agua, al presionar una\n        jeringa, la fuerza se transmite a la otra. ¿Qué principio físico se demuestra?\n         a) Principio de Arquímedes.            b) Principio de Pascal.\n         c) Sublimación.                        d) Dilatación térmica.\n\n    13. Al introducir un objeto en agua, se observa que recibe un empuje hacia arriba. Si el\n        empuje es mayor que su peso, el objeto flota. ¿Qué principio explica este fenómeno?\n        a) Principio de Pascal.\n        b) Principio de Arquímedes.\n        c) Ley de conservación de la masa.\n        d) Evaporación.\n\n    14. Un grupo de estudiantes calienta el aire dentro de una botella con un globo en la boca.\n        El globo aumenta de tamaño. ¿Qué relación permite explicar lo ocurrido?\n        a) Al aumentar la temperatura, el gas puede expandirse y ocupar mayor volumen.\n        b) Al aumentar la temperatura, el gas desaparece.\n        c) El volumen del gas siempre disminuye al calentarse.\n        d) La presión no se relaciona con los gases.\n\n    15. Al construir modelos moleculares de los estados de la materia, los estudiantes\n        representan partículas juntas en sólidos, menos juntas en líquidos y muy separadas en\n        gases. ¿Qué idea científica se refuerza con esta actividad?\n        a) La materia está formada por partículas en movimiento con distinta organización según\n           su estado.\n        b) La materia solo existe cuando puede verse a simple vista.\n        c) Los gases no tienen partículas.\n        d) Los sólidos no poseen estructura interna.\n\n\n\n\nEvaluación Diagnóstica 3.º grado Área de Ciencias de la Naturaleza Nivel Secundario MINERD 2026 3/3",
+          "elementos_visuales_no_transcritos": []
+        }
+      ]
+    }
+  ]
+}

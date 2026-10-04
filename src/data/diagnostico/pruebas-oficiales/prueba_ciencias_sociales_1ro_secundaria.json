@@ -1,0 +1,301 @@
+{
+  "metadatos": {
+    "area": "Ciencias Sociales",
+    "grado": "1ro",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 5,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "documento",
+      "texto": "Primer Grado del Nivel Secundario\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\ncontenido. Lee detenidamente cada texto y analiza cada pregunta antes de responder.\n• En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona\n únicamente la opción que consideres correcta.\n• El ítem 15 es de respuesta abierta. En este deberás escribir y desarrollar tu respuesta de\n acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\nI. Lee el siguiente texto y responde las preguntas 1 y 2.\nEn la República Dominicana, la Constitución reconoce y garantiza derechos fundamentales para todos los\nciudadanos. Asimismo, establece los principios que rigen el Estado, asegurando el respeto al estado de\nderecho, el equilibrio entre los poderes públicos y la defensa de la soberanía nacional. En una comunidad, las\nfamilias de varios estudiantes solicitaron a las autoridades locales ayuda para mejorar las condiciones de la\nescuela y garantizar que sus hijos pudieran continuar sus estudios. La solicitud fue recibida y enviada a las\ninstituciones correspondientes para que cada una atendiera la parte que le correspondía.",
+      "requiereImagen": false
+    },
+    {
+      "id": "E2",
+      "tipo": "texto",
+      "texto": "El cambio climático está alterando las temperaturas y las lluvias en todo el planeta debido a la\ndeforestación y la quema de combustibles. Ante esta situación, existen dos opiniones distintas:\n ▪ Una organización ambientalista señala que los países en desarrollo son los más perjudicados, pues\n cuentan con menos recursos para enfrentar sequías y tormentas.\n ▪ Un sector industrial argumenta que, si se imponen leyes ambientales estrictas, las empresas\n deberán reducir sus actividades, lo que afectaría la economía y el empleo.",
+      "requiereImagen": false
+    },
+    {
+      "id": "E3",
+      "tipo": "texto",
+      "texto": "Lee el siguiente texto y responde las preguntas 11.",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál de los siguientes derechos están exigiendo las familias para sus hijos en la situación descrita?",
+      "opciones": [
+        "a) El derecho a la propiedad.",
+        "b) El derecho a la educación.",
+        "c) El derecho al trabajo.",
+        "d) El derecho a la libertad de tránsito."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿A cuál de los poderes del Estado corresponde atender esta solicitud? II. Lee el siguiente texto y responde las preguntas 3 y 4. Durante el siglo XVI y principios del XVII, la isla de Santo Domingo experimentó profundas transformaciones. Tras el agotamiento de los yacimientos de oro, los colonos debieron desarrollar nuevas actividades productivas para sostener la economía local. Al mismo tiempo, el comercio no autorizado con otras potencias europeas se multiplicó en las zonas alejadas de la capital. Para frenar esta situación, el gobernador Antonio de Osorio ejecutó entre 1605 y 1606 la orden de despoblar y destruir las villas del norte y del noroeste, obligando a sus habitantes a trasladarse cerca de Santo Domingo.",
+      "opciones": [
+        "a) Poder Legislativo.",
+        "b) Poder Ejecutivo.",
+        "c) Poder Judicial.",
+        "d) Poder municipal."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir del texto anterior, ¿Qué consecuencia geopolítica generó la medida tomada por el gobernador Osorio?",
+      "opciones": [
+        "a) Las zonas evacuadas quedaron bajo un estricto control militar español.",
+        "b) El contrabando desapareció por completo en toda la isla.",
+        "c) El abandono de esos territorios facilitó la penetración y asentamiento francés.",
+        "d) Los pobladores trasladados se establecieron de forma permanente en la banda occidental."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué actividad económica impulsaron los españoles en la isla tras la disminución de la extracción de oro? III. Lee el siguiente diálogo entre dos estudiantes que analizan un mapa histórico y responde las preguntas 5 y 6. Durante la clase de Ciencias Sociales, dos estudiantes observan un mapa de la isla de Santo Domingo dibujado en el siglo XVIII por cartógrafos franceses y lo comparan con un mapa moderno. Al analizarlo, expresan lo siguiente: ▪ Estudiante 1: \"Este mapa muestra cómo los franceses veían la isla y qué territorios les interesaba destacar según sus propios objetivos.\" ▪ Estudiante 2: \"Este mapa solo muestra la tierra tal como era, porque un mapa dibuja la realidad exactamente igual sin importar quién lo haga.\"",
+      "opciones": [
+        "a) Producción de azúcar.",
+        "b) Producción de cacao.",
+        "c) Producción de café.",
+        "d) Producción industrial."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Al comparar ambas opiniones, ¿cuál de los estudiantes analiza el mapa desde una perspectiva histórica adecuada? también las intenciones e intereses de quienes los crearon. cambian según la época. influye en la información que muestra. territorio.",
+      "opciones": [
+        "a) El Estudiante 1, porque comprende que los mapas históricos reflejan la realidad geográfica, pero",
+        "b) El Estudiante 2, porque demuestra que los mapas antiguos son copias exactas de la realidad y no",
+        "c) Ambos estudiantes, porque los dos coinciden en que la intención de quien dibuja un mapa no",
+        "d) Ninguno de los dos, porque los mapas del pasado no aportan información válida sobre el"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Considerando lo comentado por los estudiantes sobre la elaboración de los mapas, ¿cuál de las siguientes opciones explica mejor su función en la sociedad? problemas geográficos reales. IV. Lee el siguiente texto y responde las preguntas 7 y 8.",
+      "opciones": [
+        "a) Los mapas solo sirven para conocer la forma de los territorios, pero no permiten conocer",
+        "b) Los mapas actuales han demostrado la necesidad de eliminar los límites entre países.",
+        "c) Los mapas pueden apoyar la planificación, administración y la organización del territorio.",
+        "d) Los mapas no tienen relación con las decisiones que toman las autoridades."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál de las siguientes propuestas representa una solución equilibrada entre la organización ambientalista y el sector industrial?",
+      "opciones": [
+        "a) Proteger las industrias, aunque aumenten los daños del clima.",
+        "b) Aprobar leyes sostenibles, para cuidar la naturaleza sin perder empleos.",
+        "c) Cerrar las fábricas, sin importar el aumento del desempleo.",
+        "d) Dejar actuar a cada grupo, sin buscar un acuerdo común."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué relación existe entre las acciones humanas y el cambio climático? Tierra. V. Lee la siguiente información y responde la pregunta 9. En una provincia costera, un pequeño pueblo de pescadores cambió rápidamente en diez años. La construcción de un puerto comercial y de varios hoteles atrajo a cientos de familias en busca de empleo. Para dar respuesta a este crecimiento, las autoridades y los vecinos dividieron el territorio en áreas específicas: una zona para el turismo, un sector para el comercio y un área residencial con viviendas, escuelas y un centro de salud. Sin embargo, el aumento de la población también redujo los bosques locales y cambió la forma en que la comunidad utiliza el agua y la tierra.",
+      "opciones": [
+        "a) La deforestación y la quema de combustibles aumentan los gases que calientan el planeta.",
+        "b) La deforestación y la quema de combustibles ayudan a mantener estable la temperatura de la",
+        "c) La deforestación y la quema de combustibles evitan las variaciones extremas en el clima mundial.",
+        "d) La deforestación y la quema de combustibles reducen la contaminación en las zonas industriales."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir del texto, ¿De qué manera la geografía humana ayuda a comprender la transformación de este pueblo? VI. Lee el siguiente texto y responde las preguntas 10 y 11. Las primeras grandes civilizaciones de la historia, como la Mesopotamia cerca de los ríos Tigris y Éufrates o Egipto junto al río Nilo, se desarrollaron en valles fértiles. La presencia constante de agua permitió a estas sociedades inventar sistemas de riego para cultivar alimentos a gran escala. Al producir más comida de la que necesitaban para sobrevivir diariamente, la población aumentó rápidamente. Esto llevó a las comunidades a organizarse mejor: construyeron las primeras ciudades, crearon leyes, dividieron los trabajos entre artesanos, agricultores y gobernantes, y desarrollaron los primeros sistemas de escritura.",
+      "opciones": [
+        "a) Permite explicar el relieve y el clima.",
+        "b) Permite señalar cambios naturales.",
+        "c) Permite vincular el crecimiento con el mar.",
+        "d) Permite relacionar población, actividades y territorio."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir del texto, ¿qué relación existió entre los grandes ríos y el desarrollo de la agricultura en las primeras civilizaciones? más población. exclusivamente de la lluvia. únicamente a la pesca. Debido al relieve montañoso de la región del mar Mediterráneo, los antiguos griegos vivieron en ciudades independientes. En Atenas, los habitantes crearon una forma de gobierno donde la comunidad se reunía a debatir y decidir las leyes. En estas ciudades también se promovió la reflexión sobre el mundo, la actuación en escenarios y los torneos deportivos entre pueblos.",
+      "opciones": [
+        "a) El agua de los ríos permitió crear sistemas de riego y obtener alimentos suficientes para sostener a",
+        "b) Los ríos impedían el cultivo porque provocaban inundaciones que destruían todas las cosechas.",
+        "c) Los ríos solo se utilizaban para navegar entre ciudades, ya que la agricultura dependía",
+        "d) La presencia de los ríos obligó a las personas a abandonar la agricultura para dedicarse"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir de la experiencia ateniense descrita en el texto, ¿qué forma de gobierno legó la antigua Grecia a la humanidad? VII. Lee el siguiente texto y observa el mapa. Luego responde las preguntas de la 12 a la 15: Los flujos migratorios entre África y Europa se han mantenido a lo largo de la historia. En la actualidad, las causas y consecuencias de la migración se analizan desde distintas perspectivas: para las organizaciones internacionales se trata de un tema de derechos humanos y protección al refugiado; para los gobiernos de los países receptores representa un reto de seguridad y gasto público; y para las comunidades de origen supone la pérdida de mano de obra joven, pero también el ingreso de remesas para las familias.",
+      "opciones": [
+        "a) La democracia basada en la participación ciudadana.",
+        "b) El gobierno de un rey con poder absoluto.",
+        "c) El control total del país por los militares.",
+        "d) La administración del Estado por jefes religiosos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "Observa las flechas en el mapa, ¿Desde qué región de origen sale el mayor número de rutas migratorias?",
+      "opciones": [
+        "a) Medio Oriente.",
+        "b) África del Norte y Occidental.",
+        "c) Europa Central.",
+        "d) Asia Oriental."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "Al comparar los puntos de vista del texto, ¿en qué se diferencian las prioridades de las organizaciones internacionales y de los gobiernos receptores? buscan reducir la población de sus ciudades. buscan contratar únicamente mano de obra joven. comunidades de origen. mientras que los gobiernos se concentran en la seguridad nacional y el presupuesto.",
+      "opciones": [
+        "a) Las organizaciones internacionales priorizan el aumento del turismo, mientras que los gobiernos",
+        "b) Las organizaciones internacionales promueven el cobro de remesas, mientras que los gobiernos",
+        "c) Ambos sectores coinciden en que la migración es un fenómeno que solo afecta la economía de las",
+        "d) Las organizaciones internacionales se enfocan en la protección y los derechos de las personas,"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "A partir del contexto, ¿cuál argumento sustenta una perspectiva favorable a la diversidad cultural generada por la migración?",
+      "opciones": [
+        "a) La migración aumenta el gasto público de los países receptores.",
+        "b) El intercambio migratorio incorpora nuevas costumbres y formas de vida.",
+        "c) La salida de jóvenes reduce la mano de obra en los países de origen.",
+        "d) La protección de los migrantes plantea nuevos retos para los gobiernos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E3",
+      "tipo": "abierta",
+      "enunciado": "Escribe un texto en el que describas dos problemáticas causadas por la migración en una comunidad y expliques cómo estas afectan la convivencia entre sus habitantes. Espacio para la respuesta:",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

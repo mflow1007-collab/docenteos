@@ -1,0 +1,282 @@
+{
+  "metadatos": {
+    "area": "Matemática",
+    "grado": "3ro",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 9,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "texto",
+      "texto": "Tercer Grado de Educación Secundaria\nNombre del/la estudiante:\ndesarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los\nresultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando tus\ncompetencias durante este año escolar.\n En las preguntas 5 y 10, deberás escribir tu respuesta.\ncalificación.",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Observa la gráfica. Los puntos A y B se encuentran sobre la misma línea horizontal del plano cartesiano. ¿Cuál es la distancia entre ambos puntos?",
+      "opciones": [
+        "a) 3 unidades.",
+        "b) 5 unidades.",
+        "c) 7 unidades. D) 8 unidades."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una persona solicita un viaje mediante una aplicación de transporte. El servicio cobra una tarifa inicial de RD$150 y agrega RD$25 por cada kilómetro recorrido. Al finalizar el viaje, la aplicación indica que el costo total fue de RD$350. ¿Cuántos kilómetros recorrió aproximadamente el vehículo?",
+      "opciones": [
+        "a) 6 km",
+        "b) 8 km",
+        "c) 10 km",
+        "d) 14 km"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Un estudiante tiene 3 puntos acumulados en una actividad. Por cada ejercicio que resuelve correctamente, obtiene 2 puntos adicionales. Para participar en una actividad especial debe tener menos de 11 puntos. Si x representa la cantidad de ejercicios resueltos correctamente, ¿cuál conjunto de valores satisface esta condición?",
+      "opciones": [
+        "a) x < 4",
+        "b) x > 4",
+        "c) x < 7",
+        "d) x > 7"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una compañía de internet ofrece una promoción especial durante los meses de agosto y septiembre. Para contratar el servicio, se paga una tarifa única de RD$500 por instalación y RD$300 por cada mes de servicio. Si m representa la cantidad de meses contratados durante la promoción, ¿qué expresión permite calcular el costo total?",
+      "opciones": [
+        "a) 500m + 300",
+        "b) 300m + 500",
+        "c) 700(m+100)",
+        "d) 500(m + 300)"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Durante una clase de Matemática, los estudiantes midieron diferentes objetos y registraron los siguientes valores: • Longitud de una mesa: 0.75 m 7 • Longitud de una cinta: m 4 • Diagonal de una pieza cuadrada: √2 m • Temperatura registrada: −3 °C El profesor les pide analizar los valores registrados y determinar cuál corresponde a un número irracional. ¿Cuál de los valores representa un número irracional? Explica cómo lo sabes y justifica por qué los demás valores no son irracionales",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Pedro está resolviendo un problema financiero sobre interés compuesto. Después de completar el procedimiento, su profesor reconoce su avance y le indica que ha cometido un error y le solicita revisar cuidadosamente cada paso para identificarlo. Situación a resolver: Se depositan RD$10,000 en una cuenta que genera un interés compuesto del 10 % anual. ¿Cuál será el monto acumulado al finalizar dos años? Procedimiento realizado: Paso 1: Utiliza la fórmula del interés compuesto: 𝑀 = 𝐶(1 + 𝑖)𝑛 Paso 2: Sustituye en la fórmula el capital inicial, la tasa de interés y el tiempo. 𝑀 = 10,000(1 + 0.10)2 Paso 3: Suma 1 y la tasa de interés expresada en forma decimal. 𝑀 = 10,000(1.20)2 Paso 4: Calcula la potencia 𝑀 = 10,000(1.44) Paso 5: Multiplica el capital inicial por el factor acumulado para obtener el monto final. 𝑀 = 10,000(1.20)2 ¿En cuál paso se encuentra el error?",
+      "opciones": [
+        "a) En el paso 1, porque la fórmula utilizada es incorrecta.",
+        "b) En el paso 2, porque se sustituyeron incorrectamente los valores.",
+        "c) En el paso 3, porque (1+0.10) = 1.10 y no es igual a 1.20.",
+        "d) En el paso 5, porque la multiplicación final está mal realizada."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante una jornada de mantenimiento, una escalera se apoya contra una pared para alcanzar una ventana situada a 3 m de altura. Por seguridad, la base de la escalera se coloca a 4 m de la pared, formando un ángulo recto con el suelo, como se muestra en la imagen. ¿Cuál es la longitud de la escalera?",
+      "opciones": [
+        "a) 5 m",
+        "b) 6 m",
+        "c) 7 m",
+        "d) 8 m"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante el diseño de un parque comunitario, se reservará un terreno triangular para construir un jardín. El plano indica que la base del terreno mide 18 m y la altura perpendicular a la base mide 10 m. Tres estudiantes propusieron distintas soluciones para calcular la superficie del jardín: Soluciones propuestas Superficie del jardín ¿Cuál estudiante realizó el procedimiento correcto y por qué?",
+      "opciones": [
+        "a) Luis, porque utilizó correctamente la fórmula del área del triángulo al calcular (base × altura) ÷2",
+        "b) María, porque para calcular el área se suman la base y la altura y luego se divide entre 2.",
+        "c) Ana, porque el área siempre se obtiene multiplicando la base por la altura.",
+        "d) Ninguno, porque para calcular el área se necesita conocer los tres lados del triángulo."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "La mediana es el valor que queda en el centro de un conjunto de datos cuando estos están organizados de menor a mayor o de mayor a menor. Durante una práctica de atletismo, siete estudiantes registraron los tiempos, en minutos, que tardaron en completar un recorrido. Los tiempos obtenidos, organizados de menor a mayor, fueron: 12, 15, 15, 18, 20, 22 y 25. ¿Cuál es la mediana de los tiempos registrados?",
+      "opciones": [
+        "a) 15 minutos.",
+        "b) 18 minutos.",
+        "c) 20 minutos.",
+        "d) 25 minutos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Durante una feria escolar se organiza un juego de azar. Cada participante debe lanzar una moneda y un dado al mismo tiempo. Para ganar un premio, debe obtener cara en la moneda y un número par en el dado. A continuación, se presentan dos procedimientos de Pedro y Juana. Analiza los procedimientos de Pedro y Juana. Explica cuál de los procedimientos es correcto o si ambos lo son. Justifica tu respuesta utilizando argumentos matemáticos.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante una investigación científica, los especialistas observan que la cantidad de microorganismos presentes en una muestra se duplica en cada registro. Los primeros registros obtenidos fueron: 3, 6, 12, 24, 48, ... Según el patrón observado, ¿cuál será la cantidad de microorganismos en el sexto registro?",
+      "opciones": [
+        "a) 48",
+        "b) 72",
+        "c) 96",
+        "d) 192"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Analiza las dimensiones del rectángulo representado. Si el ancho es x metros y el largo es (x + 5) metros. ¿Cuál de las siguientes expresiones modela el",
+      "opciones": [
+        "a) 2x + 5",
+        "b) x² + 5x",
+        "c) x² + 5 D) 5x²"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En una fábrica de paneles metálicos, una máquina divide una lámina cuadrada de 11 metros de lado en dos piezas cuadradas. La primera pieza tiene un lado de “a” metros y la segunda tiene un lado de (11 - a) metros. Antes de poner en funcionamiento la máquina, un operador configura el valor a = 3 Utilizando la información de la imagen y la expresión 𝑨(𝒂) = 𝟑𝟐 + (𝟏𝟏 − 𝟑)𝟐 ¿Cuál es el área total de las dos piezas obtenidas?",
+      "opciones": [
+        "a) 22 m2",
+        "b) 58 m2",
+        "c) 64 m2",
+        "d) 73 m2"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Analiza el polinomio P(x) = 4x³ − 2x² + 7, ¿Cuál de las siguientes afirmaciones describe correctamente una de sus características? principal es −2. independiente es 7. términos.",
+      "opciones": [
+        "a) Su grado es 2.",
+        "b) Su coeficiente",
+        "c) Su término",
+        "d) Tiene cuatro"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál expresión es equivalente a 2(x+3) + x(x−1)?",
+      "opciones": [
+        "a) x² + x + 6",
+        "b) x² + 3x + 6",
+        "c) 2x² + 5",
+        "d) x² − x + 6"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

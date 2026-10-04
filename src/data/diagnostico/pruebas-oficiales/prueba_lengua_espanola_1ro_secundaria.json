@@ -1,0 +1,308 @@
+{
+  "metadatos": {
+    "area": "Lengua Española",
+    "grado": "1ro",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 8,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "noticia",
+      "texto": "Primer Grado del Nivel Secundario\n desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando. Los resultados\n no afectarán tus calificaciones; servirán para que los docentes reconozcan fortalezas y necesidades, y\n puedan brindarte el apoyo necesario para continuar desarrollando tus competencias durante este año escolar.\n • En los ítems del 1 al 13, encontrarás cuatro opciones de respuesta (a, b, c y d). Selecciona\n únicamente la opción que consideres correcta.\n • Los ítems 14 y 15 son de respuesta abierta. En ellos deberás escribir y desarrollar tu respuesta de\n acuerdo con lo solicitado, utilizando información del texto cuando sea necesario.\n Lee el siguiente fragmento de una noticia y responde los ítems del 1 al 3, seleccionando la\n opción correcta.\nFragmento de una noticia\nLa Circunscripción 3 del Distrito Nacional registra el mayor déficit de árboles en la capital\nCada vivienda debe tener al menos dos Asimismo, recordó que cada vivienda debería\nárboles, pero la norma se incumple dice disponer de espacio para sembrar árboles y que\nexperta frente a cada casa deberían plantarse, al menos,\n dos ejemplares, aunque reconoció que esta\nAdalberto de la Rosa práctica se ha perdido con las remodelaciones y el\nSanto Domingo - ago. 03, 2026 | 12:02 a. m desarrollo urbano.\nLa Circunscripción 3 del Distrito Nacional es la La legislación dominicana sobre ordenamiento\ndemarcación con la menor cantidad y calidad de Solhanlle Bonilla, economista ambiental e territorial establece un mínimo de nueve metros\nárboles y, por ende, la que registra las investigadora del Inte atribuye el déficit de cuadrados de áreas verdes por habitante, por lo\ntemperaturas más elevadas. En contraste, la árboles en algunas zonas al crecimiento vertical que considera indispensable que los municipios\ncircunscripción 2 presenta la mejor cobertura de la ciudad, que ha sustituido viviendas con incorporen la arborización en la planificación\narbórea, de acuerdo con un estudio realizado por patios y jardines por edificios de apartamentos, urbana. […] (Continúa)\ninvestigadores del Intec. eliminando gran parte del arbolado existente.\nFragmento tomado y adaptado de Diario Libre el (3 de agosto de 2026). La Circunscripción 3 del Distrito Nacional registra el mayor\ndéficit de árboles en la capital. Diario Libre. Link: https://www.diariolibre.com/actualidad/ciudad/2026/08/03/ circunscripcion-3-del-\ndistrito-nacional-es-la-que-tiene-menos-arboles/3615317",
+      "requiereImagen": false
+    },
+    {
+      "id": "E2",
+      "tipo": "guia_turistica",
+      "texto": "Observa y lee atentamente el siguiente fragmento de una guía turística sobre el patrimonio\n arquitectónico de Barahona. Luego, responde los ítems del 4 al 6, seleccionando la opción\n correcta en cada caso.\n Competencias y contenidos del Primer Grado\n Fragmento de guía turística\n Fuente: Tomado de Descubre Barahona y Pedernales: guía turística, Centro Cuesta Nacional, pp. 32-33.\n https://orgullodemitierra.com.do/pdfs/barahona-pedernales/guia-turistica-barahona.pdf",
+      "requiereImagen": false
+    },
+    {
+      "id": "E3",
+      "tipo": "informe",
+      "texto": "Lee atentamente el siguiente informe de lectura sobre el cuento El hombre grama. Luego,\n responde los ítems del 7 al 9, seleccionando la opción correcta en cada caso.\n Informe de lectura sobre el cuento «El hombre grama» - Francisco Cruz (Fragmento)\n 1. El cuento El hombre grama forma parte de la antología de cuentos infantiles editada\n por Eleanor Grimaldi Silié publicada en 2009. Su autor es el periodista dominicano\n Luis Martín Gómez, quien ganó el Premio Nacional de Literatura Infantil en 2003, el\n Primer lugar en el concurso de cuento Virgilio Díaz Grullón (2002), entre otros\n galardones. El hombre grama constituye un cuento lleno de enseñanzas sobre todo las\n que se relacionan con la necesidad de pensar y actuar en armonía con la naturaleza.\n 2. La historia presenta cuatro partes bien diferenciadas. En la primera, el Hombre Grama\n no pensaba, no tenía ideas y, por tanto, era como un desierto en el que no se daban ni\n yerbas ni plantas.\n 3. Luego, este hombre hace uso de su imaginación y piensa en elementos de la naturaleza,\n por lo cual le nace una grama verde que poco a poco se convierte en una selva.\n 4. La tercera parte del cuento muestra a un Hombre Grama distinto que, debido a la influencia de un insecto dañino,\n empezó a fumar, razón por la que incendia toda la grama y como consecuencia vuelve a convertirse en desierto.\n Esta etapa del Hombre Grama nos refleja cómo un simple descuido puede traer efectos negativos para el bienestar\n nuestro y el de los demás. […]\n 5. Con las diferentes etapas de la vida del Hombre Grama, el autor nos muestra que nuestras buenas acciones o\n muchas veces la falta del ejercicio de estas, tienen sus consecuencias. Por ejemplo, cuando este personaje no\n quería pensar, no tenía mucha vida como sucede en los desiertos. […] Continúa\n Fuente: Cruz, Francisco. «Informe de lectura sobre el cuento El hombre grama». Tomado de Scribd. Link:\n https://es.scribd.com/ document/714270363/El-hombre-grama-Lengua-Espanola-web-completa",
+      "requiereImagen": false
+    },
+    {
+      "id": "E4",
+      "tipo": "texto",
+      "texto": "opción correcta en los ítems del 10 al 12.\n La enemiga - Virgilio Díaz Grullón (Fragmento)\n […] Después las aguas volvieron a su nivel y Esther no mencionó más la muñeca.\n El resto de las vacaciones fue transcurriendo plácidamente y ya a mediados del\n verano habíamos terminado el refugio y allí pasábamos muchas horas del día\n pegando nuestros sellos en el álbum y organizando la colección de mariposas.\n Fue hacia fines del verano cuando llegó la segunda muñeca. Esta vez fue mamá\n quien la trajo y no vino dentro de una caja de cartón, como la otra, sino envuelta\n en una frazada color de rosa. Esther y yo presenciamos cómo mamá la colocaba\n con mucho cuidado en su propia cama hablándole con voz suave, como si ella\n pudiese oírla. En ese momento, mirando de reojo a Esther, descubrí en su actitud\n un sospechoso interés por el nuevo juguete que me ha convencido de que debo librarme también de este otro\n estorbo antes de que me arruine el final de las vacaciones […]\n Fuente: Literatura.us. La enemiga. Virgilio Díaz Grullón. (Santiago, Rep. Dom., 1924 - Santo Domingo, 2001)\n Link: https://www.literatura.us/virgilio/enemiga.html",
+      "requiereImagen": false
+    },
+    {
+      "id": "E5",
+      "tipo": "texto",
+      "texto": "A partir del siguiente fragmento, selecciona la opción correcta en el ítem 13 y en los 14 y 15,\n desarrolla tu respuesta.\n La NASA y los huracanes: Cinco datos rápidos (Fragmento)\n […] Los instrumentos de radar y microondas de la misión de Medición de\n Precipitación Global de la NASA permiten ver a través de las nubes de las\n tormentas para observar la estructura de precipitaciones de la tormenta y\n medir la cantidad total de lluvia que cae… […]\n Es probable que el cambio climático esté haciendo que las tormentas se\n comporten de manera diferente…, la velocidad de los vientos aumenta 56\n kilómetros por hora (35 millas por hora) o más en apenas 24 horas. Estos\n cambios pueden hacer que las comunidades a su paso no tengan tiempo de\n prepararse. […]\n La NASA proporcionó datos… para identificar las regiones afectadas por\n los huracanes. Por medio del modelo se ayuda a identificar las comunidades\n vulnerables y a tomar decisiones acerca de dónde enviar los recursos. […]\n Fuente: Tomado de NASA Ciencia. (2021). La NASA y los huracanes: cinco datos rápidos. Administración\n Nacional de Aeronáutica y el Espacio (NASA). Link: https://ciencia.nasa.gov/ciencias-terrestres/la-nasa-y-los-\n huracanes-cinco-datos/",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué diferencia señala la noticia entre las circunscripciones 2 y 3 del Distrito Nacional?",
+      "opciones": [
+        "a) La Circunscripción 2 tiene temperaturas más elevadas que la Circunscripción 3.",
+        "b) La Circunscripción 2 posee mejor cobertura de árboles que la Circunscripción 3.",
+        "c) La Circunscripción 3 posee más áreas verdes que la Circunscripción 2.",
+        "d) La Circunscripción 3 tiene mayor cantidad de especies nativas que la Circunscripción 2."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Según la noticia, ¿por qué el crecimiento vertical de la ciudad ha contribuido a la disminución de los árboles?",
+      "opciones": [
+        "a) Porque ha provocado que las personas abandonen el Distrito Nacional.",
+        "b) Porque ha impedido que los investigadores estudien las áreas verdes.",
+        "c) Porque las viviendas con patios y jardines han sido sustituidas por edificios.",
+        "d) Porque los edificios impiden la producción de árboles procedentes de otros lugares."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una comunidad presenta altas temperaturas y pocas áreas verdes. ¿Cuál de las siguientes acciones responde mejor a las recomendaciones de la noticia?",
+      "opciones": [
+        "a) Construir parques y áreas verdes en los edificios para la siembra de árboles.",
+        "b) Sustituir los árboles antiguos por edificios de apartamentos.",
+        "c) Sembrar especies introducidas y reducir los espacios destinados a la fauna.",
+        "d) Recuperar las áreas verdes, proteger los árboles y sembrar especies nativas."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cómo contribuyen las fotografías a la información presentada en la guía turística?",
+      "opciones": [
+        "a) Muestran la apariencia de las construcciones descritas.",
+        "b) Indican la ruta exacta para llegar a cada construcción.",
+        "c) Explican las fechas en que fueron construidos los edificios.",
+        "d) Sustituyen las informaciones históricas presentadas en los textos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "En la expresión «joyas de cemento de la provincia», ¿qué quiere comunicar el autor sobre las construcciones?",
+      "opciones": [
+        "a) Que fueron construidas con cemento importado de alta calidad.",
+        "b) Que son edificaciones costosas y difíciles de mantener.",
+        "c) Que poseen un importante valor arquitectónico y cultural.",
+        "d) Que presentan una apariencia brillante y llamativa para la sociedad."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E2",
+      "tipo": "opcion_multiple",
+      "enunciado": "En la expresión «dignas de conocer y visitar», ¿qué estrategia utiliza el autor para despertar el interés del lector por estas construcciones?",
+      "opciones": [
+        "a) Presenta un lenguaje poético para obligar al lector a visitar.",
+        "b) Emplea un vocabulario valorativo para motivar al lector.",
+        "c) Explica como conocer los procedimientos para construirlas.",
+        "d) Advierte sobre la importancia de visitarlas y conocer sus atributos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué función cumple el primer párrafo dentro de la estructura del informe de lectura?",
+      "opciones": [
+        "a) Presenta la obra, su autor y el contenido a analizar.",
+        "b) Ofrece recomendaciones para pensar y actuar en armonía con la naturaleza.",
+        "c) Hace una cronología de los años de publicación de la obra infantil.",
+        "d) Explica estrictamente la vida de Hombre Grama."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Cuál de las siguientes opciones resume mejor el contenido del informe? cuentos.",
+      "opciones": [
+        "a) El Hombre Grama recibió la ayuda de la tierra y del viento para convertirse en un personaje famoso.",
+        "b) Describe etapas del Hombre Grama y cómo sus acciones influyen en la naturaleza y en su comunidad.",
+        "c) El cuento presenta a un insecto que destruye un bosque y obliga a sus habitantes a abandonar el lugar.",
+        "d) El autor informa sobre los premios recibidos por Luis Martín Gómez y sobre la publicación de sus"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E3",
+      "tipo": "opcion_multiple",
+      "enunciado": "En el último párrafo del fragmento, ¿para qué se utiliza el conector «Por ejemplo»?",
+      "opciones": [
+        "a) Para introducir un caso que demuestra la idea expresada anteriormente.",
+        "b) Para señalar una consecuencia de las acciones del Hombre Grama.",
+        "c) Para establecer una oposición entre dos partes del cuento establecidas anteriormente.",
+        "d) Para presentar la conclusión general del informe al demostrar el uso de la imaginación."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E4",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué información del fragmento permite inferir que la «segunda muñeca» no es un juguete?",
+      "opciones": [
+        "a) Esther muestra poco interés por su llegada y muestra complicidad con la madre.",
+        "b) Llega hacia finales de las vacaciones de verano una segunda muñeca.",
+        "c) Mamá la lleva envuelta en una frazada, la coloca en su cama y le habla.",
+        "d) El narrador considera que puede arruinarle el final de las vacaciones."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E4",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Por qué el narrador quiere librarse de la segunda «muñeca»?",
+      "opciones": [
+        "a) Porque teme que capte la atención de Esther y altere sus planes con ella.",
+        "b) Porque piensa que su madre la dejará abandonada durante las vacaciones.",
+        "c) Porque considera que Esther ya tiene demasiados juguetes en su habitación.",
+        "d) Porque quiere recuperar la frazada en la que llegó envuelta la madre al final del verano."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E4",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Qué tipo de narrador cuenta los acontecimientos de este fragmento?",
+      "opciones": [
+        "a) Un narrador externo que conoce todo lo que sienten los personajes.",
+        "b) Un narrador personaje que participa en los acontecimientos.",
+        "c) Un narrador que describe únicamente lo que hace Esther.",
+        "d) Un narrador externo que relata los hechos sin participar en ellos."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E5",
+      "tipo": "opcion_multiple",
+      "enunciado": "¿Para qué se utilizan los instrumentos de radar y microondas mencionados en el texto? confiables.",
+      "opciones": [
+        "a) Para intentar disminuir la cantidad de lluvia que producen los huracanes y evitar daños.",
+        "b) Para observar la estructura de las precipitaciones y medir la cantidad de lluvia.",
+        "c) Para aumentar el tiempo de preparación de las comunidades al estar informadas por la NASA.",
+        "d) Para modificar la velocidad de los vientos durante una tormenta con apoyo de herramientas"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E5",
+      "tipo": "abierta",
+      "enunciado": "¿Por qué la intensificación rápida de los huracanes representa un riesgo para las comunidades? Explica tu respuesta a partir de la información del texto.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E5",
+      "tipo": "abierta",
+      "enunciado": "¿Qué problema busca ayudar a resolver el modelo desarrollado por los investigadores de la NASA? Explica tu respuesta.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}

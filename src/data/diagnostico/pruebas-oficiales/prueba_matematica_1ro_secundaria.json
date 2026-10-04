@@ -1,0 +1,283 @@
+{
+  "metadatos": {
+    "area": "Matemática",
+    "grado": "1ro",
+    "nivel": "Secundario",
+    "institucion": "MINERD",
+    "anoEscolar": "2026-2027",
+    "tiempoMinutos": 90,
+    "totalItems": 15,
+    "fuente": "Pruebas diagnósticas de las áreas objeto de Pruebas Nacionales, primer ciclo",
+    "imagenesEnPDF": 6,
+    "oficial": true
+  },
+  "estimulos": [
+    {
+      "id": "E1",
+      "tipo": "texto",
+      "texto": "Primer Grado de Educación Secundaria\nNombre del/la estudiante:\nhas desarrollado hasta el momento e identificar aquellos en los que puedes seguir avanzando.\nLos resultados no afectarán tus calificaciones; servirán para que los docentes reconozcan\nfortalezas y necesidades, y puedan brindarte el apoyo necesario para continuar desarrollando\ntus competencias durante este año escolar.\n correcta. En la pregunta 11, deberás escribir tu respuesta.\ncalificación.",
+      "requiereImagen": false
+    }
+  ],
+  "items": [
+    {
+      "numero": 1,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante una campaña nacional de reciclaje, se recolectaron 4,758,392 envases plásticos. Un estudiante analiza el número para comprender la cantidad recolectada en cada orden de magnitud. ¿Qué valor representa el dígito 5 en la cantidad 4,758,392?",
+      "opciones": [
+        "a) 5,00",
+        "b) 5,000",
+        "c) 50,000",
+        "d) 500,000"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 2,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En una escuela se repartieron 840 lápices entre 35 estudiantes por igual. ¿Cuántos lápices recibió cada estudiante?",
+      "opciones": [
+        "a) 20 lápices",
+        "b) 24 lápices",
+        "c) 28 lápices",
+        "d) 32 lápices"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 3,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante una jornada solidaria, una escuela preparó kits de útiles escolares para donar a estudiantes de una comunidad. Para elaborar los kits se dispone de 12 cuadernos, 24 lápices y 18 borradores, y se desea que todos los kits contengan exactamente la misma cantidad de cada tipo de material sin que sobre ningún artículo. Al analizar la situación, tres estudiantes propusieron diferentes cantidades de kits: Ana sugirió formar 3 kits, Luis propuso 6 kits y María consideró que podían prepararse 12 kits. ¿Cuál de los estudiantes propuso la mayor cantidad posible de kits que se pueden formar cumpliendo las condiciones establecidas y por qué? 𝟐 𝟑",
+      "opciones": [
+        "a) Ana, porque 3 divide exactamente las cantidades de los tres materiales.",
+        "b) Luis, porque 6 es el mayor número que divide exactamente 12, 24 y 18.",
+        "c) María, porque 12 divide exactamente la cantidad de cuadernos.",
+        "d) Ninguno, porque se necesita conocer el costo de los materiales."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 4,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Carmen caminó 𝟓 de kilómetro por la mañana y 𝟏𝟎 de kilómetro por la tarde. ¿Cuánto caminó en total? 5 7 1 5",
+      "opciones": [
+        "a) 15 km",
+        "b) 10km",
+        "c) 2km",
+        "d) 10km"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 5,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En una papelería cercana a la escuela, 4 cuadernos cuestan RD$120. Si todos los cuadernos tienen el mismo precio, ¿cuánto deberá pagar un estudiante por 7 cuadernos?",
+      "opciones": [
+        "a) RD$180",
+        "b) RD$200",
+        "c) RD$210",
+        "d) RD$240"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 6,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante una jornada escolar, los estudiantes fueron distribuidos en cuatro secciones para participar en diferentes actividades. La dirección registró la cantidad de estudiantes asignados a cada sección para organizar los espacios y materiales necesarios. ¿Cuál es la diferencia entre la sección que tiene mayor cantidad de estudiantes y la que tiene menor cantidad?",
+      "opciones": [
+        "a) 7",
+        "b) 8",
+        "c) 10",
+        "d) RD$240"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 7,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Un patio rectangular mide 12 m de largo y 8 m de ancho. ¿Cuál es su área?",
+      "opciones": [
+        "a) 40 m²",
+        "b) 80 m²",
+        "c) 96 m²",
+        "d) 20 m²"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 8,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Durante una feria científica, un grupo de estudiantes construyó un tanque rectangular para almacenar agua. El tanque tiene 2 m de largo, 1.5 m de ancho y 1 m de profundidad. Al calcular su volumen, tres estudiantes obtuvieron los siguientes resultados: • Carlos: 2 × 1.5 × 1 = 3𝑚3 • Laura: 2 + 1.5 + 1 = 4.5𝑚3 • Miguel: 2 × 1.5 = 3𝑚3 ¿Cuál de los estudiantes realizó el procedimiento correcto para determinar el volumen del tanque y por qué?",
+      "opciones": [
+        "a) Carlos, porque multiplicó las tres dimensiones para obtener el volumen del tanque.",
+        "b) Laura, porque para obtener la capacidad se suman las dimensiones.",
+        "c) Miguel, porque basta con calcular el área de la base.",
+        "d) Ninguno, porque se necesita conocer la cantidad de agua disponible."
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 9,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Observa la siguiente sucesión: 3, 7, 15, 31, 63, … ¿Cuál es el siguiente número?",
+      "opciones": [
+        "a) 95",
+        "b) 121",
+        "c) 127",
+        "d) 135"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 10,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "El doble de un número aumentado en 5 es igual a 21. ¿Cuál es la expresión algebraica que representa esta situación?",
+      "opciones": [
+        "a) 2 + n + 5 = 21",
+        "b) 2n + 5 = 21",
+        "c) 2(n + 5) = 21",
+        "d) n² + 5 = 21"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 11,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "Un estudiante debe resolver la siguiente ecuación: 3x – 7 = 14 ¿Cuál es el valor de x? Resuelve la ecuación detallando cada paso del procedimiento y explica cómo determinaste el valor de x.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 12,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Una tienda cobra RD$15 por cada hora de conexión a internet. ¿Cuál expresión representa el costo total (C) según las horas (h)?",
+      "opciones": [
+        "a) C = h + 15",
+        "b) C = 15 − h",
+        "c) C = 15h",
+        "d) C = h/15"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 13,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "En el estacionamiento subterráneo de un edificio, el nivel de la calle se representa con 0. Los niveles que están por debajo se representan con números enteros negativos. Por ejemplo, el nivel −2 está dos pisos por debajo de la calle y el nivel −7 está siete pisos por debajo. En este estacionamiento se encuentran los niveles −8, −3, −5, −10, −2, −7 y 0. ¿Cuál de las siguientes comparaciones entre números enteros es correcta?",
+      "opciones": [
+        "a) −8 > −3",
+        "b) −5 < −10",
+        "c) −2 > −7",
+        "d) 0 < −4"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 14,
+      "estimuloId": "E1",
+      "tipo": "abierta",
+      "enunciado": "En una madrugada fría en Valle Nuevo, Constanza, los meteorólogos registraron una temperatura de −10 °C, una de las más bajas reportadas en la República Dominicana. Observa los termómetros y selecciona el que representa la temperatura registrada.",
+      "opciones": [],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    },
+    {
+      "numero": 15,
+      "estimuloId": "E1",
+      "tipo": "opcion_multiple",
+      "enunciado": "Observa la imagen y responde. ¿Cuál es la medida del tercer ángulo?",
+      "opciones": [
+        "a) 33°",
+        "b) 43°",
+        "c) 47° D) 53°"
+      ],
+      "claveIA": "",
+      "claveEstado": "sin_clave",
+      "respuestaAbiertaGuia": "",
+      "requiereImagen": false,
+      "competencia": "",
+      "indicador": ""
+    }
+  ]
+}
