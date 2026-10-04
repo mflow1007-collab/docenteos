@@ -7,6 +7,7 @@ import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from 
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
 import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
 import { obtenerIndicadoresDebiles } from "../services/avanceCurricularService.js";
+import { indicadoresDebilesPorGradoAsignatura, mezclarIndicadoresDebiles } from "../services/diagnosticoIntegrationService.js";
 import { applyAuditAction } from "../services/auditAcciones.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
@@ -106,15 +107,15 @@ export function useUnidadAprendizaje() {
           unidadDatos.grado, unidadDatos.asignatura,
         );
       } catch { /* sin historial, se genera sin tachados */ }
-      // Fase 9 — cierre del ciclo: indicadores con logro real bajo el umbral
-      // en las evaluaciones del curso → marcado (REFORZAR) en el prompt.
-      // Nunca bloquea: sin evaluaciones, la unidad se genera igual.
+      // Indicadores (REFORZAR): el DIAGNÓSTICO de inicio de año (punto de partida,
+      // nivel real del grupo) + Fase 9 (logro bajo el umbral en evaluaciones del
+      // curso). Se mezclan sin duplicar, priorizando el diagnóstico. Nunca bloquea.
       let indicadoresDebiles = [];
       try {
-        indicadoresDebiles = await obtenerIndicadoresDebiles(
-          unidadDatos.grado, unidadDatos.asignatura,
-        );
-      } catch { /* sin avance, se genera sin refuerzos */ }
+        const debilesEval = await obtenerIndicadoresDebiles(unidadDatos.grado, unidadDatos.asignatura);
+        const debilesDiag = indicadoresDebilesPorGradoAsignatura(unidadDatos.grado, unidadDatos.asignatura);
+        indicadoresDebiles = mezclarIndicadoresDebiles(debilesDiag, debilesEval);
+      } catch { /* sin avance ni diagnóstico, se genera sin refuerzos */ }
 
       startGenerationJob({
         id: UNIDAD_JOB_ID,
