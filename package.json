@@ -10,7 +10,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node scripts/audit-cerebro.mjs && node scripts/test-hilo-pedagogico.mjs && node scripts/test-unidad-render.mjs && node scripts/test-guia-maestro.mjs && node scripts/test-banco-guias.mjs && node scripts/test-pruebas-diagnosticas.mjs && node scripts/test-contrato-v13.mjs",
+    "test": "node scripts/audit-cerebro.mjs && node scripts/test-hilo-pedagogico.mjs && node scripts/test-unidad-render.mjs && node scripts/test-guia-maestro.mjs && node scripts/test-banco-guias.mjs && node scripts/test-pruebas-diagnosticas.mjs && node scripts/test-diagnostico-generacion.mjs && node scripts/test-contrato-v13.mjs",
     "audit": "node scripts/audit-cerebro.mjs"
   },
   "dependencies": {

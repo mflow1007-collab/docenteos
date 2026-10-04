@@ -8,7 +8,12 @@
 // BAJO DEMANDA con import.meta.glob (Vite hace code-splitting: solo baja la prueba
 // del área+grado pedido, no las 12).
 
-const pruebasGlob = import.meta.glob("./pruebas-oficiales/*.json");
+// import.meta.glob es de Vite; fuera de Vite (tests con Node puro) no existe.
+// Guard: si no está, el lookup queda vacío (los tests que necesiten pruebas las
+// leen del disco directamente). En la app, Vite lo reemplaza en build.
+const pruebasGlob = typeof import.meta.glob === "function"
+  ? import.meta.glob("./pruebas-oficiales/*.json")
+  : {};
 
 // Área → slug del archivo (calca el slug() del script de conversión).
 const slugArea = (area = "") => String(area).toLowerCase()
