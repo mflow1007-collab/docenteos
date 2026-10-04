@@ -85,6 +85,8 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   const [genIA, setGenIA] = useState(null); // null | {cargando} | {error}
   const [pruebaGenerada, setPruebaGenerada] = useState(null); // prueba cruda para exportar a PDF
   const [maticesGrupo, setMaticesGrupo] = useState("");
+  // Antes de generar, el docente DEBE elegir: describir su grupo o usar genérico.
+  const [modoContexto, setModoContexto] = useState(null); // null | "describir" | "generico"
 
   const curso = cursos.find((item) => String(item.id) === String(cursoId)) || null;
   // Contexto curricular resuelto (grado/área/asignatura) tolerante al formato del
@@ -242,14 +244,17 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   const generarConIA = async () => {
     const ctx = ctxGen;
     if (!ctx.valido) { setGenIA({ error: `Falta ${ctx.faltan.join(" y ")} para generar.` }); return; }
+    if (!modoContexto) { setGenIA({ error: "Elige cómo adaptar la prueba: describir tu grupo o usar genérico." }); return; }
+    if (modoContexto === "describir" && !maticesGrupo.trim()) { setGenIA({ error: "Describe cómo es tu grupo, o elige la opción genérica." }); return; }
     setGenIA({ cargando: true });
     try {
+      const describe = modoContexto === "describir";
       const { prueba } = await generarPruebaDiagnostica({
         area: ctx.area, asignatura: ctx.asignatura, grado: ctx.grado, nivel: ctx.nivel,
         contexto: {
-          zonaEscolar: curso?.zonaEscolar || "",
-          contextoComunitario: curso?.contextoComunitario || contexto.caracteristicas || "",
-          matices: maticesGrupo,
+          zonaEscolar: describe ? (curso?.zonaEscolar || "") : "",
+          contextoComunitario: describe ? (curso?.contextoComunitario || contexto.caracteristicas || "") : "",
+          matices: describe ? maticesGrupo : "",
         },
       });
       const nuevos = pruebaGeneradaAItemsBanco(prueba);
@@ -385,20 +390,46 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
                 situaciones cercanas a tus estudiantes. La clave de respuestas queda <b>por revisar</b> para que la confirmes.
               </p>
             </div>
-            <button type="button" className="diag-primario" disabled={genIA?.cargando} onClick={generarConIA}
+            <button type="button" className="diag-primario"
+              disabled={genIA?.cargando || !(modoContexto === "generico" || (modoContexto === "describir" && maticesGrupo.trim()))}
+              onClick={generarConIA}
+              title={!modoContexto ? "Primero elige cómo adaptar la prueba a tu grupo" : (modoContexto === "describir" && !maticesGrupo.trim() ? "Describe cómo es tu grupo o elige genérico" : "")}
               style={{ whiteSpace: "nowrap", cursor: genIA?.cargando ? "wait" : "pointer" }}>
               {genIA?.cargando ? "⏳ Generando…" : "✨ Generar prueba con IA"}
             </button>
           </div>
-          <label style={{ display: "block", marginTop: 10, fontSize: 13 }}>
-            ¿Cómo es tu grupo? <span style={{ color: "#6b7280", fontWeight: 400 }}>(opcional — intereses, nivel observado, necesidades)</span>
-            <input value={maticesGrupo} onChange={(e) => setMaticesGrupo(e.target.value)}
-              placeholder="Ej.: nivel inicial, les gusta el béisbol, dos estudiantes requieren lectura acompañada…"
-              style={{ width: "100%", boxSizing: "border-box", marginTop: 4, padding: "7px 10px", borderRadius: 8, border: "1px solid #c7d2fe" }} />
-            <small style={{ display: "block", marginTop: 4, color: "#6b7280" }}>
+          {/* Elección OBLIGATORIA antes de generar: describir el grupo o usar genérico. */}
+          <div style={{ marginTop: 12 }}>
+            <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "#3730a3" }}>¿Cómo adaptamos la prueba a tus estudiantes? <span style={{ color: "#b91c1c" }}>*</span></p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" onClick={() => setModoContexto("describir")}
+                style={{ flex: "1 1 220px", textAlign: "left", padding: "10px 12px", borderRadius: 8, cursor: "pointer",
+                  border: modoContexto === "describir" ? "2px solid #4f46e5" : "1px solid #c7d2fe",
+                  background: modoContexto === "describir" ? "#e0e7ff" : "#fff" }}>
+                <strong style={{ fontSize: 13 }}>👥 Describir mi grupo</strong>
+                <small style={{ display: "block", color: "#6b7280" }}>Situaciones cercanas a tus estudiantes (recomendado).</small>
+              </button>
+              <button type="button" onClick={() => setModoContexto("generico")}
+                style={{ flex: "1 1 220px", textAlign: "left", padding: "10px 12px", borderRadius: 8, cursor: "pointer",
+                  border: modoContexto === "generico" ? "2px solid #4f46e5" : "1px solid #c7d2fe",
+                  background: modoContexto === "generico" ? "#e0e7ff" : "#fff" }}>
+                <strong style={{ fontSize: 13 }}>🌐 Genérico</strong>
+                <small style={{ display: "block", color: "#6b7280" }}>Situaciones dominicanas generales, sin describir el grupo.</small>
+              </button>
+            </div>
+            {modoContexto === "describir" && (
+              <label style={{ display: "block", marginTop: 8, fontSize: 13 }}>
+                ¿Cómo es tu grupo? <span style={{ color: "#b91c1c" }}>(obligatorio)</span>
+                <input value={maticesGrupo} onChange={(e) => setMaticesGrupo(e.target.value)}
+                  placeholder="Ej.: nivel inicial, les gusta el béisbol, dos estudiantes requieren lectura acompañada…"
+                  style={{ width: "100%", boxSizing: "border-box", marginTop: 4, padding: "7px 10px", borderRadius: 8,
+                    border: maticesGrupo.trim() ? "1px solid #c7d2fe" : "1px solid #fca5a5" }} />
+              </label>
+            )}
+            <small style={{ display: "block", marginTop: 6, color: "#6b7280" }}>
               El grado ({ctxGen.grado || "sin definir"}) y el área se toman del curso seleccionado, no de aquí.
             </small>
-          </label>
+          </div>
           {genIA?.cargando && <p style={{ margin: "8px 0 0", fontSize: 13, color: "#4f46e5" }}>📝 Generando la prueba con el molde oficial… puede tardar.</p>}
           {genIA?.error && <p style={{ margin: "8px 0 0", fontSize: 13, color: "#b91c1c" }}>❌ {genIA.error}</p>}
           {pruebaGenerada && !genIA?.cargando && (
