@@ -86,6 +86,13 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   const [maticesGrupo, setMaticesGrupo] = useState("");
 
   const curso = cursos.find((item) => String(item.id) === String(cursoId)) || null;
+  // Contexto curricular resuelto (grado/área/asignatura) tolerante al formato del
+  // curso: el grado puede venir dentro del nombre ("2do Secundaria A"). Se usa para
+  // el texto de la tarjeta de generación y como fuente del grado al generar.
+  const ctxGen = useMemo(
+    () => resolverContextoCurricular({ ...curso, area: area || curso?.area }, { ...perfil, asignaturaPrincipal: asignatura || perfil?.asignaturaPrincipal }),
+    [curso, area, asignatura, perfil]
+  );
   const estudiantes = useMemo(() => (curso?.estudiantesDetalle || []).map((item, indice) => ({
     ...item,
     id: idEstudiante(item, indice),
@@ -232,10 +239,7 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   // Convierte la prueba generada a ítems del banco editable para que el resto del
   // flujo (aplicar/analizar/informe) la trate igual y el docente pueda revisarla.
   const generarConIA = async () => {
-    const ctx = resolverContextoCurricular(
-      { ...curso, area: area || curso?.area },
-      { ...perfil, asignaturaPrincipal: asignatura || perfil?.asignaturaPrincipal }
-    );
+    const ctx = ctxGen;
     if (!ctx.valido) { setGenIA({ error: `Falta ${ctx.faltan.join(" y ")} para generar.` }); return; }
     setGenIA({ cargando: true });
     try {
@@ -360,7 +364,7 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
             <div style={{ flex: "1 1 320px" }}>
               <h3 style={{ margin: "0 0 4px", color: "#3730a3" }}>✨ Generar prueba con el molde oficial, adaptada a tu grupo</h3>
               <p style={{ margin: 0, fontSize: 13, color: "#4b5563" }}>
-                Sigue la estructura de la prueba oficial del MINERD ({area || "el área"} · {curso?.grado || "grado"}) pero con
+                Sigue la estructura de la prueba oficial del MINERD ({ctxGen.area || area || "el área"} · {ctxGen.grado || "grado sin definir"}) pero con
                 situaciones cercanas a tus estudiantes. La clave de respuestas queda <b>por revisar</b> para que la confirmes.
               </p>
             </div>

@@ -15,8 +15,13 @@ import { getAreaCurricularDeAsignatura, getAsignaturas } from "../planning/areaA
  * @returns {{ nivel, grado, gradoBase, area, asignatura, materia, valido, faltan }}
  */
 export const resolverContextoCurricular = (curso = {}, perfil = {}) => {
-  // Grado: del curso, o del perfil. Base sin sufijo de nivel ("2do Secundaria" → "2do").
-  const gradoBruto = curso.grado || curso.grade || "";
+  // Grado: del curso (varios campos posibles), o del perfil. Si solo viene dentro
+  // del NOMBRE del curso ("1ro A — Inglés", "Primero de Secundaria"), se deriva de
+  // ahí como último recurso. Base sin sufijo de nivel ("2do Secundaria" → "2do").
+  const gradoBrutoDirecto = curso.grado || curso.grade || curso.gradoAcademico || curso.nivelGrado || perfil.grado || "";
+  // Si no hay grado directo pero el nombre/curso contiene un grado reconocible, usarlo.
+  const textoCurso = `${curso.nombre || curso.name || ""} ${curso.curso || ""} ${curso.seccion || ""}`;
+  const gradoBruto = gradoBrutoDirecto || (CONTIENE_GRADO(textoCurso) ? SUFIJOS[numeroGrado(textoCurso)] : "");
   const grado = gradoBase(gradoBruto);
   // Nivel: inferido del grado (manda) y, si no, del curso/perfil.
   const nivel = nivelActual({ nivel: curso.nivel || perfil.nivel || "", grado: gradoBruto });
@@ -58,6 +63,13 @@ const numeroGrado = (grado = "") => {
   const numero = Number(texto.match(/[1-6]/)?.[0]);
   if (numero) return numero;
   return Object.entries(ORDINALES).find(([nombre]) => texto.includes(nombre))?.[1] || 1;
+};
+
+// ¿El texto MENCIONA un grado reconocible? (para no inventar "1ro" por el
+// fallback de numeroGrado cuando el texto no trae grado alguno).
+const CONTIENE_GRADO = (texto = "") => {
+  const t = String(texto).toLowerCase();
+  return /[1-6]\s*(ro|do|er|to|º|°)?\b/.test(t) || /\b(primero|segundo|tercero|cuarto|quinto|sexto)\b/.test(t);
 };
 
 export const resolverGradoAnterior = ({ nivel = "", grado = "" } = {}) => {
