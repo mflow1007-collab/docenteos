@@ -201,6 +201,48 @@ const contextoAnoEscolar = () => {
   return `${inicio}-${inicio + 1}`;
 };
 
+// Adapta una prueba generada al formato del BANCO editable de DiagnosticoPage
+// (items con seleccionado/dimension/dificultad/aprendizaje/consigna/indicador…),
+// para que el resto del flujo (aplicar, analizar, informe) la trate como siempre.
+// El docente puede revisar/editar cada ítem con el editor existente.
+export const pruebaGeneradaAItemsBanco = (prueba) => {
+  const estimulosPorId = Object.fromEntries(_arr(prueba?.estimulos).map((e) => [e.id, e]));
+  return _arr(prueba?.items).map((it, i) => {
+    const est = it.estimuloId ? estimulosPorId[it.estimuloId] : null;
+    const esMultiple = it.tipo === "opcion_multiple";
+    // La consigna incluye el estímulo (si lo hay) + enunciado + opciones, para que
+    // el ítem sea autosuficiente al imprimirlo.
+    const partes = [
+      est ? `[${_texto(est.tipo).toUpperCase()}] ${_texto(est.titulo)}\n${_texto(est.texto)}` : "",
+      _texto(it.enunciado),
+      esMultiple ? _arr(it.opciones).join("\n") : "",
+    ].filter(Boolean);
+    return {
+      id: `item-ia-${i + 1}-${Date.now()}`,
+      seleccionado: true,
+      dimension: _texto(it.destreza) || "Comprensión",
+      tipo: esMultiple ? "objetiva" : "desempeno",
+      dificultad: "Esencial",
+      formatoRespuesta: esMultiple ? "seleccion_multiple" : "desempeno",
+      aprendizaje: _texto(it.indicador) || _texto(it.competencia) || `Ítem ${i + 1}`,
+      consigna: partes.join("\n\n"),
+      opciones: esMultiple ? _arr(it.opciones) : [],
+      claveIA: it.claveIA || "",
+      claveEstado: it.claveEstado || "sin_clave",
+      respuestaEsperada: esMultiple ? "" : _texto(it.respuestaAbiertaGuia),
+      respuestaAbiertaGuia: _texto(it.respuestaAbiertaGuia),
+      materiales: "",
+      apoyo: "",
+      criterios: _texto(it.claveJustificacion),
+      indicador: _texto(it.indicador),
+      indicadorId: "",
+      competencia: _texto(it.competencia),
+      tema: _texto(it.competencia) || "General",
+      origen: "ia_contextualizada",
+    };
+  });
+};
+
 // ─── API pública ──────────────────────────────────────────────────────────────
 // Genera la prueba diagnóstica contextualizada. 1 reintento ante JSON/validación.
 export const generarPruebaDiagnostica = async ({ area, asignatura, grado, nivel, contexto = {} } = {}) => {

@@ -21,6 +21,7 @@ import {
 } from "../services/diagnosticoBlueprintService.js";
 import { getAreas, getAsignaturas } from "../planning/areaAsignaturaMap.js";
 import { cargarReferentesDiagnosticos, vincularItemsAIndicadores, resolverContextoCurricular } from "../services/diagnosticoCurricularService.js";
+import { generarPruebaDiagnostica, pruebaGeneradaAItemsBanco } from "../services/diagnosticoGeneracionService.js";
 import "./DiagnosticoPage.css";
 import "./DiagnosticoInforme.css";
 import "./DiagnosticoConstructor.css";
@@ -80,6 +81,9 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   //  · "objetivo"    → preguntas objetivas del banco + vínculo al indicador (imprimible)
   //  · "desempenos"  → una actividad de respuesta abierta por indicador (fiel al currículo)
   const [modoGeneracion, setModoGeneracion] = useState("objetivo");
+  // Generación contextualizada por IA (Fase 2): estado del proceso + matices del grupo.
+  const [genIA, setGenIA] = useState(null); // null | {cargando} | {error}
+  const [maticesGrupo, setMaticesGrupo] = useState("");
 
   const curso = cursos.find((item) => String(item.id) === String(cursoId)) || null;
   const estudiantes = useMemo(() => (curso?.estudiantesDetalle || []).map((item, indice) => ({
@@ -224,6 +228,36 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
     setResultados({});
     setMediaciones({});
   };
+  // Generación contextualizada por IA (molde oficial MINERD + realidad del grupo).
+  // Convierte la prueba generada a ítems del banco editable para que el resto del
+  // flujo (aplicar/analizar/informe) la trate igual y el docente pueda revisarla.
+  const generarConIA = async () => {
+    const ctx = resolverContextoCurricular(
+      { ...curso, area: area || curso?.area },
+      { ...perfil, asignaturaPrincipal: asignatura || perfil?.asignaturaPrincipal }
+    );
+    if (!ctx.valido) { setGenIA({ error: `Falta ${ctx.faltan.join(" y ")} para generar.` }); return; }
+    setGenIA({ cargando: true });
+    try {
+      const { prueba } = await generarPruebaDiagnostica({
+        area: ctx.area, asignatura: ctx.asignatura, grado: ctx.grado, nivel: ctx.nivel,
+        contexto: {
+          zonaEscolar: curso?.zonaEscolar || "",
+          contextoComunitario: curso?.contextoComunitario || contexto.caracteristicas || "",
+          matices: maticesGrupo,
+        },
+      });
+      const nuevos = pruebaGeneradaAItemsBanco(prueba);
+      bancoEditadoRef.current = true;       // no dejar que la malla pise lo generado
+      setItems(nuevos);
+      setResultados({});
+      setMediaciones({});
+      setGenIA(null);
+      setGuardado(`Prueba generada: ${nuevos.length} ítems con el molde MINERD, adaptada a tu grupo. Revísala y edita lo que necesites antes de aplicar.`);
+    } catch (error) {
+      setGenIA({ error: error.message || "No se pudo generar la prueba." });
+    }
+  };
   const actualizarItem = (id, cambios) => { bancoEditadoRef.current = true; setItems((actuales) => actuales.map((item) => item.id === id ? { ...item, ...cambios } : item)); };
   const quitarItem = (id) => setItems((actuales) => actuales.filter((item) => item.id !== id));
   const seleccionarVisibles = (seleccionado) => {
@@ -320,6 +354,30 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
 
       {paso === 1 && <section className="diag-panel">
         <div className="diag-panel-head"><div><h2>Construye un diagnóstico apropiado</h2><p>DocenteOS respeta la naturaleza del área y tú decides qué corresponde a este grupo.</p></div></div>
+        {/* Generación contextualizada por IA: molde oficial MINERD + realidad del grupo (Fase 2). */}
+        <section className="diag-generar-ia" style={{ background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 12, padding: "14px 18px", marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 320px" }}>
+              <h3 style={{ margin: "0 0 4px", color: "#3730a3" }}>✨ Generar prueba con el molde oficial, adaptada a tu grupo</h3>
+              <p style={{ margin: 0, fontSize: 13, color: "#4b5563" }}>
+                Sigue la estructura de la prueba oficial del MINERD ({area || "el área"} · {curso?.grado || "grado"}) pero con
+                situaciones cercanas a tus estudiantes. La clave de respuestas queda <b>por revisar</b> para que la confirmes.
+              </p>
+            </div>
+            <button type="button" className="diag-primario" disabled={genIA?.cargando} onClick={generarConIA}
+              style={{ whiteSpace: "nowrap", cursor: genIA?.cargando ? "wait" : "pointer" }}>
+              {genIA?.cargando ? "⏳ Generando…" : "✨ Generar prueba con IA"}
+            </button>
+          </div>
+          <label style={{ display: "block", marginTop: 10, fontSize: 13 }}>
+            Realidad del grupo (opcional)
+            <input value={maticesGrupo} onChange={(e) => setMaticesGrupo(e.target.value)}
+              placeholder="Ej.: nivel inicial, intereses en deporte, dos estudiantes requieren lectura acompañada…"
+              style={{ width: "100%", boxSizing: "border-box", marginTop: 4, padding: "7px 10px", borderRadius: 8, border: "1px solid #c7d2fe" }} />
+          </label>
+          {genIA?.cargando && <p style={{ margin: "8px 0 0", fontSize: 13, color: "#4f46e5" }}>📝 Generando la prueba con el molde oficial… puede tardar.</p>}
+          {genIA?.error && <p style={{ margin: "8px 0 0", fontSize: 13, color: "#b91c1c" }}>❌ {genIA.error}</p>}
+        </section>
         <div className="diag-acciones-rapidas"><div><strong>Instrumento actual</strong><span>{itemsSeleccionados.filter((item) => item.componente !== "desempeno").length} ítems escritos · {itemsSeleccionados.filter((item) => item.componente === "desempeno").length} desempeños</span></div><button type="button" className="diag-mezclar" onClick={generarMezclaAutomatica}>⤨ Generar y mezclar 20</button><button type="button" className="diag-ver-arriba" disabled={!itemsSeleccionados.length} onClick={() => setPaqueteAbierto(true)}>👁 Ver instrumento</button></div>
         <div className="diag-modalidades">{MODALIDADES_DIAGNOSTICO.map((opcion) => <button key={opcion.id} className={modalidad === opcion.id ? "activo" : ""} onClick={() => { setModalidad(opcion.id); setItems(opcion.id === "desde_cero" ? [crearItemVacio(naturaleza)] : generarBancoDiagnostico({ area, asignatura })); }}><span>{opcion.icono}</span><strong>{opcion.nombre}{opcion.recomendado && <em>Recomendado</em>}</strong><small>{opcion.descripcion}</small></button>)}</div>
         <div className="diag-config-grid">
