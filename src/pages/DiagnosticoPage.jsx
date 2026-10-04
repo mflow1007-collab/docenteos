@@ -374,10 +374,13 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
             </button>
           </div>
           <label style={{ display: "block", marginTop: 10, fontSize: 13 }}>
-            Realidad del grupo (opcional)
+            ¿Cómo es tu grupo? <span style={{ color: "#6b7280", fontWeight: 400 }}>(opcional — intereses, nivel observado, necesidades)</span>
             <input value={maticesGrupo} onChange={(e) => setMaticesGrupo(e.target.value)}
-              placeholder="Ej.: nivel inicial, intereses en deporte, dos estudiantes requieren lectura acompañada…"
+              placeholder="Ej.: nivel inicial, les gusta el béisbol, dos estudiantes requieren lectura acompañada…"
               style={{ width: "100%", boxSizing: "border-box", marginTop: 4, padding: "7px 10px", borderRadius: 8, border: "1px solid #c7d2fe" }} />
+            <small style={{ display: "block", marginTop: 4, color: "#6b7280" }}>
+              El grado ({ctxGen.grado || "sin definir"}) y el área se toman del curso seleccionado, no de aquí.
+            </small>
           </label>
           {genIA?.cargando && <p style={{ margin: "8px 0 0", fontSize: 13, color: "#4f46e5" }}>📝 Generando la prueba con el molde oficial… puede tardar.</p>}
           {genIA?.error && <p style={{ margin: "8px 0 0", fontSize: 13, color: "#b91c1c" }}>❌ {genIA.error}</p>}
