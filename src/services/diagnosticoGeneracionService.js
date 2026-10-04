@@ -305,12 +305,13 @@ export const formatearPruebaDiagnosticaHTML = (prueba, { conClave = false, logoU
     const esMultiple = it.tipo === "opcion_multiple";
     const claveLetra = _texto(it.claveIA).toLowerCase();
     const opcionesHtml = esMultiple
-      ? `<ol class="opciones" type="a">${_arr(it.opciones).map((op) => {
+      ? `<div class="opciones">${_arr(it.opciones).map((op, i) => {
           const txt = esc(String(op).replace(/^[a-dA-D][).]\s*/, ""));
-          const letra = (String(op).match(/^([a-dA-D])[).]/) || [])[1]?.toLowerCase();
-          const correcta = conClave && letra && letra === claveLetra;
-          return `<li class="${correcta ? "correcta" : ""}">${txt}${correcta ? " ✓" : ""}</li>`;
-        }).join("")}</ol>`
+          const letra = ((String(op).match(/^([a-dA-D])[).]/) || [])[1] || String.fromCharCode(97 + i)).toLowerCase();
+          const correcta = conClave && letra === claveLetra;
+          // Opciones EN LÍNEA, seguidas: "a) Go hiking.   b) Go shopping.   c) ..."
+          return `<span class="opcion ${correcta ? "correcta" : ""}"><b>${letra})</b> ${txt}${correcta ? " ✓" : ""}</span>`;
+        }).join("")}</div>`
       : `<div class="espacio-abierto">${conClave ? `<div class="guia-doc"><strong>Guía de corrección:</strong> ${esc(it.respuestaAbiertaGuia)}</div>` : "Espacio para la respuesta:<br><br><br>"}</div>`;
 
     const claveDoc = conClave && esMultiple && it.claveJustificacion
@@ -342,9 +343,9 @@ export const formatearPruebaDiagnosticaHTML = (prueba, { conClave = false, logoU
     .item { margin: 10px 0; page-break-inside: avoid; }
     .item-enun { font-weight: 600; }
     .item-num { color: #1d4ed8; font-weight: bold; }
-    .opciones { margin: 4px 0 0 8px; padding-left: 24px; }
-    .opciones li { margin-bottom: 3px; }
-    .opciones li.correcta { background: #dcfce7; font-weight: bold; border-radius: 3px; padding: 0 4px; }
+    .opciones { margin: 4px 0 0 18px; }
+    .opcion { display: inline-block; margin: 0 22px 3px 0; white-space: nowrap; }
+    .opcion.correcta { background: #dcfce7; font-weight: bold; border-radius: 3px; padding: 0 4px; white-space: normal; }
     .espacio-abierto { border: 1px dashed #94a3b8; border-radius: 6px; padding: 8px 12px; margin-top: 5px; color: #475569; font-size: 10.5pt; }
     .guia-doc { background: #fef9c3; border-left: 3px solid #eab308; padding: 5px 9px; margin-top: 5px; font-size: 10pt; color: #713f12; }
     @media print { body { background: #fff; } .page { max-width: none; } .no-print, .no-print * { display: none !important; } }
