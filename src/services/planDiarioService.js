@@ -565,43 +565,56 @@ export const generarPlanDiario = (datos) => {
 
 // ─── Exportar a HTML (MINERD format) ────────────────────────────────────────
 
+// Escapa texto para interpolar en HTML sin riesgo de inyección (XSS). El
+// contenido del plan viene de la IA y de formularios del docente: aunque es un
+// documento que él mismo imprime, un '<' sin escapar rompería el HTML o podría
+// ejecutar script en la ventana de impresión.
+const escHtml = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Escapa recursivamente los valores string de un objeto/array de datos, dejando
+// intacta la estructura. Se aplica a los metadatos antes de verterlos al HTML.
+const escProfundo = (v) => Array.isArray(v) ? v.map(escProfundo)
+  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, escProfundo(x)]))
+  : typeof v === "string" ? escHtml(v) : v;
+
 export const formatearPlanDiarioHTML = (plan) => {
   if (!plan) return "";
-  const { metadatos: m, competenciasEIndicadores: ci, intencionPedagogica: ip,
+  const { metadatos: mRaw, competenciasEIndicadores: ci, intencionPedagogica: ip,
           contenidos, desarrolloClase: dc, adaptacionesNEAE: neae,
           resumenEvaluacion: re, instrumentosEvaluacion: ie } = plan;
+  // Metadatos (nombre docente, centro, área…) escapados una sola vez.
+  const m = escProfundo(mRaw || {});
 
-  const th = (txt, attrs = "") => `<th ${attrs}>${txt}</th>`;
+  const th = (txt, attrs = "") => `<th ${attrs}>${escHtml(txt)}</th>`;
 
   const compFundHTML = (ci.competenciasFundamentales || [])
-    .map((c) => `<span class="comp-cb">${c.seleccionada ? "☑" : "☐"} ${c.nombre}</span>`)
+    .map((c) => `<span class="comp-cb">${c.seleccionada ? "☑" : "☐"} ${escHtml(c.nombre)}</span>`)
     .join(" &nbsp; ");
 
   const indHTML = (ci.indicadoresLogro || [])
-    .map((i) => `<li>${i}</li>`).join("");
+    .map((i) => `<li>${escHtml(i)}</li>`).join("");
 
-  const contHTML = (arr) => (arr || []).map((i) => `<li>${i}</li>`).join("");
+  const contHTML = (arr) => (arr || []).map((i) => `<li>${escHtml(i)}</li>`).join("");
 
   const actHTML = (arr) => (arr || [])
-    .map((a, i) => `<p><strong>${i + 1})</strong> ${a}</p>`).join("");
+    .map((a, i) => `<p><strong>${i + 1})</strong> ${escHtml(a)}</p>`).join("");
 
   const metaHTML = (arr) => (arr || [])
-    .map((q) => `<p><em>${q}</em></p>`).join("");
+    .map((q) => `<p><em>${escHtml(q)}</em></p>`).join("");
 
   const recurHTML = (r) =>
-    `<p><strong>Humanos:</strong> ${r.humanos}</p><p><strong>Didácticos:</strong> ${r.didacticos}</p><p><strong>Tecnológicos:</strong> ${r.tecnologicos}</p>`;
+    `<p><strong>Humanos:</strong> ${escHtml(r.humanos)}</p><p><strong>Didácticos:</strong> ${escHtml(r.didacticos)}</p><p><strong>Tecnológicos:</strong> ${escHtml(r.tecnologicos)}</p>`;
 
   const evalHTML = (e) =>
-    `<p><strong>Evidencias:</strong></p><ul>${(e.evidencias || []).map((x) => `<li>${x}</li>`).join("")}</ul>
-     <p><strong>Tipo:</strong> ${e.tipo}</p>
-     <p><strong>Agente:</strong> ${e.agente}</p>
-     <p><strong>Técnica:</strong> ${e.tecnica}</p>
-     <p><strong>Instrumento:</strong> ${e.instrumento}</p>`;
+    `<p><strong>Evidencias:</strong></p><ul>${(e.evidencias || []).map((x) => `<li>${escHtml(x)}</li>`).join("")}</ul>
+     <p><strong>Tipo:</strong> ${escHtml(e.tipo)}</p>
+     <p><strong>Agente:</strong> ${escHtml(e.agente)}</p>
+     <p><strong>Técnica:</strong> ${escHtml(e.tecnica)}</p>
+     <p><strong>Instrumento:</strong> ${escHtml(e.instrumento)}</p>`;
 
   const buildMomentoRow = (label, mom) =>
     `<tr>
-      <td class="momento-cell"><strong>${label}</strong></td>
-      <td class="tiempo-cell">${mom.tiempo}</td>
+      <td class="momento-cell"><strong>${escHtml(label)}</strong></td>
+      <td class="tiempo-cell">${escHtml(mom.tiempo)}</td>
       <td>${actHTML(mom.actividades)}</td>
       <td>${evalHTML(mom.evaluacion)}</td>
       <td>${metaHTML(mom.metacognicion)}</td>
@@ -646,17 +659,17 @@ export const formatearPlanDiarioHTML = (plan) => {
 
   const rubricaHTML = (ie.criteriosRubrica || []).map((c) =>
     `<tr>
-      <td><strong>${c.criterio}</strong></td>
-      <td class="nivel3">${c.nivel3}</td>
-      <td class="nivel2">${c.nivel2}</td>
-      <td class="nivel1">${c.nivel1}</td>
+      <td><strong>${escHtml(c.criterio)}</strong></td>
+      <td class="nivel3">${escHtml(c.nivel3)}</td>
+      <td class="nivel2">${escHtml(c.nivel2)}</td>
+      <td class="nivel1">${escHtml(c.nivel1)}</td>
     </tr>`
   ).join("");
 
   const cotejoCriteriosHTML = (ie.criteriosCotejo || []).map((c) =>
     `<tr>
       <td style="width:20px;text-align:center">—</td>
-      <td>${c.criterio}</td>
+      <td>${escHtml(c.criterio)}</td>
       <td class="cb-cell">☐ Sí &nbsp; ☐ No</td>
       <td class="cb-cell">☐ Sí &nbsp; ☐ No</td>
       <td class="cb-cell">☐ Sí &nbsp; ☐ No</td>
@@ -667,7 +680,7 @@ export const formatearPlanDiarioHTML = (plan) => {
   const escalaCriteriosHTML = (ie.criteriosEscala || []).map((c) =>
     `<tr>
       <td style="width:20px;text-align:center">—</td>
-      <td>${c.criterio}</td>
+      <td>${escHtml(c.criterio)}</td>
       <td class="cb-cell">☐ Siempre &nbsp; ☐ A veces &nbsp; ☐ Nunca</td>
       <td class="cb-cell">☐ Siempre &nbsp; ☐ A veces &nbsp; ☐ Nunca</td>
       <td class="cb-cell">☐ Siempre &nbsp; ☐ A veces &nbsp; ☐ Nunca</td>
@@ -698,14 +711,14 @@ export const formatearPlanDiarioHTML = (plan) => {
 <table>
   <tr><td class="lbl">Competencias Fundamentales</td><td>${compFundHTML}</td></tr>
   <tr><td class="lbl">Indicadores de logros</td><td><ul>${indHTML}</ul></td></tr>
-  <tr><td class="lbl">Competencias específicas</td><td>${ci.competenciaEspecifica}</td></tr>
-  <tr><td class="lbl">Situación de Aprendizaje</td><td>${ci.situacionAprendizaje}</td></tr>
+  <tr><td class="lbl">Competencias específicas</td><td>${escHtml(ci.competenciaEspecifica)}</td></tr>
+  <tr><td class="lbl">Situación de Aprendizaje</td><td>${escHtml(ci.situacionAprendizaje)}</td></tr>
 </table>
 
 <h3>INTENCIÓN PEDAGÓGICA Y ESTRATEGIA</h3>
 <table>
-  <tr><td class="lbl">Estrategia de enseñanza y aprendizaje</td><td>${ip.estrategia}</td></tr>
-  <tr><td class="lbl">Intención pedagógica del día</td><td>${ip.intencionDelDia}</td></tr>
+  <tr><td class="lbl">Estrategia de enseñanza y aprendizaje</td><td>${escHtml(ip.estrategia)}</td></tr>
+  <tr><td class="lbl">Intención pedagógica del día</td><td>${escHtml(ip.intencionDelDia)}</td></tr>
 </table>
 
 <h3>CONTENIDOS</h3>
@@ -737,14 +750,14 @@ export const formatearPlanDiarioHTML = (plan) => {
 <h3>ADAPTACIONES (Para estudiantes con NEAE — si aplica)</h3>
 <table>
   <tr>${th("De acceso")}${th("Metodológicas")}${th("De evaluación")}</tr>
-  <tr><td>${neae.acceso}</td><td>${neae.metodologicas}</td><td>${neae.evaluacion}</td></tr>
+  <tr><td>${escHtml(neae.acceso)}</td><td>${escHtml(neae.metodologicas)}</td><td>${escHtml(neae.evaluacion)}</td></tr>
 </table>
 
 <h3>RESUMEN DE EVALUACIÓN Y OBSERVACIONES</h3>
 <table>
   <tr>${th("Técnicas")}${th("Instrumentos")}${th("Observaciones")}</tr>
   <tr>
-    <td><ul>${(re.tecnicas || []).map((t) => `<li>${t}</li>`).join("")}</ul></td>
+    <td><ul>${(re.tecnicas || []).map((t) => `<li>${escHtml(t)}</li>`).join("")}</ul></td>
     <td><ul>${(re.instrumentos || []).map((t) => `<li>${t}</li>`).join("")}</ul></td>
     <td><ul>${(re.observaciones || []).map((t) => `<li>${t}</li>`).join("")}</ul></td>
   </tr>
