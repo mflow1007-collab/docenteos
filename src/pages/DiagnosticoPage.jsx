@@ -5,7 +5,11 @@ import {
   aprendizajesIniciales,
   guardarDiagnostico,
   obtenerDiagnosticoCurso,
+  sincronizarDiagnosticos,
   resumirDiagnostico,
+  redactarAnalisisGrado,
+  construirIndicadoresLogro,
+  construirCronograma,
 } from "../services/diagnosticoService.js";
 import {
   MODALIDADES_DIAGNOSTICO,
@@ -21,7 +25,7 @@ import {
 } from "../services/diagnosticoBlueprintService.js";
 import { getAreas, getAsignaturas } from "../planning/areaAsignaturaMap.js";
 import { cargarReferentesDiagnosticos, vincularItemsAIndicadores, resolverContextoCurricular } from "../services/diagnosticoCurricularService.js";
-import { generarPruebaDiagnostica, pruebaGeneradaAItemsBanco, formatearPruebaDiagnosticaHTML } from "../services/diagnosticoGeneracionService.js";
+import { generarPruebaDiagnostica, pruebaGeneradaAItemsBanco, formatearPruebaDiagnosticaHTML, generarAnalisisInformeIA } from "../services/diagnosticoGeneracionService.js";
 import "./DiagnosticoPage.css";
 import "./DiagnosticoInforme.css";
 import "./DiagnosticoConstructor.css";
@@ -84,6 +88,9 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   // Generación contextualizada por IA (Fase 2): estado del proceso + matices del grupo.
   const [genIA, setGenIA] = useState(null); // null | {cargando} | {error}
   const [pruebaGenerada, setPruebaGenerada] = useState(null); // prueba cruda para exportar a PDF
+  const [analisisIA, setAnalisisIA] = useState(null); // análisis del informe redactado por IA
+  const [genAnalisis, setGenAnalisis] = useState(null); // null | {cargando} | {error}
+  const [syncTick, setSyncTick] = useState(0); // se incrementa al terminar la sync con Firestore
   const [maticesGrupo, setMaticesGrupo] = useState("");
   // Antes de generar, el docente DEBE elegir: describir su grupo o usar genérico.
   const [modoContexto, setModoContexto] = useState(null); // null | "describir" | "generico"
@@ -116,6 +123,15 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
     return items.filter((item) => (filtroTema === "Todos" || item.tema === filtroTema) && (!consulta || [item.tema, item.aprendizaje, item.consigna, item.dimension].some((texto) => String(texto || "").toLowerCase().includes(consulta))));
   }, [items, filtroTema, busquedaItem]);
 
+  // Al abrir el módulo, trae de Firestore los diagnósticos del docente y los
+  // fusiona en el cache local (durabilidad entre dispositivos). Al terminar,
+  // bump de syncTick re-dispara la carga del curso actual con los datos frescos.
+  useEffect(() => {
+    let activo = true;
+    sincronizarDiagnosticos().then(() => { if (activo) setSyncTick((t) => t + 1); }).catch(() => {});
+    return () => { activo = false; };
+  }, []);
+
   useEffect(() => {
     if (!cursoId) return;
     const existente = obtenerDiagnosticoCurso(cursoId, anoEscolar);
@@ -142,7 +158,7 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
     setItems(bancoGuardado && !francesConContenidoIngles ? bancoGuardado : generarBancoDiagnostico({ area: areaInicial, asignatura: asignaturaInicial }));
     setPaso(existente?.estado === "completado" ? 3 : 1);
     setGuardado("");
-  }, [cursoId, anoEscolar, curso?.area, perfil?.areaPrincipal, perfil?.asignaturaPrincipal]);
+  }, [cursoId, anoEscolar, curso?.area, perfil?.areaPrincipal, perfil?.asignaturaPrincipal, syncTick]);
 
   useEffect(() => {
     let activo = true;
@@ -352,9 +368,37 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
   };
 
   const imprimirInforme = () => window.print();
+  const enriquecerConIA = async () => {
+    setGenAnalisis({ cargando: true });
+    try {
+      const resultado = await generarAnalisisInformeIA({
+        area, asignatura, grado: curso?.grado || nombreGrado, nivel: curso?.nivel || perfil?.nivel,
+        zonaEscolar: perfil?.zonaEscolar, contextoComunitario: perfil?.contextoComunitario,
+        porEstudiante: resumen.porEstudiante, brechas: resumen.brechas, observaciones,
+      });
+      setAnalisisIA(resultado);
+      setGenAnalisis(null);
+    } catch (error) {
+      setGenAnalisis({ error: error.message || "No se pudo generar el análisis con IA." });
+    }
+  };
   const nombreNivel = { elemental: "Elemental", aceptable: "Aceptable", satisfactorio: "Satisfactorio" };
   const nivelPredominante = Object.entries(resumen.porcentajesInforme || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || "elemental";
   const prioridadesInforme = resumen.brechas.filter((item) => item.porcentajeApoyo >= 30).slice(0, 4);
+  const nombreGrado = [curso?.grado, curso?.seccion].filter(Boolean).join(" ") || curso?.nombre || "este grado";
+  // Base automática personalizada con los datos del maestro (área, zona, contexto)
+  // y los resultados reales del grupo. El análisis IA, si existe, la sustituye.
+  const analisisGradoBase = redactarAnalisisGrado({
+    grado: nombreGrado, porEstudiante: resumen.porEstudiante, area, asignatura,
+    zonaEscolar: perfil?.zonaEscolar, contextoComunitario: perfil?.contextoComunitario,
+    brechas: resumen.brechas,
+  });
+  const indicadoresLogroBase = construirIndicadoresLogro({ porEstudiante: resumen.porEstudiante, area, asignatura });
+  const cronogramaBase = construirCronograma({ area, asignatura, porEstudiante: resumen.porEstudiante });
+  // Si el docente generó el análisis con IA, usamos ese contenido personalizado.
+  const analisisGrado = analisisIA?.analisis || analisisGradoBase;
+  const indicadoresLogro = analisisIA?.indicadores?.length ? analisisIA.indicadores : indicadoresLogroBase;
+  const cronograma = analisisIA?.cronograma?.length ? analisisIA.cronograma : cronogramaBase;
 
   if (!cursos.length) return (
     <div className="diagnostico-vacio">
@@ -493,22 +537,33 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
       </section>}
 
       {paso === 4 && <section className="diag-informe-wrap">
-        <div className="diag-informe-toolbar"><button className="diag-secundario" onClick={() => setPaso(3)}>← Volver al análisis</button><button className="diag-primario" onClick={imprimirInforme}>Imprimir / guardar PDF</button></div>
+        <div className="diag-informe-toolbar"><button className="diag-secundario" onClick={() => setPaso(3)}>← Volver al análisis</button><button className="diag-secundario" disabled={genAnalisis?.cargando || !resumen.porEstudiante.evaluados} onClick={enriquecerConIA} title="Redacta el análisis, el plan de acción y las metas para tu grupo y tu contexto">{genAnalisis?.cargando ? "⏳ Redactando…" : analisisIA ? "✨ Regenerar con IA" : "✨ Enriquecer con IA"}</button>{analisisIA && <button className="diag-secundario" onClick={() => setAnalisisIA(null)}>↩ Usar versión automática</button>}<button className="diag-primario" onClick={imprimirInforme}>Imprimir / guardar PDF</button></div>
+        {genAnalisis?.error && <p className="noprint" style={{ color: "#b91c1c", fontSize: 13, margin: "4px 0" }}>❌ {genAnalisis.error}</p>}
+        {analisisIA && <p className="noprint" style={{ color: "#3730a3", fontSize: 13, margin: "4px 0" }}>✨ Análisis personalizado por IA para tu grupo. Puedes imprimirlo o volver a la versión automática.</p>}
         <article className="diag-informe">
           <header><p>Distrito Educativo {perfil?.distrito || "________________"}</p><h1>{perfil?.centroEducativo || perfil?.centro || "Centro Educativo"}</h1><h2>Informe de Evaluación Diagnóstica</h2><p>Año escolar {anoEscolar}</p></header>
           <table className="diag-ficha"><tbody><tr><th>Área</th><td>{[area, asignatura].filter(Boolean).join(" · ") || "Área curricular"}</td><th>Docente</th><td>{perfil?.nombreDocente || "________________"}</td></tr><tr><th>Grado y sección</th><td>{[curso?.grado, curso?.seccion].filter(Boolean).join(" ") || curso?.nombre}</td><th>Estudiantes evaluados</th><td>{resumen.estudiantesCompletos} de {estudiantes.length}</td></tr></tbody></table>
           <h3>1. Propósito y contexto de aplicación</h3><p>La evaluación diagnóstica se aplicó al inicio del año escolar con el propósito de identificar los saberes previos, las destrezas adquiridas y las necesidades de aprendizaje de los estudiantes. Sus resultados orientan la planificación docente, el acompañamiento pedagógico y la selección de estrategias diferenciadas.</p><p>Se valoraron {aprendizajes.length} aprendizajes esenciales mediante actividades de recuperación de saberes, observación y producción. Los resultados no se emplean como calificación final, sino como punto de partida para la enseñanza.</p>
           <h3>2. Aprendizajes evaluados</h3><ol>{aprendizajes.map((item) => <li key={item}>{item}</li>)}</ol>
-          <h3>3. Resultados generales</h3><table><thead><tr><th>Nivel de desempeño</th><th>Registros</th><th>Porcentaje</th></tr></thead><tbody>{Object.entries(resumen.nivelesInforme).map(([nivel, cantidad]) => <tr key={nivel}><td>{nombreNivel[nivel]}</td><td>{cantidad}</td><td>{resumen.porcentajesInforme[nivel]}%</td></tr>)}</tbody></table>
-          <div className="diag-grafica-informe">{Object.entries(resumen.porcentajesInforme).map(([nivel, porcentaje]) => <div key={nivel}><b style={{ height: `${Math.max(porcentaje, 3)}%` }}><span>{porcentaje}%</span></b><small>{nombreNivel[nivel]}</small></div>)}</div>
+          <h3>3. Resultados generales</h3>
+          <h4>Distribución por estudiante</h4><p>Cada estudiante se clasifica en un único nivel según el promedio de sus desempeños, conforme al formato oficial del MINERD.</p>
+          <table><thead><tr><th>Nivel de desempeño</th><th>N.º de estudiantes</th><th>Porcentaje</th></tr></thead><tbody>{Object.entries(resumen.porEstudiante.niveles).map(([nivel, cantidad]) => <tr key={nivel}><td>{nombreNivel[nivel]}</td><td>{cantidad}</td><td>{resumen.porEstudiante.porcentajes[nivel]}%</td></tr>)}<tr><th>Total evaluados</th><th>{resumen.porEstudiante.evaluados}</th><th>100%</th></tr></tbody></table>
+          <div className="diag-grafica-informe">{Object.entries(resumen.porEstudiante.porcentajes).map(([nivel, porcentaje]) => <div key={nivel}><b style={{ height: `${Math.max(porcentaje, 3)}%` }}><span>{porcentaje}%</span></b><small>{nombreNivel[nivel]}</small></div>)}</div>
+          <p className="diag-analisis-grado">{analisisGrado}</p>
+          <h4>Detalle por desempeño registrado</h4><p>Vista granular: cada aprendizaje observado por cada estudiante cuenta como un desempeño.</p>
+          <table><thead><tr><th>Nivel de desempeño</th><th>Desempeños</th><th>Porcentaje</th></tr></thead><tbody>{Object.entries(resumen.nivelesInforme).map(([nivel, cantidad]) => <tr key={nivel}><td>{nombreNivel[nivel]}</td><td>{cantidad}</td><td>{resumen.porcentajesInforme[nivel]}%</td></tr>)}</tbody></table>
           <h4>Resultados por dimensión</h4><table><thead><tr><th>Dimensión</th><th>Evidencias</th><th>Satisfactorias</th><th>Requieren apoyo</th><th>Dominio</th></tr></thead><tbody>{resumenDimensiones.map((item) => <tr key={item.dimension}><td>{item.dimension}</td><td>{item.evidencias}</td><td>{item.satisfactorios}</td><td>{item.apoyo}</td><td>{item.porcentaje}%</td></tr>)}</tbody></table>
           <div className="diag-barras-informe">{resumenDimensiones.map((item) => <div key={item.dimension}><span>{item.dimension}</span><i><b style={{ width: `${item.porcentaje}%` }} /></i><strong>{item.porcentaje}%</strong></div>)}</div>
           <h4>Agrupamientos iniciales sugeridos</h4><table><thead><tr><th>Recuperación</th><th>Consolidación</th><th>Nivel esperado</th><th>Profundización</th></tr></thead><tbody><tr><td>{perfilesGrupo.recuperacion}</td><td>{perfilesGrupo.consolidacion}</td><td>{perfilesGrupo.esperado}</td><td>{perfilesGrupo.profundizacion}</td></tr></tbody></table>
           <p><strong>Estudiantes para seguimiento prioritario:</strong> {perfilesEstudiantes.filter((item) => item.grupo === "Recuperación" || item.persistentes > 0).map((item) => item.nombre).join(", ") || "No se identificaron estudiantes con dificultad persistente en los registros disponibles."}</p>
           <p>Los resultados evidencian un predominio del nivel <strong>{nombreNivel[nivelPredominante]}</strong>, con un {resumen.porcentajesInforme[nivelPredominante]}% de los desempeños registrados. {resumen.porcentajesInforme.elemental > 20 ? "La proporción ubicada en el nivel Elemental requiere una respuesta pedagógica prioritaria y sostenida." : "El grupo presenta una base favorable, aunque permanecen aprendizajes que deben reforzarse."}</p>
-          <h3>4. Fortalezas y aspectos a reforzar</h3><h4>Fortalezas</h4><ul>{resumen.brechas.filter((item) => item.porcentajeApoyo < 30).slice(0, 4).map((item) => <li key={item.aprendizaje}>{item.aprendizaje}: la mayoría evidencia un desempeño satisfactorio.</li>)}</ul><h4>Aspectos prioritarios</h4><ul>{prioridadesInforme.map((item) => <li key={item.aprendizaje}>{item.aprendizaje}: {item.porcentajeApoyo}% requiere apoyo o consolidación.</li>)}</ul>{observaciones && <><h4>Observaciones de la aplicación</h4><p>{observaciones}</p></>}
-          <h3>5. Plan de acción</h3><table><thead><tr><th>Necesidad identificada</th><th>Acciones pedagógicas</th><th>Seguimiento</th></tr></thead><tbody>{(prioridadesInforme.length ? prioridadesInforme : resumen.brechas.slice(0, 2)).map((item) => { const dimension = itemsSeleccionados.find((actividad) => actividad.aprendizaje === item.aprendizaje)?.dimension || ""; return <tr key={item.aprendizaje}><td>{item.aprendizaje}<br/><small>{dimension}</small></td><td>{accionRecuperacion(dimension, area)}</td><td>Registro semanal de mediación y nueva evidencia al finalizar la secuencia de nivelación.</td></tr> })}</tbody></table>
+          <h3>4. Fortalezas y aspectos a reforzar</h3><h4>Fortalezas</h4><ul>{(analisisIA?.fortalezas?.length ? analisisIA.fortalezas.map((texto) => ({ aprendizaje: texto, texto })) : resumen.brechas.filter((item) => item.porcentajeApoyo < 30).slice(0, 4).map((item) => ({ aprendizaje: item.aprendizaje, texto: `${item.aprendizaje}: la mayoría evidencia un desempeño satisfactorio.` }))).map((item) => <li key={item.aprendizaje}>{item.texto}</li>)}</ul><h4>Aspectos prioritarios</h4><ul>{(analisisIA?.prioridades?.length ? analisisIA.prioridades.map((texto) => ({ aprendizaje: texto, texto })) : prioridadesInforme.map((item) => ({ aprendizaje: item.aprendizaje, texto: `${item.aprendizaje}: ${item.porcentajeApoyo}% requiere apoyo o consolidación.` }))).map((item) => <li key={item.aprendizaje}>{item.texto}</li>)}</ul>{observaciones && <><h4>Observaciones de la aplicación</h4><p>{observaciones}</p></>}
+          <h3>5. Plan de acción</h3><table><thead><tr><th>Necesidad identificada</th><th>Acciones pedagógicas</th><th>Seguimiento</th></tr></thead><tbody>{analisisIA?.planAccion?.length
+            ? analisisIA.planAccion.map((fila, indice) => <tr key={`ia-${indice}`}><td>{fila.necesidad}</td><td>{fila.accion}</td><td>{fila.seguimiento || "Registro semanal de mediación y nueva evidencia al finalizar la secuencia de nivelación."}</td></tr>)
+            : (prioridadesInforme.length ? prioridadesInforme : resumen.brechas.slice(0, 2)).map((item) => { const dimension = itemsSeleccionados.find((actividad) => actividad.aprendizaje === item.aprendizaje)?.dimension || ""; return <tr key={item.aprendizaje}><td>{item.aprendizaje}<br/><small>{dimension}</small></td><td>{accionRecuperacion(dimension, area)}</td><td>Registro semanal de mediación y nueva evidencia al finalizar la secuencia de nivelación.</td></tr> })}</tbody></table>
           <h4>Acuerdos de seguimiento</h4><ul><li>Desarrollar una secuencia inicial de nivelación centrada en las brechas prioritarias.</li><li>Organizar agrupamientos flexibles y revisar su composición según los avances.</li><li>Aplicar evaluación formativa periódica con retroalimentación oportuna.</li><li>Registrar avances y ajustar la planificación al finalizar el primer período.</li></ul>
+          <h4>Cronograma anual</h4><table><thead><tr><th>Período</th><th>Acciones principales</th><th>Resultados esperados</th></tr></thead><tbody>{cronograma.map((fila) => <tr key={fila.periodo}><td>{fila.periodo}</td><td>{fila.acciones}</td><td>{fila.esperado}</td></tr>)}</tbody></table>
+          <h4>Indicadores de logro y metas</h4><table><thead><tr><th>Indicador</th><th>Línea de base</th><th>Meta del año</th></tr></thead><tbody>{indicadoresLogro.map((item) => <tr key={item.indicador}><td>{item.indicador}</td><td>{item.lineaBase}</td><td>{item.meta}</td></tr>)}</tbody></table>
           <h3>6. Conclusión</h3><p>Los resultados constituyen el punto de partida para una planificación pertinente y diferenciada. Se priorizará el fortalecimiento de los aprendizajes señalados, manteniendo oportunidades de profundización para los estudiantes con desempeño satisfactorio o excelente.</p>
           <footer><div>____________________________<br/>Firma del docente</div><div>____________________________<br/>Coordinación pedagógica</div></footer>
         </article>
