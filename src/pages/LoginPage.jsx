@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth'
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, sendEmailVerification, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import {
   Brain, BarChart3, BookOpen, ClipboardList,
@@ -8,6 +8,7 @@ import {
   LogIn, Loader2, UserPlus, ShieldCheck, ArrowRight,
 } from 'lucide-react'
 import { auth, db } from '../firebase.js'
+import { requiereSegundoFactor, resolverLoginMFA } from '../services/mfaService.js'
 import './LoginPage.css'
 
 // ── Routing por rol ──────────────────────────────────────────────────────────
@@ -86,8 +87,52 @@ export default function LoginPage() {
   const [recordarme,    setRecordarme]    = useState(false)
   const [cargando,      setCargando]      = useState(false)
   const [error,         setError]         = useState('')
+  const [cuentaSinVerificar, setCuentaSinVerificar] = useState(null) // user que intentó entrar sin verificar
+  const [reenvio,       setReenvio]       = useState('') // mensaje tras reenviar el correo
+  const [errorMFA,      setErrorMFA]      = useState(null) // error que pide 2.º factor
+  const [codigoMFA,     setCodigoMFA]     = useState('')   // código TOTP que escribe el usuario
 
   const limpiar = () => { if (error) setError('') }
+
+  // Reenvía el enlace de verificación. Como tras el signOut no hay sesión, se
+  // re-autentica brevemente con las credenciales ya escritas, reenvía y cierra.
+  const reenviarVerificacion = async () => {
+    setReenvio(''); setError('')
+    if (!contrasena) { setError('Escribe tu contraseña para poder reenviar el enlace.'); return }
+    setCargando(true)
+    try {
+      const { user } = await signInWithEmailAndPassword(auth, correo.trim(), contrasena)
+      await sendEmailVerification(user)
+      await signOut(auth)
+      setReenvio('Enlace reenviado. Revisa tu correo (incluida la carpeta de spam).')
+    } catch (err) {
+      setError(getError(err.code))
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  // Post-login común: bloquea si el correo no está verificado, resuelve el rol
+  // y navega. Se usa tanto en login normal como tras verificar el 2.º factor.
+  const finalizarLogin = async (user) => {
+    // La cuenta admin NO tiene buzón real (no puede recibir el correo de
+    // verificación), así que queda exenta de este bloqueo; se recupera y gestiona
+    // desde la consola de Firebase. Ver docs/SEGURIDAD.md.
+    const esAdmin = (user.email || '').trim().toLowerCase() === ADMIN
+    if (!user.emailVerified && !esAdmin) {
+      setCuentaSinVerificar(user)
+      await signOut(auth)
+      setError('Tu correo aún no está verificado. Revisa tu bandeja (y la carpeta de spam) o reenvía el enlace.')
+      return
+    }
+    setCuentaSinVerificar(null)
+    let rol = 'docente'
+    if (db) {
+      const snap = await getDoc(doc(db, 'usuarios', user.uid))
+      if (snap.exists()) rol = snap.data().rol ?? 'docente'
+    }
+    navigate(getRolPath(rol), { replace: true })
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -102,15 +147,33 @@ export default function LoginPage() {
     try {
       await setPersistence(auth, recordarme ? browserLocalPersistence : browserSessionPersistence)
       const { user } = await signInWithEmailAndPassword(auth, correo.trim(), contrasena)
-
-      let rol = 'docente'
-      if (db) {
-        const snap = await getDoc(doc(db, 'usuarios', user.uid))
-        if (snap.exists()) rol = snap.data().rol ?? 'docente'
-      }
-      navigate(getRolPath(rol), { replace: true })
+      await finalizarLogin(user)
     } catch (err) {
-      setError(getError(err.code))
+      // Si la cuenta tiene segundo factor, Firebase lo pide aquí: mostramos el
+      // campo para el código en vez de un error.
+      if (requiereSegundoFactor(err)) {
+        setErrorMFA(err)
+        setError('')
+      } else {
+        setError(getError(err.code))
+      }
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  // Completa el inicio de sesión con el código TOTP del segundo factor.
+  const verificarCodigoMFA = async (e) => {
+    e?.preventDefault()
+    if (!errorMFA) return
+    if (!/^\d{6}$/.test(codigoMFA.trim())) { setError('Ingresa el código de 6 dígitos de tu app autenticadora.'); return }
+    setCargando(true)
+    try {
+      const { user } = await resolverLoginMFA(errorMFA, codigoMFA.trim())
+      setErrorMFA(null); setCodigoMFA('')
+      await finalizarLogin(user)
+    } catch (err) {
+      setError(getError(err.code) || 'Código incorrecto. Verifica e intenta de nuevo.')
     } finally {
       setCargando(false)
     }
@@ -222,11 +285,49 @@ export default function LoginPage() {
 
             {/* Encabezado */}
             <div className="lp-card-header">
-              <h2 className="lp-card-title">Iniciar sesión</h2>
-              <p className="lp-card-subtitle">Ingresa tus credenciales institucionales</p>
+              <h2 className="lp-card-title">{errorMFA ? 'Verificación en dos pasos' : 'Iniciar sesión'}</h2>
+              <p className="lp-card-subtitle">{errorMFA ? 'Ingresa el código de tu app autenticadora' : 'Ingresa tus credenciales institucionales'}</p>
             </div>
 
-            {/* Formulario */}
+            {/* Paso del segundo factor (MFA): se muestra cuando Firebase lo pide */}
+            {errorMFA ? (
+              <form className="lp-form" onSubmit={verificarCodigoMFA} noValidate>
+                <div className="lp-field">
+                  <label htmlFor="lp-mfa" className="lp-label">Código de 6 dígitos</label>
+                  <div className="lp-input-wrap">
+                    <ShieldCheck size={16} className="lp-input-icon" aria-hidden="true" />
+                    <input
+                      id="lp-mfa"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      className="lp-input"
+                      placeholder="000000"
+                      value={codigoMFA}
+                      onChange={(e) => { setCodigoMFA(e.target.value.replace(/\D/g, '')); if (error) setError('') }}
+                      autoComplete="one-time-code"
+                      autoFocus
+                      disabled={cargando}
+                      aria-label="Código de verificación de dos pasos"
+                    />
+                  </div>
+                </div>
+                {error && (
+                  <div className="lp-error" role="alert" aria-live="polite">
+                    <span className="lp-error-pip" aria-hidden="true" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                <button type="submit" className="lp-submit" disabled={cargando}>
+                  {cargando ? <><Loader2 size={18} className="lp-spin" /> Verificando…</> : <>Verificar y entrar <ArrowRight size={18} /></>}
+                </button>
+                <button type="button" className="lp-btn-secondary" style={{ marginTop: 8 }} disabled={cargando}
+                  onClick={() => { setErrorMFA(null); setCodigoMFA(''); setError('') }}>
+                  Volver
+                </button>
+              </form>
+            ) : (
+            /* Formulario normal */
             <form className="lp-form" onSubmit={handleLogin} noValidate>
 
               {/* Correo */}
@@ -313,6 +414,19 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {/* Reenvío de verificación: aparece solo si intentó entrar sin verificar */}
+              {cuentaSinVerificar && (
+                <button type="button" className="lp-btn-secondary" style={{ marginTop: 8 }}
+                  disabled={cargando} onClick={reenviarVerificacion}>
+                  Reenviar correo de verificación
+                </button>
+              )}
+              {reenvio && (
+                <div className="lp-error" role="status" aria-live="polite" style={{ background: '#eff6ff', color: '#1e40af' }}>
+                  <span>{reenvio}</span>
+                </div>
+              )}
+
               {/* Botón principal */}
               <button
                 type="submit"
@@ -350,6 +464,7 @@ export default function LoginPage() {
                 <strong>(@docente.edu.do)</strong> o cuenta administrativa autorizada.
               </p>
             </form>
+            )}
           </div>
         </div>
       </main>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
+import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from 'firebase/auth'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import {
   User, AtSign, Lock, Eye, EyeOff,
@@ -22,11 +22,22 @@ function validarCorreo(correo) {
   return null
 }
 
+// Contraseña fuerte: ≥8 caracteres con mayúscula, minúscula y número. Sube el
+// listón frente al mínimo de 6 de Firebase; dificulta ataques de fuerza bruta.
+function validarContrasena(pass) {
+  if (!pass)              return 'Debe crear una contraseña.'
+  if (pass.length < 8)    return 'La contraseña debe tener al menos 8 caracteres.'
+  if (!/[a-z]/.test(pass)) return 'La contraseña debe incluir al menos una letra minúscula.'
+  if (!/[A-Z]/.test(pass)) return 'La contraseña debe incluir al menos una letra mayúscula.'
+  if (!/[0-9]/.test(pass)) return 'La contraseña debe incluir al menos un número.'
+  return null
+}
+
 // ── Mensajes de error de Firebase ───────────────────────────────────────────
 const ERRORES = {
   'auth/email-already-in-use':    'Ya existe una cuenta con este correo.',
   'auth/invalid-email':           'El correo electrónico no es válido.',
-  'auth/weak-password':           'La contraseña debe tener al menos 6 caracteres.',
+  'auth/weak-password':           'La contraseña es demasiado débil: usa al menos 8 caracteres con mayúscula, minúscula y número.',
   'auth/network-request-failed':  'Problema de conexión. Verifique su internet.',
   'auth/too-many-requests':       'Demasiados intentos. Intente nuevamente más tarde.',
   'auth/operation-not-allowed':   'El registro por correo no está habilitado. Active Email/Password en la consola de Firebase.',
@@ -61,6 +72,7 @@ export default function RegistroPage() {
   const [verConfirmar,    setVerConfirmar]    = useState(false)
   const [cargando,        setCargando]        = useState(false)
   const [error,           setError]           = useState('')
+  const [registrado,      setRegistrado]      = useState('') // correo al que se envió verificación
 
   const limpiar = () => { if (error) setError('') }
 
@@ -75,8 +87,8 @@ export default function RegistroPage() {
     const errCorreo = validarCorreo(correo)
     if (errCorreo)              { setError(errCorreo); return }
 
-    if (!contrasena)            { setError('Debe crear una contraseña.'); return }
-    if (contrasena.length < 6)  { setError('La contraseña debe tener al menos 6 caracteres.'); return }
+    const errPass = validarContrasena(contrasena)
+    if (errPass)                 { setError(errPass); return }
     if (contrasena !== confirmar){ setError('Las contraseñas no coinciden.'); return }
 
     if (!auth)  { setError('El servicio de autenticación no está disponible.'); return }
@@ -109,12 +121,55 @@ export default function RegistroPage() {
         }
       }
 
-      navigate('/', { replace: true })
+      // Enviar correo de verificación y NO dejar entrar hasta que confirme.
+      // Protege contra registros con correos falsos o ajenos.
+      try {
+        await sendEmailVerification(user)
+      } catch (verErr) {
+        console.error('[RegistroPage] sendEmailVerification:', verErr?.code, verErr?.message)
+      }
+      await signOut(auth) // cierra la sesión recién creada hasta que verifique
+      setCargando(false)
+      setRegistrado(correo.trim().toLowerCase())
+      return
     } catch (err) {
       setError(getError(err.code))
     } finally {
       setCargando(false)
     }
+  }
+
+  // Pantalla de "revisa tu correo": tras registrarse, el docente debe confirmar
+  // su correo antes de poder iniciar sesión. No lo dejamos entrar hasta entonces.
+  if (registrado) {
+    return (
+      <div className="rp-shell">
+        <div className="rp-bg" aria-hidden="true">
+          <div className="rp-bg-glow rp-glow-1" />
+          <div className="rp-bg-glow rp-glow-2" />
+          <div className="rp-bg-grid" />
+        </div>
+        <div className="rp-card">
+          <div className="rp-stripe" aria-hidden="true" />
+          <div className="rp-card-body">
+            <div className="rp-header">
+              <div className="rp-logo-wrap"><span className="rp-logo-fallback" aria-hidden="true">📧</span></div>
+              <h1 className="rp-title">Revisa tu correo</h1>
+              <p className="rp-subtitle">
+                Te enviamos un enlace de verificación a <strong>{registrado}</strong>.
+                Ábrelo para confirmar tu cuenta antes de iniciar sesión.
+              </p>
+            </div>
+            <div className="rp-error" role="status" style={{ background: '#eff6ff', color: '#1e40af', borderColor: '#bfdbfe' }}>
+              <span>Si no lo ves en unos minutos, revisa la carpeta de <strong>spam</strong> o correo no deseado.</span>
+            </div>
+            <button type="button" className="rp-submit" onClick={() => navigate('/login', { replace: true })}>
+              Ir a iniciar sesión
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -230,7 +285,7 @@ export default function RegistroPage() {
                   id="rp-pass"
                   type={verContrasena ? 'text' : 'password'}
                   className="rp-input rp-input-pass"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 8: mayúscula, minúscula y número"
                   value={contrasena}
                   onChange={(e) => { setContrasena(e.target.value); limpiar() }}
                   autoComplete="new-password"
