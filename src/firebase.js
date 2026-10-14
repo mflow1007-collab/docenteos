@@ -52,6 +52,31 @@ let storage = null;
 
 if (isFirebaseConfigured) {
   const app = initializeApp(firebaseConfig);
+
+  // App Check (anti-bots/abuso): protege el backend de peticiones que no vienen
+  // de tu app real. Se activa SOLO si definiste la clave de sitio de reCAPTCHA
+  // en VITE_RECAPTCHA_SITE_KEY. Si no, la app funciona igual (sin protección).
+  // Requiere, en consola: Firebase → App Check → registrar la app con reCAPTCHA
+  // v3 (o Enterprise) y pegar aquí la clave de sitio. Ver docs/SEGURIDAD.md.
+  const recaptchaKey = ENV.VITE_RECAPTCHA_SITE_KEY;
+  if (recaptchaKey && !String(recaptchaKey).toLowerCase().includes("your_")) {
+    // Import dinámico: no cargar el SDK de App Check si no se usa.
+    import("firebase/app-check").then(({ initializeAppCheck, ReCaptchaV3Provider }) => {
+      try {
+        if (ENV.DEV && ENV.VITE_APPCHECK_DEBUG_TOKEN) {
+           
+          self.FIREBASE_APPCHECK_DEBUG_TOKEN = ENV.VITE_APPCHECK_DEBUG_TOKEN;
+        }
+        initializeAppCheck(app, {
+          provider: new ReCaptchaV3Provider(recaptchaKey),
+          isTokenAutoRefreshEnabled: true,
+        });
+      } catch (e) {
+        console.warn("[DocenteOS] App Check no se pudo inicializar:", e?.message);
+      }
+    }).catch((e) => console.warn("[DocenteOS] App Check no disponible:", e?.message));
+  }
+
   db = getFirestore(app);
   auth = getAuth(app);
   storage = getStorage(app);

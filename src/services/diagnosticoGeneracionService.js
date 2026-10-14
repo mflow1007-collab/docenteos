@@ -271,6 +271,72 @@ export const generarPruebaDiagnostica = async ({ area, asignatura, grado, nivel,
   throw new Error(`No se pudo generar la prueba: ${ultimoMotivo}`);
 };
 
+// ─── Análisis del informe personalizado por IA ───────────────────────────────
+// Enriquece el informe diagnóstico con texto REDACTADO para este docente y este
+// grupo: usa su área/asignatura, zona, contexto comunitario, nivel y los datos
+// REALES del diagnóstico (distribución por nivel y brechas prioritarias). No es
+// genérico: el análisis, el plan de acción, el cronograma y los indicadores se
+// escriben a partir de lo que pasó en ESTE grupo. El docente puede editarlo.
+export const generarAnalisisInformeIA = async ({ area, asignatura, grado, nivel, zonaEscolar, contextoComunitario, porEstudiante, brechas = [], observaciones = "" } = {}) => {
+  const materia = _texto(asignatura) || _texto(area) || "el área";
+  const { niveles = {}, porcentajes = {}, evaluados = 0 } = porEstudiante || {};
+  if (!evaluados) throw new Error("No hay resultados suficientes para analizar el grupo.");
+
+  const distribucion = ["elemental", "aceptable", "satisfactorio"]
+    .map((n) => `${n}: ${niveles[n] || 0} estudiantes (${porcentajes[n] || 0}%)`)
+    .join("; ");
+  const brechasTxt = _arr(brechas).slice(0, 5)
+    .map((b) => `- ${b.aprendizaje}: ${b.porcentajeApoyo}% requiere apoyo`)
+    .join("\n") || "- (sin brechas registradas)";
+  const zonaTxt = describirZona(zonaEscolar || "");
+
+  const system = [
+    "Eres un asesor pedagógico del MINERD (República Dominicana).",
+    "Redactas el análisis de un informe de evaluación diagnóstica para UN docente concreto y SU grupo.",
+    "NO escribas texto genérico ni de relleno: cada frase debe apoyarse en los datos y el contexto que te dan.",
+    "Español dominicano, tono profesional y claro. Responde SOLO con un JSON válido, sin texto fuera del JSON.",
+  ].join(" ");
+
+  const prompt = [
+    `Área/asignatura: ${materia}. Grado: ${grado || "sin definir"}. Nivel: ${nivel || "Secundaria"}.`,
+    zonaTxt ? `Zona escolar: ${zonaTxt}.` : "",
+    _texto(contextoComunitario) ? `Contexto comunitario (en palabras del docente): ${_texto(contextoComunitario)}.` : "",
+    `Estudiantes evaluados: ${evaluados}.`,
+    `Distribución por nivel de desempeño: ${distribucion}.`,
+    `Brechas por aprendizaje (ordenadas por necesidad de apoyo):\n${brechasTxt}`,
+    _texto(observaciones) ? `Observaciones del docente durante la aplicación: ${_texto(observaciones)}.` : "",
+    "",
+    "Devuelve EXACTAMENTE este JSON:",
+    `{
+  "analisis": "2-4 frases interpretando el desempeño del grupo en ${materia}, citando los porcentajes reales y la brecha más urgente",
+  "fortalezas": ["2-3 fortalezas concretas del grupo según los datos"],
+  "prioridades": ["2-3 aspectos a reforzar, los de mayor necesidad de apoyo"],
+  "planAccion": [{"necesidad": "...", "accion": "estrategia concreta para ${materia}, adecuada a la zona y al contexto", "seguimiento": "cómo se verificará el avance"}],
+  "cronograma": [{"periodo": "Semana 1|1er período|2do período|3er y 4to período", "acciones": "...", "esperado": "meta realista a partir de la línea de base"}],
+  "indicadores": [{"indicador": "...", "lineaBase": "valor actual", "meta": "meta del año"}]
+}`,
+  ].filter(Boolean).join("\n");
+
+  let ultimo = "";
+  for (let intento = 0; intento < 2; intento += 1) {
+    const { text, stopReason } = await generarGuiaSemanaRaw(prompt, system, { maxTokens: 4000 });
+    const parsed = extraerJSON(text, stopReason);
+    if (!parsed.ok) { ultimo = parsed.motivo || "JSON inválido"; continue; }
+    const d = parsed.data || {};
+    if (!_texto(d.analisis)) { ultimo = "faltó el análisis"; continue; }
+    return {
+      analisis: _texto(d.analisis),
+      fortalezas: _arr(d.fortalezas).map(_texto).filter(Boolean),
+      prioridades: _arr(d.prioridades).map(_texto).filter(Boolean),
+      planAccion: _arr(d.planAccion).filter((p) => _texto(p?.necesidad) || _texto(p?.accion)),
+      cronograma: _arr(d.cronograma).filter((c) => _texto(c?.periodo)),
+      indicadores: _arr(d.indicadores).filter((i) => _texto(i?.indicador)),
+      origen: "ia",
+    };
+  }
+  throw new Error(`No se pudo generar el análisis: ${ultimo}`);
+};
+
 // ─── Exportación a HTML/PDF (vista del estudiante / del docente) ──────────────
 // Documento imprimible tipo MINERD. conClave=false → prueba del ESTUDIANTE (sin
 // respuestas); conClave=true → versión del DOCENTE (clave marcada + guía de los

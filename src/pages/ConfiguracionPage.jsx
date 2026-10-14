@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { guardarPerfilInstitucional } from "../services/perfilInstitucionalService.js";
+import SeguridadMFA from "../components/SeguridadMFA.jsx";
 import "./ConfiguracionPage.css";
 import { getAreas, getAsignaturas } from "../planning/areaAsignaturaMap.js";
 
@@ -231,6 +232,8 @@ export default function ConfiguracionPage() {
           </button>
         </div>
       </form>
+
+      <SeguridadMFA />
     </div>
   );
 }

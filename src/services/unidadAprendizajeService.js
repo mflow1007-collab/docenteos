@@ -21,6 +21,15 @@ import {
   formatearProductoFinal,
 } from "./curriculumCombinacionService.js";
 
+// Escapa texto para interpolar en HTML sin riesgo de inyección (XSS). La unidad
+// viene de la IA y de formularios del docente; aunque es un documento que él
+// imprime, un '<' sin escapar rompería el HTML o ejecutaría script al imprimir.
+const escHtml = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Escapa recursivamente los strings de un objeto/array, preservando estructura.
+const escProfundo = (v) => Array.isArray(v) ? v.map(escProfundo)
+  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, escProfundo(x)]))
+  : typeof v === "string" ? escHtml(v) : v;
+
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const NOMBRES_FASES = [
@@ -4921,7 +4930,8 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
 
 export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   if (!unidad) return "";
-  const m = unidad.metadatos || {};
+  // Metadatos escapados una sola vez (nombre docente, centro, título, etc.).
+  const m = escProfundo(unidad.metadatos || {});
 
   const estilos = `
     body { font-family: 'Book Antiqua', Palatino, 'Palatino Linotype', serif; font-size: 12pt; line-height: 1.15; color: #111; margin: 0; }
@@ -5006,7 +5016,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   const listaHtml = (items = [], max = 0) => {
     const arr = max ? (items || []).slice(0, max) : (items || []);
     return arr.length
-      ? `<ul>${arr.map((item) => `<li>${item}</li>`).join("")}</ul>`
+      ? `<ul>${arr.map((item) => `<li>${escHtml(item)}</li>`).join("")}</ul>`
       : "<em>No registrado en la malla.</em>";
   };
 
@@ -5065,21 +5075,23 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           momento: mom.nombre,
         });
         const actsHtml = (mom.actividades || []).map((a, i) => {
-          const html = negritaPrimeraPalabra(a)
+          // Escapa el texto ANTES de convertir el markdown (**bold**, _em_) para
+          // no romper el formato intencional pero neutralizar HTML inyectado.
+          const html = negritaPrimeraPalabra(escHtml(a))
             .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
             .replace(/_([^_]+)_/g, "<em>$1</em>");
           return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span> ${html}</p>`;
         }).join("");
-        const evalHtml = `<strong>Tipo:</strong> ${mom.evaluacion?.tipo}.<br><strong>Agente:</strong> ${mom.evaluacion?.agente}.<br><strong>Técnica:</strong> ${mom.evaluacion?.tecnica}.<br><strong>Instrumento:</strong> ${mom.evaluacion?.instrumento}.`;
+        const evalHtml = `<strong>Tipo:</strong> ${escHtml(mom.evaluacion?.tipo)}.<br><strong>Agente:</strong> ${escHtml(mom.evaluacion?.agente)}.<br><strong>Técnica:</strong> ${escHtml(mom.evaluacion?.tecnica)}.<br><strong>Instrumento:</strong> ${escHtml(mom.evaluacion?.instrumento)}.`;
         const recursos = mom.recursos || {};
-        const recursosHtml = `<strong>Humanos:</strong> ${recursos.humanos}<br><strong>Didácticos:</strong> ${recursos.didacticos}<br><strong>Tecnológicos:</strong> ${recursos.tecnologicos}`;
-        const metaHtml = (mom.metacognicion || []).join(" · ");
+        const recursosHtml = `<strong>Humanos:</strong> ${escHtml(recursos.humanos)}<br><strong>Didácticos:</strong> ${escHtml(recursos.didacticos)}<br><strong>Tecnológicos:</strong> ${escHtml(recursos.tecnologicos)}`;
+        const metaHtml = (mom.metacognicion || []).map(escHtml).join(" · ");
         return `
           <tr>
-            <td class="td-momento" rowspan="2">${mom.nombre}</td>
-            <td class="td-tiempo" rowspan="2">${mom.tiempo}</td>
+            <td class="td-momento" rowspan="2">${escHtml(mom.nombre)}</td>
+            <td class="td-tiempo" rowspan="2">${escHtml(mom.tiempo)}</td>
             <td rowspan="2">${actsHtml}</td>
-            <td style="white-space:pre-line">${(mom.evidencias || "").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/_([^_]+)_/g, "<em>$1</em>")}</td>
+            <td style="white-space:pre-line">${escHtml(mom.evidencias || "").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/_([^_]+)_/g, "<em>$1</em>")}</td>
             <td>${evalHtml}</td>
             <td rowspan="2">${recursosHtml}</td>
           </tr>
@@ -5116,7 +5128,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       // libro oficial (título + líneas de diálogo).
       const tm = dia.textoModelo;
       const textoModeloHtml = tm && Array.isArray(tm.lineas) && tm.lineas.length
-        ? `<div class="modelo-band"><div class="modelo-head">Texto modelo${tm.titulo ? `: ${tm.titulo}` : ""}</div><div class="modelo-body">${tm.lineas.map((l) => `<div class="modelo-linea">${l}</div>`).join("")}</div></div>`
+        ? `<div class="modelo-band"><div class="modelo-head">Texto modelo${tm.titulo ? `: ${escHtml(tm.titulo)}` : ""}</div><div class="modelo-body">${tm.lineas.map((l) => `<div class="modelo-linea">${escHtml(l)}</div>`).join("")}</div></div>`
         : "";
       return `
         <div class="semana-band">Día ${dia.numeroEnSemana || dia.dia || dia.numero || dia.numeroGlobal}: "${dia.titulo}"${focoHtml}</div>
@@ -5169,7 +5181,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           <td>${tipos.join(", ") || "—"}</td>
           <td>${tecnicas.join("; ") || "—"}</td>
           <td>${instrumentos.join(", ") || "—"}</td>
-          <td>${aportes.map((a) => `• ${a}`).join("<br>") || "—"}</td>
+          <td>${aportes.map((a) => `• ${escHtml(a)}`).join("<br>") || "—"}</td>
         </tr>
         ${obs ? `<tr><td colspan="5"><strong>Observaciones de la fase:</strong> ${obs}</td></tr>` : ""}
       </table>`;
@@ -5181,7 +5193,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     // de evaluación ya NO va por semana: se emite una vez por fase (abajo).
     const diasHtml = gruposSemana.map((g) => {
       const tituloSem = String(g.dias[0]?.tituloSemana || fase.tituloSemana || "").trim();
-      const banda = `<div class="semana-band">${m.titulo} — SEMANA ${g.semana} (${g.dias.length} día${g.dias.length === 1 ? "" : "s"})${tituloSem ? `: "${tituloSem}"` : ""}</div>`;
+      const banda = `<div class="semana-band">${m.titulo} — SEMANA ${g.semana} (${g.dias.length} día${g.dias.length === 1 ? "" : "s"})${tituloSem ? `: "${escHtml(tituloSem)}"` : ""}</div>`;
       return banda + g.dias.map(diaHtml).join("");
     }).join("");
 
@@ -5205,7 +5217,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       <div class="neae-grid">
         <div class="neae-col"><div class="neae-head">Técnicas</div><div class="neae-body">${(resEv?.tecnicas || []).join(", ") || "Observación directa, revisión de producciones y ticket de salida."}</div></div>
         <div class="neae-col"><div class="neae-head">Instrumentos</div><div class="neae-body">${(resEv?.instrumentos || []).join(", ") || "Lista de cotejo, rúbrica analítica, escala de valoración."}</div></div>
-        <div class="neae-col"><div class="neae-head">Observaciones</div><div class="neae-body">${obsSemana}</div></div>
+        <div class="neae-col"><div class="neae-head">Observaciones</div><div class="neae-body">${escHtml(obsSemana)}</div></div>
       </div>` : "";
 
     // Checkpoint formativo de mitad de unidad: UNA sola vez. Se emite en la
@@ -5235,7 +5247,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
   return `<!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><title>${unidad.tipoPlanificacion || "Unidad de Aprendizaje"} — ${m.titulo}</title>
+<head><meta charset="UTF-8"><title>${escHtml(unidad.tipoPlanificacion || "Unidad de Aprendizaje")} — ${m.titulo}</title>
 <style>${estilos}</style></head>
 <body><div class="page">
   <div class="header-minerd">
@@ -5299,7 +5311,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       //  · no aplica           → texto NORMAL (código incluido, sin negrita)
       // La tabla siempre muestra los 21; solo cambia el formato de cada uno.
       const indicadorHtml = (ind) => {
-        if (typeof ind === 'string') return ind;
+        if (typeof ind === 'string') return escHtml(ind);
         const estilo = [
           ind?.aplicaTemaActual ? 'display:block;font-weight:700;background:#dbeafe;border-left:4px solid #1d4ed8;padding:4px 6px;color:#172554' : '',
           ind?.trabajadoAntes ? 'text-decoration:line-through;opacity:.72' : '',
@@ -5311,14 +5323,14 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         const cod = ind?.codigo
           ? (ind?.aplicaTemaActual ? `<strong>${ind.codigo}</strong> — ` : `${ind.codigo} — `)
           : '';
-        return `${abrir}${cod}${ind?.descripcion || ''}${cerrar}`;
+        return `${abrir}${cod}${escHtml(ind?.descripcion || '')}${cerrar}`;
       };
       const filas = detalle.map((c) => `
         <tr>
           <td style="width:34%;vertical-align:top;padding:6px 8px;background:#f8fafc">
-            <strong>${c.competenciaFundamental || 'Competencia'}</strong>
-            ${c.codigo ? `<br><strong style="font-size:10.5pt;color:#1e3a8a">${c.codigo}</strong>` : ''}
-            ${c.especifica ? `<br><em style="font-size:11pt">${c.especifica}</em>` : ''}
+            <strong>${escHtml(c.competenciaFundamental || 'Competencia')}</strong>
+            ${c.codigo ? `<br><strong style="font-size:10.5pt;color:#1e3a8a">${escHtml(c.codigo)}</strong>` : ''}
+            ${c.especifica ? `<br><em style="font-size:11pt">${escHtml(c.especifica)}</em>` : ''}
           </td>
           <td style="vertical-align:top;padding:6px 8px">
             ${c.indicadores?.length
@@ -5343,7 +5355,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           <td class="lbl" style="vertical-align:middle">${f}</td>
           <td rowspan="${rowspan}" style="padding:6px 10px;vertical-align:top">
             ${especifica ? `<strong>Competencia Específica:</strong> ${especifica}${nivelMCERL}<br><br>` : ''}
-            ${indicadores.length ? `<strong>Indicadores de Logro:</strong><ul style="margin:4px 0 0 18px;padding:0">${indicadores.map(ind => `<li style="margin-bottom:3px">${ind}</li>`).join('')}</ul>` : ''}
+            ${indicadores.length ? `<strong>Indicadores de Logro:</strong><ul style="margin:4px 0 0 18px;padding:0">${indicadores.map(ind => `<li style="margin-bottom:3px">${escHtml(ind)}</li>`).join('')}</ul>` : ''}
           </td>
         </tr>`
       : `<tr><td class="lbl" style="vertical-align:middle">${f}</td></tr>`
@@ -5367,13 +5379,13 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       return `<div class="contenidos">
     <div class="cont-col"><div class="cont-head">Conceptuales</div><ul class="cont-list">${(unidad.contenidos?.conceptuales || []).map((c) => {
         const m = String(c).match(/^(Vocabulario|Gramática|Expresión):\s*(.*)$/s);
-        return m ? `<li><strong>${m[1]}:</strong> ${m[2]}</li>` : `<li>${c}</li>`;
+        return m ? `<li><strong>${m[1]}:</strong> ${escHtml(m[2])}</li>` : `<li>${escHtml(c)}</li>`;
       }).join("")}</ul></div>
     <div class="cont-col"><div class="cont-head">Procedimentales</div><ul class="cont-list">${(unidad.contenidos?.procedimentales || []).map((c) => {
         const m = String(c).match(/^(Funcional|Discursivo):\s*(.*)$/s);
-        return m ? `<li><strong>${m[1]}:</strong> ${m[2]}</li>` : `<li>${c}</li>`;
+        return m ? `<li><strong>${m[1]}:</strong> ${escHtml(m[2])}</li>` : `<li>${escHtml(c)}</li>`;
       }).join("")}</ul></div>
-    <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${(unidad.contenidos?.actitudinales || []).map((c) => `<li>${c}</li>`).join("")}</ul></div>
+    <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${(unidad.contenidos?.actitudinales || []).map((c) => `<li>${escHtml(c)}</li>`).join("")}</ul></div>
   </div>`;
     }
     const li = (t) => `<li>${t}</li>`;

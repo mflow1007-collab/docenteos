@@ -93,6 +93,11 @@ service cloud.firestore {
       match /estudiantes/{estId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+      // Diagnósticos del docente (usuarios/{uid}/diagnosticos):
+      // diagnosticoFirebaseService escribe/lee la evaluación diagnóstica aquí.
+      match /diagnosticos/{diagId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
       // Grupos académicos del docente (audit-cerebro F3)
       match /gruposAcademicos/{grupoId} {
         allow read, write: if isOwner(userId) || isAdmin();
