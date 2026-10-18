@@ -231,7 +231,10 @@ export default function PlanificacionPage({
       contextoComunitario: prev.contextoComunitario || perfilContextoComunitario,
       zonaEscolar: prev.zonaEscolar || perfilZonaEscolar,
     }));
-  }, [perfilNombreDocente, perfilRegional, perfilDistrito, perfilCentro, perfilCodigoCentro, perfilNivel, perfilModalidad, perfilCiclo, perfilJornada, perfilPeriodo, perfilContextoComunitario, perfilZonaEscolar]);
+    // setPlanDiarioDatos/setUnidadDatos son setters de useState (vienen de los
+    // hooks usePlanDiario/useUnidadAprendizaje): React garantiza su estabilidad,
+    // así que incluirlos satisface la regla sin re-ejecutar el efecto.
+  }, [perfilNombreDocente, perfilRegional, perfilDistrito, perfilCentro, perfilCodigoCentro, perfilNivel, perfilModalidad, perfilCiclo, perfilJornada, perfilPeriodo, perfilContextoComunitario, perfilZonaEscolar, setPlanDiarioDatos, setUnidadDatos]);
 
   // ── Estado de generación (planificación general) ──
   const [cargando, setCargando] = useState(false);

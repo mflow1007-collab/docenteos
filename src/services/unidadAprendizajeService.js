@@ -20,15 +20,7 @@ import {
   construirProductoEstructurado,
   formatearProductoFinal,
 } from "./curriculumCombinacionService.js";
-
-// Escapa texto para interpolar en HTML sin riesgo de inyección (XSS). La unidad
-// viene de la IA y de formularios del docente; aunque es un documento que él
-// imprime, un '<' sin escapar rompería el HTML o ejecutaría script al imprimir.
-const escHtml = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-// Escapa recursivamente los strings de un objeto/array, preservando estructura.
-const escProfundo = (v) => Array.isArray(v) ? v.map(escProfundo)
-  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, escProfundo(x)]))
-  : typeof v === "string" ? escHtml(v) : v;
+import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -5077,9 +5069,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         const actsHtml = (mom.actividades || []).map((a, i) => {
           // Escapa el texto ANTES de convertir el markdown (**bold**, _em_) para
           // no romper el formato intencional pero neutralizar HTML inyectado.
-          const html = negritaPrimeraPalabra(escHtml(a))
-            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-            .replace(/_([^_]+)_/g, "<em>$1</em>");
+          const html = cursivaMarkdownSegura(
+            negritaPrimeraPalabra(escHtml(a))
+              .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+          );
           return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span> ${html}</p>`;
         }).join("");
         const evalHtml = `<strong>Tipo:</strong> ${escHtml(mom.evaluacion?.tipo)}.<br><strong>Agente:</strong> ${escHtml(mom.evaluacion?.agente)}.<br><strong>Técnica:</strong> ${escHtml(mom.evaluacion?.tecnica)}.<br><strong>Instrumento:</strong> ${escHtml(mom.evaluacion?.instrumento)}.`;
@@ -5091,7 +5084,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
             <td class="td-momento" rowspan="2">${escHtml(mom.nombre)}</td>
             <td class="td-tiempo" rowspan="2">${escHtml(mom.tiempo)}</td>
             <td rowspan="2">${actsHtml}</td>
-            <td style="white-space:pre-line">${escHtml(mom.evidencias || "").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/_([^_]+)_/g, "<em>$1</em>")}</td>
+            <td style="white-space:pre-line">${markdownLigeroSeguro(mom.evidencias || "")}</td>
             <td>${evalHtml}</td>
             <td rowspan="2">${recursosHtml}</td>
           </tr>
@@ -5586,7 +5579,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 export const formatearGuiaMaestroHTML = (guia, logoUrl = "") => {
   if (!guia) return "";
   const m = guia.metadatos || {};
-  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc = escHtml; // escape centralizado (incluye comillas, seguro en atributos)
   const arr = (v) => (Array.isArray(v) ? v : []);
   const productoCorto = nombreCortoProducto(m.productoFinal) || "el producto final";
   const fichas = arr(guia.fichas);

@@ -1,6 +1,7 @@
 /* Servicio: Plan Diario MINERD */
 
 import { FUENTE_ADECUACIONES_CURRICULARES } from "../data/adecuacionesCurriculares.js";
+import { escHtml, escProfundo } from "../utils/html.js";
 
 // ─── Constantes curriculares ─────────────────────────────────────────────────
 
@@ -564,17 +565,7 @@ export const generarPlanDiario = (datos) => {
 };
 
 // ─── Exportar a HTML (MINERD format) ────────────────────────────────────────
-
-// Escapa texto para interpolar en HTML sin riesgo de inyección (XSS). El
-// contenido del plan viene de la IA y de formularios del docente: aunque es un
-// documento que él mismo imprime, un '<' sin escapar rompería el HTML o podría
-// ejecutar script en la ventana de impresión.
-const escHtml = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-// Escapa recursivamente los valores string de un objeto/array de datos, dejando
-// intacta la estructura. Se aplica a los metadatos antes de verterlos al HTML.
-const escProfundo = (v) => Array.isArray(v) ? v.map(escProfundo)
-  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, escProfundo(x)]))
-  : typeof v === "string" ? escHtml(v) : v;
+// Escape HTML (incluye comillas, seguro en atributos) centralizado en utils/html.js.
 
 export const formatearPlanDiarioHTML = (plan) => {
   if (!plan) return "";

@@ -99,7 +99,13 @@ export function useContextoDocente() {
     })();
 
     return () => { activo = false; };
-  }, [user?.uid]);
+    // Depende de `perfil` además de user.uid: el contexto que se inyecta a la IA
+    // debe reflejar el perfil ACTUAL del docente. Si solo dependiera de uid (que
+    // nunca cambia), editar el perfil (área/centro/zona) dejaría el contexto
+    // obsoleto (stale). `perfil` viene de un useState en AuthContext: su
+    // referencia solo cambia cuando el perfil cambia de verdad, así que no
+    // provoca re-ejecuciones en cada render.
+  }, [user?.uid, perfil]);
 
   return { contexto, cargando, datosCurriculares };
 }

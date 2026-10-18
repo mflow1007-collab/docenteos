@@ -537,6 +537,11 @@ export default function AdminPotenteIA() {
     return items
   }
 
+  // Carga las fuentes UNA vez al montar. cargarFuentes se recrea en cada render;
+  // incluirla re-ejecutaría la carga continuamente. En el montaje, el fuenteId
+  // inicial (vacío) es justo lo deseado para autoseleccionar la primera fuente;
+  // las recargas posteriores (tras subir/borrar) llaman cargarFuentes a mano.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { cargarFuentes() }, [])
 
   const agregarArchivos = async (event) => {

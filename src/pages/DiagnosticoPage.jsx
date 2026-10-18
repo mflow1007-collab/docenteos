@@ -158,6 +158,12 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
     setItems(bancoGuardado && !francesConContenidoIngles ? bancoGuardado : generarBancoDiagnostico({ area: areaInicial, asignatura: asignaturaInicial }));
     setPaso(existente?.estado === "completado" ? 3 : 1);
     setGuardado("");
+    // Efecto de INICIALIZACIÓN del formulario al cambiar de curso/año/sync. Las
+    // deps son deliberadamente las claves de identidad (cursoId captura el cambio
+    // de curso; área/asignatura del perfil). Depender de los objetos `curso`/
+    // `perfil` completos re-ejecutaría esto ante cualquier cambio de referencia y
+    // PISARÍA las ediciones del docente (resetea items/resultados). Seguro así.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursoId, anoEscolar, curso?.area, perfil?.areaPrincipal, perfil?.asignaturaPrincipal, syncTick]);
 
   useEffect(() => {
@@ -198,6 +204,11 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
       })
       .finally(() => { if (activo) setCargandoReferentes(false); });
     return () => { activo = false; };
+    // Deps = TODOS los campos de curso/perfil que influyen en el contexto
+    // curricular (grado/nivel/área/asignatura) + lo elegido en el formulario.
+    // Depender de los objetos `curso`/`perfil` completos re-dispararía cargas de
+    // Firestore ante cualquier cambio de referencia sin efecto en el resultado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curso?.grado, curso?.nivel, curso?.area, area, asignatura, perfil?.areaPrincipal, perfil?.asignaturaPrincipal, modoGeneracion]);
 
   const resumen = useMemo(

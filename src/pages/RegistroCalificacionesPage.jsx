@@ -366,6 +366,11 @@ function RegistroPage({
         })));
       }
     });
+    // Recarga las competencias al cambiar de curso. curso?.id identifica el
+    // curso de forma única: sus campos (área/grado/nivel) cambian junto con el
+    // id, así que depender del id basta y evita recargas por cambios de
+    // referencia del objeto sin cambio real de curso.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curso?.id]);
   const [observaciones, setObservaciones] = useState({});
   const [notasEstudiantes, setNotasEstudiantes] = useState({});
@@ -690,7 +695,15 @@ function RegistroPage({
       enRiesgo,
       conNotas,
     };
-  }, [asistencia, notasEstudiantes, estudiantes]);
+    // Incluye cantidadCompetencias: getNotasEstudiante normaliza las notas a ese
+    // número. Si cambia (p. ej. al cargar el currículo) sin cambiar las notas,
+    // el resumen debe recalcularse para no quedar stale. Es un primitivo, no
+    // provoca recálculos espurios. getNotasEstudiante se omite a propósito: es
+    // una función recreada en cada render cuyas únicas dependencias reales
+    // (notasEstudiantes, cantidadCompetencias) ya están listadas; incluirla
+    // recalcularía el memo en cada render sin cambio de datos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asistencia, notasEstudiantes, estudiantes, cantidadCompetencias]);
 
   const actualizarAsistencia = (estudianteId, mes, semanaIdx, diaIdx, valor) => {
     setAsistencia((prev) =>

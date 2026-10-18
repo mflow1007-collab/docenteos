@@ -21,6 +21,7 @@
 import { generarGuiaSemanaRaw, extraerJSON } from "./phaseAService.js";
 import { obtenerMolde, describirMolde } from "./diagnosticoMoldeService.js";
 import { cargarReferentesDiagnosticos } from "./diagnosticoCurricularService.js";
+import { escHtml } from "../utils/html.js";
 
 const _texto = (v) => String(v ?? "").trim();
 const _arr = (v) => (Array.isArray(v) ? v : []);
@@ -344,7 +345,7 @@ export const generarAnalisisInformeIA = async ({ area, asignatura, grado, nivel,
 export const formatearPruebaDiagnosticaHTML = (prueba, { conClave = false, logoUrl = "" } = {}) => {
   if (!prueba) return "";
   const m = prueba.metadatos || {};
-  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc = escHtml; // escape centralizado (incluye comillas, seguro en atributos)
   const estimulosPorId = Object.fromEntries(_arr(prueba.estimulos).map((e) => [e.id, e]));
   const abiertos = _arr(prueba.items).filter((i) => i.tipo === "abierta").length;
   const multiples = _arr(prueba.items).length - abiertos;
