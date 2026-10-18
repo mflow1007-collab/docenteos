@@ -4750,9 +4750,14 @@ export const generarUnidadAprendizaje = async (datos) => {
     area: claveContenido,
     tema: titulo,
     producto: productoNombrado,
-    // 6 — glosario SOLO con el vocabulario del tema servido a la IA, nunca
-    // la lista completa del grado
-    vocabulario: (mallaContenidos.vocabulario || []).slice(0, 20),
+    // 6 — glosario con el vocabulario REAL de TODOS los temas trabajados en la
+    // unidad (no solo el primero): se recoge de contenidos.porTema, que ya trae
+    // los términos limpios por tema. Fallback a la unión cruda de la malla.
+    vocabulario: textosUnicos(
+      (contenidos.porTema || []).flatMap((t) => t.vocabulario || [])
+    ).length
+      ? textosUnicos((contenidos.porTema || []).flatMap((t) => t.vocabulario || [])).slice(0, 24)
+      : (mallaContenidos.vocabulario || []).slice(0, 20),
     fases: unidadResult.fasesSemanales || [],
     numSemanas,
     aportesProducto,

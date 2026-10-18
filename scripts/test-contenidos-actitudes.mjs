@@ -12,7 +12,7 @@
  *
  * Ejecutar: node scripts/test-contenidos-actitudes.mjs
  */
-import { normalizarActitudes } from "../src/services/unidadAprendizajeService.js";
+import { normalizarActitudes, construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -67,5 +67,19 @@ check("no rompe actitudes legítimas con puntuación interna", () => {
   assert(r.length === 1 && r[0] === "Respeto por el tiempo propio y el de las demás personas.", `rompió: ${JSON.stringify(r)}`);
 });
 
-console.log(`\nActitudes: ${pasos} pasos, ${fallos} fallos`);
+// ── Glosario (Anexo F) sincronizado con TODOS los temas trabajados ───────────
+// Bug del PDF: el Anexo F solo traía vocabulario del primer tema ("Actividades
+// de la vida diaria"); faltaba el de "Escuela y educación".
+check("el glosario (Anexo F) incluye vocabulario de todos los temas, no solo el primero", () => {
+  const anexos = construirAnexosUnidad({
+    area: "Inglés", tema: "Vida y comunidad escolar", producto: "A Day in My Life",
+    vocabulario: ["take a shower", "eat breakfast", "go to bed", "subject", "recess", "homework"],
+    fases: [], numSemanas: 4,
+  });
+  const terminos = (anexos.glosario || []).map((g) => g.termino);
+  assert(terminos.includes("take a shower"), "falta vocabulario del tema 1");
+  assert(terminos.includes("subject") || terminos.includes("recess"), "falta vocabulario del tema 2 (escuela)");
+});
+
+console.log(`\nActitudes/Glosario: ${pasos} pasos, ${fallos} fallos`);
 process.exit(fallos ? 1 : 0);
