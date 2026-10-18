@@ -115,5 +115,37 @@ check("el de-dup Desempeño/Producto limpia el texto renderizado del PDF", () =>
     `Producto debería quedar solo con el entregable real, quedó: ${JSON.stringify(producto)}`);
 });
 
+// ── Escape XSS end-to-end en el HTML de la unidad (situación + anexos) ───────
+// El render de la unidad interpola texto de IA/currículo en decenas de puntos
+// (situación, ambiente, bandas de fase/día, anexos A-L). Un '<' sin escapar
+// rompería el HTML o ejecutaría script en la ventana de impresión.
+check("el HTML de la unidad escapa el texto de situación/ambiente (no inyecta HTML)", () => {
+  const unidad = {
+    metadatos: { titulo: "T", area: "Lenguas Extranjeras", asignatura: "Inglés", grado: "1ro", nivel: "Secundaria", ciclo: "PC", seccion: "B", duracion: "4s", fechaInicio: "2026-10-13", horario: "LMM", periodo: "2026", modalidad: "Académica", productoFinal: "A Day" },
+    contenidos: { conceptuales: ["V: x"], procedimentales: ["F: y"], actitudinales: ["Respeto."] },
+    situacionAprendizaje: "Contexto con <script>alert(1)</script> y <b>negrita</b> peligrosa",
+    ambienteAprendizaje: "Aula con \"comillas\" & símbolos < >",
+    fasesSemanales: [],
+  };
+  const html = formatearUnidadHTML(unidad, "");
+  assert(!html.includes("<script>alert(1)</script>"), "el <script> de situación NO se escapó (XSS)");
+  assert(html.includes("&lt;script&gt;"), "no aparece el <script> escapado");
+});
+
+check("el HTML de los anexos escapa el texto de las piezas (no inyecta HTML)", () => {
+  const anexos = construirAnexosUnidad({
+    area: "Inglés", tema: "Vida <b>escolar</b>", producto: "A Day",
+    vocabulario: ["x & y"], fases: [], numSemanas: 4,
+    aportesProducto: [{ texto: "Pieza <script>bad</script> para A Day" }],
+  });
+  const unidad = {
+    metadatos: { titulo: "T", area: "Lenguas Extranjeras", asignatura: "Inglés", grado: "1ro", nivel: "Secundaria", ciclo: "PC", seccion: "B", duracion: "4s", fechaInicio: "2026-10-13", horario: "LMM", periodo: "2026", modalidad: "Académica", productoFinal: "A Day" },
+    contenidos: { conceptuales: ["V: x"], procedimentales: ["F: y"], actitudinales: ["Respeto."] },
+    fasesSemanales: [], anexos,
+  };
+  const html = formatearUnidadHTML(unidad, "");
+  assert(!html.includes("<script>bad</script>"), "el <script> de una pieza NO se escapó (XSS en anexos)");
+});
+
 console.log(`\nActitudes/Glosario: ${pasos} pasos, ${fallos} fallos`);
 process.exit(fallos ? 1 : 0);

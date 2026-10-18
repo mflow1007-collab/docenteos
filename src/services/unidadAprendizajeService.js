@@ -5076,8 +5076,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <table class="modelo-table">
       ${modeloSuperior.ejes.map((eje) => `
         <tr>
-          <td style="width:24%;background:#f8fafc"><strong>${eje.nombre}</strong></td>
-          <td>${eje.descripcion}</td>
+          <td style="width:24%;background:#f8fafc"><strong>${escHtml(eje.nombre)}</strong></td>
+          <td>${escHtml(eje.descripcion)}</td>
         </tr>`).join("")}
     </table>` : "";
 
@@ -5173,7 +5173,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           : ` <span style="font-weight:600;font-size:11pt">(${etiquetaFoco}: ${focoTexto})</span>`)
         : "";
       const estrategiaDiaHtml = dia.estrategiasDia
-        ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${dia.estrategiasDia}</div>`
+        ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${escHtml(dia.estrategiasDia)}</div>`
         : "";
       // Fase 1 — texto modelo real (mini-diálogo) que ancla la observación del
       // día. Se muestra como recuadro antes de los momentos, con el estilo del
@@ -5183,9 +5183,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         ? `<div class="modelo-band"><div class="modelo-head">Texto modelo${tm.titulo ? `: ${escHtml(tm.titulo)}` : ""}</div><div class="modelo-body">${tm.lineas.map((l) => `<div class="modelo-linea">${escHtml(l)}</div>`).join("")}</div></div>`
         : "";
       return `
-        <div class="semana-band">Día ${dia.numeroEnSemana || dia.dia || dia.numero || dia.numeroGlobal}: "${dia.titulo}"${focoHtml}</div>
+        <div class="semana-band">Día ${dia.numeroEnSemana || dia.dia || dia.numero || dia.numeroGlobal}: "${escHtml(dia.titulo)}"${focoHtml}</div>
         ${estrategiaDiaHtml}
-        <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${dia.intencionPedagogica}</div>
+        <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${escHtml(dia.intencionPedagogica)}</div>
         ${textoModeloHtml}
         <table class="dia-table">
           <colgroup>
@@ -5288,8 +5288,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       </table>` : "";
 
     return `
-      <div class="fase-band">FASE ${fase.numero} — ${fase.nombre}</div>
-      <div class="est-band">Estrategia de enseñanza y de aprendizaje: ${fase.estrategia}</div>
+      <div class="fase-band">FASE ${fase.numero} — ${escHtml(fase.nombre)}</div>
+      <div class="est-band">Estrategia de enseñanza y de aprendizaje: ${escHtml(fase.estrategia)}</div>
       ${diasHtml}
       ${resumenFase}
       ${neaeHtml}
@@ -5327,9 +5327,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   ${ejesSuperiorHtml}
 
   <div class="section-head">SITUACIÓN DE APRENDIZAJE</div>
-  <div class="texto-seccion">${unidad.situacionAprendizaje}</div>
+  <div class="texto-seccion">${escHtml(unidad.situacionAprendizaje)}</div>
   <div class="section-head">AMBIENTE DE APRENDIZAJE</div>
-  <div class="texto-seccion">${unidad.ambienteAprendizaje}</div>
+  <div class="texto-seccion">${escHtml(unidad.ambienteAprendizaje)}</div>
   ${unidad.notaInstitucional ? `
   <div class="section-head">NOTA INSTITUCIONAL DE ORGANIZACIÓN TEMPORAL</div>
   <div class="texto-seccion">${String(unidad.notaInstitucional).split("\n").map((parrafo) => `<p style="margin-bottom:6pt">${parrafo}</p>`).join("")}</div>` : ""}
@@ -5337,9 +5337,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   <div class="section-head">COMPONENTE CURRICULAR — Asignatura: ${m.asignatura}</div>
   ${modeloSuperior.fuente || modeloSuperior.versionCurriculo || modeloSuperior.nivelMCERL ? `
     <p class="curriculo-meta">
-      Fuente curricular: ${modeloSuperior.fuente || "MINERD"}
-      ${modeloSuperior.versionCurriculo ? ` · Versión: ${modeloSuperior.versionCurriculo}` : ""}
-      ${modeloSuperior.nivelMCERL ? ` · Nivel MCERL: ${modeloSuperior.nivelMCERL}` : ""}
+      Fuente curricular: ${escHtml(modeloSuperior.fuente || "MINERD")}
+      ${modeloSuperior.versionCurriculo ? ` · Versión: ${escHtml(modeloSuperior.versionCurriculo)}` : ""}
+      ${modeloSuperior.nivelMCERL ? ` · Nivel MCERL: ${escHtml(modeloSuperior.nivelMCERL)}` : ""}
     </p>` : ""}
   ${(() => {
     // Estructura oficial por competencia (documento modelo): CF + específica
@@ -5347,7 +5347,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     const detalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
     if (detalle.length) {
       const nivelMCERL = unidad.competencias?.nivelMCERL
-        ? `<p style="margin:0 0 6pt"><em>Nivel de dominio MCERL: ${unidad.competencias.nivelMCERL}</em></p>`
+        ? `<p style="margin:0 0 6pt"><em>Nivel de dominio MCERL: ${escHtml(unidad.competencias.nivelMCERL)}</em></p>`
         : '';
       const leyendaIndicadores = `
         <div style="margin:0 0 7pt;padding:5pt 7pt;border:1px solid #cbd5e1;background:#f8fafc;font-size:9.5pt">
@@ -5373,7 +5373,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         // El código va en <strong> SOLO cuando el indicador es del tema; si no
         // aplica (ni trabaja ahora ni antes) va completamente en texto normal.
         const cod = ind?.codigo
-          ? (ind?.aplicaTemaActual ? `<strong>${ind.codigo}</strong> — ` : `${ind.codigo} — `)
+          ? (ind?.aplicaTemaActual ? `<strong>${escHtml(ind.codigo)}</strong> — ` : `${escHtml(ind.codigo)} — `)
           : '';
         return `${abrir}${cod}${escHtml(ind?.descripcion || '')}${cerrar}`;
       };
@@ -5399,18 +5399,18 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     const funds = Array.isArray(comp.fundamentales) ? comp.fundamentales : [];
     const especifica = comp.especifica || '';
     const indicadores = Array.isArray(comp.indicadores) ? comp.indicadores : [];
-    const nivelMCERL = comp.nivelMCERL ? `<br><em>Nivel MCERL: ${comp.nivelMCERL}</em>` : '';
+    const nivelMCERL = comp.nivelMCERL ? `<br><em>Nivel MCERL: ${escHtml(comp.nivelMCERL)}</em>` : '';
     if (!funds.length && !especifica) return '';
     const rowspan = funds.length || 1;
     const fundRows = funds.map((f, i) => i === 0
       ? `<tr>
-          <td class="lbl" style="vertical-align:middle">${f}</td>
+          <td class="lbl" style="vertical-align:middle">${escHtml(f)}</td>
           <td rowspan="${rowspan}" style="padding:6px 10px;vertical-align:top">
-            ${especifica ? `<strong>Competencia Específica:</strong> ${especifica}${nivelMCERL}<br><br>` : ''}
+            ${especifica ? `<strong>Competencia Específica:</strong> ${escHtml(especifica)}${nivelMCERL}<br><br>` : ''}
             ${indicadores.length ? `<strong>Indicadores de Logro:</strong><ul style="margin:4px 0 0 18px;padding:0">${indicadores.map(ind => `<li style="margin-bottom:3px">${escHtml(ind)}</li>`).join('')}</ul>` : ''}
           </td>
         </tr>`
-      : `<tr><td class="lbl" style="vertical-align:middle">${f}</td></tr>`
+      : `<tr><td class="lbl" style="vertical-align:middle">${escHtml(f)}</td></tr>`
     ).join('');
     return `<table class="datos-table" style="margin-bottom:12px">${fundRows}</table>`;
   })()}
@@ -5487,7 +5487,12 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   ${fasesHtml}
 
   ${(() => {
-    const ax = unidad.anexos;
+    // Escape de los anexos una sola vez (escProfundo preserva la estructura):
+    // todo el bloque A-L interpola criterios, piezas, evidencias, glosario,
+    // Plan B y frases de apoyo que vienen de la IA/currículo. Escapar aquí cubre
+    // las decenas de interpolaciones del bloque sin tocar cada ${} (XSS de
+    // impresión, consistente con metadatos/contenidos ya escapados).
+    const ax = escProfundo(unidad.anexos);
     if (!ax) return "";
     const filaVacia = (n, cols) => Array.from({ length: n }, () => `<tr>${"<td>&nbsp;</td>".repeat(cols)}</tr>`).join("");
     const textoItemInstrumento = (item, campo = "criterio") =>
