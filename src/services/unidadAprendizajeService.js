@@ -926,12 +926,28 @@ export const construirAnexosUnidad = ({
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .split(/[^a-z0-9ñ]+/)
     .filter((token) => token.length >= 4);
-  const seleccionarPieza = (texto = "") => {
+  // Selecciona la pieza/evidencia que mejor corresponde al texto del ítem. Si
+  // hay coincidencia léxica fuerte, gana esa pieza. Si NO (ítem genérico de
+  // anexo), NO se cae siempre en la primera pieza (regla: nada de fallback
+  // silencioso a [0]): se DISTRIBUYE por `indiceFila` entre las piezas de las
+  // distintas fases, de modo que cada fila del anexo referencie una pieza real
+  // distinta (Fase 1→4) en vez de repetir "Mapa inicial de rutinas" en todas.
+  const seleccionarPieza = (texto = "", indiceFila = null) => {
     const tokensTexto = new Set(tokensTraza(texto));
     const candidatos = piezasTrazables.map((pieza) => ({
       pieza,
       puntaje: tokensTraza(pieza).filter((token) => tokensTexto.has(token)).length,
     })).sort((a, b) => b.puntaje - a.puntaje);
+    // Coincidencia FUERTE (≥2 tokens de contenido en común): gana esa pieza por
+    // relevancia real. Una coincidencia de 1 solo token ("producto", "aporte")
+    // es demasiado débil para fijar la pieza y hacía que todas las filas cayeran
+    // en la misma ("Mapa inicial de rutinas"): en ese caso se distribuye.
+    if (candidatos[0]?.puntaje >= 2) return candidatos[0].pieza;
+    // Sin coincidencia fuerte: rota entre las piezas disponibles por índice de
+    // fila, para que cada fila del anexo referencie una pieza real distinta.
+    if (piezasTrazables.length && Number.isInteger(indiceFila)) {
+      return piezasTrazables[indiceFila % piezasTrazables.length];
+    }
     return candidatos[0]?.puntaje > 0 ? candidatos[0].pieza : productoCorto;
   };
   const crearTrazaInstrumento = ({
@@ -946,7 +962,7 @@ export const construirAnexosUnidad = ({
       relaciones: relacionesCriterioIndicador,
     });
     const pieza = piezaProducto
-      || seleccionarPieza([item, evidencia].filter(Boolean).join(" "));
+      || seleccionarPieza([item, evidencia].filter(Boolean).join(" "), index);
     // FALLBACK: los ítems de anexo de puro meta-lenguaje ("Demuestra el indicador
     // en la actividad prevista", "Una fortaleza observable del producto") no tienen
     // tokens de contenido y no alcanzan el umbral de emparejamiento. En vez de
@@ -1059,15 +1075,19 @@ export const construirAnexosUnidad = ({
     "...trabajar en equipo y valorar los aportes de mis compañeros.",
     "...presentar mi producto final al grupo.",
   ];
-  const autoevaluacion = autoevaluacionBase.map((item, index) => ({
-    criterio: item,
-    ...crearTrazaInstrumento({
-      tipo: "autoevaluacion",
-      item,
-      index,
-      evidencia: `Juicio del estudiante sustentado con una evidencia de ${seleccionarPieza(item)}.`,
-    }),
-  }));
+  const autoevaluacion = autoevaluacionBase.map((item, index) => {
+    const piezaFila = seleccionarPieza(item, index);
+    return {
+      criterio: item,
+      ...crearTrazaInstrumento({
+        tipo: "autoevaluacion",
+        item,
+        index,
+        piezaProducto: piezaFila,
+        evidencia: `Juicio del estudiante sustentado con una evidencia de ${piezaFila}.`,
+      }),
+    };
+  });
   const coevaluacion = [
     `Una fortaleza observable en ${productoCorto}.`,
     `Otra fortaleza en el desempeño sobre "${tema}".`,
