@@ -12,7 +12,7 @@
  *
  * Ejecutar: node scripts/test-contenidos-actitudes.mjs
  */
-import { normalizarActitudes, construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
+import { normalizarActitudes, construirAnexosUnidad, formatearUnidadHTML } from "../src/services/unidadAprendizajeService.js";
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -79,6 +79,27 @@ check("el glosario (Anexo F) incluye vocabulario de todos los temas, no solo el 
   const terminos = (anexos.glosario || []).map((g) => g.termino);
   assert(terminos.includes("take a shower"), "falta vocabulario del tema 1");
   assert(terminos.includes("subject") || terminos.includes("recess"), "falta vocabulario del tema 2 (escuela)");
+});
+
+// ── El HTML renderizado NO deja viñetas huérfanas (ambas ramas del render) ───
+// Cubre el hueco detectado al revisar: la rama legacy de la tabla (unidad sin
+// contenidos.porTema) debe normalizar las actitudes igual que la rama por tema.
+check("el HTML real de la tabla de contenidos (rama legacy) no deja fragmentos rotos", () => {
+  const unidad = {
+    metadatos: { titulo: "Vida y comunidad escolar", area: "Lenguas Extranjeras", asignatura: "Inglés", grado: "1ro", nivel: "Secundaria", ciclo: "Primer Ciclo", seccion: "B", duracion: "4 semanas", fechaInicio: "2026-10-13", horario: "L-M-M", periodo: "2026-2027", modalidad: "Académica", productoFinal: "A Day in My Life" },
+    contenidos: {
+      conceptuales: ["Vocabulario: take a shower"],
+      procedimentales: ["Funcional: Dar información"],
+      // Actitudes CRUDAS del PDF (viñeta embebida + frases partidas)
+      actitudinales: ["• Cumplimiento de las normas de", "seguridad.", "• Respeto por las pertenencias de las", "demás personas."],
+    },
+    fasesSemanales: [],
+  };
+  const html = formatearUnidadHTML(unidad, "");
+  const lis = [...html.matchAll(/<li>([^<]*)<\/li>/g)].map((x) => x[1]).filter((x) => /norma|segurid|pertenenc|demás/.test(x));
+  assert(lis.length > 0, "no se renderizaron las actitudes");
+  const roto = lis.some((x) => /^(seguridad|demás)/.test(x.trim()) || /^[•\-*]/.test(x.trim()));
+  assert(!roto, `fragmentos rotos en el HTML: ${JSON.stringify(lis)}`);
 });
 
 console.log(`\nActitudes/Glosario: ${pasos} pasos, ${fallos} fallos`);

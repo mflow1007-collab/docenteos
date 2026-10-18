@@ -5437,7 +5437,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         const m = String(c).match(/^(Funcional|Discursivo):\s*(.*)$/s);
         return m ? `<li><strong>${m[1]}:</strong> ${escHtml(m[2])}</li>` : `<li>${escHtml(c)}</li>`;
       }).join("")}</ul></div>
-    <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${(unidad.contenidos?.actitudinales || []).map((c) => `<li>${escHtml(c)}</li>`).join("")}</ul></div>
+    <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${normalizarActitudes(unidad.contenidos?.actitudinales || []).map((c) => `<li>${escHtml(c)}</li>`).join("")}</ul></div>
   </div>`;
     }
     const li = (t) => `<li>${t}</li>`;
