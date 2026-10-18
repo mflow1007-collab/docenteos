@@ -1,0 +1,71 @@
+/**
+ * test-contenidos-actitudes.mjs — Regresión de la Tabla de Contenidos.
+ *
+ * Bug detectado en el PDF "Vida y comunidad escolar" (1ro Sec. Inglés): la
+ * columna "Actitudes y valores" mostraba viñetas huérfanas y frases partidas
+ * porque la malla oficial trae las actitudes mal extraídas del PDF del MINERD:
+ * con "• " embebido (→ doble viñeta) y oraciones cortadas en varios ítems
+ * ("Cumplimiento de las normas de" + "seguridad.").
+ *
+ * normalizarActitudes quita la viñeta embebida y reúne las continuaciones,
+ * de forma IDEMPOTENTE (una lista ya limpia no cambia).
+ *
+ * Ejecutar: node scripts/test-contenidos-actitudes.mjs
+ */
+import { normalizarActitudes } from "../src/services/unidadAprendizajeService.js";
+
+let pasos = 0, fallos = 0;
+const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
+const assert = (c, m) => { if (!c) throw new Error(m); };
+
+console.log("Tabla de Contenidos — Actitudes (regresión):");
+
+// Datos REALES de la malla de 1ro de Secundaria (el caso del PDF).
+const crudo = [
+  "• Motivación para aprender inglés.",
+  "• Cumplimiento de las normas de",
+  "seguridad.",
+  "• Respeto por las pertenencias de las",
+  "demás personas.",
+  "• Conciencia de que el valor de las",
+  "personas trasciende las posesiones",
+  "materiales.",
+];
+
+check("quita la viñeta embebida (no deja doble viñeta al renderizar)", () => {
+  const r = normalizarActitudes(crudo);
+  assert(r.every((x) => !/^[•\-*]/.test(x)), "quedó una viñeta embebida");
+});
+
+check("reúne las frases partidas en una sola actitud completa", () => {
+  const r = normalizarActitudes(crudo);
+  assert(r.includes("Cumplimiento de las normas de seguridad."), "no reunió 'normas de'+'seguridad'");
+  assert(r.includes("Respeto por las pertenencias de las demás personas."), "no reunió 'pertenencias'+'demás personas'");
+  assert(r.includes("Conciencia de que el valor de las personas trasciende las posesiones materiales."), "no reunió la actitud de 3 fragmentos");
+});
+
+check("reduce 8 fragmentos rotos a 4 actitudes completas", () => {
+  const r = normalizarActitudes(crudo);
+  assert(r.length === 4, `esperaba 4, obtuvo ${r.length}: ${JSON.stringify(r)}`);
+});
+
+check("es idempotente: f(f(x)) === f(x)", () => {
+  const una = normalizarActitudes(crudo);
+  const dos = normalizarActitudes(una);
+  assert(JSON.stringify(una) === JSON.stringify(dos), "no idempotente");
+});
+
+check("una lista ya limpia no se modifica", () => {
+  const limpio = ["Motivación para aprender inglés.", "Cuidado del medioambiente."];
+  const r = normalizarActitudes(limpio);
+  assert(JSON.stringify(r) === JSON.stringify(limpio), "modificó una lista ya limpia");
+});
+
+check("no rompe actitudes legítimas con puntuación interna", () => {
+  // Una actitud que lleva puntos internos pero es una sola entrada con viñeta.
+  const r = normalizarActitudes(["• Respeto por el tiempo propio y el de las demás personas."]);
+  assert(r.length === 1 && r[0] === "Respeto por el tiempo propio y el de las demás personas.", `rompió: ${JSON.stringify(r)}`);
+});
+
+console.log(`\nActitudes: ${pasos} pasos, ${fallos} fallos`);
+process.exit(fallos ? 1 : 0);

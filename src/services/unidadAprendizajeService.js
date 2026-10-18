@@ -630,6 +630,30 @@ const textosUnicos = (items = []) => {
   return out;
 };
 
+// Normaliza la lista de actitudes/valores de la malla, que vienen mal extra\u00eddas
+// del PDF oficial: con vi\u00f1eta "\u2022 " embebida en el texto (\u2192 doble vi\u00f1eta al
+// renderizar en <li>) y con frases PARTIDAS en varios \u00edtems (p. ej.
+// "Cumplimiento de las normas de" + "seguridad." \u2192 dos vi\u00f1etas, una hu\u00e9rfana).
+// Quita la vi\u00f1eta embebida y re\u00fane las continuaciones (\u00edtem sin vi\u00f1eta cuyo
+// anterior no cierra en . ! ? :). Idempotente: una lista ya limpia no cambia.
+export const normalizarActitudes = (items = []) => {
+  const out = [];
+  for (const raw of toArray(items)) {
+    const t = String(raw ?? "").trim();
+    if (!t) continue;
+    const esVinheta = /^[\u2022\-*]\s+/.test(t);
+    const limpio = t.replace(/^[\u2022\-*]\s+/, "").trim();
+    const previo = out[out.length - 1];
+    const previoAbierto = previo && !/[.!?:]$/.test(previo);
+    if (!esVinheta && previoAbierto) {
+      out[out.length - 1] = `${previo} ${limpio}`.replace(/\s+/g, " ").trim();
+    } else {
+      out.push(limpio);
+    }
+  }
+  return out;
+};
+
 const normalizarClaveContenido = (texto = "") =>
   String(texto || "")
     .replace(/^\*\*(.*?)\*\*$/g, "$1")
@@ -4058,10 +4082,20 @@ const _generarFasesConIA = async (
         // Dato estructurado para el hilo pedagógico:
         // planificación → instrumentos → registro → evidencias. El texto
         // renderizado de arriba queda intacto para el template/PDF.
+        const _desempeno = (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean);
+        // Clave de comparación laxa (sin acentos/signos/mayúsculas) para detectar
+        // cuándo un "producto" repite textualmente un "desempeño".
+        const _clave = (t) => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+        const _clavesDesempeno = new Set(_desempeno.map(_clave));
         const evidenciasPorTipo = {
           conocimientos: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
-          desempeno: (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean),
-          producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean),
+          desempeno: _desempeno,
+          // Producto = SOLO entregables tangibles: se eliminan los ítems que
+          // repiten un desempeño (p. ej. "Participación en la discusión" colada
+          // como producto). El desempeño observable va solo en su columna; si no
+          // hay producto real, la lista queda vacía (válido).
+          producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean)
+            .filter((e) => !_clavesDesempeno.has(_clave(e))),
         };
         const evidenciasConId = Object.entries(evidenciasPorTipo).flatMap(([tipo, evidencias]) =>
           evidencias.map((texto, ei) => ({
@@ -5409,12 +5443,12 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     // lista de actitudes globales de la unidad (como el documento modelo, que
     // las presenta en una sola celda para toda la tabla).
     const evidenciasGlobales = textosUnicos(grupos.flatMap((g) => g.evidenciasAprendizaje || []));
-    const evidenciasCol = evidenciasGlobales.length ? evidenciasGlobales : (unidad.contenidos?.actitudinales || []);
+    const evidenciasCol = evidenciasGlobales.length ? evidenciasGlobales : normalizarActitudes(unidad.contenidos?.actitudinales || []);
     const filas = grupos.map((g, i) => `
       <tr>
         <td style="width:27%;vertical-align:top"><div class="cont-tema"><strong>Temas</strong><br><strong>${g.tema}</strong></div>${conceptosTema(g)}</td>
         <td style="width:27%;vertical-align:top"><div class="cont-tema"><strong>${g.tema}</strong></div>${procedimientosTema(g)}</td>
-        <td style="width:26%;vertical-align:top"><div class="cont-tema"><strong>${g.tema}</strong></div><ul class="cont-list">${(g.actitudinales || []).map(li).join("")}</ul></td>
+        <td style="width:26%;vertical-align:top"><div class="cont-tema"><strong>${g.tema}</strong></div><ul class="cont-list">${normalizarActitudes(g.actitudinales || []).map(li).join("")}</ul></td>
         ${i === 0 ? `<td style="width:20%;vertical-align:top" rowspan="${grupos.length}"><ul class="cont-list">${evidenciasCol.map(li).join("")}</ul></td>` : ""}
       </tr>`).join("");
     return `<table class="checkpoint-table cont-table">
