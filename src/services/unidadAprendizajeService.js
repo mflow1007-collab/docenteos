@@ -4086,37 +4086,37 @@ const _generarFasesConIA = async (
           tipo: "actividad",
         }));
         if (aiMom.tiempo) orig.tiempo = aiMom.tiempo;
+        // Clave de comparación laxa (sin acentos/signos/mayúsculas) para detectar
+        // cuándo un "producto" repite textualmente un "desempeño".
+        const _clave = (t) => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+        const _desempeno = (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean);
+        const _clavesDesempeno = new Set(_desempeno.map(_clave));
+        // Producto = SOLO entregables tangibles: se eliminan los ítems que
+        // repiten un desempeño (p. ej. "Participación en la discusión" colada
+        // como producto). El desempeño observable va solo en su columna; si no
+        // hay producto real, la lista queda vacía (válido). Se calcula ANTES del
+        // render para que el de-dup afecte TAMBIÉN al texto del PDF, no solo la
+        // trazabilidad interna.
+        const evidenciasPorTipo = {
+          conocimientos: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
+          desempeno: _desempeno,
+          producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean)
+            .filter((e) => !_clavesDesempeno.has(_clave(e))),
+        };
         // Render desagregado DENTRO de la celda Evidencias existente
         // (contenido, no columnas nuevas): **Conocimientos:** / **Desempeño:**
-        // / **Producto:** con numeración — como el documento modelo
+        // / **Producto:** con numeración — como el documento modelo. Usa las
+        // listas YA de-duplicadas (evidenciasPorTipo), no las crudas de la IA.
         orig.evidencias = [
           ["conocimientos", "Conocimientos"],
           ["desempeno", "Desempeño"],
           ["producto", "Producto"],
         ].map(([clave, etiquetaEv]) => {
-          const items = (aiMom.evidencias?.[clave] || []).map((e) => String(e).trim()).filter(Boolean);
+          const items = evidenciasPorTipo[clave] || [];
           return items.length
             ? `**${etiquetaEv}:**\n${items.map((e, n) => `${n + 1}. ${e}`).join("\n")}`
             : "";
         }).filter(Boolean).join("\n");
-        // Dato estructurado para el hilo pedagógico:
-        // planificación → instrumentos → registro → evidencias. El texto
-        // renderizado de arriba queda intacto para el template/PDF.
-        const _desempeno = (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean);
-        // Clave de comparación laxa (sin acentos/signos/mayúsculas) para detectar
-        // cuándo un "producto" repite textualmente un "desempeño".
-        const _clave = (t) => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-        const _clavesDesempeno = new Set(_desempeno.map(_clave));
-        const evidenciasPorTipo = {
-          conocimientos: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
-          desempeno: _desempeno,
-          // Producto = SOLO entregables tangibles: se eliminan los ítems que
-          // repiten un desempeño (p. ej. "Participación en la discusión" colada
-          // como producto). El desempeño observable va solo en su columna; si no
-          // hay producto real, la lista queda vacía (válido).
-          producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean)
-            .filter((e) => !_clavesDesempeno.has(_clave(e))),
-        };
         const evidenciasConId = Object.entries(evidenciasPorTipo).flatMap(([tipo, evidencias]) =>
           evidencias.map((texto, ei) => ({
             id: idSeguroTraza(prefijoMomento, `E-${tipo}-${ei + 1}`),

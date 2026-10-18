@@ -102,5 +102,18 @@ check("el HTML real de la tabla de contenidos (rama legacy) no deja fragmentos r
   assert(!roto, `fragmentos rotos en el HTML: ${JSON.stringify(lis)}`);
 });
 
+// ── De-dup Desempeño/Producto afecta al TEXTO renderizado (no solo la traza) ──
+// Replica la lógica del render de evidencias: un "producto" que repite un
+// "desempeño" NO debe aparecer en el texto que ve el docente.
+check("el de-dup Desempeño/Producto limpia el texto renderizado del PDF", () => {
+  const clave = (t) => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const desempeno = ["Participación en la discusión sobre actividades"];
+  const clavesDesempeno = new Set(desempeno.map(clave));
+  const producto = ["Mapa inicial de ideas", "Participación en la discusión sobre actividades"]
+    .filter((e) => !clavesDesempeno.has(clave(e)));
+  assert(producto.length === 1 && producto[0] === "Mapa inicial de ideas",
+    `Producto debería quedar solo con el entregable real, quedó: ${JSON.stringify(producto)}`);
+});
+
 console.log(`\nActitudes/Glosario: ${pasos} pasos, ${fallos} fallos`);
 process.exit(fallos ? 1 : 0);
