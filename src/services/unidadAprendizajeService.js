@@ -20,15 +20,7 @@ import {
   construirProductoEstructurado,
   formatearProductoFinal,
 } from "./curriculumCombinacionService.js";
-
-// Escapa texto para interpolar en HTML sin riesgo de inyección (XSS). La unidad
-// viene de la IA y de formularios del docente; aunque es un documento que él
-// imprime, un '<' sin escapar rompería el HTML o ejecutaría script al imprimir.
-const escHtml = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-// Escapa recursivamente los strings de un objeto/array, preservando estructura.
-const escProfundo = (v) => Array.isArray(v) ? v.map(escProfundo)
-  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, escProfundo(x)]))
-  : typeof v === "string" ? escHtml(v) : v;
+import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -451,6 +443,18 @@ const nombreCortoProducto = (producto = "") => {
   return corto.length >= 3 ? corto : txt;
 };
 
+/**
+ * esTemaLateral — ¿el tema de la semana es DISTINTO del tema central de la
+ * unidad? Si lo es, las piezas del producto deben enmarcarse hacia el producto
+ * (no quedarse en el tema lateral). Comparación laxa (sin acentos/mayúsculas),
+ * tolerante a inclusión (un tema contiene al otro = no lateral).
+ */
+export const esTemaLateral = (temaSemanaCorto = "", temaCentralUnidad = "") => {
+  const a = String(temaSemanaCorto || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  const b = String(temaCentralUnidad || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  return Boolean(a && b && a !== b && !a.includes(b) && !b.includes(a));
+};
+
 // Descripciones de ejes transversales contextualizadas al tema y al área
 const construirEjesContextualizados = (ejes, { area, tema }) => {
   const idioma = ES_IDIOMA(area);
@@ -634,6 +638,30 @@ const textosUnicos = (items = []) => {
     if (!texto || seen.has(key)) continue;
     seen.add(key);
     out.push(texto);
+  }
+  return out;
+};
+
+// Normaliza la lista de actitudes/valores de la malla, que vienen mal extra\u00eddas
+// del PDF oficial: con vi\u00f1eta "\u2022 " embebida en el texto (\u2192 doble vi\u00f1eta al
+// renderizar en <li>) y con frases PARTIDAS en varios \u00edtems (p. ej.
+// "Cumplimiento de las normas de" + "seguridad." \u2192 dos vi\u00f1etas, una hu\u00e9rfana).
+// Quita la vi\u00f1eta embebida y re\u00fane las continuaciones (\u00edtem sin vi\u00f1eta cuyo
+// anterior no cierra en . ! ? :). Idempotente: una lista ya limpia no cambia.
+export const normalizarActitudes = (items = []) => {
+  const out = [];
+  for (const raw of toArray(items)) {
+    const t = String(raw ?? "").trim();
+    if (!t) continue;
+    const esVinheta = /^[\u2022\-*]\s+/.test(t);
+    const limpio = t.replace(/^[\u2022\-*]\s+/, "").trim();
+    const previo = out[out.length - 1];
+    const previoAbierto = previo && !/[.!?:]$/.test(previo);
+    if (!esVinheta && previoAbierto) {
+      out[out.length - 1] = `${previo} ${limpio}`.replace(/\s+/g, " ").trim();
+    } else {
+      out.push(limpio);
+    }
   }
   return out;
 };
@@ -910,12 +938,28 @@ export const construirAnexosUnidad = ({
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .split(/[^a-z0-9ñ]+/)
     .filter((token) => token.length >= 4);
-  const seleccionarPieza = (texto = "") => {
+  // Selecciona la pieza/evidencia que mejor corresponde al texto del ítem. Si
+  // hay coincidencia léxica fuerte, gana esa pieza. Si NO (ítem genérico de
+  // anexo), NO se cae siempre en la primera pieza (regla: nada de fallback
+  // silencioso a [0]): se DISTRIBUYE por `indiceFila` entre las piezas de las
+  // distintas fases, de modo que cada fila del anexo referencie una pieza real
+  // distinta (Fase 1→4) en vez de repetir "Mapa inicial de rutinas" en todas.
+  const seleccionarPieza = (texto = "", indiceFila = null) => {
     const tokensTexto = new Set(tokensTraza(texto));
     const candidatos = piezasTrazables.map((pieza) => ({
       pieza,
       puntaje: tokensTraza(pieza).filter((token) => tokensTexto.has(token)).length,
     })).sort((a, b) => b.puntaje - a.puntaje);
+    // Coincidencia FUERTE (≥2 tokens de contenido en común): gana esa pieza por
+    // relevancia real. Una coincidencia de 1 solo token ("producto", "aporte")
+    // es demasiado débil para fijar la pieza y hacía que todas las filas cayeran
+    // en la misma ("Mapa inicial de rutinas"): en ese caso se distribuye.
+    if (candidatos[0]?.puntaje >= 2) return candidatos[0].pieza;
+    // Sin coincidencia fuerte: rota entre las piezas disponibles por índice de
+    // fila, para que cada fila del anexo referencie una pieza real distinta.
+    if (piezasTrazables.length && Number.isInteger(indiceFila)) {
+      return piezasTrazables[indiceFila % piezasTrazables.length];
+    }
     return candidatos[0]?.puntaje > 0 ? candidatos[0].pieza : productoCorto;
   };
   const crearTrazaInstrumento = ({
@@ -930,7 +974,7 @@ export const construirAnexosUnidad = ({
       relaciones: relacionesCriterioIndicador,
     });
     const pieza = piezaProducto
-      || seleccionarPieza([item, evidencia].filter(Boolean).join(" "));
+      || seleccionarPieza([item, evidencia].filter(Boolean).join(" "), index);
     // FALLBACK: los ítems de anexo de puro meta-lenguaje ("Demuestra el indicador
     // en la actividad prevista", "Una fortaleza observable del producto") no tienen
     // tokens de contenido y no alcanzan el umbral de emparejamiento. En vez de
@@ -1043,15 +1087,19 @@ export const construirAnexosUnidad = ({
     "...trabajar en equipo y valorar los aportes de mis compañeros.",
     "...presentar mi producto final al grupo.",
   ];
-  const autoevaluacion = autoevaluacionBase.map((item, index) => ({
-    criterio: item,
-    ...crearTrazaInstrumento({
-      tipo: "autoevaluacion",
-      item,
-      index,
-      evidencia: `Juicio del estudiante sustentado con una evidencia de ${seleccionarPieza(item)}.`,
-    }),
-  }));
+  const autoevaluacion = autoevaluacionBase.map((item, index) => {
+    const piezaFila = seleccionarPieza(item, index);
+    return {
+      criterio: item,
+      ...crearTrazaInstrumento({
+        tipo: "autoevaluacion",
+        item,
+        index,
+        piezaProducto: piezaFila,
+        evidencia: `Juicio del estudiante sustentado con una evidencia de ${piezaFila}.`,
+      }),
+    };
+  });
   const coevaluacion = [
     `Una fortaleza observable en ${productoCorto}.`,
     `Otra fortaleza en el desempeño sobre "${tema}".`,
@@ -2404,6 +2452,88 @@ const _temasDeSemanas = (rutaCurricular, semanas = []) => {
   return [...set];
 };
 
+/**
+ * validarCoherenciaProducto — control de pertinencia del producto final.
+ *
+ * Verifica (de forma determinista, sin IA) que la secuencia construya el
+ * producto final de forma coherente, no que derive hacia un tema paralelo.
+ * Nace de secuencias reales donde "Escuela y educación" terminaba trabajando
+ * "rutinas/hábitos" (Habit Tracker) en las fases finales, desconectadas del
+ * producto "School Survival Guide".
+ *
+ * NO modifica la unidad ni la distribución de temas: solo emite ADVERTENCIAS
+ * visibles para que el docente revise (como "⚠ Requiere revisión docente").
+ *
+ * @param {object} args
+ * @param {string} args.producto   - Producto final de la unidad.
+ * @param {string} args.temaCentral- Tema central (título/tema oficial).
+ * @param {Array}  args.aportesProducto - [{ semana, texto }] piezas por semana.
+ * @param {number} args.numSemanas - Total de semanas de la unidad.
+ * @returns {string[]} advertencias (vacío si todo coherente).
+ */
+export const validarCoherenciaProducto = ({
+  producto = "",
+  temaCentral = "",
+  aportesProducto = [],
+  numSemanas = 0,
+} = {}) => {
+  const avisos = [];
+  const aportes = (Array.isArray(aportesProducto) ? aportesProducto : [])
+    .filter((a) => a && a.texto);
+  if (!aportes.length) return avisos;
+
+  // Vocabulario del producto + tema central: contra esto medimos pertinencia.
+  const tokensProducto = new Set([
+    ...tokensTrazaAula(temaCentral),
+    ...tokensTrazaAula(producto),
+  ]);
+
+  // Palabras de "relleno" que delatan derivas típicas hacia temas paralelos
+  // (rutinas personales/hábitos del hogar) desconectados del producto escolar.
+  const RELLENO = /habit tracker|routine snapshot|rutina diaria|h[aá]bitos? diarios?|h[aá]bitos? saludables|diario personal|mapa de gustos|daily routine card/i;
+
+  // PASO 6/8 — pertinencia de cada pieza: ¿comparte vocabulario con el producto?
+  const piezasSinVinculo = [];
+  for (const a of aportes) {
+    const toks = tokensTrazaAula(a.texto);
+    const comparte = toks.some((t) => tokensProducto.has(t));
+    const esRelleno = RELLENO.test(a.texto);
+    if (esRelleno || (toks.length && !comparte)) {
+      piezasSinVinculo.push(a.texto);
+    }
+  }
+  if (piezasSinVinculo.length) {
+    const ratio = piezasSinVinculo.length / aportes.length;
+    // Umbral del prompt: >30% de piezas desalineadas → alerta de coherencia.
+    if (ratio > 0.3 || piezasSinVinculo.some((p) => RELLENO.test(p))) {
+      avisos.push(
+        `⚠ Posible desalineación temática: ${piezasSinVinculo.length} de ${aportes.length} piezas del producto ` +
+        `no se vinculan claramente con "${temaCentral || producto}". ` +
+        `Revise la pertinencia curricular (p. ej.: ${piezasSinVinculo.slice(0, 2).map((p) => `"${String(p).slice(0, 60)}"`).join(", ")}).`
+      );
+    }
+  }
+
+  // PASO 5 — el producto debe estar ~terminado antes de la semana final:
+  // la última semana integra/ensaya/presenta, no construye piezas nuevas.
+  if (numSemanas >= 2) {
+    const piezasUltimaSemana = aportes.filter((a) => Number(a.semana) === Number(numSemanas)).length;
+    const piezasPrevias = aportes.filter((a) => Number(a.semana) < Number(numSemanas)).length;
+    if (piezasPrevias > 0) {
+      const ratioPrevio = piezasPrevias / aportes.length;
+      if (ratioPrevio < 0.8 && piezasUltimaSemana > piezasPrevias) {
+        avisos.push(
+          `⚠ Progresión del producto: la última semana concentra demasiadas piezas nuevas ` +
+          `(${piezasUltimaSemana} en la semana ${numSemanas} vs. ${piezasPrevias} antes). ` +
+          `El producto debería estar ~80% construido antes de la semana final (que es para integrar, ensayar y presentar).`
+        );
+      }
+    }
+  }
+
+  return avisos;
+};
+
 const _esLenguasExtranjeras = (mallaPayload = {}) => {
   const texto = _normTexto([
     mallaPayload.area,
@@ -2858,7 +2988,7 @@ const _generarFasesConIA = async (
   // Pieza del producto derivada de la estructura del día — la agenda nace del
   // día de horas, el párrafo del día de conectores, la entrevista del día de
   // preguntas… (Anexo H del modelo: cada semana aporta piezas distintas).
-  const piezaDelDia = ({ protagonista, perfilDia, temaCorto, esUltimoDeSemana = false, faseNum = 2, indiceEnFase = 0 }) => {
+  const piezaDelDia = ({ protagonista, perfilDia, temaCorto, esUltimoDeSemana = false, faseNum = 2, indiceEnFase = 0, producto = "", temaCentral = "" }) => {
     if (faseNum === 1) {
       return perfilDia.posicion === "inicio" || perfilDia.posicion === "unico"
         ? "mapa inicial de ideas sobre la unidad"
@@ -2895,29 +3025,44 @@ const _generarFasesConIA = async (
     }
 
     const t = normalizarClaveDidactica(protagonista?.texto || "");
-    if (/conector|secuencia|first|then|finally/.test(t)) return `párrafo secuenciado sobre ${temaCorto}`;
+    // Foco de la pieza: cuando el tema de la semana es LATERAL (distinto del tema
+    // central), la pieza se enmarca HACIA el producto en vez de quedarse en el
+    // tema lateral. Así "presente simple + frecuencia" en una semana de "actividades
+    // de la vida diaria", dentro de un producto "School Survival Guide", produce
+    // una pieza sobre "la rutina para el éxito escolar" (sección del producto), no
+    // una "lista de hábitos" suelta. Si el tema NO es lateral, enfoca el tema corto.
+    const lateral = Boolean(producto) && esTemaLateral(temaCorto, temaCentral);
+    const prodCorto = lateral ? nombreCortoProducto(producto) : "";
+    const destino = lateral ? `${temaCentral} (aporte a ${prodCorto})` : temaCorto;
+    if (/conector|secuencia|first|then|finally/.test(t)) return `párrafo secuenciado sobre ${destino}`;
     // Adverbios de TIEMPO (now, in the past, yet, already, still) ≠ adverbios de
     // FRECUENCIA (always, usually, never). Van ANTES para que "adverbio" no caiga
     // por error en la rama de frecuencia y el producto contradiga la estructura.
-    if (/tiempo|now|in the past|\byet\b|already|still|adverbio de tiempo|time adverb/.test(t)) return `oraciones con adverbios de tiempo sobre ${temaCorto}`;
-    if (/frecuencia|frequency|always|usually|often|sometimes|never/.test(t)) return `lista de hábitos con adverbios de frecuencia sobre ${temaCorto}`;
-    if (/wh|question|pregunta|interrogativ/.test(t)) return `entrevista escrita con preguntas y respuestas sobre ${temaCorto}`;
-    if (/hora|time|horario|reloj|fecha/.test(t)) return `agenda personal con horas sobre ${temaCorto}`;
-    if (/tercera persona|posesiv|his|her|mine|yours/.test(t)) return `descripción de otra persona sobre ${temaCorto}`;
-    if (/should|sugerencia|consejo|imperativ|recomendaci|why don/.test(t)) return `lista de recomendaciones sobre ${temaCorto}`;
-    if (/pasado|was|were|narrar|experiencia/.test(t)) return `narración breve de una experiencia sobre ${temaCorto}`;
-    if (/comparaci|contraste|but/.test(t)) return `cuadro comparativo sobre ${temaCorto}`;
-    if (/want|hope|wish|deseo|interes/.test(t)) return `lista de deseos y planes sobre ${temaCorto}`;
-    if (/cortesia|saludo|greeting|atencion|disculp|interrump|palabra|repitan/.test(t)) return `mini diálogo con expresiones de cortesía sobre ${temaCorto}`;
-    if (/\bcan\b|\bmay\b|\bcould\b|permiso|permission|modal/.test(t)) return `diálogo de peticiones y permisos sobre ${temaCorto}`;
-    if (/pronombre objeto|object pronoun|\bme\b|\bhim\b|\bthem\b/.test(t)) return `diálogo con pronombres objeto sobre ${temaCorto}`;
-    if (/presente simple|conversacion|sostener/.test(t)) return `oraciones propias en contexto sobre ${temaCorto}`;
+    if (/tiempo|now|in the past|\byet\b|already|still|adverbio de tiempo|time adverb/.test(t)) return `oraciones con adverbios de tiempo sobre ${destino}`;
+    // Frecuencia en tema lateral → NO "lista de hábitos" suelta: se enmarca como
+    // la rutina que sirve al producto (p. ej. éxito escolar en una guía escolar).
+    if (/frecuencia|frequency|always|usually|often|sometimes|never/.test(t)) {
+      return lateral
+        ? `rutina con adverbios de frecuencia como aporte a ${prodCorto}`
+        : `lista de hábitos con adverbios de frecuencia sobre ${temaCorto}`;
+    }
+    if (/wh|question|pregunta|interrogativ/.test(t)) return `entrevista escrita con preguntas y respuestas sobre ${destino}`;
+    if (/hora|time|horario|reloj|fecha/.test(t)) return `agenda personal con horas sobre ${destino}`;
+    if (/tercera persona|posesiv|his|her|mine|yours/.test(t)) return `descripción de otra persona sobre ${destino}`;
+    if (/should|sugerencia|consejo|imperativ|recomendaci|why don/.test(t)) return `lista de recomendaciones sobre ${destino}`;
+    if (/pasado|was|were|narrar|experiencia/.test(t)) return `narración breve de una experiencia sobre ${destino}`;
+    if (/comparaci|contraste|but/.test(t)) return `cuadro comparativo sobre ${destino}`;
+    if (/want|hope|wish|deseo|interes/.test(t)) return `lista de deseos y planes sobre ${destino}`;
+    if (/cortesia|saludo|greeting|atencion|disculp|interrump|palabra|repitan/.test(t)) return `mini diálogo con expresiones de cortesía sobre ${destino}`;
+    if (/\bcan\b|\bmay\b|\bcould\b|permiso|permission|modal/.test(t)) return `diálogo de peticiones y permisos sobre ${destino}`;
+    if (/pronombre objeto|object pronoun|\bme\b|\bhim\b|\bthem\b/.test(t)) return `diálogo con pronombres objeto sobre ${destino}`;
+    if (/presente simple|conversacion|sostener/.test(t)) return `oraciones propias en contexto sobre ${destino}`;
     // Fallback nombrado por estructura: días que reaplican estructuras distintas
     // producen piezas distintas (evita filas idénticas en el Anexo H).
     const estructuraCorta = String(protagonista?.texto || "").split(/[·(]/)[0].trim();
     return estructuraCorta
-      ? `producción escrita con ${estructuraCorta} sobre ${temaCorto}`
-      : `ficha aplicada sobre ${temaCorto}`;
+      ? `producción escrita con ${estructuraCorta} sobre ${destino}`
+      : `ficha aplicada sobre ${destino}`;
   };
 
   // Catálogo de "Listening con propósito" — la variante cambia cada día.
@@ -3659,7 +3804,11 @@ const _generarFasesConIA = async (
     // Nombre CORTO para título, intención, evidencias y recursos: sin el bloque
     // largo de ejemplos que hacía ilegibles las fases 3-4.
     const estructuraDia = nombreCortoEstructuraLocal(protagonista.texto) || protagonista.texto;
-    const piezaProducto = piezaDelDia({ protagonista, perfilDia, temaCorto, esUltimoDeSemana, faseNum, indiceEnFase });
+    const piezaProducto = piezaDelDia({
+      protagonista, perfilDia, temaCorto, esUltimoDeSemana, faseNum, indiceEnFase,
+      producto: productoNombre,
+      temaCentral: String(specActual.temaOficial || "").split(" · ")[0].trim(),
+    });
     const recursosBase = [
       "Pizarra y marcadores",
       area === "Inglés" ? "Tarjetas de vocabulario" : "Cuaderno del estudiante",
@@ -4050,27 +4199,37 @@ const _generarFasesConIA = async (
           tipo: "actividad",
         }));
         if (aiMom.tiempo) orig.tiempo = aiMom.tiempo;
+        // Clave de comparación laxa (sin acentos/signos/mayúsculas) para detectar
+        // cuándo un "producto" repite textualmente un "desempeño".
+        const _clave = (t) => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+        const _desempeno = (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean);
+        const _clavesDesempeno = new Set(_desempeno.map(_clave));
+        // Producto = SOLO entregables tangibles: se eliminan los ítems que
+        // repiten un desempeño (p. ej. "Participación en la discusión" colada
+        // como producto). El desempeño observable va solo en su columna; si no
+        // hay producto real, la lista queda vacía (válido). Se calcula ANTES del
+        // render para que el de-dup afecte TAMBIÉN al texto del PDF, no solo la
+        // trazabilidad interna.
+        const evidenciasPorTipo = {
+          conocimientos: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
+          desempeno: _desempeno,
+          producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean)
+            .filter((e) => !_clavesDesempeno.has(_clave(e))),
+        };
         // Render desagregado DENTRO de la celda Evidencias existente
         // (contenido, no columnas nuevas): **Conocimientos:** / **Desempeño:**
-        // / **Producto:** con numeración — como el documento modelo
+        // / **Producto:** con numeración — como el documento modelo. Usa las
+        // listas YA de-duplicadas (evidenciasPorTipo), no las crudas de la IA.
         orig.evidencias = [
           ["conocimientos", "Conocimientos"],
           ["desempeno", "Desempeño"],
           ["producto", "Producto"],
         ].map(([clave, etiquetaEv]) => {
-          const items = (aiMom.evidencias?.[clave] || []).map((e) => String(e).trim()).filter(Boolean);
+          const items = evidenciasPorTipo[clave] || [];
           return items.length
             ? `**${etiquetaEv}:**\n${items.map((e, n) => `${n + 1}. ${e}`).join("\n")}`
             : "";
         }).filter(Boolean).join("\n");
-        // Dato estructurado para el hilo pedagógico:
-        // planificación → instrumentos → registro → evidencias. El texto
-        // renderizado de arriba queda intacto para el template/PDF.
-        const evidenciasPorTipo = {
-          conocimientos: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
-          desempeno: (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean),
-          producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean),
-        };
         const evidenciasConId = Object.entries(evidenciasPorTipo).flatMap(([tipo, evidencias]) =>
           evidencias.map((texto, ei) => ({
             id: idSeguroTraza(prefijoMomento, `E-${tipo}-${ei + 1}`),
@@ -4708,6 +4867,20 @@ export const generarUnidadAprendizaje = async (datos) => {
     .filter((d) => d.aporteProducto)
     .map((d) => ({ semana: d.semana || 1, texto: d.aporteProducto }));
 
+  // Control de pertinencia del producto final (determinista, no bloqueante):
+  // alerta si la secuencia deriva hacia un tema paralelo o si el producto no
+  // progresa (última semana construyendo desde cero). Se añade a las
+  // advertencias que ya ve el docente; NO altera la unidad ni la distribución.
+  unidadResult.advertencias = [
+    ...(unidadResult.advertencias || []),
+    ...validarCoherenciaProducto({
+      producto: productoNombrado,
+      temaCentral: temaMallaStr || titulo,
+      aportesProducto,
+      numSemanas,
+    }),
+  ];
+
   unidadResult.notaInstitucional = construirNotaInstitucional({
     clasesPorSemana: diasClaseFinal.length,
     durMin: durMinEf,
@@ -4724,9 +4897,14 @@ export const generarUnidadAprendizaje = async (datos) => {
     area: claveContenido,
     tema: titulo,
     producto: productoNombrado,
-    // 6 — glosario SOLO con el vocabulario del tema servido a la IA, nunca
-    // la lista completa del grado
-    vocabulario: (mallaContenidos.vocabulario || []).slice(0, 20),
+    // 6 — glosario con el vocabulario REAL de TODOS los temas trabajados en la
+    // unidad (no solo el primero): se recoge de contenidos.porTema, que ya trae
+    // los términos limpios por tema. Fallback a la unión cruda de la malla.
+    vocabulario: textosUnicos(
+      (contenidos.porTema || []).flatMap((t) => t.vocabulario || [])
+    ).length
+      ? textosUnicos((contenidos.porTema || []).flatMap((t) => t.vocabulario || [])).slice(0, 24)
+      : (mallaContenidos.vocabulario || []).slice(0, 20),
     fases: unidadResult.fasesSemanales || [],
     numSemanas,
     aportesProducto,
@@ -5025,8 +5203,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <table class="modelo-table">
       ${modeloSuperior.ejes.map((eje) => `
         <tr>
-          <td style="width:24%;background:#f8fafc"><strong>${eje.nombre}</strong></td>
-          <td>${eje.descripcion}</td>
+          <td style="width:24%;background:#f8fafc"><strong>${escHtml(eje.nombre)}</strong></td>
+          <td>${escHtml(eje.descripcion)}</td>
         </tr>`).join("")}
     </table>` : "";
 
@@ -5077,9 +5255,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         const actsHtml = (mom.actividades || []).map((a, i) => {
           // Escapa el texto ANTES de convertir el markdown (**bold**, _em_) para
           // no romper el formato intencional pero neutralizar HTML inyectado.
-          const html = negritaPrimeraPalabra(escHtml(a))
-            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-            .replace(/_([^_]+)_/g, "<em>$1</em>");
+          const html = cursivaMarkdownSegura(
+            negritaPrimeraPalabra(escHtml(a))
+              .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+          );
           return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span> ${html}</p>`;
         }).join("");
         const evalHtml = `<strong>Tipo:</strong> ${escHtml(mom.evaluacion?.tipo)}.<br><strong>Agente:</strong> ${escHtml(mom.evaluacion?.agente)}.<br><strong>Técnica:</strong> ${escHtml(mom.evaluacion?.tecnica)}.<br><strong>Instrumento:</strong> ${escHtml(mom.evaluacion?.instrumento)}.`;
@@ -5091,7 +5270,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
             <td class="td-momento" rowspan="2">${escHtml(mom.nombre)}</td>
             <td class="td-tiempo" rowspan="2">${escHtml(mom.tiempo)}</td>
             <td rowspan="2">${actsHtml}</td>
-            <td style="white-space:pre-line">${escHtml(mom.evidencias || "").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/_([^_]+)_/g, "<em>$1</em>")}</td>
+            <td style="white-space:pre-line">${markdownLigeroSeguro(mom.evidencias || "")}</td>
             <td>${evalHtml}</td>
             <td rowspan="2">${recursosHtml}</td>
           </tr>
@@ -5121,7 +5300,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           : ` <span style="font-weight:600;font-size:11pt">(${etiquetaFoco}: ${focoTexto})</span>`)
         : "";
       const estrategiaDiaHtml = dia.estrategiasDia
-        ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${dia.estrategiasDia}</div>`
+        ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${escHtml(dia.estrategiasDia)}</div>`
         : "";
       // Fase 1 — texto modelo real (mini-diálogo) que ancla la observación del
       // día. Se muestra como recuadro antes de los momentos, con el estilo del
@@ -5131,9 +5310,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         ? `<div class="modelo-band"><div class="modelo-head">Texto modelo${tm.titulo ? `: ${escHtml(tm.titulo)}` : ""}</div><div class="modelo-body">${tm.lineas.map((l) => `<div class="modelo-linea">${escHtml(l)}</div>`).join("")}</div></div>`
         : "";
       return `
-        <div class="semana-band">Día ${dia.numeroEnSemana || dia.dia || dia.numero || dia.numeroGlobal}: "${dia.titulo}"${focoHtml}</div>
+        <div class="semana-band">Día ${dia.numeroEnSemana || dia.dia || dia.numero || dia.numeroGlobal}: "${escHtml(dia.titulo)}"${focoHtml}</div>
         ${estrategiaDiaHtml}
-        <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${dia.intencionPedagogica}</div>
+        <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${escHtml(dia.intencionPedagogica)}</div>
         ${textoModeloHtml}
         <table class="dia-table">
           <colgroup>
@@ -5236,8 +5415,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       </table>` : "";
 
     return `
-      <div class="fase-band">FASE ${fase.numero} — ${fase.nombre}</div>
-      <div class="est-band">Estrategia de enseñanza y de aprendizaje: ${fase.estrategia}</div>
+      <div class="fase-band">FASE ${fase.numero} — ${escHtml(fase.nombre)}</div>
+      <div class="est-band">Estrategia de enseñanza y de aprendizaje: ${escHtml(fase.estrategia)}</div>
       ${diasHtml}
       ${resumenFase}
       ${neaeHtml}
@@ -5275,9 +5454,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   ${ejesSuperiorHtml}
 
   <div class="section-head">SITUACIÓN DE APRENDIZAJE</div>
-  <div class="texto-seccion">${unidad.situacionAprendizaje}</div>
+  <div class="texto-seccion">${escHtml(unidad.situacionAprendizaje)}</div>
   <div class="section-head">AMBIENTE DE APRENDIZAJE</div>
-  <div class="texto-seccion">${unidad.ambienteAprendizaje}</div>
+  <div class="texto-seccion">${escHtml(unidad.ambienteAprendizaje)}</div>
   ${unidad.notaInstitucional ? `
   <div class="section-head">NOTA INSTITUCIONAL DE ORGANIZACIÓN TEMPORAL</div>
   <div class="texto-seccion">${String(unidad.notaInstitucional).split("\n").map((parrafo) => `<p style="margin-bottom:6pt">${parrafo}</p>`).join("")}</div>` : ""}
@@ -5285,9 +5464,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   <div class="section-head">COMPONENTE CURRICULAR — Asignatura: ${m.asignatura}</div>
   ${modeloSuperior.fuente || modeloSuperior.versionCurriculo || modeloSuperior.nivelMCERL ? `
     <p class="curriculo-meta">
-      Fuente curricular: ${modeloSuperior.fuente || "MINERD"}
-      ${modeloSuperior.versionCurriculo ? ` · Versión: ${modeloSuperior.versionCurriculo}` : ""}
-      ${modeloSuperior.nivelMCERL ? ` · Nivel MCERL: ${modeloSuperior.nivelMCERL}` : ""}
+      Fuente curricular: ${escHtml(modeloSuperior.fuente || "MINERD")}
+      ${modeloSuperior.versionCurriculo ? ` · Versión: ${escHtml(modeloSuperior.versionCurriculo)}` : ""}
+      ${modeloSuperior.nivelMCERL ? ` · Nivel MCERL: ${escHtml(modeloSuperior.nivelMCERL)}` : ""}
     </p>` : ""}
   ${(() => {
     // Estructura oficial por competencia (documento modelo): CF + específica
@@ -5295,7 +5474,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     const detalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
     if (detalle.length) {
       const nivelMCERL = unidad.competencias?.nivelMCERL
-        ? `<p style="margin:0 0 6pt"><em>Nivel de dominio MCERL: ${unidad.competencias.nivelMCERL}</em></p>`
+        ? `<p style="margin:0 0 6pt"><em>Nivel de dominio MCERL: ${escHtml(unidad.competencias.nivelMCERL)}</em></p>`
         : '';
       const leyendaIndicadores = `
         <div style="margin:0 0 7pt;padding:5pt 7pt;border:1px solid #cbd5e1;background:#f8fafc;font-size:9.5pt">
@@ -5321,7 +5500,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         // El código va en <strong> SOLO cuando el indicador es del tema; si no
         // aplica (ni trabaja ahora ni antes) va completamente en texto normal.
         const cod = ind?.codigo
-          ? (ind?.aplicaTemaActual ? `<strong>${ind.codigo}</strong> — ` : `${ind.codigo} — `)
+          ? (ind?.aplicaTemaActual ? `<strong>${escHtml(ind.codigo)}</strong> — ` : `${escHtml(ind.codigo)} — `)
           : '';
         return `${abrir}${cod}${escHtml(ind?.descripcion || '')}${cerrar}`;
       };
@@ -5347,18 +5526,18 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     const funds = Array.isArray(comp.fundamentales) ? comp.fundamentales : [];
     const especifica = comp.especifica || '';
     const indicadores = Array.isArray(comp.indicadores) ? comp.indicadores : [];
-    const nivelMCERL = comp.nivelMCERL ? `<br><em>Nivel MCERL: ${comp.nivelMCERL}</em>` : '';
+    const nivelMCERL = comp.nivelMCERL ? `<br><em>Nivel MCERL: ${escHtml(comp.nivelMCERL)}</em>` : '';
     if (!funds.length && !especifica) return '';
     const rowspan = funds.length || 1;
     const fundRows = funds.map((f, i) => i === 0
       ? `<tr>
-          <td class="lbl" style="vertical-align:middle">${f}</td>
+          <td class="lbl" style="vertical-align:middle">${escHtml(f)}</td>
           <td rowspan="${rowspan}" style="padding:6px 10px;vertical-align:top">
-            ${especifica ? `<strong>Competencia Específica:</strong> ${especifica}${nivelMCERL}<br><br>` : ''}
+            ${especifica ? `<strong>Competencia Específica:</strong> ${escHtml(especifica)}${nivelMCERL}<br><br>` : ''}
             ${indicadores.length ? `<strong>Indicadores de Logro:</strong><ul style="margin:4px 0 0 18px;padding:0">${indicadores.map(ind => `<li style="margin-bottom:3px">${escHtml(ind)}</li>`).join('')}</ul>` : ''}
           </td>
         </tr>`
-      : `<tr><td class="lbl" style="vertical-align:middle">${f}</td></tr>`
+      : `<tr><td class="lbl" style="vertical-align:middle">${escHtml(f)}</td></tr>`
     ).join('');
     return `<table class="datos-table" style="margin-bottom:12px">${fundRows}</table>`;
   })()}
@@ -5385,7 +5564,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         const m = String(c).match(/^(Funcional|Discursivo):\s*(.*)$/s);
         return m ? `<li><strong>${m[1]}:</strong> ${escHtml(m[2])}</li>` : `<li>${escHtml(c)}</li>`;
       }).join("")}</ul></div>
-    <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${(unidad.contenidos?.actitudinales || []).map((c) => `<li>${escHtml(c)}</li>`).join("")}</ul></div>
+    <div class="cont-col"><div class="cont-head">Actitudinales</div><ul class="cont-list">${normalizarActitudes(unidad.contenidos?.actitudinales || []).map((c) => `<li>${escHtml(c)}</li>`).join("")}</ul></div>
   </div>`;
     }
     const li = (t) => `<li>${t}</li>`;
@@ -5416,12 +5595,12 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     // lista de actitudes globales de la unidad (como el documento modelo, que
     // las presenta en una sola celda para toda la tabla).
     const evidenciasGlobales = textosUnicos(grupos.flatMap((g) => g.evidenciasAprendizaje || []));
-    const evidenciasCol = evidenciasGlobales.length ? evidenciasGlobales : (unidad.contenidos?.actitudinales || []);
+    const evidenciasCol = evidenciasGlobales.length ? evidenciasGlobales : normalizarActitudes(unidad.contenidos?.actitudinales || []);
     const filas = grupos.map((g, i) => `
       <tr>
         <td style="width:27%;vertical-align:top"><div class="cont-tema"><strong>Temas</strong><br><strong>${g.tema}</strong></div>${conceptosTema(g)}</td>
         <td style="width:27%;vertical-align:top"><div class="cont-tema"><strong>${g.tema}</strong></div>${procedimientosTema(g)}</td>
-        <td style="width:26%;vertical-align:top"><div class="cont-tema"><strong>${g.tema}</strong></div><ul class="cont-list">${(g.actitudinales || []).map(li).join("")}</ul></td>
+        <td style="width:26%;vertical-align:top"><div class="cont-tema"><strong>${g.tema}</strong></div><ul class="cont-list">${normalizarActitudes(g.actitudinales || []).map(li).join("")}</ul></td>
         ${i === 0 ? `<td style="width:20%;vertical-align:top" rowspan="${grupos.length}"><ul class="cont-list">${evidenciasCol.map(li).join("")}</ul></td>` : ""}
       </tr>`).join("");
     return `<table class="checkpoint-table cont-table">
@@ -5435,7 +5614,12 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   ${fasesHtml}
 
   ${(() => {
-    const ax = unidad.anexos;
+    // Escape de los anexos una sola vez (escProfundo preserva la estructura):
+    // todo el bloque A-L interpola criterios, piezas, evidencias, glosario,
+    // Plan B y frases de apoyo que vienen de la IA/currículo. Escapar aquí cubre
+    // las decenas de interpolaciones del bloque sin tocar cada ${} (XSS de
+    // impresión, consistente con metadatos/contenidos ya escapados).
+    const ax = escProfundo(unidad.anexos);
     if (!ax) return "";
     const filaVacia = (n, cols) => Array.from({ length: n }, () => `<tr>${"<td>&nbsp;</td>".repeat(cols)}</tr>`).join("");
     const textoItemInstrumento = (item, campo = "criterio") =>
@@ -5586,7 +5770,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 export const formatearGuiaMaestroHTML = (guia, logoUrl = "") => {
   if (!guia) return "";
   const m = guia.metadatos || {};
-  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc = escHtml; // escape centralizado (incluye comillas, seguro en atributos)
   const arr = (v) => (Array.isArray(v) ? v : []);
   const productoCorto = nombreCortoProducto(m.productoFinal) || "el producto final";
   const fichas = arr(guia.fichas);

@@ -87,7 +87,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa con cortesía asertividad y respeto, en intercambios orales y escritos de información, opiniones e instrucciones. 138",
+        "descripcion": "Interactúa con cortesía asertividad y respeto, en intercambios orales y escritos de información, opiniones e instrucciones.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -173,7 +173,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas. 144",
+        "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -259,7 +259,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa con cortesía y respeto ante informaciones y puntos de vista que expresan los demás. 150",
+        "descripcion": "Interactúa con cortesía y respeto ante informaciones y puntos de vista que expresan los demás.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -345,7 +345,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista, consejos, sugerencia e instrucciones en forma oral o escrita. 161",
+        "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista, consejos, sugerencia e instrucciones en forma oral o escrita.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -431,7 +431,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias. 167",
+        "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -517,7 +517,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas 173",
+        "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ]
@@ -605,7 +605,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto y de aceptación en intercambios básicos en el idioma francés. 183",
+        "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto y de aceptación en intercambios básicos en el idioma francés.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -691,7 +691,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios sencillos en el idioma francés. 187",
+        "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios sencillos en el idioma francés.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -777,7 +777,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios muy sencillos en el idioma francés donde se comparte información personal sobre actividades y planes futuros. 191",
+        "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios muy sencillos en el idioma francés donde se comparte información personal sobre actividades y planes futuros.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -799,7 +799,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
-        "descripcion": "Presenta de forma lógica y creativa la estructura y secuencia de ideas, informaciones y sentimientos, empleando estrategias de desempeño y pensamiento creativo acompañados con dibujos, dramatizaciones, canciones, y otros; utilizando frases y oraciones breves para expresarse adecuadamente en forma oral o escrita. 200",
+        "descripcion": "Presenta de forma lógica y creativa la estructura y secuencia de ideas, informaciones y sentimientos, empleando estrategias de desempeño y pensamiento creativo acompañados con dibujos, dramatizaciones, canciones, y otros; utilizando frases y oraciones breves para expresarse adecuadamente en forma oral o escrita.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
@@ -863,7 +863,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios muy sencillos en el idioma francés, donde se comparte información personal, estados físicos y anímicos, así como intercambio de bienes y servicios en la ciudad, aunque con errores básicos. 201",
+        "descripcion": "Interactúa de forma oral y escrita con cortesía, actitud de respeto, aceptación y asertividad en intercambios muy sencillos en el idioma francés, donde se comparte información personal, estados físicos y anímicos, así como intercambio de bienes y servicios en la ciudad, aunque con errores básicos.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -949,7 +949,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa con cortesía, honestidad, asertividad y respeto, en intercambios orales y escritos de información, actividades recreativas, prohibiciones, órdenes e instrucciones. 205",
+        "descripcion": "Interactúa con cortesía, honestidad, asertividad y respeto, en intercambios orales y escritos de información, actividades recreativas, prohibiciones, órdenes e instrucciones.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ],
@@ -1035,7 +1035,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Desarrollo Personal y Espiritual"
       },
       {
-        "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación. 208",
+        "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación.",
         "competencia": "Desarrollo Personal y Espiritual"
       }
     ]

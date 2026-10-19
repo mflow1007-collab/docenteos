@@ -231,6 +231,10 @@ function useProviderPriority() {
         if (Array.isArray(d.disabled)) setApagados(d.disabled)
       })
       .catch(() => {})
+    // Carga la config del gateway UNA vez al montar. DEF_MODELS deriva de
+    // constantes estables (ACTIVE_PROVIDERS): incluirlo re-dispararía el efecto
+    // en cada render (objeto nuevo) y recargaría Firestore en bucle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const saveConfig = async (nextPriority, nextModels, nextApagados) => {

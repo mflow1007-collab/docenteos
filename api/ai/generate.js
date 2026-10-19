@@ -590,6 +590,20 @@ export default async function handler(request) {
     });
   }
 
+  // Tope de tamaño de ENTRADA: evita que un cliente autenticado dispare el costo
+  // de tokens enviando prompts/system gigantes. El límite es muy holgado frente a
+  // los prompts legítimos (los contratos más grandes rondan ~16-20k tokens de
+  // salida; la entrada real queda muy por debajo de esto), así que no rompe el
+  // contrato con el frontend. ~200k caracteres ≈ 50k tokens.
+  const MAX_INPUT_CHARS = 200_000;
+  const tamanoEntrada = String(prompt).length + String(system || "").length;
+  if (tamanoEntrada > MAX_INPUT_CHARS) {
+    return new Response(
+      JSON.stringify({ error: `La solicitud es demasiado grande (${tamanoEntrada} caracteres; máximo ${MAX_INPUT_CHARS}). Reduce el tamaño del contenido.` }),
+      { status: 413, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   // Módulos administrativos: verificados en servidor, no solo en la UI
   if (ADMIN_ONLY_MODULES.has(mod) && !isAdminUser(authedUser)) {
     return new Response(
