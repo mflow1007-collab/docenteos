@@ -10,7 +10,7 @@
  *
  * Ejecutar: node scripts/test-coherencia-producto.mjs
  */
-import { validarCoherenciaProducto } from "../src/services/unidadAprendizajeService.js";
+import { validarCoherenciaProducto, esTemaLateral } from "../src/services/unidadAprendizajeService.js";
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -89,6 +89,21 @@ check("alerta si la última semana concentra las piezas nuevas", () => {
 check("sin aportes, no alerta (entrada vacía es válida)", () => {
   const avisos = validarCoherenciaProducto({ producto: "X", temaCentral: "Y", aportesProducto: [], numSemanas: 4 });
   assert(avisos.length === 0, "alertó con entrada vacía");
+});
+
+// ── esTemaLateral: detecta cuándo el tema de la semana difiere del central ────
+// (gobierna el re-enmarque de la pieza del producto en piezaDelDia).
+check("esTemaLateral: 'actividades de la vida diaria' ≠ 'Escuela y educación'", () => {
+  assert(esTemaLateral("actividades de la vida diaria", "Escuela y educación"), "no lo marcó como lateral");
+});
+check("esTemaLateral: el mismo tema NO es lateral (sin falso positivo)", () => {
+  assert(!esTemaLateral("Escuela y educación", "Escuela y educación"), "falso positivo con el mismo tema");
+});
+check("esTemaLateral: inclusión (un tema contiene al otro) NO es lateral", () => {
+  assert(!esTemaLateral("escuela", "Escuela y educación"), "trató inclusión como lateral");
+});
+check("esTemaLateral: tolerante a acentos/mayúsculas", () => {
+  assert(!esTemaLateral("LENGUA Y COMUNICACION", "lengua y comunicación"), "no normalizó acentos/mayúsculas");
 });
 
 console.log(`\nCoherencia del producto: ${pasos} pasos, ${fallos} fallos`);

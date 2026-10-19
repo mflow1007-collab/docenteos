@@ -443,6 +443,18 @@ const nombreCortoProducto = (producto = "") => {
   return corto.length >= 3 ? corto : txt;
 };
 
+/**
+ * esTemaLateral — ¿el tema de la semana es DISTINTO del tema central de la
+ * unidad? Si lo es, las piezas del producto deben enmarcarse hacia el producto
+ * (no quedarse en el tema lateral). Comparación laxa (sin acentos/mayúsculas),
+ * tolerante a inclusión (un tema contiene al otro = no lateral).
+ */
+export const esTemaLateral = (temaSemanaCorto = "", temaCentralUnidad = "") => {
+  const a = String(temaSemanaCorto || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  const b = String(temaCentralUnidad || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  return Boolean(a && b && a !== b && !a.includes(b) && !b.includes(a));
+};
+
 // Descripciones de ejes transversales contextualizadas al tema y al área
 const construirEjesContextualizados = (ejes, { area, tema }) => {
   const idioma = ES_IDIOMA(area);
@@ -2976,7 +2988,7 @@ const _generarFasesConIA = async (
   // Pieza del producto derivada de la estructura del día — la agenda nace del
   // día de horas, el párrafo del día de conectores, la entrevista del día de
   // preguntas… (Anexo H del modelo: cada semana aporta piezas distintas).
-  const piezaDelDia = ({ protagonista, perfilDia, temaCorto, esUltimoDeSemana = false, faseNum = 2, indiceEnFase = 0 }) => {
+  const piezaDelDia = ({ protagonista, perfilDia, temaCorto, esUltimoDeSemana = false, faseNum = 2, indiceEnFase = 0, producto = "", temaCentral = "" }) => {
     if (faseNum === 1) {
       return perfilDia.posicion === "inicio" || perfilDia.posicion === "unico"
         ? "mapa inicial de ideas sobre la unidad"
@@ -3013,29 +3025,44 @@ const _generarFasesConIA = async (
     }
 
     const t = normalizarClaveDidactica(protagonista?.texto || "");
-    if (/conector|secuencia|first|then|finally/.test(t)) return `párrafo secuenciado sobre ${temaCorto}`;
+    // Foco de la pieza: cuando el tema de la semana es LATERAL (distinto del tema
+    // central), la pieza se enmarca HACIA el producto en vez de quedarse en el
+    // tema lateral. Así "presente simple + frecuencia" en una semana de "actividades
+    // de la vida diaria", dentro de un producto "School Survival Guide", produce
+    // una pieza sobre "la rutina para el éxito escolar" (sección del producto), no
+    // una "lista de hábitos" suelta. Si el tema NO es lateral, enfoca el tema corto.
+    const lateral = Boolean(producto) && esTemaLateral(temaCorto, temaCentral);
+    const prodCorto = lateral ? nombreCortoProducto(producto) : "";
+    const destino = lateral ? `${temaCentral} (aporte a ${prodCorto})` : temaCorto;
+    if (/conector|secuencia|first|then|finally/.test(t)) return `párrafo secuenciado sobre ${destino}`;
     // Adverbios de TIEMPO (now, in the past, yet, already, still) ≠ adverbios de
     // FRECUENCIA (always, usually, never). Van ANTES para que "adverbio" no caiga
     // por error en la rama de frecuencia y el producto contradiga la estructura.
-    if (/tiempo|now|in the past|\byet\b|already|still|adverbio de tiempo|time adverb/.test(t)) return `oraciones con adverbios de tiempo sobre ${temaCorto}`;
-    if (/frecuencia|frequency|always|usually|often|sometimes|never/.test(t)) return `lista de hábitos con adverbios de frecuencia sobre ${temaCorto}`;
-    if (/wh|question|pregunta|interrogativ/.test(t)) return `entrevista escrita con preguntas y respuestas sobre ${temaCorto}`;
-    if (/hora|time|horario|reloj|fecha/.test(t)) return `agenda personal con horas sobre ${temaCorto}`;
-    if (/tercera persona|posesiv|his|her|mine|yours/.test(t)) return `descripción de otra persona sobre ${temaCorto}`;
-    if (/should|sugerencia|consejo|imperativ|recomendaci|why don/.test(t)) return `lista de recomendaciones sobre ${temaCorto}`;
-    if (/pasado|was|were|narrar|experiencia/.test(t)) return `narración breve de una experiencia sobre ${temaCorto}`;
-    if (/comparaci|contraste|but/.test(t)) return `cuadro comparativo sobre ${temaCorto}`;
-    if (/want|hope|wish|deseo|interes/.test(t)) return `lista de deseos y planes sobre ${temaCorto}`;
-    if (/cortesia|saludo|greeting|atencion|disculp|interrump|palabra|repitan/.test(t)) return `mini diálogo con expresiones de cortesía sobre ${temaCorto}`;
-    if (/\bcan\b|\bmay\b|\bcould\b|permiso|permission|modal/.test(t)) return `diálogo de peticiones y permisos sobre ${temaCorto}`;
-    if (/pronombre objeto|object pronoun|\bme\b|\bhim\b|\bthem\b/.test(t)) return `diálogo con pronombres objeto sobre ${temaCorto}`;
-    if (/presente simple|conversacion|sostener/.test(t)) return `oraciones propias en contexto sobre ${temaCorto}`;
+    if (/tiempo|now|in the past|\byet\b|already|still|adverbio de tiempo|time adverb/.test(t)) return `oraciones con adverbios de tiempo sobre ${destino}`;
+    // Frecuencia en tema lateral → NO "lista de hábitos" suelta: se enmarca como
+    // la rutina que sirve al producto (p. ej. éxito escolar en una guía escolar).
+    if (/frecuencia|frequency|always|usually|often|sometimes|never/.test(t)) {
+      return lateral
+        ? `rutina con adverbios de frecuencia como aporte a ${prodCorto}`
+        : `lista de hábitos con adverbios de frecuencia sobre ${temaCorto}`;
+    }
+    if (/wh|question|pregunta|interrogativ/.test(t)) return `entrevista escrita con preguntas y respuestas sobre ${destino}`;
+    if (/hora|time|horario|reloj|fecha/.test(t)) return `agenda personal con horas sobre ${destino}`;
+    if (/tercera persona|posesiv|his|her|mine|yours/.test(t)) return `descripción de otra persona sobre ${destino}`;
+    if (/should|sugerencia|consejo|imperativ|recomendaci|why don/.test(t)) return `lista de recomendaciones sobre ${destino}`;
+    if (/pasado|was|were|narrar|experiencia/.test(t)) return `narración breve de una experiencia sobre ${destino}`;
+    if (/comparaci|contraste|but/.test(t)) return `cuadro comparativo sobre ${destino}`;
+    if (/want|hope|wish|deseo|interes/.test(t)) return `lista de deseos y planes sobre ${destino}`;
+    if (/cortesia|saludo|greeting|atencion|disculp|interrump|palabra|repitan/.test(t)) return `mini diálogo con expresiones de cortesía sobre ${destino}`;
+    if (/\bcan\b|\bmay\b|\bcould\b|permiso|permission|modal/.test(t)) return `diálogo de peticiones y permisos sobre ${destino}`;
+    if (/pronombre objeto|object pronoun|\bme\b|\bhim\b|\bthem\b/.test(t)) return `diálogo con pronombres objeto sobre ${destino}`;
+    if (/presente simple|conversacion|sostener/.test(t)) return `oraciones propias en contexto sobre ${destino}`;
     // Fallback nombrado por estructura: días que reaplican estructuras distintas
     // producen piezas distintas (evita filas idénticas en el Anexo H).
     const estructuraCorta = String(protagonista?.texto || "").split(/[·(]/)[0].trim();
     return estructuraCorta
-      ? `producción escrita con ${estructuraCorta} sobre ${temaCorto}`
-      : `ficha aplicada sobre ${temaCorto}`;
+      ? `producción escrita con ${estructuraCorta} sobre ${destino}`
+      : `ficha aplicada sobre ${destino}`;
   };
 
   // Catálogo de "Listening con propósito" — la variante cambia cada día.
@@ -3777,7 +3804,11 @@ const _generarFasesConIA = async (
     // Nombre CORTO para título, intención, evidencias y recursos: sin el bloque
     // largo de ejemplos que hacía ilegibles las fases 3-4.
     const estructuraDia = nombreCortoEstructuraLocal(protagonista.texto) || protagonista.texto;
-    const piezaProducto = piezaDelDia({ protagonista, perfilDia, temaCorto, esUltimoDeSemana, faseNum, indiceEnFase });
+    const piezaProducto = piezaDelDia({
+      protagonista, perfilDia, temaCorto, esUltimoDeSemana, faseNum, indiceEnFase,
+      producto: productoNombre,
+      temaCentral: String(specActual.temaOficial || "").split(" · ")[0].trim(),
+    });
     const recursosBase = [
       "Pizarra y marcadores",
       area === "Inglés" ? "Tarjetas de vocabulario" : "Cuaderno del estudiante",
