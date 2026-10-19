@@ -2440,6 +2440,88 @@ const _temasDeSemanas = (rutaCurricular, semanas = []) => {
   return [...set];
 };
 
+/**
+ * validarCoherenciaProducto — control de pertinencia del producto final.
+ *
+ * Verifica (de forma determinista, sin IA) que la secuencia construya el
+ * producto final de forma coherente, no que derive hacia un tema paralelo.
+ * Nace de secuencias reales donde "Escuela y educación" terminaba trabajando
+ * "rutinas/hábitos" (Habit Tracker) en las fases finales, desconectadas del
+ * producto "School Survival Guide".
+ *
+ * NO modifica la unidad ni la distribución de temas: solo emite ADVERTENCIAS
+ * visibles para que el docente revise (como "⚠ Requiere revisión docente").
+ *
+ * @param {object} args
+ * @param {string} args.producto   - Producto final de la unidad.
+ * @param {string} args.temaCentral- Tema central (título/tema oficial).
+ * @param {Array}  args.aportesProducto - [{ semana, texto }] piezas por semana.
+ * @param {number} args.numSemanas - Total de semanas de la unidad.
+ * @returns {string[]} advertencias (vacío si todo coherente).
+ */
+export const validarCoherenciaProducto = ({
+  producto = "",
+  temaCentral = "",
+  aportesProducto = [],
+  numSemanas = 0,
+} = {}) => {
+  const avisos = [];
+  const aportes = (Array.isArray(aportesProducto) ? aportesProducto : [])
+    .filter((a) => a && a.texto);
+  if (!aportes.length) return avisos;
+
+  // Vocabulario del producto + tema central: contra esto medimos pertinencia.
+  const tokensProducto = new Set([
+    ...tokensTrazaAula(temaCentral),
+    ...tokensTrazaAula(producto),
+  ]);
+
+  // Palabras de "relleno" que delatan derivas típicas hacia temas paralelos
+  // (rutinas personales/hábitos del hogar) desconectados del producto escolar.
+  const RELLENO = /habit tracker|routine snapshot|rutina diaria|h[aá]bitos? diarios?|h[aá]bitos? saludables|diario personal|mapa de gustos|daily routine card/i;
+
+  // PASO 6/8 — pertinencia de cada pieza: ¿comparte vocabulario con el producto?
+  const piezasSinVinculo = [];
+  for (const a of aportes) {
+    const toks = tokensTrazaAula(a.texto);
+    const comparte = toks.some((t) => tokensProducto.has(t));
+    const esRelleno = RELLENO.test(a.texto);
+    if (esRelleno || (toks.length && !comparte)) {
+      piezasSinVinculo.push(a.texto);
+    }
+  }
+  if (piezasSinVinculo.length) {
+    const ratio = piezasSinVinculo.length / aportes.length;
+    // Umbral del prompt: >30% de piezas desalineadas → alerta de coherencia.
+    if (ratio > 0.3 || piezasSinVinculo.some((p) => RELLENO.test(p))) {
+      avisos.push(
+        `⚠ Posible desalineación temática: ${piezasSinVinculo.length} de ${aportes.length} piezas del producto ` +
+        `no se vinculan claramente con "${temaCentral || producto}". ` +
+        `Revise la pertinencia curricular (p. ej.: ${piezasSinVinculo.slice(0, 2).map((p) => `"${String(p).slice(0, 60)}"`).join(", ")}).`
+      );
+    }
+  }
+
+  // PASO 5 — el producto debe estar ~terminado antes de la semana final:
+  // la última semana integra/ensaya/presenta, no construye piezas nuevas.
+  if (numSemanas >= 2) {
+    const piezasUltimaSemana = aportes.filter((a) => Number(a.semana) === Number(numSemanas)).length;
+    const piezasPrevias = aportes.filter((a) => Number(a.semana) < Number(numSemanas)).length;
+    if (piezasPrevias > 0) {
+      const ratioPrevio = piezasPrevias / aportes.length;
+      if (ratioPrevio < 0.8 && piezasUltimaSemana > piezasPrevias) {
+        avisos.push(
+          `⚠ Progresión del producto: la última semana concentra demasiadas piezas nuevas ` +
+          `(${piezasUltimaSemana} en la semana ${numSemanas} vs. ${piezasPrevias} antes). ` +
+          `El producto debería estar ~80% construido antes de la semana final (que es para integrar, ensayar y presentar).`
+        );
+      }
+    }
+  }
+
+  return avisos;
+};
+
 const _esLenguasExtranjeras = (mallaPayload = {}) => {
   const texto = _normTexto([
     mallaPayload.area,
@@ -4753,6 +4835,20 @@ export const generarUnidadAprendizaje = async (datos) => {
     .flatMap((f) => f.dias || [])
     .filter((d) => d.aporteProducto)
     .map((d) => ({ semana: d.semana || 1, texto: d.aporteProducto }));
+
+  // Control de pertinencia del producto final (determinista, no bloqueante):
+  // alerta si la secuencia deriva hacia un tema paralelo o si el producto no
+  // progresa (última semana construyendo desde cero). Se añade a las
+  // advertencias que ya ve el docente; NO altera la unidad ni la distribución.
+  unidadResult.advertencias = [
+    ...(unidadResult.advertencias || []),
+    ...validarCoherenciaProducto({
+      producto: productoNombrado,
+      temaCentral: temaMallaStr || titulo,
+      aportesProducto,
+      numSemanas,
+    }),
+  ];
 
   unidadResult.notaInstitucional = construirNotaInstitucional({
     clasesPorSemana: diasClaseFinal.length,
