@@ -921,13 +921,23 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
   const cltEnLote = new Map(); // técnica → clase que la usó (no repetir en el mismo lote)
   const aportesEnLote = new Map(); // pieza → clase que ya la construyó
   const temaTrabajo = _normTextoFoco(opts.temaTrabajoSemana || opts.temaOficial || '');
+  // El tema CENTRAL de la unidad (y el producto) son el hilo conductor: pueden
+  // aparecer en CUALQUIER semana, incluso cuando el tema de trabajo es otro —
+  // así una semana de "Actividades de la vida diaria" puede re-enmarcarse hacia
+  // el producto "School Survival Guide" nombrando la escuela. Solo los OTROS
+  // temas laterales deben quedar aislados de la semana que no les toca.
+  const temaCentral = _normTextoFoco(opts.temaOficial || '');
   const temasActivos = (Array.isArray(opts.temasActivos) ? opts.temasActivos : [])
     .map((t) => String(t || '').trim())
     .filter(Boolean);
   const temasFueraDeSemana = temasActivos
     .filter((t) => {
       const norm = _normTextoFoco(t);
-      return norm && temaTrabajo && norm !== temaTrabajo && !norm.includes(temaTrabajo) && !temaTrabajo.includes(norm);
+      if (!norm || !temaTrabajo) return false;
+      if (norm === temaTrabajo || norm.includes(temaTrabajo) || temaTrabajo.includes(norm)) return false;
+      // No tratar el tema central como contaminante: es el destino compartido.
+      if (temaCentral && (norm === temaCentral || norm.includes(temaCentral) || temaCentral.includes(norm))) return false;
+      return true;
     })
     .filter((t, i, arr) => arr.findIndex((x) => _normTextoFoco(x) === _normTextoFoco(t)) === i);
 
@@ -1423,11 +1433,17 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
   const otrosTemasRuta = (Array.isArray(spec.temasActivos) ? spec.temasActivos : [])
     .map((t) => String(t || '').trim())
     .filter((t) => t && _normTextoFoco(t) !== _normTextoFoco(spec.temaTrabajoSemana || spec.temaOficial));
+  // El tema de la semana es el VEHÍCULO lingüístico/conceptual del día; el
+  // producto final es el DESTINO. En unidades combinadas no se "aísla" el tema:
+  // se RE-ENMARCA hacia el producto (ej. en una unidad "Escuela y educación" con
+  // producto "School Survival Guide", el tema "Actividades de la vida diaria" se
+  // trabaja como "la rutina para tener éxito EN LA ESCUELA", no como rutinas del
+  // hogar). Así se cubre la malla sin derivar a una unidad paralela.
   const reglaTemaTrabajo = spec.temaTrabajoSemana
-    ? `\nTEMA DE TRABAJO DE ESTA SEMANA: "${spec.temaTrabajoSemana}". Usa este tema como contenido central de TODAS las clases del lote. ${otrosTemasRuta.length ? `NO metas como contenido central estos otros temas de la ruta: ${otrosTemasRuta.join(' · ')}. Pueden existir en la ruta general, pero NO deben aparecer en actividades, evidencias ni saberes previos de esta semana.` : ''}`
+    ? `\nTEMA DE TRABAJO DE ESTA SEMANA: "${spec.temaTrabajoSemana}". Es el contenido lingüístico/conceptual central de TODAS las clases del lote, pero SIEMPRE orientado al producto final. ${otrosTemasRuta.length ? `NO metas como contenido central estos otros temas de la ruta: ${otrosTemasRuta.join(' · ')}.` : ''}`
     : '';
   const reglaTemasCombinados = spec.rutaCurricular?.esCombinada
-    ? `\nREGLA DE TEMAS COMBINADOS: esta unidad integra ${temasActivosTx}. NO hagas clases sueltas por tema. La situacion de aprendizaje y el producto final son el camino unico: cada clase debe explicar para que sirve el tema de esa semana dentro del producto final. Las actividades del Desarrollo y del Cierre deben nombrar la pieza del producto que se construye, revisa o guarda.`
+    ? `\nREGLA DE INTEGRACIÓN TEMÁTICA (OBLIGATORIA): esta unidad integra ${temasActivosTx}, pero NO son miniunidades separadas: todas sirven al MISMO producto «${spec.productoFinalNombre || spec.productoFinal || 'producto final'}». Antes de diseñar, re-enmarca el tema de esta semana HACIA el producto y el tema central "${spec.temaOficial}": pregúntate "¿cómo este tema ayuda a construir el producto?" y trabaja esa faceta, no el tema en abstracto. Ejemplo de re-enmarque: si el tema central es "Escuela y educación" con producto "School Survival Guide" y esta semana toca "Actividades de la vida diaria", NO produzcas "mi rutina matutina en casa" (Habit Tracker, lista de hábitos personales) — produce "la rutina/horario para tener ÉXITO EN LA ESCUELA" como sección de la guía. PROHIBIDO que el "aporteProducto" de una clase sea una pieza genérica de otro tema (Habit Tracker, Routine Snapshot, lista de hábitos personales, diario personal) sin vínculo explícito con el producto. Cada clase nombra la pieza del producto que construye, revisa o guarda.`
     : '';
 
   const reglaInicio = esPrimeraClaseUnidad
