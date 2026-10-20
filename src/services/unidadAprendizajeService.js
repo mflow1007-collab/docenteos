@@ -1713,17 +1713,21 @@ const generarDia = (numDia, area, tema, faseIdx, totalDiasFase, _productoFinal =
 const DIAS_ORDEN = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 const DIAS_FECHA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
+/**
+ * validarFechaInicioHorario — comprueba si la fecha de inicio coincide con un día
+ * de clase. YA NO BLOQUEA: planificar es planificar, el docente puede elegir
+ * cualquier fecha de inicio (incluso fin de semana o un día fuera del horario);
+ * la secuencia se arma por días de clase, no por la fecha exacta. Devuelve
+ * { valida, diaFecha, coincide } por si la UI quiere mostrar una nota suave, pero
+ * nunca lanza error salvo que la fecha sea sintácticamente inválida.
+ */
 export const validarFechaInicioHorario = (fechaInicio = "", diasClase = []) => {
-  if (!String(fechaInicio || "").trim()) return true;
+  if (!String(fechaInicio || "").trim()) return { valida: true, coincide: true, diaFecha: "" };
   const fecha = new Date(`${fechaInicio}T12:00:00Z`);
   if (Number.isNaN(fecha.getTime())) throw new Error(`Fecha de inicio inválida: ${fechaInicio}`);
   const diaFecha = DIAS_FECHA[fecha.getUTCDay()];
-  if (!(diasClase || []).includes(diaFecha)) {
-    throw new Error(
-      `La fecha de inicio ${fechaInicio} cae ${diaFecha}, pero las clases están programadas para ${(diasClase || []).join(", ") || "ningún día"}.`
-    );
-  }
-  return true;
+  const coincide = (diasClase || []).includes(diaFecha);
+  return { valida: true, coincide, diaFecha };
 };
 
 const PESOS_FASE = {
@@ -4417,6 +4421,8 @@ export const generarUnidadAprendizaje = async (datos) => {
   const durMinEf = (nivel === "Primaria" || nivel === "Inicial") ? 45 : (duracionHoraClase || 45);
   const horasSemanales = diasClaseFinal.length * horasPorDiaEf;
   const schedule = { diasClase: diasClaseFinal, horasPorDia: horasPorDiaEf, duracionHoraClase: durMinEf };
+  // Fecha de inicio informativa: NO bloquea aunque caiga fuera del horario (p. ej.
+  // un fin de semana). La secuencia se arma por días de clase, no por la fecha.
   validarFechaInicioHorario(fechaInicio, diasClaseFinal);
 
   // Usa la asignatura si tiene entrada en los diccionarios; si no, usa el área como fallback
