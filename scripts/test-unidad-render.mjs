@@ -433,12 +433,17 @@ for (const [areaAfinidad, temasAfinidad] of casosAfinidadPorArea) {
 }
 
 console.log("Validadores finales — fecha y producto:");
-check("rechaza una fecha que no coincide con los días de clase", () => {
-  esperaError(
-    () => validarFechaInicioHorario("2026-07-25", ["Lunes", "Martes", "Miércoles", "Viernes"]),
-    "cae Sábado",
-  );
-  validarFechaInicioHorario("2026-07-27", ["Lunes", "Martes", "Miércoles", "Viernes"]);
+check("NO bloquea una fecha de inicio fuera del horario (planificar es planificar)", () => {
+  // Sábado, fuera de los días de clase: debe ACEPTARSE (valida) y marcar coincide:false.
+  const finde = validarFechaInicioHorario("2026-07-25", ["Lunes", "Martes", "Miércoles", "Viernes"]);
+  if (!finde.valida) throw new Error("bloqueó una fecha de fin de semana");
+  if (finde.coincide) throw new Error("no detectó que el sábado está fuera del horario");
+  if (finde.diaFecha !== "Sábado") throw new Error(`día mal detectado: ${finde.diaFecha}`);
+  // Un día dentro del horario: valida y coincide.
+  const enHorario = validarFechaInicioHorario("2026-07-27", ["Lunes", "Martes", "Miércoles", "Viernes"]);
+  if (!enHorario.valida || !enHorario.coincide) throw new Error("rechazó un lunes válido");
+  // Fecha sintácticamente inválida sí debe lanzar.
+  esperaError(() => validarFechaInicioHorario("fecha-mala", ["Lunes"]), "inválida");
 });
 
 check("rechaza portafolio genérico aunque lo escriba el docente", () => {
