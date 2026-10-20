@@ -2494,7 +2494,10 @@ export const validarCoherenciaProducto = ({
 
   // Palabras de "relleno" que delatan derivas típicas hacia temas paralelos
   // (rutinas personales/hábitos del hogar) desconectados del producto escolar.
-  const RELLENO = /habit tracker|routine snapshot|rutina diaria|h[aá]bitos? diarios?|h[aá]bitos? saludables|diario personal|mapa de gustos|daily routine card/i;
+  // Incluye los nombres de pieza genéricos que la IA suele producir en la Fase 3
+  // cuando el tema "Actividades de la vida diaria" se queda en descripción de
+  // rutina, en vez de reorientarse al propósito del producto (ver auditoría v7/v8).
+  const RELLENO = /habit tracker|routine snapshot|rutina diaria|daily routine|routine guide|lista (personal )?de h[aá]bitos|h[aá]bitos? diarios?|h[aá]bitos? saludables|diario personal|mapa de gustos|daily routine card|descripci[oó]n de (una )?rutina/i;
 
   // PASO 6/8 — pertinencia de cada pieza: ¿comparte vocabulario con el producto?
   const piezasSinVinculo = [];
@@ -2508,12 +2511,20 @@ export const validarCoherenciaProducto = ({
   }
   if (piezasSinVinculo.length) {
     const ratio = piezasSinVinculo.length / aportes.length;
+    const hayRutinaGenerica = piezasSinVinculo.some((p) => RELLENO.test(p));
     // Umbral del prompt: >30% de piezas desalineadas → alerta de coherencia.
-    if (ratio > 0.3 || piezasSinVinculo.some((p) => RELLENO.test(p))) {
+    if (ratio > 0.3 || hayRutinaGenerica) {
+      // Pista accionable: cuando el relleno es una rutina genérica, sugerir la
+      // reorientación concreta que un buen docente aplicaría (antes/durante/
+      // después), en vez de solo "revise la pertinencia". No reescribe la
+      // planificación — es una recomendación para que el docente la ajuste.
+      const sugerencia = hayRutinaGenerica
+        ? ` Sugerencia: reoriente las rutinas hacia el PROPÓSITO del producto — p. ej. una "rutina para tener éxito en la escuela" estructurada en ANTES (preparar la mochila, revisar el horario), DURANTE (pedir ayuda, seguir las normas) y DESPUÉS (repasar, preparar el día siguiente), en vez de describir la rutina personal en general.`
+        : ` Revise la pertinencia curricular.`;
       avisos.push(
         `⚠ Posible desalineación temática: ${piezasSinVinculo.length} de ${aportes.length} piezas del producto ` +
-        `no se vinculan claramente con "${temaCentral || producto}". ` +
-        `Revise la pertinencia curricular (p. ej.: ${piezasSinVinculo.slice(0, 2).map((p) => `"${String(p).slice(0, 60)}"`).join(", ")}).`
+        `no se vinculan claramente con "${temaCentral || producto}" (p. ej.: ${piezasSinVinculo.slice(0, 2).map((p) => `"${String(p).slice(0, 60)}"`).join(", ")}).` +
+        sugerencia
       );
     }
   }
