@@ -3,7 +3,8 @@ import {
   collection, onSnapshot, doc, updateDoc, deleteDoc,
   query, orderBy,
 } from 'firebase/firestore'
-import { db } from '../../firebase.js'
+import { sendPasswordResetEmail } from 'firebase/auth'
+import { db, auth } from '../../firebase.js'
 import { ETIQUETAS_CARGO, ETIQUETAS_ESTADO } from '../../utils/permisos.js'
 
 const BADGE_CLASE = {
@@ -25,6 +26,8 @@ export default function AdminUsuarios() {
   const [rolModal,     setRolModal]     = useState(null)   // usuario para modal de cambio de rol
   const [nuevoRol,     setNuevoRol]     = useState('')
   const [confirmar,    setConfirmar]    = useState(null)   // { uid, accion: 'eliminar' }
+  const [resetEnviando, setResetEnviando] = useState(null) // uid con reset en curso
+  const [mensaje,      setMensaje]      = useState(null)   // { tipo: 'ok'|'error', texto }
 
   useEffect(() => {
     let q
@@ -59,6 +62,34 @@ export default function AdminUsuarios() {
     setConfirmar(null)
   }
 
+  // Restablecer contraseña: Firebase NO permite que un admin FIJE la contraseña
+  // de otro usuario desde el navegador (requeriría el Admin SDK en servidor). La
+  // vía segura es enviar al usuario el correo oficial de Firebase para que ÉL
+  // mismo defina su nueva contraseña. Así el admin "ayuda" sin manejar la clave.
+  const enviarResetPassword = async (usuario) => {
+    const email = String(usuario?.email || '').trim()
+    if (!email) {
+      setMensaje({ tipo: 'error', texto: `El usuario ${usuario?.nombre || ''} no tiene correo registrado; no se puede enviar el restablecimiento.` })
+      return
+    }
+    setResetEnviando(usuario.id)
+    setMensaje(null)
+    try {
+      await sendPasswordResetEmail(auth, email)
+      setMensaje({ tipo: 'ok', texto: `Correo de restablecimiento enviado a ${email}. El usuario definirá su nueva contraseña desde ese enlace.` })
+    } catch (err) {
+      console.error('[AdminUsuarios] resetPassword:', err)
+      const texto = err?.code === 'auth/user-not-found'
+        ? `No existe una cuenta de acceso para ${email} (el usuario quizá nunca completó el registro).`
+        : err?.code === 'auth/invalid-email'
+          ? `El correo ${email} no es válido.`
+          : `No se pudo enviar el correo a ${email}. Intente de nuevo.`
+      setMensaje({ tipo: 'error', texto })
+    } finally {
+      setResetEnviando(null)
+    }
+  }
+
   const lista = usuarios.filter((u) => {
     const q = busqueda.toLowerCase()
     const ok = !q ||
@@ -82,6 +113,26 @@ export default function AdminUsuarios() {
           <p>{usuarios.length} usuarios en la plataforma · mostrando {lista.length}</p>
         </div>
       </div>
+
+      {mensaje && (
+        <div
+          role="status"
+          style={{
+            margin: '0 0 12px', padding: '10px 14px', borderRadius: 8, fontSize: 14,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+            background: mensaje.tipo === 'ok' ? '#ecfdf5' : '#fef2f2',
+            color: mensaje.tipo === 'ok' ? '#065f46' : '#991b1b',
+            border: `1px solid ${mensaje.tipo === 'ok' ? '#a7f3d0' : '#fecaca'}`,
+          }}
+        >
+          <span>{mensaje.tipo === 'ok' ? '✅ ' : '⚠️ '}{mensaje.texto}</span>
+          <button
+            onClick={() => setMensaje(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 16, lineHeight: 1 }}
+            aria-label="Cerrar mensaje"
+          >×</button>
+        </div>
+      )}
 
       <div className="admin-toolbar">
         <input
@@ -144,6 +195,12 @@ export default function AdminUsuarios() {
                         className="admin-btn-sm ghost"
                         onClick={() => { setRolModal(u); setNuevoRol(u.rol || 'docente') }}
                       >Rol</button>
+                      <button
+                        className="admin-btn-sm ghost"
+                        disabled={resetEnviando === u.id}
+                        title="Enviar al usuario un correo para restablecer su contraseña"
+                        onClick={() => enviarResetPassword(u)}
+                      >{resetEnviando === u.id ? 'Enviando…' : '🔑 Reset'}</button>
                       {u.estado !== 'activo'     && <button className="admin-btn-sm green"  onClick={() => cambiarEstado(u.id, 'activo')}>Activar</button>}
                       {u.estado !== 'pendiente'  && <button className="admin-btn-sm yellow" onClick={() => cambiarEstado(u.id, 'pendiente')}>Pendiente</button>}
                       {u.estado !== 'suspendido' && <button className="admin-btn-sm red"    onClick={() => cambiarEstado(u.id, 'suspendido')}>Suspender</button>}

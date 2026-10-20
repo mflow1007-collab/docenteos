@@ -120,8 +120,13 @@ export const buildSystemPromptFaseA = (nivel = '') =>
   // idiomas). El estándar de calidad es el de un docente dominicano excelente:
   // planificaciones ricas, contextualizadas a la comunidad, con un producto
   // final tangible al que cada clase aporta una pieza, actividades con misión
-  // nombrada y evidencias observables. El CONTENIDO (vocabulario, fórmulas,
-  // conceptos) lo aporta SIEMPRE la malla del área — nunca lo inventa el rol.
+  // nombrada y evidencias observables. El CONTENIDO nace SIEMPRE de la malla del
+  // área (vocabulario, fórmulas, conceptos): no se traen temas ajenos. Pero el
+  // rol SÍ puede EXPANDIR esa semilla en frases y ejemplos del mismo campo
+  // semántico y nivel al servicio de la situación de aprendizaje — como un buen
+  // docente que, partiendo de "May I...?", enseña "May I come in? / May I go to
+  // the bathroom?". Expandir no es inventar: es hacer crecer la planta de la
+  // malla, no plantar otra especie.
   `Eres un docente dominicano experto del Nivel ${nivelLabelPrompt(nivel)} que planifica con la calidad y el detalle ` +
   'del mejor docente del MINERD, para CUALQUIER asignatura (Lengua Española, Matemática, Ciencias ' +
   'Sociales, Ciencias de la Naturaleza, Lenguas Extranjeras, Educación Artística, Física, Formación ' +
@@ -1450,7 +1455,7 @@ function buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, 
     ? `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el ${saludoNota}: ${saludoEjem}), "retroalimentacionPrevia", "saberesPrevios" y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). Para la PRIMERA clase de la unidad no hay clase anterior: "retroalimentacionPrevia" inicia con "Retroalimentación de experiencias relacionadas con..." (exploración diagnóstica del tema con preguntas ${preguntaLoc}) y "saberesPrevios" (inicia con "Recuperación o exploración de saberes previos sobre...") puede versar sobre el tema o sobre cómo serán evaluados en la unidad. NO repitas saludo ni retroalimentación dentro de los momentos.`
     : `6. CADA clase incluye las piezas del Inicio: "saludoInicial" (solo el ${saludoNota}: ${saludoEjem}), "retroalimentacionPrevia" (oración completa que inicia con "Retroalimentación de..." recordando lo trabajado en la clase anterior — usa las actividades ya programadas listadas arriba — con preguntas de recuerdo ${preguntaLoc}), "saberesPrevios" (oración completa que inicia con "Recuperación o exploración de saberes previos sobre..." el contenido de ESTE día) y "actividadEnganche" (actividad de observación/enganche del día, en la voz obligatoria). NO repitas saludo ni retroalimentación dentro de los momentos.`;
 
-  return `Eres un DOCENTE dominicano experto del Nivel ${nivelLabelPrompt(spec.nivel)} planificando TU propia clase de ${spec.area} para el grado ${spec.grado}. Planificas con la riqueza y el detalle del mejor docente del MINERD: producto final tangible al que cada clase aporta una pieza, misiones con nombre propio, contextualización a la comunidad y evidencias observables. El estándar de calidad es transversal a TODAS las asignaturas; el CONTENIDO específico (vocabulario, conceptos, procedimientos) sale SIEMPRE de la malla oficial que se te entrega abajo — nunca lo inventas.
+  return `Eres un DOCENTE dominicano experto del Nivel ${nivelLabelPrompt(spec.nivel)} planificando TU propia clase de ${spec.area} para el grado ${spec.grado}. Planificas con la riqueza y el detalle del mejor docente del MINERD: producto final tangible al que cada clase aporta una pieza, misiones con nombre propio, contextualización a la comunidad y evidencias observables. El estándar de calidad es transversal a TODAS las asignaturas; el CONTENIDO específico NACE SIEMPRE de la malla oficial que se te entrega abajo (no traes temas ajenos a ella). Pero como buen docente SÍ EXPANDES esa semilla: a partir del vocabulario y las funciones de la malla creas frases y ejemplos ricos del MISMO campo semántico y nivel, al servicio de la SITUACIÓN DE APRENDIZAJE. Ejemplo: si la malla trae "May I...?" y "pedir ayuda", y la situación es orientar a estudiantes nuevos, produces un banco útil real ("May I come in?", "Can you help me, please?", "Where is the library?", "Excuse me", "I don't understand"), no solo repites el término suelto. Expandir no es inventar: es hacer crecer la planta de la malla, no plantar otra especie.
 
 TEMA: "${spec.temaOficial}"
 ÁREA: ${spec.area} | GRADO: ${spec.grado} | SEMANA: ${semanaNum} de ${numSemanas} (${rango})
@@ -1462,9 +1467,9 @@ ESPECIFICACIÓN CURRICULAR:
 - Competencias del grado: ${ceText || '(ver indicadores)'}
 - Indicadores PRECARGADOS por DocenteOS para esta secuencia (copia SOLO estos códigos en "indicadoresTrabajados"; no inventes ni uses indicadores fuera de esta lista):
 ${indText}
-- Conceptos/vocabulario disponible: ${vocab}
+- Vocabulario SEMILLA de la malla (NO es una lista cerrada: es el punto de partida que EXPANDES en frases y ejemplos útiles del mismo campo y nivel, orientados a la situación — no lo repitas suelto clase tras clase): ${vocab}
 - FOCO ${spec.esIdioma ? 'LINGÜÍSTICO' : 'CURRICULAR'} DEL BLOQUE (${spec.esIdioma ? 'estructura gramatical, vocabulario o función comunicativa que trabaja el Desarrollo — úsala como eje de las actividades y del campo "focoLinguistico"' : 'concepto, procedimiento o criterio central de la malla que trabaja el Desarrollo — úsalo como eje de las actividades y del campo "focoLinguistico"'}): ${focoCurricularTx}
-- Procedimientos/funciones afines al tema — trabájalos a lo largo de la unidad, distribuidos entre las clases, sin omitirlos cuando apliquen: ${funcs}
+- Procedimientos/FUNCIONES COMUNICATIVAS afines al tema — son el CORAZÓN de las actividades cuando la situación lo pide (pedir ayuda, pedir permiso, orientar, dar indicaciones): priorízalas sobre el vocabulario meramente descriptivo y trabájalas distribuidas entre las clases, sin omitirlas: ${funcs}
 ${arquitecturaTx ? `${arquitecturaTx}\n` : ''}
 ${productoLinea ? `${productoLinea}\n` : ''}${contextoLinea ? `${contextoLinea}\n` : ''}${exprs ? `- Expresiones oficiales del tema (incrústalas en las situaciones comunicativas): ${exprs}\n` : ''}${formatearMemoria(memoria)}
 ${secuenciaBaseTx ? `SECUENCIA BASE DOCENTEOS (NO ES DECORACIÓN): esta ruta ya fue armada desde la malla oficial y la situación de aprendizaje. Tu trabajo NO es inventar otra planificación desde cero: ENRIQUECE estas clases, conserva su fase, foco, aporte al producto e indicadores, y mejora actividades/evidencias/metacognición con más precisión docente.\n${secuenciaBaseTx}\n` : ''}
