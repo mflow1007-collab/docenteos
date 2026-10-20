@@ -3043,11 +3043,14 @@ const _generarFasesConIA = async (
     // FRECUENCIA (always, usually, never). Van ANTES para que "adverbio" no caiga
     // por error en la rama de frecuencia y el producto contradiga la estructura.
     if (/tiempo|now|in the past|\byet\b|already|still|adverbio de tiempo|time adverb/.test(t)) return `oraciones con adverbios de tiempo sobre ${destino}`;
-    // Frecuencia en tema lateral → NO "lista de hábitos" suelta: se enmarca como
-    // la rutina que sirve al producto (p. ej. éxito escolar en una guía escolar).
+    // Frecuencia en tema lateral → NO "lista de hábitos" genérica: la rutina se
+    // ORIENTA a la función del producto, no al tema en abstracto. Regla general
+    // (cualquier área): rutinas + guía escolar → rutina para tener éxito en la
+    // escuela; rutinas + producto de salud → rutina saludable; etc. La pieza base
+    // nombra la orientación; la IA le da el contenido concreto según el producto.
     if (/frecuencia|frequency|always|usually|often|sometimes|never/.test(t)) {
       return lateral
-        ? `rutina con adverbios de frecuencia como aporte a ${prodCorto}`
+        ? `rutina (antes/durante/después) orientada a ${prodCorto}, con adverbios de frecuencia`
         : `lista de hábitos con adverbios de frecuencia sobre ${temaCorto}`;
     }
     if (/wh|question|pregunta|interrogativ/.test(t)) return `entrevista escrita con preguntas y respuestas sobre ${destino}`;
