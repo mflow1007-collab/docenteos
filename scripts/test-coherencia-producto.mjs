@@ -91,6 +91,24 @@ check("sin aportes, no alerta (entrada vacía es válida)", () => {
   assert(avisos.length === 0, "alertó con entrada vacía");
 });
 
+// ── PDF v8: los nombres genéricos de la Fase 3 deben disparar la alerta + pista
+check("detecta 'Daily Routine Script' / 'Lista personal de hábitos' y da la pista accionable", () => {
+  const avisos = validarCoherenciaProducto({
+    producto: "Our School Survival Guide — guía bilingüe para orientar estudiantes nuevos",
+    temaCentral: "Escuela y educación",
+    aportesProducto: [
+      { semana: 1, texto: "Mapa de la escuela para Our School Survival Guide" },
+      { semana: 2, texto: "Guía de orientación escolar para la guía" },
+      { semana: 3, texto: "Daily Routine Script" },
+      { semana: 3, texto: "Lista personal de hábitos escolares con adverbios de frecuencia" },
+      { semana: 4, texto: "Descripción de una rutina diaria en inglés" },
+    ],
+    numSemanas: 5,
+  });
+  assert(avisos.some((a) => /desalineaci/i.test(a)), "no detectó los nombres genéricos de rutina del PDF v8");
+  assert(avisos.some((a) => /antes.*durante.*despu[eé]s/i.test(a)), "no dio la pista accionable (antes/durante/después)");
+});
+
 // ── esTemaLateral: detecta cuándo el tema de la semana difiere del central ────
 // (gobierna el re-enmarque de la pieza del producto en piezaDelDia).
 check("esTemaLateral: 'actividades de la vida diaria' ≠ 'Escuela y educación'", () => {
