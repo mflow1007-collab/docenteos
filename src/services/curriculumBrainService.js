@@ -446,7 +446,16 @@ export const construirArquitecturaUnidadMINERD = ({
         ...actitudinales.slice(0, 3).map((a) => `Actitud/valor: ${a}`),
       ],
       secuenciaOperaciones: perfilArea.secuencia,
-      puntoLlegada: producto || "Producto, desempeno o solucion evaluable vinculada al tema.",
+      // Punto de llegada = SABER SER (actitudes/valores/comportamientos), NO el
+      // producto. Referente MINERD pag. 39: "es el desarrollo esperado en el
+      // estudiante, enfocado en la transformacion de su saber ser... el docente
+      // se apoya en los descriptores de Etica y Ciudadana, Desarrollo Personal y
+      // Espiritual, Ambiental y de Salud". El producto es un componente DISTINTO
+      // de la situacion. Se construye desde las actitudes/valores oficiales de la
+      // malla; si no hay, fallback generico al saber ser (nunca al producto).
+      puntoLlegada: actitudinales.length
+        ? `Transformacion del saber ser: el estudiante asume y demuestra ${actitudinales.slice(0, 3).join(", ")} al abordar "${limpiar(titulo)}" en su entorno escolar, familiar y comunitario.`
+        : `Transformacion del saber ser: el estudiante desarrolla actitudes y valores de respeto, responsabilidad y convivencia al abordar "${limpiar(titulo)}".`,
     },
     seleccionCurricular: {
       competencias: competenciasNormalizadas,

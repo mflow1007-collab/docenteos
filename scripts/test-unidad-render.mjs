@@ -1787,6 +1787,21 @@ check("evidencias etiquetadas (Conocimientos/Desempeño/Producto) se renderizan 
   if (!h.includes("Cinco oraciones escritas")) throw new Error("no renderizó el ítem de producto");
 });
 
+check("R4: el 2º eje (función: de proceso/de componente/final) se renderiza junto a la naturaleza", () => {
+  // El merge con IA produce este formato: **Naturaleza** (función): con el 2º eje
+  // ortogonal (Guía Paso 2.1.4). La etiqueta de función va DENTRO de la misma
+  // celda, sin columnas nuevas (línea roja #2 intacta).
+  const u = JSON.parse(JSON.stringify(unidadFixture));
+  u.fasesSemanales[0].dias[0].momentos[1].evidencias =
+    "**Conocimientos** (de proceso):\n1. Reconoce ideas clave.\n**Desempeño** (de componente):\n1. Aplica la estructura.\n**Producto** (final):\n1. Entrega la guía.";
+  const h = formatearUnidadHTML(u, "");
+  // El negrita queda en la NATURALEZA; la FUNCIÓN la acompaña como texto sutil.
+  if (!h.includes("<strong>Conocimientos</strong> (de proceso):")) throw new Error("no renderizó Conocimientos + función de proceso");
+  if (!h.includes("<strong>Desempeño</strong> (de componente):")) throw new Error("no renderizó Desempeño + función de componente");
+  if (!h.includes("<strong>Producto</strong> (final):")) throw new Error("no renderizó Producto + función final");
+  validarUnidadRenderizada(u, h);
+});
+
 // ─── Banco de Aprendizaje: refs exactas contra la malla ACTIVA ────────────────
 
 const { verificarRefsContraMalla, construirSecuenciaCosechada, cosecharSecuenciaDeUnidad } =

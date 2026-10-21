@@ -160,6 +160,8 @@ const tipoSugeridoPorEvidencia = (clase = {}) => {
 const valorPorTipo = (tipoNorm) => {
   if (tipoNorm === "rubrica") return 50;
   if (tipoNorm === "lista_cotejo" || tipoNorm === "escala_estimativa" || tipoNorm === "guia_observacion") return 25;
+  // R12 — cuestionario y prueba competencial valen el total (prueba sumativa de
+  // dominio, Guía 2.2.2); igual que el fallback "otro", por eso no se listan aparte.
   return 100;
 };
 
