@@ -124,5 +124,92 @@ check("esTemaLateral: tolerante a acentos/mayúsculas", () => {
   assert(!esTemaLateral("LENGUA Y COMUNICACION", "lengua y comunicación"), "no normalizó acentos/mayúsculas");
 });
 
+// ── R5 — Enseñado ↔ evaluado: cada fase debe tocar ≥1 indicador de la rúbrica ──
+const rubricaDemo = [
+  "IL-LEI-1-1 — Responde a preguntas sencillas sobre su entorno.",
+  "IL-LEI-1-2 — Identifica vocabulario de la casa en textos orales.",
+];
+
+check("R5: alerta cuando una fase no trabaja ningún indicador de la rúbrica (huérfana)", () => {
+  const avisos = validarCoherenciaProducto({
+    producto: "School Survival Guide",
+    indicadoresRubrica: rubricaDemo,
+    indicadoresPorFase: [
+      { numero: 1, nombre: "Exploración", indicadores: ["IL-LEI-1-1 — Responde a preguntas."] },
+      { numero: 2, nombre: "Desarrollo", indicadores: ["IL-ZZ-9-9 — Indicador que NO está en la rúbrica."] },
+    ],
+  });
+  assert(avisos.some((a) => /Enseñado ≠ evaluado/.test(a)), `no detectó la fase huérfana: ${JSON.stringify(avisos)}`);
+  assert(avisos.some((a) => /"2"/.test(a)), "no nombró la fase 2 como huérfana");
+});
+
+check("R5: NO alerta cuando cada fase toca al menos un indicador de la rúbrica", () => {
+  const avisos = validarCoherenciaProducto({
+    producto: "School Survival Guide",
+    indicadoresRubrica: rubricaDemo,
+    indicadoresPorFase: [
+      { numero: 1, nombre: "Exploración", indicadores: ["IL-LEI-1-1 — Responde."] },
+      { numero: 2, nombre: "Desarrollo", indicadores: ["IL-LEI-1-2 — Identifica.", "IL-OTRO-1 — extra."] },
+    ],
+  });
+  assert(!avisos.some((a) => /Enseñado ≠ evaluado/.test(a)), `falsa alerta de enseñado≠evaluado: ${JSON.stringify(avisos)}`);
+});
+
+check("R5: compara por CÓDIGO tolerando corchetes/mayúsculas/espacios", () => {
+  const avisos = validarCoherenciaProducto({
+    producto: "X",
+    indicadoresRubrica: ["[IL-LEI-1-1] — Responde."],
+    indicadoresPorFase: [{ numero: 1, nombre: "F1", indicadores: ["il-lei-1-1 — misma, otro formato"] }],
+  });
+  assert(!avisos.some((a) => /Enseñado ≠ evaluado/.test(a)), "no normalizó el código al comparar");
+});
+
+check("R5: fase sin indicadores reportados NO se juzga (la cubre otra validación)", () => {
+  const avisos = validarCoherenciaProducto({
+    producto: "X",
+    indicadoresRubrica: rubricaDemo,
+    indicadoresPorFase: [{ numero: 1, nombre: "F1", indicadores: [] }],
+  });
+  assert(!avisos.some((a) => /Enseñado ≠ evaluado/.test(a)), "juzgó una fase sin indicadores");
+});
+
+check("R5: compat. hacia atrás — sin indicadoresRubrica/PorFase no corre", () => {
+  const avisos = validarCoherenciaProducto({ producto: "X", temaCentral: "Y", aportesProducto: [], numSemanas: 4 });
+  assert(!avisos.some((a) => /Enseñado ≠ evaluado/.test(a)), "corrió R5 sin datos (debería ser no-op)");
+});
+
+// ── R7 — Honestidad de la transversalidad: no fingir interdisciplina mono-área ─
+check("R7: alerta si la situación pretende interdisciplina sin áreas vinculadas", () => {
+  const avisos = validarCoherenciaProducto({
+    producto: "X",
+    textoSituacion: "Una propuesta interdisciplinaria que integra varias áreas del conocimiento.",
+    asignaturasVinculadas: [],
+  });
+  assert(avisos.some((a) => /Transversalidad declarada sin áreas/.test(a)), `no detectó la pretensión: ${JSON.stringify(avisos)}`);
+});
+
+check("R7: NO alerta si DE VERDAD hay asignaturas vinculadas declaradas", () => {
+  const avisos = validarCoherenciaProducto({
+    producto: "X",
+    textoSituacion: "Una propuesta interdisciplinaria que integra varias áreas.",
+    asignaturasVinculadas: ["Ciencias Sociales", "Lengua Española"],
+  });
+  assert(!avisos.some((a) => /Transversalidad declarada/.test(a)), `falsa alerta con áreas reales: ${JSON.stringify(avisos)}`);
+});
+
+check("R7: NO alerta en unidad mono-área honesta (sin pretender interdisciplina)", () => {
+  const avisos = validarCoherenciaProducto({
+    producto: "X",
+    textoSituacion: "Los estudiantes producen una guía escolar usando el eje transversal de Ciudadanía.",
+    asignaturasVinculadas: [],
+  });
+  assert(!avisos.some((a) => /Transversalidad declarada/.test(a)), `falsa alerta en mono-área honesta: ${JSON.stringify(avisos)}`);
+});
+
+check("R7: compat. hacia atrás — sin textoSituacion no corre", () => {
+  const avisos = validarCoherenciaProducto({ producto: "X", temaCentral: "Y", aportesProducto: [], numSemanas: 4 });
+  assert(!avisos.some((a) => /Transversalidad declarada/.test(a)), "corrió R7 sin datos (debería ser no-op)");
+});
+
 console.log(`\nCoherencia del producto: ${pasos} pasos, ${fallos} fallos`);
 process.exit(fallos ? 1 : 0);

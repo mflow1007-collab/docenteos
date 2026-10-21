@@ -165,6 +165,155 @@ const COMPETENCIAS_FUND_POR_AREA = {
 const getEstrategia = (area) =>
   ESTRATEGIAS_POR_AREA[area] || "Aprendizaje Colaborativo e Indagación Dialógica";
 
+// ─── R10/R11 — Estrategias E-A OFICIALES con sus fases (Referente págs. 18-24) ──
+// Las 8 estrategias de enseñanza-aprendizaje del MINERD que SÍ tienen fases
+// oficiales. Cada una trae sus fases oficiales agrupadas en 4 FASES DE UNIDAD
+// (Opción A, avalada por Guía pág. 22: "las fases determinan cómo se distribuyen
+// los BLOQUES de filas" → varias clases bajo una misma fase). TODAS terminan en
+// F4 = presentación/evaluación/aplicación, preservando el patrón de la plantilla
+// ("última fase = integración/socialización"). Esto es DATO: no cambia la
+// cantidad de fases de unidad (siempre 4) ni la plantilla; solo da el TEXTO de
+// `fase.nombre` según la estrategia elegida. clave = id interno estable.
+const FASES_POR_ESTRATEGIA = {
+  indagacion_dialogica: {
+    nombre: "Indagación dialógica",
+    fases: [
+      "Recogida de saberes y definición del objeto",
+      "Selección de fuentes y formulación de preguntas",
+      "Análisis de información y construcción del producto",
+      "Presentación de resultados y evaluación",
+    ],
+  },
+  proyectos: {
+    nombre: "Aprendizaje Basado en Proyectos",
+    fases: [
+      "Observación del tema y formulación de la pregunta",
+      "Hipótesis y diseño del método",
+      "Investigación y conclusiones",
+      "Presentación y aplicación del producto",
+    ],
+  },
+  problemas: {
+    nombre: "Aprendizaje Basado en Problemas (ABP)",
+    fases: [
+      "Análisis y definición del problema",
+      "Objetivos e investigación",
+      "Reestructuración y aprendizaje",
+      "Puesta en común y socialización",
+    ],
+  },
+  conocimientos_previos: {
+    nombre: "Exploración de conocimientos previos",
+    fases: [
+      "Presentación de la situación",
+      "Recogida de saberes",
+      "Socialización reflexiva",
+      "Introducción del nuevo conocimiento",
+    ],
+  },
+  expositiva: {
+    nombre: "Expositiva de conocimientos elaborados",
+    fases: [
+      "Recogida y búsqueda de información",
+      "Producción de la exposición",
+      "Exposición de producciones",
+      "Reflexión metacognitiva y sistematización",
+    ],
+  },
+  descubrimiento: {
+    nombre: "Descubrimiento e indagación",
+    fases: [
+      "Recuperación de experiencias y selección del tema",
+      "Organización de la investigación",
+      "Análisis y comprobación",
+      "Conclusiones y cierre",
+    ],
+  },
+  estudio_caso: {
+    nombre: "Estudio de caso",
+    fases: [
+      "Conocimiento del caso",
+      "Estudio del caso",
+      "Elaboración de conclusiones",
+      "Evaluación de las conclusiones",
+    ],
+  },
+  insercion_entorno: {
+    nombre: "Inserción en el entorno",
+    fases: [
+      "Preparación y elaboración de instrumentos",
+      "Visita al entorno y reflexión",
+      "Análisis y elaboración de propuestas",
+      "Aplicación y evaluación",
+    ],
+  },
+};
+
+// R10 refinamiento — Estrategia AFÍN a la naturaleza del área (Referente §1.4).
+// Se usa SOLO como desempate cuando la situación no da una señal clara: inclina
+// el default hacia la estrategia coherente con la lógica propia de la disciplina
+// (Adecuación Curricular). NO sustituye el análisis de la situación; es el piso.
+const ESTRATEGIA_AFIN_POR_AREA = {
+  "Inglés": "indagacion_dialogica",                 // comunicativo/intercultural
+  "Francés": "indagacion_dialogica",
+  "Lengua Española": "proyectos",                   // textual/funcional → producción de textos
+  "Matemática": "problemas",                        // resolución de problemas
+  "Ciencias de la Naturaleza": "descubrimiento",    // indagación científica/experimental
+  "Ciencias Sociales": "estudio_caso",              // sociocrítico: persona en sociedad
+  "Educación Artística": "proyectos",               // expresión/creación
+  "Educación Física": "proyectos",                  // corporal/motriz cooperativo
+  "Formación Integral Humana y Religiosa": "estudio_caso", // axiológico: dilema ético
+};
+
+// R10 — Selecciona la estrategia E-A según la NATURALEZA de la situación (Guía
+// Paso 1.2.4, pág. 21), NO por área. Analiza el texto de la situación + tema +
+// producto y devuelve la clave de FASES_POR_ESTRATEGIA más pertinente. Es
+// MULTI-ÁREA: las señales son de contenido (no de asignatura). Cuando la
+// situación NO da señal clara, cae a la estrategia AFÍN al área (Referente §1.4)
+// en vez de un default fijo, respetando la lógica propia de la disciplina.
+const seleccionarEstrategiaPorSituacion = ({ situacion = "", tema = "", producto = "", area = "" } = {}) => {
+  const t = `${situacion} ${tema} ${producto}`
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+  // Orden por PRIORIDAD: lo más inequívoco primero. Las señales amplias
+  // (comunidad/barrio) NO disparan solas — exigen una ACCIÓN de campo real,
+  // porque si no capturan casos que en realidad son Proyectos. Multi-área:
+  // todas las señales son de contenido, no de asignatura.
+
+  // 1) PRODUCTO tangible que resuelve una necesidad → Proyectos. Va PRIMERO
+  // porque es el patrón más frecuente y específico (hay verbo de creación +
+  // entregable nombrado). Cubre guía, periódico, feria, campaña, maqueta…
+  const hayProducto = /\b(crear|elaborar|construir|disenar|disenaran|producir|produciran|guia|campana|maqueta|periodico|feria|mural|cartilla|folleto|boletin|exposicion|producto|guion)\b/.test(t);
+  const hayNecesidad = /\b(necesit|problema|dificultad|dificultades|mejorar|resolver|solucion|falta|ayudar|orientar|informar a)\b/.test(t);
+  if (hayProducto && hayNecesidad) return "proyectos";
+
+  // 2) ACCIÓN de campo real (no solo mención de "comunidad") → Inserción en el entorno
+  if (/\b(visita|excursion|mapeo|salida de campo|in situ|recorrido|trabajo de campo|entrevista(s|r)?\b)\b/.test(t)) {
+    return "insercion_entorno";
+  }
+  // 3) Caso real/simulado para analizar y decidir → Estudio de caso
+  if (/\b(caso|dilema|situacion de la vida real|que harias|analizar el caso|toma de decision)\b/.test(t)) {
+    return "estudio_caso";
+  }
+  // 4) Fenómeno a explicar (por qué / cómo funciona / experimento) → Descubrimiento e indagación
+  if (/\b(por que ocurre|como funciona|fenomeno|experiment|observ|comprob|explicar el|explicar como|hipotesis)\b/.test(t)) {
+    return "descubrimiento";
+  }
+  // 5) Problema a INVESTIGAR que NO llega a producto tangible → ABP (propuesta)
+  if (/\b(bajo indice|dificultad para|no logran|no pueden|problema|conflicto|reto|investigar)\b/.test(t)) {
+    return "problemas";
+  }
+  // 6) Conocimiento elaborado a COMUNICAR → Expositiva
+  if (/\b(dar a conocer|exponer|presentar informacion|divulgar|informar sobre)\b/.test(t)) {
+    return "expositiva";
+  }
+  // 7) Sin señal clara en la situación → estrategia AFÍN a la naturaleza del área
+  // (Referente §1.4). Último recurso: indagación dialógica (apta para explorar
+  // cualquier tema por diálogo). Multi-área sin cablear ningún caso concreto.
+  return ESTRATEGIA_AFIN_POR_AREA[area] || "indagacion_dialogica";
+};
+
 // getSituacion (plantilla corta legacy) fue reemplazada por
 // construirSituacionNarrativa — situación al estilo del documento modelo.
 
@@ -476,8 +625,16 @@ const construirEjesContextualizados = (ejes, { area, tema }) => {
 // estrategia y recorrido → producto final progresivo.
 export const construirSituacionNarrativa = ({
   area, tema, grado, centro, estrategia, producto,
-  contextoComunitario = "",
+  contextoComunitario = "", saberSer = "",
 }) => {
+  // Punto de llegada (saber ser) con que cierra la narrativa. Referente MINERD
+  // pag. 39: la situacion de aprendizaje cierra en la TRANSFORMACION del saber
+  // ser (actitudes/valores/comportamientos), no en un resultado comunicativo.
+  // Si el llamador aporta el saber ser real de la malla, se usa; si no, un
+  // cierre generico bien formado anclado a Etica/Ciudadana, Desarrollo Personal
+  // y Ambiental/Salud (las 3 competencias que la norma asocia al punto de llegada).
+  const cierreSaberSer = String(saberSer || "").trim()
+    || "asumiendo una actitud de respeto, empatia y responsabilidad hacia las demas personas y su entorno, y valorando la convivencia y el servicio a la comunidad";
   // "Centro Hector Francisco Lopez - Hato Nuevo" → comunidad "Hato Nuevo"
   const comunidad = String(centro || "").includes("-")
     ? String(centro).split("-").pop().trim()
@@ -510,7 +667,7 @@ export const construirSituacionNarrativa = ({
     const anclaje = contextoReal
       ? ` Esta realidad se relaciona con el contexto expresado por el centro: ${contextoReal.replace(/[.\s]+$/, "")}.`
       : "";
-    return `${quienes} ${necesidad}, ${consecuencia}.${anclaje} Por ello, mediante ${estrategia}, los estudiantes analizarán situaciones auténticas de su entorno, explorarán el vocabulario y las funciones comunicativas de "${tema}", comprenderán modelos orales y escritos, practicarán intercambios con sus compañeros y producirán las piezas necesarias para elaborar ${productoLimpio}. Este producto será socializado con su audiencia real y permitirá demostrar una comunicación útil, cortés y vinculada con la vida del centro y la comunidad.`;
+    return `${quienes} ${necesidad}, ${consecuencia}.${anclaje} Por ello, mediante ${estrategia}, los estudiantes analizarán situaciones auténticas de su entorno, explorarán el vocabulario y las funciones comunicativas de "${tema}", comprenderán modelos orales y escritos, practicarán intercambios con sus compañeros y producirán las piezas necesarias para elaborar ${productoLimpio}. Este producto será socializado con su audiencia real, ${cierreSaberSer}.`;
   }
 
   const areaNorm = String(area || "")
@@ -566,7 +723,7 @@ export const construirSituacionNarrativa = ({
   const anclaje = contextoReal
     ? ` En su contexto se observa la siguiente realidad: ${contextoReal.replace(/[.\s]+$/, "")}.`
     : "";
-  return `${quienes} reconocen "${tema}" en experiencias de su vida escolar, familiar o comunitaria; sin embargo, presentan dificultades para ${perfil.dificultad}, lo que limita su capacidad para interpretar situaciones y actuar de manera fundamentada.${anclaje} Por ello, mediante ${estrategia}, ${perfil.acciones} y construirán progresivamente ${productoLimpio}. El producto será socializado con una audiencia vinculada al contexto y permitirá comunicar ${perfil.resultado} para la comunidad.`;
+  return `${quienes} reconocen "${tema}" en experiencias de su vida escolar, familiar o comunitaria; sin embargo, presentan dificultades para ${perfil.dificultad}, lo que limita su capacidad para interpretar situaciones y actuar de manera fundamentada.${anclaje} Por ello, mediante ${estrategia}, ${perfil.acciones} y construirán progresivamente ${productoLimpio}. El producto será socializado con una audiencia vinculada al contexto y permitirá comunicar ${perfil.resultado}, ${cierreSaberSer}.`;
 };
 
 // Nota institucional de organización temporal (versión parametrizada del modelo)
@@ -1814,12 +1971,20 @@ const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFina
   // presentación/apropiación y la ÚLTIMA siempre integración/producto final,
   // sin importar cuántas fases haya (1 a 4). Con 4 se usan los 4 nombres
   // canónicos; con menos se colapsa manteniendo apertura y cierre coherentes.
+  // R11 — Si llegó una estrategia oficial con sus 4 fases, se usan esos nombres
+  // (reflejan la estrategia E-A elegida por la situación). Si no, nombres
+  // genéricos canónicos (comportamiento legacy). `fasesEstrategia` viaja en
+  // `contexto` y SIEMPRE tiene 4 entradas (tabla FASES_POR_ESTRATEGIA).
+  const fasesEstr = Array.isArray(contexto?.fasesEstrategia) && contexto.fasesEstrategia.length === 4
+    ? contexto.fasesEstrategia
+    : null;
   const nombreFase = (faseIdx, totalFases) => {
-    if (totalFases === 1) return NOMBRES_FASES[0];
-    if (faseIdx === 0) return NOMBRES_FASES[0];
-    if (faseIdx === totalFases - 1) return NOMBRES_FASES[3]; // Integración y consolidación
-    if (totalFases === 4) return NOMBRES_FASES[faseIdx];
-    return NOMBRES_FASES[faseIdx === 1 ? 1 : 2]; // Desarrollo / Profundización
+    const banco = fasesEstr || NOMBRES_FASES;
+    if (totalFases === 1) return banco[0];
+    if (faseIdx === 0) return banco[0];
+    if (faseIdx === totalFases - 1) return banco[3]; // integración/cierre/presentación
+    if (totalFases === 4) return banco[faseIdx];
+    return banco[faseIdx === 1 ? 1 : 2]; // intermedias
   };
 
   const fases = distribucion.map((numHoras, faseIdx) => ({
@@ -2473,6 +2638,10 @@ const _temasDeSemanas = (rutaCurricular, semanas = []) => {
  * @param {string} args.temaCentral- Tema central (título/tema oficial).
  * @param {Array}  args.aportesProducto - [{ semana, texto }] piezas por semana.
  * @param {number} args.numSemanas - Total de semanas de la unidad.
+ * @param {string[]} args.corpusDocumento - R3: textos del documento completo
+ *   (nombres de fase, intenciones, títulos de día, evidencias) para detectar
+ *   PRODUCTOS-FANTASMA (un 2º producto con nombre propio distinto del declarado,
+ *   p. ej. "Daily Routine Script", "Routine Guide for New Students"). Opcional.
  * @returns {string[]} advertencias (vacío si todo coherente).
  */
 export const validarCoherenciaProducto = ({
@@ -2480,8 +2649,110 @@ export const validarCoherenciaProducto = ({
   temaCentral = "",
   aportesProducto = [],
   numSemanas = 0,
+  corpusDocumento = [],
+  indicadoresRubrica = [],
+  indicadoresPorFase = [],
+  asignaturasVinculadas = [],
+  textoSituacion = "",
 } = {}) => {
   const avisos = [];
+
+  // R7 — Honestidad de la transversalidad (Referente págs. 30-31, niveles Tobón:
+  // preformal/receptivo/autónomo/estratégico). Una unidad de UNA sola área NO es
+  // interdisciplinaria: trabaja ejes transversales (Salud, Ciudadanía…) pero eso
+  // es nivel RECEPTIVO, no integración de áreas. Si el documento (situación/ejes)
+  // PRETENDE interdisciplina ("varias áreas", "interdisciplinar", "integración de
+  // áreas") sin declarar asignaturas vinculadas, es una exageración que la norma
+  // desaconseja ("no fingir interdisciplina"). ADVERTENCIA no bloqueante; no
+  // altera la unidad ni la plantilla. Compat.: sin textoSituacion, no corre.
+  const areasVinc = (Array.isArray(asignaturasVinculadas) ? asignaturasVinculadas : [])
+    .map((s) => String(s || "").trim()).filter(Boolean);
+  const situacionTxt = String(textoSituacion || "");
+  if (situacionTxt && !areasVinc.length) {
+    const RE_INTERDISCIPLINA = /\b(interdisciplinari[ao]s?|interdisciplina|integraci[oó]n de (?:las )?[aá]reas|varias [aá]reas|m[uú]ltiples [aá]reas|distintas [aá]reas|diferentes [aá]reas|entre [aá]reas)\b/i;
+    if (RE_INTERDISCIPLINA.test(situacionTxt)) {
+      avisos.push(
+        `⚠ Transversalidad declarada sin áreas vinculadas: el documento sugiere integración de varias áreas, ` +
+        `pero no hay asignaturas vinculadas declaradas, por lo que la unidad es mono-área (nivel receptivo de ` +
+        `transversalidad, Referente págs. 30-31). Según la norma no se debe fingir interdisciplina: trabaje los ` +
+        `ejes transversales (Salud, Ciudadanía…) sin presentarlos como integración de áreas, o declare las ` +
+        `asignaturas realmente vinculadas.`
+      );
+    }
+  }
+
+  // R5 — Enseñado ↔ evaluado (Referente pág. 52). Cada fase de la unidad debe
+  // trabajar al menos UN indicador de los que mide la rúbrica final; una fase
+  // cuyos indicadores de avance no intersectan con la rúbrica es una "fase
+  // huérfana" (se enseña algo que no se evalúa, o se evalúa algo que no se
+  // enseña esa fase). Se compara por CÓDIGO (IL-…), no por texto, tolerando
+  // mayúsculas, espacios y corchetes. Es ADVERTENCIA (patrón del validador: no
+  // bloquea ni altera la unidad). Compat. hacia atrás: sin estos datos, no corre.
+  const codigoDeIndicador = (s = "") => String(s || "")
+    .split("—")[0]
+    .replace(/[[\]]/g, "")
+    .replace(/\s/g, "")
+    .toUpperCase()
+    .trim();
+  const rubricaCodigos = new Set(
+    (Array.isArray(indicadoresRubrica) ? indicadoresRubrica : [])
+      .map(codigoDeIndicador).filter(Boolean)
+  );
+  const fases = Array.isArray(indicadoresPorFase) ? indicadoresPorFase : [];
+  if (rubricaCodigos.size && fases.length) {
+    const huerfanas = [];
+    for (const fase of fases) {
+      const cods = (Array.isArray(fase?.indicadores) ? fase.indicadores : [])
+        .map(codigoDeIndicador).filter(Boolean);
+      // Fase sin indicadores reportados: no se juzga (ya la cubre otra validación).
+      if (!cods.length) continue;
+      if (!cods.some((c) => rubricaCodigos.has(c))) {
+        huerfanas.push(fase?.numero ?? fase?.nombre ?? "?");
+      }
+    }
+    if (huerfanas.length) {
+      avisos.push(
+        `⚠ Enseñado ≠ evaluado: la(s) fase(s) ${huerfanas.map((h) => `"${h}"`).join(", ")} ` +
+        `no trabaja(n) ningún indicador de la rúbrica final. Según la norma MINERD (Referente pág. 52) ` +
+        `lo que se enseña cada fase debe aportar a lo que se evalúa en el producto. Revise que cada fase ` +
+        `trabaje al menos un indicador de la rúbrica, o ajuste la rúbrica para incluir lo que esa fase enseña.`
+      );
+    }
+  }
+
+  // R3 — Detector de PRODUCTO-FANTASMA sobre todo el documento. Referente pág. 39:
+  // hay UN producto que responde a UNA situación. Si el documento acuña un 2º
+  // nombre-producto distinto del declarado, es la señal más fuerte de tema
+  // paralelo (una miniunidad que se fabricó su propio entregable). Patrón:
+  // "<Nombre Propio> (Guide|Script|Tracker|Diary|Journal|Guía|Guion)".
+  const corpus = (Array.isArray(corpusDocumento) ? corpusDocumento : []).filter(Boolean).map(String);
+  if (corpus.length) {
+    const tokensProd = new Set(tokensTrazaAula(producto));
+    // Nombres-producto con mayúscula inicial (inglés y español) + sustantivo de
+    // entregable + sufijo opcional ("for New Students", "de la comunidad", etc.).
+    const RE_FANTASMA = /\b([A-Z][\wáéíóúñ]+(?:\s+[A-Z][\wáéíóúñ]+){0,4})\s+(Guide|Script|Tracker|Diary|Journal|Gu[ií]a|Guion)((?:\s+(?:for|de|del|para)\s+[\wáéíóúñ]+(?:\s+[\wáéíóúñ]+){0,3})?)/g;
+    const fantasmas = new Set();
+    for (const texto of corpus) {
+      let m;
+      RE_FANTASMA.lastIndex = 0;
+      while ((m = RE_FANTASMA.exec(texto)) !== null) {
+        const nombre = m[0].trim();
+        // No es fantasma si sus tokens coinciden con el producto declarado.
+        const toks = tokensTrazaAula(nombre);
+        const esElProducto = toks.length && toks.every((t) => tokensProd.has(t));
+        if (!esElProducto) fantasmas.add(nombre);
+      }
+    }
+    if (fantasmas.size) {
+      avisos.push(
+        `⚠ Producto-fantasma: el documento nombra ${fantasmas.size} entregable(s) con nombre propio ` +
+        `distinto(s) del producto final declarado (${[...fantasmas].slice(0, 3).map((f) => `"${f}"`).join(", ")}). ` +
+        `Según la norma MINERD hay UN solo producto que responde a la situación; renómbralo(s) como SECCIÓN ` +
+        `del producto final "${String(producto).split(/\s*[—–:(]/)[0].trim()}" (p. ej. "sección de rutinas de ${String(producto).split(/\s*[—–:(]/)[0].trim()}").`
+      );
+    }
+  }
+
   const aportes = (Array.isArray(aportesProducto) ? aportesProducto : [])
     .filter((a) => a && a.texto);
   if (!aportes.length) return avisos;
@@ -3346,6 +3617,8 @@ const _generarFasesConIA = async (
     indiceGlobal = 0,
     faseNum = 2,
     esUltimoDeSemana = false,
+    temaCentral = "",
+    producto = "",
   }) => {
     const vocabTxt = vocabulario.length ? vocabulario.join(", ") : "palabras clave del tema";
     const estructura = nombreCortoEstructuraLocal(protagonista?.texto) || "la estructura comunicativa trabajada";
@@ -3353,6 +3626,19 @@ const _generarFasesConIA = async (
       .replace(/^(Funcional|Discursivo):\s*/i, "").toLowerCase();
     const lv = LISTENING_VARIANTES[indiceGlobal % LISTENING_VARIANTES.length];
     const interaccion = resolverMecanica({ estructura, funcion, temaSemana, indiceGlobal });
+
+    // R2 — Foco temático de las actividades. Si el tema de la semana es LATERAL
+    // (distinto del tema central de la unidad), el FOCO se reorienta hacia el
+    // producto para que las actividades NO se queden en el tema suelto (p. ej.
+    // "rutinas" → "la rutina para el éxito escolar, aporte a la guía"). Si NO es
+    // lateral, el foco es el propio tema de la semana. temaCorto es el tema de la
+    // semana limpio. NO cambia la mecánica ni la plantilla: solo el SUJETO del que
+    // tratan las actividades de foco en fases de desarrollo (2-3).
+    const temaCortoFoco = String(temaSemana).split(" · ")[0].trim();
+    const focoLateral = Boolean(producto) && temaCentral && esTemaLateral(temaCortoFoco, temaCentral);
+    const temaFoco = focoLateral
+      ? `${temaCentral} (aporte a ${nombreCortoProducto(producto)})`
+      : temaCortoFoco;
 
     // ÁREAS NO-IDIOMA: las actividades nacen de la SECUENCIA DISCIPLINAR del
     // área (documento oficial, págs. 9-10), no del molde comunicativo de
@@ -3440,7 +3726,7 @@ const _generarFasesConIA = async (
         .map((x) => String(x || "").trim())
         .filter(Boolean);
       return [
-        `Escuchan con propósito (${lv.nombre}) un texto breve sobre ${temaSemana} y ${lv.consigna}.`,
+        `Escuchan con propósito (${lv.nombre}) un texto breve sobre ${temaFoco} y ${lv.consigna}.`,
         ...pasos,
         `Elaboran ${piezaProducto}, incorporando ${estructura} y al menos tres palabras del vocabulario trabajado. (Aporte a ${productoNombre}.)`,
         `Socializan su producción con un compañero y aplican una mejora concreta ("una estrella y un deseo") antes de guardarla en el portafolio.`,
@@ -3462,7 +3748,7 @@ const _generarFasesConIA = async (
       }
       const pasos = actCombinada.instrucciones.map((x) => String(x || "").trim()).filter(Boolean);
       return [
-        `Escuchan con propósito (${lv.nombre}) un texto breve sobre ${temaSemana} y ${lv.consigna}.`,
+        `Escuchan con propósito (${lv.nombre}) un texto breve sobre ${temaFoco} y ${lv.consigna}.`,
         ...pasos.slice(1), // el paso 0 del combinado es andamiaje; ya lo pusimos con la variante del día
       ];
     }
@@ -3476,7 +3762,9 @@ const _generarFasesConIA = async (
     const secuencia = SECUENCIAS_GRAMATICA_FUNCIONAL[indiceGlobal % SECUENCIAS_GRAMATICA_FUNCIONAL.length];
     const construirPasos = protagonista?.esNueva ? secuencia.nueva : secuencia.reaplicacion;
     return construirPasos({
-      estructura, funcion, vocabTxt, temaSemana, interaccion,
+      // R2 — se pasa temaFoco como `temaSemana` para que el molde genérico también
+      // reoriente el foco al producto en semanas laterales (sin cambiar su firma).
+      estructura, funcion, vocabTxt, temaSemana: temaFoco, interaccion,
       piezaProducto, productoNombre, listening: lv,
     });
   };
@@ -3834,9 +4122,20 @@ const _generarFasesConIA = async (
       protagonista.tipo === "estructura" || protagonista.tipo === "reaplicacion"
         ? `Ejemplos modelo: ${estructuraDia}` : "",
     ].filter(Boolean);
-    const evidenciaInicio = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Inicio", piezaProducto, temaCorto, estructura: estructuraDia });
-    const evidenciaDesarrollo = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Desarrollo", piezaProducto, temaCorto, estructura: estructuraDia });
-    const evidenciaCierre = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Cierre", piezaProducto, temaCorto, estructura: estructuraDia });
+    // R2 (cierre) — sujeto de las evidencias de conocimiento/desempeño. Cuando el
+    // tema de la semana es LATERAL (distinto del tema central), la evidencia se
+    // enmarca HACIA el producto, igual que ya hacen la pieza y las actividades;
+    // así "Reconoce ideas sobre X" / "Aplica Y sobre X" no se quedan en el tema
+    // suelto. Si NO es lateral, es el tema corto de siempre. No cambia la pieza
+    // del producto (piezaProducto ya viene reorientado) ni la plantilla.
+    const temaCentralEvid = String(specActual.temaOficial || "").split(" · ")[0].trim();
+    const evidLateral = Boolean(productoNombre) && temaCentralEvid && esTemaLateral(temaCorto, temaCentralEvid);
+    const temaEvidencia = evidLateral
+      ? `${temaCentralEvid} (aporte a ${nombreCortoProducto(productoNombre)})`
+      : temaCorto;
+    const evidenciaInicio = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Inicio", piezaProducto, temaCorto: temaEvidencia, estructura: estructuraDia });
+    const evidenciaDesarrollo = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Desarrollo", piezaProducto, temaCorto: temaEvidencia, estructura: estructuraDia });
+    const evidenciaCierre = construirEvidenciasBase({ foco, producto: productoNombre, momento: "Cierre", piezaProducto, temaCorto: temaEvidencia, estructura: estructuraDia });
 
     const actividadesDesarrollo = estructurarActividadesVivas({
       actividades: construirActividadesDia({
@@ -3850,6 +4149,10 @@ const _generarFasesConIA = async (
       indiceGlobal,
       faseNum,
       esUltimoDeSemana,
+      // R2 — para reorientar el foco de las actividades al producto cuando el
+      // tema de la semana es LATERAL (distinto del tema central de la unidad).
+      temaCentral: String(specActual.temaOficial || "").split(" · ")[0].trim(),
+      producto: productoNombre,
       }),
       momento: "Desarrollo",
       tema: temaCorto,
@@ -4234,10 +4537,29 @@ const _generarFasesConIA = async (
           producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean)
             .filter((e) => !_clavesDesempeno.has(_clave(e))),
         };
+        // R4 — 2º EJE de las evidencias: la FUNCIÓN evaluativa (de proceso / de
+        // componente / final), ortogonal a su NATURALEZA (conocimiento/desempeño/
+        // producto). Guía Paso 2.1.4 + Referente págs. 14-15. Se DERIVA del momento
+        // y la fase (no se inventa): Inicio = evidencia de PROCESO (diagnóstico/
+        // activación formativa); Desarrollo = evidencia de COMPONENTE (pieza que
+        // aporta una sección del producto); Cierre de la fase FINAL = evidencia
+        // FINAL (valoración del producto terminado); cualquier otro cierre = de
+        // PROCESO (reflexión formativa intermedia). Coincide con la lógica ya
+        // existente (resolverEvaluacionMomento: diagnóstica→formativa→sumativa).
+        // Se imprime como etiqueta sutil DENTRO de la misma celda, igual que las
+        // etiquetas de naturaleza: NO añade columnas ni toca la plantilla.
+        const esCierre = mi === 2;
+        const esFaseFinal = fase.numero === fases.length;
+        const funcionEvidencia = esInicio
+          ? "de proceso"
+          : esCierre
+            ? (esFaseFinal ? "final" : "de proceso")
+            : "de componente";
         // Render desagregado DENTRO de la celda Evidencias existente
         // (contenido, no columnas nuevas): **Conocimientos:** / **Desempeño:**
         // / **Producto:** con numeración — como el documento modelo. Usa las
         // listas YA de-duplicadas (evidenciasPorTipo), no las crudas de la IA.
+        // La etiqueta de FUNCIÓN (R4) acompaña a la de naturaleza en la misma línea.
         orig.evidencias = [
           ["conocimientos", "Conocimientos"],
           ["desempeno", "Desempeño"],
@@ -4245,7 +4567,7 @@ const _generarFasesConIA = async (
         ].map(([clave, etiquetaEv]) => {
           const items = evidenciasPorTipo[clave] || [];
           return items.length
-            ? `**${etiquetaEv}:**\n${items.map((e, n) => `${n + 1}. ${e}`).join("\n")}`
+            ? `**${etiquetaEv}** (${funcionEvidencia}):\n${items.map((e, n) => `${n + 1}. ${e}`).join("\n")}`
             : "";
         }).filter(Boolean).join("\n");
         const evidenciasConId = Object.entries(evidenciasPorTipo).flatMap(([tipo, evidencias]) =>
@@ -4442,7 +4764,6 @@ export const generarUnidadAprendizaje = async (datos) => {
   // Usa la asignatura si tiene entrada en los diccionarios; si no, usa el área como fallback
   const claveContenido = resolverClave(asignatura, area, ESTRATEGIAS_POR_AREA);
   const asignaturaEf = asignatura || area;
-  const estrategiaEf = estrategiaTexto || getEstrategia(claveContenido);
   const ambiente = getAmbiente(claveContenido);
   const temasProducto = temasSeleccionados.length ? temasSeleccionados : [titulo];
   const productoDetalleBase = construirProductoEstructurado(temasProducto, {
@@ -4455,6 +4776,19 @@ export const generarUnidadAprendizaje = async (datos) => {
     socializacion: productoFinalSocializacion,
   });
   const producto = formatearProductoFinal(productoDetalleBase);
+
+  // R10 — La estrategia E-A se deriva de la NATURALEZA de la situación (Guía Paso
+  // 1.2.4), NO del área. Prioridad: (1) texto del docente > (2) estrategia por
+  // situación (una de las 8 oficiales con fases) > (3) fallback por área.
+  // estrategiaClave = id de FASES_POR_ESTRATEGIA (null si el docente forzó texto
+  // libre que no mapea a una oficial → las fases caen al comportamiento genérico).
+  const estrategiaClave = seleccionarEstrategiaPorSituacion({
+    situacion: situacionTexto || "", tema: titulo, producto, area: claveContenido,
+  });
+  const estrategiaSel = FASES_POR_ESTRATEGIA[estrategiaClave]; // {nombre, fases[]} o undefined
+  const estrategiaEf = estrategiaTexto
+    || (estrategiaSel ? estrategiaSel.nombre : getEstrategia(claveContenido));
+
   // Situación de aprendizaje narrativa (estilo del documento modelo): contexto
   // del centro → realidad observada → necesidad auténtica → estrategia →
   // producto final progresivo. El texto del docente siempre tiene prioridad.
@@ -4719,12 +5053,23 @@ export const generarUnidadAprendizaje = async (datos) => {
     .join(" ")
     .trim();
 
+  // R11 — Fases de la estrategia elegida para las bandas de fase de la unidad.
+  // Solo se aplican si la estrategia FINAL (tras prioridad docente/malla) es la
+  // que seleccionamos por situación; si el docente o la malla impusieron otra
+  // estrategia (texto libre que no mapea), se cae al comportamiento genérico
+  // (NOMBRES_FASES) para no desalinear nombre↔fases. No cambia cantidad de
+  // fases (siempre 4) ni plantilla: solo el TEXTO de fase.nombre.
+  const fasesEstrategia = (estrategiaSel && estrategiaFinal === estrategiaSel.nombre)
+    ? estrategiaSel.fases
+    : null;
+
   const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], combinacionesCreadas = [] } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
     {
       grado, nivel,
       contextoComunitario: contextoConZona,
       zonaEscolar,
+      fasesEstrategia, // R11 — nombres de fase oficiales (o null → genéricos)
       // Si el docente escribió su propio producto, ese nombre MANDA y la IA
       // no propone otro; el nombre generado solo sustituye el genérico.
       productoPropio: productoFinalTexto ? producto : "",
@@ -4887,19 +5232,17 @@ export const generarUnidadAprendizaje = async (datos) => {
     .filter((d) => d.aporteProducto)
     .map((d) => ({ semana: d.semana || 1, texto: d.aporteProducto }));
 
-  // Control de pertinencia del producto final (determinista, no bloqueante):
-  // alerta si la secuencia deriva hacia un tema paralelo o si el producto no
-  // progresa (última semana construyendo desde cero). Se añade a las
-  // advertencias que ya ve el docente; NO altera la unidad ni la distribución.
-  unidadResult.advertencias = [
-    ...(unidadResult.advertencias || []),
-    ...validarCoherenciaProducto({
-      producto: productoNombrado,
-      temaCentral: temaMallaStr || titulo,
-      aportesProducto,
-      numSemanas,
-    }),
-  ];
+  // R3 — corpus del documento completo para detectar productos-fantasma:
+  // nombres de fase, intenciones pedagógicas, títulos de día y evidencias (es
+  // donde la IA suele acuñar un 2º producto tipo "Daily Routine Script").
+  const corpusDocumento = (fasesSemanalesGeneradas || []).flatMap((f) => [
+    f.nombre,
+    ...(f.dias || []).flatMap((d) => [
+      d.titulo,
+      d.intencionPedagogica,
+      ...(d.momentos || []).map((mom) => mom.evidencias),
+    ]),
+  ]).filter(Boolean);
 
   unidadResult.notaInstitucional = construirNotaInstitucional({
     clasesPorSemana: diasClaseFinal.length,
@@ -4939,6 +5282,35 @@ export const generarUnidadAprendizaje = async (datos) => {
       .map((momento) => momento.recursos?.tecnologicos || "")
       .filter(Boolean),
   });
+
+  // Control de pertinencia del producto final (determinista, no bloqueante):
+  // alerta si la secuencia deriva hacia un tema paralelo, si el producto no
+  // progresa (última semana desde cero), si aparece un producto-fantasma (R3) o
+  // si una fase enseña algo que la rúbrica final no evalúa (R5). Corre DESPUÉS de
+  // construir los anexos para poder leer la rúbrica (anexos.indicadoresRubrica) y
+  // los indicadores que cada fase trabajó. Se añade a las advertencias que ya ve
+  // el docente; NO altera la unidad ni la distribución.
+  unidadResult.advertencias = [
+    ...(unidadResult.advertencias || []),
+    ...validarCoherenciaProducto({
+      producto: productoNombrado,
+      temaCentral: temaMallaStr || titulo,
+      aportesProducto,
+      numSemanas,
+      corpusDocumento,
+      indicadoresRubrica: unidadResult.anexos?.indicadoresRubrica || [],
+      indicadoresPorFase: (unidadResult.fasesSemanales || []).map((fase) => ({
+        numero: fase.numero,
+        nombre: fase.nombre,
+        indicadores: fase.indicadoresAvance || [],
+      })),
+      asignaturasVinculadas: unidadResult.metadatos?.asignaturasVinculadas || [],
+      textoSituacion: [
+        unidadResult.situacionAprendizaje || "",
+        ...(Array.isArray(unidadResult.ejesTematicos) ? unidadResult.ejesTematicos : []),
+      ].filter(Boolean).join(" · "),
+    }),
+  ];
 
   // R1 FINAL sobre el DOCUMENTO RENDERIZADO completo (no solo el JSON de la
   // IA): atrapa cualquier placeholder o campo vacío que entre por código

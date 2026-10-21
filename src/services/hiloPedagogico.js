@@ -656,8 +656,13 @@ export const generarAspectosDesdeCapa = (capa, { planificacionId, cursoId, ahora
 
 // ─── Fase 3 — Instrumentos ligados a la planificación ────────────────────────
 
+// R12 — Matrix 4 oficial (Guía Paso 2.2): 6 tipos. Se añaden "cuestionario" y
+// "prueba_competencial" (pruebas orales/escritas) que faltaban; la Guía Paso
+// 2.2.2 los recomienda para evaluar DOMINIO de conceptos/procedimientos
+// (evidencias de conocimiento), donde la lista de cotejo se queda corta.
 export const TIPOS_INSTRUMENTO = [
-  "rubrica", "lista_cotejo", "escala_estimativa", "registro_anecdotico", "guia_observacion", "otro",
+  "rubrica", "lista_cotejo", "escala_estimativa", "registro_anecdotico", "guia_observacion",
+  "cuestionario", "prueba_competencial", "otro",
 ];
 
 // Mapeo tipo nuevo ↔ etiqueta legacy usada por InstrumentosPage / Modo Aula
@@ -667,6 +672,8 @@ export const ETIQUETA_TIPO_INSTRUMENTO = {
   escala_estimativa: "Escala de estimación",
   registro_anecdotico: "Registro anecdótico",
   guia_observacion: "Guía de observación",
+  cuestionario: "Cuestionario",
+  prueba_competencial: "Prueba competencial",
   otro: "Otro",
 };
 
@@ -677,6 +684,13 @@ export const normalizarTipoInstrumento = (valor = "") => {
   if (texto.includes("escala") || texto.includes("valoracion") || texto.includes("estimacion")) return "escala_estimativa";
   if (texto.includes("anecdot")) return "registro_anecdotico";
   if (texto.includes("guia") && texto.includes("observacion")) return "guia_observacion";
+  // Orden importa: "competencial" es la señal fuerte de prueba_competencial. Las
+  // pruebas escritas/orales clásicas y los cuestionarios miden conocimiento y van
+  // a "cuestionario". Se evalúan ANTES que el "prueba" genérico para que "prueba
+  // escrita" no caiga por error en competencial. (Guía Paso 2.2.2.)
+  if (texto.includes("competencial")) return "prueba_competencial";
+  if (texto.includes("cuestionario") || texto.includes("prueba escrita") || texto.includes("prueba oral")) return "cuestionario";
+  if (texto.includes("prueba") || texto.includes("examen")) return "prueba_competencial";
   return TIPOS_INSTRUMENTO.includes(texto) ? texto : "otro";
 };
 
