@@ -425,11 +425,34 @@ export const asegurarAporteProductoUnico = ({
   };
   const etapa = etapaPorFase[Number(faseNumero)] || "Versión mejorada";
   const focoCorto = limpiar(foco).split(" · ")[0]
-    .replace(/^(Expresión|Estructura gramatical|Integración):\s*/i, "");
+    .replace(/^(Expresión|Estructura gramatical|Integración|Foco):\s*/i, "")
+    .replace(/\s*[:(].*$/, "") // corta ejemplos "Can/may/could: May I…" → "Can/may/could"
+    .trim();
   const base = original.replace(
     /^(diseño inicial|borrador desarrollado|ampliación argumentada|versión integrada|versión revisada|versión final socializada|versión mejorada)\s+de\s+/i,
     "",
   );
+  // FASE 6 · P2 — si el aporte base es GENÉRICO ("producción escrita con el
+  // contenido central del tema…"), prefijar "Borrador desarrollado N de …" solo
+  // apila texto ilegible (el fantasma del Anexo H). En ese caso, si hay un FOCO
+  // real del día, nómbralo como una SECCIÓN concreta del producto a partir del foco.
+  const RE_APORTE_GENERICO = /producci[oó]n escrita con el contenido central|contenido central del tema|avance integrado del producto/i;
+  if (RE_APORTE_GENERICO.test(base) && focoCorto) {
+    const candsFoco = [
+      `Sección «${focoCorto}» de la guía`,
+      `Sección «${focoCorto}» (parte ${claseNumero}) de la guía`,
+    ].map((t) => limpiar(t).slice(0, 120).trim());
+    const textoFoco = candsFoco.find((c) => !usados.has(clave(c)));
+    if (textoFoco) {
+      usados.add(clave(textoFoco));
+      return {
+        texto: textoFoco,
+        ajustado: true,
+        original,
+        motivo: "Aporte genérico repetido reescrito como sección nombrada del producto, a partir del foco real del día.",
+      };
+    }
+  }
   const candidatos = [
     `${etapa} de ${base}`,
     `${etapa} de ${base}${focoCorto ? ` con ${focoCorto}` : ""}`,
@@ -3225,7 +3248,10 @@ const _generarFasesConIA = async (
           esNueva: faseNum >= 2 && faseNum < 4 && nuevo,
         };
       }
-      return { texto: "el contenido central del tema", etiqueta: "Foco", tipo: "contenido", esNueva: faseNum >= 2 };
+      // FASE 6 · P1 — sin procedimientos ni conceptos: nombra el tema concreto, no
+      // el placeholder genérico "el contenido central del tema".
+      const temaConcreto = String(specActual.temaTrabajoSemana || specActual.temaOficial || tema || "").split(" · ")[0].trim();
+      return { texto: temaConcreto || "el contenido central del área", etiqueta: "Foco", tipo: "contenido", esNueva: faseNum >= 2 };
     }
 
     if (faseNum === 1) {
@@ -3241,8 +3267,17 @@ const _generarFasesConIA = async (
     }
 
     if (!gramaticaAll.length) {
-      const expresion = expresionesAll.length ? expresionesAll[indiceGlobal % expresionesAll.length] : "";
-      return { texto: expresion || "el contenido central del tema", etiqueta: "Foco", tipo: "contenido", esNueva: true };
+      // FASE 6 · P1 — sin gramática: el foco del día NUNCA debe ser el placeholder
+      // genérico "el contenido central del tema" (plagaba el documento). Se usa, en
+      // orden de preferencia, una EXPRESIÓN, un VOCABULARIO o un FUNCIONAL reales de
+      // la malla (todos sirven como foco comunicativo del día); solo si no hay NADA
+      // se nombra el tema concreto, nunca la etiqueta abstracta.
+      const vocabAll = textosUnicos((specActual.contenidosClaves?.vocabulario || []).map(limpiar)).filter(Boolean);
+      const funcAll = textosUnicos((specActual.contenidosClaves?.funcionales || []).map(limpiar)).filter(Boolean);
+      const banco = [...expresionesAll, ...vocabAll, ...funcAll];
+      const temaConcreto = String(specActual.temaTrabajoSemana || specActual.temaOficial || tema || "").split(" · ")[0].trim();
+      const foco = banco.length ? banco[indiceGlobal % banco.length] : (temaConcreto || "el vocabulario y las expresiones del tema");
+      return { texto: foco, etiqueta: "Foco", tipo: "contenido", esNueva: true };
     }
 
     const indiceContenido = Math.max(indiceGlobal - diasFase1, 0);

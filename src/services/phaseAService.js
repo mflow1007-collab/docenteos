@@ -2345,6 +2345,9 @@ const CAMPOS_SEMANTICOS = [
     activa: /gu[ií]a|guide|survival|orienta|bienvenid|welcome|recorrido|tour|ayuda|help|nuevo estudiante|new student|acogida/i,
     // Afinidad para PRIORIZAR vocab existente de la malla.
     afin: /lugar|place|library|cafeteria|office|classroom|gym|bathroom|where|d[oó]nde|ubicaci|help|ayuda|excuse|permiso|permission|can |may |could |schedule|horario|rule|norma|interacci|interaction|call|texting/i,
+    // Afinidad para PRIORIZAR gramática de la malla: la que sirve a pedir ayuda,
+    // ubicar, pedir permiso — no "pasado simple para narrar experiencias".
+    afinGram: /can\b|may\b|could\b|should\b|imperativo|imperative|preposici[oó]n.*lugar|preposition.*place|in, on, at|sostener una conversaci|where|d[oó]nde/i,
     // Vocab/funciones curadas que la malla puede no traer (ENRIQUECER).
     enriquece: [
       'Where is…? (Where is the library?)',
@@ -2353,15 +2356,27 @@ const CAMPOS_SEMANTICOS = [
       'It\'s on the first/second floor',
       'Turn left / Turn right / It\'s next to…',
     ],
+    // Estructuras gramaticales de orientación que la malla puede no priorizar.
+    enriqueceGram: [
+      'Can / may / could para pedir ayuda y permiso: Can you help me? May I go to the library?',
+      'Preposiciones de lugar: in, on, next to, between (The office is next to the library.)',
+      'Imperativo para dar indicaciones: Turn left. Go straight. Take the stairs.',
+    ],
   },
   {
     clave: 'rutina_habitos',
     activa: /rutina|routine|h[aá]bito|habit|d[ií]a a d[ií]a|daily|horario|schedule|agenda/i,
     afin: /always|usually|often|sometimes|never|every day|morning|afternoon|frecuencia|frequency|wake|get up|go to|take the/i,
+    afinGram: /presente simple|present simple|adverbi.*frecuencia|adverb.*frequency|conector.*secuencia|first.*then|she always/i,
     enriquece: [
       'Adverbios de frecuencia: always, usually, often, sometimes, never',
       'I always… before school / I usually… after class',
       'First… then… after that… finally…',
+    ],
+    enriqueceGram: [
+      'Presente simple para rutinas: I go to school at 7:00. She studies in the afternoon.',
+      'Adverbios de frecuencia: I always do my homework. I never skip breakfast.',
+      'Conectores de secuencia: First, then, after that, finally.',
     ],
   },
 ];
@@ -2395,6 +2410,30 @@ export const priorizarYEnriquecerVocabulario = ({ vocabMalla = [], producto = ''
   // Afines de la malla primero, luego el vocab enriquecido, luego el resto.
   // Así `tomarVentana` (que arranca en índice 0) sirve primero lo que el
   // producto necesita, sin perder nada de la malla.
+  return [...afines, ...nuevos, ...resto].slice(0, limite);
+};
+
+// Igual que priorizarYEnriquecerVocabulario pero para la GRAMÁTICA (FASE 6 · P3).
+// El tema "Escuela" trae 48 estructuras en la malla, pero las primeras son
+// "pasado simple para narrar experiencias…" (ajenas a orientar). El día de clase
+// toma las primeras del slice, así que sin reordenar, la gramática del día nunca
+// es la que el producto necesita (Can/may/could, preposiciones de lugar). Esto
+// sube al frente la gramática AFÍN al campo y la enriquece; sin campo claro, no toca.
+export const priorizarYEnriquecerGramatica = ({ gramaticaMalla = [], producto = '', tema = '', limite = 6 }) => {
+  const base = (Array.isArray(gramaticaMalla) ? gramaticaMalla : []).map((g) => String(g || '').trim()).filter(Boolean);
+  if (!base.length) return [];
+  const señal = _normTextoFoco(`${producto} ${tema}`);
+  const campo = CAMPOS_SEMANTICOS.find((c) => c.activa.test(señal)) || null;
+  if (!campo || !campo.afinGram) return base.slice(0, limite);
+
+  const afines = base.filter((g) => campo.afinGram.test(g));
+  const resto = base.filter((g) => !campo.afinGram.test(g));
+  const yaPresente = (item) => base.some((g) =>
+    _normTextoFoco(g).includes(_normTextoFoco(item).slice(0, 14))
+  );
+  const nuevos = (campo.enriqueceGram || []).filter((item) => !yaPresente(item));
+  // Afines de la malla primero, luego las curadas, luego el resto. El slice final
+  // garantiza que las primeras ~6 (que usa el día) sean las del producto.
   return [...afines, ...nuevos, ...resto].slice(0, limite);
 };
 
@@ -2482,7 +2521,15 @@ export const buildEspecificacionCurricular = ({
         tema: titulo,
         limite: 20,
       }),
-      gramatica:   mallaContenidos?.gramatica?.slice(0, 6)   || [],
+      // FASE 6 · P3 — gramática priorizada por afinidad al producto (Can/may/could,
+      // preposiciones de lugar para una guía de orientación) y enriquecida, en vez
+      // del slice crudo que dejaba "pasado simple para narrar" como foco del día.
+      gramatica:   priorizarYEnriquecerGramatica({
+        gramaticaMalla: mallaContenidos?.gramatica || [],
+        producto,
+        tema: titulo,
+        limite: 6,
+      }),
       // Procedimentales/funcionales AFINES al tema: todos los que trajo la
       // malla (hasta 10), no un recorte que pierda contenidos oficiales
       funcionales: mallaContenidos?.funcionales?.slice(0, 10) || [],
