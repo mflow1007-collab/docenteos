@@ -10,8 +10,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node scripts/audit-cerebro.mjs && node scripts/test-hilo-pedagogico.mjs && node scripts/test-unidad-render.mjs && node scripts/test-guia-maestro.mjs && node scripts/test-banco-guias.mjs && node scripts/test-pruebas-diagnosticas.mjs && node scripts/test-diagnostico-generacion.mjs && node scripts/test-diagnostico-integracion.mjs && node scripts/test-diagnostico-informe.mjs && node scripts/test-markdown-cursiva.mjs && node scripts/test-contenidos-actitudes.mjs && node scripts/test-anexos-trazabilidad.mjs && node scripts/test-coherencia-producto.mjs && node scripts/test-instrumentos-r12.mjs && node scripts/test-seguridad-api.mjs && node scripts/test-contrato-v13.mjs",
-    "audit": "node scripts/audit-cerebro.mjs"
+    "test": "node scripts/audit-cerebro.mjs && node scripts/test-hilo-pedagogico.mjs && node scripts/test-unidad-render.mjs && node scripts/test-guia-maestro.mjs && node scripts/test-banco-guias.mjs && node scripts/test-pruebas-diagnosticas.mjs && node scripts/test-diagnostico-generacion.mjs && node scripts/test-diagnostico-integracion.mjs && node scripts/test-diagnostico-informe.mjs && node scripts/test-markdown-cursiva.mjs && node scripts/test-contenidos-actitudes.mjs && node scripts/test-anexos-trazabilidad.mjs && node scripts/test-coherencia-producto.mjs && node scripts/test-instrumentos-r12.mjs && node scripts/test-seguridad-api.mjs && node scripts/test-gateway-config.mjs && node scripts/test-contrato-v13.mjs",
+    "audit": "node scripts/audit-cerebro.mjs",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-docenteos \"node scripts/test-reglas-firestore.mjs\""
   },
   "dependencies": {
     "firebase": "^12.19.0",
@@ -26,12 +27,14 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "firebase-tools": "^15.34.1",
     "globals": "^17.6.0",
     "vite": "^8.0.12"
   }

@@ -20,15 +20,23 @@
  *   prompt           string  (requerido)
  *   system           string
  *   maxTokens        number
- *   preferredProvider string  — mueve este proveedor al frente si está disponible
- *   providerOrder    string[] — orden completo enviado desde Firestore (sobrescribe default)
- *   modelOverrides   object  — { openai: "gpt-4o-mini", anthropic: "claude-opus-4-8" }
+ *   preferredProvider string  — pista: mueve este proveedor al frente (solo si el admin no fijó prioridad)
+ *   providerOrder    string[] — pista: acota/reordena DENTRO de los proveedores habilitados
+ *   providersDisabled string[] — pista: el cliente puede apagar más (nunca encender)
  *   strictProvider   boolean — si true, no agrega fallbacks fuera del providerOrder
+ *
+ * Modelos, prioridad y proveedores apagados los decide el SERVIDOR leyendo
+ * config/ia-gateway (Etapa S+). El cliente no elige modelo: `modelOverrides`
+ * se ignora. Sin correo verificado no se atiende (salvo la cuenta admin exacta).
+ * Cada petición que llega a un proveedor cuenta en la cuota diaria del docente
+ * (api/_cuotaIA.js; límite en config/ia-gateway.cuotaDiariaIA). El admin está
+ * exento. Cuota agotada → 429 con code CUOTA_IA_AGOTADA.
  */
 
 export const config = { runtime: "edge" };
 
 import { verifyFirebaseToken, isAdminUser } from "../_firebaseAuth.js";
+import { incrementarCuota, limiteDiario, CODIGO_CUOTA_AGOTADA } from "../_cuotaIA.js";
 
 // ─── Fix auditoría 2026-07-04: control de módulos y tokens en el servidor ────
 // La restricción "solo admin" del convertidor PDF→JSON era solo de UI:
@@ -69,8 +77,106 @@ function getApiKey(provider) {
   }
 }
 
-function getModel(provider, modelOverrides) {
-  return (modelOverrides?.[provider]) || DEFAULT_MODELS[provider] || provider;
+// ─── Config del admin (config/ia-gateway), leída en el servidor ──────────────
+// Se lee por la API REST de Firestore con el token del propio usuario (las
+// reglas permiten leer config a cualquier autenticado): no hace falta otro
+// secreto. Caché corta en memoria de la instancia.
+
+const CONFIG_TTL_MS = 60 * 1000;
+let _config   = null;
+let _configAt = 0;
+
+/** Solo para pruebas: fuerza a releer la config en la próxima petición. */
+export function invalidarConfigGateway() {
+  _config = null;
+  _configAt = 0;
+}
+
+const LEGACY_MODEL_REPLACEMENTS = {
+  anthropic: {
+    "claude-sonnet-4-6": "claude-sonnet-5",
+  },
+};
+
+function normalizarModelos(models) {
+  const next = { ...(models && typeof models === "object" ? models : {}) };
+  for (const [provider, replacements] of Object.entries(LEGACY_MODEL_REPLACEMENTS)) {
+    const current = next[provider];
+    if (current && replacements[current]) next[provider] = replacements[current];
+  }
+  return next;
+}
+
+// Valor tipado de la API REST de Firestore → valor JS
+function valorFirestore(v) {
+  if (!v || typeof v !== "object") return null;
+  if ("stringValue" in v)    return v.stringValue;
+  if ("booleanValue" in v)   return v.booleanValue;
+  if ("integerValue" in v)   return Number(v.integerValue);
+  if ("doubleValue" in v)    return v.doubleValue;
+  if ("timestampValue" in v) return v.timestampValue;
+  if ("arrayValue" in v)     return (v.arrayValue.values || []).map(valorFirestore);
+  if ("mapValue" in v)       return camposFirestore(v.mapValue.fields);
+  return null;
+}
+
+function camposFirestore(fields) {
+  const out = {};
+  for (const [k, v] of Object.entries(fields || {})) out[k] = valorFirestore(v);
+  return out;
+}
+
+/**
+ * Lee config/ia-gateway. Documento inexistente → {} (defaults del servidor).
+ * Cualquier otro fallo LANZA: el handler responde 503 visible (no se cae a
+ * defaults, que podrían usar un proveedor apagado por el admin).
+ */
+export async function leerConfigGateway(idToken) {
+  const now = Date.now();
+  if (_config && now - _configAt < CONFIG_TTL_MS) return _config;
+
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  if (!projectId) throw new Error("FIREBASE_PROJECT_ID no está configurado");
+
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/config/ia-gateway`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
+
+  let config;
+  if (res.status === 404) {
+    config = {};
+  } else if (!res.ok) {
+    throw new Error(`Firestore respondió HTTP ${res.status}`);
+  } else {
+    config = camposFirestore((await res.json())?.fields);
+  }
+
+  config.models = normalizarModelos(config.models);
+  _config = config;
+  _configAt = now;
+  return config;
+}
+
+// ─── Modelo por proveedor (decide el servidor) ───────────────────────────────
+// Módulos de composición larga (Fase A de la unidad): modelo fuerte. Si el
+// admin configuró una variante débil, para estos módulos se usa la allowlist;
+// sin modelo apto el proveedor no se usa. Antes vivía en phaseAService.js.
+const MODULOS_COMPOSICION = new Set(["planificacion"]);
+const MODELOS_COMPOSICION = {
+  openai:    "gpt-4o",
+  gemini:    "gemini-2.5-pro",
+  anthropic: "claude-sonnet-5",
+  abacus:    "gpt-4o",
+};
+const MODELO_DEBIL_RE = /flash|mini|lite|nano|tiny|small|haiku/i;
+
+/** Modelo que usará el gateway; null = proveedor no apto para este módulo. */
+export function resolverModelo(provider, mod, configModels = {}) {
+  const admin = String(configModels?.[provider] || "").trim();
+  if (MODULOS_COMPOSICION.has(mod)) {
+    if (admin && !MODELO_DEBIL_RE.test(admin)) return admin;
+    return MODELOS_COMPOSICION[provider] || null;
+  }
+  return admin || DEFAULT_MODELS[provider] || null;
 }
 
 function getProviderTimeoutMs(provider, mod) {
@@ -107,34 +213,36 @@ function timeoutSignal(ms) {
 /**
  * Construye la lista de proveedores a intentar, en orden.
  *
- * Prioridad de resolución:
- *   1. Si llega `providerOrder` (desde Firestore admin), úsalo filtrado a los
- *      que tienen API key. Añade fallbacks de DEFAULT_ORDER al final.
- *   2. Si llega `preferredProvider`, muévelo al frente del DEFAULT_ORDER.
- *   3. Si no llega nada, usa DEFAULT_ORDER.
+ * 1. Habilitados = prioridad del admin (config.priority) + resto de
+ *    DEFAULT_ORDER, sin los apagados por el admin, sin los que no tienen API
+ *    key y sin los que no tienen modelo apto para el módulo.
+ * 2. Las pistas del cliente solo ACOTAN o REORDENAN dentro de los habilitados:
+ *    `providerOrder` (con `strictProvider` = solo esos), `providersDisabled`
+ *    (apaga más, nunca enciende) y `preferredProvider` (al frente, solo si el
+ *    admin no fijó prioridad).
  */
-function getProviderQueue(preferredProvider, providerOrder, strictProvider = false, providersDisabled = []) {
-  // Proveedores APAGADOS por el admin: se excluyen SIEMPRE — del orden, de los
-  // fallbacks y del default. Apagado ≠ "al final de la cola": apagado no se usa.
-  const apagados = new Set(Array.isArray(providersDisabled) ? providersDisabled : []);
-  const disponible = (p) => !apagados.has(p) && getApiKey(p);
-  let queue;
+export function getProviderQueue(config, mod, { preferredProvider, providerOrder, strictProvider = false, providersDisabled } = {}) {
+  // Apagado ≠ "al final de la cola": apagado no se usa, ni como fallback.
+  const apagados = new Set([
+    ...(Array.isArray(config?.disabled) ? config.disabled : []),
+    ...(Array.isArray(providersDisabled) ? providersDisabled : []),
+  ]);
+  const prioridad = Array.isArray(config?.priority) && config.priority.length ? config.priority : null;
+  const base = prioridad ? [...prioridad, ...DEFAULT_ORDER] : DEFAULT_ORDER;
+  const habilitados = base
+    .filter((p, i, arr) => arr.indexOf(p) === i)
+    .filter((p) => DEFAULT_ORDER.includes(p) && !apagados.has(p) && getApiKey(p)
+      && resolverModelo(p, mod, config?.models));
 
-  if (providerOrder && Array.isArray(providerOrder) && providerOrder.length > 0) {
-    // Usar el orden de Firestore, filtrando solo los que tienen key
-    const ordered = providerOrder.filter(disponible);
+  if (Array.isArray(providerOrder) && providerOrder.length > 0) {
+    const ordered = providerOrder.filter((p, i, arr) => arr.indexOf(p) === i && habilitados.includes(p));
     if (strictProvider) return ordered;
-    // Añadir cualquier proveedor de DEFAULT_ORDER que no esté en el order del admin
-    const extras  = DEFAULT_ORDER.filter((p) => !providerOrder.includes(p) && disponible(p));
-    queue = [...ordered, ...extras];
-  } else {
-    queue = DEFAULT_ORDER.filter(disponible);
-    if (preferredProvider && queue.includes(preferredProvider)) {
-      queue = [preferredProvider, ...queue.filter((p) => p !== preferredProvider)];
-    }
+    return [...ordered, ...habilitados.filter((p) => !ordered.includes(p))];
   }
-
-  return queue;
+  if (!prioridad && preferredProvider && habilitados.includes(preferredProvider)) {
+    return [preferredProvider, ...habilitados.filter((p) => p !== preferredProvider)];
+  }
+  return habilitados;
 }
 
 // ─── Llamadas a proveedores ────────────────────────────────────────────────────
@@ -437,6 +545,15 @@ export default async function handler(request) {
     });
   }
 
+  // Correo verificado: el registro es abierto, así que sin verificar no se
+  // gasta IA. La cuenta admin exacta queda exenta (igual que isAdminUser).
+  if (!authedUser.emailVerified && !isAdminUser(authedUser)) {
+    return new Response(
+      JSON.stringify({ error: "Verifica tu correo electrónico para usar la Inteligencia Artificial. Revisa tu bandeja de entrada y vuelve a iniciar sesión." }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   let body;
   try {
     body = await request.json();
@@ -452,10 +569,9 @@ export default async function handler(request) {
     prompt,
     system,
     maxTokens          = 4096,
-    preferredProvider,
-    providerOrder,     // string[] desde Firestore vía AIService
-    modelOverrides,    // { openai: "gpt-4.1", ... } desde Firestore vía AIService
-    providersDisabled, // string[] — proveedores APAGADOS por el admin (jamás se usan, ni como fallback)
+    preferredProvider, // pista del cliente (ver getProviderQueue)
+    providerOrder,     // pista del cliente: acota/reordena dentro de los habilitados
+    providersDisabled, // pista del cliente: apaga más (p. ej. sin crédito), nunca enciende
     strictProvider = false,
     requireNonEmpty = false,
     imageBase64,       // base64 image for vision (Anthropic only)
@@ -494,11 +610,23 @@ export default async function handler(request) {
   // Tope de tokens de salida: el cliente no decide costos ilimitados
   const tokensSalida = Math.min(Math.max(parseInt(maxTokens, 10) || 4096, 1), MAX_TOKENS_CAP);
 
-  const queue = getProviderQueue(preferredProvider, providerOrder, strictProvider, providersDisabled);
+  let gwConfig;
+  try {
+    gwConfig = await leerConfigGateway(idToken);
+  } catch (err) {
+    console.error("[AI Gateway] No se pudo leer config/ia-gateway:", err?.message || err);
+    return new Response(
+      JSON.stringify({ error: "No se pudo leer la configuración de Inteligencia Artificial del administrador. Intenta de nuevo en unos minutos." }),
+      { status: 503, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  const queue = getProviderQueue(gwConfig, mod, { preferredProvider, providerOrder, strictProvider, providersDisabled });
 
   if (queue.length === 0) {
-    const hayApagados = Array.isArray(providersDisabled) && providersDisabled.length > 0;
-    console.error(`[AI Gateway] Cola vacía — apagados por admin: [${(providersDisabled || []).join(", ")}]`);
+    const apagadosAdmin = Array.isArray(gwConfig.disabled) ? gwConfig.disabled : [];
+    const hayApagados = apagadosAdmin.length > 0;
+    console.error(`[AI Gateway] Cola vacía — apagados por admin: [${apagadosAdmin.join(", ")}]`);
     return new Response(
       JSON.stringify({
         error: hayApagados
@@ -509,6 +637,32 @@ export default async function handler(request) {
     );
   }
 
+  // Cuota diaria por docente: se cuenta ANTES de llamar al proveedor. Si el
+  // contador no está disponible no se atiende (fail-closed).
+  if (!isAdminUser(authedUser)) {
+    const limite = limiteDiario(gwConfig);
+    let usadas;
+    try {
+      usadas = await incrementarCuota(authedUser.uid);
+    } catch (err) {
+      console.error("[AI Gateway] No se pudo verificar la cuota diaria:", err?.message || err);
+      return new Response(
+        JSON.stringify({ error: "No se pudo verificar tu cuota diaria de Inteligencia Artificial. Intenta de nuevo en unos minutos." }),
+        { status: 503, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    if (usadas > limite) {
+      return new Response(
+        JSON.stringify({
+          error: `Alcanzaste el límite diario de ${limite} solicitudes de Inteligencia Artificial. Se renueva a medianoche (hora de República Dominicana).`,
+          code: CODIGO_CUOTA_AGOTADA,
+          limite,
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
+
   let lastError = null;
 
   // Activa JSON mode nativo (response_format) cuando el módulo es de planificación
@@ -516,7 +670,7 @@ export default async function handler(request) {
 
   for (const provider of queue) {
     const apiKey = getApiKey(provider);
-    const model  = getModel(provider, modelOverrides);
+    const model  = resolverModelo(provider, mod, gwConfig.models);
     const signal = timeoutSignal(getProviderTimeoutMs(provider, mod));
 
     try {

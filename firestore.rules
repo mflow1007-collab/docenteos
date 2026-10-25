@@ -201,31 +201,45 @@ service cloud.firestore {
 
     // ── Banco Inteligente de Conocimiento (BIC) ───────────────────────────────
     // Lectura: todos los usuarios autenticados (sugerencias de planificación)
-    // Escritura de nuevos docs: usuarios autenticados (indexar sus planificaciones)
+    // Escritura de nuevos docs: usuarios autenticados (indexar sus planificaciones),
+    // solo con su uid y los contadores en su valor inicial (KnowledgeBank.guardar)
     // Actualización/eliminación: solo admin (para curar el banco)
+    function bicItemInicial() {
+      let d = request.resource.data;
+      return d.creadoPor == request.auth.uid
+        && d.vecesUsada == 0
+        && d.vecesModificada == 0
+        && d.origen == 'ia'
+        && d.archivado == false
+        && d.eliminadoRapido == false
+        // calcularCalidad con 0 usos y 0 ediciones: base 70 + completitud ≤ 5
+        && d.calidad is int && d.calidad >= 0 && d.calidad <= 75;
+    }
     match /bic_planes/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin() || (isAuth() && bicItemInicial());
       allow update, delete: if isAdmin();
     }
     match /bic_versiones/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin()
+        || (isAuth() && request.resource.data.creadoPor == request.auth.uid);
       allow update, delete: if isAdmin();
     }
     match /bic_actividades/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin() || (isAuth() && bicItemInicial());
       allow update, delete: if isAdmin();
     }
     match /bic_instrumentos/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin() || (isAuth() && bicItemInicial());
       allow update, delete: if isAdmin();
     }
     match /bic_auditorias/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin()
+        || (isAuth() && request.resource.data.auditadoPor == request.auth.uid);
       allow update, delete: if isAdmin();
     }
 
@@ -234,10 +248,14 @@ service cloud.firestore {
       allow read: if isAuth();
       allow write: if isAdmin();
     }
-    // Los estilos los crean los docentes al entrenar su IA
+    // Los estilos los crean los docentes al entrenar su IA: nacen pendientes y
+    // privados; activarlos o publicarlos es del admin (StyleEngine.extractStyle)
     match /ke_estilos/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin() || (isAuth()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.visibilidad == 'privada');
       allow update, delete: if isAdmin();
     }
     match /ke_ejemplos/{docId} {
@@ -314,30 +332,37 @@ service cloud.firestore {
     // ── Barrido audit-cerebro F3 (2026-07-17): 7 colecciones más destapadas
     //    por el auditor automatizado en su primera corrida ───────────────────
 
-    // Banco Pedagógico (bp_*): lectura docentes; publicación curada por admin
+    // Banco Pedagógico (bp_*): lectura docentes; publicación curada por admin.
+    // El docente solo crea borradores a su nombre (metaCrear en
+    // bancoPedagogicoService); aprobar u oficializar es del admin.
+    function bpBorradorPropio() {
+      return isAuth()
+        && request.resource.data.estado == 'draft'
+        && request.resource.data.creadoPor == request.auth.uid;
+    }
     match /bp_temas/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin() || bpBorradorPropio();
       allow update, delete: if isAdmin();
     }
     match /bp_actividades/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin() || bpBorradorPropio();
       allow update, delete: if isAdmin();
     }
     match /bp_instrumentos/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin() || bpBorradorPropio();
       allow update, delete: if isAdmin();
     }
     match /bp_recursos/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin() || bpBorradorPropio();
       allow update, delete: if isAdmin();
     }
     match /bp_neae/{docId} {
       allow read: if isAuth();
-      allow create: if isAuth();
+      allow create: if isAdmin() || bpBorradorPropio();
       allow update, delete: if isAdmin();
     }
 
@@ -356,10 +381,20 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Caché compartido de respuestas IA (claves por contenido, sin datos personales)
+    // Caché de respuestas IA POR DOCENTE: la clave empieza por su uid
+    // (`{uid}:{módulo}:…`, ver src/services/ai/cache.js). El admin lo ve y
+    // lo purga todo.
     match /aiCache/{docId} {
-      allow read, create, update: if isAuth();
-      allow delete: if isAdmin();
+      allow read, create, update: if isAuth() && docId.split(':')[0] == request.auth.uid;
+      allow read, delete: if isAdmin();
+    }
+
+    // Cuota diaria de IA ({uid}_{AAAA-MM-DD}): la escribe SOLO el gateway con
+    // su cuenta de servicio (api/_cuotaIA.js). El docente lee la suya.
+    match /aiCuotas/{docId} {
+      allow read: if isAuth() && resource.data.uid == request.auth.uid;
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // Asistente personal: conversaciones, uso y memoria POR USUARIO
