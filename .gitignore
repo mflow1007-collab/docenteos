@@ -40,3 +40,6 @@ graphify-out/
 
 # Backups manuales de código — git ya guarda el historial
 backups/
+
+# Textos completos de documentos oficiales (redistribución) — solo locales
+docs/recursos/REFERENTE_*.txt
