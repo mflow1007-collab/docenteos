@@ -696,6 +696,43 @@ const APORTE_GENERICO = [
   'entrada 7 del portafolio', 'entrada 8 del portafolio',
 ];
 
+// FASE 5 · Frente 1 — PRODUCTO-FANTASMA: la IA a veces nombra la pieza de la
+// clase con un NOMBRE PROPIO suelto ("Welcome Routine", "My School Exchange",
+// "School Entry Map") que en el documento (Anexo H, aportes) SUENA a un
+// entregable independiente, aunque conceptualmente aporte al producto. La norma
+// MINERD (Referente pág. 39) exige UN solo producto; las piezas son SECCIONES de
+// él. Este normalizador SUBORDINA visualmente el nombre propio al producto:
+//   "Welcome Routine"  →  "Sección «Welcome Routine» de Our School Survival Guide"
+// Conserva el nombre propio (trazabilidad) pero deja claro que es una sección.
+// Es DETERMINISTA (no depende de la IA) y solo reescribe texto del aporte: NO
+// toca la plantilla, la distribución ni la lógica curricular.
+//
+// Detección de "nombre-producto suelto": patrón <Nombre Propio Capitalizado> +
+// sustantivo de entregable (Guide/Script/Map/Routine/Note/Section/Guía/Guion…),
+// con o sin comillas. Si el aporte YA es una descripción neutra ("mapa inicial
+// de ideas…", "borrador de la sección…") o YA se subordina ("sección de…",
+// "aporte a…"), se deja intacto.
+const RE_PIEZA_NOMBRE_PROPIO = /["'“»«]?\b([A-Z][\wáéíóúñ]+(?:\s+[A-Z][\wáéíóúñ]+){0,4})\s+(Guide|Script|Map|Routine|Note|Section|Tracker|Diary|Journal|Plan|Exchange|Tour|Card|Poster|List|Project|Dialogue|Interview|Gu[ií]a|Guion|Secci[oó]n|Mapa|Rutina|Nota|Intercambio|Lista|P[oó]ster|Tarjeta)\b["'”«»]?/;
+const YA_SUBORDINADO_RE = /\b(secci[oó]n|aporte|parte|p[aá]gina|entrada|borrador|versi[oó]n|fragmento)\b/i;
+
+const nombreCortoProductoFoco = (producto = '') =>
+  String(producto || '').split(/\s*[—–:(]/)[0].trim();
+
+// Reescribe el aporte si trae un nombre-producto suelto; si no, lo devuelve igual.
+export const subordinarAporteAlProducto = (aporte = '', producto = '') => {
+  const texto = String(aporte || '').trim();
+  const prodCorto = nombreCortoProductoFoco(producto);
+  if (!texto || !prodCorto) return texto;
+  // Ya subordinado o ya menciona el producto → no tocar (evita duplicar).
+  if (YA_SUBORDINADO_RE.test(texto)) return texto;
+  if (_normTextoFoco(texto).includes(_normTextoFoco(prodCorto))) return texto;
+  const m = texto.match(RE_PIEZA_NOMBRE_PROPIO);
+  if (!m) return texto; // descripción neutra: se deja tal cual
+  // El nombre propio detectado (grupo completo del patrón, sin comillas sueltas).
+  const nombrePieza = m[0].replace(/^["'“«»]+|["'”«»]+$/g, '').trim();
+  return `Sección «${nombrePieza}» de ${prodCorto}`;
+};
+
 // Términos DESNUDOS que no son una técnica accionable por sí solos. Son
 // genuinamente vagos en CUALQUIER asignatura cuando aparecen SOLOS ("Actividad",
 // "Juego", "Trabajo en grupo"). NO se listan aquí los MARCOS metodológicos
@@ -1051,6 +1088,20 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       throw new Error(`R11: clase ${idx + 1} repite la pieza del producto de S${repetidoUnidad.semana}/C${repetidoUnidad.dia} ("${aporte}")`);
     }
     aportesEnLote.set(aporteNorm, idx + 1);
+
+    // FASE 5 · Frente 1 — subordina el aporte al producto si la IA le puso un
+    // nombre propio suelto ("Welcome Routine" → "Sección «Welcome Routine» de
+    // <producto>"). El nombre del producto sale del lote que lo propone o de opts
+    // (lotes posteriores). Se reescribe DESPUÉS de validar duplicados para no
+    // alterar la clave de de-dup (aporteNorm ya calculada). Si no hay producto o
+    // el aporte ya está subordinado/neutro, queda igual.
+    const nombreProductoUnidad = String(
+      data?.productoFinalNombre || opts.productoFinalNombre || opts.productoFinal || ''
+    ).trim();
+    if (nombreProductoUnidad) {
+      const aporteSub = subordinarAporteAlProducto(aporte, nombreProductoUnidad);
+      if (aporteSub !== aporte) clase.aporteProducto = aporteSub;
+    }
 
     // Foco lingüístico anclado al plan gramatical del bloque: el encabezado
     // del día debe declarar una estructura OFICIAL del foco, no una etiqueta
@@ -1675,6 +1726,10 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       validateBatch(result.data, durMin, count, focoGram, {
         memoria,
         exigirNombreProducto: pedirNombreProducto,
+        // Nombre del producto para subordinar aportes-fantasma (FASE 5 · Frente 1).
+        // En lotes posteriores la IA ya no lo propone, viene fijado en spec.
+        productoFinalNombre: spec.productoFinalNombre,
+        productoFinal: spec.productoFinal,
         temaOficial: spec.temaOficial,
         temaTrabajoSemana: spec.temaTrabajoSemana,
         temasActivos: spec.temasActivos,
@@ -2263,6 +2318,125 @@ export const generateWeekPlan = async (
   return combined;
 };
 
+// ─── FASE 5 · Frente 2 — Vocabulario desde la NECESIDAD, no desde el tema ─────
+// El revisor notó que la unidad "Escuela y educación" gastaba 2 semanas en
+// "high school, freshman, seventh grade" (vocabulario del TEMA en abstracto)
+// cuando el producto "School Survival Guide" exige que el estudiante nuevo sepa
+// ORIENTARSE (where is…?, can you help me?, schedule, classroom). La malla ya
+// trae ese vocab (Lugares, Formas de interacción, modales can/may/could) pero
+// `tomarVentana` lo reparte EN ORDEN DE APARICIÓN, así que el del índice 0 domina.
+//
+// Solución en DOS partes (autorizadas por el dueño 2026-10-21):
+//   1. PRIORIZAR — reordenar el vocab de la malla poniendo primero el afín a la
+//      situación/producto (la malla manda; solo cambia el ORDEN).
+//   2. ENRIQUECER — añadir vocab de un BANCO CURADO por campo semántico, SOLO
+//      cuando el producto/tema activa un campo con coherencia clara. La malla es
+//      el piso, no el techo; pero la línea roja es COHERENCIA: nunca saltar de
+//      tema. Si no hay señal clara, NO enriquece (solo prioriza).
+//
+// Banco de campos semánticos: cada campo se activa por palabras del PRODUCTO o
+// TEMA y aporta vocab/funciones de ESE campo (coherente por construcción). Es
+// multi-área: el campo "orientación/ayuda" sirve a guías escolares de cualquier
+// idioma; "medición" a Matemática; "experimento" a Ciencias; etc.
+const CAMPOS_SEMANTICOS = [
+  {
+    clave: 'orientacion_ayuda',
+    // Guías de orientación, supervivencia, bienvenida, ayuda al recién llegado.
+    activa: /gu[ií]a|guide|survival|orienta|bienvenid|welcome|recorrido|tour|ayuda|help|nuevo estudiante|new student|acogida/i,
+    // Afinidad para PRIORIZAR vocab existente de la malla.
+    afin: /lugar|place|library|cafeteria|office|classroom|gym|bathroom|where|d[oó]nde|ubicaci|help|ayuda|excuse|permiso|permission|can |may |could |schedule|horario|rule|norma|interacci|interaction|call|texting/i,
+    // Afinidad para PRIORIZAR gramática de la malla: la que sirve a pedir ayuda,
+    // ubicar, pedir permiso — no "pasado simple para narrar experiencias".
+    afinGram: /can\b|may\b|could\b|should\b|imperativo|imperative|preposici[oó]n.*lugar|preposition.*place|in, on, at|sostener una conversaci|where|d[oó]nde/i,
+    // Vocab/funciones curadas que la malla puede no traer (ENRIQUECER).
+    enriquece: [
+      'Where is…? (Where is the library?)',
+      'Can you help me…? / Could you tell me…?',
+      'Excuse me / Thank you / You\'re welcome',
+      'It\'s on the first/second floor',
+      'Turn left / Turn right / It\'s next to…',
+    ],
+    // Estructuras gramaticales de orientación que la malla puede no priorizar.
+    enriqueceGram: [
+      'Can / may / could para pedir ayuda y permiso: Can you help me? May I go to the library?',
+      'Preposiciones de lugar: in, on, next to, between (The office is next to the library.)',
+      'Imperativo para dar indicaciones: Turn left. Go straight. Take the stairs.',
+    ],
+  },
+  {
+    clave: 'rutina_habitos',
+    activa: /rutina|routine|h[aá]bito|habit|d[ií]a a d[ií]a|daily|horario|schedule|agenda/i,
+    afin: /always|usually|often|sometimes|never|every day|morning|afternoon|frecuencia|frequency|wake|get up|go to|take the/i,
+    afinGram: /presente simple|present simple|adverbi.*frecuencia|adverb.*frequency|conector.*secuencia|first.*then|she always/i,
+    enriquece: [
+      'Adverbios de frecuencia: always, usually, often, sometimes, never',
+      'I always… before school / I usually… after class',
+      'First… then… after that… finally…',
+    ],
+    enriqueceGram: [
+      'Presente simple para rutinas: I go to school at 7:00. She studies in the afternoon.',
+      'Adverbios de frecuencia: I always do my homework. I never skip breakfast.',
+      'Conectores de secuencia: First, then, after that, finally.',
+    ],
+  },
+];
+
+// Normaliza etiquetas de la malla ("Educación: high school…") a texto comparable.
+const _vocabTexto = (v) => String(v || '').replace(/^[^:]+:\s*/, '').trim();
+
+// Reordena + enriquece el vocabulario según el campo semántico del producto/tema.
+// Devuelve la lista priorizada (afines primero) y, si hay campo activo, con el
+// vocab curado AÑADIDO al frente (sin duplicar lo que la malla ya trae).
+export const priorizarYEnriquecerVocabulario = ({ vocabMalla = [], producto = '', tema = '', limite = 20 }) => {
+  const base = (Array.isArray(vocabMalla) ? vocabMalla : []).map((v) => String(v || '').trim()).filter(Boolean);
+  // Malla vacía: NO enriquecer. Una malla sin vocabulario suele indicar un fallo
+  // de carga, no una oportunidad de inventar; mejor devolver vacío y que el resto
+  // del pipeline lo detecte, en vez de enmascararlo con vocab curado.
+  if (!base.length) return [];
+  const señal = _normTextoFoco(`${producto} ${tema}`);
+  const campo = CAMPOS_SEMANTICOS.find((c) => c.activa.test(señal)) || null;
+  if (!campo) return base.slice(0, limite); // sin campo claro: no toca (coherencia)
+
+  // 1. PRIORIZAR: afines al campo primero, el resto después (orden estable).
+  const afines = base.filter((v) => campo.afin.test(_vocabTexto(v)));
+  const resto = base.filter((v) => !campo.afin.test(_vocabTexto(v)));
+
+  // 2. ENRIQUECER: añade vocab curado que la malla NO trae ya (dedup laxo).
+  const yaPresente = (item) => base.some((v) =>
+    _normTextoFoco(_vocabTexto(v)).includes(_normTextoFoco(_vocabTexto(item)).slice(0, 12))
+  );
+  const nuevos = campo.enriquece.filter((item) => !yaPresente(item));
+
+  // Afines de la malla primero, luego el vocab enriquecido, luego el resto.
+  // Así `tomarVentana` (que arranca en índice 0) sirve primero lo que el
+  // producto necesita, sin perder nada de la malla.
+  return [...afines, ...nuevos, ...resto].slice(0, limite);
+};
+
+// Igual que priorizarYEnriquecerVocabulario pero para la GRAMÁTICA (FASE 6 · P3).
+// El tema "Escuela" trae 48 estructuras en la malla, pero las primeras son
+// "pasado simple para narrar experiencias…" (ajenas a orientar). El día de clase
+// toma las primeras del slice, así que sin reordenar, la gramática del día nunca
+// es la que el producto necesita (Can/may/could, preposiciones de lugar). Esto
+// sube al frente la gramática AFÍN al campo y la enriquece; sin campo claro, no toca.
+export const priorizarYEnriquecerGramatica = ({ gramaticaMalla = [], producto = '', tema = '', limite = 6 }) => {
+  const base = (Array.isArray(gramaticaMalla) ? gramaticaMalla : []).map((g) => String(g || '').trim()).filter(Boolean);
+  if (!base.length) return [];
+  const señal = _normTextoFoco(`${producto} ${tema}`);
+  const campo = CAMPOS_SEMANTICOS.find((c) => c.activa.test(señal)) || null;
+  if (!campo || !campo.afinGram) return base.slice(0, limite);
+
+  const afines = base.filter((g) => campo.afinGram.test(g));
+  const resto = base.filter((g) => !campo.afinGram.test(g));
+  const yaPresente = (item) => base.some((g) =>
+    _normTextoFoco(g).includes(_normTextoFoco(item).slice(0, 14))
+  );
+  const nuevos = (campo.enriqueceGram || []).filter((item) => !yaPresente(item));
+  // Afines de la malla primero, luego las curadas, luego el resto. El slice final
+  // garantiza que las primeras ~6 (que usa el día) sean las del producto.
+  return [...afines, ...nuevos, ...resto].slice(0, limite);
+};
+
 // ─── buildEspecificacionCurricular — exportada para uso externo ───────────────
 
 export const buildEspecificacionCurricular = ({
@@ -2337,8 +2511,25 @@ export const buildEspecificacionCurricular = ({
     indicadoresTrabajoFuente: seleccionIndicadores.fuente,
     arquitecturaCurricular,
     contenidosClaves: {
-      vocabulario: mallaContenidos?.vocabulario?.slice(0, 20) || [],
-      gramatica:   mallaContenidos?.gramatica?.slice(0, 6)   || [],
+      // FASE 5 · Frente 2 — vocab priorizado por afinidad al producto/situación
+      // y enriquecido (banco curado) con coherencia temática. La malla es el piso:
+      // su contenido se conserva, solo se reordena (afín primero) y se añade vocab
+      // del campo semántico del producto. Sin campo claro → solo el slice de malla.
+      vocabulario: priorizarYEnriquecerVocabulario({
+        vocabMalla: mallaContenidos?.vocabulario || [],
+        producto,
+        tema: titulo,
+        limite: 20,
+      }),
+      // FASE 6 · P3 — gramática priorizada por afinidad al producto (Can/may/could,
+      // preposiciones de lugar para una guía de orientación) y enriquecida, en vez
+      // del slice crudo que dejaba "pasado simple para narrar" como foco del día.
+      gramatica:   priorizarYEnriquecerGramatica({
+        gramaticaMalla: mallaContenidos?.gramatica || [],
+        producto,
+        tema: titulo,
+        limite: 6,
+      }),
       // Procedimentales/funcionales AFINES al tema: todos los que trajo la
       // malla (hasta 10), no un recorte que pierda contenidos oficiales
       funcionales: mallaContenidos?.funcionales?.slice(0, 10) || [],
