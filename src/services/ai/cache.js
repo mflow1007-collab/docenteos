@@ -8,10 +8,11 @@
  * Estrategia de clave:
  *   - Por defecto: hash SHA-256 del prompt completo + módulo
  *   - Con semanticKey: hash de la clave semántica (nivel+grado+área+tema) + módulo
- *     Esto permite cache hits entre docentes distintos con el mismo contexto pedagógico.
+ *   - Toda clave empieza por el uid del docente (`{uid}:{módulo}:…`): cada
+ *     docente lee y escribe solo su caché (las reglas lo exigen). Etapa S+.
  */
 
-import { db } from "../../firebase.js";
+import { db, auth } from "../../firebase.js";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 /** Hash SHA-256 del texto COMPLETO (SHA-256 sobre decenas de KB es trivial;
@@ -44,6 +45,11 @@ async function hashKey(text) {
 async function claveCompuesta(sys, texto) {
   const [hSys, hTexto] = await Promise.all([hashKey(sys), hashKey(texto)]);
   return `${hSys}.${hTexto}`;
+}
+
+/** uid del docente en sesión; sin sesión no hay caché */
+function uidActual() {
+  return auth?.currentUser?.uid || null;
 }
 
 /**
@@ -86,6 +92,8 @@ function extractSemanticKey(prompt) {
  */
 export async function getCached(module, prompt, opts = {}) {
   try {
+    const uid = uidActual();
+    if (!uid) return null;
     const useSemantic = opts.semantic !== false;
     // F2.2 — el SYSTEM participa en la clave: editar la doctrina invalida lo
     // cacheado (antes podían servirse respuestas pre-doctrina hasta 7 días)
@@ -93,9 +101,9 @@ export async function getCached(module, prompt, opts = {}) {
     const semanticPart = useSemantic ? extractSemanticKey(prompt) : null;
     const rawPart = await claveCompuesta(sys, prompt);
 
-    // Intentar con clave semántica primero (mayor hit rate entre docentes)
+    // Intentar con clave semántica primero (mayor hit rate)
     if (semanticPart) {
-      const semKey  = `${module}:sem:${await claveCompuesta(sys, semanticPart)}`;
+      const semKey  = `${uid}:${module}:sem:${await claveCompuesta(sys, semanticPart)}`;
       const semSnap = await getDoc(doc(db, "aiCache", semKey));
       if (semSnap.exists()) {
         const semData = semSnap.data();
@@ -106,7 +114,7 @@ export async function getCached(module, prompt, opts = {}) {
     }
 
     // Fallback: clave por hash completo del prompt
-    const key  = `${module}:${rawPart}`;
+    const key  = `${uid}:${module}:${rawPart}`;
     const snap = await getDoc(doc(db, "aiCache", key));
     if (!snap.exists()) return null;
 
@@ -131,6 +139,8 @@ export async function getCached(module, prompt, opts = {}) {
  */
 export async function setCached(module, prompt, response, ttlHours = 24, system = "") {
   try {
+    const uid = uidActual();
+    if (!uid) return;
     const sys = String(system || "");
     const expiresAt   = new Date(Date.now() + ttlHours * 3_600_000);
     const basePayload = { module, response, createdAt: serverTimestamp(), expiresAt, ttlHours };
@@ -138,13 +148,13 @@ export async function setCached(module, prompt, response, ttlHours = 24, system 
     const writes = [];
 
     // Clave hash completo (siempre)
-    const rawKey = `${module}:${await claveCompuesta(sys, prompt)}`;
+    const rawKey = `${uid}:${module}:${await claveCompuesta(sys, prompt)}`;
     writes.push(setDoc(doc(db, "aiCache", rawKey), basePayload, { merge: true }));
 
     // Clave semántica (cuando aplica)
     const semanticPart = extractSemanticKey(prompt);
     if (semanticPart) {
-      const semKey = `${module}:sem:${await claveCompuesta(sys, semanticPart)}`;
+      const semKey = `${uid}:${module}:sem:${await claveCompuesta(sys, semanticPart)}`;
       writes.push(setDoc(doc(db, "aiCache", semKey), { ...basePayload, semanticKey: semanticPart }, { merge: true }));
     }
 

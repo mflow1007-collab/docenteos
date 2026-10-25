@@ -4,6 +4,7 @@
  * Fija con el emulador de Firestore que los bancos compartidos (bp_*, bic_*,
  * ke_estilos) solo admiten creaciones de docentes en su estado inicial y a su
  * propio nombre; promover (approved/official/activo/global) es del admin.
+ * S+.2: aiCache es por docente (la clave empieza por su uid).
  * Los payloads de "creación legítima" replican lo que escribe hoy el cliente
  * (metaCrear, KnowledgeBank.guardar, StyleEngine.extractStyle, VersionManager).
  *
@@ -16,7 +17,7 @@ import {
   assertSucceeds,
   assertFails,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 
 const PROJECT_ID = "demo-docenteos";
 const DOCENTE = "docente-1";
@@ -125,6 +126,34 @@ await check("docente NO lo pasa a approved", () =>
   assertFails(updateDoc(refBp, { estado: "approved" })));
 await check("admin lo pasa a approved", () =>
   assertSucceeds(updateDoc(doc(admin, "bp_actividades", refBp.id), { estado: "approved" })));
+
+console.log("\naiCache (por docente)");
+const cache = (uid, resto = "planificacion:abc.def") => `${uid}:${resto}`;
+const entrada = { module: "planificacion", response: "ok", createdAt: new Date(), expiresAt: new Date(), ttlHours: 24 };
+await check("docente escribe su propia entrada", () =>
+  assertSucceeds(setDoc(doc(docente, "aiCache", cache(DOCENTE)), entrada)));
+await check("docente lee su propia entrada", () =>
+  assertSucceeds(getDoc(doc(docente, "aiCache", cache(DOCENTE)))));
+await check("docente lee su clave semántica aún inexistente (miss)", () =>
+  assertSucceeds(getDoc(doc(docente, "aiCache", cache(DOCENTE, "planificacion:sem:x.y")))));
+await check("docente NO escribe en la caché de otro", () =>
+  assertFails(setDoc(doc(docente, "aiCache", cache(OTRO)), entrada)));
+await check("docente NO lee la caché de otro", () =>
+  assertFails(getDoc(doc(docente, "aiCache", cache(OTRO)))));
+await check("docente NO escribe claves sin uid (formato anterior)", () =>
+  assertFails(setDoc(doc(docente, "aiCache", "planificacion:sem:x.y"), entrada)));
+await check("docente NO usa su uid como prefijo parcial", () =>
+  assertFails(setDoc(doc(docente, "aiCache", `${DOCENTE}x:planificacion:a.b`), entrada)));
+await check("docente NO borra su entrada", () =>
+  assertFails(deleteDoc(doc(docente, "aiCache", cache(DOCENTE)))));
+await check("anónimo NO lee", () =>
+  assertFails(getDoc(doc(anonimo, "aiCache", cache(DOCENTE)))));
+await check("admin lista toda la caché", () =>
+  assertSucceeds(getDocs(collection(admin, "aiCache"))));
+await check("docente NO lista toda la caché", () =>
+  assertFails(getDocs(collection(docente, "aiCache"))));
+await check("admin purga una entrada", () =>
+  assertSucceeds(deleteDoc(doc(admin, "aiCache", cache(DOCENTE)))));
 
 console.log("\nSin cambios: bancoAprendizaje");
 await check("docente crea secuencia cosechada propia", () =>

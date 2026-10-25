@@ -381,10 +381,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Caché compartido de respuestas IA (claves por contenido, sin datos personales)
+    // Caché de respuestas IA POR DOCENTE: la clave empieza por su uid
+    // (`{uid}:{módulo}:…`, ver src/services/ai/cache.js). El admin lo ve y
+    // lo purga todo.
     match /aiCache/{docId} {
-      allow read, create, update: if isAuth();
-      allow delete: if isAdmin();
+      allow read, create, update: if isAuth() && docId.split(':')[0] == request.auth.uid;
+      allow read, delete: if isAdmin();
     }
 
     // Asistente personal: conversaciones, uso y memoria POR USUARIO
