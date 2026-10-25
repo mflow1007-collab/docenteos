@@ -12,7 +12,7 @@
  * Ejecutar: node scripts/test-contrato-v13.mjs
  */
 
-import { validateBatch, EXEMPLARS_ESTILO, buildSystemPromptFaseA, nivelLabelPrompt, esErrorCreditosAgotados, esErrorCuotaAgotada } from "../src/services/phaseAService.js";
+import { validateBatch, EXEMPLARS_ESTILO, buildSystemPromptFaseA, nivelLabelPrompt, esErrorCreditosAgotados } from "../src/services/phaseAService.js";
 
 let pasadas = 0, falladas = 0;
 const check = (nombre, fn) => {
@@ -332,15 +332,6 @@ check("saldo agotado activa contingencia definitiva sin seguir reintentando", ()
 check("un rate limit temporal no se confunde con saldo agotado", () => {
   if (esErrorCreditosAgotados(new Error("HTTP 429 rate limit; retry later"))) {
     throw new Error("bloqueó toda la unidad por un límite temporal");
-  }
-});
-
-check("cuota diaria agotada: se reconoce por su code y no se toma por créditos", () => {
-  const err = Object.assign(new Error("Alcanzaste el límite diario de 200 solicitudes de Inteligencia Artificial."), { code: "CUOTA_IA_AGOTADA", status: 429 });
-  if (!esErrorCuotaAgotada(err)) throw new Error("no reconoció la cuota agotada");
-  if (esErrorCreditosAgotados(err)) throw new Error("activaría la contingencia sin IA por una cuota");
-  if (esErrorCuotaAgotada(new Error("HTTP 429 rate limit; retry later"))) {
-    throw new Error("confundió un rate limit del proveedor con la cuota del docente");
   }
 });
 

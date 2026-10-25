@@ -389,14 +389,6 @@ service cloud.firestore {
       allow read, delete: if isAdmin();
     }
 
-    // Cuota diaria de IA ({uid}_{AAAA-MM-DD}): la escribe SOLO el gateway con
-    // su cuenta de servicio (api/_cuotaIA.js). El docente lee la suya.
-    match /aiCuotas/{docId} {
-      allow read: if isAuth() && resource.data.uid == request.auth.uid;
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-
     // Asistente personal: conversaciones, uso y memoria POR USUARIO
     match /chat_personal/{userId}/{document=**} {
       allow read, write: if isOwner(userId) || isAdmin();

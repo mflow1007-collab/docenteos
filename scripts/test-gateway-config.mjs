@@ -13,10 +13,6 @@
  *  - Módulo de composición (planificacion): variante débil → allowlist.
  *  - Sin correo verificado → 403 (salvo la cuenta admin exacta).
  *  - Si no se puede leer la config → 503 visible; si no existe → defaults.
- *  - S+.4: cuota diaria por docente contada con la cuenta de servicio
- *    (canje OAuth y commit de Firestore simulados): pasado el límite → 429
- *    CUOTA_IA_AGOTADA sin llamar al proveedor; admin exento; sin cuenta de
- *    servicio o con el contador caído → 503.
  *
  * Ejecutar: node scripts/test-gateway-config.mjs
  */
@@ -30,7 +26,6 @@ delete process.env.NVIDIA_API_KEY;
 
 const { default: handler, invalidarConfigGateway, getProviderQueue, resolverModelo } =
   await import("../api/ai/generate.js");
-const { invalidarTokenServicio, fechaRD, limiteDiario } = await import("../api/_cuotaIA.js");
 
 let pasos = 0, fallos = 0;
 const check = async (n, fn) => {
@@ -61,29 +56,10 @@ async function token({ email = "docente@ejemplo.com", verificado = true } = {}) 
   return `${header}.${payload}.${b64url(new Uint8Array(firma))}`;
 }
 
-// ── Cuenta de servicio de prueba (PEM con \n escritos, como en Vercel) ───────
-const SA_EMAIL = "cuota-ia@docenteos-test.iam.gserviceaccount.com";
-const parSA = await crypto.subtle.generateKey(
-  { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
-  true, ["sign", "verify"],
-);
-const pkcs8 = Buffer.from(await crypto.subtle.exportKey("pkcs8", parSA.privateKey)).toString("base64");
-const PEM_SA = `-----BEGIN PRIVATE KEY-----\\n${pkcs8.match(/.{1,64}/g).join("\\n")}\\n-----END PRIVATE KEY-----\\n`;
-const ponerCuentaServicio = () => {
-  process.env.FIREBASE_CLIENT_EMAIL = SA_EMAIL;
-  process.env.FIREBASE_PRIVATE_KEY = PEM_SA;
-};
-ponerCuentaServicio();
-
 // ── Doble de fetch ───────────────────────────────────────────────────────────
 // configDoc: objeto de campos tipados de Firestore, null = 404, número = HTTP de error
 let configDoc = null;
 let llamadas = [];
-// Contador simulado de aiCuotas y fallos inyectables
-let contadores = new Map();
-let commitFalla = null;     // número = HTTP de error del commit
-let canjeFalla = null;      // número = HTTP de error del canje OAuth
-let firmaSAValida = null;   // resultado de verificar la aserción del último canje
 const firestoreString = (s) => ({ stringValue: s });
 const firestoreArray = (xs) => ({ arrayValue: { values: xs.map(firestoreString) } });
 const firestoreMap = (o) => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, firestoreString(v)])) } });
@@ -94,27 +70,6 @@ globalThis.fetch = async (url, init = {}) => {
   const u = String(url);
   if (u.includes("securetoken@system.gserviceaccount.com")) {
     return new Response(JSON.stringify({ keys: [jwkPublica] }), { status: 200 });
-  }
-  if (u === "https://oauth2.googleapis.com/token") {
-    const form = new URLSearchParams(String(init.body));
-    const [h, c, f] = String(form.get("assertion")).split(".");
-    firmaSAValida = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", parSA.publicKey,
-      Buffer.from(f, "base64url"), new TextEncoder().encode(`${h}.${c}`));
-    const claims = JSON.parse(Buffer.from(c, "base64url").toString());
-    llamadas.push({ tipo: "canje", grant: form.get("grant_type"), iss: claims.iss, scope: claims.scope });
-    if (canjeFalla) return new Response("{}", { status: canjeFalla });
-    return new Response(JSON.stringify({ access_token: "token-servicio", expires_in: 3600 }), { status: 200 });
-  }
-  if (u.endsWith("/documents:commit")) {
-    const body = JSON.parse(init.body);
-    const nombre = body.writes[0].update.name;
-    llamadas.push({ tipo: "cuota", nombre, auth: init.headers?.Authorization, write: body.writes[0] });
-    if (commitFalla) return new Response("{}", { status: commitFalla });
-    const usadas = (contadores.get(nombre) || 0) + 1;
-    contadores.set(nombre, usadas);
-    return new Response(JSON.stringify({
-      writeResults: [{ transformResults: [{ integerValue: String(usadas) }, { timestampValue: new Date().toISOString() }] }],
-    }), { status: 200 });
   }
   if (u.startsWith("https://firestore.googleapis.com/")) {
     llamadas.push({ tipo: "firestore", url: u, auth: init.headers?.Authorization });
@@ -249,95 +204,6 @@ await check("documento inexistente → defaults del servidor", async () => {
   const { res, primera } = await generar({});
   igual(res.status, 200, "status");
   igual(primera, { tipo: "proveedor", provider: "openai", model: "gpt-4o" });
-});
-
-console.log("\nCuota diaria por docente (S+.4)");
-const NOMBRE_CUOTA = `projects/docenteos-test/databases/(default)/documents/aiCuotas/uid-prueba_${fechaRD()}`;
-const reiniciarCuota = () => {
-  contadores = new Map(); commitFalla = null; canjeFalla = null;
-  invalidarTokenServicio(); ponerCuentaServicio();
-};
-const llamadasDe = (tipo) => llamadas.filter((l) => l.tipo === tipo);
-
-await check("por debajo del límite: cuenta 1 en aiCuotas/{uid}_{fecha RD} y atiende", async () => {
-  reiniciarCuota(); configDoc = CONFIG_ADMIN;
-  const { res, proveedores } = await generar({});
-  igual(res.status, 200, "status");
-  igual(proveedores.length, 1, "llamadas a proveedores");
-  igual(contadores.get(NOMBRE_CUOTA), 1, "contador");
-  const [cuota] = llamadasDe("cuota");
-  igual(cuota.auth, "Bearer token-servicio", "Authorization del commit");
-  igual(cuota.write.updateMask.fieldPaths, ["uid", "fecha", "expiraEn"], "updateMask");
-});
-await check("canje OAuth: aserción firmada por la cuenta de servicio con scope de Firestore", async () => {
-  reiniciarCuota(); configDoc = CONFIG_ADMIN;
-  await generar({});
-  const [canje] = llamadasDe("canje");
-  igual(firmaSAValida, true, "firma de la aserción");
-  igual([canje.grant, canje.iss, canje.scope],
-    ["urn:ietf:params:oauth:grant-type:jwt-bearer", SA_EMAIL, "https://www.googleapis.com/auth/datastore"]);
-});
-await check("límite de la config (cuotaDiariaIA = 2): la 3.ª → 429 CUOTA_IA_AGOTADA sin proveedor", async () => {
-  reiniciarCuota(); configDoc = { ...CONFIG_ADMIN, cuotaDiariaIA: { integerValue: "2" } };
-  igual((await generar({})).res.status, 200, "1.ª");
-  igual((await generar({})).res.status, 200, "2.ª");
-  const { res, proveedores } = await generar({});
-  igual(res.status, 429, "3.ª");
-  igual(proveedores.length, 0, "llamadas a proveedores");
-  const cuerpo = JSON.parse(await res.text());
-  igual([cuerpo.code, cuerpo.limite], ["CUOTA_IA_AGOTADA", 2]);
-  if (!/límite diario de 2/.test(cuerpo.error)) throw new Error(`mensaje inesperado: ${cuerpo.error}`);
-});
-await check("el token OAuth se reutiliza entre peticiones", async () => {
-  reiniciarCuota(); configDoc = CONFIG_ADMIN;
-  await generar({});
-  const canjes = llamadasDe("canje").length;
-  await generar({});
-  igual([canjes, llamadasDe("canje").length], [1, 0], "canjes (1.ª petición, 2.ª petición)");
-});
-await check("admin exento: no toca el contador", async () => {
-  reiniciarCuota(); configDoc = { ...CONFIG_ADMIN, cuotaDiariaIA: { integerValue: "1" } };
-  const tok = await token({ email: "admin@docenteos.com" });
-  await generar({}, { tok });
-  const { res } = await generar({}, { tok });
-  igual(res.status, 200, "status");
-  igual(llamadasDe("cuota").length, 0, "commits de cuota");
-});
-await check("sin correo verificado: no consume cuota", async () => {
-  reiniciarCuota(); configDoc = CONFIG_ADMIN;
-  await generar({}, { tok: await token({ verificado: false }) });
-  igual(llamadasDe("cuota").length, 0, "commits de cuota");
-});
-await check("cola vacía (proveedor apagado): no consume cuota", async () => {
-  reiniciarCuota(); configDoc = CONFIG_ADMIN;
-  await generar({ providerOrder: ["gemini"], strictProvider: true });
-  igual(llamadasDe("cuota").length, 0, "commits de cuota");
-});
-await check("sin cuenta de servicio → 503 visible y sin proveedor", async () => {
-  reiniciarCuota(); configDoc = CONFIG_ADMIN;
-  delete process.env.FIREBASE_PRIVATE_KEY;
-  const { res, proveedores } = await generar({});
-  igual(res.status, 503, "status");
-  igual(proveedores.length, 0, "llamadas a proveedores");
-  if (!/cuota diaria/i.test(JSON.parse(await res.text()).error)) throw new Error("mensaje sin mención a la cuota");
-});
-await check("canje OAuth rechazado → 503 y sin proveedor", async () => {
-  reiniciarCuota(); configDoc = CONFIG_ADMIN; canjeFalla = 400;
-  const { res, proveedores } = await generar({});
-  igual([res.status, proveedores.length], [503, 0]);
-});
-await check("commit de Firestore caído → 503 y sin proveedor", async () => {
-  reiniciarCuota(); configDoc = CONFIG_ADMIN; commitFalla = 500;
-  const { res, proveedores } = await generar({});
-  igual([res.status, proveedores.length], [503, 0]);
-});
-await check("fecha en hora de RD: 02:00 UTC del 26 sigue siendo el 25", () => {
-  igual(fechaRD(Date.parse("2026-10-26T02:00:00Z")), "2026-10-25");
-  igual(fechaRD(Date.parse("2026-10-26T04:00:00Z")), "2026-10-26");
-});
-await check("límite: 200 por defecto; valores no válidos de la config se ignoran", () => {
-  igual([limiteDiario({}), limiteDiario({ cuotaDiariaIA: 50 }), limiteDiario({ cuotaDiariaIA: 0 }), limiteDiario({ cuotaDiariaIA: "x" })],
-    [200, 50, 200, 200]);
 });
 
 console.log(`\n${pasos} ✓ · ${fallos} ✗`);

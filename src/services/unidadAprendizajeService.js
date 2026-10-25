@@ -6,7 +6,7 @@ import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { getActividades } from "./bancoPedagogicoService.js";
 import { combinarActividad } from "./combinadorActividadesService.js";
 import { getCurricularContentForUnit, temasOficialesDeMalla, localizarPlaceholdersProhibidos } from "./bancoConocimientoService.js";
-import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical, validarProductoFinalAutentico, esErrorCreditosAgotados, esErrorCuotaAgotada } from "./phaseAService.js";
+import { buildEspecificacionCurricular, generateWeekPlan, validarVozActividad, getFocoGramatical, validarProductoFinalAutentico, esErrorCreditosAgotados } from "./phaseAService.js";
 import {
   resolverFocosCurriculares,
   obtenerPerfilPedagogicoArea,
@@ -4409,9 +4409,6 @@ const _generarFasesConIA = async (
           memoriaAcumulada, progressWrapper,
         );
       } catch (err) {
-        // Cuota diaria agotada: se detiene la generación con su mensaje
-        // (no se rellena con base curricular)
-        if (esErrorCuotaAgotada(err)) throw err;
         if (esErrorCreditosAgotados(err)) modoContingenciaSinIA = true;
         console.warn(`[UnidadIA] Fase ${fase.numero} semana ${semanaGeneracion}: usando base curricular por fallo IA.`, err);
         onProgress?.(

@@ -70,10 +70,6 @@ const isProviderBudgetError = (errOrMsg) => {
   return PROVIDER_BUDGET_ERROR_RE.test(msg) || Number(errOrMsg?.status) === 429;
 };
 
-// Cuota diaria del docente agotada (429 del gateway con este code). No es un
-// fallo del proveedor: no se aparca ni se rota; la generación se detiene.
-export const esErrorCuotaAgotada = (err) => err?.code === "CUOTA_IA_AGOTADA";
-
 export const esErrorCreditosAgotados = (errOrMsg) => {
   const msg = String(errOrMsg?.message || errOrMsg || "");
   return errOrMsg?.code === "AI_CREDITS_EXHAUSTED"
@@ -325,10 +321,8 @@ async function callGatewayCollect(
   if (!response.ok) {
     let msg = `HTTP ${response.status}`;
     let bodyTimeout = false;
-    let bodyCode = null;
-    try { const b = await response.json(); msg = b.error || msg; bodyTimeout = b.timeout === true; bodyCode = b.code || null; } catch {}
+    try { const b = await response.json(); msg = b.error || msg; bodyTimeout = b.timeout === true; } catch {}
     const error = new Error(msg);
-    if (bodyCode) error.code = bodyCode;
     error.provider = response.headers.get('X-AI-Provider') || providerOrder?.[0] || 'desconocido';
     error.model = response.headers.get('X-AI-Model') || 'desconocido';
     error.status = response.status;
@@ -1705,8 +1699,6 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       return result.data;
 
     } catch (err) {
-      // Cuota diaria agotada: ningún otro proveedor la resolvería
-      if (esErrorCuotaAgotada(err)) throw err;
       const msg = String(err?.message || err || '');
       // Medición directa del muro (punto 2): tiempo real hasta el fallo y si el
       // fallo fue por un abort de signal (timeout de Edge 24s o del fetch 90s).
