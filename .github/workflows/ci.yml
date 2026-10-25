@@ -1,0 +1,48 @@
+# CI de DocenteOS: lint, build y pruebas en cada PR y en cada push a main.
+# No usa secretos: las pruebas no llaman a Firebase real ni a proveedores de IA.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruebas:
+    name: Lint, build y npm test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Los avisos de lint no fallan el job (hay deuda conocida, M2); los errores sí.
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+
+  reglas:
+    name: Reglas de Firestore (emulador)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      # El emulador de Firestore necesita Java.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci
+      - run: npm run test:rules
