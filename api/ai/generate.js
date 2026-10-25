@@ -28,15 +28,11 @@
  * Modelos, prioridad y proveedores apagados los decide el SERVIDOR leyendo
  * config/ia-gateway (Etapa S+). El cliente no elige modelo: `modelOverrides`
  * se ignora. Sin correo verificado no se atiende (salvo la cuenta admin exacta).
- * Cada petición que llega a un proveedor cuenta en la cuota diaria del docente
- * (api/_cuotaIA.js; límite en config/ia-gateway.cuotaDiariaIA). El admin está
- * exento. Cuota agotada → 429 con code CUOTA_IA_AGOTADA.
  */
 
 export const config = { runtime: "edge" };
 
 import { verifyFirebaseToken, isAdminUser } from "../_firebaseAuth.js";
-import { incrementarCuota, limiteDiario, CODIGO_CUOTA_AGOTADA } from "../_cuotaIA.js";
 
 // ─── Fix auditoría 2026-07-04: control de módulos y tokens en el servidor ────
 // La restricción "solo admin" del convertidor PDF→JSON era solo de UI:
@@ -635,32 +631,6 @@ export default async function handler(request) {
       }),
       { status: 503, headers: { "Content-Type": "application/json" } }
     );
-  }
-
-  // Cuota diaria por docente: se cuenta ANTES de llamar al proveedor. Si el
-  // contador no está disponible no se atiende (fail-closed).
-  if (!isAdminUser(authedUser)) {
-    const limite = limiteDiario(gwConfig);
-    let usadas;
-    try {
-      usadas = await incrementarCuota(authedUser.uid);
-    } catch (err) {
-      console.error("[AI Gateway] No se pudo verificar la cuota diaria:", err?.message || err);
-      return new Response(
-        JSON.stringify({ error: "No se pudo verificar tu cuota diaria de Inteligencia Artificial. Intenta de nuevo en unos minutos." }),
-        { status: 503, headers: { "Content-Type": "application/json" } }
-      );
-    }
-    if (usadas > limite) {
-      return new Response(
-        JSON.stringify({
-          error: `Alcanzaste el límite diario de ${limite} solicitudes de Inteligencia Artificial. Se renueva a medianoche (hora de República Dominicana).`,
-          code: CODIGO_CUOTA_AGOTADA,
-          limite,
-        }),
-        { status: 429, headers: { "Content-Type": "application/json" } }
-      );
-    }
   }
 
   let lastError = null;

@@ -5,7 +5,6 @@
  * ke_estilos) solo admiten creaciones de docentes en su estado inicial y a su
  * propio nombre; promover (approved/official/activo/global) es del admin.
  * S+.2: aiCache es por docente (la clave empieza por su uid).
- * S+.4: aiCuotas solo la escribe el servidor; cada docente lee la suya.
  * Los payloads de "creación legítima" replican lo que escribe hoy el cliente
  * (metaCrear, KnowledgeBank.guardar, StyleEngine.extractStyle, VersionManager).
  *
@@ -155,27 +154,6 @@ await check("docente NO lista toda la caché", () =>
   assertFails(getDocs(collection(docente, "aiCache"))));
 await check("admin purga una entrada", () =>
   assertSucceeds(deleteDoc(doc(admin, "aiCache", cache(DOCENTE)))));
-
-console.log("\naiCuotas (solo la escribe el servidor)");
-const cuotaId = (uid) => `${uid}_2026-10-25`;
-await env.withSecurityRulesDisabled(async (ctx) => {
-  await setDoc(doc(ctx.firestore(), "aiCuotas", cuotaId(DOCENTE)), { uid: DOCENTE, fecha: "2026-10-25", usadas: 3 });
-  await setDoc(doc(ctx.firestore(), "aiCuotas", cuotaId(OTRO)), { uid: OTRO, fecha: "2026-10-25", usadas: 9 });
-});
-await check("docente lee su propia cuota", () =>
-  assertSucceeds(getDoc(doc(docente, "aiCuotas", cuotaId(DOCENTE)))));
-await check("docente NO lee la cuota de otro", () =>
-  assertFails(getDoc(doc(docente, "aiCuotas", cuotaId(OTRO)))));
-await check("docente NO reinicia su contador", () =>
-  assertFails(setDoc(doc(docente, "aiCuotas", cuotaId(DOCENTE)), { uid: DOCENTE, usadas: 0 })));
-await check("docente NO crea un contador nuevo", () =>
-  assertFails(setDoc(doc(docente, "aiCuotas", `${DOCENTE}_2026-10-26`), { uid: DOCENTE, usadas: 0 })));
-await check("docente NO borra su contador", () =>
-  assertFails(deleteDoc(doc(docente, "aiCuotas", cuotaId(DOCENTE)))));
-await check("admin lee cualquier cuota", () =>
-  assertSucceeds(getDoc(doc(admin, "aiCuotas", cuotaId(OTRO)))));
-await check("admin tampoco escribe desde el cliente", () =>
-  assertFails(setDoc(doc(admin, "aiCuotas", cuotaId(OTRO)), { uid: OTRO, usadas: 0 })));
 
 console.log("\nSin cambios: bancoAprendizaje");
 await check("docente crea secuencia cosechada propia", () =>
