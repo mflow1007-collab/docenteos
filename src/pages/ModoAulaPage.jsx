@@ -929,6 +929,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const [guardandoFin, setGuardandoFin] = useState(false)
   const [finOk,        setFinOk]        = useState(false)
   const [guardandoRecursos, setGuardandoRecursos] = useState(false)
+  const [errorRecursos, setErrorRecursos] = useState('')
   const [guiaEstado, setGuiaEstado] = useState(null) // null | {cargando, texto} | {error}
 
   // ── Aplicación de instrumentos
@@ -1428,12 +1429,14 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     }
     const planActualizado = { ...planActivo, contenido: contenidoActualizado }
     setGuardandoRecursos(true)
+    setErrorRecursos('')
     setPlanActivo(planActualizado)
     setPlanes(prev => prev.map((plan) => String(plan.id) === String(planActivo.id) ? planActualizado : plan))
     try {
       await actualizarPlanificacionDetallada(planActivo.id, { contenido: contenidoActualizado })
     } catch (error) {
       console.error('[ModoAula] No se pudo actualizar el recurso en la planificación:', error)
+      setErrorRecursos(`El ajuste no se guardó: ${error.message || 'error desconocido'}`)
     } finally {
       setGuardandoRecursos(false)
     }
@@ -1460,8 +1463,10 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       setPlanActivo(planActualizado)
       setPlanes(prev => prev.map((p) => String(p.id) === String(planActivo.id) ? planActualizado : p))
       if (planActivo?.id && !String(planActivo.id).startsWith('local_')) {
-        actualizarPlanificacionDetallada(planActivo.id, { contenido: contenidoConGuia }).catch((e) =>
-          console.warn('[ModoAula] No se pudo persistir la guía:', e))
+        actualizarPlanificacionDetallada(planActivo.id, { contenido: contenidoConGuia }).catch((e) => {
+          console.warn('[ModoAula] No se pudo persistir la guía:', e)
+          setGuiaEstado({ error: `La guía se generó pero no se guardó: ${e.message || 'error desconocido'}` })
+        })
       }
       setGuiaEstado(null)
       abrirHTMLEnPestana(formatearGuiaMaestroHTML(guia, logoUrl))
@@ -2832,6 +2837,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
               <div>
                 <div style={{ fontSize:10, fontWeight:800, color:'#15803d', textTransform:'uppercase', letterSpacing:'.4px' }}>Recursos</div>
                 <div style={{ fontSize:11, color:'#64748b' }}>{guardandoRecursos ? 'guardando ajustes...' : 'para la clase'}</div>
+                {errorRecursos && (
+                  <div style={{ fontSize:11, color:'#b91c1c', marginTop:2 }}>❌ {errorRecursos}</div>
+                )}
               </div>
             </div>
             {recursos.length === 0 ? (

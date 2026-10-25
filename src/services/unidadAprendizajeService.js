@@ -21,6 +21,7 @@ import {
   formatearProductoFinal,
 } from "./curriculumCombinacionService.js";
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
+import { logCaidaBaseCurricular } from "./ai/usage.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -3112,6 +3113,8 @@ const _generarFasesConIA = async (
   const aportesProductoUsados = new Set();
   let modoContingenciaSinIA = false;
   const advertenciasIA = [];
+  // A5: fases que la IA no completó y se armaron desde la malla (para marcarlas en la vista).
+  const fasesBaseCurricular = [];
   const totalClases = fases.reduce((sum, f) => sum + f.dias.length, 0);
   let globalOffset = 0;
   let productoFinalNombreActual = specBase.productoFinalNombre || "";
@@ -4295,6 +4298,20 @@ const _generarFasesConIA = async (
     advertenciasIA.push(
       `Semana ${semanaGeneracion}, fase ${fase.numero}: la IA no completó esta parte; DocenteOS entregó una base curricular editable desde la malla oficial. ${motivoLimpio ? `Detalle: ${motivoLimpio.slice(0, 180)}` : ""}`.trim()
     );
+    fasesBaseCurricular.push({
+      semana: semanaGeneracion,
+      fase: fase.numero,
+      nombre: fase.nombre || "",
+      motivo: motivoLimpio.slice(0, 300),
+      contingenciaSinIA: modoContingenciaSinIA,
+    });
+    // A5: registro propio de la caída (no bloquea la generación).
+    void logCaidaBaseCurricular({
+      semana: semanaGeneracion,
+      fase: fase.numero,
+      motivo: motivoLimpio,
+      contingenciaSinIA: modoContingenciaSinIA,
+    });
     const clasesBase = fase.dias.map((dia, i) => construirClaseBaseCurricular({
       dia,
       fase,
@@ -4720,7 +4737,7 @@ const _generarFasesConIA = async (
     globalOffset += numClases;
   }
 
-  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA, combinacionesCreadas };
+  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA, fasesBaseCurricular, combinacionesCreadas };
 };
 
 // ─── Exportación principal ────────────────────────────────────────────────────
@@ -5063,7 +5080,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     ? estrategiaSel.fases
     : null;
 
-  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], combinacionesCreadas = [] } = await _generarFasesConIA(
+  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], fasesBaseCurricular = [], combinacionesCreadas = [] } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
     {
       grado, nivel,
@@ -5213,6 +5230,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     // Avisos de cobertura (ej. tema sin Capa 2) y de composición IA. Si un
     // proveedor falla, la unidad sigue entregándose con base curricular.
     advertencias: [...advertencias, ...advertenciasIA],
+    fasesBaseCurricular,
   };
 
   // ── Secciones del documento modelo (2026-07-04) ────────────────────────────
