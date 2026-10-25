@@ -205,6 +205,8 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       </label>
     );
   };
+  const fasesBaseCurricular = Array.isArray(unidad.fasesBaseCurricular) ? unidad.fasesBaseCurricular : [];
+  const avisosGeneracion = Array.isArray(unidad.advertencias) ? unidad.advertencias.filter(Boolean).map(String) : [];
   const competenciasDetalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
   const competenciasVisibles = competenciasDetalle.length
     ? competenciasDetalle
@@ -214,6 +216,34 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
     <div className="ua-resultado">
 
       {mensaje && <div className={`mensaje ${mensaje.tipo}`}>{mensaje.texto}</div>}
+
+      {/* A5: fases que la IA no completó (armadas desde la malla) y TODOS los avisos de la generación. */}
+      {fasesBaseCurricular.length > 0 && (
+        <div className="mensaje warning" role="alert">
+          <strong>
+            ⚠️ {fasesBaseCurricular.length === 1 ? "1 fase se armó" : `${fasesBaseCurricular.length} fases se armaron`} desde la malla oficial, sin IA.
+          </strong>{" "}
+          Revísalas y edítalas antes de usarlas en clase:
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+            {fasesBaseCurricular.map((f, i) => (
+              <li key={`${f.semana}-${f.fase}-${i}`}>
+                Semana {f.semana} · Fase {f.fase}{f.nombre ? ` (${f.nombre})` : ""}
+                {f.contingenciaSinIA ? " — créditos de IA agotados" : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {avisosGeneracion.length > 0 && (
+        <details className="mensaje info">
+          <summary style={{ cursor: "pointer" }}>
+            ℹ️ {avisosGeneracion.length === 1 ? "1 aviso" : `${avisosGeneracion.length} avisos`} de la generación
+          </summary>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+            {avisosGeneracion.map((texto, i) => <li key={i}>{texto}</li>)}
+          </ul>
+        </details>
+      )}
 
       {editando && (
         <div className="mensaje info" style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e40af" }}>

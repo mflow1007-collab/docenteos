@@ -79,3 +79,44 @@ export async function logUsage({
     // logging no-fatal — nunca romper la experiencia de usuario
   }
 }
+
+/**
+ * Caída de una fase a la base curricular (A5): la IA no completó la fase y
+ * DocenteOS la armó desde la malla oficial. Deja un registro propio en aiLogs
+ * (etiqueta "fase_base_curricular") para ver cuántas caídas hay y por qué.
+ * Las reglas exigen uid == request.auth.uid: sin sesión no se registra.
+ */
+export async function logCaidaBaseCurricular({
+  module = "planificacion",
+  semana = null,
+  fase = null,
+  motivo = "",
+  contingenciaSinIA = false,
+}) {
+  try {
+    const uid = getAuth().currentUser?.uid || null;
+    if (!uid) return;
+    const motivoLimpio = String(motivo || "").replace(/\s+/g, " ").trim().slice(0, 500);
+
+    await addDoc(collection(db, "aiLogs"), {
+      uid,
+      fecha:             serverTimestamp(),
+      modulo:            module,
+      etiqueta:          "fase_base_curricular",
+      proveedor:         "base_curricular",
+      modelo:            "sin_ia",
+      semana,
+      fase,
+      contingenciaSinIA,
+      motivo:            motivoLimpio,
+      tokensEntrada:     0,
+      tokensSalida:      0,
+      costoEstimado:     "0.000000",
+      tiempoRespuesta:   0,
+      cache:             false,
+      error:             `Fase a base curricular: ${motivoLimpio}`.slice(0, 500),
+    });
+  } catch {
+    // logging no-fatal — nunca romper la experiencia de usuario
+  }
+}
