@@ -24,6 +24,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "fire
 import { esUsuarioDocenteOS } from "./utils/permisos.js";
 import { COMP_CODIGOS, resolverCI, resolverPI } from "./constants/registroCodigos.js";
 import { aplicarNotaEnCelda } from "./services/hiloPedagogico.js";
+import { verificarTamanoDocumento, fusionarComoFirestore } from "./utils/tamanoDocumento.js";
 
 // import.meta.env solo existe bajo Vite; en Node (tests) queda {} y
 // isFirebaseConfigured=false — mismo comportamiento que sin credenciales.
@@ -218,7 +219,7 @@ export const guardarPlanificacionDetallada = async (planificacion, opciones = {}
   try {
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const user = auth.currentUser;
-      const docRef = await addDoc(collection(db, "planificaciones"), {
+      const datosDoc = {
         tipo: meta.tipoPlanificacion || "Planificación Semanal",
         curso,
         area,
@@ -233,7 +234,11 @@ export const guardarPlanificacionDetallada = async (planificacion, opciones = {}
         fecha: serverTimestamp(),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+      // A4: medir el documento completo antes de escribir; si no cabe, error
+      // visible y nada se pierde (la unidad sigue en pantalla y en sesión).
+      verificarTamanoDocumento(datosDoc);
+      const docRef = await addDoc(collection(db, "planificaciones"), datosDoc);
 
       return { success: true, mode: "firebase", id: docRef.id };
     }
@@ -309,10 +314,13 @@ export const actualizarPlanificacionDetallada = async (planificacionId, patch = 
       if (snap.data()?.usuario !== user.uid) {
         throw new Error("No tienes permiso para modificar esta planificación");
       }
-      await setDoc(ref, {
-        ...patch,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+      const parche = { ...patch, updatedAt: serverTimestamp() };
+      // A4: con merge, el documento final = lo existente fusionado con el parche.
+      verificarTamanoDocumento(fusionarComoFirestore(snap.data(), parche), {
+        que: "La planificación actualizada",
+        idDocumento: String(planificacionId),
+      });
+      await setDoc(ref, parche, { merge: true });
       return { success: true, mode: "firebase", id: planificacionId };
     }
 
