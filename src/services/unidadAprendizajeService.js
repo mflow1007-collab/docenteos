@@ -5666,7 +5666,11 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       tbody tr { break-inside: auto; page-break-inside: auto; }
       .dia-table { break-inside: auto; page-break-inside: auto; margin-bottom: 6px; }
       .semana-band { break-after: avoid; page-break-after: avoid; }
-      .intencion-band { break-after: avoid; page-break-after: avoid; }
+      /* La intención es un bloque corto: que NO se parta ella misma, pero SÍ
+         pueda separarse de la tabla del día. Con break-after:avoid quedaba
+         pegada a la dia-table (grande) y formaba un grupo encabezados+tabla
+         indivisible que empujaba páginas enteras, dejando huecos al pie. */
+      .intencion-band { break-inside: avoid; page-break-inside: avoid; }
       .modelo-band { break-inside: avoid; page-break-inside: avoid; }
       .fase-band { break-before: auto; page-break-before: auto; break-after: avoid; page-break-after: avoid; }
       .section-head { break-after: avoid; page-break-after: avoid; }
