@@ -11,6 +11,8 @@
  * No usar en Edge Runtime — requiere Node.js runtime.
  */
 
+import { verificarAdmin } from "../_firebaseAuth.js";
+
 export const config = { runtime: "nodejs" };
 
 const ALLOWED_TYPES = ["planes", "actividades", "instrumentos"];
@@ -20,10 +22,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Método no permitido." });
   }
 
-  // Verificar header de autorización admin (token Firebase ID verificado en servidor)
-  const authHeader = req.headers.authorization ?? "";
-  if (!authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Token de autorización requerido." });
+  // Token Firebase ID verificado en servidor y con permisos de administrador
+  // (antes solo se comprobaba que el header empezara por "Bearer ").
+  const acceso = await verificarAdmin(req.headers?.authorization);
+  if (!acceso.ok) {
+    return res.status(acceso.status).json({ error: acceso.error });
   }
 
   const { tipo = "planes", grado, area } = req.body ?? {};

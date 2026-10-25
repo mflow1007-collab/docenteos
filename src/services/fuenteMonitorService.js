@@ -379,12 +379,20 @@ export async function eliminarFuenteMonitor(fuenteId) {
   }
 }
 
+// Los endpoints del monitor exigen token de administrador (verificado en servidor).
+async function cabecerasAdmin() {
+  const token = await auth?.currentUser?.getIdToken();
+  if (!token) throw new Error("Inicia sesión como administrador para consultar las fuentes.");
+  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+}
+
 export async function verificarFuenteMonitor(fuente) {
+  const headers = await cabecerasAdmin();
   let response;
   try {
     response = await fetch("/api/fuentes/check", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ url: fuente.url, auth: fuente.auth || { type: "none" } }),
     });
   } catch (error) {
@@ -452,13 +460,14 @@ export async function verificarFuenteMonitor(fuente) {
   return { tipo: "cambio", revision, cambio: { ...cambio, id } };
 }
 
-export async function obtenerLibroAbiertoMateriales(fuente = {}) {
+export async function obtenerLibroAbiertoMateriales() {
+  const headers = await cabecerasAdmin();
   let response;
   try {
     response = await fetch("/api/materiales/libro-abierto", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ auth: fuente.auth || {} }),
+      headers,
+      body: JSON.stringify({}),
     });
   } catch (error) {
     throw new Error(`No fue posible conectar con /api/materiales/libro-abierto: ${error.message}`, {
@@ -475,11 +484,12 @@ export async function obtenerLibroAbiertoMateriales(fuente = {}) {
 }
 
 export async function obtenerEducandoMateriales(fuente = {}) {
+  const headers = await cabecerasAdmin();
   let response;
   try {
     response = await fetch("/api/materiales/educando", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ url: fuente.url, auth: { type: "none" } }),
     });
   } catch (error) {

@@ -28,134 +28,13 @@
 
 export const config = { runtime: "edge" };
 
-// ─── Verificación de Firebase ID Token ───────────────────────────────────────
-// Implementada con Web Crypto API (disponible en Edge Runtime).
-// Firebase publica sus claves públicas en formato JWK, lo que permite importarlas
-// directamente sin parsear certificados X.509.
-
-let _jwkCache = null;
-let _jwkCacheTime = 0;
-const JWK_CACHE_MS = 6 * 60 * 60 * 1000; // 6 horas
-
-async function getFirebasePublicKeys() {
-  const now = Date.now();
-  if (_jwkCache && now - _jwkCacheTime < JWK_CACHE_MS) return _jwkCache;
-
-  const res = await fetch(
-    "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"
-  );
-  const { keys } = await res.json();
-
-  const keyMap = {};
-  for (const key of keys) {
-    keyMap[key.kid] = await crypto.subtle.importKey(
-      "jwk",
-      key,
-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-      false,
-      ["verify"]
-    );
-  }
-
-  _jwkCache = keyMap;
-  _jwkCacheTime = now;
-  return keyMap;
-}
-
-function b64urlToBytes(str) {
-  const base64 = str.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-  return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
-}
-
-/**
- * Verifica un Firebase ID Token.
- * @returns {{ uid: string, email: string } | null}
- */
-async function verifyFirebaseToken(token) {
-  try {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    if (!projectId) {
-      console.error("[Auth] FIREBASE_PROJECT_ID no está configurado en las variables de entorno del servidor");
-      return null;
-    }
-
-    const parts = token.split(".");
-    if (parts.length !== 3) {
-      console.error("[Auth] Token JWT malformado — no tiene 3 partes");
-      return null;
-    }
-
-    const decoder = new TextDecoder();
-    const header  = JSON.parse(decoder.decode(b64urlToBytes(parts[0])));
-    const payload = JSON.parse(decoder.decode(b64urlToBytes(parts[1])));
-
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) {
-      console.error("[Auth] Token expirado — exp:", payload.exp, "now:", now);
-      return null;
-    }
-    if (payload.iat > now + 300) {
-      console.error("[Auth] Token iat en el futuro — iat:", payload.iat, "now:", now);
-      return null;
-    }
-    if (payload.iss !== `https://securetoken.google.com/${projectId}`) {
-      console.error("[Auth] iss no coincide — iss del token:", payload.iss, "| esperado:", `https://securetoken.google.com/${projectId}`);
-      return null;
-    }
-    if (payload.aud !== projectId) {
-      console.error("[Auth] aud no coincide — aud del token:", payload.aud, "| esperado:", projectId);
-      return null;
-    }
-    if (!payload.sub) {
-      console.error("[Auth] Token sin sub (uid)");
-      return null;
-    }
-
-    const keys = await getFirebasePublicKeys();
-    const key  = keys[header.kid];
-    if (!key) {
-      console.error("[Auth] kid del token no encontrado en JWK — kid:", header.kid, "| kids disponibles:", Object.keys(keys));
-      return null;
-    }
-
-    const signingInput = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
-    const signature    = b64urlToBytes(parts[2]);
-
-    const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, signingInput);
-    if (!valid) {
-      console.error("[Auth] Firma del token inválida");
-      return null;
-    }
-
-    return {
-      uid: payload.sub,
-      email: payload.email || "",
-      emailVerified: payload.email_verified === true,
-    };
-  } catch (err) {
-    console.error("[Auth] Excepción en verifyFirebaseToken:", err?.message || err);
-    return null;
-  }
-}
+import { verifyFirebaseToken, isAdminUser } from "../_firebaseAuth.js";
 
 // ─── Fix auditoría 2026-07-04: control de módulos y tokens en el servidor ────
 // La restricción "solo admin" del convertidor PDF→JSON era solo de UI:
 // cualquier usuario autenticado podía invocar el módulo con 12K tokens.
 const ADMIN_ONLY_MODULES = new Set(["planificacion.curriculo_pdf_json"]);
 const MAX_TOKENS_CAP = 24000; // techo del edge; el reintento de Fase A pide hasta 20000 tras truncamiento con modelos verbosos
-
-// Cuenta administradora principal: acceso completo por email EXACTO, sin
-// exigir verificación (la cuenta ya existe en Firebase Auth — nadie más puede
-// registrar ese correo). El requisito email_verified aplica solo al resto
-// del dominio, que es donde estaba el hueco de la auditoría.
-const ADMIN_EMAILS = new Set(["admin@docenteos.com"]);
-
-function isAdminUser(authedUser) {
-  const email = (authedUser?.email || "").toLowerCase();
-  if (ADMIN_EMAILS.has(email)) return true;
-  return /@docenteos\.com$/.test(email) && authedUser?.emailVerified === true;
-}
 
 // ─── Configuración por defecto ────────────────────────────────────────────────
 

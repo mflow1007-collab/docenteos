@@ -1,3 +1,5 @@
+import { verificarAdmin } from "../_firebaseAuth.js";
+
 const BASE_URL = "https://libroabierto-be.azurewebsites.net";
 const NIVELES_LIBRO_ABIERTO = [
   { id: 1, nombre: "Inicial" },
@@ -473,10 +475,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Método no permitido" });
   }
 
+  const acceso = await verificarAdmin(req.headers?.authorization);
+  if (!acceso.ok) {
+    return res.status(acceso.status).json({ error: acceso.error });
+  }
+
   try {
-    const auth = req.body?.auth || {};
-    const username = getCredential(auth.usernameEnv || "LIBRO_ABIERTO_USER");
-    const password = getCredential(auth.passwordEnv || "LIBRO_ABIERTO_PASSWORD");
+    // Nombres FIJOS: el cliente ya no elige qué variable de entorno se usa como
+    // usuario o contraseña (antes podía pedir cualquier secreto del servidor).
+    const username = getCredential("LIBRO_ABIERTO_USER");
+    const password = getCredential("LIBRO_ABIERTO_PASSWORD");
 
     if (!username || !password) {
       return res.status(400).json({

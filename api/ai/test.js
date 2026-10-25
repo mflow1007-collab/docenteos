@@ -6,6 +6,8 @@
  * funciona correctamente. Nunca expone errores técnicos al usuario.
  */
 
+import { verificarAdmin } from "../_firebaseAuth.js";
+
 export const config = { runtime: "edge" };
 
 const PROVIDER_CONFIG = {
@@ -71,6 +73,15 @@ function modelsToTry(provider, selectedModel, defaultModel) {
 export default async function handler(request) {
   if (request.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
+  }
+
+  // Cada prueba es una llamada real (y pagada) al proveedor: solo administradores.
+  const acceso = await verificarAdmin(request.headers.get("Authorization"));
+  if (!acceso.ok) {
+    return new Response(JSON.stringify({ ok: false, error: acceso.error }), {
+      status: acceso.status,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   let provider;
