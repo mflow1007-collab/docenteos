@@ -1699,7 +1699,10 @@ check("una fase de 8 días con 4 clases/semana se muestra como SEMANA 2 y SEMANA
   if (!h.includes("SEMANA 2 (4 días)")) throw new Error("no agrupó la primera semana calendario");
   if (!h.includes("SEMANA 3 (4 días)")) throw new Error("no agrupó la segunda semana calendario");
   if (h.includes("(8 días)")) throw new Error("sigue rotulando la fase completa como una semana de 8 días");
-  if (!h.includes('"Explorando la casa"') || !h.includes('"Describiendo mi casa"')) {
+  // R16: el título de SU semana aparece como rótulo de fase en la banda (ya no
+  // entre comillas; ahora precedido de " · "). Lo importante sigue siendo que
+  // cada banda use el título de SU semana, no uno compartido.
+  if (!h.includes("Explorando la casa") || !h.includes("Describiendo mi casa")) {
     throw new Error("las bandas no usan el título de SU semana");
   }
 });
@@ -1711,10 +1714,13 @@ check("la banda de semana NO duplica el número: SEMANA N lo pone una sola vez, 
   // "SEMANA 2: 'Semana 1: …'" — duplicado y desincronizado.
   u.fasesSemanales[0].dias.forEach((d) => { d.tituloSemana = "Exploración de estructuras de permiso"; });
   const h = formatearUnidadHTML(u, "");
-  if (/SEMANA \d+ \([^)]*\):\s*"Semana \d+:/.test(h)) {
-    throw new Error("la banda duplica el número de semana (SEMANA N: 'Semana M: …')");
+  // El número de semana lo pone la banda UNA vez ("SEMANA N (…)"); el título es
+  // solo la frase, nunca "Semana M:" embebido. Vale tanto el formato R16 (· frase)
+  // como el clásico (: "frase").
+  if (/SEMANA \d+ \([^)]*\)[^<]*Semana \d+:/.test(h)) {
+    throw new Error("la banda duplica el número de semana (SEMANA N … Semana M: …)");
   }
-  if (!h.includes('"Exploración de estructuras de permiso"')) {
+  if (!h.includes("Exploración de estructuras de permiso")) {
     throw new Error("la banda no muestra la frase descriptiva del título de semana");
   }
 });

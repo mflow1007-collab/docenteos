@@ -627,6 +627,64 @@ export const esTemaLateral = (temaSemanaCorto = "", temaCentralUnidad = "") => {
   return Boolean(a && b && a !== b && !a.includes(b) && !b.includes(a));
 };
 
+/**
+ * componerBandaSemana — texto interno del separador de semana (R16). La semana
+ * NO se presenta como un bloque de un tema ("Escuela y educación — SEMANA 3"),
+ * sino como el avance hacia una SECCIÓN del producto, con el tema sólo como
+ * apoyo cuando es lateral respecto al central de la unidad. Los temas siguen
+ * combinándose igual (la distribución no cambia): esto es narrativa de render.
+ *
+ * Devuelve el contenido del <div class="semana-band">…</div> (sin el wrapper).
+ * El escape de los campos crudos lo hace el llamador ANTES (porque algunos ya
+ * vienen escapados por escProfundo y otros no: así se evita el doble escape);
+ * `esc` queda como identidad por defecto y existe sólo como costura de test.
+ * Fallbacks: sin producto → formato clásico (título de la unidad + fase); sin
+ * temaApoyo lateral → no se añade la coletilla de apoyo.
+ *
+ * @param {object} a
+ * @param {number|string} a.semana      - Número de semana calendario.
+ * @param {number} a.nDias              - Días de la semana en esta fase.
+ * @param {string} a.tituloSem          - Rótulo de fase ("Construcción guiada…").
+ * @param {string} a.temaApoyo          - Tema real de la semana (dia.temaCurricular).
+ * @param {string} a.producto           - Producto final (metadatos.productoFinal).
+ * @param {string} a.temaCentral        - Título de la unidad (metadatos.titulo).
+ * @param {(s:string)=>string} [a.esc]  - Escapador (escHtml en render; identidad en test).
+ */
+export const componerBandaSemana = ({
+  semana,
+  nDias = 0,
+  tituloSem = "",
+  temaApoyo = "",
+  producto = "",
+  temaCentral = "",
+  esc = (s) => String(s ?? ""),
+} = {}) => {
+  const n = Number(nDias) || 0;
+  const diasTxt = `${n} día${n === 1 ? "" : "s"}`;
+  const faseTxt = String(tituloSem || "").trim();
+  const seccion = nombreCortoProducto(producto);
+
+  // Base: "SEMANA 3 (4 días)" + rótulo de fase si existe.
+  let texto = `SEMANA ${esc(semana)} (${diasTxt})`;
+  if (faseTxt) texto += ` · ${esc(faseTxt)}`;
+
+  if (seccion) {
+    // Con producto: la semana construye una SECCIÓN del producto.
+    texto += ` — Sección «${esc(seccion)}»`;
+    // El tema sólo se nombra como APOYO cuando es lateral al central (si es el
+    // central, nombrarlo sería redundante y reintroduciría la lectura por tema).
+    const apoyo = String(temaApoyo || "").trim();
+    if (apoyo && esTemaLateral(apoyo, temaCentral)) {
+      texto += ` · tema de apoyo: ${esc(apoyo)}`;
+    }
+  } else {
+    // Fallback clásico (sin producto): título de la unidad al frente, como antes.
+    const central = String(temaCentral || "").trim();
+    if (central) texto = `${esc(central)} — ${texto}`;
+  }
+  return texto;
+};
+
 // Descripciones de ejes transversales contextualizadas al tema y al área
 const construirEjesContextualizados = (ejes, { area, tema }) => {
   const idioma = ES_IDIOMA(area);
@@ -5799,7 +5857,22 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     // de evaluación ya NO va por semana: se emite una vez por fase (abajo).
     const diasHtml = gruposSemana.map((g) => {
       const tituloSem = String(g.dias[0]?.tituloSemana || fase.tituloSemana || "").trim();
-      const banda = `<div class="semana-band">${m.titulo} — SEMANA ${g.semana} (${g.dias.length} día${g.dias.length === 1 ? "" : "s"})${tituloSem ? `: "${escHtml(tituloSem)}"` : ""}</div>`;
+      // R16 — la banda presenta la semana como SECCIÓN del producto (no como
+      // bloque de un tema). El tema real de la semana (temaCurricular) sólo se
+      // nombra como apoyo cuando es lateral al central. Datos ya existentes; la
+      // distribución de temas/fases no cambia (sólo el texto del separador).
+      // IMPORTANTE con el escape: `m.*` YA viene escapado por escProfundo; en
+      // cambio tituloSemana/temaCurricular del día vienen crudos. Por eso se
+      // escapan aquí los campos crudos y `esc` queda en identidad (no doble escape).
+      const contenidoBanda = componerBandaSemana({
+        semana: g.semana,
+        nDias: g.dias.length,
+        tituloSem: escHtml(tituloSem),
+        temaApoyo: escHtml(String(g.dias[0]?.temaCurricular || "").trim()),
+        producto: m.productoFinal,
+        temaCentral: m.titulo,
+      });
+      const banda = `<div class="semana-band">${contenidoBanda}</div>`;
       return banda + g.dias.map(diaHtml).join("");
     }).join("");
 
