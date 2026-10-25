@@ -3,10 +3,8 @@
 Notas de lectura para DocenteOS. Fuente: `Escritorio/Escuela/Guía de planificación integral para docentes de secundaria.pdf`
 (58 págs., impresión escaneada de Padlet; el PDF no tiene capa de texto). Paginación = la del documento.
 
-**Cobertura de esta nota:** leídas págs. 3-4 (índice), 8-11, 16-31. **NO leídas todavía:** 5-7, 12-15
-(estructura horizontal de la malla, literal C del 1.1.1) y 32-58 (Segunda fase: evaluación e instrumentos;
-Tercera fase: Ordenanza 04-2023 y registro). Lo que el código cita como "Guía Paso 2.1.4 / 2.2 / 2.2.2"
-está en esas páginas no transcritas aquí.
+**Cobertura de esta nota:** leídas págs. 3-4 (índice), 8-58 (12-15 y 32-58 leídas el 2026-10-25).
+**NO leídas todavía:** 5-7.
 
 ## Índice (estructura de la Guía)
 - **Primera fase: Proceso de Planificación Docente**
@@ -31,6 +29,29 @@ está en esas páginas no transcritas aquí.
   prerrequisito de otras.
 - **Unidad Temática Curricular** = estructura que integra los componentes curriculares "alrededor de un conjunto
   de contenidos que sirven como **mediadores** de aprendizajes".
+
+## 1.1.1 (cont.) Unidad Temática Curricular, metodologías, diversidad y normativa (pp. 12-15)
+- **Matriz de la Unidad Temática Curricular (p. 12):** Competencias (fundamentales y específicas: las 7 CF, cada una
+  con la CE del grado) · **Indicadores de logro: se completan con los ASPECTOS de los indicadores que corresponden a
+  la CE** · Contenidos (conceptos / procedimientos / actitudes y valores) · Evidencias de aprendizaje (de
+  conocimiento, desempeño o producto).
+- Metodologías activas (p. 13): gamificación, simulaciones, ABProyectos, ABProblemas, estudio de caso, STEAM, aula
+  invertida, aulas globales, aprendizaje colaborativo. Al profundizar: fases y pasos de cada estrategia, alcance y
+  articulación con otras estrategias y áreas.
+- **Estrategias de planificación para articular áreas (p. 13, MINERD 2023):** unidad de aprendizaje (cuando no es
+  ABProyectos sino ABProblemas, estudio de caso, inserción en el entorno, etc.) · proyecto de investigación
+  (fenómeno a investigar con preguntas, hipótesis y búsqueda) · proyecto participativo de aula (investigación-acción
+  sobre situaciones que afectan a los estudiantes) · proyecto de intervención de aula (situación de un grupo
+  específico: reforzamiento, adaptación) · eje temático (un tema general para varias áreas).
+- Referencias (p. 14): Adecuación Curricular 2023; fascículo de guías de estrategias; "Planificando y evaluando
+  con proyectos".
+- **Atención a la diversidad (pp. 14-15):** NEAE; DUA; 7 pasos (referentes DUA, estilos y ritmos, referir a
+  Orientación y Psicología, esquemas para varios canales, formas de expresión, técnicas activas, equipos de apoyo).
+  Matriz por estudiante: estilo/ritmo/necesidad · formato de presentación · formas de acción o expresión ·
+  estrategias y técnicas.
+- **Marco normativo (p. 15):** Ley 66-97, Ley 136-03, Ord. 03-2023 (currículo), Ord. 10-2024 (Artes y Técnico
+  Profesional), **Ord. 04-2023 (evaluación)**, Ord. 05-2024 (inclusión); calendario escolar, registros de grado,
+  boletines y actas.
 
 ## 1.1.2 Análisis del contexto (pp. 16-18)
 - El contexto es el punto de partida. Pasos: reconocer su importancia → involucrar actores → identificar ámbitos
@@ -112,3 +133,73 @@ Cinco elementos (MINERD, 2013): **1. Situación o problema · 2. Contexto · 3. 
 - Validar que fases, pasos y actividades **dan respuesta a la situación o problema** y desarrollan competencias;
   que no falte actividad y estén en orden; socializar con coordinación; ajustar.
 - Aplicación: gestionar recursos, ambientar espacios, dinamizar con flexibilidad, anotar lo relevante.
+
+## Retroalimentación formativa (p. 32)
+- Valorar evidencias de conocimiento, desempeño y producto durante el proceso. Orden de la retroalimentación:
+  **fortalezas → áreas de mejora → oportunidad de fortalecimiento** (con recurso sugerido).
+
+## Segunda fase: Evaluación de los aprendizajes (pp. 33-47)
+- **2.1.1 Referentes:** bases curriculares, naturaleza de las áreas, Adecuación 2023, Ord. 04-2023, Guía de evaluación
+  MINERD, documentos del centro (PEC), Tobón 2013 y 2017.
+- **2.1.2 Según el momento:** diagnóstica (inicio, saberes previos) · formativa (durante, acompañar y ajustar) ·
+  sumativa (final de unidad o período).
+- **2.1.3 Según el agente:** autoevaluación · coevaluación · heteroevaluación (complementar las tres).
+- **2.1.4 Evidencia:** tres tipos (conocimiento, desempeño, producto). Con la evidencia elegida: coherencia con las
+  capacidades · **describir sus aspectos (sirven para los criterios o indicadores de evaluación)** · complejidad ·
+  condiciones de entrega.
+- **2.1.5 Instrumentos.** De recogida: registro anecdótico, diario reflexivo, registros diarios, portafolio. De
+  evaluación: registro de observación, lista de cotejo (sí/no), escala estimativa (numérica o bajo/medio/alto),
+  escala de valoración (descriptiva), rúbrica (niveles receptivo, resolutivo, autónomo, estratégico).
+- **2.1.6 Taxonomías:** Bloom (Técnico Profesional) y **taxonomía socioformativa de Tobón** (p. 37): preformal →
+  receptivo → resolutivo → autónomo → estratégico, cada nivel con su lista de verbos; sirve para la progresión de
+  las actividades.
+- **2.1.7 Técnicas:** observación, entrevista, encuesta, grupo focal, debate.
+- **2.1.8 Ord. 04-2023:** parte considerativa; arts. 2-19 (fundamentos y componentes); arts. 42-56 (evaluación de
+  competencias, recuperación, calificación final, completiva, extraordinaria, especial, promoción); arts. 57-58
+  (titulación). Identificar competencias e indicadores antes de diseñar; un instrumento por capacidad o varios
+  integrados con criterios explícitos por competencia. **Se recomienda más de un instrumento por unidad.**
+- **2.1.9 Características del grupo:** estrés ante la evaluación, canales preferidos, limitaciones; observar,
+  informe de ingreso, docentes del grado anterior, entrevistas, saberes previos.
+- **2.2.1 Selección del instrumento:** producto o desempeño a evaluar → técnica según la evidencia → aspectos clave
+  → características del grupo → tiempo → organización → tamaño. Producto = algo tangible; desempeño = acciones
+  para elaborarlo (equipo, ética, inteligencia emocional).
+- **Plantillas (pp. 40-42):** encabezado (nombre con la evidencia, instrucciones, técnica, ponderación total,
+  participante, equipo); columnas **Competencias (código de la competencia)** · **Indicador o criterio de evaluación
+  (aspectos clave de la evidencia y del proceso, sin adjetivos)** · según instrumento: logros/sugerencias/ponderación
+  (registro de observación), sí/no/ponderación (lista de cotejo), niveles receptivo-resolutivo-autónomo-estratégico
+  con **55 / 70 / 85 / 100 %** (escala estimativa y rúbrica; en la rúbrica cada descriptor empieza con un verbo
+  acorde al nivel); pie con auto/co/heteroevaluación (fortalezas, sugerencias de mejora, puntuación). La
+  ponderación de los criterios suma el total.
+- **2.2.2 Elaboración (10 pasos):** nombre con la evidencia · intención pedagógica según cómo se resolvería la
+  situación de aprendizaje · competencias e indicadores evaluados · criterios desde los aspectos clave · vincular
+  descriptores con indicadores (rúbrica) · ponderación (**competencias: máximo 100, mínimo 70 para aprobar en cada
+  período**) · niveles · descriptores · agentes · espacios de retroalimentación. Solo conceptos y procedimientos →
+  pruebas orales (encabezado, ítems, guardar audio o video) o escritas (propósito, contenidos; pruebas
+  competenciales desde un contexto con selección múltiple de 4 opciones; de simple a complejo; puntuación por ítem).
+- **2.2.3 Validación:** elementos constitutivos completos · idoneidad (criterios evaluables en dos categorías o en
+  niveles, **sin adjetivos**) · comprensión por los estudiantes.
+- **2.2.4 Aplicación (13 pasos):** socializar el instrumento antes de la actividad → agentes → metodología → valorar
+  → analizar → rutas de intervención → retroalimentar → comunicar → aplicar rutas → volver a presentar → evaluar →
+  continuar hasta el dominio.
+- **2.2.5 Recuperación pedagógica:** si un grupo de competencias queda por debajo de 70; **no repetir todas las
+  actividades, sino atender de forma focalizada los indicadores no logrados**. Procedimiento (pp. 46-47):
+  identificar necesidades y agrupar → aspectos clave e indicadores no logrados → enseñanza centrada en el
+  estudiante → comunicar a estudiantes y familias → retroalimentar → estrategias de apoyo → evaluar → registrar.
+
+## Tercera fase: De los instrumentos al Registro de Grado (pp. 47-54)
+- La calificación sale de los instrumentos, después de retroalimentar borradores o entregas.
+- **Cuatro grupos de competencias (Ord. 04-2023):** 1 Comunicativa (sola) · 2 Pensamiento Lógico, Creativo y Crítico
+  + Resolución de Problemas · 3 Científica y Tecnológica + Ambiental y de la Salud · 4 Ética y Ciudadana +
+  Desarrollo Personal y Espiritual. Una calificación por bloque y período; en los bloques 2-4 se promedian las dos.
+- Por período: P y RP. **RP = P + calificación del reforzamiento (hasta 100) y reemplaza a P.**
+- **PC** (promedio de cada competencia) = promedio de los 4 períodos, **sin redondear**. **CF** = promedio de los 4
+  PC, **redondeado al entero**.
+- Completiva (no aprobó el período ordinario): **CCF = 50 % CF + 50 % CEC**. Extraordinaria: **CEF = 30 % CF + 70 %
+  CEEx**. Especial (1 o 2 asignaturas tras la extraordinaria): la calificación se **suma** a la CF hasta 100.
+  Las tres siguen los mismos pasos: competencias/aspectos en proceso → indicadores → evidencias → actividades →
+  instrumentos → aplicar → valorar → calcular.
+
+## Cierre (pp. 55-58)
+- Orientaciones finales: guía flexible; planificar con intención; **cada elemento conectado** (competencias,
+  contenidos, metodologías, evidencias, evaluación); evaluación continua y formativa; registro transparente.
+- Referencias (p. 56) y glosario de 58 términos (p. 57).
