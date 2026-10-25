@@ -90,7 +90,6 @@ export const AIService = {
     module, prompt, system, maxTokens, imageBase64, imageMediaType,
     providerOrder: providerOrderOverride,
     preferredProvider: preferredProviderOverride,
-    modelOverrides: modelOverridesOverride,
     strictProvider = false,
     onChunk, onFinish, onError, _contextMeta,
   }) {
@@ -125,23 +124,9 @@ export const AIService = {
       }
     }
 
-    // ── 2. Cargar config dinámica de Firestore ───────────────────────────────
-    //    priority:      orden de proveedores guardado por el admin
-    //    modelOverrides: modelo seleccionado por el admin por proveedor
-    let providerOrder     = null;
-    let modelOverrides    = null;
-    let providersDisabled = null;
-    try {
-      const gwConfig    = await loadGatewayConfig();
-      providerOrder     = gwConfig.priority || null;
-      modelOverrides    = gwConfig.models   || null;
-      // Apagados por el admin: jamás se usan (ni como fallback)
-      providersDisabled = Array.isArray(gwConfig.disabled) ? gwConfig.disabled : null;
-    } catch {
-      // no-fatal — el gateway usará su orden por defecto
-    }
-
-    // ── 3. Llamar al Gateway (servidor) ──────────────────────────────────────
+    // ── 2. Llamar al Gateway (servidor) ──────────────────────────────────────
+    //    Prioridad, modelos y apagados (config/ia-gateway) los lee y aplica el
+    //    servidor; aquí solo viajan pistas que acotan la cola (Etapa S+).
     let idToken = null;
     try {
       const currentUser = getAuth().currentUser;
@@ -162,9 +147,7 @@ export const AIService = {
           system,
           maxTokens:         resolvedMaxTokens,
           preferredProvider: imageBase64 ? "anthropic" : (preferredProviderOverride || routerOpts.preferredProvider),
-          providerOrder:     imageBase64 ? ["anthropic"] : (providerOrderOverride || providerOrder),
-          modelOverrides:    modelOverridesOverride || modelOverrides,
-          providersDisabled,
+          providerOrder:     imageBase64 ? ["anthropic"] : providerOrderOverride,
           strictProvider,
           imageBase64,
           imageMediaType,

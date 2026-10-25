@@ -298,8 +298,8 @@ async function callGatewayCollect(
         prompt,
         system,
         maxTokens,
+        // El modelo lo decide el gateway (misma allowlist de composición)
         providerOrder,
-        modelOverrides: modelosAptos,
         providersDisabled: providersDisabled.length ? providersDisabled : undefined,
         strictProvider,
         requireNonEmpty: true,
