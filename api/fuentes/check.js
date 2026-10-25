@@ -1,7 +1,35 @@
 import http from "node:http";
 import https from "node:https";
+import { verificarAdmin } from "../_firebaseAuth.js";
 
 const MAX_CHARS = 600000;
+
+// Credenciales que este endpoint puede usar y los ÚNICOS dominios a los que
+// puede enviarlas. Antes el cliente elegía el NOMBRE de cualquier variable de
+// entorno (p. ej. ANTHROPIC_API_KEY) y el servidor la mandaba a cualquier URL.
+const CREDENCIALES_PERMITIDAS = {
+  LIBRO_ABIERTO_USER: ["libroabierto.minerd.gob.do"],
+  LIBRO_ABIERTO_PASSWORD: ["libroabierto.minerd.gob.do"],
+};
+
+const normalizarHost = (hostname = "") => String(hostname).toLowerCase().replace(/^www\./, "");
+
+// Defensa básica contra SSRF: no consultar el propio servidor ni redes privadas.
+export function esHostPublico(hostname = "") {
+  const host = normalizarHost(hostname).replace(/^\[|\]$/g, "");
+  if (!host || host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) return false;
+  if (host === "::1" || host === "::" || /^f[cd][0-9a-f]{2}:/.test(host) || /^fe80:/.test(host)) return false;
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
+    if (a === 0 || a === 10 || a === 127) return false;
+    if (a === 169 && b === 254) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && b === 168) return false;
+    if (a === 100 && b >= 64 && b <= 127) return false;
+  }
+  return true;
+}
 
 function normalizeText(input) {
   return String(input || "")
@@ -30,23 +58,28 @@ function hashText(text) {
 function isValidUrl(url) {
   try {
     const parsed = new URL(url);
-    return ["http:", "https:"].includes(parsed.protocol);
+    return ["http:", "https:"].includes(parsed.protocol) && esHostPublico(parsed.hostname);
   } catch {
     return false;
   }
 }
 
-function getCredential(name) {
-  if (!name || !/^[A-Z0-9_]+$/i.test(name)) return null;
+function getCredential(name, hostname) {
+  const dominios = CREDENCIALES_PERMITIDAS[name];
+  if (!dominios) throw new Error(`Credencial no permitida: ${String(name || "").slice(0, 60)}`);
+  if (!dominios.includes(normalizarHost(hostname))) {
+    throw new Error("Esa credencial solo puede enviarse a su dominio oficial");
+  }
   return process.env[name] || null;
 }
 
-function buildAuthHeaders(auth = {}) {
+// Exportadas solo para scripts/test-seguridad-api.mjs (Vercel usa el default).
+export function buildAuthHeaders(auth = {}, hostname = "") {
   if (!auth || auth.type === "none") return {};
 
   if (auth.type === "basic") {
-    const username = getCredential(auth.usernameEnv);
-    const password = getCredential(auth.passwordEnv);
+    const username = getCredential(auth.usernameEnv, hostname);
+    const password = getCredential(auth.passwordEnv, hostname);
     if (!username || !password) {
       throw new Error("Credenciales Basic Auth no configuradas en variables de entorno");
     }
@@ -55,7 +88,7 @@ function buildAuthHeaders(auth = {}) {
   }
 
   if (auth.type === "bearer") {
-    const token = getCredential(auth.tokenEnv);
+    const token = getCredential(auth.tokenEnv, hostname);
     if (!token) {
       throw new Error("Token Bearer no configurado en variables de entorno");
     }
@@ -129,13 +162,23 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Método no permitido" });
   }
 
+  const acceso = await verificarAdmin(req.headers?.authorization);
+  if (!acceso.ok) {
+    return res.status(acceso.status).json({ error: acceso.error });
+  }
+
   try {
     const { url, auth } = req.body || {};
     if (!isValidUrl(url)) {
       return res.status(400).json({ error: "URL inválida" });
     }
 
-    const authHeaders = buildAuthHeaders(auth);
+    let authHeaders;
+    try {
+      authHeaders = buildAuthHeaders(auth, new URL(url).hostname);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
 
     const headers = {
       "User-Agent": "DocenteOS-Monitor/1.0 (+https://docenteos.com)",

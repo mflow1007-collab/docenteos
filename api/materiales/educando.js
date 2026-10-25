@@ -1,5 +1,6 @@
 import http from "node:http";
 import https from "node:https";
+import { verificarAdmin } from "../_firebaseAuth.js";
 
 const BASE_URL = "https://educando.edu.do";
 const PORTAL_URL = `${BASE_URL}/portal/`;
@@ -565,8 +566,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Método no permitido" });
   }
 
+  const acceso = await verificarAdmin(req.headers?.authorization);
+  if (!acceso.ok) {
+    return res.status(acceso.status).json({ error: acceso.error });
+  }
+
   try {
-    const sourceUrl = absoluteUrl(req.body?.url || "");
+    // Solo páginas de Educando: antes descargaba cualquier URL (proxy abierto).
+    const urlPedida = absoluteUrl(req.body?.url || "");
+    const sourceUrl = urlPedida && new URL(urlPedida).hostname.replace(/^www\./, "") === "educando.edu.do"
+      ? urlPedida
+      : "";
     const seeds = sourceUrl ? [sourceUrl, ...SEED_URLS] : SEED_URLS;
     const uniqueSeeds = [...new Set(seeds)].filter(Boolean);
     const results = await Promise.allSettled(uniqueSeeds.map(collectFromPage));

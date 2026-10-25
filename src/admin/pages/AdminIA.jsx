@@ -9,7 +9,7 @@ import {
   collection, getDocs, query, where, orderBy, limit,
   Timestamp, doc, setDoc, getDoc, deleteDoc, writeBatch,
 } from 'firebase/firestore'
-import { db } from '../../firebase.js'
+import { auth, db } from '../../firebase.js'
 import { AIConfig } from '../../services/ai/AIConfig.js'
 import { invalidateGatewayConfig, normalizeGatewayModels } from '../../services/ai/AIService.js'
 
@@ -1113,15 +1113,21 @@ export default function AdminIA() {
   }, [])
 
   // ─── Probar conexión ───────────────────────────────────────────────────────
+  // /api/ai/test exige token de administrador (cada prueba es una llamada pagada).
+  const probarProveedor = async (provId) => {
+    const token = await auth?.currentUser?.getIdToken()
+    return fetch('/api/ai/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token || ''}` },
+      body: JSON.stringify({ provider: provId, model: models?.[provId] }),
+    })
+  }
+
   const handleTest = async (providerId) => {
     setTesting(p => ({ ...p, [providerId]: true }))
     setTestResults(p => ({ ...p, [providerId]: null }))
     try {
-      const res  = await fetch('/api/ai/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: providerId, model: models?.[providerId] }),
-      })
+      const res  = await probarProveedor(providerId)
       const data = await res.json()
       setTestResults(p => ({ ...p, [providerId]: data }))
       if (data.ok && data.model && data.model !== models?.[providerId]) {
@@ -1142,11 +1148,7 @@ export default function AdminIA() {
     setTesting(p => ({ ...p, [provId]: true }))
     setTestResults(p => ({ ...p, [provId]: null }))
     try {
-      const res  = await fetch('/api/ai/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: provId, model: models?.[provId] }),
-      })
+      const res  = await probarProveedor(provId)
       const data = await res.json()
       setTestResults(p => ({ ...p, [provId]: data }))
       setUltimaPrueba(p => ({ ...p, [provId]: new Date().toLocaleTimeString('es-DO') }))
