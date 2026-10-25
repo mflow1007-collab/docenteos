@@ -155,6 +155,27 @@ await check("docente NO lista toda la caché", () =>
 await check("admin purga una entrada", () =>
   assertSucceeds(deleteDoc(doc(admin, "aiCache", cache(DOCENTE)))));
 
+console.log("\ndiseñoCurricular (comodín: el compilador no admite ñ en la ruta)");
+await env.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), "diseñoCurricular", "malla-1"), { area: "Lenguas Extranjeras" });
+});
+await check("docente lee diseñoCurricular", () =>
+  assertSucceeds(getDoc(doc(docente, "diseñoCurricular", "malla-1"))));
+await check("anónimo NO lee diseñoCurricular", () =>
+  assertFails(getDoc(doc(anonimo, "diseñoCurricular", "malla-1"))));
+await check("docente NO escribe diseñoCurricular", () =>
+  assertFails(setDoc(doc(docente, "diseñoCurricular", "malla-2"), { area: "x" })));
+await check("admin escribe diseñoCurricular", () =>
+  assertSucceeds(setDoc(doc(admin, "diseñoCurricular", "malla-2"), { area: "x" })));
+await check("el comodín no abre colecciones sin regla (lectura)", () =>
+  assertFails(getDoc(doc(docente, "coleccionSinRegla", "x"))));
+await check("el comodín no abre colecciones sin regla (escritura)", () =>
+  assertFails(setDoc(doc(docente, "coleccionSinRegla", "x"), { a: 1 })));
+await check("el comodín no abre colecciones con regla propia (config)", () =>
+  assertFails(setDoc(doc(docente, "config", "ia-gateway"), { priority: ["openai"] })));
+await check("el comodín no abre la colección sin tilde (disenoCurricular)", () =>
+  assertFails(getDoc(doc(docente, "disenoCurricular", "malla-1"))));
+
 console.log("\nSin cambios: bancoAprendizaje");
 await check("docente crea secuencia cosechada propia", () =>
   assertSucceeds(setDoc(nuevo(docente, "bancoAprendizaje"), { estado: "cosechada", procedencia: { docenteUid: DOCENTE } })));

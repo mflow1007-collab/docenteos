@@ -50,7 +50,12 @@ for (const archivo of archivos) {
 for (const [nombre, archivo] of [...coleccionesUsadas].sort()) {
   const top = nombre.startsWith("usuarios/*/") ? nombre.split("/")[2] : nombre;
   if (top === "usuarios") continue; // el doc raíz tiene su propio match
-  if (!reglas.includes(`match /${top}/`)) {
+  // También vale un comodín que compara el nombre (rutas con "ñ", que el
+  // compilador de reglas no admite literales): match /{c}/{id} { … c == 'X' … }
+  const porComodin = new RegExp(
+    `match /\\{(\\w+)\\}/\\{\\w+\\}\\s*\\{[^}]*\\b\\1 == '${top.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}'`
+  ).test(reglas);
+  if (!reglas.includes(`match /${top}/`) && !porComodin) {
     problemas.push(`C1 · Colección "${nombre}" (${archivo}) SIN regla en firestore.rules → deny silencioso en producción`);
   }
 }

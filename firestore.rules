@@ -160,9 +160,11 @@ service cloud.firestore {
 
     // ── Diseño Curricular MINERD ──────────────────────────────────────────────
     // ID-02: colección leída por curriculumService — sin regla causaba fallo silencioso
-    match /diseñoCurricular/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
+    // El compilador de reglas no admite "ñ" en una ruta literal: se usa un
+    // comodín y el nombre se compara como cadena. Solo aplica a esa colección.
+    match /{coleccionDC}/{docId} {
+      allow read: if coleccionDC == 'diseñoCurricular' && isAuth();
+      allow write: if coleccionDC == 'diseñoCurricular' && isAdmin();
     }
 
     // ── Centros educativos (multi-centro) ─────────────────────────────────────
