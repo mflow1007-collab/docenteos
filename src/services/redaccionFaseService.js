@@ -184,9 +184,15 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1) => {
       // Foco ajustado a 4.6: la semilla o lo añadido para el producto, no
       // necesariamente una estructura literal de la malla.
       const foco = String(clase?.focoLinguistico || "");
+      // 4.6: el contenido nunca es el protagonista del día — el foco no puede
+      // ser una etiqueta de la malla ni una palabra suelta de la semilla.
+      if (/^\s*(vocabulario|gram[aá]tica|expresi[oó]n(es)?|funci[oó]n(es)?|funcionales?)\s*:/i.test(foco)
+        || semilla.some((s) => normalizar(sinEtiqueta(s)) === normalizar(sinEtiqueta(foco)))) {
+        throw new Error(`${etiqueta} — "focoLinguistico" no puede ser una etiqueta de la malla ni una palabra de la semilla: nombra lo que la sección necesita comunicar.`);
+      }
       const base = [...usada, ...ampliacion.map((a) => a.texto)];
       if (!base.some((b) => coincide(foco, b) || compartePalabra(foco, b))) {
-        throw new Error(`${etiqueta} — "focoLinguistico" no corresponde a la semilla usada ni a la ampliación declarada.`);
+        throw new Error(`${etiqueta} — "focoLinguistico" («${foco.slice(0, 90)}») no corresponde a la semilla usada ni a la ampliación declarada (${base.slice(0, 4).join(" · ").slice(0, 160)}): incluye en el foco uno de esos textos exactos.`);
       }
     }
     if (startDia + idx === contrato.sesiones && !String(clase?.entregaFase || "").trim()) {

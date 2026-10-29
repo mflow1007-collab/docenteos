@@ -155,6 +155,9 @@ check("validador 4.6: semilla obligatoria, ampliación marcada y foco de la semi
   lanza(() => validarLoteContrato({ clases: [claseOk({ focoLinguistico: "Past simple for stories" })] }, cc, 1, 1), /focoLinguistico/, "foco ajeno");
   // La etiqueta de categoría sola no hace coincidir el foco con la semilla.
   lanza(() => validarLoteContrato({ clases: [claseOk({ semillaUsada: ["Vocabulario: freshman"], focoLinguistico: "Vocabulario de rutinas _wake up_", ampliacion: [] })] }, { ...cc, semilla: { ...cc.semilla, vocabulario: ["Vocabulario: freshman"] } }, 1, 1), /focoLinguistico/, "solo la etiqueta");
+  // 4.6: el contenido no es el protagonista: ni etiqueta de la malla ni palabra suelta.
+  lanza(() => validarLoteContrato({ clases: [claseOk({ focoLinguistico: `Vocabulario: ${semilla1}; It's next to the library` })] }, cc, 1, 1), /etiqueta de la malla/, "foco con etiqueta");
+  lanza(() => validarLoteContrato({ clases: [claseOk({ focoLinguistico: semilla1 })] }, cc, 1, 1), /etiqueta de la malla/, "foco = palabra de la semilla");
   // Foco solo de la ampliación: vale (ya no se exige literal de la malla).
   validarLoteContrato({ clases: [claseOk({ focoLinguistico: "Prepositions of place: It's next to the library" })] }, cc, 1, 1);
 });
