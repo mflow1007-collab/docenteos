@@ -939,6 +939,21 @@ check("tabla de competencias vacía → error", () => {
   esperaError(() => validarUnidadRenderizada(u, formatearUnidadHTML(u, "")), "tabla de competencias");
 });
 
+check("foco del día, intención y texto modelo: _x_ en cursiva y el HTML de la IA escapado", () => {
+  const u = clonar();
+  const d0 = u.fasesSemanales[0].dias[0];
+  d0.intencionPedagogica = "Desde el inicio hasta el final de la clase, los estudiantes dan indicaciones como _go straight_ mediante simulaciones.";
+  d0.focoLinguistico = "Vocabulario de lugares (_library, cafeteria_) <b>x</b>";
+  d0.textoModelo = { tipo: "dialogo", titulo: "Asking for Directions", lineas: ["A: _Excuse me, where is the library?_", "B: <script>x</script>"] };
+  const assert = (c, m) => { if (!c) throw new Error(m); };
+  const h = formatearUnidadHTML(u, "");
+  assert(h.includes("<em>library, cafeteria</em>"), "foco sin cursiva");
+  assert(h.includes("<em>Excuse me, where is the library?</em>"), "texto modelo sin cursiva");
+  assert(h.includes("<em>go straight</em>"), "intención sin cursiva");
+  assert(!h.includes("_library, cafeteria_") && !h.includes("_Excuse me") && !h.includes("_go straight_"), "quedan guiones bajos");
+  assert(!h.includes("<b>x</b>") && !h.includes("<script>x</script>"), "HTML de la IA sin escapar");
+});
+
 check("placeholder legacy en cualquier campo → error", () => {
   const u = clonar();
   u.contenidos.conceptuales.push("Vocabulario clave relacionado con Parts of the House");
