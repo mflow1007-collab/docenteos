@@ -32,6 +32,10 @@ export const PLAN_MAESTRO_INICIAL = {
   unir: [],
   subdividir: {},
   sesionesPorFase: null,
+  // Etapa 4 (situacionAprendizajeService.js): situación por elementos y
+  // secciones del producto.
+  situacion: null,
+  secciones: [],
 };
 
 const error = (msg) => new Error(`Vista previa: ${msg}`);
@@ -115,6 +119,7 @@ export const armarEntradaPlanMaestro = ({ datos = {}, mallaPayload } = {}) => {
     indicadoresElegidos: pm.indicadoresElegidos,
     aspectosElegidos: pm.aspectosElegidos,
     contenidosPorTema: contenidosDeTemas(mallaPayload, temasDeLaUnidad(datos)),
+    secciones: pm.secciones || [],
     ajustes: {
       unir: pm.unir,
       subdividir: pm.subdividir,
