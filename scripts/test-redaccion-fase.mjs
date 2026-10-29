@@ -155,6 +155,9 @@ check("validador 4.6: semilla obligatoria, ampliación marcada y foco de la semi
   lanza(() => validarLoteContrato({ clases: [claseOk({ focoLinguistico: "Past simple for stories" })] }, cc, 1, 1), /focoLinguistico/, "foco ajeno");
   // La etiqueta de categoría sola no hace coincidir el foco con la semilla.
   lanza(() => validarLoteContrato({ clases: [claseOk({ semillaUsada: ["Vocabulario: freshman"], focoLinguistico: "Vocabulario de rutinas _wake up_", ampliacion: [] })] }, { ...cc, semilla: { ...cc.semilla, vocabulario: ["Vocabulario: freshman"] } }, 1, 1), /focoLinguistico/, "solo la etiqueta");
+  // 4.6: el contenido no es el protagonista: ni etiqueta de la malla ni palabra suelta.
+  lanza(() => validarLoteContrato({ clases: [claseOk({ focoLinguistico: `Vocabulario: ${semilla1}; It's next to the library` })] }, cc, 1, 1), /etiqueta de la malla/, "foco con etiqueta");
+  lanza(() => validarLoteContrato({ clases: [claseOk({ focoLinguistico: semilla1 })] }, cc, 1, 1), /etiqueta de la malla/, "foco = palabra de la semilla");
   // Foco solo de la ampliación: vale (ya no se exige literal de la malla).
   validarLoteContrato({ clases: [claseOk({ focoLinguistico: "Prepositions of place: It's next to the library" })] }, cc, 1, 1);
 });
@@ -252,6 +255,37 @@ check("phaseA: el contrato se aplica dentro del validador del lote", () => {
   lanza(() => validateBatch(loteFase({ semillaUsada: [] }), 45, 1, [], optsFase), /semillaUsada/, "sin semilla");
   const otro = contratos.find((c, i) => i !== idxConContenido && c.indicadores.every((x) => x.id !== indicadoresPermitidosFase(cc)[0]));
   if (otro) lanza(() => validateBatch(loteFase(), 45, 1, [], { ...optsFase, indicadoresPermitidos: indicadoresPermitidosFase(otro) }), /no precargados/, "indicador de otra fase");
+});
+
+const { construirAnexosUnidad } = await import("../src/services/unidadAprendizajeService.js");
+const fasesAnexo = [
+  { numero: 3, nombre: "Gestión del conocimiento", dias: [{ aporteProducto: "Sección «Important Places»: mapa etiquetado de la escuela" }] },
+  { numero: 5, nombre: "Aplicación", dias: [{ aporteProducto: "Sección «Important Places» (versión final): instrucciones bilingües." }, { aporteProducto: "Sección «Welcome» (versión final): saludo de bienvenida" }] },
+];
+const baseAnexos = { area: "Inglés", tema: "Escuela y educación", producto: "Our School Survival Guide", vocabulario: ["high school", "freshman"], fases: fasesAnexo };
+
+check("Anexo F: malla primero y la ampliación después, marcada como DocenteOS y sin repetir", () => {
+  const { glosario } = construirAnexosUnidad({
+    ...baseAnexos,
+    ampliacion: [
+      { texto: "_library, cafeteria_, Freshman", tipo: "vocabulario", seccion: "Important Places" },
+      { texto: "Excuse me, could you help me?", tipo: "expresion", seccion: "Asking for Help" },
+      { texto: "can + verbo", tipo: "gramatica", seccion: "Asking for Help" },
+    ],
+  });
+  igual(glosario.map((g) => [g.termino, g.origen]), [
+    ["high school", "malla"], ["freshman", "malla"],
+    ["library", "DocenteOS"], ["cafeteria", "DocenteOS"], ["Excuse me, could you help me?", "DocenteOS"],
+  ], "glosario");
+  igual(construirAnexosUnidad(baseAnexos).glosario.map((g) => g.origen), ["malla", "malla"], "sin ampliación, como antes");
+});
+
+check("Anexo I: con secciones, una fila por sección con sus piezas; sin secciones, por fases (motor anterior)", () => {
+  const { organizadorProducto } = construirAnexosUnidad({ ...baseAnexos, secciones: ["Welcome", "Important Places", "Final Recommendation"] });
+  igual(organizadorProducto.map((o) => o.seccion), ["Título", "Welcome", "Important Places", "Final Recommendation"], "filas");
+  igual(organizadorProducto[2].incluye, "mapa etiquetado de la escuela; instrucciones bilingües.", "piezas de la sección");
+  assert(/plan del producto/.test(organizadorProducto[3].incluye), "sección sin piezas");
+  igual(construirAnexosUnidad(baseAnexos).organizadorProducto.map((o) => o.seccion), ["Título", "Fase 3 — Gestión del conocimiento", "Fase 5 — Aplicación", "Cierre"], "por fases");
 });
 
 const { medirTamanoDocumento } = await import("../src/utils/tamanoDocumento.js");

@@ -1574,6 +1574,7 @@ ${reglaInicio}
 // El plan maestro (código) ya decidió fases, sesiones, entrega, secciones,
 // semilla e indicadores; la IA redacta las clases de UNA fase dentro de ese
 // contrato (redaccionFaseService.js). Aprobado por César el 2026-10-29.
+const PROMPT_FASE_VERSION = 2;
 function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
   const c = spec.contratoFase;
   const tInicio     = durMin <= 50 ? 10 : 15;
@@ -1592,7 +1593,7 @@ function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, m
 - Expresiones: ${lista(c.semilla.expresiones)}
 - Funciones: ${lista(c.semilla.funcionales)}
 AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor del TEMA y del PRODUCTO con vocabulario concreto del entorno, estructuras y expresiones útiles para la sección que se avanza${spec.nivelMCERL ? `, al nivel ${spec.nivelMCERL}` : ', al nivel del grado'}. Lo que añadas NO es contenido oficial: decláralo en "ampliacion" como [{"texto":"...","tipo":"vocabulario|gramatica|expresion|funcion","seccion":"<sección del producto a la que sirve>"}]. Nada fuera de la semilla va en "semillaUsada".
-"focoLinguistico": la estructura, vocabulario o función que trabaja la clase, tomada de "semillaUsada" o de "ampliacion" (con ejemplos en cursiva _..._ si aplica).`
+"focoLinguistico": lo que la SECCIÓN del día necesita comunicar — la función y la estructura o las expresiones con que se logra (ej. "Dar indicaciones para llegar a un lugar: imperativo y preposiciones de lugar (_turn left_, _next to_…)"). OBLIGATORIO: el foco incluye entre paréntesis, en cursiva, al menos uno de los textos EXACTOS que pusiste en "semillaUsada" o en "ampliacion" (el validador lo comprueba). El contenido nunca es el protagonista del día (regla 4.6): PROHIBIDO que el foco sea una etiqueta de la malla ("Vocabulario: high school") o una palabra suelta de la semilla; la semilla se usa DENTRO de las actividades de la sección.`
     : `ESTA FASE NO INTRODUCE CONTENIDO NUEVO: retoma lo ya trabajado (${lista(c.trabajado)}). "semillaUsada" y "ampliacion" van vacías ([]). "focoLinguistico" nombra lo que se retoma o el trabajo de la fase (p. ej. "Apropiación de la unidad / producto / evaluación").`;
   const piezasPrevias = (memoria || []).map((m) => String(m.aporteProducto || '').trim()).filter(Boolean).join(' | ');
   const seccionesLote = Array.from({ length: count }, (_, i) =>
@@ -2009,6 +2010,8 @@ function checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas) {
     // Etapa 5: un plan maestro distinto no reutiliza lotes de otro.
     contratoFase: spec.contratoFase || null,
     situacionTexto: spec.situacionTexto || '',
+    // Cambiar el prompt por fase invalida los lotes guardados con el anterior.
+    promptFase: spec.contratoFase ? PROMPT_FASE_VERSION : null,
   };
   return `${CHECKPOINT_PREFIX}:${hashString(JSON.stringify(firma))}`;
 }
