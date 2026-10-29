@@ -5,7 +5,8 @@
  * competencias, indicadores y aspectos antes de generar. Sin IA: el plan se
  * calcula con construirPlanMaestro sobre la malla oficial que ya cargó el
  * formulario. Los ajustes se guardan en datos.planMaestro (solo en la sesión).
- * La generación todavía no lo usa (Etapa 5).
+ * Desde la Etapa 5 es obligatoria donde existe: la generación redacta cada
+ * fase de este plan con la IA.
  */
 import { useMemo } from "react";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -100,7 +101,7 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
     cuerpo = (
       <p className="pd-hint">
         La vista previa del plan maestro todavía solo está disponible para Inglés 2do de Secundaria.
-        Puedes generar la unidad como siempre.
+        Puedes generar la unidad con el motor anterior (por semanas).
       </p>
     );
   } else {
@@ -288,7 +289,7 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
     <details className="pd-detalles">
       <summary>Vista previa del plan maestro (sin IA · no gasta créditos)</summary>
       <p className="pd-hint" style={{ margin: "6px 0 8px" }}>
-        Revisa y ajusta la estructura de la unidad. Por ahora la generación todavía no usa este plan.
+        Revisa y ajusta la estructura de la unidad. Es obligatoria: la IA redacta la unidad fase por fase con este plan.
       </p>
       {cuerpo}
     </details>

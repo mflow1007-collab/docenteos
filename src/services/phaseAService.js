@@ -25,6 +25,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
+import { validarLoteContrato, validarFaseCompleta } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -1251,6 +1252,9 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     if (totalMin !== durMin) throw new Error(`R7: clase ${idx + 1} suma ${totalMin} min ≠ ${durMin} min`);
   }
 
+  // Etapa 5 — contrato de la fase (semilla 4.6, secciones 4.7, entrega).
+  if (opts.contratoFase) validarLoteContrato(data, opts.contratoFase, count, opts.startDia || 1);
+
   // R16 — cuando el docente aportó una realidad concreta, esta debe entrar en
   // la experiencia de aprendizaje y no quedarse únicamente en el párrafo de
   // Situación de Aprendizaje. Basta una conexión auténtica por lote; exigirla
@@ -1566,13 +1570,95 @@ ${reglaInicio}
 {"outputSchemaVersion":"1.3","semana":${semanaNum},${pedirNombreProducto ? '"productoFinalNombre":"...",' : ''}"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"...","titulo":"...","focoLinguistico":"...","estrategiasDia":"Indagación dialógica • Exploración guiada • Aprendizaje colaborativo","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["..."],"actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":${spec.esIdioma ? '"Good morning! ..."' : '"¡Buenos días! ..."'},"retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación o exploración de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en [técnica]: ... Luego...","Analizan... Comparan...","Practican... Interactúan...","Producen... Utilizan...","Socializan... Reciben retroalimentación y mejoran..."],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["Socializan... Explican...","Reciben retroalimentación... Identifican una mejora...","Guardan... Registran una meta..."],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."] ,"recursos":["...","..."]}]}]}`;
 }
 
+// ─── Prompt de lote por FASE (Etapa 5, redacción por fase con contrato) ───────
+// El plan maestro (código) ya decidió fases, sesiones, entrega, secciones,
+// semilla e indicadores; la IA redacta las clases de UNA fase dentro de ese
+// contrato (redaccionFaseService.js). Aprobado por César el 2026-10-29.
+function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
+  const c = spec.contratoFase;
+  const tInicio     = durMin <= 50 ? 10 : 15;
+  const tCierre     = durMin <= 50 ? 5  : 10;
+  const tDesarrollo = durMin - tInicio - tCierre;
+  const endDia = startDia + count - 1;
+  const rango  = count === 1 ? `la clase ${startDia}` : `las clases ${startDia} a ${endDia}`;
+  const ultima = endDia === c.sesiones;
+  const idioma = spec.esIdioma ? (spec.idiomaNombre || 'inglés') : '';
+  const lista = (xs) => (xs.length ? xs.join('; ') : '—');
+  const indText = c.indicadores.map((i) => `[${i.id}] (${i.accion}) ${i.texto}`).join('\n');
+  const semillaTx = c.conContenido
+    ? `CONTENIDOS SEMILLA DE LA MALLA PARA ESTA FASE (oficiales, literales; cada clase trabaja AL MENOS UNO y lo copia en "semillaUsada"):
+- Vocabulario: ${lista(c.semilla.vocabulario)}
+- Gramática: ${lista(c.semilla.gramatica)}
+- Expresiones: ${lista(c.semilla.expresiones)}
+- Funciones: ${lista(c.semilla.funcionales)}
+AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor del TEMA y del PRODUCTO con vocabulario concreto del entorno, estructuras y expresiones útiles para la sección que se avanza${spec.nivelMCERL ? `, al nivel ${spec.nivelMCERL}` : ', al nivel del grado'}. Lo que añadas NO es contenido oficial: decláralo en "ampliacion" como [{"texto":"...","tipo":"vocabulario|gramatica|expresion|funcion","seccion":"<sección del producto a la que sirve>"}]. Nada fuera de la semilla va en "semillaUsada".
+"focoLinguistico": la estructura, vocabulario o función que trabaja la clase, tomada de "semillaUsada" o de "ampliacion" (con ejemplos en cursiva _..._ si aplica).`
+    : `ESTA FASE NO INTRODUCE CONTENIDO NUEVO: retoma lo ya trabajado (${lista(c.trabajado)}). "semillaUsada" y "ampliacion" van vacías ([]). "focoLinguistico" nombra lo que se retoma o el trabajo de la fase (p. ej. "Apropiación de la unidad / producto / evaluación").`;
+  const piezasPrevias = (memoria || []).map((m) => String(m.aporteProducto || '').trim()).filter(Boolean).join(' | ');
+  const seccionesLote = Array.from({ length: count }, (_, i) =>
+    `Clase ${startDia + i}: ${(c.seccionesPorClase?.[startDia + i - 1] || []).join(' · ') || '—'}`).join('\n');
+  const seccionesTx = c.secciones.length
+    ? `SECCIONES DEL PRODUCTO: ${c.secciones.join(' · ')}.
+Esta fase lleva ${c.entrega.secciones.length ? c.entrega.secciones.join(' · ') : 'todas las secciones'} al estado «${c.entrega.estado}». Secciones que avanza CADA clase (decididas por el plan; cópialas EXACTAS en "seccionesProducto"):
+${seccionesLote}
+El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, nombra al menos una y la pieza las abarca. La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}`
+    : `Cada "aporteProducto" es una pieza concreta de «${c.producto}» que avanza su estado «${c.entrega.estado}».`;
+  const entregaTx = ultima
+    ? `La clase ${endDia} es la ÚLTIMA de la fase: incluye "entregaFase" con lo que el grupo entrega al cerrar la fase (${c.entrega.texto}), y su Cierre lo deja como evidencia de producto.`
+    : 'Solo la última clase de la fase incluye "entregaFase"; en estas clases va vacío ("").';
+  const naturaleza = spec.esIdioma ? null : resolverNaturalezaArea(spec.area, spec.asignatura);
+  const desarrolloTx = spec.esIdioma
+    ? `Desarrollo: ENTRE 4 Y 5 actividades progresivas (modelo contextualizado → observación de la estructura → tarea comunicativa con nombre propio → socialización y mejora de la pieza). La gramática nunca se enseña como regla suelta; explicación breve solo si es nueva.`
+    : `Desarrollo: 4 actividades fieles a la naturaleza de ${spec.area} (${naturaleza.procesos.join(' → ')}); nada del molde de idiomas.`;
+  const tecnicasEjem = spec.esIdioma
+    ? 'Listen and Solve / Information Gap / Role Play / Interview / Gallery Walk / Describe and Draw / Speaking Circle'
+    : naturaleza.tecnicas.join(' / ');
+  const correccion = spec.correccionPrevia
+    ? `\nUN INTENTO ANTERIOR DE ESTA FASE FUE RECHAZADO POR EL VALIDADOR: «${String(spec.correccionPrevia).slice(0, 400)}». Corrige exactamente eso.\n`
+    : '';
+
+  return `Eres un DOCENTE dominicano experto del Nivel ${nivelLabelPrompt(spec.nivel)} planificando TU clase de ${spec.area} para ${spec.grado}. El plan maestro de la unidad YA está decidido por DocenteOS; tú redactas ${rango} de UNA fase dentro de su contrato.
+${correccion}
+SITUACIÓN DE APRENDIZAJE: ${spec.situacionTexto || '—'}
+ESTRATEGIA: ${c.estrategia}. PRODUCTO CENTRAL: «${c.producto}» (nombre fijo; no propongas otro).
+${spec.contextoComunitario ? `CONTEXTO COMUNITARIO REAL (palabras del docente; no inventes otros datos locales): ${spec.contextoComunitario}\n` : ''}
+CONTRATO DE LA FASE ${c.numero} DE ${c.total}: «${c.nombre}» (fase literal de la Guía: ${c.fasesGuia.join(' + ')}). Sesiones de la fase: ${c.sesiones}; aquí redactas ${rango}.
+PROPÓSITO: ${c.proposito}
+ENTREGA DE LA FASE: ${c.entrega.texto}.
+${seccionesTx}
+INDICADORES DE ESTA FASE (copia de 1 a 3 CÓDIGOS EXACTOS en "indicadoresTrabajados"; las actividades y evidencias deben permitir comprobarlos):
+${indText}
+${semillaTx}
+${formatearMemoria(memoria)}
+SALIDA: JSON puro con "clases" = EXACTAMENTE ${count} clase(s) (días ${startDia}-${endDia} de la fase).
+
+REGLAS:
+1. Solo JSON, sin texto ni markdown.
+2. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
+3. VOZ (regla de César): toda actividad empieza con VERBO en 3ª persona plural del presente; luego, entre paréntesis, la organización y la técnica si la hay ("Representan (en parejas, juego de roles) …"); si es individual, sin paréntesis. Actividad sintetizada (25-35 palabras). Si trabaja lengua concreta, menciona solo 1 o 2 expresiones${idioma ? ` en ${idioma}` : ''} en cursiva y con puntos suspensivos (_Excuse me, could you help me?_…). PROHIBIDO empezar con "Los estudiantes", "El docente", "Se" o con etiquetas ("Reflexión:"). No repitas el tema ni el nombre del producto entre actividades: usa elementos concretos (el plano de la escuela, el estudiante nuevo). Excepciones canónicas: "Retroalimentación de…" y "Recuperación de saberes previos…".
+4. ${desarrolloTx} Solo UNA tarea de alta carga por clase.
+   Cierre: 3 actividades (socialización de lo producido → retroalimentación sobre UN aspecto concreto → mejora o resguardo de la pieza en su sección).
+5. CADA clase incluye las piezas del Inicio: "saludoInicial" (${spec.esIdioma ? `saludo en ${idioma}` : 'saludo'}, variado), "retroalimentacionPrevia" ("Retroalimentación de…" con una pregunta), "saberesPrevios" ("Recuperación de saberes previos…"), "actividadEnganche" (empieza con verbo).
+6. EVIDENCIAS por momento {"conocimientos":[],"desempeno":[],"producto":[]}: Inicio 1 de conocimientos; Desarrollo de 1 a 3 según lo que hacen; Cierre 1 o 2 ligadas a la pieza. Nombran el contenido o la pieza; nada de "participación activa". Además "metacognicion" (2 preguntas${spec.esIdioma ? ` en ${idioma} sencillo` : ''}) y "recursos" (2-4 concretos, en español).
+7. "titulo" llamativo; "intencionPedagogica" con ESTE formato exacto (el validador la rechaza si falta "Desde el inicio hasta el final de la clase" o la palabra "mediante"): "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el contenido del día] mediante [las actividades concretas de esta clase], utilizando [la estructura o el vocabulario], [evidencia observable]." Nada de "diversas actividades".
+8. Encabezado: "tituloSemana" = «${c.nombre}»; "focoLinguistico" (ver arriba); "estrategiasDia": 2-3 estrategias separadas por " • " (${ESTRATEGIAS_OFICIALES_TEXTO}).
+9. "actividadCLT": {"nombre": técnica concreta (${tecnicasEjem}), "mecanica": 1-2 líneas}; la primera actividad del Desarrollo la nombra ("Participan en …"). No repitas técnicas ya usadas.${c.esApertura ? ' En esta fase de apertura la técnica es de presentación, diagnóstico o acuerdo (no de práctica de estructuras).' : ''}
+10. ${entregaTx}
+11. ${spec.esIdioma ? `"textoModelo": {"tipo":"dialogo|texto","titulo":"...","lineas":["..."]} breve en ${idioma}, para la sección que se avanza.` : 'Sin "textoModelo".'}
+12. El lote incluye "adaptacionesSemana" {"acceso","metodologicas","evaluacion"} y "observacionesSemana", ligadas al trabajo de ESTA fase (nunca genéricas).
+
+{"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en ...","...","...","..."],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["Socializan ...","Reciben ...","Guardan ..."],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+}
+
 // ─── Generación de un lote con rotación de proveedores ───────────────────────
 
 async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, contextoLog) {
   // En idiomas se mantiene el candado duro de estructuras. En las demas areas
   // el foco curricular puede ser procedimiento/concepto/evidencia, por lo que
   // se valida por contrato general y no por igualdad gramatical.
-  const focoGram = spec.esIdioma ? getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas) : [];
+  // Etapa 5: con contrato de fase el foco se valida contra la semilla (4.6),
+  // no contra el reparto gramatical por semana.
+  const focoGram = spec.esIdioma && !spec.contratoFase ? getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas) : [];
   let maxTokens = count === 1 ? SINGLE_CLASS_MAX_TOKENS : MAX_TOKENS;
   let prefix    = '';
   let lastError = null;
@@ -1594,7 +1680,9 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   let truncadoPrevio = false;
   const providerOrderBase = await resolvePhaseAProviderOrder();
   const sinProveedorComposicion = providerOrderBase.length === 0;
-  const MAX_INTENTOS_POR_PROVEEDOR = 1;
+  // Etapa 5: con contrato de fase, el mismo modelo tiene un segundo intento que
+  // recibe el motivo del rechazo del validador (ver prefix en el catch).
+  const MAX_INTENTOS_POR_PROVEEDOR = spec.contratoFase ? 2 : 1;
   // Peldaños reales de la escalera: máximo 3 modelos CON SERVICIO (los
   // proveedores sin clave/apagados no consumen peldaño). Con 4 proveedores
   // aptos, un tope de 4+ dejaría el límite sin efecto.
@@ -1630,7 +1718,9 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
     // referencia que el camino de éxito (medición directa del muro de 24s).
     const t0 = Date.now();
     try {
-      const prompt = prefix + buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, pedirNombreProducto);
+      const prompt = prefix + (spec.contratoFase
+        ? buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria)
+        : buildBatchPrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria, pedirNombreProducto));
       lastRaw = '';
       lastProvider = providerIntento || 'desconocido';
       lastModel = 'desconocido';
@@ -1738,13 +1828,17 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         indicadoresPermitidos,
         // Días de APROPIACIÓN (Fase 1): eximidos de exigir técnica CLT rica (R12)
         // y de tener que trabajar una estructura gramatical — son de presentación
-        // de la unidad, no de práctica.
-        diasApropiacion: new Set(
-          (Array.isArray(spec.secuenciaBase) ? spec.secuenciaBase : [])
-            .filter((c) => Number(c?.fase) === 1)
-            .map((c) => Number(c?.dia))
-            .filter((n) => Number.isFinite(n)),
-        ),
+        // de la unidad, no de práctica. Con contrato: las fases de apertura.
+        diasApropiacion: spec.contratoFase
+          ? new Set(spec.contratoFase.esApertura ? Array.from({ length: count }, (_, i) => startDia + i) : [])
+          : new Set(
+            (Array.isArray(spec.secuenciaBase) ? spec.secuenciaBase : [])
+              .filter((c) => Number(c?.fase) === 1)
+              .map((c) => Number(c?.dia))
+              .filter((n) => Number.isFinite(n)),
+          ),
+        contratoFase: spec.contratoFase || null,
+        startDia,
       });
 
       // 3A — fijar el nombre del producto propuesto por el primer lote
@@ -1825,6 +1919,10 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       if (!sinServicio) proveedoresProbados.add(failedProvider);
       if (estructuralIncompleto || sinServicio) descartarProveedor(failedProvider);
       else anotarFallo(failedProvider);
+      // Etapa 5: el siguiente intento recibe el motivo del rechazo del validador.
+      if (spec.contratoFase && !estructuralIncompleto && !sinServicio) {
+        prefix = `UN INTENTO ANTERIOR DE ESTE LOTE FUE RECHAZADO POR EL VALIDADOR: «${msg.slice(0, 400)}». Corrige exactamente eso y respeta el contrato de la fase.\n\n`;
+      }
       console.error(`[FaseA] ${contextoLog} intento ${attempt} (${lastProvider}/${lastModel}):`, err.message);
       await logParseError({
         contexto: contextoLog, attempt, motivo: err.message,
@@ -1908,6 +2006,9 @@ function checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas) {
     contenidosClaves: spec.contenidosClaves,
     indicadores: (spec.indicadores || []).map((i) => [i.id, i.descripcion, i.competenciaId]),
     indicadoresTrabajo: (spec.indicadoresTrabajo || []).map((i) => [i.id, i.descripcion, i.competenciaId]),
+    // Etapa 5: un plan maestro distinto no reutiliza lotes de otro.
+    contratoFase: spec.contratoFase || null,
+    situacionTexto: spec.situacionTexto || '',
   };
   return `${CHECKPOINT_PREFIX}:${hashString(JSON.stringify(firma))}`;
 }
@@ -1932,6 +2033,17 @@ function leerCheckpoint(key) {
   }
 }
 
+function borrarCheckpoints(baseKey) {
+  if (!storageDisponible()) return;
+  try {
+    Object.keys(window.localStorage)
+      .filter((k) => k.startsWith(`${baseKey}:`))
+      .forEach((k) => window.localStorage.removeItem(k));
+  } catch {
+    // No fatal: sin acceso al almacenamiento no hay caché que borrar.
+  }
+}
+
 function guardarCheckpoint(key, data) {
   if (!storageDisponible() || !data) return;
   try {
@@ -1946,8 +2058,14 @@ function guardarCheckpoint(key, data) {
 
 function esBatchCacheValido(data, durMin, count, focoGram, opts) {
   if (!data || !Array.isArray(data.clases)) return false;
+  // Etapa 5: los lotes guardados de una fase se revalidan con su contrato.
+  const contrato = opts?.contratoFase;
+  const startDia = Number(data.clases[0]?.dia) || 1;
+  const optsEf = contrato
+    ? { ...opts, startDia, diasApropiacion: new Set(contrato.esApertura ? Array.from({ length: count }, (_, i) => startDia + i) : []) }
+    : opts;
   try {
-    validateBatch(data, durMin, count, focoGram, opts);
+    validateBatch(data, durMin, count, focoGram, optsEf);
     return true;
   } catch {
     return false;
@@ -2148,7 +2266,7 @@ export const generateWeekPlan = async (
   const allClases  = [];
   let adaptacionesSemana = null;   // NEAE ligadas al foco (contrato R14)
   let observacionesSemana = '';
-  const focoGram = spec.esIdioma ? getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas) : [];
+  const focoGram = spec.esIdioma && !spec.contratoFase ? getFocoGramatical(spec.contenidosClaves?.gramatica, semanaNum, numSemanas) : [];
   const indicadoresPermitidos = [
     ...(spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])
       .map((ind) => ind.codigoOficial || ind.id || ind.codigo),
@@ -2160,6 +2278,7 @@ export const generateWeekPlan = async (
     temaTrabajoSemana: spec.temaTrabajoSemana,
     temasActivos: spec.temasActivos,
     contextoComunitario: spec.contextoComunitario,
+    contratoFase: spec.contratoFase || null,
   };
   const baseCheckpointKey = checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas);
 
@@ -2302,6 +2421,7 @@ export const generateWeekPlan = async (
   };
   try {
     validateWeekPlan(combined, durMin, numClases);
+    if (spec.contratoFase) validarFaseCompleta(combined.clases, spec.contratoFase);
   } catch (err) {
     // Único camino de fallo fuera del bucle de reintentos (lotes ya aceptados,
     // incluso de caché): sin registro aquí, el triaje en aiLogs queda ciego.
@@ -2313,6 +2433,9 @@ export const generateWeekPlan = async (
       provider: 'combinado',
       model:    'combinado',
     });
+    // Etapa 5: los lotes de esta fase pasaron uno a uno pero no la fase entera;
+    // se borran de la caché para que el reintento por fase los rehaga.
+    if (spec.contratoFase) borrarCheckpoints(baseCheckpointKey);
     throw new Error(`S${semanaNum} (validación de semana combinada): ${err.message}`, { cause: err });
   }
   return combined;

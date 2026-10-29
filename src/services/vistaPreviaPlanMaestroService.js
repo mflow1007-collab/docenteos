@@ -8,8 +8,8 @@
  * aspectos). Sin IA ni Firebase: la malla la lee el formulario.
  *
  * Los ajustes del docente viven en `datos.planMaestro` (solo las entradas; el
- * plan se recalcula). Nada lo consume todavía: el generador sigue con
- * FASES_POR_ESTRATEGIA hasta la Etapa 5.
+ * plan se recalcula). Desde la Etapa 5 el generador lo consume
+ * (prepararPlanMaestroGeneracion) y la vista previa es obligatoria donde existe.
  * Fail-closed: si falta algo, error visible; nunca contenidos generales en
  * lugar de los del tema.
  * Verificación: scripts/test-vista-previa-plan-maestro.mjs
@@ -18,6 +18,7 @@
 import { construirPlanMaestro } from "./planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "./unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../data/indicadoresIngles2doEstructurados.js";
+import { validarSituacion } from "./situacionAprendizajeService.js";
 
 // Mallas con indicadores estructurados (Etapa 1). Solo Inglés 2do por ahora.
 const ESTRUCTURADOS_DISPONIBLES = [
@@ -137,6 +138,45 @@ export const calcularVistaPrevia = ({ datos, mallaPayload }) => {
     return { plan: construirPlanMaestro(entrada), estructura, error: null, noDisponible: false };
   } catch (e) {
     return { plan: null, estructura: null, error: e.message, noDisponible: false };
+  }
+};
+
+/**
+ * Etapa 5: la vista previa es obligatoria antes de generar donde existe
+ * (asignaturas con indicadores estructurados). Lanza error visible si falta
+ * algo. `horario` es el que usará el generador (semanas, días, horas).
+ * @returns {{aplica:false}|{aplica:true, plan, estructura, situacionTexto}}
+ */
+export const prepararPlanMaestroGeneracion = ({ datos = {}, mallaPayload, horario }) => {
+  const estructura = resolverIndicadoresEstructurados(mallaPayload);
+  if (!estructura) return { aplica: false };
+  const datosPlan = {
+    ...datos,
+    numSemanas: horario.semanas,
+    diasClase: horario.diasClase,
+    horasPorDia: horario.horasPorDia,
+  };
+  const vista = calcularVistaPrevia({ datos: datosPlan, mallaPayload });
+  if (vista.error) {
+    throw error(`completa la «Vista previa del plan maestro» antes de generar. ${vista.error}`);
+  }
+  const pm = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
+  const { texto, errores } = validarSituacion({
+    situacion: pm.situacion, producto: datos.productoFinalTexto, estrategia: pm.estrategia,
+  });
+  if (errores.length) {
+    throw error(`la situación de aprendizaje no está lista: ${errores.join(" ")}`);
+  }
+  return { aplica: true, plan: vista.plan, estructura, situacionTexto: texto };
+};
+
+/** Versión que no lanza, para habilitar el botón Generar en el formulario. */
+export const estadoPlanMaestroParaGenerar = (args) => {
+  try {
+    const r = prepararPlanMaestroGeneracion(args);
+    return { aplica: r.aplica, listo: true, motivo: "" };
+  } catch (e) {
+    return { aplica: true, listo: false, motivo: e.message };
   }
 };
 
