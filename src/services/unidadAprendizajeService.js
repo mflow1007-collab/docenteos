@@ -5968,10 +5968,12 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         ? focoEtiquetado[1]
         : ES_IDIOMA(m.asignatura || m.area) ? "Estructura gramatical" : "Foco curricular";
       const focoTexto = focoEtiquetado ? focoEtiquetado[2] : foco;
+      // Texto de la IA: se escapa y luego _x_ pasa a cursiva (como en las actividades).
+      const enCursiva = (t) => cursivaMarkdownSegura(escHtml(t));
       const focoHtml = foco
         ? (esApropiacion
-          ? ` <span style="font-weight:400">· ${foco}</span>`
-          : ` <span style="font-weight:600;font-size:11pt">(${etiquetaFoco}: ${focoTexto})</span>`)
+          ? ` <span style="font-weight:400">· ${enCursiva(foco)}</span>`
+          : ` <span style="font-weight:600;font-size:11pt">(${etiquetaFoco}: ${enCursiva(focoTexto)})</span>`)
         : "";
       const estrategiaDiaHtml = dia.estrategiasDia
         ? `<div class="est-band">Estrategia de enseñanza y aprendizaje: ${escHtml(dia.estrategiasDia)}</div>`
@@ -5981,12 +5983,12 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       // libro oficial (título + líneas de diálogo).
       const tm = dia.textoModelo;
       const textoModeloHtml = tm && Array.isArray(tm.lineas) && tm.lineas.length
-        ? `<div class="modelo-band"><div class="modelo-head">Texto modelo${tm.titulo ? `: ${escHtml(tm.titulo)}` : ""}</div><div class="modelo-body">${tm.lineas.map((l) => `<div class="modelo-linea">${escHtml(l)}</div>`).join("")}</div></div>`
+        ? `<div class="modelo-band"><div class="modelo-head">Texto modelo${tm.titulo ? `: ${escHtml(tm.titulo)}` : ""}</div><div class="modelo-body">${tm.lineas.map((l) => `<div class="modelo-linea">${enCursiva(l)}</div>`).join("")}</div></div>`
         : "";
       return `
         <div class="semana-band">Día ${dia.numeroEnSemana || dia.dia || dia.numero || dia.numeroGlobal}: "${escHtml(dia.titulo)}"${focoHtml}</div>
         ${estrategiaDiaHtml}
-        <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${escHtml(dia.intencionPedagogica)}</div>
+        <div class="intencion-band"><strong>Intención pedagógica del día:</strong> ${enCursiva(dia.intencionPedagogica)}</div>
         ${textoModeloHtml}
         <table class="dia-table">
           <colgroup>
