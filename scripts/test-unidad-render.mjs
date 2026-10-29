@@ -1904,6 +1904,62 @@ check("cosecha SIN consentimiento explícito → null (opt-in, jamás por defect
   if (cosechaSinConsentimiento !== null) throw new Error("cosechó sin consentimiento");
 });
 
+// ─── Etapa 6: salidas con plan maestro ───────────────────────────────────────
+
+console.log("\nEtapa 6 — plantilla, ampliación y Anexo I:");
+
+check("unidad sin plan maestro: el documento no cambia (sin aspectos ni bloque de ampliación)", () => {
+  const h = formatearUnidadHTML(unidadFixture, "");
+  if (h.includes("aspecto elegido") || h.includes("AMPLIACIÓN DE DOCENTEOS") || h.includes("Competencia no elegida")) {
+    throw new Error("aparecen salidas de la Etapa 6 sin plan maestro");
+  }
+});
+
+check("con plan: indicador completo con aspectos resaltados, competencia no elegida con nota y ampliación aparte", () => {
+  const u = structuredClone(unidadFixture);
+  u.competenciasDetalle = [
+    { ...u.competenciasDetalle[0], elegidaPlan: true, indicadores: [
+      { codigo: "IL-LEI-1-1", descripcion: "Responde a preguntas sobre su entorno y su casa.", aplicaTemaActual: true,
+        segmentos: [{ texto: "Responde a preguntas sobre ", elegido: false }, { texto: "su entorno", elegido: true }, { texto: " y su casa.", elegido: false }] },
+      { codigo: "IL-LEI-1-2", descripcion: "Identifica el vocabulario de la casa en textos orales breves.", aplicaTemaActual: false },
+    ] },
+    { codigo: "CE-LEI-2", competenciaFundamental: "Ética", especifica: "Convive con respeto.", elegidaPlan: false,
+      indicadores: [{ codigo: "IL-LEI-2-1", descripcion: "Interactúa con cortesía.", aplicaTemaActual: false }] },
+  ];
+  u.ampliacionDocenteOS = [
+    { texto: "library", tipo: "vocabulario", seccion: "Important Places", fase: 2, clase: 5, origen: "DocenteOS" },
+    { texto: "library", tipo: "vocabulario", seccion: "Important Places", fase: 3, clase: 8, origen: "DocenteOS" },
+  ];
+  const h = formatearUnidadHTML(u, "");
+  if (!/<strong>IL-LEI-1-1<\/strong> — Responde a preguntas sobre <span style="[^"]*background:#dbeafe[^"]*">su entorno<\/span> y su casa\./.test(h)) {
+    throw new Error("el aspecto elegido no va resaltado dentro del indicador completo");
+  }
+  if (!h.includes("Competencia no elegida para esta unidad.")) throw new Error("falta la nota de competencia no elegida");
+  const bloque = h.slice(h.indexOf("AMPLIACIÓN DE DOCENTEOS"));
+  if (!bloque.includes("No forma parte del currículo oficial") || (bloque.match(/<em>library<\/em>/g) || []).length !== 1 || !bloque.includes("F2 · C5, F3 · C8")) {
+    throw new Error("el bloque de ampliación no agrupa ni marca su origen");
+  }
+  if (h.indexOf("AMPLIACIÓN DE DOCENTEOS") < h.indexOf(">CONTENIDOS<")) throw new Error("la ampliación debe ir después de CONTENIDOS");
+  validarUnidadRenderizada(u, h);
+});
+
+check("Anexo I con plan: columna de fases y estado por sección; sin plan, como antes", () => {
+  const base = { area: "Inglés", tema: "Escuela", producto: "Guía", fases: [], secciones: ["Welcome", "Important Places"] };
+  const fasesPlan = [
+    { nombre: "Visión compartida", entrega: { estado: "Acuerdo y plan", secciones: ["Welcome", "Important Places"] } },
+    { nombre: "Aplicación", entrega: { estado: "Versión final", secciones: ["Welcome"] } },
+  ];
+  const { organizadorProducto } = construirAnexosUnidad({ ...base, fasesPlan });
+  if (organizadorProducto[1].fases !== "F1 acuerdo y plan · F2 versión final") {
+    throw new Error(`fases de Welcome: ${organizadorProducto[1].fases}`);
+  }
+  if (organizadorProducto[2].fases !== "F1 acuerdo y plan") throw new Error("fases de Important Places");
+  if ("fases" in construirAnexosUnidad(base).organizadorProducto[1]) throw new Error("sin plan no debe haber columna de fases");
+  const u = structuredClone(unidadFixture);
+  u.anexos = construirAnexosUnidad({ ...base, fasesPlan });
+  if (!formatearUnidadHTML(u, "").includes("Fase(s) y estado")) throw new Error("el Anexo I no muestra la columna");
+});
+
 // ─── Resultado ────────────────────────────────────────────────────────────────
 
 console.log(`\n${pasadas} ✓ · ${falladas} ✗`);

@@ -23,7 +23,9 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion } from "./vistaPreviaPlanMaestroService.js";
-import { construirContratoFase, recogerAmpliacion } from "./redaccionFaseService.js";
+import {
+  construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
+} from "./redaccionFaseService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -1153,6 +1155,9 @@ export const construirAnexosUnidad = ({
   // Etapa 5: ampliación de DocenteOS (glosario, marcada) y secciones del
   // producto (organizador del Anexo I, regla 4.7). Vacías → como antes.
   ampliacion = [], secciones = [],
+  // Etapa 6: fases del plan maestro (entrega y secciones que avanza cada una)
+  // para la columna "Fase(s) y estado" del Anexo I. Vacías → como antes.
+  fasesPlan = [],
 }) => {
   const idioma = ES_IDIOMA(area);
   const nombreIdioma = NOMBRE_IDIOMA(area);
@@ -1439,11 +1444,17 @@ export const construirAnexosUnidad = ({
     .map((a) => a.replace(/^Secci[oó]n\s*«[^»]*»\s*(\([^)]*\))?\s*:\s*/i, "").replace(/\.$/, ""));
   const organizadorProducto = (Array.isArray(secciones) && secciones.length)
     ? [
-        { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).` },
+        { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).`, ...(fasesPlan.length ? { fases: "" } : {}) },
         ...secciones.map((seccion) => {
           const piezas = piezasDeSeccion(seccion);
+          const fasesSeccion = (fasesPlan || [])
+            .map((f, i) => ((f.entrega?.secciones || []).includes(seccion)
+              ? `F${i + 1} ${String(f.entrega?.estado || "").toLowerCase()}`
+              : ""))
+            .filter(Boolean);
           return {
             seccion,
+            ...(fasesPlan.length ? { fases: fasesSeccion.join(" · ") } : {}),
             incluye: piezas.length
               ? `${piezas.join("; ")}.`
               : "Lo que el grupo acordó para esta sección en el plan del producto.",
@@ -3235,6 +3246,35 @@ const enriquecerIndicadoresCurriculares = (detalle = [], codigosActuales = new S
       };
     }),
   }));
+
+// Etapa 6 (regla 4.3): con plan maestro, lo elegido por el docente manda. Cada
+// indicador elegido guarda sus trozos (indicador COMPLETO con los aspectos
+// elegidos marcados, para la plantilla) y su recorte (para el registro). Las
+// competencias llevan `elegidaPlan`. Sin plan, el detalle queda igual.
+const marcarIndicadoresPlan = (detalle = [], rutaPlanMaestro = null) => {
+  if (!rutaPlanMaestro?.plan) return detalle;
+  const { plan, estructura } = rutaPlanMaestro;
+  const elegidos = new Map(plan.fases.flatMap((f) => f.indicadores || []).map((ind) => [ind.id, ind.aspectosElegidos || []]));
+  const compsElegidas = new Set((plan.competencias || []).filter((c) => c.elegida).map((c) => c.id));
+  const porId = new Map((estructura?.indicadores || []).map((ind) => [ind.id, ind]));
+  return detalle.map((comp) => ({
+    ...comp,
+    elegidaPlan: compsElegidas.has(comp.codigo),
+    indicadores: (comp.indicadores || []).map((ind) => {
+      if (typeof ind === "string") return ind;
+      const elegido = elegidos.has(ind.codigo);
+      const base = porId.get(ind.codigo);
+      if (!elegido || !base) return { ...ind, aplicaTemaActual: elegido };
+      const aspectos = elegidos.get(ind.codigo);
+      return {
+        ...ind,
+        aplicaTemaActual: true,
+        segmentos: segmentarIndicador(base, aspectos),
+        recorte: recortarIndicador(base, aspectos),
+      };
+    }),
+  }));
+};
 
 // ─── Inicio canónico del formato MINERD (5 posiciones fijas) ─────────────────
 // El esqueleto lo pone el código; el contenido lo aporta el contrato de la IA
@@ -5188,6 +5228,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     rutaPlanMaestro = {
       plan: prepPlanMaestro.plan,
       situacionTexto: prepPlanMaestro.situacionTexto,
+      estructura: prepPlanMaestro.estructura,
       contratos: prepPlanMaestro.plan.fases.map((_, indice) => construirContratoFase({
         plan: prepPlanMaestro.plan, indice, estructura: prepPlanMaestro.estructura,
       })),
@@ -5422,14 +5463,24 @@ export const generarUnidadAprendizaje = async (datos) => {
       .map(normalizarCodigoIndicador)
       .filter(Boolean)
   );
-  const competenciasDetalleEnriquecidas = enriquecerIndicadoresCurriculares(
+  const competenciasDetalleEnriquecidas = marcarIndicadoresPlan(enriquecerIndicadoresCurriculares(
     detalleTemprano,
     indicadoresActuales,
     indicadoresPrevios,
-  );
+  ), rutaPlanMaestro);
   const especificacionCurricularUnidad = buildEspecificacionCurricular({
     mallaPayload, titulo: rutaCurricular.temas.join(" · ") || titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
   });
+  if (rutaPlanMaestro) {
+    // Registro de calificaciones (4.3): solo los indicadores elegidos en el
+    // plan, con el indicador RECORTADO como "Aspecto".
+    const recortes = new Map(competenciasDetalleEnriquecidas
+      .flatMap((comp) => comp.indicadores || [])
+      .filter((ind) => ind?.recorte)
+      .map((ind) => [ind.codigo, ind.recorte]));
+    especificacionCurricularUnidad.indicadores = (especificacionCurricularUnidad.indicadores || [])
+      .map((ind) => (recortes.has(ind.id) ? { ...ind, aspecto: recortes.get(ind.id), elegidoPlan: true } : ind));
+  }
 
   const unidadResult = {
     tipoPlanificacion,
@@ -5598,6 +5649,7 @@ export const generarUnidadAprendizaje = async (datos) => {
       especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesCriterioIndicador || [],
     ampliacion: unidadResult.ampliacionDocenteOS || [],
     secciones: unidadResult.planMaestro?.secciones || [],
+    fasesPlan: unidadResult.planMaestro?.fases || [],
     recursosTecnologicos: (unidadResult.fasesSemanales || [])
       .flatMap((fase) => fase.dias || [])
       .flatMap((dia) => dia.momentos || [])
@@ -5633,6 +5685,22 @@ export const generarUnidadAprendizaje = async (datos) => {
       ].filter(Boolean).join(" · "),
     }),
   ];
+
+  // Validador global del plan maestro (capa 5, Etapa 6): indicador sin
+  // actividad o fase sin entrega detiene la entrega; las repeticiones de tema o
+  // producto entre actividades (regla 4.4) se avisan sin bloquear.
+  if (unidadResult.planMaestro) {
+    const global = validarUnidadPlanMaestro(unidadResult);
+    if (global.errores.length) {
+      throw new Error(`Validación del plan maestro: ${global.errores.join("; ")}.`);
+    }
+    if (global.avisos.length) {
+      unidadResult.advertencias = [
+        ...(unidadResult.advertencias || []),
+        `⚠️ Repeticiones entre actividades (${global.avisos.length}): ${global.avisos.join("; ")}.`,
+      ];
+    }
+  }
 
   // R1 FINAL sobre el DOCUMENTO RENDERIZADO completo (no solo el JSON de la
   // IA): atrapa cualquier placeholder o campo vacío que entre por código
@@ -6212,9 +6280,14 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       const nivelMCERL = unidad.competencias?.nivelMCERL
         ? `<p style="margin:0 0 6pt"><em>Nivel de dominio MCERL: ${escHtml(unidad.competencias.nivelMCERL)}</em></p>`
         : '';
+      // Etapa 6: unidad con plan maestro → indicador completo con los aspectos
+      // elegidos resaltados (regla 4.3).
+      const conPlan = detalle.some((c) => typeof c.elegidaPlan === 'boolean');
+      const estiloAspecto = 'font-weight:700;background:#dbeafe;color:#172554;padding:0 2px';
       const leyendaIndicadores = `
         <div style="margin:0 0 7pt;padding:5pt 7pt;border:1px solid #cbd5e1;background:#f8fafc;font-size:9.5pt">
           <strong>● A trabajar en esta unidad</strong>
+          ${conPlan ? `<span style="margin-left:12pt"><span style="${estiloAspecto}">aspecto elegido</span></span>` : ''}
           <span style="margin-left:12pt;text-decoration:line-through;opacity:.72">● Trabajado anteriormente</span>
           <span style="margin-left:12pt">● Pendiente o disponible</span>
         </div>`;
@@ -6227,6 +6300,16 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       // La tabla siempre muestra los 21; solo cambia el formato de cada uno.
       const indicadorHtml = (ind) => {
         if (typeof ind === 'string') return escHtml(ind);
+        if (Array.isArray(ind?.segmentos) && ind.segmentos.some((t) => t.elegido)) {
+          const estiloBloque = [
+            'display:block;border-left:4px solid #1d4ed8;padding:4px 6px',
+            ind?.trabajadoAntes ? 'text-decoration:line-through;opacity:.72' : '',
+          ].filter(Boolean).join(';');
+          const texto = ind.segmentos
+            .map((t) => (t.elegido ? `<span style="${estiloAspecto}">${escHtml(t.texto)}</span>` : escHtml(t.texto)))
+            .join('');
+          return `<span style="${estiloBloque}">${ind.codigo ? `<strong>${escHtml(ind.codigo)}</strong> — ` : ''}${texto}</span>`;
+        }
         const estilo = [
           ind?.aplicaTemaActual ? 'display:block;font-weight:700;background:#dbeafe;border-left:4px solid #1d4ed8;padding:4px 6px;color:#172554' : '',
           ind?.trabajadoAntes ? 'text-decoration:line-through;opacity:.72' : '',
@@ -6248,6 +6331,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
             ${c.especifica ? `<br><em style="font-size:11pt">${escHtml(c.especifica)}</em>` : ''}
           </td>
           <td style="vertical-align:top;padding:6px 8px">
+            ${conPlan && !c.elegidaPlan ? '<p style="margin:0 0 3pt;font-size:9.5pt;color:#475569"><em>Competencia no elegida para esta unidad.</em></p>' : ''}
             ${c.indicadores?.length
               ? `<ul style="margin:0 0 0 16px;padding:0">${c.indicadores.map((ind) => `<li style="margin-bottom:3pt">${indicadorHtml(ind)}</li>`).join('')}</ul>`
               : '<em>Sin indicadores en la malla para esta competencia.</em>'}
@@ -6341,6 +6425,35 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       </tr>`).join("");
     return `<table class="checkpoint-table cont-table">
       <tr><th style="width:27%">Conceptos</th><th style="width:27%">Procedimientos</th><th style="width:26%">Actitudes y valores</th><th>Evidencias de aprendizaje</th></tr>
+      ${filas}
+    </table>`;
+  })()}
+
+  ${(() => {
+    // Etapa 6 (regla 4.6): la ampliación de DocenteOS va aparte de los
+    // contenidos oficiales. Una fila por término (sin repetir), con dónde se usa.
+    const ampliacion = Array.isArray(unidad.ampliacionDocenteOS) ? unidad.ampliacionDocenteOS : [];
+    if (!ampliacion.length) return "";
+    const TIPOS = { vocabulario: "Vocabulario", gramatica: "Gramática", expresion: "Expresión", funcion: "Función" };
+    const porTermino = new Map();
+    ampliacion.forEach((a) => {
+      const clave = `${a.tipo}|${String(a.texto || "").trim().toLowerCase()}`;
+      if (!String(a.texto || "").trim()) return;
+      const fila = porTermino.get(clave) || { tipo: a.tipo, texto: String(a.texto).trim(), secciones: new Set(), usos: [] };
+      if (a.seccion) fila.secciones.add(a.seccion);
+      fila.usos.push(`F${a.fase}${a.clase ? ` · C${a.clase}` : ""}`);
+      porTermino.set(clave, fila);
+    });
+    const filas = [...porTermino.values()].map((f) => `<tr>
+        <td>${escHtml(TIPOS[f.tipo] || f.tipo || "")}</td>
+        <td><em>${escHtml(f.texto)}</em></td>
+        <td>${escHtml([...f.secciones].join(" · "))}</td>
+        <td>${escHtml([...new Set(f.usos)].join(", "))}</td>
+      </tr>`).join("");
+    return `<div class="section-head">AMPLIACIÓN DE DOCENTEOS</div>
+    <p class="curriculo-meta">No forma parte del currículo oficial MINERD: DocenteOS la propone a partir de los contenidos de la malla, alrededor del tema y del producto.</p>
+    <table class="checkpoint-table">
+      <tr><th style="width:16%">Tipo</th><th>Ampliación</th><th style="width:26%">Sección del producto</th><th style="width:18%">Fase · clase</th></tr>
       ${filas}
     </table>`;
   })()}
@@ -6462,8 +6575,12 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
     <h3>ANEXO I — Organizador gráfico del producto final</h3>
     <table class="rubrica">
-      <tr><th style="width:28%">Sección</th><th style="width:42%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
-      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.incluye}</td><td></td></tr>`).join("")}
+      ${(ax.organizadorProducto || []).some((o) => o.fases !== undefined)
+        ? `<tr><td colspan="4" style="font-size:9pt;color:#475569">Fases: ${(unidad.planMaestro?.fases || []).map((f, i) => `F${i + 1} ${escHtml(f.nombre)}`).join(" · ")}</td></tr>
+      <tr><th style="width:20%">Sección</th><th style="width:26%">Fase(s) y estado</th><th style="width:30%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
+      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.fases || ""}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`
+        : `<tr><th style="width:28%">Sección</th><th style="width:42%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
+      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`}
     </table>
 
     <h3>ANEXO J — Evaluación diagnóstica inicial</h3>

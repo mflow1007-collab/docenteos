@@ -173,6 +173,7 @@ check("cada fase deja su entrega: la última clase la declara y se avanzan sus s
   lanza(() => validarLoteContrato({ clases: [claseDe(ultima - 1)] }, cc, 1, ultima), /entregaFase/, "última sin entrega");
   const clases = Array.from({ length: cc.sesiones }, (_, k) => claseDe(k, {
     entregaFase: k === cc.sesiones - 1 ? cc.entrega.texto : "",
+    indicadoresTrabajados: indicadoresPermitidosFase(cc),
   }));
   validarLoteContrato({ clases }, cc, cc.sesiones, 1);
   validarFaseCompleta(clases, cc);
