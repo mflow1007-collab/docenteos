@@ -127,11 +127,17 @@ check("cambiar la estrategia reinicia la forma de las fases", () => {
   igual(plan.estrategia.clave, "problemas", "estrategia");
 });
 
-check("errores visibles: sin estrategia, sin producto, sin competencia, estrategia sin papeles", () => {
+check("errores visibles: sin estrategia, sin producto, sin competencia, estrategia fuera de la Guía", () => {
   assert(/elige la estrategia/.test(vista({ ...pm, estrategia: "" }).error), "sin estrategia");
   assert(/falta el producto/.test(vista(pm, { productoFinalTexto: "  " }).error), "sin producto");
   assert(/ninguna competencia/.test(vista(alternarCompetencia(pm, "ING-2-C01", IND)).error), "sin competencia");
-  assert(/papeles de fase aprobados/.test(vista(elegirEstrategia(pm, "estudio_caso")).error), "estrategia sin papeles");
+  assert(/no está en la Guía/.test(vista(elegirEstrategia(pm, "descubrimiento")).error), "estrategia fuera de la Guía");
+});
+
+check("Etapa 6+: estudio de caso arma su plan en la vista previa", () => {
+  const { plan, error } = vista(elegirEstrategia(pm, "estudio_caso"));
+  assert(!error, error);
+  igual(plan.fases.map((f) => f.roles[0]), ["apertura", "conocimiento", "modelado", "aplicacion", "evaluacion"], "papeles");
 });
 
 check("tema que no es de la malla → error, nunca contenidos generales", () => {

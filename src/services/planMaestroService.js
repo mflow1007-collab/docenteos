@@ -9,7 +9,9 @@
  * - Sesiones = semanas × días de clase × horas por día (igual que generarFases).
  *   Reparto proporcional al peso del papel de la fase, restos mayores, mínimo 1.
  *   Si el docente fija las sesiones por fase, deben sumar el total.
- * - Se pueden unir fases contiguas o subdividir una fase en N partes.
+ * - Se pueden unir fases contiguas o subdividir una fase en N partes. Una fase
+ *   de la Guía con varios papeles se divide sola, una parte por papel, y no se
+ *   une ni se subdivide (Etapa 6+, aprobado por César el 2026-10-29).
  * - Cada indicador va a la PRIMERA fase cuyo papel coincide con su acción.
  * - El plan reparte los contenidos que recibe (no los selecciona): intercalados
  *   por tema y en orden entre las fases con contenido.
@@ -27,7 +29,7 @@
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import {
   ROLES_FASES_POR_ESTRATEGIA, ROL_POR_ACCION, PESO_SESIONES_POR_ROL,
-  ENTREGA_POR_ROL, ROLES_CON_CONTENIDO,
+  ENTREGA_POR_ROL, ROLES_CON_CONTENIDO, rolesDeFaseGuia,
 } from "../data/rolesFasesEstrategias.js";
 
 const CATEGORIAS_CONTENIDO = ["vocabulario", "gramatica", "expresiones", "funcionales"];
@@ -49,6 +51,8 @@ const nombreUnido = (nombres) => {
 
 // 1. Fases: las literales de la Guía, con uniones y subdivisiones.
 const armarFases = (fasesGuia, roles, { unir = [], subdividir = {} }) => {
+  const papelesDe = (num) => rolesDeFaseGuia(roles, num);
+  const conVariosPapeles = (num) => papelesDe(num).length > 1;
   const grupoDe = new Map();
   unir.forEach((grupo, g) => {
     if (!Array.isArray(grupo) || grupo.length < 2) throw error(`la unión ${JSON.stringify(grupo)} debe tener al menos 2 fases.`);
@@ -56,6 +60,7 @@ const armarFases = (fasesGuia, roles, { unir = [], subdividir = {} }) => {
       if (!esEnteroPositivo(num) || num > fasesGuia.length) throw error(`la fase ${num} no existe en la estrategia (tiene ${fasesGuia.length}).`);
       if (i > 0 && num !== grupo[i - 1] + 1) throw error(`solo se unen fases contiguas: ${JSON.stringify(grupo)}.`);
       if (grupoDe.has(num)) throw error(`la fase ${num} está en más de una unión.`);
+      if (conVariosPapeles(num)) throw error(`la fase ${num} se divide sola en ${papelesDe(num).length} partes (una por papel): no se puede unir.`);
       grupoDe.set(num, g);
     });
   });
@@ -64,6 +69,7 @@ const armarFases = (fasesGuia, roles, { unir = [], subdividir = {} }) => {
     if (!esEnteroPositivo(num) || num > fasesGuia.length) throw error(`la fase ${clave} no existe en la estrategia (tiene ${fasesGuia.length}).`);
     if (!Number.isInteger(partes) || partes < 2) throw error(`la fase ${num} se subdivide en al menos 2 partes (recibido ${partes}).`);
     if (grupoDe.has(num)) throw error(`la fase ${num} está unida a otra: no se puede subdividir.`);
+    if (conVariosPapeles(num)) throw error(`la fase ${num} ya se divide sola en ${papelesDe(num).length} partes (una por papel).`);
   }
 
   const bloques = [];
@@ -81,6 +87,17 @@ const armarFases = (fasesGuia, roles, { unir = [], subdividir = {} }) => {
   const fases = [];
   bloques.forEach(({ numerosGuia }) => {
     const nombres = numerosGuia.map((n) => fasesGuia[n - 1]);
+    if (conVariosPapeles(numerosGuia[0])) {
+      const papeles = papelesDe(numerosGuia[0]);
+      papeles.forEach((rol, p) => fases.push({
+        nombre: `${nombreUnido(nombres)} (${p + 1}/${papeles.length})`,
+        fasesGuia: nombres,
+        parte: { n: p + 1, de: papeles.length },
+        roles: [rol],
+        _peso: PESO_SESIONES_POR_ROL[rol],
+      }));
+      return;
+    }
     const rolesBloque = [...new Set(numerosGuia.map((n) => roles[n - 1]))];
     const peso = numerosGuia.reduce((s, n) => s + PESO_SESIONES_POR_ROL[roles[n - 1]], 0);
     const partes = subdividir[numerosGuia[0]] || 1;
@@ -205,7 +222,8 @@ const resolverIndicadores = ({ indicadoresEstructurados, competenciasElegidas, i
 
 // 5. Contenidos: cada categoría se intercala por tema (A1, B1, A2, B2…), se
 // quitan repetidos (guardando de qué temas viene) y se reparte en trozos
-// seguidos entre las fases con contenido.
+// seguidos entre las fases con contenido. Si hay menos elementos que fases,
+// cada elemento se repite en fases seguidas.
 const repartirContenidos = (contenidosPorTema, numFasesContenido) => {
   if (!Array.isArray(contenidosPorTema) || !contenidosPorTema.length) {
     throw error("faltan los contenidos de la malla para los temas de la unidad.");
@@ -234,10 +252,18 @@ const repartirContenidos = (contenidosPorTema, numFasesContenido) => {
         }
       });
     }
-    if (items.length && items.length < numFasesContenido) {
-      avisos.push(`${cat}: ${items.length} elemento(s) para ${numFasesContenido} fases con contenido; alguna fase queda sin ${cat}.`);
-    }
     const trozos = [];
+    if (items.length && items.length < numFasesContenido) {
+      // Pocos elementos (Etapa 6+, aprobado por César): cada uno se repite en
+      // fases seguidas para que ninguna fase con contenido quede sin semilla (4.6).
+      avisos.push(`${cat}: ${items.length} elemento(s) para ${numFasesContenido} fases con contenido; cada uno se repite en fases seguidas.`);
+      for (let f = 0; f < numFasesContenido; f += 1) {
+        const item = items[Math.floor((f * items.length) / numFasesContenido)];
+        trozos.push([{ texto: item.texto, temas: [...item.temas] }]);
+      }
+      porCategoria[cat] = trozos;
+      return;
+    }
     for (let f = 0; f < numFasesContenido; f += 1) {
       const desde = Math.floor((f * items.length) / numFasesContenido);
       const hasta = Math.floor(((f + 1) * items.length) / numFasesContenido);

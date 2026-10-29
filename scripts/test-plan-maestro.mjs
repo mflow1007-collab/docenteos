@@ -14,7 +14,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../src/data/indicadoresIngles2doEstructurados.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../src/data/estrategiasFasesGuia2025.js";
-import { ROLES_FASES_POR_ESTRATEGIA, ROL_POR_ACCION, ROLES_FASE } from "../src/data/rolesFasesEstrategias.js";
+import { ROLES_FASES_POR_ESTRATEGIA, ROL_POR_ACCION, ROLES_FASE, ENTREGA_POR_ROL } from "../src/data/rolesFasesEstrategias.js";
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -51,8 +51,21 @@ check("cada estrategia con papeles tiene uno válido por fase literal", () => {
     const e = ESTRATEGIAS_FASES_GUIA_2025.find((x) => x.clave === clave);
     assert(e, `${clave} no está en la Guía`);
     igual(roles.length, e.fases.length, `${clave}: papeles vs fases`);
-    roles.forEach((r) => assert(ROLES_FASE.includes(r), `${clave}: papel desconocido ${r}`));
-    Object.values(ROL_POR_ACCION).forEach((r) => assert(roles.includes(r), `${clave}: sin fase de ${r}`));
+    const planos = roles.flat();
+    planos.forEach((r) => assert(ROLES_FASE.includes(r), `${clave}: papel desconocido ${r}`));
+    Object.values(ROL_POR_ACCION).forEach((r) => assert(planos.includes(r), `${clave}: sin fase de ${r}`));
+  }
+});
+check("las 7 estrategias de la Guía tienen papeles", () => {
+  igual(Object.keys(ROLES_FASES_POR_ESTRATEGIA).sort(), ESTRATEGIAS_FASES_GUIA_2025.map((e) => e.clave).sort(), "claves");
+});
+// Etapa 6+: los papeles solo avanzan, para que la entrega nunca retroceda.
+// Evaluación y socialización cierran en cualquier orden.
+const ORDEN_PAPEL = { apertura: 0, conocimiento: 1, modelado: 2, aplicacion: 3, evaluacion: 4, socializacion: 4 };
+check("los papeles nunca retroceden en ninguna estrategia", () => {
+  for (const [clave, roles] of Object.entries(ROLES_FASES_POR_ESTRATEGIA)) {
+    const planos = roles.flat();
+    planos.forEach((r, i) => assert(i === 0 || ORDEN_PAPEL[r] >= ORDEN_PAPEL[planos[i - 1]], `${clave}: ${planos[i - 1]} → ${r}`));
   }
 });
 
@@ -147,8 +160,60 @@ check("ABProblemas: 7 fases, total cuadra, acciones en su fase", () => {
   b.fases.forEach((f) => f.indicadores.forEach((i) => assert(f.roles.includes(ROL_POR_ACCION[i.accion]), `${i.id} en "${f.nombre}"`)));
 });
 
+console.log("Etapa 6+ — las 5 estrategias restantes, Inglés 2do, 4 semanas × 3 días × 1 hora:");
+const horario12 = { semanas: 4, diasClase: ["Lunes", "Miércoles", "Viernes"], horasPorDia: 1 };
+const todas = { competenciasElegidas: ["ING-2-C01", "ING-2-C02", "ING-2-C03"], horario: horario12 };
+const ESPERADO = {
+  indagacion_dialogica: { sesiones: [1, 2, 2, 2, 4, 1], entregas: ["Acuerdo y plan", "Insumos recopilados", "Insumos recopilados", "Borrador", "Versión final", "Versión revisada"] },
+  insercion_entorno: { sesiones: [1, 1, 1, 1, 1, 2, 2, 2, 1], entregas: ["Acuerdo y plan", "Insumos recopilados", "Insumos recopilados", "Borrador", "Borrador", "Versión final", "Versión final", "Versión final", "Versión revisada"] },
+  estudio_caso: { sesiones: [1, 3, 3, 4, 1], entregas: ["Acuerdo y plan", "Insumos recopilados", "Borrador", "Versión final", "Versión revisada"] },
+  conocimientos_previos: { sesiones: [1, 1, 1, 2, 2, 4, 1], entregas: ["Acuerdo y plan", "Acuerdo y plan", "Acuerdo y plan", "Insumos recopilados", "Borrador", "Versión final", "Versión revisada"] },
+  expositiva: { sesiones: [1, 2, 2, 4, 1, 1, 1], entregas: ["Acuerdo y plan", "Insumos recopilados", "Borrador", "Versión final", "Versión revisada", "Versión revisada", "Versión revisada"] },
+};
+const ORDEN_ENTREGA = Object.fromEntries(Object.entries(ENTREGA_POR_ROL).map(([rol, e]) => [e, ORDEN_PAPEL[rol]]));
+for (const [clave, esp] of Object.entries(ESPERADO)) {
+  check(`${clave}: sesiones, entregas que avanzan y cada acción en su fase`, () => {
+    const q = plan({ ...todas, estrategia: clave });
+    igual(sumaSesiones(q), 12, "total");
+    igual(q.fases.map((f) => f.sesiones), esp.sesiones, "sesiones");
+    igual(q.fases.map((f) => f.entrega.estado), esp.entregas, "entregas");
+    q.fases.forEach((f, i) => assert(i === 0 || ORDEN_ENTREGA[f.entrega.estado] >= ORDEN_ENTREGA[q.fases[i - 1].entrega.estado], `entrega retrocede en "${f.nombre}"`));
+    const ubicados = q.fases.flatMap((f) => f.indicadores.map((ind) => ({ ind, f })));
+    igual(ubicados.length, 9, "9 indicadores de 3 competencias");
+    ubicados.forEach(({ ind, f }) => assert(f.roles.includes(ROL_POR_ACCION[ind.accion]), `${ind.id} (${ind.accion}) en "${f.nombre}"`));
+  });
+}
+check("Exploración: «Introducción del nuevo conocimiento» se divide sola en conocimiento → modelado → aplicación", () => {
+  const q = plan({ ...todas, estrategia: "conocimientos_previos" });
+  const partes = q.fases.filter((f) => f.fasesGuia[0] === "Introducción del nuevo conocimiento");
+  igual(partes.map((f) => [f.nombre, f.roles]), [
+    ["Introducción del nuevo conocimiento (1/3)", ["conocimiento"]],
+    ["Introducción del nuevo conocimiento (2/3)", ["modelado"]],
+    ["Introducción del nuevo conocimiento (3/3)", ["aplicacion"]],
+  ], "partes");
+  q.fases.slice(0, 3).forEach((f) => igual(Object.values(f.contenidos).flat().length, 0, `"${f.nombre}" sin contenido nuevo`));
+  lanza(() => plan({ ...todas, estrategia: "conocimientos_previos", ajustes: { subdividir: { 4: 2 } } }), /se divide sola/, "subdividir");
+  lanza(() => plan({ ...todas, estrategia: "conocimientos_previos", ajustes: { unir: [[3, 4]] } }), /no se puede unir/, "unir");
+});
+check("malla pobre (3 palabras): ninguna fase con contenido queda sin semilla", () => {
+  const pobre = [{ tema: ESCUELA, vocabulario: ["classroom", "library", "principal"], gramatica: [], expresiones: [], funcionales: [] }];
+  for (const clave of ESTRATEGIAS_FASES_GUIA_2025.map((e) => e.clave)) {
+    const q = plan({ ...todas, estrategia: clave, contenidosPorTema: pobre });
+    q.fases.filter((f) => f.roles.some((r) => ["conocimiento", "modelado", "aplicacion"].includes(r)))
+      .forEach((f) => assert(f.contenidos.vocabulario.length >= 1, `${clave}: "${f.nombre}" sin semilla`));
+  }
+  const ins = plan({ ...todas, estrategia: "insercion_entorno", contenidosPorTema: pobre });
+  igual(ins.fases.map((f) => f.contenidos.vocabulario.map((c) => c.texto).join()),
+    ["", "classroom", "classroom", "classroom", "library", "library", "principal", "principal", ""], "repetidos en fases seguidas");
+  assert(ins.avisos.some((a) => /se repite en fases seguidas/.test(a)), "aviso visible");
+});
+check("ABProyecto con malla suficiente: reparto sin cambios (sin repetición)", () => {
+  const textos = p.fases.flatMap((f) => f.contenidos.vocabulario.map((c) => c.texto));
+  igual(textos.length, new Set(textos).size, "sin repetidos");
+});
+
 console.log("Errores visibles (fail-closed):");
-check("estrategia sin papeles aprobados", () => lanza(() => plan({ estrategia: "estudio_caso" }), /papeles de fase aprobados/, "estudio_caso"));
+check("Inserción con menos sesiones que fases", () => lanza(() => plan({ ...todas, estrategia: "insercion_entorno", horario: { semanas: 2, diasClase: ["Lunes", "Jueves"], horasPorDia: 2 } }), /8 sesiones y la estrategia tiene 9 fases/, "8 < 9"));
 check("estrategia que no está en la Guía", () => lanza(() => plan({ estrategia: "descubrimiento" }), /no está en la Guía/, "descubrimiento"));
 check("menos sesiones que fases", () => lanza(() => plan({ horario: { semanas: 1, diasClase: ["Lunes", "Martes"], horasPorDia: 2 } }), /Une fases/, "4 < 7"));
 check("sesiones fijadas que no suman el total", () => lanza(() => plan({ ajustes: { sesionesPorFase: [2, 2, 2, 2, 2, 2, 2] } }), /suman 14 y el horario da 16/, "14 ≠ 16"));
