@@ -28,6 +28,7 @@ import {
   claveSeleccionTematica,
 } from "../services/curriculumCombinacionService";
 import { horasOficialesSecundaria } from "../data/cargaHorariaMINERD.js";
+import VistaPreviaPlanMaestro from "./VistaPreviaPlanMaestro.jsx";
 
 const GRADOS = [
   { grado: "Pre-Kínder", nivel: "Inicial" }, { grado: "Kínder", nivel: "Inicial" }, { grado: "Preprimario", nivel: "Inicial" },
@@ -255,6 +256,8 @@ export default function FormularioUnidadAprendizaje({
   // no por proximidad en la lista de temas.
   const [criteriosMalla, setCriteriosMalla] = useState([]);
   const [estadoCurriculoAsesor, setEstadoCurriculoAsesor] = useState({ status: "idle", mensaje: "" });
+  // Payload de la malla oficial exacta: lo usa la vista previa del plan maestro.
+  const [mallaOficial, setMallaOficial] = useState(null);
   const [modoElegido, setModoElegido] = useState(null); // "solo" | nombre de combinación | "propia"
   const [mostrarPropia, setMostrarPropia] = useState(false);
   const [temasPropios, setTemasPropios] = useState([]);
@@ -358,6 +361,7 @@ export default function FormularioUnidadAprendizaje({
       setSugerenciaTema(null);
       setTemasMalla([]);
       setCriteriosMalla([]);
+      setMallaOficial(null);
       setEstadoCurriculoAsesor({ status: "idle", mensaje: "" });
       return undefined;
     }
@@ -370,6 +374,7 @@ export default function FormularioUnidadAprendizaje({
 
       let curriculo = null;
       let docDetectado = null;
+      let mallaEncontrada = null;
       if (!cancelado) setEstadoCurriculoAsesor({ status: "loading", mensaje: "Verificando malla curricular oficial..." });
 
       try {
@@ -387,6 +392,7 @@ export default function FormularioUnidadAprendizaje({
           docDetectado = docDetectado || doc;
           if (curriculoCoincideConSeleccion({ doc, nivel: nivelEfectivo, grado, area, asignatura: asignatura || area })) {
             curriculo = normalizarCurriculoParaAsesor(doc);
+            mallaEncontrada = doc.payload || doc;
             break;
           }
         }
@@ -395,6 +401,7 @@ export default function FormularioUnidadAprendizaje({
           setSugerenciaTema(null);
           setTemasMalla([]);
           setCriteriosMalla([]);
+          setMallaOficial(null);
           setEstadoCurriculoAsesor({
             status: "error",
             mensaje: `No se pudo verificar la malla curricular oficial: ${error.message}`,
@@ -412,6 +419,7 @@ export default function FormularioUnidadAprendizaje({
           setSugerenciaTema(null);
           setTemasMalla([]);
           setCriteriosMalla([]);
+          setMallaOficial(null);
           setModoElegido(null);
           setMostrarPropia(false);
           setEstadoCurriculoAsesor({
@@ -429,6 +437,7 @@ export default function FormularioUnidadAprendizaje({
         );
         setTemasMalla(curriculo.temasCurriculares || []);
         setCriteriosMalla(curriculo.criteriosCombinacionTematica || []);
+        setMallaOficial(mallaEncontrada);
       }
     }, 600);
 
@@ -1566,6 +1575,14 @@ export default function FormularioUnidadAprendizaje({
           </p>
         </div>
       </details>
+
+      <VistaPreviaPlanMaestro
+        datos={datos}
+        onChange={onChange}
+        mallaPayload={mallaOficial}
+        horario={{ numSemanas, diasClase, horasPorDia }}
+        estadoMalla={estadoCurriculoAsesor.status}
+      />
 
       {!puedoGenerar && (
         <div className="pd-campos-faltantes">
