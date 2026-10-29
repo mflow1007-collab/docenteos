@@ -414,11 +414,15 @@ export const construirCapaCurricular = (planificacion, { curriculo = null, curso
   const especificacion = planificacion?.especificacionCurricular || null;
   let indicadoresSeleccionados;
   if (especificacion?.indicadores?.length) {
-    indicadoresSeleccionados = especificacion.indicadores.map((ind) => ({
+    // Unidad con plan maestro (Etapa 6): solo los indicadores elegidos, con su
+    // indicador recortado como aspecto del registro.
+    const delPlan = especificacion.indicadores.filter((ind) => ind.elegidoPlan);
+    indicadoresSeleccionados = (delPlan.length ? delPlan : especificacion.indicadores).map((ind) => ({
       id: ind.id || `IL-LOCAL-${hashEstable(ind.descripcion)}`,
       descripcion: ind.descripcion || "",
       competenciaId: "",
       origenId: ind.id ? "oficial" : "local",
+      ...(ind.elegidoPlan && ind.aspecto ? { aspecto: ind.aspecto } : {}),
     })).filter((ind) => ind.descripcion);
   } else {
     indicadoresSeleccionados = textosIndicadores
@@ -620,7 +624,8 @@ export const generarAspectosDesdeCapa = (capa, { planificacionId, cursoId, ahora
   const indicadores = capa?.indicadoresSeleccionados || [];
   const puntajes = repartirPuntaje(indicadores.length);
   return indicadores.map((ind, i) => {
-    const aspectoVisible = acortarIndicador(ind.descripcion);
+    // Indicador recortado del plan maestro (Etapa 6) o, si no hay, versión corta.
+    const aspectoVisible = ind.aspecto || acortarIndicador(ind.descripcion);
     return {
       aspectoId: crearAspectoId(planificacionId, ind.id),
       cursoId: String(cursoId || capa.cursoId || ""),

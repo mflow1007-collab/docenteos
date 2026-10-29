@@ -57,16 +57,48 @@ const compartePalabra = (a, b) => {
 const listaTextos = (v) => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean) : []);
 
 // Indicador recortado (4.3): tronco + aspectos marcados + cierre. Una lista sin
-// marcar se conserva completa. La forma final del recorte se decide en la
-// Etapa 6; aquí solo orienta a la IA.
-const enlacesDe = (n) => Array.from({ length: n }, (_, j) => (j === n - 1 ? "" : j === n - 2 ? " y " : ", "));
+// marcar se conserva completa. Forma aprobada por César (Etapa 6, 2026-10-29):
+// los aspectos se unen con ", " y " y " como en la malla; la "y" pasa a "e"
+// ante sonido /i/ ("actividades cotidianas e intereses"), no ante "hie"/"hia".
+const pideE = (palabra) => /^h?[ií](?![aeiouáéíóú])/i.test(String(palabra || "").trim());
+const enlacesDe = (marcados) => marcados.map((_, j) => {
+  const n = marcados.length;
+  if (j === n - 1) return "";
+  if (j === n - 2) return pideE(marcados[j + 1]) ? " e " : " y ";
+  return ", ";
+});
 export const recortarIndicador = (ind, aspectosElegidos = []) => recomponerIndicador({
   ...ind,
   listas: ind.listas.map((lista, l) => {
     const marcados = aspectosElegidos[l] || [];
-    return marcados.length ? { aspectos: marcados, enlaces: enlacesDe(marcados.length) } : lista;
+    return marcados.length ? { aspectos: marcados, enlaces: enlacesDe(marcados) } : lista;
   }),
 });
+
+/**
+ * Indicador COMPLETO partido en trozos para la plantilla (4.3): cada aspecto
+ * marcado lleva `elegido: true`; el resto del texto, `false`. Unidos, los
+ * trozos dan el texto oficial (recomponerIndicador).
+ */
+export const segmentarIndicador = (ind, aspectosElegidos = []) => {
+  const trozos = [{ texto: ind.tronco, elegido: false }];
+  ind.listas.forEach((lista, l) => {
+    const marcados = new Set(aspectosElegidos[l] || []);
+    lista.aspectos.forEach((a, j) => {
+      trozos.push({ texto: a, elegido: marcados.has(a) });
+      trozos.push({ texto: lista.enlaces[j] ?? "", elegido: false });
+    });
+    trozos.push({ texto: ind.entre[l] ?? "", elegido: false });
+  });
+  trozos.push({ texto: ind.cierre, elegido: false });
+  // Junta los trozos contiguos del mismo tipo y quita los vacíos.
+  return trozos.filter((t) => t.texto).reduce((acc, t) => {
+    const ultimo = acc[acc.length - 1];
+    if (ultimo && ultimo.elegido === t.elegido) ultimo.texto += t.texto;
+    else acc.push({ ...t });
+    return acc;
+  }, []);
+};
 
 /**
  * Contrato de la fase `indice` del plan.
@@ -214,8 +246,67 @@ export const validarFaseCompleta = (clases, contrato) => {
   if (!String(clases[contrato.sesiones - 1]?.entregaFase || "").trim()) {
     throw new Error(`Contrato: la fase ${contrato.numero} no deja su entrega (${contrato.entrega.texto}).`);
   }
+  // Etapa 6: cada indicador PROPIO de la fase lo trabaja al menos una clase
+  // (los retomados de la unidad no se exigen). Si falta, se rehace la fase.
+  const codigo = (x) => String(x?.codigoOficial || x?.codigo || x?.id || x || "").replace(/[[\]\s]/g, "").toUpperCase();
+  const declarados = new Set(clases.flatMap((c) => (Array.isArray(c?.indicadoresTrabajados) ? c.indicadoresTrabajados : []).map(codigo)));
+  const propios = contrato.indicadores.filter((i) => !i.retoma).map((i) => i.id);
+  const sinClase = propios.filter((id) => !declarados.has(codigo(id)));
+  if (sinClase.length) {
+    throw new Error(`Contrato: en la fase ${contrato.numero} ninguna clase declara ${sinClase.join(", ")} en "indicadoresTrabajados"; entre las clases de la fase deben aparecer todos sus indicadores (${propios.join(", ")}).`);
+  }
 };
 
 /** Ampliación de DocenteOS de toda la unidad (capa separada, nunca curricularContent). */
 export const recogerAmpliacion = (fases = []) => fases.flatMap((f) => (f.dias || []).flatMap((d) =>
   (d.ampliacion || []).map((a) => ({ ...a, fase: f.numero, clase: d.numeroGlobal || null, origen: "DocenteOS" }))));
+
+/**
+ * Validador global (capa 5, Etapa 6) de una unidad redactada con plan maestro.
+ * - errores (bloquean): un indicador declarado en el plan sin ninguna clase de
+ *   su fase que lo trabaje; una fase sin su entrega o sin las secciones que
+ *   esa entrega debe avanzar.
+ * - avisos (visibles, no bloquean; regla 4.4): el nombre del producto o el
+ *   tema repetido en más de una actividad de la misma clase, o una actividad
+ *   que dice "sobre {tema}".
+ */
+export const validarUnidadPlanMaestro = (unidad) => {
+  const errores = [];
+  const avisos = [];
+  const plan = unidad?.planMaestro;
+  if (!plan?.fases?.length) return { errores, avisos };
+  const fases = unidad.fasesSemanales || [];
+  const codigo = (x) => String(x?.codigoOficial || x?.codigo || x?.id || x || "").replace(/[[\]\s]/g, "").toUpperCase();
+
+  plan.fases.forEach((fasePlan, i) => {
+    const fase = fases[i];
+    const nombre = `fase ${i + 1} «${fasePlan.nombre}»`;
+    if (!fase) { errores.push(`${nombre} no está en la unidad`); return; }
+    const dias = fase.dias || [];
+    const trabajados = new Set(dias.flatMap((d) => (d.indicadoresTrabajados || []).map(codigo)).filter(Boolean));
+    (fasePlan.indicadores || []).forEach((ind) => {
+      if (!trabajados.has(codigo(ind.id))) errores.push(`${nombre}: el indicador ${ind.id} no tiene ninguna actividad que lo trabaje`);
+    });
+    if (!String(dias[dias.length - 1]?.entregaFase || "").trim()) {
+      errores.push(`${nombre} no deja su entrega (${fasePlan.entrega?.texto || "sin texto"})`);
+    }
+    const avanzadas = new Set(dias.flatMap((d) => listaTextos(d.seccionesProducto)).map(normalizar));
+    const faltan = (fasePlan.entrega?.secciones || []).filter((s) => !avanzadas.has(normalizar(s)));
+    if (faltan.length) errores.push(`${nombre} no avanza ${faltan.join(", ")}`);
+  });
+
+  const producto = normalizar(unidad?.metadatos?.productoFinal || plan.producto);
+  const temas = [...new Set([...(plan.temas || []), unidad?.metadatos?.titulo].map(normalizar).filter(Boolean))];
+  fases.forEach((fase) => (fase.dias || []).forEach((dia) => {
+    const ref = `clase ${dia.numeroGlobal || dia.numero}`;
+    const actividades = (dia.momentos || []).flatMap((m) => m.actividades || []).map((a) => normalizar(a));
+    const conProducto = producto ? actividades.filter((a) => a.includes(producto)).length : 0;
+    if (conProducto > 1) avisos.push(`${ref}: el nombre del producto se repite en ${conProducto} actividades (se nombra una vez por clase)`);
+    temas.forEach((tema) => {
+      const conTema = actividades.filter((a) => a.includes(tema)).length;
+      if (conTema > 1) avisos.push(`${ref}: el tema «${tema}» se repite en ${conTema} actividades`);
+      if (actividades.some((a) => a.includes(`sobre ${tema}`))) avisos.push(`${ref}: una actividad dice «sobre ${tema}»; exprésalo con elementos concretos`);
+    });
+  }));
+  return { errores, avisos };
+};
