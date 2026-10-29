@@ -1150,6 +1150,9 @@ export const construirAnexosUnidad = ({
   area, tema, producto, vocabulario = [], fases = [], numSemanas = 4,
   aportesProducto = [], indicadoresPriorizados = [], recursosTecnologicos = [],
   relacionesCriterioIndicador = [],
+  // Etapa 5: ampliación de DocenteOS (glosario, marcada) y secciones del
+  // producto (organizador del Anexo I, regla 4.7). Vacías → como antes.
+  ampliacion = [], secciones = [],
 }) => {
   const idioma = ES_IDIOMA(area);
   const nombreIdioma = NOMBRE_IDIOMA(area);
@@ -1360,10 +1363,28 @@ export const construirAnexosUnidad = ({
     ...crearTrazaInstrumento({ tipo: "escala-valoracion", item, index }),
   }));
 
-  const glosario = (vocabulario || []).slice(0, 16).map((termino) => ({
+  // Glosario: primero el vocabulario oficial de la malla; después, hasta 16,
+  // la ampliación de DocenteOS (vocabulario y expresiones), marcada como tal
+  // para no presentarla como contenido oficial (regla 4.6).
+  const limpiarTermino = (t) => String(t || "").replace(/_/g, "").replace(/[.;:]+$/, "").replace(/\s+/g, " ").trim();
+  const glosarioMalla = (vocabulario || []).slice(0, 16).map((termino) => ({
     termino: String(termino),
     traduccion: "",
+    origen: "malla",
   }));
+  const vistosGlosario = new Set(glosarioMalla.map((g) => limpiarTermino(g.termino).toLowerCase()));
+  const glosarioAmpliacion = (Array.isArray(ampliacion) ? ampliacion : [])
+    .filter((a) => a?.tipo === "vocabulario" || a?.tipo === "expresion")
+    .flatMap((a) => (a.tipo === "vocabulario" ? String(a.texto || "").split(/\s*[,/]\s*/) : [a.texto]))
+    .map(limpiarTermino)
+    .filter((t) => {
+      const clave = t.toLowerCase();
+      if (!t || vistosGlosario.has(clave)) return false;
+      vistosGlosario.add(clave);
+      return true;
+    })
+    .map((termino) => ({ termino, traduccion: "", origen: "DocenteOS" }));
+  const glosario = [...glosarioMalla, ...glosarioAmpliacion].slice(0, 16);
 
   const sentenceStarters = idioma ? [
     { funcion: "Describir / Informar", starter: "This is... / It has... / There is / There are..." },
@@ -1408,14 +1429,35 @@ export const construirAnexosUnidad = ({
         { paso: `Presentación final: ${productoCorto}`, semana: `Semana ${numSemanas}` },
       ];
 
-  const organizadorProducto = [
-    { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).` },
-    ...(fases || []).map((fase) => ({
-      seccion: `Fase ${fase.numero} — ${fase.nombre}`,
-      incluye: "Las evidencias y oraciones clave elaboradas en esta fase.",
-    })),
-    { seccion: "Cierre", incluye: "Una reflexión o recomendación final relacionada con el tema." },
-  ];
+  // Anexo I: con secciones del producto (plan maestro), el estudiante construye
+  // la guía por SECCIONES, no por fases (regla 4.7); cada fila recoge las
+  // piezas que la unidad deja en esa sección.
+  const piezasDeSeccion = (seccion) => (fases || [])
+    .flatMap((fase) => fase.dias || [])
+    .map((d) => String(d.aporteProducto || "").trim())
+    .filter((a) => a && a.toLowerCase().includes(`«${seccion.toLowerCase()}»`))
+    .map((a) => a.replace(/^Secci[oó]n\s*«[^»]*»\s*(\([^)]*\))?\s*:\s*/i, "").replace(/\.$/, ""));
+  const organizadorProducto = (Array.isArray(secciones) && secciones.length)
+    ? [
+        { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).` },
+        ...secciones.map((seccion) => {
+          const piezas = piezasDeSeccion(seccion);
+          return {
+            seccion,
+            incluye: piezas.length
+              ? `${piezas.join("; ")}.`
+              : "Lo que el grupo acordó para esta sección en el plan del producto.",
+          };
+        }),
+      ]
+    : [
+        { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).` },
+        ...(fases || []).map((fase) => ({
+          seccion: `Fase ${fase.numero} — ${fase.nombre}`,
+          incluye: "Las evidencias y oraciones clave elaboradas en esta fase.",
+        })),
+        { seccion: "Cierre", incluye: "Una reflexión o recomendación final relacionada con el tema." },
+      ];
 
   const diagnosticaBase = idioma ? [
     { habilidad: "Listening (Escuchar)", tarea: `El docente lee o reproduce oraciones sencillas sobre "${tema}"; el estudiante marca en imágenes lo que escucha.`, criterio: "Identifica 4-5 elementos = listo; 2-3 = en proceso; 0-1 = requiere apoyo intensivo de vocabulario." },
@@ -5554,6 +5596,8 @@ export const generarUnidadAprendizaje = async (datos) => {
       .filter((ind) => ind.aplicaTemaActual),
     relacionesCriterioIndicador:
       especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesCriterioIndicador || [],
+    ampliacion: unidadResult.ampliacionDocenteOS || [],
+    secciones: unidadResult.planMaestro?.secciones || [],
     recursosTecnologicos: (unidadResult.fasesSemanales || [])
       .flatMap((fase) => fase.dias || [])
       .flatMap((dia) => dia.momentos || [])
@@ -6393,13 +6437,14 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
     ${ax.glosario?.length ? `
     <h3>ANEXO F — Glosario de la unidad</h3>
-    <p class="nota">La columna Español se completa con los estudiantes durante la unidad.</p>
+    <p class="nota">La columna Español se completa con los estudiantes durante la unidad.${ax.glosario.some((g) => g.origen === "DocenteOS") ? " Los términos marcados con (DocenteOS) son ampliación de DocenteOS para el producto, no contenido oficial de la malla." : ""}</p>
     <table class="rubrica">
       <tr><th>Término</th><th>Español</th><th>Término</th><th>Español</th></tr>
       ${Array.from({ length: Math.ceil(ax.glosario.length / 2) }, (_, i) => {
         const a = ax.glosario[i * 2];
         const b = ax.glosario[i * 2 + 1];
-        return `<tr><td>${a?.termino || ""}</td><td>${a?.traduccion || ""}</td><td>${b?.termino || ""}</td><td>${b?.traduccion || ""}</td></tr>`;
+        const termino = (g) => (g?.termino ? `${g.termino}${g.origen === "DocenteOS" ? ' <small style="color:#64748b">(DocenteOS)</small>' : ""}` : "");
+        return `<tr><td>${termino(a)}</td><td>${a?.traduccion || ""}</td><td>${termino(b)}</td><td>${b?.traduccion || ""}</td></tr>`;
       }).join("")}
     </table>` : ""}
 
