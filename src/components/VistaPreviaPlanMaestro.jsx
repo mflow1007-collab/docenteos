@@ -62,11 +62,12 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
   const datosPlan = { ...datos, ...horario };
 
   const estructura = useMemo(() => {
-    if (!mallaPayload) return { indicadores: null, error: null };
+    if (!mallaPayload) return { indicadores: null, clave: null, error: null };
     try {
-      return { indicadores: resolverIndicadoresEstructurados(mallaPayload)?.indicadores || null, error: null };
+      const r = resolverIndicadoresEstructurados(mallaPayload);
+      return { indicadores: r?.indicadores || null, clave: r?.clave || null, error: null };
     } catch (e) {
-      return { indicadores: null, error: e.message };
+      return { indicadores: null, clave: null, error: e.message };
     }
   }, [mallaPayload]);
 
@@ -100,7 +101,7 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
   } else if (!estructura.indicadores) {
     cuerpo = (
       <p className="pd-hint">
-        La vista previa del plan maestro todavía solo está disponible para Inglés 2do de Secundaria.
+        La vista previa del plan maestro todavía solo está disponible para Inglés 1ro y 2do de Secundaria.
         Puedes generar la unidad con el motor anterior (por semanas).
       </p>
     );
@@ -108,7 +109,7 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
     const competencias = competenciasDeMalla(mallaPayload, estructura.indicadores);
     cuerpo = (
       <>
-        <SituacionAprendizajePanel datos={datos} onChange={onChange} pm={pm} temas={temasDeLaUnidad(datos)} />
+        <SituacionAprendizajePanel datos={datos} onChange={onChange} pm={pm} temas={temasDeLaUnidad(datos)} malla={estructura.clave} />
 
         {estrategiaGuia && (
           <>

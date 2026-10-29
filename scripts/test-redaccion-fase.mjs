@@ -288,6 +288,49 @@ check("Anexo I: con secciones, una fila por sección con sus piezas; sin seccion
   igual(construirAnexosUnidad(baseAnexos).organizadorProducto.map((o) => o.seccion), ["Título", "Fase 3 — Gestión del conocimiento", "Fase 5 — Aplicación", "Cierre"], "por fases");
 });
 
+// ─── Inglés 1ro: entra en la ruta del plan maestro ───────────────────────────
+const { SITUACIONES_SEMILLA_INGLES_1RO: SEMILLAS1 } = await import("../src/data/situacionesSemillaIngles1ro.js");
+const { INDICADORES_INGLES_1RO_ESTRUCTURADOS: IND1 } = await import("../src/data/indicadoresIngles1roEstructurados.js");
+const { propuestasParaTemas, validarSituacion, situacionDesdeSemilla } = await import("../src/services/situacionAprendizajeService.js");
+const { resolverIndicadoresEstructurados } = await import("../src/services/vistaPreviaPlanMaestroService.js");
+const malla1 = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_1ro_secundaria_2023.json", import.meta.url), "utf8"));
+
+check("Inglés 1ro: la malla se reconoce con su clave; cada grado propone sus situaciones", () => {
+  igual(resolverIndicadoresEstructurados(malla1).clave, "ingles-1ro", "clave 1ro");
+  igual(resolverIndicadoresEstructurados(malla).clave, "ingles-2do", "clave 2do");
+  igual(propuestasParaTemas(["Escuela y educación"], "ingles-1ro").map((s) => s.id), ["ing1-escuela-bienvenida"], "1ro");
+  igual(propuestasParaTemas(["Escuela y educación"], "ingles-2do").map((s) => s.id), ["ing2-escuela-guia"], "2do");
+  igual(propuestasParaTemas(["Escuela y educación"], "frances-1ro"), [], "malla sin semillas");
+});
+
+check("Inglés 1ro: situaciones semilla de temas oficiales, válidas con ABProyecto y ABProblemas", () => {
+  const temas = malla1.contenidosPorTema.map((b) => b.tema);
+  SEMILLAS1.forEach((s) => {
+    assert(temas.includes(s.tema), `"${s.tema}" no está en contenidosPorTema de 1ro`);
+    ["proyectos", "problemas"].forEach((e) => {
+      const { errores } = validarSituacion({ situacion: { ...situacionDesdeSemilla(s, { centro: "Centro Hector Francisco Lopez - Hato Nuevo" }), estrategiaAlineada: e }, producto: s.producto.nombre, estrategia: e });
+      igual(errores, [], `${s.id} con ${e}`);
+    });
+  });
+});
+
+check("Inglés 1ro: vista previa → plan maestro → contrato de cada fase", () => {
+  SEMILLAS1.forEach((s) => {
+    let p = elegirEstrategia(PLAN_MAESTRO_INICIAL, "proyectos");
+    p = usarSemilla(p, s, { centro: "Centro Hector Francisco Lopez - Hato Nuevo" });
+    p = alternarCompetencia(p, "ING-1-C01", IND1);
+    const r = prepararPlanMaestroGeneracion({
+      datos: { titulo: s.tema, temasSeleccionados: [s.tema], productoFinalTexto: s.producto.nombre, planMaestro: p },
+      mallaPayload: malla1, horario,
+    });
+    igual(r.aplica, true, `${s.id} aplica`);
+    igual(r.plan.secciones, s.secciones, `${s.id} secciones`);
+    const cs = r.plan.fases.map((_, i) => construirContratoFase({ plan: r.plan, indice: i, estructura: r.estructura }));
+    assert(cs.filter((c) => c.conContenido).every((c) => Object.values(c.semilla).some((l) => l.length)), `${s.id}: fase con contenido sin semilla`);
+    assert(cs.every((c) => c.indicadores.every((i) => i.id.startsWith("ING-1-"))), `${s.id}: indicadores de otro grado`);
+  });
+});
+
 const { medirTamanoDocumento } = await import("../src/utils/tamanoDocumento.js");
 check("la copia del plan maestro que se guarda con la unidad es pequeña (< 32 KB)", () => {
   const bytes = medirTamanoDocumento({ planMaestro: { ...prep.plan, situacion: pm.situacion } });

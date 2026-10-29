@@ -26,6 +26,7 @@
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { ROLES_FASES_POR_ESTRATEGIA } from "../data/rolesFasesEstrategias.js";
 import { SITUACIONES_SEMILLA_INGLES_2DO } from "../data/situacionesSemillaIngles2do.js";
+import { SITUACIONES_SEMILLA_INGLES_1RO } from "../data/situacionesSemillaIngles1ro.js";
 
 // Guía 1.2.2: "máximo ocho líneas". Una línea impresa ≈ 100 caracteres.
 export const MAX_CARACTERES_SITUACION = 800;
@@ -137,9 +138,17 @@ export const estrategiaDisponible = (clave) => Boolean(ROLES_FASES_POR_ESTRATEGI
 
 // ── Situaciones propuestas ──────────────────────────────────────────────────
 
-/** Situaciones semilla para los temas de la unidad (vacío si no hay). */
-export const propuestasParaTemas = (temas = []) =>
-  SITUACIONES_SEMILLA_INGLES_2DO.filter((s) => temas.includes(s.tema));
+// Situaciones semilla por malla (la `clave` de los indicadores estructurados,
+// vistaPreviaPlanMaestroService.js): el mismo tema tiene propuestas distintas
+// en cada grado.
+const SITUACIONES_SEMILLA_POR_MALLA = {
+  "ingles-1ro": SITUACIONES_SEMILLA_INGLES_1RO,
+  "ingles-2do": SITUACIONES_SEMILLA_INGLES_2DO,
+};
+
+/** Situaciones semilla para los temas de la unidad en esa malla (vacío si no hay). */
+export const propuestasParaTemas = (temas = [], malla = "ingles-2do") =>
+  (SITUACIONES_SEMILLA_POR_MALLA[malla] || []).filter((s) => temas.includes(s.tema));
 
 export const situacionVacia = () => ({
   origen: "real",

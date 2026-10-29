@@ -79,11 +79,11 @@ function Recomendacion({ rasgos, estrategia, onElegir }) {
   );
 }
 
-export default function SituacionAprendizajePanel({ datos, onChange, pm, temas }) {
+export default function SituacionAprendizajePanel({ datos, onChange, pm, temas, malla }) {
   const actualizar = (siguiente) => onChange({ ...datos, planMaestro: siguiente });
   const s = pm.situacion;
   const producto = datos.productoFinalTexto || "";
-  const propuestas = propuestasParaTemas(temas);
+  const propuestas = propuestasParaTemas(temas, malla);
   const elegir = (clave) => actualizar(alinearSiNoHay(elegirEstrategia(pm, clave)));
   const campo = (nombre) => (e) => actualizar(fijarCampoSituacion(pm, nombre, e.target.value));
 

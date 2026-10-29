@@ -18,11 +18,14 @@
 import { construirPlanMaestro } from "./planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "./unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../data/indicadoresIngles2doEstructurados.js";
+import { INDICADORES_INGLES_1RO_ESTRUCTURADOS } from "../data/indicadoresIngles1roEstructurados.js";
 import { validarSituacion } from "./situacionAprendizajeService.js";
 
-// Mallas con indicadores estructurados (Etapa 1). Solo Inglés 2do por ahora.
+// Mallas con indicadores estructurados (Etapa 1). `clave` une la malla con sus
+// situaciones semilla (situacionAprendizajeService.js).
 const ESTRUCTURADOS_DISPONIBLES = [
-  { etiqueta: "Inglés 2do de Secundaria", indicadores: INDICADORES_INGLES_2DO_ESTRUCTURADOS },
+  { clave: "ingles-1ro", etiqueta: "Inglés 1ro de Secundaria", indicadores: INDICADORES_INGLES_1RO_ESTRUCTURADOS },
+  { clave: "ingles-2do", etiqueta: "Inglés 2do de Secundaria", indicadores: INDICADORES_INGLES_2DO_ESTRUCTURADOS },
 ];
 
 export const PLAN_MAESTRO_INICIAL = {
@@ -53,7 +56,7 @@ const indicadoresDeMalla = (payload) => {
  */
 export const resolverIndicadoresEstructurados = (mallaPayload) => {
   const porId = new Map(indicadoresDeMalla(mallaPayload).map((ind) => [ind?.id, ind]));
-  for (const { etiqueta, indicadores } of ESTRUCTURADOS_DISPONIBLES) {
+  for (const { clave, etiqueta, indicadores } of ESTRUCTURADOS_DISPONIBLES) {
     const presentes = indicadores.filter((ind) => porId.has(ind.id));
     if (!presentes.length) continue;
     const faltan = indicadores.filter((ind) => !porId.has(ind.id)).map((ind) => ind.id);
@@ -62,7 +65,7 @@ export const resolverIndicadoresEstructurados = (mallaPayload) => {
       .filter((ind) => porId.get(ind.id).competenciaId && porId.get(ind.id).competenciaId !== ind.competenciaId)
       .map((ind) => ind.id);
     if (distintos.length) throw error(`en la malla cargada, ${distintos.join(", ")} pertenecen a otra competencia que en ${etiqueta}.`);
-    return { etiqueta, indicadores };
+    return { clave, etiqueta, indicadores };
   }
   return null;
 };
