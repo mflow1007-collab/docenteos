@@ -1,6 +1,7 @@
 /**
  * Vista previa del plan maestro (Etapa 3 de docs/DISENO_CORAZON_DOCENTEOS.md).
- * El docente ve y ajusta situación, producto, estrategia, fases, sesiones,
+ * El docente ve y ajusta situación (SituacionAprendizajePanel, Etapa 4),
+ * producto, estrategia, secciones del producto, fases, sesiones,
  * competencias, indicadores y aspectos antes de generar. Sin IA: el plan se
  * calcula con construirPlanMaestro sobre la malla oficial que ya cargó el
  * formulario. Los ajustes se guardan en datos.planMaestro (solo en la sesión).
@@ -8,12 +9,12 @@
  */
 import { useMemo } from "react";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
-import { ROLES_FASES_POR_ESTRATEGIA } from "../data/rolesFasesEstrategias.js";
 import {
   PLAN_MAESTRO_INICIAL, calcularVistaPrevia, resolverIndicadoresEstructurados, competenciasDeMalla,
-  elegirEstrategia, alternarUnionConSiguiente, fijarPartes, fijarSesiones, repartirDeNuevo,
+  temasDeLaUnidad, alternarUnionConSiguiente, fijarPartes, fijarSesiones, repartirDeNuevo,
   alternarCompetencia, alternarIndicador, alternarAspecto,
 } from "../services/vistaPreviaPlanMaestroService.js";
+import SituacionAprendizajePanel from "./SituacionAprendizajePanel.jsx";
 
 const NOMBRE_CATEGORIA = {
   vocabulario: "Vocabulario", gramatica: "Gramática", expresiones: "Expresiones", funcionales: "Funcionales",
@@ -56,7 +57,6 @@ function TextoIndicador({ indicador, marcados = [] }) {
 export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, estadoMalla, horario }) {
   const pm = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
   const actualizar = (siguiente) => onChange({ ...datos, planMaestro: siguiente });
-  const set = (campo) => (e) => onChange({ ...datos, [campo]: e.target.value });
   // Horario tal como lo muestra el formulario (con sus valores por defecto).
   const datosPlan = { ...datos, ...horario };
 
@@ -107,43 +107,7 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
     const competencias = competenciasDeMalla(mallaPayload, estructura.indicadores);
     cuerpo = (
       <>
-        <div className="pd-field pd-field-full">
-          <label>Situación de aprendizaje</label>
-          <textarea
-            rows={3}
-            value={datos.situacionTexto || ""}
-            onChange={set("situacionTexto")}
-            placeholder="Problema · contexto · estrategia y rol del estudiante · producto · punto de llegada (máx. 8 líneas)"
-          />
-        </div>
-        <div className="pd-field pd-field-full">
-          <label>Producto central de la unidad</label>
-          <input
-            value={datos.productoFinalTexto || ""}
-            onChange={set("productoFinalTexto")}
-            placeholder="Ej: una guía de la escuela para estudiantes nuevos"
-          />
-        </div>
-
-        <div className="pd-section-title" style={{ marginTop: 12 }}>Estrategia</div>
-        <div style={{ display: "flex", flexWrap: "wrap" }}>
-          {ESTRATEGIAS_FASES_GUIA_2025.map((e) => {
-            const disponible = Boolean(ROLES_FASES_POR_ESTRATEGIA[e.clave]);
-            return (
-              <button
-                key={e.clave}
-                type="button"
-                style={{ ...chip(pm.estrategia === e.clave), opacity: disponible ? 1 : 0.5, cursor: disponible ? "pointer" : "not-allowed" }}
-                disabled={!disponible}
-                title={disponible ? "" : "Sus fases todavía no tienen papeles aprobados"}
-                aria-pressed={pm.estrategia === e.clave}
-                onClick={() => actualizar(elegirEstrategia(pm, e.clave))}
-              >
-                {e.nombre}
-              </button>
-            );
-          })}
-        </div>
+        <SituacionAprendizajePanel datos={datos} onChange={onChange} pm={pm} temas={temasDeLaUnidad(datos)} />
 
         {estrategiaGuia && (
           <>
@@ -276,6 +240,9 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
                   Papel: {f.roles.map((r) => NOMBRE_ROL[r] || r).join(" + ")}
                 </div>
                 <div style={{ fontSize: 13, marginTop: 4 }}>Entrega: <strong>{f.entrega.texto}</strong></div>
+                {f.entrega.secciones.length > 0 && (
+                  <div style={{ fontSize: 13 }}>Secciones: {f.entrega.secciones.join(" · ")}</div>
+                )}
                 {f.indicadores.length > 0 && (
                   <ul style={{ fontSize: 13, margin: "4px 0 0", paddingLeft: 18 }}>
                     {f.indicadores.map((ind) => (
