@@ -21,7 +21,9 @@ import {
   formatearProductoFinal,
 } from "./curriculumCombinacionService.js";
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
-import { logCaidaBaseCurricular } from "./ai/usage.js";
+import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
+import { prepararPlanMaestroGeneracion } from "./vistaPreviaPlanMaestroService.js";
+import { construirContratoFase, recogerAmpliacion } from "./redaccionFaseService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -2115,6 +2117,52 @@ const generarFases = (numSemanas, schedule, area, tema, estrategia, productoFina
   return fases;
 };
 
+// Etapa 5 — fases del PLAN MAESTRO (vista previa): las fases literales de la
+// estrategia con sus sesiones, en el mismo calendario semana → día → hora que
+// generarFases. El esqueleto del día (generarDia) usa la etapa equivalente:
+// apertura → 0, cierre de la unidad → 3, el resto → 1-2.
+const ETAPA_POR_ROL = { apertura: 0, conocimiento: 1, modelado: 1, aplicacion: 2, evaluacion: 3, socializacion: 3 };
+const generarFasesPlanMaestro = (plan, schedule, numSemanas, area, tema, estrategia) => {
+  const { diasClase, horasPorDia, duracionHoraClase } = schedule;
+  const slots = [];
+  for (let sem = 1; sem <= numSemanas; sem++) {
+    for (const diaCalendario of diasClase) {
+      for (let hora = 1; hora <= horasPorDia; hora++) slots.push({ semana: sem, diaCalendario, hora });
+    }
+  }
+  const total = plan.fases.reduce((s, f) => s + f.sesiones, 0);
+  if (total !== slots.length) {
+    throw new Error(`Plan maestro: las fases suman ${total} sesiones y el horario da ${slots.length}. Revisa la vista previa del plan maestro.`);
+  }
+  let slotIdx = 0;
+  const clasesPorSemanaCal = {};
+  return plan.fases.map((f, faseIdx) => {
+    const ultimaFase = faseIdx === plan.fases.length - 1;
+    const etapa = ultimaFase ? 3 : Math.min(ETAPA_POR_ROL[f.roles[f.roles.length - 1]] ?? 1, 2);
+    return {
+      numero: faseIdx + 1,
+      nombre: f.nombre,
+      estrategia,
+      fasesGuia: [...(f.fasesGuia || [])],
+      entrega: { ...f.entrega, secciones: [...f.entrega.secciones] },
+      indicadoresAvance: [],
+      dias: Array.from({ length: f.sesiones }, (_, d) => {
+        const dia = generarDia(d + 1, area, tema, etapa, f.sesiones, "", {}, duracionHoraClase);
+        const s = slots[slotIdx++];
+        dia.numeroGlobal = slotIdx;
+        dia.semana = s.semana;
+        dia.diaCalendario = s.diaCalendario;
+        dia.hora = s.hora;
+        dia.mostrarHora = horasPorDia > 1;
+        dia.duracionMin = duracionHoraClase;
+        clasesPorSemanaCal[s.semana] = (clasesPorSemanaCal[s.semana] || 0) + 1;
+        dia.numeroEnSemana = clasesPorSemanaCal[s.semana];
+        return dia;
+      }),
+    };
+  });
+};
+
 // ─── Análisis de complejidad curricular ──────────────────────────────────────
 
 const _justificaciones = {
@@ -3178,7 +3226,12 @@ const _generarFasesConIA = async (
   contenidosRuta = null,
   onProgress = null,
 ) => {
-  const fases = generarFases(numSemanas, schedule, area, tema, estrategia, productoFinal, contexto, mallaContenidos);
+  // Etapa 5: con plan maestro (vista previa), las fases son las de la
+  // estrategia elegida y la IA redacta cada una con su contrato.
+  const rutaPlanMaestro = contexto.planMaestro || null;
+  const fases = rutaPlanMaestro
+    ? generarFasesPlanMaestro(rutaPlanMaestro.plan, schedule, numSemanas, area, tema, estrategia)
+    : generarFases(numSemanas, schedule, area, tema, estrategia, productoFinal, contexto, mallaContenidos);
 
   const specBase = buildEspecificacionCurricular({
     mallaPayload, titulo: tema, allInds, allComps, mallaContenidos, area, grado,
@@ -4431,7 +4484,7 @@ const _generarFasesConIA = async (
     const numClases = fase.dias.length;
     const semanasFase = [...new Set(fase.dias.map((d) => d.semana).filter(Boolean))];
     const temasFase = _temasDeSemanas(rutaCurricular, semanasFase);
-    const semanaGeneracion = semanasFase[0] || fase.numero;
+    const semanaGeneracion = rutaPlanMaestro ? fase.numero : (semanasFase[0] || fase.numero);
     const temaTrabajoSemana = obtenerTemaSemana(Number(semanaGeneracion || 1), rutaCurricular?.distribucion)
       || temasFase[0]
       || tema;
@@ -4463,17 +4516,40 @@ const _generarFasesConIA = async (
     if (contexto.productoPropio) specFase.productoFinalNombre = contexto.productoPropio;
     specFase.indicadoresTrabajadosAntes = Array.isArray(contexto.indicadoresTrabajadosAntes) ? contexto.indicadoresTrabajadosAntes : [];
     specFase.indicadoresDebiles = Array.isArray(contexto.indicadoresDebiles) ? contexto.indicadoresDebiles : [];
-    specFase.secuenciaBase = fase.dias.map((dia, i) => construirClaseBaseCurricular({
-      dia,
-      fase,
-      indiceEnFase: i,
-      specActual: specFase,
-      semanaGeneracion,
-    }));
+    const contratoFase = rutaPlanMaestro?.contratos?.[fase.numero - 1] || null;
+    if (contratoFase) {
+      // Contrato de la fase: la IA solo puede usar los indicadores de la fase
+      // y no hay secuencia base de plantilla que enriquecer.
+      const permitidos = new Set(contratoFase.indicadores.map((ind) => ind.id));
+      specFase.contratoFase = contratoFase;
+      specFase.situacionTexto = rutaPlanMaestro.situacionTexto;
+      specFase.temaTrabajoSemana = "";
+      specFase.indicadoresTrabajo = (allInds || []).filter((ind) => permitidos.has(ind.id || ind.codigoOficial));
+      specFase.indicadoresTrabajadosAntes = [];
+      specFase.indicadoresDebiles = [];
+      specFase.secuenciaBase = [];
+    } else {
+      specFase.secuenciaBase = fase.dias.map((dia, i) => construirClaseBaseCurricular({
+        dia,
+        fase,
+        indiceEnFase: i,
+        specActual: specFase,
+        semanaGeneracion,
+      }));
+    }
 
     // Progreso narrado para el docente: fase pedagógica, semana calendario y
     // tópico real por día según la malla/contenidos oficiales ya seleccionados.
-    const progressWrapper = onProgress
+    const progressWrapper = onProgress && contratoFase
+      ? (startDia, endDia) => {
+          const globalStart = globalOffset + startDia;
+          const globalEnd   = globalOffset + endDia;
+          const rango = globalStart === globalEnd ? `la clase ${globalStart}` : `las clases ${globalStart} a ${globalEnd}`;
+          onProgress(
+            `✍️ Fase ${fase.numero} de ${fases.length}: ${fase.nombre} — escribiendo ${rango} de ${totalClases} · entrega: ${contratoFase.entrega.texto}`
+          );
+        }
+      : onProgress
       ? (startDia, endDia) => {
           const globalStart = globalOffset + startDia;
           const globalEnd   = globalOffset + endDia;
@@ -4502,7 +4578,36 @@ const _generarFasesConIA = async (
       : null;
 
     let weekPlan;
-    if (modoContingenciaSinIA) {
+    if (contratoFase) {
+      // Reintento POR FASE: los lotes ya aceptados quedan en caché, así que el
+      // segundo intento solo rehace el lote rechazado, con el motivo a la vista.
+      // Si la fase no sale, se detiene con error visible y registro en aiLogs:
+      // nunca base curricular ni plantilla en esta ruta.
+      const INTENTOS_POR_FASE = 2;
+      for (let intento = 1; !weekPlan; intento++) {
+        try {
+          weekPlan = await generateWeekPlan(
+            specFase, semanaGeneracion, durMin, numClases, fases.length,
+            memoriaAcumulada, progressWrapper,
+          );
+        } catch (err) {
+          const motivo = err?.message || String(err || "");
+          const creditos = esErrorCreditosAgotados(err);
+          if (!creditos && intento < INTENTOS_POR_FASE) {
+            specFase.correccionPrevia = motivo;
+            onProgress?.(`🔁 Fase ${fase.numero} (${fase.nombre}): el validador rechazó un lote; DocenteOS lo reintenta con la corrección.`);
+            continue;
+          }
+          await logFaseRedaccionFallida({ fase: fase.numero, nombre: fase.nombre, motivo, creditosAgotados: creditos });
+          throw new Error(
+            `La IA no pudo redactar la fase ${fase.numero} «${fase.nombre}» (${intento} intento${intento > 1 ? "s" : ""}). ` +
+            `DocenteOS no la rellena con plantilla. Las fases ya redactadas quedan guardadas en este navegador: vuelve a generar para reintentar solo lo que falta. ` +
+            `Detalle: ${motivo.slice(0, 300)}`,
+            { cause: err },
+          );
+        }
+      }
+    } else if (modoContingenciaSinIA) {
       onProgress?.(
         `🧩 Semana ${semanaGeneracion}: modo curricular sin IA activo; construyendo la fase desde la malla oficial sin consumir créditos.`
       );
@@ -4574,6 +4679,24 @@ const _generarFasesConIA = async (
       // Fase 1 (textos modelo): mini-diálogo/texto modelo real que la IA escribe
       // por clase (solo idiomas). Se sanea a {tipo, titulo, lineas[]}.
       dia.textoModelo = sanearTextoModelo(aiClase.textoModelo);
+      if (contratoFase) {
+        // Etapa 5 — lo que la clase declara ante el contrato de su fase. La
+        // ampliación es de DocenteOS (capa separada; nunca va a curricularContent).
+        const textos = (v) => (Array.isArray(v) ? v.map((x) => String(x || "").trim()).filter(Boolean) : []);
+        fase.tituloSemana = fase.nombre;
+        dia.tituloSemana = fase.nombre;
+        dia.seccionesProducto = textos(aiClase.seccionesProducto);
+        dia.semillaUsada = textos(aiClase.semillaUsada);
+        dia.ampliacion = (Array.isArray(aiClase.ampliacion) ? aiClase.ampliacion : [])
+          .map((a) => ({
+            texto: String(a?.texto || "").trim(),
+            tipo: String(a?.tipo || "").trim(),
+            seccion: String(a?.seccion || "").trim(),
+            origen: "DocenteOS",
+          }))
+          .filter((a) => a.texto);
+        dia.entregaFase = String(aiClase.entregaFase || "").trim();
+      }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
         tipo: "unidad_aprendizaje",
         faseNumero: fase.numero,
@@ -4887,25 +5010,6 @@ export const generarUnidadAprendizaje = async (datos) => {
   });
   const producto = formatearProductoFinal(productoDetalleBase);
 
-  // R10 — La estrategia E-A se deriva de la NATURALEZA de la situación (Guía Paso
-  // 1.2.4), NO del área. Prioridad: (1) texto del docente > (2) estrategia por
-  // situación (una de las 8 oficiales con fases) > (3) fallback por área.
-  // estrategiaClave = id de FASES_POR_ESTRATEGIA (null si el docente forzó texto
-  // libre que no mapea a una oficial → las fases caen al comportamiento genérico).
-  const estrategiaClave = seleccionarEstrategiaPorSituacion({
-    situacion: situacionTexto || "", tema: titulo, producto, area: claveContenido,
-  });
-  const estrategiaSel = FASES_POR_ESTRATEGIA[estrategiaClave]; // {nombre, fases[]} o undefined
-  const estrategiaEf = estrategiaTexto
-    || (estrategiaSel ? estrategiaSel.nombre : getEstrategia(claveContenido));
-
-  // Situación de aprendizaje narrativa (estilo del documento modelo): contexto
-  // del centro → realidad observada → necesidad auténtica → estrategia →
-  // producto final progresivo. El texto del docente siempre tiene prioridad.
-  const situacion = situacionTexto || construirSituacionNarrativa({
-    area: claveContenido, tema: titulo, grado, ciclo, nivel, centro,
-    estrategia: estrategiaEf, producto, contextoComunitario,
-  });
   const ejes = getEjesTematicos(claveContenido);
   const compFundBase = COMPETENCIAS_FUND_POR_AREA[claveContenido] || ["Comunicativa", "Pensamiento Lógico, Creativo y Crítico"];
   const compFundEf = competenciasFundamentalesSeleccionadas.length > 0
@@ -5022,12 +5126,61 @@ export const generarUnidadAprendizaje = async (datos) => {
 
   onProgress?.(`📚 Malla oficial verificada — preparando los contenidos de "${temaMallaStr || titulo}"...`);
 
+  // Etapa 5 — PLAN MAESTRO: donde existe la vista previa (indicadores
+  // estructurados) es obligatoria y manda: situación, estrategia, secciones y
+  // fases salen de datos.planMaestro; ya no se usan seleccionarEstrategiaPorSituacion
+  // ni construirSituacionNarrativa. En las demás asignaturas se genera como antes.
+  const avisosPlanMaestro = [];
+  const prepPlanMaestro = prepararPlanMaestroGeneracion({
+    datos,
+    mallaPayload,
+    horario: { semanas: numSemanas, diasClase: diasClaseFinal, horasPorDia: horasPorDiaEf },
+  });
+  let estrategiaSel;
+  let estrategiaEf;
+  let situacion;
+  let rutaPlanMaestro = null;
+  if (prepPlanMaestro.aplica) {
+    estrategiaEf = prepPlanMaestro.plan.estrategia.nombre;
+    situacion = prepPlanMaestro.situacionTexto;
+    rutaPlanMaestro = {
+      plan: prepPlanMaestro.plan,
+      situacionTexto: prepPlanMaestro.situacionTexto,
+      contratos: prepPlanMaestro.plan.fases.map((_, indice) => construirContratoFase({
+        plan: prepPlanMaestro.plan, indice, estructura: prepPlanMaestro.estructura,
+      })),
+    };
+  } else {
+    const aviso = `ℹ️ ${claveContenido} — ${grado} todavía no tiene vista previa del plan maestro: la unidad se genera con el motor anterior (por semanas).`;
+    onProgress?.(aviso);
+    avisosPlanMaestro.push(aviso);
+    // R10 — La estrategia E-A se deriva de la NATURALEZA de la situación (Guía Paso
+    // 1.2.4), NO del área. Prioridad: (1) texto del docente > (2) estrategia por
+    // situación (una de las 8 oficiales con fases) > (3) fallback por área.
+    // estrategiaClave = id de FASES_POR_ESTRATEGIA (null si el docente forzó texto
+    // libre que no mapea a una oficial → las fases caen al comportamiento genérico).
+    const estrategiaClave = seleccionarEstrategiaPorSituacion({
+      situacion: situacionTexto || "", tema: titulo, producto, area: claveContenido,
+    });
+    estrategiaSel = FASES_POR_ESTRATEGIA[estrategiaClave]; // {nombre, fases[]} o undefined
+    estrategiaEf = estrategiaTexto
+      || (estrategiaSel ? estrategiaSel.nombre : getEstrategia(claveContenido));
+
+    // Situación de aprendizaje narrativa (estilo del documento modelo): contexto
+    // del centro → realidad observada → necesidad auténtica → estrategia →
+    // producto final progresivo. El texto del docente siempre tiene prioridad.
+    situacion = situacionTexto || construirSituacionNarrativa({
+      area: claveContenido, tema: titulo, grado, ciclo, nivel, centro,
+      estrategia: estrategiaEf, producto, contextoComunitario,
+    });
+  }
+
   // Estrategia y ejes: OFICIALES de la malla cuando existen (el texto del
   // docente siempre manda; la etiqueta de área queda como último recurso)
   const estrategiaOficial = Array.isArray(mallaPayload.estrategiasSugeridas) && mallaPayload.estrategiasSugeridas.length
     ? String(mallaPayload.estrategiasSugeridas[0]?.nombre || mallaPayload.estrategiasSugeridas[0] || "").trim()
     : "";
-  const estrategiaFinal = estrategiaTexto || estrategiaOficial || estrategiaEf;
+  const estrategiaFinal = rutaPlanMaestro ? estrategiaEf : (estrategiaTexto || estrategiaOficial || estrategiaEf);
   const ejesOficiales = Array.isArray(mallaPayload.ejesTransversales)
     ? mallaPayload.ejesTransversales
         .map((e) => String(e?.eje || e?.nombre || e?.titulo || (typeof e === "string" ? e : "")).trim())
@@ -5049,7 +5202,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     productoFinal: producto,
   });
   const mallaContenidos = contenidosRuta.union;
-  const advertencias = [];
+  const advertencias = [...avisosPlanMaestro];
 
   // GUARDA DE TRAZABILIDAD (no bloquea): la malla ya está resuelta para esta
   // unidad. Si NO trae criterios de evaluación, los anexos del PDF saldrán con
@@ -5180,6 +5333,8 @@ export const generarUnidadAprendizaje = async (datos) => {
       contextoComunitario: contextoConZona,
       zonaEscolar,
       fasesEstrategia, // R11 — nombres de fase oficiales (o null → genéricos)
+      // Etapa 5 — plan maestro con un contrato por fase (null → motor anterior)
+      planMaestro: rutaPlanMaestro,
       // Si el docente escribió su propio producto, ese nombre MANDA y la IA
       // no propone otro; el nombre generado solo sustituye el genérico.
       productoPropio: productoFinalTexto ? producto : "",
@@ -5251,7 +5406,9 @@ export const generarUnidadAprendizaje = async (datos) => {
         : [],
       productoFinal: productoNombrado,
       productoFinalDetalle,
-      situacionPersonalizada: Boolean(situacionTexto),
+      situacionPersonalizada: rutaPlanMaestro
+        ? datos.planMaestro?.situacion?.origen === "real"
+        : Boolean(situacionTexto),
       // Temas curriculares que el docente eligió integrar en la unidad
       // (vacío = trabaja solo el tema del título)
       temasIntegrados: rutaCurricular.temas,
@@ -5324,6 +5481,16 @@ export const generarUnidadAprendizaje = async (datos) => {
     // proveedor falla, la unidad sigue entregándose con base curricular.
     advertencias: [...advertencias, ...advertenciasIA],
     fasesBaseCurricular,
+    // Etapa 5 — copia compacta del plan maestro con el que se redactó la unidad
+    // (fases, entregas, secciones, indicadores y semilla) y la ampliación de
+    // DocenteOS, separada del contenido oficial (regla 4.6).
+    ...(rutaPlanMaestro ? {
+      planMaestro: {
+        ...rutaPlanMaestro.plan,
+        situacion: datos.planMaestro?.situacion || null,
+      },
+      ampliacionDocenteOS: recogerAmpliacion(fasesSemanalesGeneradas),
+    } : {}),
   };
 
   // ── Secciones del documento modelo (2026-07-04) ────────────────────────────
@@ -5939,6 +6106,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     return `
       <div class="fase-band">FASE ${fase.numero} — ${escHtml(fase.nombre)}</div>
       <div class="est-band">Estrategia de enseñanza y de aprendizaje: ${escHtml(fase.estrategia)}</div>
+      ${fase.entrega?.texto ? `<div class="est-band">Entrega de la fase: ${escHtml(fase.entrega.texto)}${fase.entrega.secciones?.length ? ` · Secciones que avanza: ${escHtml(fase.entrega.secciones.join(" · "))}` : ""}</div>` : ""}
       ${diasHtml}
       ${resumenFase}
       ${neaeHtml}

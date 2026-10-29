@@ -19,8 +19,8 @@
  *   reparten en orden.
  * Fail-closed: cualquier dato que falte o no cuadre lanza un error visible.
  *
- * Módulo PURO. Todavía no lo consume nada: el generador sigue usando
- * FASES_POR_ESTRATEGIA (unidadAprendizajeService.js) hasta la Etapa 5.
+ * Módulo PURO. Desde la Etapa 5 el generador redacta cada fase de este plan
+ * (redaccionFaseService.js); FASES_POR_ESTRATEGIA queda para el motor anterior.
  * Verificación: scripts/test-plan-maestro.mjs
  */
 

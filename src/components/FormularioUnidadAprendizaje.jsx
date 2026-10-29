@@ -29,6 +29,7 @@ import {
 } from "../services/curriculumCombinacionService";
 import { horasOficialesSecundaria } from "../data/cargaHorariaMINERD.js";
 import VistaPreviaPlanMaestro from "./VistaPreviaPlanMaestro.jsx";
+import { estadoPlanMaestroParaGenerar } from "../services/vistaPreviaPlanMaestroService.js";
 
 const GRADOS = [
   { grado: "Pre-Kínder", nivel: "Inicial" }, { grado: "Kínder", nivel: "Inicial" }, { grado: "Preprimario", nivel: "Inicial" },
@@ -600,6 +601,15 @@ export default function FormularioUnidadAprendizaje({
   const duracionDiferente = rec && numSemanas !== rec.semanasRecomendadas;
   const duracionMayor = rec && numSemanas > rec.semanasRecomendadas;
 
+  // Etapa 5: donde existe la vista previa del plan maestro, es obligatoria.
+  const estadoPlanMaestro = mallaOficial
+    ? estadoPlanMaestroParaGenerar({
+      datos,
+      mallaPayload: mallaOficial,
+      horario: { semanas: Number(numSemanas), diasClase, horasPorDia: Number(horasPorDia) },
+    })
+    : { aplica: false, listo: true, motivo: "" };
+
   const camposFaltantes = [
     !grado && "Grado",
     !seccion && "Sección",
@@ -608,6 +618,7 @@ export default function FormularioUnidadAprendizaje({
     !titulo && "Título de la Unidad",
     (grado && area && (!areaTieneMultiplesAsignaturas || asignatura) && estadoCurriculoAsesor.status === "loading") && "Verificación de malla curricular",
     (grado && area && (!areaTieneMultiplesAsignaturas || asignatura) && ["missing", "error"].includes(estadoCurriculoAsesor.status)) && "Malla curricular oficial exacta",
+    (estadoPlanMaestro.aplica && !estadoPlanMaestro.listo) && "Vista previa del plan maestro",
   ].filter(Boolean);
 
   const puedoGenerar = camposFaltantes.length === 0;
@@ -1594,6 +1605,9 @@ export default function FormularioUnidadAprendizaje({
               <span key={campo} className="pd-campo-badge">{campo}</span>
             ))}
           </div>
+          {estadoPlanMaestro.aplica && !estadoPlanMaestro.listo && (
+            <p className="pd-hint" style={{ marginTop: 6 }}>{estadoPlanMaestro.motivo}</p>
+          )}
         </div>
       )}
 

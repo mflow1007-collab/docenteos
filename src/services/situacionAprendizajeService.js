@@ -18,8 +18,8 @@
  *
  * Estado en datos.planMaestro (solo en la sesión): `situacion` y `secciones`.
  * El nombre del producto es datos.productoFinalTexto (se escribe una vez).
- * Nada lo consume todavía: el generador sigue con construirSituacionNarrativa
- * hasta la Etapa 5.
+ * Desde la Etapa 5 el generador usa esta situación (componerSituacion) en lugar
+ * de construirSituacionNarrativa donde hay vista previa.
  * Verificación: scripts/test-situacion-aprendizaje.mjs
  */
 

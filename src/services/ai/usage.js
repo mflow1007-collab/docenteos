@@ -81,6 +81,47 @@ export async function logUsage({
 }
 
 /**
+ * Etapa 5: una fase del plan maestro que la IA no pudo redactar tras sus
+ * reintentos. La generación se detiene con error visible (sin plantilla) y
+ * queda este registro en aiLogs (etiqueta "fase_redaccion_fallida").
+ * Las reglas exigen uid == request.auth.uid: sin sesión no se registra.
+ */
+export async function logFaseRedaccionFallida({
+  module = "planificacion",
+  fase = null,
+  nombre = "",
+  motivo = "",
+  creditosAgotados = false,
+}) {
+  try {
+    const uid = getAuth().currentUser?.uid || null;
+    if (!uid) return;
+    const motivoLimpio = String(motivo || "").replace(/\s+/g, " ").trim().slice(0, 500);
+
+    await addDoc(collection(db, "aiLogs"), {
+      uid,
+      fecha:             serverTimestamp(),
+      modulo:            module,
+      etiqueta:          "fase_redaccion_fallida",
+      proveedor:         "plan_maestro",
+      modelo:            "sin_ia",
+      fase,
+      nombreFase:        String(nombre || "").slice(0, 120),
+      creditosAgotados,
+      motivo:            motivoLimpio,
+      tokensEntrada:     0,
+      tokensSalida:      0,
+      costoEstimado:     "0.000000",
+      tiempoRespuesta:   0,
+      cache:             false,
+      error:             `Fase sin redactar: ${motivoLimpio}`.slice(0, 500),
+    });
+  } catch {
+    // logging no-fatal — el error visible ya lo recibe el docente
+  }
+}
+
+/**
  * Caída de una fase a la base curricular (A5): la IA no completó la fase y
  * DocenteOS la armó desde la malla oficial. Deja un registro propio en aiLogs
  * (etiqueta "fase_base_curricular") para ver cuántas caídas hay y por qué.
