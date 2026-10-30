@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { construirContenidosPorTema } from "../src/data/repartoContenidoPorTema.js";
+import { FUNCIONES_POR_TEMA } from "../src/data/funcionesPorTemaLenguas.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FUENTE = join(ROOT, "src/data/curriculo/curriculo-lenguas-extranjeras-secundaria-2023.json");
@@ -281,6 +282,7 @@ for (const idiomaKey of ["ingles", "frances"]) {
         temas, vocabulario, gramatica, expresiones,
         procedimientosFuncionales: procedLineas,
         actitudinales: actitudLineas,
+        tablaFunciones: FUNCIONES_POR_TEMA[`${idiomaKey}-${grade}`] || null,
       });
 
       const sobre = {
