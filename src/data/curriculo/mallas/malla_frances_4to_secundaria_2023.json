@@ -484,12 +484,13 @@
           "Relaciones humanas y sociales"
         ],
         "vocabulario": [
-          "Medidas Dar y pedir información sobre sentimientos, estados físicos y necesidades",
+          "Dar y pedir información sobre sentimientos, estados físicos y necesidades",
           "Sentimientos : Je suis heureux. Je ne suis pas satisfait. Je suis désolé.",
           "Gustos y preferencias",
           "Solicitar y ofrecer informaciones sobre servicios en una ciudad",
           "Comercios y tiendas",
-          "Señales comunes"
+          "Señales comunes",
+          "Medidas"
         ],
         "gramatica": [
           "Oraciones negativas con ne … pas…/ ne…plus …/ ne… jamais... Nous n’allons pas à la plage dimanche prochain. Je n’ai plus mal à la tête. Je n’ai jamais peur.",
@@ -640,7 +641,8 @@
           "Gustos y preferencias",
           "Solicitar y ofrecer informaciones sobre servicios en una ciudad",
           "Comercios y tiendas",
-          "Señales comunes"
+          "Señales comunes",
+          "Medidas"
         ],
         "gramatica": [
           "Condicional de cortesía Je voudrais deux bouteilles d’eau, s’il vous plaît.",
@@ -786,14 +788,16 @@
         ],
         "vocabulario": [
           "Ropa",
-          "Medidas Dar y pedir información sobre sentimientos, estados físicos y necesidades",
-          "Estados físicos y necesidades : avoir faim, avoir chaud/froid, avoir peur, avoir besoin, avoir envie… Dar y pedir información sobre el estado de salud propio y de otras personas Partes del cuerpo.",
+          "Dar y pedir información sobre sentimientos, estados físicos y necesidades",
+          "Estados físicos y necesidades : avoir faim, avoir chaud/froid, avoir peur, avoir besoin, avoir envie…",
+          "Dar y pedir información sobre el estado de salud propio y de otras personas Partes del cuerpo.",
           "Enfermedades y síntomas comunes.",
           "Expresar que se siente dolor: j’ai mal à…",
           "Gustos y preferencias",
           "Solicitar y ofrecer informaciones sobre servicios en una ciudad",
           "Comercios y tiendas",
-          "Señales comunes"
+          "Señales comunes",
+          "Medidas"
         ],
         "gramatica": [
           "Oraciones negativas con ne … pas…/ ne…plus …/ ne… jamais... Nous n’allons pas à la plage dimanche prochain. Je n’ai plus mal à la tête. Je n’ai jamais peur.",
@@ -938,7 +942,8 @@
           "Gustos y preferencias",
           "Solicitar y ofrecer informaciones sobre servicios en una ciudad",
           "Comercios y tiendas",
-          "Señales comunes"
+          "Señales comunes",
+          "Medidas"
         ],
         "gramatica": [
           "Oraciones negativas con ne … pas…/ ne…plus …/ ne… jamais... Nous n’allons pas à la plage dimanche prochain. Je n’ai plus mal à la tête. Je n’ai jamais peur.",
@@ -1083,7 +1088,8 @@
           "Gustos y preferencias",
           "Solicitar y ofrecer informaciones sobre servicios en una ciudad",
           "Comercios y tiendas",
-          "Señales comunes"
+          "Señales comunes",
+          "Medidas"
         ],
         "gramatica": [
           "Oraciones negativas con ne … pas…/ ne…plus …/ ne… jamais... Nous n’allons pas à la plage dimanche prochain. Je n’ai plus mal à la tête. Je n’ai jamais peur.",
@@ -1227,7 +1233,8 @@
           "Gustos y preferencias",
           "Solicitar y ofrecer informaciones sobre servicios en una ciudad",
           "Comercios y tiendas",
-          "Señales comunes"
+          "Señales comunes",
+          "Medidas"
         ],
         "gramatica": [
           "Oraciones negativas con ne … pas…/ ne…plus …/ ne… jamais... Nous n’allons pas à la plage dimanche prochain. Je n’ai plus mal à la tête. Je n’ai jamais peur.",
@@ -1377,7 +1384,8 @@
           "Gustos y preferencias",
           "Solicitar y ofrecer informaciones sobre servicios en una ciudad",
           "Comercios y tiendas",
-          "Señales comunes"
+          "Señales comunes",
+          "Medidas"
         ],
         "gramatica": [
           "Oraciones negativas con ne … pas…/ ne…plus …/ ne… jamais... Nous n’allons pas à la plage dimanche prochain. Je n’ai plus mal à la tête. Je n’ai jamais peur.",
@@ -1521,7 +1529,8 @@
           "Gustos y preferencias",
           "Solicitar y ofrecer informaciones sobre servicios en una ciudad",
           "Comercios y tiendas",
-          "Señales comunes"
+          "Señales comunes",
+          "Medidas"
         ],
         "gramatica": [
           "Oraciones negativas con ne … pas…/ ne…plus …/ ne… jamais... Nous n’allons pas à la plage dimanche prochain. Je n’ai plus mal à la tête. Je n’ai jamais peur.",
@@ -1912,9 +1921,11 @@
         "Equipos tecnológicos",
         "Transporte",
         "Dinero y formas de pago",
-        "Medidas Dar y pedir información sobre sentimientos, estados físicos y necesidades",
+        "Medidas",
+        "Dar y pedir información sobre sentimientos, estados físicos y necesidades",
         "Sentimientos : Je suis heureux. Je ne suis pas satisfait. Je suis désolé.",
-        "Estados físicos y necesidades : avoir faim, avoir chaud/froid, avoir peur, avoir besoin, avoir envie… Dar y pedir información sobre el estado de salud propio y de otras personas Partes del cuerpo.",
+        "Estados físicos y necesidades : avoir faim, avoir chaud/froid, avoir peur, avoir besoin, avoir envie…",
+        "Dar y pedir información sobre el estado de salud propio y de otras personas Partes del cuerpo.",
         "Enfermedades y síntomas comunes.",
         "Expresar que se siente dolor: j’ai mal à…"
       ],

@@ -121,7 +121,10 @@ const empujarLinea = (items, linea) => {
 // la segmentación en ítems de un grado no sea perfecta.
 const unirComoTexto = (items = []) => items.join(" ").replace(/\s+/g, " ").trim();
 
-const SUBENCABEZADO_INFINITIVO = /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(ar|er|ir)\b/;
+// `*` y no `+`: los infinitivos de una sílaba ("Dar y pedir…", "Ir", "Ver")
+// también son subencabezados (francés 4to-6to). Tras la terminación se exige
+// espacio, puntuación o fin: `\b` aceptaba "Garçon" (la ç no es letra para \b).
+const SUBENCABEZADO_INFINITIVO = /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]*(ar|er|ir)(?=[\s,.:;]|$)/;
 
 // Extrae una SECCIÓN del bloque "conceptos" (Temas, Vocabulario, Expresiones o
 // Gramática): las líneas entre su encabezado y el siguiente encabezado conocido.
