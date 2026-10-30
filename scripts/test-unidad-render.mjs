@@ -14,7 +14,7 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, construirPuntoPartida, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import {
@@ -1999,6 +1999,39 @@ check("PDF: columna de criterios con negrita en la competencia elegida; sin crit
   const htmlCrit = formatearUnidadHTML({ ...u, competenciasDetalle: conCriterios }, "");
   if (!htmlCrit.includes("Criterios de evaluación</td>")) throw new Error("falta la cabecera de la columna");
   if (!/font-weight:700"><li[^>]*>Criterio oficial 1\./.test(htmlCrit)) throw new Error("el criterio de la competencia elegida no va en negrita");
+});
+
+// ─── Punto de partida del grupo (Adecuación 2023, pp. 38-39) ──────────────────
+
+check("punto de partida: sin datos → null (no se inventa)", () => {
+  if (construirPuntoPartida({}) !== null) throw new Error("sin datos debe ser null");
+  if (construirPuntoPartida({ textoDocente: "  ", debilesDiagnostico: [""] }) !== null) throw new Error("vacíos deben ser null");
+});
+
+check("punto de partida: docente + diagnóstico + evaluaciones, sin duplicar y con tope", () => {
+  const diag = ["A.", "B", "C", "D", "E", "F", "G"];
+  const texto = construirPuntoPartida({
+    textoDocente: "Reconocen el vocabulario, pero no lo usan.",
+    debilesDiagnostico: diag,
+    debilesEvaluaciones: ["B", "IL-3 — Escribe textos breves"],
+  });
+  const lineas = texto.split("\n");
+  if (lineas.length !== 3) throw new Error(`esperaba 3 líneas, hay ${lineas.length}`);
+  if (lineas[0] !== "Reconocen el vocabulario, pero no lo usan.") throw new Error("el texto del docente no va primero y literal");
+  if (!lineas[1].includes("«A»; «B»; «C»; «D»; «E»; y 2 más")) throw new Error(`tope o formato del diagnóstico: ${lineas[1]}`);
+  if (lineas[2] !== "Evaluaciones anteriores del curso — logro bajo en: «IL-3 — Escribe textos breves».") {
+    throw new Error(`evaluaciones (sin repetir lo del diagnóstico): ${lineas[2]}`);
+  }
+});
+
+check("PDF: bloque PUNTO DE PARTIDA solo cuando la unidad lo trae", () => {
+  if (formatearUnidadHTML({ ...unidadFixture, puntoPartida: null }, "").includes("PUNTO DE PARTIDA DEL GRUPO")) {
+    throw new Error("sin punto de partida no debe salir el bloque");
+  }
+  const htmlPP = formatearUnidadHTML({ ...unidadFixture, puntoPartida: "Línea uno.\nLínea <dos>." }, "");
+  if (!htmlPP.includes("PUNTO DE PARTIDA DEL GRUPO")) throw new Error("falta el bloque");
+  if (!htmlPP.includes("<p style=\"margin-bottom:6pt\">Línea &lt;dos&gt;.</p>")) throw new Error("no escapa o no separa las líneas");
+  if (htmlPP.indexOf("PUNTO DE PARTIDA DEL GRUPO") > htmlPP.indexOf("AMBIENTE DE APRENDIZAJE")) throw new Error("debe ir antes del ambiente");
 });
 
 // ─── Resultado ────────────────────────────────────────────────────────────────

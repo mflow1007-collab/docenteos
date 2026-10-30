@@ -387,6 +387,17 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       <section className="ua-section">
         <div className="ua-section-head">SITUACIÓN DE APRENDIZAJE</div>
         <p className="ua-text-block">{editable({ ruta: "situacionAprendizaje", valor: unidad.situacionAprendizaje, multilinea: true })}</p>
+        {/* Punto de partida del grupo (Adecuación 2023, pp. 38-39): fuera de las 8 líneas; solo con datos reales */}
+        {unidad.puntoPartida && (
+          <>
+            <div className="ua-section-head" style={{ marginTop: 8 }}>PUNTO DE PARTIDA DEL GRUPO</div>
+            <div className="ua-text-block">
+              {String(unidad.puntoPartida).split("\n").map((linea, i) => (
+                <p key={i}>{linea}</p>
+              ))}
+            </div>
+          </>
+        )}
         <div className="ua-section-head" style={{ marginTop: 8 }}>AMBIENTE DE APRENDIZAJE</div>
         <p className="ua-text-block">{editable({ ruta: "ambienteAprendizaje", valor: unidad.ambienteAprendizaje, multilinea: true })}</p>
         {unidad.notaInstitucional && (
