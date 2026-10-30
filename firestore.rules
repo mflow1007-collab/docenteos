@@ -25,9 +25,87 @@ service cloud.firestore {
       return isAuth() && request.auth.uid == uid;
     }
 
+    // ── Etapa E: créditos y cupo de planes por grado + asignatura ────────────
+    // Los créditos solo los sube el admin (o la consola). El docente puede
+    // descontarlos (cupo con crédito), nunca aumentarlos.
+    function creditoNoSube(campo) {
+      let antes = resource.data.get(campo, 0);
+      let despues = request.resource.data.get(campo, 0);
+      return despues == antes
+        || (despues is number && antes is number && despues < antes)
+        || (despues is number && despues <= 0);
+    }
+    function creditosNoSuben() {
+      return creditoNoSube('creditosPlanificacionDisponibles')
+        && creditoNoSube('creditosDisponibles')
+        && creditoNoSube('creditos');
+    }
+    function creditoInicialValido(campo) {
+      let v = request.resource.data.get(campo, 0);
+      return v is number && v <= 0;
+    }
+    function creditosIniciales() {
+      return creditoInicialValido('creditosPlanificacionDisponibles')
+        && creditoInicialValido('creditosDisponibles')
+        && creditoInicialValido('creditos');
+    }
+    // Correos sin límite de planes: @docenteos.com verificados (isAdmin) y la
+    // lista editable por el admin (limitesIlimitados/{correo en minúsculas}).
+    function esIlimitadoPlanes() {
+      return isAdmin() || (isAuth()
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/limitesIlimitados/$(request.auth.token.email.lower())));
+    }
+
     // ── Perfil de usuario + todas sus subcollections ─────────────────────────
     match /usuarios/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      allow read, delete: if isOwner(userId) || isAdmin();
+      // Etapa E: el docente no se asigna créditos (antes: write libre del dueño)
+      allow create: if isAdmin() || (isOwner(userId) && creditosIniciales());
+      allow update: if isAdmin() || (isOwner(userId) && creditosNoSuben());
+
+      // Etapa E: 1 plan activo por grado + asignatura (las secciones comparten).
+      // Clave = nivel__grado__asignatura (copia exacta en src/utils/cupoGrado.js).
+      // Reemplazar el plan solo cuando ya pasó desbloqueoEn, con 1 crédito que
+      // baja en la misma transacción, o con un correo ilimitado. desbloqueoEn
+      // ≥ 14 días desde ahora (1 día de tolerancia por el reloj del equipo).
+      // Borrarlo para liberar el grado: solo el admin.
+      match /cuposGrado/{clave} {
+        function claveCupoValida() {
+          return clave.matches('^(inicial|primaria|secundaria)__(pre-kinder|kinder|preprimario|[1-6](ro|do|to)-(primaria|secundaria))__(lengua-espanola|matematica|ciencias-sociales|geografia|historia|moral-y-civica|ciencias-de-la-naturaleza|biologia|quimica|fisica|ingles|frances|educacion-fisica|educacion-artistica|formacion-integral-humana-y-religiosa|tecnologia)$');
+        }
+        function cupoNuevoValido() {
+          let d = request.resource.data;
+          return claveCupoValida()
+            && d.keys().hasAll(['planId', 'generadoEn', 'desbloqueoEn', 'via'])
+            && d.keys().hasOnly(['planId', 'tema', 'tituloNormalizado', 'nivel', 'grado', 'asignatura',
+                                 'seccion', 'fechaInicio', 'numSemanas', 'generadoEn', 'desbloqueoEn', 'via'])
+            && d.planId is string && d.planId.size() > 0
+            && d.generadoEn == request.time
+            && d.desbloqueoEn is timestamp
+            && d.desbloqueoEn >= request.time + duration.value(13, 'd')
+            && d.via in ['cupo', 'credito', 'ilimitado'];
+        }
+        function campoCreditoBajaUno(campo) {
+          let antes = get(/databases/$(database)/documents/usuarios/$(userId)).data.get(campo, null);
+          let despues = getAfter(/databases/$(database)/documents/usuarios/$(userId)).data.get(campo, null);
+          return antes is number && despues is number && despues == antes - 1;
+        }
+        function consumeCredito() {
+          return request.resource.data.via == 'credito'
+            && (campoCreditoBajaUno('creditosPlanificacionDisponibles')
+              || campoCreditoBajaUno('creditosDisponibles')
+              || campoCreditoBajaUno('creditos'));
+        }
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isAdmin() || (isOwner(userId) && cupoNuevoValido());
+        allow update: if isAdmin() || (isOwner(userId) && cupoNuevoValido() && (
+          request.time >= resource.data.desbloqueoEn
+          || esIlimitadoPlanes()
+          || consumeCredito()
+        ));
+        allow delete: if isAdmin();
+      }
 
       match /cursos/{docId} {
         allow read, write: if isOwner(userId) || isAdmin();
@@ -366,6 +444,13 @@ service cloud.firestore {
       allow read: if isAuth();
       allow create: if isAdmin() || bpBorradorPropio();
       allow update, delete: if isAdmin();
+    }
+
+    // Etapa E: correos sin límite de planes. Cada docente solo puede leer el
+    // suyo (la lista no queda a la vista de todos); la edita el admin.
+    match /limitesIlimitados/{correo} {
+      allow read: if isAdmin() || (isAuth() && request.auth.token.email.lower() == correo);
+      allow write: if isAdmin();
     }
 
     // Configuración global del panel admin (seguridad, firebase, general)

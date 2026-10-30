@@ -5,7 +5,7 @@ import { cosecharGuia } from "../services/bancoGuiasService.js";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import { conReanudacion } from "../services/reanudacionGeneracion.js";
-import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
+import { consultarCupoGrado, reservarCupoGrado, consultarTemaEnHistorial, registrarTemaUnidadEnHistorial } from "../firebase";
 import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
 import { obtenerIndicadoresDebiles } from "../services/avanceCurricularService.js";
 import { indicadoresDebilesPorGradoAsignatura, mezclarIndicadoresDebiles } from "../services/diagnosticoIntegrationService.js";
@@ -69,37 +69,63 @@ export function useUnidadAprendizaje() {
     }
   }), []);
 
-  const manejarGenerarUnidad = async () => {
-    const { estadoTemas, setDialogoTema } = depsRef.current;
+  // Etapa E: cupo de 1 plan activo por grado + asignatura (las secciones lo
+  // comparten). Un tema ya trabajado solo AVISA; no bloquea.
+  const generarUnidadConCupo = async ({ usarCredito = false, confirmarTemaRepetido = false } = {}) => {
+    const { setDialogoTema } = depsRef.current;
     const temaUnidad = (unidadDatos.tema || unidadDatos.titulo)?.trim();
     setCargandoUnidad(true);
     setMensajeUnidad({
       tipo: "loading",
-      texto: "🔍 Verificando malla oficial, tema y permisos de generación...",
+      texto: "🔍 Verificando malla oficial, tema y cupo del grado...",
     });
     try {
-      if (temaUnidad) {
-        const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaUnidad, contexto: "generacion" });
-        if (!verificacion?.permitido || verificacion?.requiereCredito) {
+      const datosCupo = { nivel: unidadDatos.nivel, grado: unidadDatos.grado, asignatura: unidadDatos.asignatura, tema: temaUnidad };
+      const cupo = await consultarCupoGrado(datosCupo);
+
+      if (temaUnidad && !confirmarTemaRepetido && cupo.estado !== "reintento") {
+        const historial = await consultarTemaEnHistorial(temaUnidad);
+        if (historial.existe) {
           setDialogoTema({
             abierto: true,
             contexto: "unidad",
             payload: {
-              ...verificacion,
+              motivo: "tema_repetido_aviso",
               temaIngresado: temaUnidad,
-              temas: {
-                temaActivo: estadoTemas.temaActivo,
-                temaSecundario: estadoTemas.temaSecundario,
-                temaTercero: estadoTemas.temaTercero,
-                temaCuarto: estadoTemas.temaCuarto,
-              },
+              mensaje: `Ya trabajaste el tema «${temaUnidad}» antes. Puedes abrir esa planificación guardada o generar una nueva adaptada a este grado y grupo.`,
             },
           });
           setCargandoUnidad(false);
           return;
         }
-        await registrarUsoTemaPlanificacion({ tituloTema: temaUnidad, forzarNuevoTema: false, contexto: "generacion" });
       }
+
+      if (cupo.estado === "bloqueado" && !usarCredito) {
+        setDialogoTema({
+          abierto: true,
+          contexto: "unidad",
+          payload: {
+            motivo: "cupo_grado_ocupado",
+            temaIngresado: temaUnidad,
+            temaCupo: cupo.cupo?.tema || "",
+            desbloqueoEn: cupo.desbloqueoEn ? cupo.desbloqueoEn.toISOString() : null,
+            creditosDisponibles: cupo.creditosDisponibles,
+            puedeCrearNuevoTema: true,
+            mensaje: `Ya tienes un plan activo de ${unidadDatos.asignatura} en ${unidadDatos.grado}${cupo.cupo?.tema ? ` («${cupo.cupo.tema}»)` : ""}. Las secciones del grado comparten ese plan. El grado se libera al empezar la penúltima semana del plan; antes, con 1 crédito.`,
+          },
+        });
+        setCargandoUnidad(false);
+        return;
+      }
+
+      const reserva = await reservarCupoGrado({
+        ...datosCupo,
+        seccion: unidadDatos.seccion,
+        fechaInicio: unidadDatos.fechaInicio,
+        numSemanas: unidadDatos.numSemanas,
+        usarCredito,
+      });
+      if (temaUnidad) await registrarTemaUnidadEnHistorial(temaUnidad);
       // Indicadores ya trabajados en planes anteriores del mismo grado +
       // asignatura → se muestran TACHADOS en el nuevo plan (el docente igual
       // puede re-elegirlos). No es fatal si falla la lectura del historial.
@@ -138,6 +164,8 @@ export function useUnidadAprendizaje() {
           // Rótulo del documento según el tipo elegido en la página
           // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
           tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
+          // Permiso del cupo: el gateway lo comprueba en cada lote
+          cupoGeneracion: { planId: reserva.planId, clave: reserva.clave },
           onProgress: setProgress,
         }), { onAviso: setProgress }),
         onSuccess: (resultado) => guardarSesion("unidad:resultado", resultado),
@@ -303,48 +331,14 @@ export function useUnidadAprendizaje() {
     document.querySelector(".pd-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const manejarGenerarUnidadForzado = async (temaIngresado) => {
-    setCargandoUnidad(true);
-    setMensajeUnidad({
-      tipo: "loading",
-      texto: `🔍 Preparando malla oficial y tema "${temaIngresado || unidadDatos.titulo || "seleccionado"}"...`,
-    });
-    try {
-      await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
-      // Mismo hilo que la generación normal: tachados + (REFORZAR). Antes este
-      // camino generaba sin historial y el plan forzado perdía el marcado.
-      let indicadoresTrabajadosAntes = [];
-      try {
-        indicadoresTrabajadosAntes = await obtenerIndicadoresTrabajadosPrevios(
-          unidadDatos.grado, unidadDatos.asignatura,
-        );
-      } catch { /* sin historial, se genera sin tachados */ }
-      let indicadoresDebiles = [];
-      try {
-        indicadoresDebiles = await obtenerIndicadoresDebiles(
-          unidadDatos.grado, unidadDatos.asignatura,
-        );
-      } catch { /* sin avance, se genera sin refuerzos */ }
-      startGenerationJob({
-        id: UNIDAD_JOB_ID,
-        tipo: "unidad",
-        titulo: temaIngresado || unidadDatos.titulo || "Unidad de aprendizaje",
-        initialMessage: `✍️ Preparando malla oficial y tema "${temaIngresado || unidadDatos.titulo || "seleccionado"}"...`,
-        run: ({ setProgress }) => generarUnidadAprendizaje({
-          ...unidadDatos,
-          indicadoresTrabajadosAntes,
-          indicadoresDebiles,
-          tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
-          onProgress: setProgress,
-        }),
-        onSuccess: (resultado) => guardarSesion("unidad:resultado", resultado),
-      });
-      setMensajeUnidad({ tipo: "loading", texto: "✍️ DocenteOS seguirá generando aunque cambies de módulo." });
-    } catch (error) {
-      setMensajeUnidad({ tipo: "error", texto: `❌ ${error.message}` });
-      setCargandoUnidad(false);
-    }
-  };
+  const manejarGenerarUnidad = () => generarUnidadConCupo();
+
+  // Tras el aviso de tema ya trabajado: el docente decide generar uno nuevo.
+  const manejarGenerarUnidadConfirmandoTema = () => generarUnidadConCupo({ confirmarTemaRepetido: true });
+
+  // "Usar 1 crédito": libera el grado antes de tiempo. Mismo camino que la
+  // generación normal (tachados, refuerzos, punto de partida y reanudación).
+  const manejarGenerarUnidadForzado = () => generarUnidadConCupo({ usarCredito: true, confirmarTemaRepetido: true });
 
   const manejarAplicarAcciones = (accionesAplicar) => {
     if (!unidad || !Array.isArray(accionesAplicar) || accionesAplicar.length === 0) {
@@ -372,7 +366,7 @@ export function useUnidadAprendizaje() {
     unidadDatos, setUnidadDatos,
     unidad, setUnidad,
     cargandoUnidad, guardandoUnidad, mensajeUnidad, setMensajeUnidad,
-    manejarGenerarUnidad, manejarGenerarUnidadForzado,
+    manejarGenerarUnidad, manejarGenerarUnidadForzado, manejarGenerarUnidadConfirmandoTema,
     manejarGuardarUnidad, manejarDescargarUnidad,
     manejarVerUnidad, manejarVerGuia, manejarRegenerarGuia, manejarNuevaUnidad, manejarAplicarAcciones,
   };

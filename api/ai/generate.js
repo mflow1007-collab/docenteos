@@ -152,6 +152,50 @@ export async function leerConfigGateway(idToken) {
   return config;
 }
 
+// ─── Etapa E: permiso del cupo de la unidad ──────────────────────────────────
+// Cada lote de una unidad trae { planId, clave }. Se lee el cupo reservado
+// (usuarios/{uid}/cuposGrado/{clave}) con el token del propio docente; las
+// reglas de Firestore impiden crearlo fuera del límite. Válido 24 h desde la
+// reserva (cubre la reanudación y el reintento del mismo plan).
+// Límite conocido: una petición SIN `cupo` no se puede distinguir aquí de la
+// guía o el diagnóstico (mismo módulo), así que pasa; cerrar ese hueco exige
+// un presupuesto por docente en el servidor (decisión aparte de César).
+
+const VENTANA_CUPO_MS = 24 * 60 * 60 * 1000;
+const CLAVE_CUPO_RE = /^[a-z0-9_-]{1,200}$/;
+
+/** Devuelve null si el permiso es válido; si no, { status, error }. */
+export async function verificarCupoUnidad(cupo, uid, idToken, ahora = Date.now()) {
+  const planId = String(cupo?.planId || "");
+  const clave = String(cupo?.clave || "");
+  if (!planId || !CLAVE_CUPO_RE.test(clave)) {
+    return { status: 400, error: "Permiso de cupo mal formado." };
+  }
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/usuarios/${encodeURIComponent(uid)}/cuposGrado/${clave}`;
+  let res;
+  try {
+    res = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
+  } catch (err) {
+    return { status: 503, error: `No se pudo comprobar el cupo del plan (${err?.message || "sin red"}). Intenta de nuevo.` };
+  }
+  if (res.status === 404) {
+    return { status: 403, error: "No hay un cupo reservado para este plan. Vuelve a iniciar la generación." };
+  }
+  if (!res.ok) {
+    return { status: 503, error: `No se pudo comprobar el cupo del plan (Firestore HTTP ${res.status}). Intenta de nuevo.` };
+  }
+  const datos = camposFirestore((await res.json())?.fields);
+  if (datos.planId !== planId) {
+    return { status: 403, error: "Este plan ya no tiene el cupo del grado (se usó para otro plan)." };
+  }
+  const generado = Date.parse(datos.generadoEn || "");
+  if (!Number.isFinite(generado) || ahora - generado > VENTANA_CUPO_MS) {
+    return { status: 403, error: "El permiso de este plan venció (24 h). Inicia la generación de nuevo." };
+  }
+  return null;
+}
+
 // ─── Modelo por proveedor (decide el servidor) ───────────────────────────────
 // Módulos de composición larga (Fase A de la unidad): modelo fuerte. Si el
 // admin configuró una variante débil, para estos módulos se usa la allowlist;
@@ -572,6 +616,7 @@ export default async function handler(request) {
     requireNonEmpty = false,
     imageBase64,       // base64 image for vision (Anthropic only)
     imageMediaType,    // e.g. "image/jpeg"
+    cupo,              // Etapa E: { planId, clave } en los lotes de la unidad
   } = body;
 
   if (!prompt) {
@@ -615,6 +660,16 @@ export default async function handler(request) {
       JSON.stringify({ error: "No se pudo leer la configuración de Inteligencia Artificial del administrador. Intenta de nuevo en unos minutos." }),
       { status: 503, headers: { "Content-Type": "application/json" } }
     );
+  }
+
+  if (cupo) {
+    const fallo = await verificarCupoUnidad(cupo, authedUser.uid, idToken);
+    if (fallo) {
+      return new Response(JSON.stringify({ error: fallo.error }), {
+        status: fallo.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
   }
 
   const queue = getProviderQueue(gwConfig, mod, { preferredProvider, providerOrder, strictProvider, providersDisabled });
