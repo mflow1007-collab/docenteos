@@ -1960,6 +1960,47 @@ check("Anexo I con plan: columna de fases y estado por sección; sin plan, como 
   if (!formatearUnidadHTML(u, "").includes("Fase(s) y estado")) throw new Error("el Anexo I no muestra la columna");
 });
 
+// ─── Criterios de evaluación oficiales (paso 7, Adecuación p. 39) ────────────
+// Malla REAL de Inglés 2do: 3 criterios por competencia, 21 en total, texto literal.
+
+check("malla real Inglés 2do: 21 criterios, 3 por competencia, texto literal", () => {
+  const malla = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
+  const detalle = construirCompetenciasDetalle(malla.competencias, malla.indicadores, [], malla.criteriosEvaluacion);
+  if (detalle.length !== 7) throw new Error(`esperaba 7 competencias, hay ${detalle.length}`);
+  const total = detalle.reduce((n, c) => n + c.criterios.length, 0);
+  if (total !== 21) throw new Error(`esperaba 21 criterios, hay ${total}`);
+  detalle.forEach((c, i) => {
+    if (c.criterios.length !== 3) throw new Error(`${c.codigo}: esperaba 3 criterios, hay ${c.criterios.length}`);
+    if (JSON.stringify(c.criterios) !== JSON.stringify(malla.competencias[i].criteriosEvaluacion)) {
+      throw new Error(`${c.codigo}: los criterios no son literales de la malla`);
+    }
+  });
+});
+
+check("criterios solo en la raíz + división exacta → bloques; inexacta → vacíos (no se inventan)", () => {
+  const comps = [{ id: "C1", especifica: "Comp 1" }, { id: "C2", especifica: "Comp 2" }];
+  const exacta = construirCompetenciasDetalle(comps, [], [], ["A", "B", "C", "D"]);
+  if (JSON.stringify(exacta.map((c) => c.criterios)) !== JSON.stringify([["A", "B"], ["C", "D"]])) {
+    throw new Error("no repartió los criterios raíz en bloques");
+  }
+  const inexacta = construirCompetenciasDetalle(comps, [], [], ["A", "B", "C"]);
+  if (inexacta.some((c) => c.criterios.length)) throw new Error("repartió criterios con división inexacta");
+});
+
+check("PDF: columna de criterios con negrita en la competencia elegida; sin criterios, sin columna", () => {
+  const u = structuredClone(unidadFixture);
+  const detalle = Array.isArray(u.competenciasDetalle) && u.competenciasDetalle.length
+    ? u.competenciasDetalle
+    : [{ codigo: "C1", competenciaFundamental: "Comunicativa", especifica: "Comp", indicadores: [{ codigo: "IL-1", descripcion: "Ind", aplicaTemaActual: true }] }];
+  if (formatearUnidadHTML({ ...u, competenciasDetalle: detalle.map(({ criterios, ...c }) => c) }, "").includes("Criterios de evaluación</td>")) {
+    throw new Error("sin criterios no debe haber columna");
+  }
+  const conCriterios = detalle.map((c, i) => ({ ...c, elegidaPlan: i === 0, criterios: [`Criterio oficial ${i + 1}.`] }));
+  const htmlCrit = formatearUnidadHTML({ ...u, competenciasDetalle: conCriterios }, "");
+  if (!htmlCrit.includes("Criterios de evaluación</td>")) throw new Error("falta la cabecera de la columna");
+  if (!/font-weight:700"><li[^>]*>Criterio oficial 1\./.test(htmlCrit)) throw new Error("el criterio de la competencia elegida no va en negrita");
+});
+
 // ─── Resultado ────────────────────────────────────────────────────────────────
 
 console.log(`\n${pasadas} ✓ · ${falladas} ✗`);

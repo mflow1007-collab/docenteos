@@ -3113,7 +3113,7 @@ const _construirContenidosPorRuta = ({ mallaPayload, curricularDoc, rutaCurricul
 // competenciaId (v1.2: payload.indicadoresLogro[] con ind.competenciaId).
 // Exportada pura para tests.
 
-export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFundEf = []) => {
+export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFundEf = [], criteriosRaiz = []) => {
   // Tolerante a AMBAS formas: objeto {id, descripcion|texto} y string plano
   // ("Responde de forma adecuada...") — corpus antiguos guardan strings
   const aIndicador = (ind) => {
@@ -3179,6 +3179,19 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
   // Detecta si los códigos son del tipo "IL-N" (registro), que deben renumerarse
   // corridos, vs. códigos oficiales únicos de otra naturaleza que se respetan.
   const esCodigoRegistroIL = (cod) => /^il[-\s]?\d+$/i.test(String(cod || "").trim());
+  // Criterios de evaluación (paso 7 de la unidad, Adecuación p. 39): texto
+  // literal de la malla. Primero los de cada competencia; si ninguna los trae,
+  // la lista raíz se reparte en bloques solo si la división es exacta (misma
+  // regla que los indicadores). Si no cuadra, quedan vacíos: no se inventan.
+  const aTextoCriterio = (c) => String(typeof c === "string" ? c : c?.texto || c?.descripcion || "").trim();
+  const criteriosDe = (comp) => (Array.isArray(comp?.criteriosEvaluacion) ? comp.criteriosEvaluacion : [])
+    .map(aTextoCriterio).filter(Boolean);
+  const raiz = (Array.isArray(criteriosRaiz) ? criteriosRaiz : []).map(aTextoCriterio).filter(Boolean);
+  const hayCriteriosPorComp = compsValidas.some((comp) => criteriosDe(comp).length);
+  const bloqueCriterios = !hayCriteriosPorComp && compsValidas.length && raiz.length
+    && raiz.length % compsValidas.length === 0
+    ? raiz.length / compsValidas.length
+    : 0;
   return compsValidas.map((comp, i) => {
     const anidados = Array.isArray(comp.indicadoresLogro) && comp.indicadoresLogro.length
       ? comp.indicadoresLogro
@@ -3220,6 +3233,9 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
       especifica: comp.especificaGrado || comp.especifica || comp.descripcion || "",
       // El formatter acepta también strings (unidades guardadas antes)
       indicadores,
+      criterios: hayCriteriosPorComp
+        ? criteriosDe(comp)
+        : raiz.slice(i * bloqueCriterios, (i + 1) * bloqueCriterios),
     };
   });
 };
@@ -5178,7 +5194,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   // Candado temprano de asociación: si la tabla curricular va a quedar sin
   // indicadores, DETENER AQUÍ con diagnóstico completo — antes de gastar una
   // sola llamada de IA (el validador final quedaría como última defensa).
-  const detalleTemprano = construirCompetenciasDetalle(allComps, allInds, compFundEf);
+  const detalleTemprano = construirCompetenciasDetalle(allComps, allInds, compFundEf, mallaPayload.criteriosEvaluacion);
   if (detalleTemprano.length && !detalleTemprano.some((c) => c.indicadores.length)) {
     const conVinculo = allInds.filter((i) => String(i?.competenciaId || i?.competencia || "").trim()).length;
     const anidados = allComps.filter((c) => (c?.indicadoresLogro || c?.indicadores || []).length).length;
@@ -5314,6 +5330,16 @@ export const generarUnidadAprendizaje = async (datos) => {
     console.warn(`[Unidad] ${avisoTrazabilidad}`);
     onProgress?.(avisoTrazabilidad);
     advertencias.push(avisoTrazabilidad);
+  } else if (!detalleTemprano.some((comp) => comp.criterios?.length)) {
+    // Hay criterios, pero ni por competencia ni en un número que se reparta
+    // exacto: la columna de criterios de la tabla curricular saldrá vacía.
+    const avisoCriterios =
+      `⚠️ La malla de ${claveContenido} — ${grado} trae ${criteriosMalla.length} criterios de evaluación, ` +
+      `pero no se pueden asociar a sus competencias. La columna "Criterios de evaluación" saldrá vacía. ` +
+      `Para corregirlo, recarga la malla con los criterios dentro de cada competencia.`;
+    console.warn(`[Unidad] ${avisoCriterios}`);
+    onProgress?.(avisoCriterios);
+    advertencias.push(avisoCriterios);
   }
 
   const modeloCurricularSuperior = construirModeloCurricularSuperior({
@@ -6337,9 +6363,22 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           : '';
         return `${abrir}${cod}${escHtml(ind?.descripcion || '')}${cerrar}`;
       };
+      // Criterios de evaluación (paso 7): tercera columna solo si la unidad los
+      // trae; en negrita los de las competencias que trabaja la unidad.
+      const hayCriterios = detalle.some((c) => Array.isArray(c.criterios) && c.criterios.length);
+      const anchoComp = hayCriterios ? '26%' : '34%';
+      const competenciaElegida = (c) => (typeof c.elegidaPlan === 'boolean'
+        ? c.elegidaPlan
+        : (c.indicadores || []).some((ind) => ind?.aplicaTemaActual));
+      const celdaCriterios = (c) => (!hayCriterios ? '' : `
+          <td style="width:30%;vertical-align:top;padding:6px 8px">
+            ${c.criterios?.length
+              ? `<ul style="margin:0 0 0 16px;padding:0${competenciaElegida(c) ? ';font-weight:700' : ''}">${c.criterios.map((cr) => `<li style="margin-bottom:3pt">${escHtml(cr)}</li>`).join('')}</ul>`
+              : '<em>Sin criterios en la malla para esta competencia.</em>'}
+          </td>`);
       const filas = detalle.map((c) => `
         <tr>
-          <td style="width:34%;vertical-align:top;padding:6px 8px;background:#f8fafc">
+          <td style="width:${anchoComp};vertical-align:top;padding:6px 8px;background:#f8fafc">
             <strong>${escHtml(c.competenciaFundamental || 'Competencia')}</strong>
             ${c.codigo ? `<br><strong style="font-size:10.5pt;color:#1e3a8a">${escHtml(c.codigo)}</strong>` : ''}
             ${c.especifica ? `<br><em style="font-size:11pt">${escHtml(c.especifica)}</em>` : ''}
@@ -6349,10 +6388,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
             ${c.indicadores?.length
               ? `<ul style="margin:0 0 0 16px;padding:0">${c.indicadores.map((ind) => `<li style="margin-bottom:3pt">${indicadorHtml(ind)}</li>`).join('')}</ul>`
               : '<em>Sin indicadores en la malla para esta competencia.</em>'}
-          </td>
+          </td>${celdaCriterios(c)}
         </tr>`).join('');
       return `${nivelMCERL}${leyendaIndicadores}<table class="datos-table" style="margin-bottom:12px">
-        <tr><td class="lbl" style="width:34%;text-align:center">Competencias</td><td class="lbl" style="text-align:center">Indicadores de Logro</td></tr>
+        <tr><td class="lbl" style="width:${anchoComp};text-align:center">Competencias</td><td class="lbl" style="text-align:center">Indicadores de Logro</td>${hayCriterios ? '<td class="lbl" style="width:30%;text-align:center">Criterios de evaluación</td>' : ''}</tr>
         ${filas}
       </table>`;
     }
