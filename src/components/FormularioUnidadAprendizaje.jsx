@@ -191,6 +191,7 @@ export default function FormularioUnidadAprendizaje({
     productoFinalFormato = "", productoFinalProposito = "",
     productoFinalAudiencia = "", productoFinalSocializacion = "",
     contextoComunitario = "",
+    puntoPartidaTexto = "",
     zonaEscolar = "",
     asignaturasVinculadasTexto = "",
     nombreDocente = "", cedula = "", regional = "",
@@ -1583,6 +1584,18 @@ export default function FormularioUnidadAprendizaje({
           />
           <p className="pd-hint" style={{ marginTop: 4 }}>
             Se guarda en tu perfil para reutilizarlo en próximas unidades.
+          </p>
+        </div>
+        <div className="pd-field pd-field-full">
+          <label>Punto de partida del grupo (opcional)</label>
+          <textarea
+            rows={2}
+            value={puntoPartidaTexto}
+            onChange={set("puntoPartidaTexto")}
+            placeholder="En 1-2 líneas: qué saben ya y qué les cuesta a tus estudiantes en este tema (ej. reconocen el vocabulario de la escuela, pero no lo usan para pedir ayuda)."
+          />
+          <p className="pd-hint" style={{ marginTop: 4 }}>
+            Sale en la unidad como «Punto de partida del grupo», junto con lo que diga el diagnóstico del curso. Si no hay ni texto ni diagnóstico, ese bloque no aparece.
           </p>
         </div>
       </details>

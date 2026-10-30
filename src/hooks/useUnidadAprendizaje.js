@@ -23,6 +23,7 @@ const DATOS_INICIALES = {
   productoFinalAudiencia: "", productoFinalSocializacion: "",
   contextoComunitario: "",
   zonaEscolar: "",
+  puntoPartidaTexto: "",
   asignaturasVinculadasTexto: "",
   nombreDocente: "", regional: "", distrito: "",
   centro: "", codigoCentro: "",
@@ -111,9 +112,12 @@ export function useUnidadAprendizaje() {
       // nivel real del grupo) + Fase 9 (logro bajo el umbral en evaluaciones del
       // curso). Se mezclan sin duplicar, priorizando el diagnóstico. Nunca bloquea.
       let indicadoresDebiles = [];
+      // Las dos fuentes también van por separado para el punto de partida del grupo.
+      let debilesDiag = [];
+      let debilesEval = [];
       try {
-        const debilesEval = await obtenerIndicadoresDebiles(unidadDatos.grado, unidadDatos.asignatura);
-        const debilesDiag = indicadoresDebilesPorGradoAsignatura(unidadDatos.grado, unidadDatos.asignatura);
+        debilesEval = await obtenerIndicadoresDebiles(unidadDatos.grado, unidadDatos.asignatura);
+        debilesDiag = indicadoresDebilesPorGradoAsignatura(unidadDatos.grado, unidadDatos.asignatura);
         indicadoresDebiles = mezclarIndicadoresDebiles(debilesDiag, debilesEval);
       } catch { /* sin avance ni diagnóstico, se genera sin refuerzos */ }
 
@@ -126,6 +130,8 @@ export function useUnidadAprendizaje() {
           ...unidadDatos,
           indicadoresTrabajadosAntes,
           indicadoresDebiles,
+          indicadoresDebilesDiagnostico: debilesDiag,
+          indicadoresDebilesEvaluaciones: debilesEval,
           // Rótulo del documento según el tipo elegido en la página
           // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
           tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",

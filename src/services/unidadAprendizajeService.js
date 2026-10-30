@@ -717,6 +717,33 @@ const construirEjesContextualizados = (ejes, { area, tema }) => {
   }));
 };
 
+// Punto de partida del grupo (condición inicial de la situación de aprendizaje,
+// Adecuación Curricular Secundaria 2023, pp. 38-39). Va FUERA de las 8 líneas de
+// la situación (Guía 2025, 1.2.2). Solo con datos reales: lo que escribe el
+// docente, el diagnóstico del grupo y las evaluaciones anteriores del curso.
+// Sin ninguno → null y el bloque no se muestra (nada se inventa).
+const MAX_APRENDIZAJES_PUNTO_PARTIDA = 5;
+export const construirPuntoPartida = ({
+  textoDocente = "", debilesDiagnostico = [], debilesEvaluaciones = [],
+} = {}) => {
+  const limpios = (lista) => [...new Set((Array.isArray(lista) ? lista : [])
+    .map((t) => String(t || "").trim().replace(/\.$/, "")).filter(Boolean))];
+  const enumerar = (lista) => {
+    const visibles = lista.slice(0, MAX_APRENDIZAJES_PUNTO_PARTIDA).map((t) => `«${t}»`).join("; ");
+    const resto = lista.length - MAX_APRENDIZAJES_PUNTO_PARTIDA;
+    return resto > 0 ? `${visibles}; y ${resto} más` : visibles;
+  };
+  const diagnostico = limpios(debilesDiagnostico);
+  const diagnosticoSet = new Set(diagnostico);
+  const evaluaciones = limpios(debilesEvaluaciones).filter((t) => !diagnosticoSet.has(t));
+  const lineas = [
+    String(textoDocente || "").trim(),
+    diagnostico.length ? `Diagnóstico del grupo — aprendizajes por reforzar: ${enumerar(diagnostico)}.` : "",
+    evaluaciones.length ? `Evaluaciones anteriores del curso — logro bajo en: ${enumerar(evaluaciones)}.` : "",
+  ].filter(Boolean);
+  return lineas.length ? lineas.join("\n") : null;
+};
+
 // Situación de aprendizaje narrativa al estilo del documento modelo:
 // contexto del centro/comunidad → realidad observada → necesidad auténtica →
 // estrategia y recorrido → producto final progresivo.
@@ -5086,6 +5113,11 @@ export const generarUnidadAprendizaje = async (datos) => {
     temasSeleccionados = [],
     indicadoresTrabajadosAntes = [],
     indicadoresDebiles = [],
+    // Punto de partida del grupo: texto opcional del docente y las dos fuentes
+    // de indicadores débiles por separado (indicadoresDebiles las mezcla).
+    puntoPartidaTexto = "",
+    indicadoresDebilesDiagnostico = [],
+    indicadoresDebilesEvaluaciones = [],
     // Rótulo del documento: "Unidad de Aprendizaje" o "Secuencia Didáctica"
     // (mismo esquema MINERD; solo cambia la etiqueta)
     tipoPlanificacion = "Unidad de Aprendizaje",
@@ -5547,6 +5579,17 @@ export const generarUnidadAprendizaje = async (datos) => {
     ejesTematicos: ejesFinal,
     situacionAprendizaje: situacionFinal,
     ambienteAprendizaje: ambiente,
+    puntoPartida: construirPuntoPartida({
+      textoDocente: puntoPartidaTexto,
+      debilesDiagnostico: indicadoresDebilesDiagnostico,
+      // Las evaluaciones devuelven CÓDIGOS (IL-n): se muestran con su texto.
+      debilesEvaluaciones: (Array.isArray(indicadoresDebilesEvaluaciones) ? indicadoresDebilesEvaluaciones : [])
+        .map((codigo) => {
+          const ind = competenciasDetalleEnriquecidas.flatMap((c) => c.indicadores || [])
+            .find((i) => typeof i === "object" && normalizarCodigoIndicador(i.codigo) === normalizarCodigoIndicador(codigo));
+          return ind?.descripcion ? `${ind.codigo} — ${ind.descripcion}` : codigo;
+        }),
+    }),
     modeloCurricularSuperior,
     competencias: (() => {
       // ÚNICA FUENTE: malla oficial en curricularContent (ya garantizada arriba).
@@ -6299,6 +6342,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
   <div class="section-head">SITUACIÓN DE APRENDIZAJE</div>
   <div class="texto-seccion">${escHtml(unidad.situacionAprendizaje)}</div>
+  ${unidad.puntoPartida ? `
+  <div class="section-head">PUNTO DE PARTIDA DEL GRUPO</div>
+  <div class="texto-seccion">${String(unidad.puntoPartida).split("\n").map((linea) => `<p style="margin-bottom:6pt">${escHtml(linea)}</p>`).join("")}</div>` : ""}
   <div class="section-head">AMBIENTE DE APRENDIZAJE</div>
   <div class="texto-seccion">${escHtml(unidad.ambienteAprendizaje)}</div>
   ${unidad.notaInstitucional ? `
