@@ -19,6 +19,7 @@ import {
 import { obtenerEstudiantesPorCurso } from '../services/estudiantesService.js'
 import { estadoDocencia, diasDocenciaPrevios } from '../data/calendarioEscolarMINERD.js'
 import { crearEvidencia } from '../services/evidenciasService.js'
+import { FormularioAnotacion } from '../components/RegistroAnecdotico.jsx'
 import { formatearUnidadHTML, formatearGuiaMaestroHTML } from '../services/unidadAprendizajeService.js'
 import { generarGuiaMaestro } from '../services/guiaMaestroService.js'
 
@@ -919,6 +920,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const [estudianteEv, setEstudianteEv] = useState(null)
   const [guardandoEv, setGuardandoEv] = useState(false)
   const [errorEv, setErrorEv] = useState('')
+  const [avisoAnecdotico, setAvisoAnecdotico] = useState('')
 
   // ── Coach IA
   const [coachSug, setCoachSug] = useState(null)
@@ -2878,7 +2880,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                   <div style={{ fontSize:11, color:'#64748b' }}>{evidencias.length} registros</div>
                 </div>
               </div>
-              <button onClick={() => setAgregandoEv(v => !v)} style={{
+              <button onClick={() => { setAgregandoEv(v => !v); setAvisoAnecdotico('') }} style={{
                 background: agregandoEv ? '#fef3c7' : '#fff7ed',
                 border:`1px solid ${agregandoEv ? '#fbbf24' : '#fed7aa'}`,
                 color: agregandoEv ? '#92400e' : '#c2410c',
@@ -2966,10 +2968,30 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                   padding:'6px 10px', fontSize:12, marginBottom:8, color:'#374151',
                   background:'#fff', outline:'none',
                 }}>
-                  {['Observación','Trabajo escrito','Participación oral','Foto/Video','Lista de cotejo','Rúbrica aplicada','Otro'].map(c => (
+                  {['Observación','Registro anecdótico','Trabajo escrito','Participación oral','Foto/Video','Lista de cotejo','Rúbrica aplicada','Otro'].map(c => (
                     <option key={c}>{c}</option>
                   ))}
                 </select>
+                {categoriaEv === 'Registro anecdótico' ? (
+                  // Se guarda aparte: va a la pestaña «Registro anecdótico» de la ficha, no a esta línea de tiempo
+                  estudianteEv?.id ? (
+                    <FormularioAnotacion
+                      key={estudianteEv.id}
+                      estudiante={{ ...estudianteEv, cursoId: cursoParaAula?.id || '' }}
+                      origen="modo_aula"
+                      claseTitulo={diaActivo?.titulo || ''}
+                      contextoInicial={[claseNorm?.area, diaActivo?.titulo, diaActivo?.momentos?.[momentoOpen]?.nombre].filter(Boolean).join(' · ')}
+                      onGuardada={() => {
+                        setAvisoAnecdotico(`Anotación guardada en el registro anecdótico de ${estudianteEv.nombre}.`)
+                        setBusquedaEstudianteEv('')
+                        setEstudianteEv(null)
+                        setAgregandoEv(false)
+                      }}
+                    />
+                  ) : (
+                    <div style={{ fontSize:11.5, color:'#92400e' }}>Elige un estudiante para escribir la anotación.</div>
+                  )
+                ) : (<>
                 <textarea value={inputEvidencia} onChange={e => setInputEvidencia(e.target.value)}
                   rows={2} placeholder="Describe la evidencia…"
                   style={{
@@ -2999,7 +3021,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                   cursor: inputEvidencia.trim() && estudianteEv?.id && !guardandoEv ? 'pointer' : 'default',
                   opacity: inputEvidencia.trim() && estudianteEv?.id && !guardandoEv ? 1 : .5,
                 }}>{guardandoEv ? 'Guardando...' : 'Guardar evidencia'}</button>
+                </>)}
               </div>
+            )}
+            {avisoAnecdotico && !agregandoEv && (
+              <div role="status" style={{ marginBottom:10, fontSize:11.5, color:'#15803d', fontWeight:800 }}>✓ {avisoAnecdotico}</div>
             )}
 
             {/* Línea de tiempo */}

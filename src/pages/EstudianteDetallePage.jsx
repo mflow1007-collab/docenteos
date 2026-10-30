@@ -6,13 +6,15 @@ import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTy
 import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
 import { obtenerEvidenciasPorEstudiante } from "../services/evidenciasService.js";
 import { obtenerAvanceEstudiante } from "../services/avanceCurricularService.js";
+import { RegistroAnecdoticoPanel } from "../components/RegistroAnecdotico.jsx";
+import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
 
 const EVALUACIONES_BASE_DETALLE = [];
 
 const PLAN_APOYO_BASE_DETALLE = [];
 
 function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "Resumen", onTabChange = () => {} }) {
-  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Evidencias", "Asistencia", "Intervenciones", "Informe IA"];
+  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Evidencias", "Registro anecdótico", "Asistencia", "Intervenciones", "Informe IA"];
   const [tabActiva, setTabActiva] = useState(initialTab);
   const [periodoActual, setPeriodoActual] = useState(2);
   const [estadoPlan, setEstadoPlan] = useState("Pendiente de iniciar");
@@ -52,7 +54,8 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     const estId = estudiante?.id;
     if (!estId) { setBancoEvidencias([]); return; }
     obtenerEvidenciasPorEstudiante(estId, { cursoId: estudiante?.cursoId || "" })
-      .then((datos) => setBancoEvidencias(datos))
+      // El registro anecdótico se muestra aparte, en su propia pestaña
+      .then((datos) => setBancoEvidencias(datos.filter((e) => !esRegistroAnecdotico(e))))
       .catch(() => setBancoEvidencias([]));
   }, [tabActiva, bancoEvidencias, estudiante?.id, estudiante?.cursoId]);
 
@@ -452,6 +455,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         </div>
       );
     })(),
+    "Registro anecdótico": <RegistroAnecdoticoPanel estudiante={estudiante} />,
     "Asistencia": (
       <div className="detalle-tab-lista">
         {sinAsistencia && !expediente
