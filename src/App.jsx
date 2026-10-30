@@ -15,6 +15,7 @@ import SubscriptionBanner from "./components/SubscriptionBanner.jsx";
 import { esUsuarioDocenteOS, cargoTieneModulo } from "./utils/permisos.js";
 import { useLocation, useNavigate } from "react-router-dom";
 import { enriquecerCursoInicial, aplicarRegistroACurso } from "./utils/cursoUtils.js";
+import { conIdsEstudiantes } from "./utils/idEstudiante.js";
 import { sincronizarCursoConGrupoAcademico, sincronizarCursosConGruposAcademicos } from "./services/gruposAcademicosService.js";
 import { SidebarGrupo, SidebarItem } from "./components/AppSidebar.jsx";
 import Inicio from "./components/Inicio.jsx";
@@ -214,7 +215,9 @@ function AppInner() {
     navegar("cursos");
   };
 
-  const crearCurso = (nuevoCurso) => {
+  const crearCurso = (cursoNuevo) => {
+    // ID permanente para cada estudiante que aún no lo tenga (regla única)
+    const nuevoCurso = conIdsEstudiantes(cursoNuevo);
     setCursos((prev) => [nuevoCurso, ...prev]);
     if (!cursoSeleccionadoId) {
       setCursoSeleccionadoId(nuevoCurso.id);
@@ -237,7 +240,9 @@ function AppInner() {
     navegar("detalle-curso");
   };
 
-  const actualizarCurso = (cursoActualizado) => {
+  const actualizarCurso = (cursoRecibido) => {
+    // ID permanente para cada estudiante que aún no lo tenga (regla única)
+    const cursoActualizado = conIdsEstudiantes(cursoRecibido);
     setCursos((prev) => prev.map((curso) => (curso.id === cursoActualizado.id ? cursoActualizado : curso)));
     if (cursoSeleccionadoId === cursoActualizado.id) {
       setCursoSeleccionadoId(cursoActualizado.id);
@@ -268,6 +273,19 @@ function AppInner() {
     if (estudiante.cursoId) seleccionarCursoActivo(estudiante.cursoId);
     setEstudianteDetalle(estudiante);
     navegar("detalle-estudiante");
+  };
+
+  // Cédula opcional: se guarda en el estudiante de su curso (estudiantesDetalle, merge)
+  const guardarCedulaEstudiante = (estudiante, cedula) => {
+    const curso = cursos.find((c) => String(c.id) === String(estudiante?.cursoId));
+    if (!curso?.estudiantesDetalle?.length) {
+      throw new Error("Este curso aún usa estudiantes de ejemplo: agrega la lista real del curso para guardar la cédula.");
+    }
+    const lista = conIdsEstudiantes(curso).estudiantesDetalle;
+    const indice = lista.findIndex((e) => String(e?.id) === String(estudiante.id));
+    if (indice < 0) throw new Error("No encontré a este estudiante en la lista de su curso.");
+    actualizarCurso({ ...curso, estudiantesDetalle: lista.map((e, i) => (i === indice ? { ...e, cedula } : e)) });
+    setEstudianteDetalle((prev) => (prev ? { ...prev, cedula } : prev));
   };
 
   const volverAEstudiantes = () => {
@@ -839,6 +857,7 @@ function AppInner() {
               onVolver={volverAEstudiantes}
               initialTab={detalleEstudianteTab}
               onTabChange={setDetalleEstudianteTab}
+              onGuardarCedula={guardarCedulaEstudiante}
             />
           )}
           {pagina === "instrumentos" && (

@@ -74,12 +74,17 @@ export const crearEvidenciaDesdeResultado = async (resultado, { instrumento = nu
   return data;
 };
 
-/** Banco completo de un estudiante (con filtro opcional por curso). */
-export const obtenerEvidenciasPorEstudiante = async (estudianteId, { cursoId = "" } = {}) => {
+/**
+ * Banco completo de un estudiante (con filtro opcional por curso).
+ * `idsLegado`: IDs con los que se guardaron evidencias antes de la regla única
+ * (utils/idEstudiante.js); se leen también para no perderlas.
+ */
+export const obtenerEvidenciasPorEstudiante = async (estudianteId, { cursoId = "", idsLegado = [] } = {}) => {
   if (!disponible()) return [];
+  const ids = [...new Set([estudianteId, ...idsLegado].filter(Boolean).map(String))].slice(0, 30); // límite de "in"
   const snap = await getDocs(query(
     colEvidencias(),
-    where("estudianteId", "==", String(estudianteId)),
+    ids.length > 1 ? where("estudianteId", "in", ids) : where("estudianteId", "==", String(estudianteId)),
     limit(500)
   ));
   const datos = snap.docs.map((d) => ({ ...d.data(), id: d.id, evidenciaId: d.id }));
