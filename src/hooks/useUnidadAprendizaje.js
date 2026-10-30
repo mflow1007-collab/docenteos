@@ -4,6 +4,7 @@ import { generarGuiaMaestro } from "../services/guiaMaestroService.js";
 import { cosecharGuia } from "../services/bancoGuiasService.js";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
+import { conReanudacion } from "../services/reanudacionGeneracion.js";
 import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
 import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
 import { obtenerIndicadoresDebiles } from "../services/avanceCurricularService.js";
@@ -126,7 +127,9 @@ export function useUnidadAprendizaje() {
         tipo: "unidad",
         titulo: temaUnidad || unidadDatos.titulo || "Unidad de aprendizaje",
         initialMessage: "✍️ Preparando la unidad con la malla oficial...",
-        run: ({ setProgress }) => generarUnidadAprendizaje({
+        // Si una fase no sale, reintenta solo (hasta 2 vueltas, 30 s): lo ya
+        // redactado queda en caché y no se repite.
+        run: ({ setProgress }) => conReanudacion(() => generarUnidadAprendizaje({
           ...unidadDatos,
           indicadoresTrabajadosAntes,
           indicadoresDebiles,
@@ -136,7 +139,7 @@ export function useUnidadAprendizaje() {
           // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
           tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",
           onProgress: setProgress,
-        }),
+        }), { onAviso: setProgress }),
         onSuccess: (resultado) => guardarSesion("unidad:resultado", resultado),
       });
       setMensajeUnidad({ tipo: "loading", texto: "✍️ DocenteOS seguirá generando aunque cambies de módulo." });
