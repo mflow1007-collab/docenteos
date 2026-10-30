@@ -58,6 +58,30 @@ const temasDeContenido = (texto, temasDelGrado) => {
   return [...new Set(encontrados)];
 };
 
+// Une los encabezados que el PDF deja sueltos ("Adverbios de:" + "Tiempo: now…")
+// y los ejemplos partidos en otra línea ("Will para … comprar:" + "I'll be there…").
+// El texto sigue siendo literal; solo se reagrupan líneas.
+export const unirEncabezadosGramatica = (items = []) => {
+  const out = [];
+  let cabecera = "";
+  for (const raw of items) {
+    const x = String(raw || "").trim();
+    if (!x) continue;
+    const conFuncion = /\b(para|en contexto)\b/i.test(x);
+    if (/:\s*$/.test(x) && !conFuncion) { cabecera = x.replace(/:\s*$/, ""); continue; }
+    const etiqueta = x.match(/^[^:]{1,200}:(\s|$)/);
+    if (!etiqueta && out.length) { out[out.length - 1] = `${out[out.length - 1]} ${x}`; continue; }
+    if (conFuncion) cabecera = "";
+    out.push(cabecera && !conFuncion ? `${cabecera}: ${x}` : x);
+  }
+  return out;
+};
+
+const funcionesDeEstructura = (item, tabla) => {
+  const cabeza = normClave(String(item).split(/:\s/)[0]);
+  return tabla.funciones.filter((f) => f.patron.test(cabeza)).map((f) => f.nombre);
+};
+
 /**
  * Construye `contenidosPorTema`: un bloque por cada tema oficial del grado, con el
  * vocabulario/gramática/expresiones que le corresponden por palabras clave. El
@@ -71,7 +95,7 @@ const temasDeContenido = (texto, temasDelGrado) => {
  */
 export const construirContenidosPorTema = ({
   temas = [], vocabulario = [], gramatica = [], expresiones = [],
-  procedimientosFuncionales = [], actitudinales = [],
+  procedimientosFuncionales = [], actitudinales = [], tablaFunciones = null,
 } = {}) => {
   if (!Array.isArray(temas) || !temas.length) return [];
   const bloques = temas.map((tema) => ({
@@ -99,7 +123,20 @@ export const construirContenidosPorTema = ({
     for (const b of bloques) b.conceptos[campo].push(...comunes);
   };
   repartir(vocabulario, "vocabulario");
-  repartir(gramatica, "gramatica");
   repartir(expresiones, "frases");
+  if (!tablaFunciones) {
+    repartir(gramatica, "gramatica");
+    return bloques;
+  }
+  // Opción B (src/data/funcionesPorTemaLenguas.js): la gramática va a los temas
+  // que trabajan su función y cada tema lleva solo sus funciones. Lo que no dice
+  // su función no va a ningún tema (queda en la lista completa del grado).
+  const estructuras = unirEncabezadosGramatica(gramatica).map((g) => ({ g, funciones: funcionesDeEstructura(g, tablaFunciones) }));
+  for (const b of bloques) {
+    const clave = Object.keys(tablaFunciones.temas).find((t) => temasEquivalentes(t, b.tema));
+    const suyas = clave ? tablaFunciones.temas[clave] : [];
+    b.conceptos.gramatica = estructuras.filter((e) => e.funciones.some((f) => suyas.includes(f))).map((e) => e.g);
+    b.procedimientos.funcionales = [...suyas];
+  }
   return bloques;
 };

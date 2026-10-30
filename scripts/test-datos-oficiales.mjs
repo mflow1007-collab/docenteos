@@ -16,6 +16,8 @@
 import { readFileSync } from "node:fs";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../src/data/estrategiasFasesGuia2025.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS, recomponerIndicador } from "../src/data/indicadoresIngles2doEstructurados.js";
+import { construirContenidosPorTema, unirEncabezadosGramatica } from "../src/data/repartoContenidoPorTema.js";
+import { FUNCIONES_POR_TEMA } from "../src/data/funcionesPorTemaLenguas.js";
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -154,6 +156,34 @@ INDICADORES_INGLES_2DO_ESTRUCTURADOS.forEach((ind, i) => {
     assert(deMalla, `${ind.id} no está en la malla importable`);
     igual(texto, sinErrata(ind.id, deMalla.descripcion), "malla importable");
   });
+});
+
+// Opción B (César, 2026-10-30): en la malla de Inglés 2do la gramática se
+// reparte por función comunicativa y cada tema lleva solo sus funciones.
+const malla2do = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
+const bloque = (m, tema) => m.contenidosPorTema.find((t) => t.tema === tema);
+check("reparto por función: «Escuela y educación» recibe las 8 estructuras y las 4 funciones aprobadas", () => {
+  const e = bloque(malla2do, "Escuela y educación");
+  igual(e.conceptos.gramatica.map((g) => g.split(/:\s/)[0]).join(" | "), [
+    "Presente simple para sostener una conversación", "Presente simple para referirse a actividades cotidianas",
+    "Modo imperativo para dar consejos y sugerencias", "Let’s para dar sugerencias", "Can, may y could para sostener una conversación",
+    "Should para pedir y dar consejos y sugerencias", "Condicional para dar consejos y sugerencias y expresar planes",
+    "Why don’t/ Why not para sugerencias"].join(" | "), "gramática");
+  igual(e.procedimientos.funcionales.join(" | "), FUNCIONES_POR_TEMA["ingles-2do"].temas["Escuela y educación"].join(" | "), "funciones");
+});
+check("reparto por función: lo que no dice su función no va a ningún tema; la lista del grado queda intacta", () => {
+  const asignadas = malla2do.contenidosPorTema.flatMap((t) => t.conceptos.gramatica);
+  assert(!asignadas.some((g) => /^(Pronombres|Adverbios de|Conectores de|Preposiciones de|Posesivo)/.test(g)), "estructura de base asignada a un tema");
+  assert(malla2do.contenidos.conceptos.gramatica.length === 50, "la lista completa del grado cambió");
+  malla2do.contenidosPorTema.forEach((t) => assert(!t.procedimientos.funcionales.some((f) => /^(Funcionales|Discursivos|•)/.test(f)), `${t.tema}: línea suelta en funcionales`));
+});
+check("encabezados de gramática unidos sin perder texto", () => {
+  const u = unirEncabezadosGramatica(["Adverbios de:", "Tiempo: now… I still want to go there.", "Will para acordar un encuentro y comprar:", "I’ll be there at 6:00 pm."]);
+  igual(u.join(" | "), "Adverbios de: Tiempo: now… I still want to go there. | Will para acordar un encuentro y comprar: I’ll be there at 6:00 pm.", "unión");
+});
+check("sin tabla de funciones el reparto no cambia (las otras 11 mallas)", () => {
+  const b = construirContenidosPorTema({ temas: ["Escuela y educación", "Alimentación"], gramatica: ["Pasado simple al narrar: I lived…"] });
+  assert(b.every((x) => x.conceptos.gramatica.length === 1), "sin tabla, lo transversal sigue en todos");
 });
 
 console.log(`\n${pasos} pasos, ${fallos} fallos`);
