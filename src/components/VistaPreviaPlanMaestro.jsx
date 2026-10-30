@@ -10,6 +10,7 @@
  */
 import { useMemo } from "react";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
+import { ROLES_FASES_POR_ESTRATEGIA, rolesDeFaseGuia } from "../data/rolesFasesEstrategias.js";
 import {
   PLAN_MAESTRO_INICIAL, calcularVistaPrevia, resolverIndicadoresEstructurados, competenciasDeMalla,
   temasDeLaUnidad, alternarUnionConSiguiente, fijarPartes, fijarSesiones, repartirDeNuevo,
@@ -84,6 +85,12 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
   const gruposUnion = pm.unir || [];
   const unidaConSiguiente = (num) => gruposUnion.some((g) => g.includes(num) && g.includes(num + 1));
   const enUnion = (num) => gruposUnion.some((g) => g.includes(num));
+  // Fase de la Guía con varios papeles: se divide sola, una parte por papel.
+  const partesFijas = (num) => {
+    const roles = ROLES_FASES_POR_ESTRATEGIA[pm.estrategia];
+    const papeles = roles ? rolesDeFaseGuia(roles, num) : [];
+    return papeles.length > 1 ? papeles.length : 0;
+  };
   const indicadoresPorId = new Map((estructura.indicadores || []).map((ind) => [ind.id, ind]));
 
   let cuerpo;
@@ -121,6 +128,11 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
                   <li key={nombre} style={{ marginBottom: 4 }}>
                     {nombre}
                     {" "}
+                    {partesFijas(num) ? (
+                      <span className="pd-hint" style={{ marginLeft: 8 }}>
+                        se divide sola en {partesFijas(num)} partes, una por papel
+                      </span>
+                    ) : (
                     <label style={{ fontSize: 12, marginLeft: 8, display: "inline-flex", gap: 4, alignItems: "center" }}>
                       partes
                       <select
@@ -131,7 +143,8 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
                         {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
                       </select>
                     </label>
-                    {!ultima && (
+                    )}
+                    {!ultima && !partesFijas(num) && !partesFijas(num + 1) && (
                       <label style={{ fontSize: 12, marginLeft: 10, display: "inline-flex", gap: 4, alignItems: "center" }}>
                         <input
                           type="checkbox"

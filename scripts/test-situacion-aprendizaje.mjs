@@ -80,10 +80,10 @@ check("la misma situación cambia rol y alcance del producto según la estrategi
   assert(textos[ESTRATEGIAS_FASES_GUIA_2025.findIndex((e) => e.clave === "proyectos")].includes("que pondrán en uso"), "ABProyecto pone en uso el producto");
 });
 
-check("recomendación: escuela → ABProyecto; alternativas ABProblemas e Inserción", () => {
+check("recomendación: escuela → ABProyecto; alternativas Inserción y ABProblemas (empate: orden de la Guía)", () => {
   const r = recomendarEstrategia(escuela.rasgos);
   igual(r.recomendada.clave, "proyectos", "recomendada");
-  igual(r.alternativas.map((a) => a.clave), ["problemas", "insercion_entorno"], "alternativas");
+  igual(r.alternativas.map((a) => a.clave), ["insercion_entorno", "problemas"], "alternativas");
   assert(r.recomendada.porque.length === 4, "explica los 4 criterios");
   assert(/Guía 1\.2\.4/.test(r.recomendada.sentido), "cita la Guía");
 });
@@ -94,11 +94,12 @@ check("recomendación: rutinas → ABProblemas", () => {
   igual(r.alternativas.length, 2, "dos alternativas");
 });
 
-check("recomendación: alimentación → Inserción (todavía sin fases); la mejor disponible es ABProyecto", () => {
+check("recomendación: alimentación → Inserción, ya disponible (Etapa 6+)", () => {
   const r = recomendarEstrategia(porClave("ing2-alimentacion-menu").rasgos);
   igual(r.recomendada.clave, "insercion_entorno", "recomendada");
-  igual(r.recomendada.disponible, false, "no disponible");
-  igual(r.mejorDisponible.clave, "proyectos", "mejor disponible");
+  igual(r.recomendada.disponible, true, "disponible");
+  igual(r.mejorDisponible.clave, "insercion_entorno", "mejor disponible");
+  assert(r.ranking.every((e) => e.disponible), "las 7 disponibles");
   igual(r.alternativas.map((a) => a.clave), ["proyectos", "problemas"], "alternativas");
 });
 

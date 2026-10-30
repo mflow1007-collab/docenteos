@@ -13,7 +13,7 @@ import {
   PLAN_MAESTRO_INICIAL, elegirEstrategia, alternarCompetencia, alternarAspecto,
   prepararPlanMaestroGeneracion, estadoPlanMaestroParaGenerar,
 } from "../src/services/vistaPreviaPlanMaestroService.js";
-import { usarSemilla } from "../src/services/situacionAprendizajeService.js";
+import { usarSemilla, aceptarRealineacion } from "../src/services/situacionAprendizajeService.js";
 import {
   construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta,
   recortarIndicador, recogerAmpliacion, repartirSeccionesClases,
@@ -147,14 +147,19 @@ check("validador: la pieza se nombra por la sección, no por el contenido (4.7)"
   lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: "Role card set de seventh grade" })] }, cc, 1, 1), /debe nombrar la sección/, "pieza por contenido");
 });
 
-check("validador 4.6: semilla obligatoria, ampliación marcada y foco de la semilla o de lo añadido", () => {
+check("validador 4.6: semilla obligatoria, malla de la unidad permitida, ampliación marcada y foco enriquecible", () => {
   lanza(() => validarLoteContrato({ clases: [claseOk({ semillaUsada: [] })] }, cc, 1, 1), /semillaUsada/, "sin semilla");
-  lanza(() => validarLoteContrato({ clases: [claseOk({ semillaUsada: ["cafeteria upstairs"] })] }, cc, 1, 1), /no es un contenido de la malla/, "semilla inventada");
+  lanza(() => validarLoteContrato({ clases: [claseOk({ semillaUsada: [semilla1, "cafeteria upstairs"] })] }, cc, 1, 1), /no es un contenido de la malla/, "semilla inventada");
   lanza(() => validarLoteContrato({ clases: [claseOk({ ampliacion: [{ texto: "upstairs", tipo: "jerga", seccion: "Important Places" }] })] }, cc, 1, 1), /tipo/, "tipo de ampliación");
   lanza(() => validarLoteContrato({ clases: [claseOk({ ampliacion: [{ texto: "upstairs", tipo: "vocabulario", seccion: "" }] })] }, cc, 1, 1), /sin sección/, "ampliación sin sección");
-  lanza(() => validarLoteContrato({ clases: [claseOk({ focoLinguistico: "Past simple for stories" })] }, cc, 1, 1), /focoLinguistico/, "foco ajeno");
-  // La etiqueta de categoría sola no hace coincidir el foco con la semilla.
-  lanza(() => validarLoteContrato({ clases: [claseOk({ semillaUsada: ["Vocabulario: freshman"], focoLinguistico: "Vocabulario de rutinas _wake up_", ampliacion: [] })] }, { ...cc, semilla: { ...cc.semilla, vocabulario: ["Vocabulario: freshman"] } }, 1, 1), /focoLinguistico/, "solo la etiqueta");
+  // Etapa 6+ (César): el foco puede enriquecerse más allá de lo declarado.
+  validarLoteContrato({ clases: [claseOk({ focoLinguistico: "Dar consejos: should (_You should arrive early_…)" })] }, cc, 1, 1);
+  // Etapa 6+: otros contenidos de la malla de la unidad valen junto a la semilla de la fase…
+  const deOtraFase = cc.mallaUnidad.find((m) => !Object.values(cc.semilla).flat().includes(m));
+  assert(deOtraFase, "la malla de la unidad trae contenidos de otras fases");
+  validarLoteContrato({ clases: [claseOk({ semillaUsada: [semilla1, deOtraFase] })] }, cc, 1, 1);
+  // …pero la semilla de la fase sigue siendo obligatoria.
+  lanza(() => validarLoteContrato({ clases: [claseOk({ semillaUsada: [deOtraFase] })] }, cc, 1, 1), /semilla de esta fase/, "sin la semilla de la fase");
   // 4.6: el contenido no es el protagonista: ni etiqueta de la malla ni palabra suelta.
   lanza(() => validarLoteContrato({ clases: [claseOk({ focoLinguistico: `Vocabulario: ${semilla1}; It's next to the library` })] }, cc, 1, 1), /etiqueta de la malla/, "foco con etiqueta");
   lanza(() => validarLoteContrato({ clases: [claseOk({ focoLinguistico: semilla1 })] }, cc, 1, 1), /etiqueta de la malla/, "foco = palabra de la semilla");
@@ -293,6 +298,26 @@ const { medirTamanoDocumento } = await import("../src/utils/tamanoDocumento.js")
 check("la copia del plan maestro que se guarda con la unidad es pequeña (< 32 KB)", () => {
   const bytes = medirTamanoDocumento({ planMaestro: { ...prep.plan, situacion: pm.situacion } });
   assert(bytes < 32 * 1024, `ocupa ${bytes} bytes`);
+});
+
+check("Etapa 6+: el contrato suma el propósito de la fase de la Guía al del papel; ABProyecto sin cambios", () => {
+  const prepCaso = prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: aceptarRealineacion(elegirEstrategia(pm, "estudio_caso")) }, mallaPayload: malla, horario });
+  const c3 = construirContratoFase({ plan: prepCaso.plan, indice: 2, estructura: prepCaso.estructura });
+  igual(c3.nombre, "Socialización del caso", "fase");
+  assert(c3.proposito.startsWith("Cada equipo presenta al grupo su análisis del caso."), c3.proposito);
+  assert(c3.proposito.includes("producen el borrador"), "propósito del papel");
+  igual(contratos[2].proposito.startsWith("Gestionar el conocimiento"), true, "ABProyecto solo con el papel");
+});
+check("Etapa 6+: las 5 estrategias nuevas arman un contrato por fase con la malla real", () => {
+  // Rol propio corto: esta prueba mira los contratos, no el largo de la situación.
+  const conRolCorto = (p) => ({ ...p, situacion: { ...p.situacion, rolPropio: "asumen el rol de autores de la guía" } });
+  for (const clave of ["indagacion_dialogica", "insercion_entorno", "estudio_caso", "conocimientos_previos", "expositiva"]) {
+    const pr = prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: conRolCorto(aceptarRealineacion(elegirEstrategia(pm, clave))) }, mallaPayload: malla, horario });
+    pr.plan.fases.forEach((_, i) => {
+      const c = construirContratoFase({ plan: pr.plan, indice: i, estructura: pr.estructura });
+      assert(c.proposito && c.entrega.texto, `${clave} fase ${i + 1}`);
+    });
+  }
 });
 
 console.log(`\n${pasos} ✓ · ${fallos} ✗`);

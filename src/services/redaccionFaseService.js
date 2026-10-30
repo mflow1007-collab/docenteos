@@ -8,6 +8,9 @@
  * - 4.6: la malla es la semilla (cada fase con contenido trabaja al menos uno);
  *   la IA amplía alrededor del tema y del producto y lo añadido va marcado como
  *   ampliación de DocenteOS. Sin semilla no hay ampliación (fail-closed).
+ *   Etapa 6+ (César, 2026-10-29): la semilla es el mínimo, no el límite — la
+ *   clase puede usar además otros contenidos de la malla de la unidad, y el
+ *   foco puede enriquecerse más allá de lo declarado.
  * - Las fases sin contenido (apertura, evaluación, socialización) no reciben
  *   semilla nueva: retoman lo ya trabajado, sin ampliación ni foco obligatorio.
  * - 4.7: las piezas se nombran por la sección del producto que avanzan.
@@ -34,6 +37,55 @@ export const PROPOSITO_POR_ROL = {
   socializacion: "Socializar y cerrar: presentan el producto a su audiencia y reflexionan sobre lo aprendido. No se introduce contenido nuevo.",
 };
 
+// Qué hacen los estudiantes en cada fase de la Guía (p. 22) de las estrategias
+// de la Etapa 6+; va antes del propósito del papel, que dice el estado del
+// producto. Interpretación de DocenteOS, aprobada por César el 2026-10-29.
+// ABProyecto y ABProblemas usan solo el propósito del papel.
+export const PROPOSITO_POR_FASE_GUIA = {
+  indagacion_dialogica: {
+    "Recogida de conocimientos previos": "Recogen lo que ya saben sobre la pregunta de indagación y acuerdan qué necesitan averiguar.",
+    "Validación de las fuentes": "Consultan fuentes (textos, audios, personas) y comprueban si son fiables y útiles para la pregunta.",
+    "Análisis y organización de la información": "Analizan la información de las fuentes y la organizan en esquemas, tablas o fichas.",
+    "Diseño y construcción": "Diseñan y construyen el producto con la información organizada.",
+    "Presentación de resultados": "Presentan los resultados de la indagación y responden las preguntas del público.",
+    "Evaluación": "Evalúan el producto y el proceso de indagación con los criterios acordados.",
+  },
+  insercion_entorno: {
+    "Recolección de información previa": "Recogen lo que ya saben del entorno que van a visitar y planifican la visita.",
+    "Elaboración de instrumentos de recolección": "Elaboran los instrumentos para recoger datos (preguntas de entrevista, encuesta, lista de observación).",
+    "Visita-recolección de los datos": "Visitan el entorno y recogen los datos con sus instrumentos.",
+    "Descripción y reflexión": "Describen lo observado y reflexionan sobre lo que encontraron.",
+    "Análisis de los datos e información": "Analizan los datos recogidos y sacan sus hallazgos.",
+    "Socialización del conocimiento": "Comparten y discuten los hallazgos con sus compañeros.",
+    "Elaboración de propuestas": "Elaboran propuestas para el entorno a partir de los hallazgos.",
+    "Aplicación de los conocimientos": "Ponen en práctica las propuestas ante su audiencia.",
+    "Evaluación y reconocimiento del proceso": "Evalúan el producto y reconocen lo aprendido en el proceso.",
+  },
+  estudio_caso: {
+    "Conocimiento o saberes previos del caso": "Conocen el caso y recogen lo que ya saben de él.",
+    "Indagación o estudio del caso": "Estudian el caso: lo leen o escuchan y buscan los datos que necesitan para analizarlo.",
+    "Socialización del caso": "Cada equipo presenta al grupo su análisis del caso.",
+    "Elaboración de conclusiones": "Discuten y negocian conclusiones comunes sobre el caso.",
+    "Evaluación": "Evalúan las conclusiones y el proceso con los criterios acordados.",
+  },
+  conocimientos_previos: {
+    "Presentación de la situación de aprendizaje": "Conocen la situación de aprendizaje y el producto.",
+    "Recogida de saberes recuperados": "Recuperan lo que ya saben del tema y lo registran.",
+    "Socialización reflexiva y crítica": "Comparten y contrastan sus saberes y señalan qué les falta aprender.",
+    "Introducción del nuevo conocimiento": "Incorporan el nuevo conocimiento a lo que ya sabían.",
+    "Evaluación": "Evalúan el producto y lo que cambió entre lo que sabían y lo que aprendieron.",
+  },
+  expositiva: {
+    "Recogida de conocimientos previos.": "Recogen lo que ya saben del tema de la exposición.",
+    "Búsqueda y análisis.": "Buscan y analizan información para la exposición.",
+    "Producción de la exposición": "Preparan la exposición y su apoyo (cartel, diapositivas o guion).",
+    "Exposición de producciones": "Exponen sus producciones y responden las preguntas del público.",
+    "Reflexión metacognitiva": "Reflexionan sobre cómo aprendieron y cómo expusieron.",
+    "Sistematización": "Sistematizan lo aprendido en una síntesis.",
+    "Evaluación": "Evalúan la exposición y el proceso con los criterios acordados.",
+  },
+};
+
 export const TIPOS_AMPLIACION = ["vocabulario", "gramatica", "expresion", "funcion"];
 const CATEGORIAS_SEMILLA = ["vocabulario", "gramatica", "expresiones", "funcionales"];
 
@@ -41,18 +93,11 @@ const error = (msg) => new Error(`Redacción por fase: ${msg}`);
 const normalizar = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
   .replace(/[^a-z0-9ñ' ]+/g, " ").replace(/\s+/g, " ").trim();
 // Las etiquetas de categoría ("Vocabulario:", "Gramática:") no cuentan como coincidencia.
-const STOP = new Set(["para", "with", "from", "that", "this", "your", "como", "sobre", "entre", "the", "and", "una", "unos", "unas", "los", "las", "del", "con", "por", "que",
-  "vocabulario", "gramatica", "expresion", "expresiones", "funcion", "funciones", "funcional", "funcionales", "estructura", "estructuras"]);
 const sinEtiqueta = (s) => String(s ?? "").replace(/^\s*(vocabulario|gram[aá]tica|expresi[oó]n(es)?|funci[oó]n(es)?|funcionales?)\s*:\s*/i, "");
-const palabras = (s) => normalizar(sinEtiqueta(s)).split(" ").filter((w) => w.length >= 4 && !STOP.has(w));
 const coincide = (a, b) => {
   const na = normalizar(sinEtiqueta(a));
   const nb = normalizar(sinEtiqueta(b));
   return Boolean(na && nb && (na.includes(nb) || nb.includes(na)));
-};
-const compartePalabra = (a, b) => {
-  const pb = new Set(palabras(b));
-  return palabras(a).some((w) => pb.has(w));
 };
 const listaTextos = (v) => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean) : []);
 
@@ -128,6 +173,10 @@ export const construirContratoFase = ({ plan, indice, estructura }) => {
   if (conContenido && !totalSemilla) {
     throw error(`la fase ${indice + 1} «${fase.nombre}» no recibe contenidos de la malla (sin semilla no hay ampliación). Revisa los contenidos del tema en la malla oficial.`);
   }
+  // Todos los contenidos de la malla de la unidad: la clase puede usarlos
+  // además de la semilla de su fase.
+  const mallaUnidad = [...new Set(plan.fases.flatMap((f) => CATEGORIAS_SEMILLA.flatMap((cat) =>
+    (f.contenidos?.[cat] || []).map((c) => String(c?.texto ?? c ?? "").trim()))).filter(Boolean))];
   // Lo trabajado en las fases anteriores: base de las fases sin contenido.
   const trabajado = plan.fases.slice(0, indice)
     .flatMap((f) => CATEGORIAS_SEMILLA.flatMap((cat) => (f.contenidos?.[cat] || []).map((c) => c.texto)));
@@ -138,7 +187,10 @@ export const construirContratoFase = ({ plan, indice, estructura }) => {
     nombre: fase.nombre,
     fasesGuia: [...(fase.fasesGuia || [])],
     roles: [...(fase.roles || [])],
-    proposito: [...new Set((fase.roles || []).map((r) => PROPOSITO_POR_ROL[r]).filter(Boolean))].join(" "),
+    proposito: [...new Set([
+      ...(fase.fasesGuia || []).map((n) => PROPOSITO_POR_FASE_GUIA[plan.estrategia?.clave]?.[n]),
+      ...(fase.roles || []).map((r) => PROPOSITO_POR_ROL[r]),
+    ].filter(Boolean))].join(" "),
     sesiones: fase.sesiones,
     rangoSesiones: { ...fase.rangoSesiones },
     entrega: { estado: fase.entrega.estado, texto: fase.entrega.texto, secciones: [...fase.entrega.secciones] },
@@ -149,6 +201,7 @@ export const construirContratoFase = ({ plan, indice, estructura }) => {
     indicadores,
     conContenido,
     semilla,
+    mallaUnidad: conContenido ? mallaUnidad : [],
     trabajado: conContenido ? [] : [...new Set(trabajado)],
     esApertura: (fase.roles || []).every((r) => r === "apertura"),
   };
@@ -204,8 +257,14 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1) => {
     } else {
       const usada = listaTextos(clase?.semillaUsada);
       if (!usada.length) throw new Error(`${etiqueta} sin "semillaUsada" (al menos un contenido de la malla de esta fase).`);
-      const fuera = usada.find((u) => !semilla.some((s) => coincide(u, s)));
-      if (fuera) throw new Error(`${etiqueta} — "${fuera}" no es un contenido de la malla de esta fase; lo añadido va en "ampliacion".`);
+      // Etapa 6+: la semilla de la fase es obligatoria; otros contenidos de la
+      // malla de la unidad también valen en "semillaUsada".
+      if (!usada.some((u) => semilla.some((s) => coincide(u, s)))) {
+        throw new Error(`${etiqueta} — "semillaUsada" no incluye ningún contenido de la semilla de esta fase (${semilla.slice(0, 4).join(" · ")}).`);
+      }
+      const malla = [...semilla, ...(contrato.mallaUnidad || [])];
+      const fuera = usada.find((u) => !malla.some((s) => coincide(u, s)));
+      if (fuera) throw new Error(`${etiqueta} — "${fuera}" no es un contenido de la malla de la unidad; lo añadido va en "ampliacion".`);
       ampliacion.forEach((a, k) => {
         if (!String(a?.texto || "").trim()) throw new Error(`${etiqueta} — ampliación ${k + 1} sin texto.`);
         if (!TIPOS_AMPLIACION.includes(a?.tipo)) throw new Error(`${etiqueta} — ampliación ${k + 1} con tipo "${a?.tipo}" (usa ${TIPOS_AMPLIACION.join(", ")}).`);
@@ -213,18 +272,16 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1) => {
           throw new Error(`${etiqueta} — ampliación "${a.texto}" sin sección del producto que la justifique.`);
         }
       });
-      // Foco ajustado a 4.6: la semilla o lo añadido para el producto, no
-      // necesariamente una estructura literal de la malla.
+      // Foco ajustado a 4.6 (Etapa 6+): la IA puede enriquecerlo más allá de
+      // la semilla y de lo declarado; solo se prohíbe que el contenido sea el
+      // protagonista.
       const foco = String(clase?.focoLinguistico || "");
+      if (!foco.trim()) throw new Error(`${etiqueta} sin "focoLinguistico".`);
       // 4.6: el contenido nunca es el protagonista del día — el foco no puede
       // ser una etiqueta de la malla ni una palabra suelta de la semilla.
       if (/^\s*(vocabulario|gram[aá]tica|expresi[oó]n(es)?|funci[oó]n(es)?|funcionales?)\s*:/i.test(foco)
         || semilla.some((s) => normalizar(sinEtiqueta(s)) === normalizar(sinEtiqueta(foco)))) {
         throw new Error(`${etiqueta} — "focoLinguistico" no puede ser una etiqueta de la malla ni una palabra de la semilla: nombra lo que la sección necesita comunicar.`);
-      }
-      const base = [...usada, ...ampliacion.map((a) => a.texto)];
-      if (!base.some((b) => coincide(foco, b) || compartePalabra(foco, b))) {
-        throw new Error(`${etiqueta} — "focoLinguistico" («${foco.slice(0, 90)}») no corresponde a la semilla usada ni a la ampliación declarada (${base.slice(0, 4).join(" · ").slice(0, 160)}): incluye en el foco uno de esos textos exactos.`);
       }
     }
     if (startDia + idx === contrato.sesiones && !String(clase?.entregaFase || "").trim()) {
