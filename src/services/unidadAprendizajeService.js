@@ -13,6 +13,7 @@ import {
   seleccionarRelacionParaEvidencia,
   extraerCriteriosEvaluacionCanonicos,
 } from "./curriculumBrainService.js";
+import { NIVELES_RUBRICA_GUIA, DESCRIPTORES_RUBRICA_POR_ACCION } from "../data/descriptoresRubricaGuia2025.js";
 import {
   distribuirTemasEnSemanas,
   obtenerTemaSemana,
@@ -1182,6 +1183,37 @@ const construirModeloCurricularSuperior = ({
     },
     progresion: construirProgresionCurricularSuperior({ payload, titulo, producto, allComps, allInds }),
   };
+};
+
+// ─── Anexo A con plan maestro: rúbrica de la Guía 2025 (pp. 40-42) ───────────
+// Una fila por indicador elegido en el plan: competencia (código) · indicador
+// recortado (aspectos clave, literal) · criterio oficial de referencia (el de la
+// misma posición en su competencia: comprensión / producción / interacción) ·
+// descriptores por nivel según la acción del indicador · ponderación que suma 100.
+export const construirRubricaPlan = ({ competenciasDetalle = [], estructuraIndicadores = [] } = {}) => {
+  const accionPorId = new Map((estructuraIndicadores || []).map((ind) => [ind.id, ind.accion]));
+  const filas = (competenciasDetalle || []).flatMap((comp) => (comp.indicadores || [])
+    .map((ind, posicion) => ({ ind, posicion }))
+    .filter(({ ind }) => typeof ind === "object" && ind?.recorte)
+    .map(({ ind, posicion }) => {
+      const accion = accionPorId.get(ind.codigo);
+      const descriptores = DESCRIPTORES_RUBRICA_POR_ACCION[accion];
+      if (!descriptores) {
+        throw new Error(`Rúbrica: el indicador ${ind.codigo} no tiene acción (responde / produce / interactúa) en los indicadores estructurados.`);
+      }
+      return {
+        competencia: comp.competenciaFundamental || "",
+        competenciaCodigo: comp.codigo || "",
+        indicadorCodigo: ind.codigo,
+        indicador: ind.recorte,
+        criterioReferencia: (comp.criterios || [])[posicion] || "",
+        accion,
+        niveles: NIVELES_RUBRICA_GUIA.map((nivel) => ({ ...nivel, descriptor: descriptores[nivel.clave] })),
+      };
+    }));
+  const base = filas.length ? Math.floor(100 / filas.length) : 0;
+  const resto = 100 - base * filas.length;
+  return filas.map((fila, i) => ({ ...fila, ponderacion: base + (i < resto ? 1 : 0) }));
 };
 
 // ─── Anexos A-L (parametrizados según el documento modelo) ───────────────────
@@ -5736,6 +5768,13 @@ export const generarUnidadAprendizaje = async (datos) => {
       .map((momento) => momento.recursos?.tecnologicos || "")
       .filter(Boolean),
   });
+  if (rutaPlanMaestro) {
+    // Con plan maestro el Anexo A sigue la plantilla de la Guía 2025.
+    unidadResult.anexos.rubricaPlan = construirRubricaPlan({
+      competenciasDetalle: competenciasDetalleEnriquecidas,
+      estructuraIndicadores: rutaPlanMaestro.estructura?.indicadores || [],
+    });
+  }
 
   // Control de pertinencia del producto final (determinista, no bloqueante):
   // alerta si la secuencia deriva hacia un tema paralelo, si el producto no
@@ -6595,6 +6634,17 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <p class="nota">Instrumentos de evaluación y apoyos para el aprendizaje de la unidad ${m.titulo}.</p>
 
   <h3>ANEXO A — Rúbrica analítica del producto final</h3>
+  ${(ax.rubricaPlan || []).length ? `
+  <p class="nota">Plantilla de la Guía de planificación integral 2025: niveles de la taxonomía socioformativa con su porcentaje. La ponderación de los indicadores suma 100.</p>
+  <table class="rubrica">
+      <tr><th>Competencia</th><th>Indicador o criterio de evaluación</th>${NIVELES_RUBRICA_GUIA.map((n) => `<th>${n.nombre} — ${n.porcentaje} %</th>`).join("")}<th>Ponderación</th></tr>
+      ${ax.rubricaPlan.map((r) => `<tr><td>
+        <strong>${escHtml(r.competencia)}</strong>${r.competenciaCodigo ? `<br><small>${escHtml(r.competenciaCodigo)}</small>` : ""}
+      </td><td>
+        <strong>${escHtml(r.indicadorCodigo)}</strong> — ${escHtml(r.indicador)}
+        ${r.criterioReferencia ? `<br><small><strong>Criterio de referencia:</strong> ${escHtml(r.criterioReferencia)}</small>` : ""}
+      </td>${r.niveles.map((n) => `<td>${escHtml(n.descriptor)}</td>`).join("")}<td>${r.ponderacion}</td></tr>`).join("")}
+    </table>` : `
   ${(ax.indicadoresRubrica || []).length
     ? `<p><strong>Indicadores priorizados vinculados:</strong> ${ax.indicadoresRubrica.join(", ")}</p>`
     : ""}
@@ -6608,7 +6658,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         ${r.evidencia ? `<br><small><strong>Evidencia:</strong> ${r.evidencia}</small>` : ""}
         ${r.piezaProducto ? `<br><small><strong>Pieza:</strong> ${r.piezaProducto}</small>` : ""}
       </td><td>${r.n4}</td><td>${r.n3}</td><td>${r.n2}</td><td>${r.n1}</td></tr>`).join("")}
-    </table>
+    </table>`}
 
     <h3>ANEXO B — Lista de cotejo para la producción oral</h3>
     <table class="rubrica">
