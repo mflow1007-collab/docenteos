@@ -16,6 +16,7 @@
 import { readFileSync } from "node:fs";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../src/data/estrategiasFasesGuia2025.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS, recomponerIndicador } from "../src/data/indicadoresIngles2doEstructurados.js";
+import { INDICADORES_INGLES_1RO_ESTRUCTURADOS } from "../src/data/indicadoresIngles1roEstructurados.js";
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -153,6 +154,50 @@ INDICADORES_INGLES_2DO_ESTRUCTURADOS.forEach((ind, i) => {
     const deMalla = malla.indicadoresLogro.find((x) => x.id === ind.id);
     assert(deMalla, `${ind.id} no está en la malla importable`);
     igual(texto, sinErrata(ind.id, deMalla.descripcion), "malla importable");
+  });
+});
+
+// ─── Inglés 1ro (misma comprobación; segmentación propuesta, pendiente de César) ──
+console.log("Indicadores de Inglés 1ro (Adecuación Curricular 2023):");
+
+const oficiales1 = curriculo.idiomas.ingles.ciclos
+  .flatMap((c) => c.mallas_curriculares)
+  .find((m) => m.grado.startsWith("1"))
+  .indicadores_de_logro;
+const malla1 = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_1ro_secundaria_2023.json", import.meta.url), "utf8"));
+// Única diferencia admitida: el número de página " 138" pegado al final de ING-1-I21.
+const sinErrata1 = (id, texto) => (id === "ING-1-I21" ? texto.replace(/ 138$/, "") : texto);
+
+check("1ro: 21 indicadores, 3 por competencia, con la acción de su posición en la tríada", () => {
+  igual(INDICADORES_INGLES_1RO_ESTRUCTURADOS.length, 21, "número de indicadores");
+  igual(oficiales1.length, 21, "número de indicadores en la fuente");
+  const acciones = ["responde", "produce", "interactua"];
+  INDICADORES_INGLES_1RO_ESTRUCTURADOS.forEach((ind, i) => {
+    igual(ind.id, `ING-1-I${String(i + 1).padStart(2, "0")}`, "id");
+    igual(ind.competenciaId, `ING-1-C${String(Math.floor(i / 3) + 1).padStart(2, "0")}`, `${ind.id} competencia`);
+    igual(ind.accion, acciones[i % 3], `${ind.id} acción`);
+  });
+});
+
+check("1ro: estructura coherente (enlaces = aspectos − 1, 'entre' entre listas)", () => {
+  for (const ind of INDICADORES_INGLES_1RO_ESTRUCTURADOS) {
+    igual(ind.entre.length, Math.max(ind.listas.length - 1, 0), `${ind.id} entre`);
+    for (const l of ind.listas) {
+      assert(l.aspectos.length >= 2, `${ind.id}: una lista necesita al menos 2 aspectos`);
+      igual(l.enlaces.length, l.aspectos.length - 1, `${ind.id} enlaces`);
+      assert(l.aspectos.every((a) => a && a.trim() === a), `${ind.id}: aspecto vacío o con espacios sobrantes`);
+    }
+  }
+});
+
+INDICADORES_INGLES_1RO_ESTRUCTURADOS.forEach((ind, i) => {
+  const tipo = ind.listas.length ? `${ind.listas.map((l) => l.aspectos.length).join(" + ")} aspectos` : "completo";
+  check(`${ind.id} recompuesto = texto oficial (${tipo})`, () => {
+    const texto = recomponerIndicador(ind);
+    igual(texto, sinErrata1(ind.id, oficiales1[i]), "Adecuación Curricular");
+    const deMalla = malla1.indicadoresLogro.find((x) => x.id === ind.id);
+    assert(deMalla, `${ind.id} no está en la malla importable`);
+    igual(texto, sinErrata1(ind.id, deMalla.descripcion), "malla importable");
   });
 });
 
