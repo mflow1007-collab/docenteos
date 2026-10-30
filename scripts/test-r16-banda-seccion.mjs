@@ -90,6 +90,18 @@ check("sin rótulo de fase → cabecera sin el « · » colgante", () => {
   assert(!/\(4 días\) · —/.test(b), `dejó un separador colgante: ${b}`);
 });
 
+check("plan maestro (4.7) → nombra las secciones de las clases y el estado de la fase, no el producto", () => {
+  const b = componerBandaSemana({
+    semana: 3, nDias: 2, tituloSem: "Aplicación",
+    producto: "Our School Survival Guide", temaCentral: "Escuela y educación",
+    secciones: ["Welcome", "Important Places", "Welcome"], estado: "Versión final",
+  });
+  assert(/— Secciones «Welcome» · «Important Places» \(versión final\)$/.test(b), `formato inesperado: ${b}`);
+  assert(!/Our School Survival Guide/.test(b), `nombró el producto como sección: ${b}`);
+  const una = componerBandaSemana({ semana: 1, nDias: 1, producto: "Guía", secciones: ["Asking for Help"] });
+  assert(/— Sección «Asking for Help»$/.test(una), `una sección sin estado: ${una}`);
+});
+
 console.log("\nR16 · el escape lo hace el llamador (la función no re-escapa):");
 
 check("la función NO re-escapa lo que ya recibe escapado", () => {
