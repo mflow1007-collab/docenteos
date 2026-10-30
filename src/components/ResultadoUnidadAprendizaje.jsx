@@ -211,6 +211,12 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
   const competenciasVisibles = competenciasDetalle.length
     ? competenciasDetalle
     : (Array.isArray(modeloSuperior.competencias) ? modeloSuperior.competencias : []);
+  // Criterios de evaluación (paso 7): columna solo si la unidad los trae
+  // (las guardadas antes no los tienen y no se muestra una columna vacía).
+  const hayCriterios = competenciasVisibles.some((c) => Array.isArray(c?.criterios) && c.criterios.length);
+  const competenciaElegida = (comp) => (typeof comp?.elegidaPlan === "boolean"
+    ? comp.elegidaPlan
+    : (comp?.indicadores || []).some((ind) => ind?.aplicaTemaActual));
 
   return (
     <div className="ua-resultado">
@@ -421,6 +427,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
               <tr>
                 <td className="ua-lbl">Competencias</td>
                 <td className="ua-lbl">Indicadores de Logro</td>
+                {hayCriterios && <td className="ua-lbl">Criterios de evaluación</td>}
               </tr>
               {competenciasVisibles.map((comp, i) => (
                 <tr key={i}>
@@ -430,6 +437,15 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
                     {comp.especifica && <><br /><em>{comp.especifica}</em></>}
                   </td>
                   <td>{renderIndicadores(comp.indicadores, "No registrado en la malla.", i)}</td>
+                  {hayCriterios && (
+                    <td>
+                      {(comp.criterios || []).length ? (
+                        <ul className="ua-list" style={competenciaElegida(comp) ? { fontWeight: 700 } : undefined}>
+                          {comp.criterios.map((c, ci) => <li key={ci}>{c}</li>)}
+                        </ul>
+                      ) : "No registrado en la malla."}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
