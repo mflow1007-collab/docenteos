@@ -64,7 +64,10 @@ const clase = (n, extra = {}) => ({
   indicadoresTrabajados: [],
   seccionesProducto: [],
   entregaFase: "",
-  momentos: [{ nombre: "Desarrollo", actividades: ["Leen un aviso de la biblioteca.", "Escriben indicaciones para llegar a la cafetería."] }],
+  momentos: [{ nombre: "Desarrollo", actividades: [
+    "Leen (en parejas) un aviso de la biblioteca, subrayan el horario y las normas, y anotan en el cuaderno dos datos útiles para un estudiante nuevo.",
+    "Escriben indicaciones para llegar a la cafetería desde el aula, las revisan con el plano y las entregan en una tarjeta para la carpeta.",
+  ] }],
   ...extra,
 });
 const unidadBase = () => ({

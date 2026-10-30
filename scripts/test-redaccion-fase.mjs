@@ -17,6 +17,7 @@ import { usarSemilla, aceptarRealineacion } from "../src/services/situacionApren
 import {
   construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta,
   recortarIndicador, recogerAmpliacion, repartirSeccionesClases,
+  motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro,
 } from "../src/services/redaccionFaseService.js";
 import { SITUACIONES_SEMILLA_INGLES_2DO as SEMILLAS } from "../src/data/situacionesSemillaIngles2do.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS as IND, recomponerIndicador } from "../src/data/indicadoresIngles2doEstructurados.js";
@@ -223,10 +224,10 @@ const loteFase = (over = {}) => ({
       {
         nombre: "Desarrollo", tiempo: "30 min",
         actividades: [
-          "Participan en Listen and Locate: escuchan indicaciones y ubican la biblioteca, la cafetería y la dirección en el plano.",
-          "Identifican (en parejas) los lugares del plano con el vocabulario de la escuela (_library_, _principal's office_…).",
-          "Comparan sus planos y corrigen los rótulos con ayuda del banco de palabras.",
-          "Elaboran (en equipos) el mapa etiquetado de la escuela para la sección de lugares importantes.",
+          "Escuchan (en parejas, Listen and Locate) indicaciones grabadas y ubican la biblioteca, la cafetería y la dirección en el plano impreso, marcando cada lugar con su número.",
+          "Identifican (en parejas) los lugares del plano con el vocabulario de la escuela (_library_, _principal's office_…) y escriben el rótulo en inglés junto a cada uno.",
+          "Comparan sus planos con los de otra pareja y corrigen los rótulos con ayuda del banco de palabras pegado en la pizarra del aula.",
+          "Elaboran (en equipos) el mapa etiquetado de la escuela para la sección de lugares importantes y lo entregan en una cartulina al final del Desarrollo.",
         ],
         evidencias: { desempeno: ["Ubica cinco lugares de la escuela al escuchar indicaciones."], producto: ["Mapa etiquetado de la escuela con cinco lugares."] },
         metacognicion: ["Which place was hard to find?", "How did my partner help me?"],
@@ -235,9 +236,9 @@ const loteFase = (over = {}) => ({
       {
         nombre: "Cierre", tiempo: "5 min",
         actividades: [
-          "Socializan el mapa con otro equipo y explican dos lugares.",
-          "Reciben retroalimentación sobre la ortografía de los rótulos.",
-          "Guardan el mapa en la carpeta de la sección de lugares importantes.",
+          "Socializan (en equipos) el mapa con otro equipo y explican dos lugares.",
+          "Coevalúan (en parejas) la ortografía de los rótulos con la lista de cotejo.",
+          "Mejoran los rótulos señalados y archivan el mapa en la carpeta de la sección.",
         ],
         evidencias: { producto: ["Mapa etiquetado guardado en la carpeta de la guía."] },
         metacognicion: ["What new place can I name?", "What will I improve?"],
@@ -249,7 +250,7 @@ const loteFase = (over = {}) => ({
 });
 
 const { validateBatch } = await import("../src/services/phaseAService.js");
-const optsFase = { semanaNum: cc.numero, indicadoresPermitidos: indicadoresPermitidosFase(cc), contratoFase: cc, startDia: 1 };
+const optsFase = { semanaNum: cc.numero, indicadoresPermitidos: indicadoresPermitidosFase(cc), contratoFase: cc, startDia: 1, esIdioma: true };
 
 check("phaseA: un lote que cumple el contrato pasa y el foco ya no se exige literal de la malla", () => {
   validateBatch(loteFase(), 45, 1, [], optsFase);
@@ -318,6 +319,47 @@ check("Etapa 6+: las 5 estrategias nuevas arman un contrato por fase con la mall
       assert(c.proposito && c.entrega.texto, `${clave} fase ${i + 1}`);
     });
   }
+});
+
+// Etapa 7 — regla 4.4 (aprobada por César el 2026-10-29): verbo de la lista,
+// organización entre paréntesis tras el verbo, síntesis en el Desarrollo y
+// Cierre con un verbo Autónomo o Estratégico. El Inicio canónico no se toca.
+const largo = "y escriben el rótulo en inglés junto a cada lugar del plano impreso de la escuela para la sección de lugares importantes.";
+check("4.4: verbo de la lista (taxonomía, idioma solo en idiomas, gestión)", () => {
+  assert(!motivoRedaccionActividad(`Elaboran (en equipos) el mapa ${largo}`), "taxonomía");
+  assert(!motivoRedaccionActividad(`Escuchan (en parejas) un audio ${largo}`, { esIdioma: true }), "idioma");
+  assert(/lista de verbos/.test(motivoRedaccionActividad(`Escuchan un audio ${largo}`)), "idioma fuera de idiomas");
+  assert(!motivoRedaccionActividad("Socializan (en plenaria) el mapa."), "gestión");
+  for (const v of ["Participan", "Realizan", "Guardan", "Reciben", "Acordan", "Recordandon", "Discutan"]) {
+    assert(/lista de verbos/.test(motivoRedaccionActividad(`${v} en el Gallery Walk ${largo}`, { esIdioma: true })), v);
+  }
+});
+check("4.4: la organización va en el paréntesis que sigue al verbo", () => {
+  assert(/entre paréntesis/.test(motivoRedaccionActividad(`Elaboran ideas en grupo ${largo}`)), "en grupo suelto");
+  assert(/entre paréntesis/.test(motivoRedaccionActividad(`Elaboran (Gallery Walk) ideas en parejas ${largo}`)), "fuera del paréntesis");
+  assert(!motivoRedaccionActividad(`Representan (en parejas, juego de roles) la llegada ${largo}`, { esIdioma: true }), "dentro");
+  assert(!motivoRedaccionActividad(`Escriben un párrafo de bienvenida ${largo}`, { esIdioma: true }), "individual sin paréntesis");
+});
+check("4.4: la síntesis no rechaza (decisión de César); el Cierre necesita un verbo Autónomo o Estratégico; el Inicio no se valida", () => {
+  assert(!motivoRedaccionActividad("Elaboran (en equipos) el mapa de la escuela."), "corta no rechaza");
+  const clase = (cierre) => ({ momentos: [
+    { nombre: "Inicio", actividades: ["Retroalimentación de la clase anterior."] },
+    { nombre: "Desarrollo", actividades: [`Elaboran (en equipos) el mapa ${largo}`] },
+    { nombre: "Cierre", actividades: cierre },
+  ] });
+  igual(motivosRedaccionClase(clase(["Socializan el mapa.", "Coevalúan (en parejas) los rótulos."]), "clase 1"), [], "cierre válido");
+  assert(/Autónomo o Estratégico/.test(motivosRedaccionClase(clase(["Socializan el mapa.", "Revisan los rótulos."]), "clase 1")[0] || ""), "cierre sin nivel");
+  // Todos los motivos del lote van en un solo rechazo.
+  lanza(() => validarLoteContrato({ clases: [claseOk(clase(["Guardan el mapa.", "Socializan ideas en grupo."]))] }, cc, 1, 1),
+    /Redacción 4\.4 \(3\):.*Guardan.*en grupo.*Autónomo/, "tres motivos juntos");
+});
+check("4.4: avisos de progresión por papel y de exceso de expresiones", () => {
+  const plan = { fases: [{ nombre: "Evaluación", roles: ["evaluacion"], indicadores: [], entrega: { secciones: [] } }] };
+  const dia = (acts) => ({ numeroGlobal: 1, entregaFase: "x", momentos: [{ nombre: "Desarrollo", actividades: acts }] });
+  const { avisos } = validarUnidadPlanMaestro({ planMaestro: plan, fasesSemanales: [{ dias: [dia(["Identifican (en parejas) _a_, _b_ y _c_ en el texto."])] }] });
+  assert(avisos.some((a) => /nivel autonomo/.test(a)), "progresión");
+  assert(avisos.some((a) => /menos de 18 palabras/.test(a)), "síntesis");
+  assert(avisos.some((a) => /3 expresiones/.test(a)), "expresiones");
 });
 
 console.log(`\n${pasos} ✓ · ${fallos} ✗`);
