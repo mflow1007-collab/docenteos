@@ -12,7 +12,7 @@ import { construirAnotacion, esRegistroAnecdotico, ordenarAnotaciones } from "..
 export const crearAnotacionAnecdotica = async (datos) => crearEvidencia(construirAnotacion(datos));
 
 /** Anotaciones de un estudiante (filtro opcional por curso), la más reciente primero. */
-export const obtenerAnotacionesAnecdoticas = async (estudianteId, { cursoId = "" } = {}) => {
-  const evidencias = await obtenerEvidenciasPorEstudiante(estudianteId, { cursoId });
+export const obtenerAnotacionesAnecdoticas = async (estudianteId, { cursoId = "", idsLegado = [] } = {}) => {
+  const evidencias = await obtenerEvidenciasPorEstudiante(estudianteId, { cursoId, idsLegado });
   return ordenarAnotaciones(evidencias.filter(esRegistroAnecdotico));
 };

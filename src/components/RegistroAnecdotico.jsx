@@ -76,7 +76,7 @@ export function RegistroAnecdoticoPanel({ estudiante }) {
     if (!estudiante?.id) { setAnotaciones([]); return () => { vigente = false; }; }
     setAnotaciones(null);
     setErrorCarga("");
-    obtenerAnotacionesAnecdoticas(estudiante.id, { cursoId: estudiante.cursoId || "" })
+    obtenerAnotacionesAnecdoticas(estudiante.id, { cursoId: estudiante.cursoId || "", idsLegado: estudiante.idsLegado || [] })
       .then((datos) => { if (vigente) setAnotaciones(datos); })
       .catch((err) => {
         if (!vigente) return;

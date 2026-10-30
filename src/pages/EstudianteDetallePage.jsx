@@ -8,12 +8,48 @@ import { obtenerEvidenciasPorEstudiante } from "../services/evidenciasService.js
 import { obtenerAvanceEstudiante } from "../services/avanceCurricularService.js";
 import { RegistroAnecdoticoPanel } from "../components/RegistroAnecdotico.jsx";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
+import { avisoCedula, formatearCedula } from "../utils/idEstudiante.js";
 
 const EVALUACIONES_BASE_DETALLE = [];
 
 const PLAN_APOYO_BASE_DETALLE = [];
 
-function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "Resumen", onTabChange = () => {} }) {
+// Cédula opcional (acta de nacimiento): nunca bloquea; solo avisa si no tiene 11 dígitos.
+function CedulaEditable({ estudiante, onGuardar }) {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(estudiante?.cedula || "");
+  const [error, setError] = useState("");
+  const guardar = () => {
+    try {
+      onGuardar(estudiante, formatearCedula(valor));
+      setEditando(false);
+      setError("");
+    } catch (err) {
+      setError(err?.message || "No se pudo guardar la cédula.");
+    }
+  };
+  if (!editando) {
+    return (
+      <>
+        Cédula: {estudiante?.cedula || "Pendiente de completar"}{" "}
+        {onGuardar && <button type="button" onClick={() => { setValor(estudiante?.cedula || ""); setEditando(true); }}>Editar</button>}
+        {error && <small role="alert" style={{ color: "#b91c1c", display: "block" }}>{error}</small>}
+      </>
+    );
+  }
+  return (
+    <>
+      Cédula:{" "}
+      <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="numeric" placeholder="000-0000000-0" aria-label="Cédula del estudiante" />{" "}
+      <button type="button" onClick={guardar}>Guardar</button>{" "}
+      <button type="button" onClick={() => { setEditando(false); setError(""); }}>Cancelar</button>
+      {avisoCedula(valor) && <small style={{ color: "#92400e", display: "block" }}>{avisoCedula(valor)}</small>}
+      {error && <small role="alert" style={{ color: "#b91c1c", display: "block" }}>{error}</small>}
+    </>
+  );
+}
+
+function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "Resumen", onTabChange = () => {}, onGuardarCedula = null }) {
   const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Evidencias", "Registro anecdótico", "Asistencia", "Intervenciones", "Informe IA"];
   const [tabActiva, setTabActiva] = useState(initialTab);
   const [periodoActual, setPeriodoActual] = useState(2);
@@ -53,7 +89,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     if (tabActiva !== "Evidencias" || bancoEvidencias !== null) return;
     const estId = estudiante?.id;
     if (!estId) { setBancoEvidencias([]); return; }
-    obtenerEvidenciasPorEstudiante(estId, { cursoId: estudiante?.cursoId || "" })
+    obtenerEvidenciasPorEstudiante(estId, { cursoId: estudiante?.cursoId || "", idsLegado: estudiante?.idsLegado || [] })
       // El registro anecdótico se muestra aparte, en su propia pestaña
       .then((datos) => setBancoEvidencias(datos.filter((e) => !esRegistroAnecdotico(e))))
       .catch(() => setBancoEvidencias([]));
@@ -522,6 +558,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
               <li>Curso: {curso}</li>
               <li>Edad: {edad} anos</li>
               <li>Fecha de nacimiento: {fechaNacimiento}</li>
+              <li><CedulaEditable estudiante={estudiante} onGuardar={onGuardarCedula} /></li>
               <li>Madre / Tutor: {tutor}</li>
               <li>Telefono: {telefono}</li>
             </ul>

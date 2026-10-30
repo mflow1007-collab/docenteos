@@ -19,6 +19,7 @@ import { proximaEntregaReportes } from "../data/calendarioEscolarMINERD.js";
 import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
+import { idEstudiante } from "../utils/idEstudiante.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
@@ -267,20 +268,10 @@ function calcularResumenEstudiante(notas) {
   return { compAvgs, cfExacto, cf, ccf, cexf, necesitaComp, necesitaExtra, situacion, aprobado, reprobado };
 }
 
-function slugEstudiante(nombre, indice) {
-  return `est-${String(nombre || "sin-nombre")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "") || "sin-nombre"}-${indice}`;
-}
-
 function normalizarEstudiantesRegistro(estudiantes = []) {
   return estudiantes.map((est, indice) => ({
     ...est,
-    id: est.id ?? slugEstudiante(est.nombre, indice),
+    id: idEstudiante(est, indice),
   }));
 }
 

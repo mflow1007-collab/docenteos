@@ -20,6 +20,7 @@ import { obtenerEstudiantesPorCurso } from '../services/estudiantesService.js'
 import { estadoDocencia, diasDocenciaPrevios } from '../data/calendarioEscolarMINERD.js'
 import { crearEvidencia } from '../services/evidenciasService.js'
 import { FormularioAnotacion } from '../components/RegistroAnecdotico.jsx'
+import { idEstudiante } from '../utils/idEstudiante.js'
 import { formatearUnidadHTML, formatearGuiaMaestroHTML } from '../services/unidadAprendizajeService.js'
 import { generarGuiaMaestro } from '../services/guiaMaestroService.js'
 
@@ -1266,7 +1267,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       : estudiantesSub
     return fuente
       .map((estudiante, index) => ({
-        id: estudiante?.id || estudiante?.matricula || `est-${index + 1}`,
+        id: idEstudiante(estudiante, index),
         nombre: nombreEstudiante(estudiante) || `Estudiante ${index + 1}`,
         matricula: estudiante?.matricula || estudiante?.codigo || estudiante?.codigoEstudiante || '',
         grado: estudiante?.grado || claseNorm?.grado || cursoParaAula?.grado || '',
