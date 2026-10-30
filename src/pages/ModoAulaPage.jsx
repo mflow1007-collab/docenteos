@@ -947,6 +947,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
 
   // ── Hilo pedagógico: clase de hoy / próxima desde la capa curricular
   const [avisoClase, setAvisoClase] = useState(null)
+  // F1: el curso activo no tiene plan propio (no se muestra el de otro grado)
+  const [sinPlanCurso, setSinPlanCurso] = useState(false)
+  const [avisosVinculo, setAvisosVinculo] = useState([])
+  // Mientras se busca (y, si hace falta, se ata) el plan del curso
+  const [preparandoClase, setPreparandoClase] = useState(true)
 
   // ─── Cargar desde Firestore (actualiza sobre localStorage)
   useEffect(() => {
@@ -966,7 +971,14 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     ;(async () => {
       let det = null
       try {
+        if (vigente) setPreparandoClase(true)
         const ctx = await obtenerContextoModoAula(cursoActivo?.id || '', undefined, { planes })
+          .finally(() => { if (vigente) setPreparandoClase(false) })
+        if (ctx?.motivo === 'sin-plan-del-curso') {
+          if (vigente) { setSinPlanCurso(true); setCargando(false) }
+          return
+        }
+        if (vigente) setAvisosVinculo(ctx?.advertenciasVinculo || [])
         if (ctx?.plan && ctx?.clase && ctx.plan.capaCurricular) {
           const norm = normalizarClase(ctx.plan.contenido)
           const dia = norm?.dias.find(d => d.diaNum === ctx.clase.numeroClase) || norm?.dias[0]
@@ -1093,6 +1105,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   // ─── Seleccionar plan/día desde modal
   const seleccionar = (plan, dia) => {
     const norm = normalizarClase(plan.contenido)
+    setSinPlanCurso(false) // elección explícita del docente
     setPlanActivo(plan)
     setClaseNorm(norm)
     setInstrumentosGuardadosDia([])
@@ -1966,6 +1979,34 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   )
 
   // ══════════════════════════════════════════════════════════════════════════
+  // PANTALLA: EL CURSO NO TIENE PLAN PROPIO (F1 — nunca el de otro grado)
+  // ══════════════════════════════════════════════════════════════════════════
+  if (sinPlanCurso && !planActivo) {
+    const nombreCurso = cursoActivo?.nombre || cursoActivo?.name || 'este curso'
+    return (
+      <div style={{ maxWidth:520, margin:'60px auto', textAlign:'center', padding:'0 20px' }}>
+        {SelectorModal}
+        <div style={{ fontSize:56, marginBottom:16 }}>🗂️</div>
+        <h2 style={{ fontSize:22, fontWeight:800, color:'#0f172a', marginBottom:8 }}>{nombreCurso} aún no tiene planificación</h2>
+        <p style={{ fontSize:14, color:'#64748b', marginBottom:24, lineHeight:1.6 }}>
+          Ninguna planificación guardada coincide con el grado y la asignatura de {nombreCurso}.
+          No se muestra la de otro curso para no registrar evidencias ni notas en el lugar equivocado.
+        </p>
+        <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
+          <button onClick={() => onIrA?.('planificacion')} style={{
+            background:'linear-gradient(135deg,#7c3aed,#6d28d9)', color:'#fff',
+            border:0, borderRadius:12, padding:'12px 22px', fontSize:14, fontWeight:800, cursor:'pointer',
+          }}>Generar su planificación ↗</button>
+          <button onClick={() => setMostrarSelector(true)} style={{
+            background:'#fff', color:'#4c1d95', border:'1px solid #c4b5fd',
+            borderRadius:12, padding:'12px 22px', fontSize:14, fontWeight:800, cursor:'pointer',
+          }}>Elegir una planificación</button>
+        </div>
+      </div>
+    )
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // WORKSPACE PRINCIPAL
   // ══════════════════════════════════════════════════════════════════════════
   return (
@@ -1979,6 +2020,26 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     }}>
       {SelectorModal}
       {InstrumentoModal}
+
+      {/* ══ F1: buscando / atando el plan del curso (la primera vez tarda) ══ */}
+      {preparandoClase && !planActivo && (
+        <div role="status" style={{
+          margin:'16px 24px 0', padding:'10px 18px', background:'#f5f3ff',
+          border:'1px solid #c4b5fd', borderRadius:12, color:'#4c1d95', fontSize:13, fontWeight:700,
+        }}>
+          ⏳ Preparando la clase de tu curso… Si es la primera vez, se vincula la planificación al curso y se crean sus aspectos e instrumentos.
+        </div>
+      )}
+
+      {/* ══ AVISO F1: el plan se ató al curso, pero algo no se generó ══ */}
+      {avisosVinculo.length > 0 && (
+        <div role="alert" style={{
+          margin:'16px 24px 0', padding:'10px 18px', background:'#fef2f2',
+          border:'1px solid #fecaca', borderRadius:12, color:'#b91c1c', fontSize:13, fontWeight:700,
+        }}>
+          {avisosVinculo.map((aviso) => <div key={aviso}>⚠️ {aviso}</div>)}
+        </div>
+      )}
 
       {/* ══ AVISO: hoy no hay clase planificada → se muestra la próxima ══ */}
       {avisoClase && (

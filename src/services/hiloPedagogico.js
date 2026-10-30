@@ -1172,6 +1172,34 @@ export const aplicarNotaEnCelda = (celdaPrevia = {}, nuevaNota, meta = {}) => {
   };
 };
 
+// ─── F1 — Plan ↔ curso ───────────────────────────────────────────────────────
+
+/**
+ * Puntaje mínimo para atar un plan a un curso: grado (4) + asignatura (5),
+ * los dos obligatorios. Con 7 bastaban asignatura + sección y un plan de 1ro A
+ * se ataba al curso 2do A.
+ */
+export const UMBRAL_CURSO_PLAN = 9;
+
+/**
+ * Cuánto encaja un curso con los metadatos de un plan (los planes legacy no
+ * guardan cursoId): grado 4, área/asignatura 5, sección 2. Con menos de
+ * UMBRAL_CURSO_PLAN no se ata — mejor sin curso que con el curso equivocado.
+ */
+export const puntuarCursoParaPlan = (meta = {}, curso = {}) => {
+  const gradoPlan = normalizarTexto(meta.grado || "");
+  const seccionPlan = normalizarTexto(meta.seccion || "");
+  const areaPlan = normalizarTexto(meta.asignatura || meta.area || "");
+  const gradoCurso = normalizarTexto([curso.grado, curso.nombre].filter(Boolean).join(" "));
+  const areaCurso = normalizarTexto([curso.area, curso.asignatura].filter(Boolean).join(" "));
+  const seccionCurso = normalizarTexto(curso.seccion || "");
+  let puntaje = 0;
+  if (gradoPlan && gradoCurso.includes(gradoPlan)) puntaje += 4;
+  if (areaPlan && areaCurso && (areaCurso.includes(areaPlan) || areaPlan.includes(areaCurso))) puntaje += 5;
+  if (seccionPlan && seccionCurso === seccionPlan) puntaje += 2;
+  return puntaje;
+};
+
 // ─── Fase 6 — Clase de hoy / próxima clase (Modo Aula) ───────────────────────
 
 /**

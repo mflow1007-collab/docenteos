@@ -312,11 +312,16 @@ export const crearInstrumentoDesdePlanificacion = async (registroPlan, definicio
     updatedAt: serverTimestamp(),
   }, { merge: true });
 
-  // Vincular con el aspecto del registro (no bloquea si falla; se reporta)
-  try {
-    await guardarRegistroAspectoDesdeInstrumento(instrumento);
-  } catch (error) {
-    console.warn("[instrumentosService] Instrumento guardado, pero falló el vínculo con el aspecto:", error);
+  // Vincular con el aspecto del registro (no bloquea si falla; se reporta).
+  // Si el instrumento ya alimenta los aspectos de sus indicadores
+  // (aspectoRegistroIds), NO crea columna propia: sería la misma nota dos
+  // veces (en 2do A dejó el Registro en 1050/100 puntos).
+  if (!instrumento.aspectoRegistroIds?.length) {
+    try {
+      await guardarRegistroAspectoDesdeInstrumento(instrumento);
+    } catch (error) {
+      console.warn("[instrumentosService] Instrumento guardado, pero falló el vínculo con el aspecto:", error);
+    }
   }
 
   return instrumento;
