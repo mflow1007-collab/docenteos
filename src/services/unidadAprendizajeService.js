@@ -653,6 +653,8 @@ export const esTemaLateral = (temaSemanaCorto = "", temaCentralUnidad = "") => {
  * @param {string} a.temaApoyo          - Tema real de la semana (dia.temaCurricular).
  * @param {string} a.producto           - Producto final (metadatos.productoFinal).
  * @param {string} a.temaCentral        - Título de la unidad (metadatos.titulo).
+ * @param {string[]} [a.secciones]      - Secciones del producto que avanzan las clases de la semana (plan maestro, 4.7).
+ * @param {string} [a.estado]           - Estado de la entrega de la fase ("Borrador", "Versión final"…).
  * @param {(s:string)=>string} [a.esc]  - Escapador (escHtml en render; identidad en test).
  */
 export const componerBandaSemana = ({
@@ -662,6 +664,8 @@ export const componerBandaSemana = ({
   temaApoyo = "",
   producto = "",
   temaCentral = "",
+  secciones = [],
+  estado = "",
   esc = (s) => String(s ?? ""),
 } = {}) => {
   const n = Number(nDias) || 0;
@@ -673,7 +677,14 @@ export const componerBandaSemana = ({
   let texto = `SEMANA ${esc(semana)} (${diasTxt})`;
   if (faseTxt) texto += ` · ${esc(faseTxt)}`;
 
-  if (seccion) {
+  const propias = [...new Set((secciones || []).map((x) => String(x ?? "").trim()).filter(Boolean))];
+  if (propias.length) {
+    // Plan maestro (4.7): las secciones reales que avanzan las clases de la
+    // semana, con el estado de la entrega de su fase.
+    const estadoTxt = String(estado || "").trim();
+    texto += ` — ${propias.length > 1 ? "Secciones" : "Sección"} ${propias.map((x) => `«${esc(x)}»`).join(" · ")}`;
+    if (estadoTxt) texto += ` (${esc(estadoTxt.toLowerCase())})`;
+  } else if (seccion) {
     // Con producto: la semana construye una SECCIÓN del producto.
     texto += ` — Sección «${esc(seccion)}»`;
     // El tema sólo se nombra como APOYO cuando es lateral al central (si es el
@@ -6175,6 +6186,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         temaApoyo: escHtml(String(g.dias[0]?.temaCurricular || "").trim()),
         producto: m.productoFinal,
         temaCentral: m.titulo,
+        secciones: g.dias.flatMap((d) => (Array.isArray(d.seccionesProducto) ? d.seccionesProducto : []).map((x) => escHtml(x))),
+        estado: escHtml(fase.entrega?.estado || ""),
       });
       const banda = `<div class="semana-band">${contenidoBanda}</div>`;
       return banda + g.dias.map(diaHtml).join("");
