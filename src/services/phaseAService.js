@@ -25,7 +25,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
-import { validarLoteContrato, validarFaseCompleta } from './redaccionFaseService.js';
+import { validarLoteContrato, validarFaseCompleta, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -1172,7 +1172,8 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     const cltPresente = desarrolloNorm.some((a) => a.includes(cltNombreNorm))
       || raices.some((r) => desarrolloNorm.some((a) => a.includes(r)));
     if (!cltPresente) {
-      throw new Error(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad ("Participan en ${clt.nombre}: …")`);
+      const pista = opts.contratoFase ? `nómbrala en el paréntesis de una actividad: "Representan (en parejas, ${clt.nombre}) …"` : `"Participan en ${clt.nombre}: …"`;
+      throw new Error(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad (${pista})`);
     }
 
     // 3C — anti-repetición GLOBAL: contra TODAS las clases previas de la
@@ -1253,7 +1254,7 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
   }
 
   // Etapa 5 — contrato de la fase (semilla 4.6, secciones 4.7, entrega).
-  if (opts.contratoFase) validarLoteContrato(data, opts.contratoFase, count, opts.startDia || 1);
+  if (opts.contratoFase) validarLoteContrato(data, opts.contratoFase, count, opts.startDia || 1, { esIdioma: Boolean(opts.esIdioma) });
 
   // R16 — cuando el docente aportó una realidad concreta, esta debe entrar en
   // la experiencia de aprendizaje y no quedarse únicamente en el párrafo de
@@ -1574,7 +1575,7 @@ ${reglaInicio}
 // El plan maestro (código) ya decidió fases, sesiones, entrega, secciones,
 // semilla e indicadores; la IA redacta las clases de UNA fase dentro de ese
 // contrato (redaccionFaseService.js). Aprobado por César el 2026-10-29.
-const PROMPT_FASE_VERSION = 3;
+const PROMPT_FASE_VERSION = 4;
 function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
   const c = spec.contratoFase;
   const tInicio     = durMin <= 50 ? 10 : 15;
@@ -1609,6 +1610,15 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
     ? `La clase ${endDia} es la ÚLTIMA de la fase: incluye "entregaFase" con lo que el grupo entrega al cerrar la fase (${c.entrega.texto}), y su Cierre lo deja como evidencia de producto.`
     : 'Solo la última clase de la fase incluye "entregaFase"; en estas clases va vacío ("").';
   const naturaleza = spec.esIdioma ? null : resolverNaturalezaArea(spec.area, spec.asignatura);
+  // Regla 4.4: verbos del nivel que pide el papel de la fase (y el siguiente),
+  // más los de idioma de las acciones de sus indicadores y los de gestión.
+  const NIVELES_TX = ['preformal', 'receptivo', 'resolutivo', 'autonomo', 'estrategico'];
+  const nivelMin = Math.max(0, ...c.roles.map((r) => NIVELES_TX.indexOf(NIVEL_MINIMO_POR_ROL[r] || 'receptivo')));
+  const verbosFase = NIVELES_TX.slice(nivelMin, nivelMin + 2).flatMap((n) => VERBOS_POR_NIVEL[n]).join(', ');
+  const verbosIdioma = spec.esIdioma
+    ? [...new Set(c.indicadores.flatMap((i) => VERBOS_IDIOMA[i.accion] || []))].join(', ')
+    : '';
+  const verbosCierre = [...VERBOS_POR_NIVEL.autonomo, ...VERBOS_POR_NIVEL.estrategico].slice(0, 12).join(', ');
   const desarrolloTx = spec.esIdioma
     ? `Desarrollo: ENTRE 4 Y 5 actividades progresivas (modelo contextualizado → observación de la estructura → tarea comunicativa con nombre propio → socialización y mejora de la pieza). La gramática nunca se enseña como regla suelta; explicación breve solo si es nueva.`
     : `Desarrollo: 4 actividades fieles a la naturaleza de ${spec.area} (${naturaleza.procesos.join(' → ')}); nada del molde de idiomas.`;
@@ -1637,19 +1647,26 @@ SALIDA: JSON puro con "clases" = EXACTAMENTE ${count} clase(s) (días ${startDia
 REGLAS:
 1. Solo JSON, sin texto ni markdown.
 2. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
-3. VOZ (regla de César): toda actividad empieza con VERBO en 3ª persona plural del presente; luego, entre paréntesis, la organización y la técnica si la hay ("Representan (en parejas, juego de roles) …"); si es individual, sin paréntesis. Actividad sintetizada (25-35 palabras). Si trabaja lengua concreta, menciona solo 1 o 2 expresiones${idioma ? ` en ${idioma}` : ''} en cursiva y con puntos suspensivos (_Excuse me, could you help me?_…). PROHIBIDO empezar con "Los estudiantes", "El docente", "Se" o con etiquetas ("Reflexión:"). No repitas el tema ni el nombre del producto entre actividades: usa elementos concretos (el plano de la escuela, el estudiante nuevo). Excepciones canónicas: "Retroalimentación de…" y "Recuperación de saberes previos…".
+3. REDACCIÓN DEL DESARROLLO Y DEL CIERRE (regla 4.4 de César; el validador rechaza la fase si no se cumplen a, b y el verbo del Cierre):
+   a) Empieza con UN verbo en 3ª persona plural del presente tomado SOLO de estas listas — de esta fase: ${verbosFase}${verbosIdioma ? `; de idioma: ${verbosIdioma}` : ''}; de gestión de la clase: ${VERBOS_GESTION.join(', ')}. Otro verbo (Participan, Realizan, Colaboran, Discuten, Guardan, Reciben…) = rechazo.
+   b) Justo después del verbo, entre paréntesis, la organización y la técnica si la hay: "Representan (en parejas, juego de roles) …", "Elaboran (en equipos) …". Si es individual, sin paréntesis. La organización ("en parejas", "en equipos", "en grupos", "en plenaria") NUNCA va en otra parte de la frase.
+   c) Actividad sintetizada de 25-35 palabras: acción con sus recursos, evidencia, condiciones (oral/escrita, entrega) y dónde se recoge.
+   d) Si trabaja lengua concreta, menciona solo 1 o 2 expresiones${idioma ? ` en ${idioma}` : ''} en cursiva y con puntos suspensivos: "…piden y ofrecen ayuda para ubicarse (_Excuse me, could you help me?_, _It's next to the gym_…) y graban el diálogo."
+   e) PROHIBIDO empezar con "Los estudiantes", "El docente", "Se" o con etiquetas ("Reflexión:"). No repitas el tema ni el nombre del producto entre actividades: usa elementos concretos (el plano de la escuela, el estudiante nuevo).
+   Ejemplo: "Representan (en parejas, juego de roles) la llegada de un estudiante nuevo: piden y ofrecen ayuda para ubicarse en la escuela (_Excuse me, could you help me?_…) y graban el diálogo en el celular del equipo."
+   El Inicio sigue su formato canónico (punto 5), con sus excepciones "Retroalimentación de…" y "Recuperación de saberes previos…".
 4. ${desarrolloTx} Solo UNA tarea de alta carga por clase.
-   Cierre: 3 actividades (socialización de lo producido → retroalimentación sobre UN aspecto concreto → mejora o resguardo de la pieza en su sección).
+   Cierre: 3 actividades con la misma redacción (punto 3), por su función y sin fórmulas fijas: compartir lo producido → retroalimentación, coevaluación o autoevaluación sobre UN aspecto concreto → mejora de la pieza y dónde se archiva en su sección. Al menos una empieza con un verbo Autónomo o Estratégico (${verbosCierre}…).
 5. CADA clase incluye las piezas del Inicio: "saludoInicial" (${spec.esIdioma ? `saludo en ${idioma}` : 'saludo'}, variado), "retroalimentacionPrevia" ("Retroalimentación de…" con una pregunta), "saberesPrevios" ("Recuperación de saberes previos…"), "actividadEnganche" (empieza con verbo).
 6. EVIDENCIAS por momento {"conocimientos":[],"desempeno":[],"producto":[]}: Inicio 1 de conocimientos; Desarrollo de 1 a 3 según lo que hacen; Cierre 1 o 2 ligadas a la pieza. Nombran el contenido o la pieza; nada de "participación activa". Además "metacognicion" (2 preguntas${spec.esIdioma ? ` en ${idioma} sencillo` : ''}) y "recursos" (2-4 concretos, en español).
 7. "titulo" llamativo; "intencionPedagogica" con ESTE formato exacto (el validador la rechaza si falta "Desde el inicio hasta el final de la clase" o la palabra "mediante"): "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el contenido del día] mediante [las actividades concretas de esta clase], utilizando [la estructura o el vocabulario], [evidencia observable]." Nada de "diversas actividades".
 8. Encabezado: "tituloSemana" = «${c.nombre}»; "focoLinguistico" (ver arriba); "estrategiasDia": 2-3 estrategias separadas por " • " (${ESTRATEGIAS_OFICIALES_TEXTO}).
-9. "actividadCLT": {"nombre": técnica concreta (${tecnicasEjem}), "mecanica": 1-2 líneas}; la primera actividad del Desarrollo la nombra ("Participan en …"). No repitas técnicas ya usadas.${c.esApertura ? ' En esta fase de apertura la técnica es de presentación, diagnóstico o acuerdo (no de práctica de estructuras).' : ''}
+9. "actividadCLT": {"nombre": técnica concreta (${tecnicasEjem}), "mecanica": 1-2 líneas}; una actividad del Desarrollo la nombra dentro de su paréntesis ("Representan (en parejas, Role Play) …"). No repitas técnicas ya usadas.${c.esApertura ? ' En esta fase de apertura la técnica es de presentación, diagnóstico o acuerdo (no de práctica de estructuras).' : ''}
 10. ${entregaTx}
 11. ${spec.esIdioma ? `"textoModelo": {"tipo":"dialogo|texto","titulo":"...","lineas":["..."]} breve en ${idioma}, para la sección que se avanza.` : 'Sin "textoModelo".'}
 12. El lote incluye "adaptacionesSemana" {"acceso","metodologicas","evaluacion"} y "observacionesSemana", ligadas al trabajo de ESTA fase (nunca genéricas).
 
-{"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Participan en ...","...","...","..."],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["Socializan ...","Reciben ...","Guardan ..."],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Verbo (organización, técnica) ...","...","...","..."],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote con rotación de proveedores ───────────────────────
@@ -1840,6 +1857,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
               .filter((n) => Number.isFinite(n)),
           ),
         contratoFase: spec.contratoFase || null,
+        esIdioma: spec.esIdioma,
         startDia,
       });
 
@@ -2283,6 +2301,7 @@ export const generateWeekPlan = async (
     temasActivos: spec.temasActivos,
     contextoComunitario: spec.contextoComunitario,
     contratoFase: spec.contratoFase || null,
+    esIdioma: spec.esIdioma,
   };
   const baseCheckpointKey = checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas);
 

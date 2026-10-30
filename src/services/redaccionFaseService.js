@@ -86,6 +86,78 @@ export const PROPOSITO_POR_FASE_GUIA = {
   },
 };
 
+// Regla 4.4 — verbos de las actividades (Referente pp. 36-37, taxonomía
+// socioformativa), en 3.ª persona plural.
+export const VERBOS_POR_NIVEL = {
+  preformal: ["Abordan", "Atienden", "Codifican", "Enumeran", "Enuncian", "Exploran", "Memorizan", "Nombran", "Observan", "Reaccionan", "Repiten", "Rotulan", "Señalan", "Siguen"],
+  receptivo: ["Buscan", "Citan", "Definen", "Describen", "Determinan", "Identifican", "Indagan", "Reconocen", "Recuperan", "Registran", "Relatan", "Reproducen", "Resumen", "Organizan", "Seleccionan", "Subrayan"],
+  resolutivo: ["Aplican", "Caracterizan", "Categorizan", "Comparan", "Comprenden", "Comprueban", "Diagnostican", "Diferencian", "Ejecutan", "Elaboran", "Emplean", "Implementan", "Interpretan", "Planifican", "Resuelven", "Sistematizan", "Verifican"],
+  autonomo: ["Analizan", "Aportan", "Argumentan", "Autoevalúan", "Coevalúan", "Comentan", "Contextualizan", "Critican", "Ejemplifican", "Evalúan", "Explican", "Formulan", "Infieren", "Integran", "Mejoran", "Reflexionan", "Relacionan", "Retroalimentan", "Valoran"],
+  estrategico: ["Adaptan", "Asesoran", "Ayudan", "Co-crean", "Componen", "Crean", "Generan", "Innovan", "Juzgan", "Lideran", "Predicen", "Proponen", "Proyectan", "Reconstruyen", "Transfieren", "Transforman", "Vinculan"],
+};
+// Verbos de idioma por acción del indicador (añadido de DocenteOS, no del Referente).
+export const VERBOS_IDIOMA = {
+  responde: ["Escuchan", "Leen", "Identifican", "Señalan", "Responden"],
+  produce: ["Escriben", "Redactan", "Describen", "Narran", "Presentan"],
+  interactua: ["Conversan", "Preguntan", "Entrevistan", "Representan", "Intercambian"],
+};
+// Gestión de la clase (decisión de César, Etapa 7): permitidos, no cuentan para el nivel.
+export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican"];
+const NIVELES = ["preformal", "receptivo", "resolutivo", "autonomo", "estrategico"];
+// Nivel mínimo esperado por papel de fase (progresión 4.4); su falta solo se avisa.
+export const NIVEL_MINIMO_POR_ROL = {
+  apertura: "receptivo", conocimiento: "receptivo", modelado: "resolutivo",
+  aplicacion: "resolutivo", evaluacion: "autonomo", socializacion: "autonomo",
+};
+const NIVEL_DE_VERBO = new Map(NIVELES.flatMap((n) => VERBOS_POR_NIVEL[n].map((v) => [v, n])));
+const MIN_PALABRAS_DESARROLLO = 18;
+// Organización del trabajo: va en el paréntesis que sigue al verbo (4.4).
+const ORGANIZACION_RE = /\b(en|por) (parejas|pares|tr[ií]os|equipos?|grupos?|peque[nñ]os grupos|plenaria)\b/i;
+
+const primeraPalabra = (texto) => (String(texto ?? "").trim().split(/[\s(,.:;]+/)[0] || "");
+/** Nivel de la taxonomía del verbo inicial (null si es de idioma, gestión o desconocido). */
+export const nivelVerbo = (texto) => NIVEL_DE_VERBO.get(primeraPalabra(texto)) || null;
+
+/**
+ * Regla 4.4 sobre una actividad del Desarrollo o del Cierre. Devuelve el
+ * motivo del rechazo, o "" si cumple. El Inicio canónico (saludo,
+ * «Retroalimentación de…», «Recuperación de…») no pasa por aquí.
+ */
+export const motivoRedaccionActividad = (texto, { esIdioma = false } = {}) => {
+  const t = String(texto ?? "").trim();
+  const verbo = primeraPalabra(t);
+  const permitido = NIVEL_DE_VERBO.has(verbo) || VERBOS_GESTION.includes(verbo)
+    || (esIdioma && Object.values(VERBOS_IDIOMA).some((vs) => vs.includes(verbo)));
+  if (!permitido) return `«${verbo}» no está en la lista de verbos (taxonomía del Referente${esIdioma ? ", verbos de idioma" : ""} o gestión de la clase)`;
+  const parentesis = t.match(/^\S+\s*\(([^)]*)\)/);
+  const resto = parentesis ? t.slice(parentesis[0].length) : t.slice(verbo.length);
+  if (ORGANIZACION_RE.test(resto)) return `la organización («${resto.match(ORGANIZACION_RE)[0]}») va entre paréntesis justo después del verbo: "${verbo} (en parejas) …"`;
+  return "";
+};
+
+/** Palabras de una actividad; la síntesis (25-35) solo se avisa (decisión de César, Etapa 7). */
+export const palabrasActividad = (texto) => String(texto ?? "").trim().split(/\s+/).filter(Boolean).length;
+
+/**
+ * Regla 4.4 sobre una clase: cada actividad del Desarrollo y del Cierre, y un
+ * Cierre de nivel Autónomo o Estratégico. Devuelve TODOS los motivos, para que
+ * el reintento los corrija a la vez.
+ */
+export const motivosRedaccionClase = (clase, etiqueta, opciones = {}) => {
+  const motivos = [];
+  for (const m of clase?.momentos || []) {
+    if (m?.nombre !== "Desarrollo" && m?.nombre !== "Cierre") continue;
+    (m.actividades || []).forEach((act, k) => {
+      const motivo = motivoRedaccionActividad(act, opciones);
+      if (motivo) motivos.push(`${etiqueta} — ${m.nombre}, actividad ${k + 1}: ${motivo}`);
+    });
+    if (m.nombre === "Cierre" && !(m.actividades || []).some((a) => ["autonomo", "estrategico"].includes(nivelVerbo(a)))) {
+      motivos.push(`${etiqueta} — el Cierre necesita al menos un verbo Autónomo o Estratégico (Coevalúan, Retroalimentan, Mejoran, Reflexionan…)`);
+    }
+  }
+  return motivos;
+};
+
 export const TIPOS_AMPLIACION = ["vocabulario", "gramatica", "expresion", "funcion"];
 const CATEGORIAS_SEMILLA = ["vocabulario", "gramatica", "expresiones", "funcionales"];
 
@@ -232,12 +304,14 @@ const semillaPlana = (contrato) => CATEGORIAS_SEMILLA.flatMap((cat) => contrato.
  * posición de la primera clase del lote dentro de la fase (1 = primera).
  * Lanza el primer error encontrado (mismo estilo que validateBatch).
  */
-export const validarLoteContrato = (data, contrato, count, startDia = 1) => {
+export const validarLoteContrato = (data, contrato, count, startDia = 1, opciones = {}) => {
   const semilla = semillaPlana(contrato);
   const secciones = contrato.secciones;
+  const motivos44 = [];
   for (let idx = 0; idx < count; idx += 1) {
     const clase = data?.clases?.[idx];
     const etiqueta = `Contrato: clase ${idx + 1}`;
+    motivos44.push(...motivosRedaccionClase(clase, `clase ${idx + 1}`, opciones));
     const suyas = listaTextos(clase?.seccionesProducto);
     if (secciones.length) {
       if (!suyas.length) throw new Error(`${etiqueta} sin "seccionesProducto" (la sección del producto que avanza).`);
@@ -288,6 +362,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1) => {
       throw new Error(`${etiqueta} es la última de la fase y no declara "entregaFase" (${contrato.entrega.texto}).`);
     }
   }
+  if (motivos44.length) throw new Error(`Redacción 4.4 (${motivos44.length}): ${motivos44.join("; ")}.`);
 };
 
 /** Validación de la fase completa: cada fase deja su entrega y avanza sus secciones. */
@@ -363,6 +438,26 @@ export const validarUnidadPlanMaestro = (unidad) => {
       const conTema = actividades.filter((a) => a.includes(tema)).length;
       if (conTema > 1) avisos.push(`${ref}: el tema «${tema}» se repite en ${conTema} actividades`);
       if (actividades.some((a) => a.includes(`sobre ${tema}`))) avisos.push(`${ref}: una actividad dice «sobre ${tema}»; exprésalo con elementos concretos`);
+    });
+  }));
+  // Regla 4.4 (avisos): progresión de verbos por papel de fase y expresiones
+  // en cursiva (1 o 2, terminadas en puntos suspensivos).
+  plan.fases.forEach((fasePlan, i) => {
+    const minimo = Math.max(...(fasePlan.roles || []).map((r) => NIVELES.indexOf(NIVEL_MINIMO_POR_ROL[r] || "preformal")), 0);
+    const niveles = (fases[i]?.dias || []).flatMap((d) => (d.momentos || []).flatMap((m) => m.actividades || []))
+      .map(nivelVerbo).filter(Boolean).map((n) => NIVELES.indexOf(n));
+    if (niveles.length && Math.max(...niveles) < minimo) {
+      avisos.push(`fase ${i + 1} «${fasePlan.nombre}»: ningún verbo llega al nivel ${NIVELES[minimo]} que pide su papel (regla 4.4)`);
+    }
+  });
+  fases.forEach((fase) => (fase.dias || []).forEach((dia) => {
+    const ref = `clase ${dia.numeroGlobal || dia.numero}`;
+    const desarrollo = (dia.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || [];
+    const cortas = desarrollo.filter((a) => palabrasActividad(a) < MIN_PALABRAS_DESARROLLO).length;
+    if (cortas) avisos.push(`${ref}: ${cortas} actividad(es) del Desarrollo con menos de ${MIN_PALABRAS_DESARROLLO} palabras; la síntesis lleva 25-35`);
+    (dia.momentos || []).flatMap((m) => m.actividades || []).forEach((a) => {
+      const cursivas = String(a).match(/(^|[^\w])_(?!\s)[^_]+?_(?!\w)/g) || [];
+      if (cursivas.length > 2) avisos.push(`${ref}: una actividad cita ${cursivas.length} expresiones; van 1 o 2 en cursiva con puntos suspensivos`);
     });
   }));
   return { errores, avisos };

@@ -5688,7 +5688,8 @@ export const generarUnidadAprendizaje = async (datos) => {
 
   // Validador global del plan maestro (capa 5, Etapa 6): indicador sin
   // actividad o fase sin entrega detiene la entrega; las repeticiones de tema o
-  // producto entre actividades (regla 4.4) se avisan sin bloquear.
+  // producto entre actividades, la síntesis, la progresión de verbos y las
+  // expresiones (regla 4.4) se avisan sin bloquear.
   if (unidadResult.planMaestro) {
     const global = validarUnidadPlanMaestro(unidadResult);
     if (global.errores.length) {
@@ -5697,7 +5698,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     if (global.avisos.length) {
       unidadResult.advertencias = [
         ...(unidadResult.advertencias || []),
-        `⚠️ Repeticiones entre actividades (${global.avisos.length}): ${global.avisos.join("; ")}.`,
+        `⚠️ Redacción de las actividades (regla 4.4, ${global.avisos.length}): ${global.avisos.join("; ")}.`,
       ];
     }
   }
