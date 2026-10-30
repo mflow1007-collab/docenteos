@@ -14,7 +14,7 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, construirPuntoPartida, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, construirPuntoPartida, construirRubricaPlan, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import {
@@ -33,6 +33,7 @@ import {
   relacionarCriteriosConIndicadores,
 } from "../src/services/curriculumBrainService.js";
 import { readFileSync } from "node:fs";
+import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../src/data/indicadoresIngles2doEstructurados.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -2032,6 +2033,52 @@ check("PDF: bloque PUNTO DE PARTIDA solo cuando la unidad lo trae", () => {
   if (!htmlPP.includes("PUNTO DE PARTIDA DEL GRUPO")) throw new Error("falta el bloque");
   if (!htmlPP.includes("<p style=\"margin-bottom:6pt\">Línea &lt;dos&gt;.</p>")) throw new Error("no escapa o no separa las líneas");
   if (htmlPP.indexOf("PUNTO DE PARTIDA DEL GRUPO") > htmlPP.indexOf("AMBIENTE DE APRENDIZAJE")) throw new Error("debe ir antes del ambiente");
+});
+
+// ─── Anexo A con plan maestro: rúbrica de la Guía 2025 (pp. 40-42) ───────────
+
+const rubricaInglesDosDemo = () => {
+  const malla = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
+  const detalle = construirCompetenciasDetalle(malla.competencias, malla.indicadores, [], malla.criteriosEvaluacion);
+  // Elegidos en el plan: I01 (responde), I05 (produce), I09 (interactúa).
+  const elegidos = new Set(["ING-2-I01", "ING-2-I05", "ING-2-I09"]);
+  return detalle.map((comp) => ({
+    ...comp,
+    indicadores: comp.indicadores.map((ind) => (elegidos.has(ind.codigo) ? { ...ind, recorte: `Recorte de ${ind.codigo}` } : ind)),
+  }));
+};
+
+check("rúbrica con plan: una fila por indicador elegido, acción, criterio por posición y ponderación 100", () => {
+  const filas = construirRubricaPlan({
+    competenciasDetalle: rubricaInglesDosDemo(),
+    estructuraIndicadores: INDICADORES_INGLES_2DO_ESTRUCTURADOS,
+  });
+  if (filas.length !== 3) throw new Error(`esperaba 3 filas, hay ${filas.length}`);
+  if (filas.map((f) => f.accion).join(",") !== "responde,produce,interactua") throw new Error("acciones mal asignadas");
+  if (!filas[0].criterioReferencia.startsWith("Comprensión de textos orales")) throw new Error("I01 debe ir con el criterio de comprensión");
+  if (!filas[1].criterioReferencia.startsWith("Utilización del pensamiento lógico-verbal")) throw new Error("I05 debe ir con el 2.º criterio de su competencia");
+  if (filas.reduce((n, f) => n + f.ponderacion, 0) !== 100) throw new Error("la ponderación no suma 100");
+  if (filas[0].niveles.map((n) => n.porcentaje).join("/") !== "55/70/85/100") throw new Error("niveles de la Guía");
+  if (!filas[2].niveles[3].descriptor.startsWith("Adapta")) throw new Error("descriptor estratégico de interactúa");
+});
+
+check("rúbrica con plan: indicador sin acción → error visible", () => {
+  let error = "";
+  try {
+    construirRubricaPlan({ competenciasDetalle: rubricaInglesDosDemo(), estructuraIndicadores: [] });
+  } catch (e) { error = e.message; }
+  if (!error.includes("no tiene acción")) throw new Error("debía fallar con error visible");
+});
+
+check("PDF: Anexo A con plantilla de la Guía si hay rubricaPlan; si no, la rúbrica anterior", () => {
+  const filas = construirRubricaPlan({ competenciasDetalle: rubricaInglesDosDemo(), estructuraIndicadores: INDICADORES_INGLES_2DO_ESTRUCTURADOS });
+  const anexosBase = construirAnexosUnidad({ area: "Inglés", tema: "School and education", producto: "School guide" });
+  const conPlan = formatearUnidadHTML({ ...unidadFixture, anexos: { ...anexosBase, rubricaPlan: filas } }, "");
+  if (!conPlan.includes("Receptivo — 55 %") || !conPlan.includes("Estratégico — 100 %")) throw new Error("faltan los niveles de la Guía");
+  if (conPlan.includes("Nivel 4 — Excelente")) throw new Error("con plan no debe salir la rúbrica anterior");
+  if (!conPlan.includes("Criterio de referencia:")) throw new Error("falta el criterio de referencia");
+  const sinPlan = formatearUnidadHTML({ ...unidadFixture, anexos: anexosBase }, "");
+  if (!sinPlan.includes("Nivel 4 — Excelente") || sinPlan.includes("Receptivo — 55 %")) throw new Error("sin plan debe quedar la rúbrica anterior");
 });
 
 // ─── Resultado ────────────────────────────────────────────────────────────────
