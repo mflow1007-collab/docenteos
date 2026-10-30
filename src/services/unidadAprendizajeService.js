@@ -4767,12 +4767,17 @@ const _generarFasesConIA = async (
             continue;
           }
           await logFaseRedaccionFallida({ fase: fase.numero, nombre: fase.nombre, motivo, creditosAgotados: creditos });
-          throw new Error(
+          const errorFase = new Error(
             `La IA no pudo redactar la fase ${fase.numero} «${fase.nombre}» (${intento} intento${intento > 1 ? "s" : ""}). ` +
             `DocenteOS no la rellena con plantilla. Las fases ya redactadas quedan guardadas en este navegador: vuelve a generar para reintentar solo lo que falta. ` +
             `Detalle: ${motivo.slice(0, 300)}`,
             { cause: err },
           );
+          // La reanudación automática (reanudacionGeneracion.js) solo reintenta
+          // fallos que pueden ser pasajeros; con créditos agotados no sirve.
+          errorFase.reanudable = !creditos;
+          errorFase.faseFallida = fase.numero;
+          throw errorFase;
         }
       }
     } else if (modoContingenciaSinIA) {

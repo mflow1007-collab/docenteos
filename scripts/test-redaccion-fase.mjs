@@ -362,5 +362,14 @@ check("4.4: avisos de progresión por papel y de exceso de expresiones", () => {
   assert(avisos.some((a) => /3 expresiones/.test(a)), "expresiones");
 });
 
+check("4.4: los verbos se comparan sin guion («Co-evalúan» = «Coevalúan», «Cocrean» = «Co-crean»)", () => {
+  assert(motivoRedaccionActividad("Co-evalúan (en parejas) la guía con la lista de cotejo y anotan una mejora.") === "", "Co-evalúan");
+  assert(motivoRedaccionActividad("Cocrean (en equipos) el mapa de la escuela.") === "", "Cocrean");
+  assert(motivoRedaccionActividad("Coevalúan (en parejas) la guía.") === "", "Coevalúan sigue valiendo");
+  assert(/no está en la lista/.test(motivoRedaccionActividad("Co-escriben (en parejas) la guía.")), "un verbo fuera de la lista sigue rechazado");
+  const clase = { momentos: [{ nombre: "Cierre", actividades: ["Co-evalúan (en parejas) la guía con la lista de cotejo."] }] };
+  assert(motivosRedaccionClase(clase, "Clase 1").length === 0, "un Cierre con «Co-evalúan» es de nivel Autónomo");
+});
+
 console.log(`\n${pasos} ✓ · ${fallos} ✗`);
 if (fallos) process.exit(1);
