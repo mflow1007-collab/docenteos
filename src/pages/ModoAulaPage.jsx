@@ -1023,11 +1023,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     const plan = planActivo
     if (!plan?.id || String(plan.id).startsWith('local_')) return
     ;(async () => {
-      const conCapa = plan.capaCurricular ? plan : await asegurarCapaCurricular(plan)
+      const conCapa = await asegurarCapaCurricular(plan)
       if (!vigente) return
       const capa = conCapa?.capaCurricular
       if (!capa) { setAvisoClase(null); return }
-      if (!plan.capaCurricular) setPlanActivo(conCapa)
+      if (conCapa !== plan) setPlanActivo(conCapa)
 
       const { clase, esHoy, motivo } = obtenerClaseDeHoy(capa)
       if (!clase) { setAvisoClase(null); return }

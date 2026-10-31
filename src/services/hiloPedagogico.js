@@ -106,6 +106,37 @@ export const calcularFechaSugerida = (fechaInicio, numeroSemana, nombreDia) => {
   return fecha.toISOString().slice(0, 10);
 };
 
+const esFechaISO = (valor) => /^\d{4}-\d{2}-\d{2}$/.test(String(valor || ""));
+
+// HITO 3.2 — calendario escolar: si la fecha cae en día no lectivo, la clase
+// queda ANOTADA (no se mueve — reprogramarla es decisión del docente).
+const advertenciaCalendario = (fechaSugerida) => {
+  const noLectivo = esFechaISO(fechaSugerida) ? diaNoLectivo(fechaSugerida) : null;
+  return noLectivo
+    ? `${noLectivo.tipo === "receso" ? "Receso" : noLectivo.tipo === "fin-de-semana" ? "Fin de semana" : "Feriado"}: ${noLectivo.nombre}${noLectivo.estimado ? " (estimado)" : ""}`
+    : "";
+};
+
+/**
+ * Capas guardadas antes del arreglo de fechas: en las unidades, fechaSugerida
+ * quedó como nombre del día («Jueves»). Se recalcula AL LEER (en memoria, sin
+ * escribir en Firestore) con la fecha de inicio del plan. Devuelve la misma
+ * capa si no hay nada que corregir.
+ */
+export const corregirFechasCapa = (capa, fechaInicio = "") => {
+  const clases = Array.isArray(capa?.clases) ? capa.clases : [];
+  if (!clases.some((c) => c?.fechaSugerida && !esFechaISO(c.fechaSugerida))) return capa;
+  return {
+    ...capa,
+    clases: clases.map((c) => {
+      if (!c?.fechaSugerida || esFechaISO(c.fechaSugerida)) return c;
+      const nombreDia = c.nombreDia || c.fechaSugerida;
+      const fechaSugerida = calcularFechaSugerida(fechaInicio, c.semana || 1, nombreDia);
+      return { ...c, nombreDia, fechaSugerida, advertenciaCalendario: advertenciaCalendario(fechaSugerida) };
+    }),
+  };
+};
+
 const momentosAActividades = (momentos = []) => {
   const buscar = (nombre) =>
     momentos.find((m) => normalizarTexto(m.tipo || m.nombre) === nombre) || {};
@@ -341,20 +372,20 @@ const construirClase = ({
     criteriosExito: Array.isArray(dia.criteriosExito) ? dia.criteriosExito : criteriosExito,
   });
 
-  const fechaSugerida = dia.diaCalendario || calcularFechaSugerida(fechaInicio, semana, dia.nombre || "");
-  // HITO 3.2 — calendario escolar: si la fecha cae en día no lectivo, la clase
-  // queda ANOTADA (no se mueve — reprogramarla es decisión del docente).
-  const noLectivo = /^\d{4}-\d{2}-\d{2}$/.test(fechaSugerida) ? diaNoLectivo(fechaSugerida) : null;
+  // Las unidades guardan en diaCalendario el NOMBRE del día del horario
+  // («Jueves»): solo se usa como fecha si ya es ISO; si no, se calcula.
+  const nombreDia = dia.nombre || (esFechaISO(dia.diaCalendario) ? "" : dia.diaCalendario || "");
+  const fechaSugerida = esFechaISO(dia.diaCalendario)
+    ? dia.diaCalendario
+    : calcularFechaSugerida(fechaInicio, semana, nombreDia);
 
   return {
     claseId,
     numeroClase,
     semana,
-    nombreDia: dia.nombre || "",
+    nombreDia,
     fechaSugerida,
-    advertenciaCalendario: noLectivo
-      ? `${noLectivo.tipo === "receso" ? "Receso" : noLectivo.tipo === "fin-de-semana" ? "Fin de semana" : "Feriado"}: ${noLectivo.nombre}${noLectivo.estimado ? " (estimado)" : ""}`
-      : "",
+    advertenciaCalendario: advertenciaCalendario(fechaSugerida),
     titulo: dia.tituloDia || dia.titulo || `Clase ${numeroClase}`,
     intencionPedagogica: dia.intencionPedagogica || "",
     actividades,
@@ -1208,7 +1239,15 @@ export const puntuarCursoParaPlan = (meta = {}, curso = {}) => {
  *
  * @returns {{ clase, esHoy: boolean, motivo: "hoy"|"proxima"|"sin-fechas"|null }}
  */
-export const obtenerClaseDeHoy = (capa, fechaISO = new Date().toISOString().slice(0, 10)) => {
+// «Hoy» en la hora local del docente: toISOString da la fecha UTC, que en
+// República Dominicana (UTC−4) ya es el día siguiente desde las 8:00 p. m.
+export const fechaLocalISO = (fecha = new Date()) => {
+  const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dd = String(fecha.getDate()).padStart(2, "0");
+  return `${fecha.getFullYear()}-${mm}-${dd}`;
+};
+
+export const obtenerClaseDeHoy = (capa, fechaISO = fechaLocalISO()) => {
   const clases = capa?.clases || [];
   if (!clases.length) return { clase: null, esHoy: false, motivo: null };
 
