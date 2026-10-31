@@ -345,6 +345,8 @@ function RegistroPage({
   const estudiantesModificadosRef = useRef(new Set());
   const [guardando, setGuardando] = useState(false);
   const [mensajeGuardado, setMensajeGuardado] = useState(null);
+  // Estado del guardado en la nube: visible, nunca callado
+  const [estadoNube, setEstadoNube] = useState(null);
 
   // IA — Asistente pedagógico
   const [iaTexto, setIaTexto] = useState("");
@@ -560,9 +562,15 @@ function RegistroPage({
     const timer = setTimeout(() => {
       const payload = crearPayloadRegistro();
       guardarBorradorLocal();
-      guardarRegistroCalificaciones(payload).catch(() => {
-        // El borrador local ya quedó protegido; el guardado remoto se reintentará con el siguiente cambio.
-      });
+      setEstadoNube({ estado: "guardando" });
+      guardarRegistroCalificaciones({ ...payload, desdePagina: true })
+        .then(({ mode }) => setEstadoNube(mode === "firebase"
+          ? { estado: "ok", hora: new Date().toLocaleTimeString("es-DO") }
+          : { estado: "error", mensaje: "sin sesión o sin conexión" }))
+        .catch((error) => {
+          // El borrador local ya quedó protegido; el guardado remoto se reintenta con el siguiente cambio.
+          setEstadoNube({ estado: "error", mensaje: error?.message || "error desconocido" });
+        });
     }, 700);
 
     return () => clearTimeout(timer);
@@ -1034,8 +1042,10 @@ function RegistroPage({
         asistencia,
         observaciones,
         evaluacionesInstrumentos,
+        desdePagina: true,
       });
       guardarBorradorLocal();
+      setEstadoNube({ estado: "ok", hora: new Date().toLocaleTimeString("es-DO") });
       // Escritura silenciosa al expediente — solo estudiantes con notas modificadas
       const modificados = [...estudiantesModificadosRef.current];
       estudiantesModificadosRef.current = new Set();
@@ -1079,8 +1089,9 @@ function RegistroPage({
         });
       }
       setMensajeGuardado({ tipo: "ok", texto: "✅ Registro guardado correctamente." });
-    } catch {
-      setMensajeGuardado({ tipo: "error", texto: "❌ Error al guardar. Intenta de nuevo." });
+    } catch (error) {
+      setEstadoNube({ estado: "error", mensaje: error?.message || "error desconocido" });
+      setMensajeGuardado({ tipo: "error", texto: `❌ No se guardó en la nube: ${error?.message || "error desconocido"}. Quedó en este equipo; intenta de nuevo.` });
     } finally {
       setGuardando(false);
       setTimeout(() => setMensajeGuardado(null), 4000);
@@ -1318,6 +1329,16 @@ function RegistroPage({
             <button type="button" className="rh-btn-primary" onClick={exportarInformeCoordinacion}>📋 Informe para coordinación</button>
             <button type="button" className="rh-btn-ghost" onClick={() => window.print()}>🖨 Imprimir</button>
           </div>
+          {estadoNube && (
+            <div role={estadoNube.estado === "error" ? "alert" : "status"} style={{
+              marginTop: 8, fontSize: 12, fontWeight: 700,
+              color: estadoNube.estado === "error" ? "#fecaca" : "rgba(255,255,255,.85)",
+            }}>
+              {estadoNube.estado === "guardando" && "☁️ Guardando en la nube…"}
+              {estadoNube.estado === "ok" && `☁️ Guardado en la nube a las ${estadoNube.hora}`}
+              {estadoNube.estado === "error" && `⚠️ No se guardó en la nube (${estadoNube.mensaje}); quedó solo en este equipo.`}
+            </div>
+          )}
           {mensajeGuardado && (
             <div className={`registro-msg-guardado ${mensajeGuardado.tipo}`}>
               {mensajeGuardado.texto}

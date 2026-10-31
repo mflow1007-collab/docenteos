@@ -25,6 +25,7 @@ import { esUsuarioDocenteOS } from "./utils/permisos.js";
 import { COMP_CODIGOS, resolverCI, resolverPI } from "./constants/registroCodigos.js";
 import { aplicarNotaEnCelda } from "./services/hiloPedagogico.js";
 import { verificarTamanoDocumento, fusionarComoFirestore } from "./utils/tamanoDocumento.js";
+import { payloadRemotoDePagina, sinIndefinidos } from "./utils/registroGuardado.js";
 
 // import.meta.env solo existe bajo Vite; en Node (tests) queda {} y
 // isFirebaseConfigured=false — mismo comportamiento que sin credenciales.
@@ -476,6 +477,7 @@ export const guardarRegistroCalificaciones = async ({
   observaciones,
   evaluacionesInstrumentos,
   resumenEvaluacionesInstrumentos,
+  desdePagina = false, // la página del Registro no sube evaluacionesInstrumentos (solo las lee)
 }) => {
   if (!cursoId) throw new Error("cursoId es obligatorio");
 
@@ -494,25 +496,35 @@ export const guardarRegistroCalificaciones = async ({
     resumenEvaluacionesInstrumentos,
     updatedAt,
   };
-  const payloadFirestore = {
-    ...payload,
-    asistencia: serializarAsistenciaFirestore(asistencia),
-  };
+  // Sin `undefined` (Firestore rechazaría todo el documento)
+  const payloadFirestore = sinIndefinidos({
+    ...(desdePagina ? payloadRemotoDePagina(payload) : payload),
+    asistencia: serializarAsistenciaFirestore(asistencia || []),
+  });
 
   try {
     guardarRegistroLocal(cursoId, payload);
 
     if (isFirebaseConfigured && auth && db && auth.currentUser) {
       const user = auth.currentUser;
-      const ref = doc(db, "registrosCalificaciones", `${user.uid}_${cursoId}`);
-      await setDoc(ref, {
+      const idDocumento = `${user.uid}_${cursoId}`;
+      const ref = doc(db, "registrosCalificaciones", idDocumento);
+      const datos = {
         ...payloadFirestore,
         usuario: user.uid,
         usuarioEmail: user.email,
         ...buildMetaBase(user.uid),
         updatedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
-      }, { merge: true });
+      };
+      // A4: con merge, el documento final = lo existente fusionado con lo nuevo
+      const previo = await getDoc(ref);
+      verificarTamanoDocumento(fusionarComoFirestore(previo.exists() ? previo.data() : {}, datos), {
+        que: "El Registro de calificaciones",
+        coleccion: "registrosCalificaciones",
+        idDocumento,
+      });
+      await setDoc(ref, datos, { merge: true });
       return { success: true, mode: "firebase" };
     }
 
