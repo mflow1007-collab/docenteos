@@ -13,13 +13,17 @@ import {
   obtenerRegistroNotas,
 } from "../firebase";
 import { validarPonderacion } from "../services/hiloPedagogico.js";
-import { obtenerAvanceCurricular } from "../services/avanceCurricularService.js";
+import { obtenerAvanceCurricular, obtenerResultadosCurso } from "../services/avanceCurricularService.js";
+import { obtenerActividadesPorCurso } from "../services/actividadesService.js";
+import { construirInformeCurso, htmlInformeCurso } from "../services/informesSeguimiento.js";
+import { fechaLocalISO } from "../services/hiloPedagogico.js";
 import { obtenerAsistenciaCurso, obtenerSuspensiones } from "../services/asistenciaService.js";
 import { proximaEntregaReportes } from "../data/calendarioEscolarMINERD.js";
 import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
-import { idEstudiante } from "../utils/idEstudiante.js";
+import { calcularResumenEstudiante, normalizarNotasCompetencias } from "../utils/resumenCalificaciones.js";
+import { idEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
@@ -202,71 +206,6 @@ function badgeClase(valor) {
 }
 
 // Códigos CE oficiales MINERD por asignatura — Nivel Secundario
-
-function crearNotasVacias(cantidadCompetencias = 4) {
-  return {
-    competencias: Array.from({ length: Math.max(1, cantidadCompetencias) }, () => ({
-      periodos: Array.from({ length: 4 }, () => ({ p: "", rp: "" })),
-    })),
-    ceCompletiva: "",
-    ceExtraordinaria: "",
-  };
-}
-
-function normalizarNotasCompetencias(notas, cantidadCompetencias = 4) {
-  const base = notas || crearNotasVacias(cantidadCompetencias);
-  return {
-    ...base,
-    competencias: Array.from({ length: Math.max(1, cantidadCompetencias) }, (_, ci) => {
-      const comp = base.competencias?.[ci] || {};
-      return {
-        ...comp,
-        periodos: Array.from({ length: 4 }, (_, pi) => comp.periodos?.[pi] || { p: "", rp: "" }),
-      };
-    }),
-  };
-}
-
-function calcularResumenEstudiante(notas) {
-  const compAvgs = notas.competencias.map((comp) => {
-    const finals = comp.periodos.map((per) => {
-      const p = Number(per.p) || 0;
-      const rp = Number(per.rp) || 0;
-      return p >= 70 ? p : rp > 0 ? rp : p;
-    });
-    const validos = finals.filter((v) => v > 0);
-    if (!validos.length) return 0;
-    return Math.round((validos.reduce((a, b) => a + b, 0) / validos.length) * 10) / 10;
-  });
-
-  const cfValidos = compAvgs.filter((v) => v > 0);
-  const cfExacto = cfValidos.length
-    ? Math.round((cfValidos.reduce((a, b) => a + b, 0) / cfValidos.length) * 100) / 100
-    : 0;
-  const cf = Math.round(cfExacto);
-
-  const ceComp  = Number(notas.ceCompletiva)     || 0;
-  const p50cf   = cf > 0     ? Math.round(cf * 0.5)     : 0;
-  const p50cec  = ceComp > 0 ? Math.round(ceComp * 0.5) : 0;
-  const ccf     = p50cf + p50cec;
-
-  const ceExtra  = Number(notas.ceExtraordinaria) || 0;
-  const p30cf    = cf > 0      ? Math.round(cf * 0.3)       : 0;
-  const p70ceex  = ceExtra > 0 ? Math.round(ceExtra * 0.7)  : 0;
-  const cexf     = p30cf + p70ceex;
-
-  const necesitaComp  = cf > 0 && cf < 70;
-  const necesitaExtra = necesitaComp && ccf > 0 && ccf < 70;
-
-  let situacion = cf > 0 ? "Reprobado" : "—";
-  let aprobado = false, reprobado = false;
-  if      (cf >= 70)   { situacion = "Aprobado";       aprobado = true; }
-  else if (ccf >= 70)  { situacion = "Completiva";     aprobado = true; }
-  else if (cexf >= 70) { situacion = "Extraordinaria"; aprobado = true; }
-  else if (cf > 0)     { reprobado = true; }
-
-  return { compAvgs, cfExacto, cf, ccf, cexf, necesitaComp, necesitaExtra, situacion, aprobado, reprobado };
-}
 
 function normalizarEstudiantesRegistro(estudiantes = []) {
   return estudiantes.map((est, indice) => ({
@@ -1084,6 +1023,42 @@ function RegistroPage({
     URL.revokeObjectURL(url);
   };
 
+  // F6 — Informe para coordinación (decisión 6, formato: tabla del curso en PDF).
+  // Solo datos registrados; una fuente que falla sale «sin comprobar».
+  const exportarInformeCoordinacion = async () => {
+    if (!curso?.id) { setMensajeGuardado({ tipo: "error", texto: "Selecciona un curso para preparar el informe." }); return; }
+    // La ventana se abre antes de leer: si se abre después del await el navegador la bloquea
+    const win = window.open("", "_blank");
+    if (!win) { alert("Permite ventanas emergentes para exportar el PDF."); return; }
+    win.document.write("<p style=\"font-family:system-ui\">Preparando el informe…</p>");
+    const fuentes = {
+      actividades: obtenerActividadesPorCurso(cursoId),
+      resultados: obtenerResultadosCurso(cursoId),
+      asistencia: obtenerAsistenciaCurso(cursoId, { estricto: true }),
+      // Se releen (no el estado de la página, que vacía los errores): mismo Registro que en pantalla
+      registro: Promise.all([obtenerRegistroAspectos(cursoId), obtenerRegistroNotas(cursoId)]).then(([a, n]) => {
+        if (a.success === false || n.success === false) throw new Error("No se pudo leer el Registro por indicador");
+        return { aspectos: a.data || [], notas: n.data || [] };
+      }),
+    };
+    const res = await Promise.allSettled(Object.values(fuentes));
+    const datos = {}, errores = {};
+    Object.keys(fuentes).forEach((clave, i) => {
+      if (res[i].status === "fulfilled") datos[clave] = res[i].value || [];
+      else { datos[clave] = []; errores[clave] = res[i].reason?.message || "error de lectura"; }
+    });
+    const { registro, ...resto } = datos;
+    const informe = construirInformeCurso({
+      cursoNombre, asignatura: area, ...resto,
+      // Con sus ids legados, como la ficha: los resultados viejos (p. ej. «est-1») también cuentan
+      estudiantes: estudiantes.map((est, i) => ({ ...est, idsLegado: idsLegadoEstudiante(est, i, { cursoId }) })),
+      aspectos: registro.aspectos || [], notas: registro.notas || [], hoy: fechaLocalISO(), errores,
+    });
+    win.document.open();
+    win.document.write(htmlInformeCurso(informe));
+    win.document.close();
+  };
+
   const exportarPDF = () => {
     const compHeaders = codigosComp
       .map((cod, ci) => {
@@ -1233,6 +1208,7 @@ function RegistroPage({
             </button>
             <button type="button" className="rh-btn-primary" onClick={exportarPDF}>📥 PDF</button>
             <button type="button" className="rh-btn-primary" onClick={exportarExcel}>📊 Excel</button>
+            <button type="button" className="rh-btn-primary" onClick={exportarInformeCoordinacion}>📋 Informe para coordinación</button>
             <button type="button" className="rh-btn-ghost" onClick={() => window.print()}>🖨 Imprimir</button>
           </div>
           {mensajeGuardado && (

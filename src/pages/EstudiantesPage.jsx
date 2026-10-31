@@ -240,7 +240,7 @@ function EstudiantesPage({
       const planApoyoActual = Array.isArray(payloadPrevio.planApoyo) ? payloadPrevio.planApoyo : [];
       const payload = {
         ...payloadPrevio,
-        tabActiva: panelIaAccion === "informe" ? "Informe IA" : "Intervenciones",
+        tabActiva: panelIaAccion === "informe" ? "Informe a la familia" : "Intervenciones",
         mensajeAccion: `${panelIaAccion === "informe" ? "Informe" : "Intervención"} guardado desde Centro IA el ${fecha}.`,
         ...(panelIaAccion === "informe"
           ? { informeIa: panelIaTexto }
