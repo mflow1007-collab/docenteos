@@ -12,7 +12,7 @@
  */
 
 import {
-  aplicarExclusion, construirRubricaActividad, estudiantesParaEvaluar, nivelesDeResultado, puntuarRubrica,
+  aplicarExclusion, construirRubricaActividad, debeQuitarNota, estudiantesParaEvaluar, nivelesDeResultado, puntuarRubrica,
 } from "../src/services/actividadesPlan.js";
 import {
   consolidarNotaAspecto, consolidarNotaEstudiante, construirResultadoInstrumento,
@@ -104,8 +104,27 @@ check("estudiantesParaEvaluar: entregó → rúbrica; no entregó → decisión;
     "est-luis-2": { estado: "excusa", nombre: "Luis" },
     "est-bea-3": { nombre: "Bea" },
   });
-  igual([g.entrego.map((e) => e.id), g.no_entrego.map((e) => e.id), g.sinEvaluar.map((e) => e.id)],
-    [["est-ana-0"], ["est-ricardo-1"], ["est-bea-3", "est-luis-2"]], "grupos");
+  igual([g.entrego.map((e) => e.id), g.no_entrego.map((e) => e.id), g.conNota.map((e) => e.id), g.sinEvaluar.map((e) => e.id)],
+    [["est-ana-0"], ["est-ricardo-1"], [], ["est-bea-3", "est-luis-2"]], "grupos");
+});
+
+check("quien tiene nota y ya no figura como Entregó/No entregó sigue a la vista para quitarla", () => {
+  const g = estudiantesParaEvaluar({
+    "est-ricardo-1": { estado: "excusa", nombre: "Ricardo" },
+    "est-luis-2": { estado: "excusa", nombre: "Luis" },
+  }, ["est-ricardo-1"]);
+  igual([g.conNota.map((e) => [e.id, e.estado]), g.sinEvaluar.map((e) => e.id)],
+    [[["est-ricardo-1", "excusa"]], ["est-luis-2"]], "con nota aparte");
+});
+
+check("decisión 3: Otra oportunidad o Excusa quitan una nota puesta; nada más la toca", () => {
+  const cero = construirResultadoInstrumento({ instrumento: rubrica, estudianteId: "est-ricardo-1", puntajeObtenido: 0 });
+  igual([debeQuitarNota("pendiente", cero), debeQuitarNota("excusa", cero)], [true, true], "quita el 0");
+  igual([debeQuitarNota("entrego", cero), debeQuitarNota("no_entrego", cero), debeQuitarNota("excusa", null)],
+    [false, false, false], "no toca");
+  const quitado = construirResultadoInstrumento({ instrumento: rubrica, estudianteId: "est-ricardo-1", estado: "pendiente" });
+  const c = consolidarNotaEstudiante({ instrumentos: [rubrica], resultados: [quitado] });
+  igual([quitado.puntajeObtenido, c.valorCalculado], [null, null], "sin número en el Registro");
 });
 
 console.log(`\n${pasos} ok, ${fallos} fallo(s)\n`);

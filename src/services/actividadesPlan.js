@@ -360,18 +360,29 @@ export const nivelesDeResultado = (resultado) =>
 
 /**
  * Quién se evalúa en la actividad: entregó → rúbrica; no entregó → decisión
- * del docente; pendiente y excusa → no se evalúan. Orden alfabético.
+ * del docente; pendiente y excusa → no se evalúan, salvo que ya tengan nota
+ * (`conNota`: IDs con resultado evaluado), que se muestran para poder
+ * quitarla. Orden alfabético.
  */
-export const estudiantesParaEvaluar = (entregas = {}) => {
-  const grupos = { entrego: [], no_entrego: [], sinEvaluar: [] };
+export const estudiantesParaEvaluar = (entregas = {}, conNota = []) => {
+  const evaluados = new Set([...conNota].map(String));
+  const grupos = { entrego: [], no_entrego: [], conNota: [], sinEvaluar: [] };
   Object.entries(entregas || {})
     .sort(([, a], [, b]) => String(a?.nombre).localeCompare(String(b?.nombre), "es"))
     .forEach(([id, e]) => {
       const fila = { id, nombre: e?.nombre || id, estado: ESTADOS_ENTREGA.includes(e?.estado) ? e.estado : "pendiente" };
-      (grupos[fila.estado] || grupos.sinEvaluar).push(fila);
+      const grupo = grupos[fila.estado] || (evaluados.has(id) ? grupos.conNota : grupos.sinEvaluar);
+      grupo.push(fila);
     });
   return grupos;
 };
+
+/**
+ * Decisión 3: «Otra oportunidad» (vuelve a Pendiente) o «Excusa» no dejan
+ * una nota ya puesta contando en el Registro.
+ */
+export const debeQuitarNota = (nuevoEstado, resultado) =>
+  ["pendiente", "excusa"].includes(nuevoEstado) && resultado?.estado === "evaluado";
 
 /** Lista de instrumentos del plan con la exclusión de uno ya aplicada (para recalcular). */
 export const aplicarExclusion = (instrumentos = [], instrumentoId, excluido) =>
