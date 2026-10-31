@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { AIService } from "../services/ai/AIService.js";
-import { buildAIContext } from "../services/ai/ContextBuilder.js";
+import { conFundamento } from "../services/fundamentoDoctrinalService.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
-import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
+import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante, obtenerRegistroAspectos, obtenerRegistroNotas, obtenerRegistroCalificaciones } from "../firebase.js";
 import { obtenerEvidenciasPorEstudiante } from "../services/evidenciasService.js";
 import { obtenerAvanceEstudiante, obtenerResultadosEstudiante } from "../services/avanceCurricularService.js";
 import { obtenerActividadesPorCurso } from "../services/actividadesService.js";
 import { obtenerAsistenciaCurso } from "../services/asistenciaService.js";
 import { construirLineaDeTiempo, senalesNecesitaApoyo } from "../services/seguimientoEstudiante.js";
+import { construirInformeFamilia, textoInformeFamilia, textoWhatsApp, htmlDocumento } from "../services/informesSeguimiento.js";
 import { fechaLocalISO } from "../services/hiloPedagogico.js";
 import { actividadesDeEstudiante, ETIQUETAS_ENTREGA } from "../services/actividadesPlan.js";
 import { RegistroAnecdoticoPanel } from "../components/RegistroAnecdotico.jsx";
@@ -16,6 +17,10 @@ import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
 import { avisoCedula, formatearCedula } from "../utils/idEstudiante.js";
 
 const EVALUACIONES_BASE_DETALLE = [];
+
+// F6: la pestaña «Informe IA» pasa a ser el informe a la familia (nombre viejo aceptado)
+const TAB_INFORME = "Informe a la familia";
+const tabValida = (tab) => (tab === "Informe IA" ? TAB_INFORME : tab);
 
 const PLAN_APOYO_BASE_DETALLE = [];
 
@@ -55,8 +60,8 @@ function CedulaEditable({ estudiante, onGuardar }) {
 }
 
 function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "Resumen", onTabChange = () => {}, onGuardarCedula = null }) {
-  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Actividades", "Evidencias", "Registro anecdótico", "Asistencia", "Intervenciones", "Informe IA"];
-  const [tabActiva, setTabActiva] = useState(initialTab);
+  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Actividades", "Evidencias", "Registro anecdótico", "Asistencia", "Intervenciones", TAB_INFORME];
+  const [tabActiva, setTabActiva] = useState(tabValida(initialTab));
   const [periodoActual, setPeriodoActual] = useState(2);
   const [estadoPlan, setEstadoPlan] = useState("Pendiente de iniciar");
   const [ultimoEnvio, setUltimoEnvio] = useState(null);
@@ -201,7 +206,11 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   ];
   const periodoSeleccionado = periodosEstudiante[periodoActual] || periodosEstudiante[2];
 
-  const informeIaBase = "El estudiante presenta una combinacion de fortalezas en Ciencias y oportunidades de mejora en Matematica. Se recomienda andamiaje por objetivos semanales y acompanamiento familiar continuo.";
+  // F6: antes había aquí un texto fijo inventado («fortalezas en Ciencias…»);
+  // si quedó guardado en el estado de la ficha, se descarta al cargar.
+  const informeIaBase = "";
+  const TEXTO_INVENTADO_VIEJO = "El estudiante presenta una combinacion de fortalezas en Ciencias";
+  const informeGuardado = (t) => (typeof t === "string" && !t.startsWith(TEXTO_INVENTADO_VIEJO) ? t : informeIaBase);
   // Usar evaluaciones del expediente Firestore si existen, si no el estado local vacío
   const evaluacionesExpediente = expediente?.evaluaciones ?? [];
   const evidenciasExpediente = useMemo(() => expediente?.evidencias ?? [], [expediente?.evidencias]);
@@ -220,6 +229,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   const [planApoyo, setPlanApoyo] = useState(PLAN_APOYO_BASE_DETALLE);
   const [informeIa, setInformeIa] = useState(informeIaBase);
   const [informeIaGenerando, setInformeIaGenerando] = useState(false);
+  const [informeIaAprobado, setInformeIaAprobado] = useState(null); // fecha de aprobación del docente
   const informeIaRef = useRef(null);
 
   const totalCirc = 276;
@@ -244,13 +254,14 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         const remoto = await obtenerEstadoDetalleEstudiante(detalleId);
         const remotoData = remoto?.data && typeof remoto.data === "object" ? remoto.data : null;
         if (remotoData) {
-          setTabActiva(remotoData.tabActiva || "Resumen");
+          setTabActiva(tabValida(remotoData.tabActiva) || "Resumen");
           setEstadoPlan(remotoData.estadoPlan || "Pendiente de iniciar");
           setUltimoEnvio(remotoData.ultimoEnvio || null);
           setMensajeAccion(remotoData.mensajeAccion || "");
           setEvaluaciones(Array.isArray(remotoData.evaluaciones) ? remotoData.evaluaciones : EVALUACIONES_BASE_DETALLE);
           setPlanApoyo(Array.isArray(remotoData.planApoyo) ? remotoData.planApoyo : PLAN_APOYO_BASE_DETALLE);
-          setInformeIa(remotoData.informeIa || informeIaBase);
+          setInformeIa(informeGuardado(remotoData.informeIa));
+          setInformeIaAprobado(remotoData.informeIaAprobado || null);
           setStorageListo(true);
           return;
         }
@@ -264,17 +275,19 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
           setEvaluaciones(EVALUACIONES_BASE_DETALLE);
           setPlanApoyo(PLAN_APOYO_BASE_DETALLE);
           setInformeIa(informeIaBase);
+          setInformeIaAprobado(null);
           setStorageListo(true);
           return;
         }
         const parsed = JSON.parse(raw);
-        setTabActiva(parsed.tabActiva || "Resumen");
+        setTabActiva(tabValida(parsed.tabActiva) || "Resumen");
         setEstadoPlan(parsed.estadoPlan || "Pendiente de iniciar");
         setUltimoEnvio(parsed.ultimoEnvio || null);
         setMensajeAccion(parsed.mensajeAccion || "");
         setEvaluaciones(Array.isArray(parsed.evaluaciones) ? parsed.evaluaciones : EVALUACIONES_BASE_DETALLE);
         setPlanApoyo(Array.isArray(parsed.planApoyo) ? parsed.planApoyo : PLAN_APOYO_BASE_DETALLE);
-        setInformeIa(parsed.informeIa || informeIaBase);
+        setInformeIa(informeGuardado(parsed.informeIa));
+        setInformeIaAprobado(parsed.informeIaAprobado || null);
         setStorageListo(true);
       } catch {
         setTabActiva("Resumen");
@@ -284,6 +297,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         setEvaluaciones(EVALUACIONES_BASE_DETALLE);
         setPlanApoyo(PLAN_APOYO_BASE_DETALLE);
         setInformeIa(informeIaBase);
+        setInformeIaAprobado(null);
         setStorageListo(true);
       }
     };
@@ -293,7 +307,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   }, [storageKey, detalleId]);
 
   useEffect(() => {
-    setTabActiva(initialTab || "Resumen");
+    setTabActiva(tabValida(initialTab) || "Resumen");
   }, [initialTab]);
 
   useEffect(() => {
@@ -311,63 +325,113 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       evaluaciones,
       planApoyo,
       informeIa,
+      informeIaAprobado,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
     guardarEstadoDetalleEstudiante({ estudianteId: detalleId, payload }).catch(() => {
       // Fallback local ya aplicado.
     });
-  }, [storageKey, detalleId, storageListo, tabActiva, estadoPlan, ultimoEnvio, mensajeAccion, evaluaciones, planApoyo, informeIa]);
+  }, [storageKey, detalleId, storageListo, tabActiva, estadoPlan, ultimoEnvio, mensajeAccion, evaluaciones, planApoyo, informeIa, informeIaAprobado]);
 
-  const manejarGenerarInformeIA = async () => {
-    setInformeIa("");
-    setInformeIaGenerando(true);
-    setTabActiva("Informe IA");
-
-    const areaActiva = areas[0]?.area || "";
-
-    let ctx;
-    try {
-      ctx = await buildAIContext("sugerir_apoyo", {
-        area:  areaActiva,
-        grado: curso || "",
-        estudiantesEnRiesgo: [{
-          nombre,
-          cf:          promedio,
-          asistencia,
-          observacion: `Estado: ${estado}. Plan de apoyo: ${planApoyo.slice(0, 2).join("; ")}`,
-          competenciasDebiles: evaluaciones
-            .filter((ev) => parseInt(ev.calificacion) < 70)
-            .slice(0, 3)
-            .map((ev) => ev.area),
-        }],
-        promedioGrupo: promedio,
+  // F6 — Informe a la familia: plantilla con los datos registrados (sin
+  // créditos). Lee las dos notas del Registro con los mismos servicios que la
+  // página Registro; el resto (actividades, resultados, asistencia) ya lo leyó
+  // F5. Una fuente que falla sale como «sin comprobar».
+  const [registroInforme, setRegistroInforme] = useState(null); // null = sin cargar
+  const [anotacionesElegidas, setAnotacionesElegidas] = useState([]); // ids
+  useEffect(() => {
+    if (tabActiva !== TAB_INFORME || registroInforme !== null) return;
+    const cursoId = estudiante?.cursoId;
+    if (!cursoId) { setRegistroInforme({ datos: {}, errores: { registro: "sin curso", calificaciones: "sin curso" } }); return; }
+    Promise.allSettled([
+      Promise.all([obtenerRegistroAspectos(cursoId), obtenerRegistroNotas(cursoId)]).then(([a, n]) => {
+        if (a.success === false || n.success === false) throw new Error("No se pudo leer el Registro por indicador");
+        return { aspectos: a.data || [], notas: n.data || [] };
+      }),
+      obtenerRegistroCalificaciones(cursoId).then((r) => r?.data || null),
+    ]).then(([reg, cal]) => {
+      setRegistroInforme({
+        datos: {
+          ...(reg.status === "fulfilled" ? reg.value : {}),
+          registroCalificaciones: cal.status === "fulfilled" ? cal.value : null,
+        },
+        errores: {
+          ...(reg.status === "rejected" ? { registro: reg.reason?.message || "error de lectura" } : {}),
+          ...(cal.status === "rejected" ? { calificaciones: cal.reason?.message || "error de lectura" } : {}),
+        },
       });
-    } catch {
-      setInformeIa("Error al construir el contexto IA.");
-      setInformeIaGenerando(false);
-      return;
-    }
+    });
+  }, [tabActiva, registroInforme, estudiante?.cursoId]);
 
+  const anotacionesAnecdoticas = useMemo(
+    () => (seguimiento?.datos?.evidencias || []).filter(esRegistroAnecdotico),
+    [seguimiento],
+  );
+
+  const informeFamilia = useMemo(() => {
+    if (!seguimiento || !registroInforme) return null;
+    return construirInformeFamilia({
+      estudiante: { id: estudiante?.id, nombre },
+      cursoNombre: curso === "—" ? "" : curso,
+      ...seguimiento.datos,
+      ...registroInforme.datos,
+      anotacionesElegidas: anotacionesAnecdoticas.filter((a) => anotacionesElegidas.includes(a.id || a.evidenciaId)),
+      ids: [estudiante?.id, ...idsLegadoClave.split("|")],
+      hoy: fechaLocalISO(),
+      errores: { ...seguimiento.errores, ...registroInforme.errores },
+    });
+  }, [seguimiento, registroInforme, anotacionesAnecdoticas, anotacionesElegidas, estudiante?.id, nombre, curso, idsLegadoClave]);
+  const textoPlantilla = informeFamilia ? textoInformeFamilia(informeFamilia) : "";
+
+  const imprimirInforme = () => {
+    // El PDF lleva la redacción con IA solo si el docente la aprobó
+    const texto = informeIa && informeIaAprobado ? informeIa : textoPlantilla;
+    const win = window.open("", "_blank");
+    if (!win) { setMensajeAccion("Permite ventanas emergentes para imprimir el informe."); return; }
+    win.document.write(htmlDocumento(`Informe para la familia · ${nombre}`, texto));
+    win.document.close();
+  };
+
+  const copiarWhatsApp = async () => {
+    if (!informeFamilia) return;
+    try {
+      await navigator.clipboard.writeText(textoWhatsApp(informeFamilia));
+      setMensajeAccion("Texto copiado. Pégalo en WhatsApp y decide a quién enviarlo.");
+    } catch {
+      setMensajeAccion("No se pudo copiar al portapapeles. Selecciona el texto del informe y cópialo a mano.");
+    }
+  };
+
+  // «Redactar con IA»: gasta créditos SOLO al pulsarlo y usa SOLO la plantilla
+  // (datos registrados). El texto queda como borrador hasta que el docente lo aprueba.
+  const manejarGenerarInformeIA = async () => {
+    if (!textoPlantilla) return;
+    setInformeIa("");
+    setInformeIaAprobado(null);
+    setInformeIaGenerando(true);
+    setTabActiva(TAB_INFORME);
+
+    const system = await conFundamento("Eres un docente dominicano que escribe a la familia de un estudiante. Usa SOLO los datos del informe que se te da: no inventes logros, notas, fechas ni hechos. Lenguaje claro, cálido y breve, en español. Mantén los avisos que traiga el informe (notas que no coinciden, datos sin comprobar). Usa títulos con «## » y viñetas con «- ».", estudiante?.nivel || "");
     AIService.generate({
       module:    "registro-apoyo",
-      prompt:    ctx.prompt,
-      system:    ctx.system,
-      maxTokens: 2000,
+      system,
+      prompt:    `Redacta este informe para la familia, sin añadir datos:\n\n${textoPlantilla}`,
+      maxTokens: 1200,
       onChunk: (chunk) => {
         setInformeIa((prev) => prev + chunk);
         setTimeout(() => informeIaRef.current?.scrollTo({ top: informeIaRef.current.scrollHeight, behavior: "smooth" }), 50);
       },
       onFinish: () => {
         setInformeIaGenerando(false);
-        setMensajeAccion("Informe IA generado en la pestaña Informe IA.");
+        setMensajeAccion("Borrador redactado con IA: revísalo y apruébalo antes de usarlo.");
         EventTracker.track(LEARNING_EVENTS.INFORME_ESTUDIANTE_GENERADO, {
           agentId: AGENT_IDS.GENERADOR_REPORTES,
-          area:    areaActiva,
           grado:   curso || "",
         });
       },
       onError: (err) => {
-        setInformeIa(`Error al generar el informe: ${err}`);
+        setInformeIa("");
+        setMensajeAccion(`Error al redactar con IA: ${err}`);
         setInformeIaGenerando(false);
       },
     });
@@ -427,7 +491,8 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   const manejarEnviarReporte = () => {
     const envio = new Date().toLocaleString("es-DO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
     setUltimoEnvio(envio);
-    setMensajeAccion(`Reporte enviado a familia (${tutor}) el ${envio}.`);
+    // DocenteOS no envía nada (decisión 7): solo anota que el docente lo entregó
+    setMensajeAccion(`Informe marcado como entregado a la familia (${tutor}) el ${envio}.`);
   };
 
   const contenidoTab = {
@@ -626,24 +691,73 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         }
       </div>
     ),
-    "Informe IA": (
+    [TAB_INFORME]: (
       <div className="detalle-tab-lista">
-        {informeIaGenerando && (
-          <p style={{ color: "#7c3aed", fontSize: "0.85rem", marginBottom: 8 }}>⏳ Generando informe con IA...</p>
+        {!informeFamilia ? (
+          <p className="detalle-sin-datos">Cargando los datos registrados…</p>
+        ) : (
+          <>
+            <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0 0 8px" }}>
+              Plantilla llenada con los datos registrados (sin créditos). Revísala antes de usarla: DocenteOS no envía nada.
+            </p>
+            {informeFamilia.sinComprobar.length > 0 && (
+              <p role="alert" style={{ color: "#b91c1c", fontWeight: 700 }}>⚠️ Sin comprobar (no se pudo leer): {informeFamilia.sinComprobar.join(", ")}.</p>
+            )}
+            {anotacionesAnecdoticas.length > 0 && (
+              <fieldset style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", margin: "0 0 10px" }}>
+                <legend style={{ fontSize: "0.8rem", fontWeight: 700 }}>Anotaciones del registro anecdótico que se comparten</legend>
+                {anotacionesAnecdoticas.map((a) => {
+                  const id = a.id || a.evidenciaId;
+                  return (
+                    <label key={id} style={{ display: "block", fontSize: "0.82rem" }}>
+                      <input
+                        type="checkbox"
+                        checked={anotacionesElegidas.includes(id)}
+                        onChange={(e) => setAnotacionesElegidas((prev) => (e.target.checked ? [...prev, id] : prev.filter((x) => x !== id)))}
+                      />{" "}
+                      {a.fecha}: {a.hecho || a.texto}
+                    </label>
+                  );
+                })}
+              </fieldset>
+            )}
+            {[{ titulo: "Plantilla con los datos", texto: textoPlantilla }, ...(informeIa || informeIaGenerando ? [{ titulo: informeIaAprobado ? `Redacción con IA · aprobada el ${informeIaAprobado}` : "Redacción con IA · BORRADOR sin aprobar", texto: informeIa, ia: true }] : [])].map((bloque) => (
+              <div key={bloque.titulo} ref={bloque.ia ? informeIaRef : null} style={{ maxHeight: 420, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", marginBottom: 10 }}>
+                <p style={{ fontSize: "0.75rem", fontWeight: 800, color: bloque.ia && !informeIaAprobado ? "#b45309" : "#475569", margin: 0 }}>{bloque.titulo}</p>
+                {bloque.texto.split("\n").map((line, i) => {
+                  if (line.startsWith("## ")) return <h4 key={i} style={{ color: "#4f46e5", margin: "14px 0 4px", fontSize: "0.92rem", fontWeight: 800, borderBottom: "2px solid #e0e7ff", paddingBottom: 3 }}>{line.slice(3)}</h4>;
+                  if (line.startsWith("- ")) return <li key={i} style={{ marginLeft: 14, marginBottom: 2, fontSize: "0.85rem" }}>{line.slice(2)}</li>;
+                  if (line.trim() === "") return <br key={i} />;
+                  return <p key={i} style={{ margin: "3px 0", fontSize: "0.85rem" }}>{line}</p>;
+                })}
+                {bloque.ia && informeIaGenerando && <span style={{ color: "#7c3aed", fontWeight: 900, animation: "plan-ia-blink 0.8s step-end infinite" }}>▋</span>}
+              </div>
+            ))}
+            {informeIa && !informeIaGenerando && (
+              <textarea
+                aria-label="Editar la redacción con IA"
+                rows={8}
+                value={informeIa}
+                onChange={(e) => { setInformeIa(e.target.value); setInformeIaAprobado(null); }}
+                style={{ width: "100%", fontSize: "0.85rem", marginBottom: 8 }}
+              />
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <button type="button" onClick={imprimirInforme}>🖨 Imprimir / PDF{informeIa && informeIaAprobado ? " (redacción aprobada)" : ""}</button>
+              <button type="button" onClick={copiarWhatsApp}>📋 Copiar para WhatsApp</button>
+              <button type="button" className="secundario" onClick={manejarGenerarInformeIA} disabled={informeIaGenerando}>
+                {informeIaGenerando ? "⏳ Redactando…" : "✨ Redactar con IA (gasta créditos)"}
+              </button>
+              {informeIa && !informeIaGenerando && !informeIaAprobado && (
+                <button type="button" onClick={() => setInformeIaAprobado(new Date().toLocaleDateString("es-DO"))}>✅ Aprobar redacción</button>
+              )}
+              {informeIa && !informeIaGenerando && (
+                <button type="button" className="secundario" onClick={() => { setInformeIa(""); setInformeIaAprobado(null); }}>Descartar redacción</button>
+              )}
+            </div>
+          </>
         )}
-        {!informeIa && !informeIaGenerando && (
-          <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Haz clic en "Generar Informe Individual IA" para crear un análisis completo con IA.</p>
-        )}
-        <div ref={informeIaRef} style={{ maxHeight: 420, overflowY: "auto" }}>
-          {informeIa.split("\n").map((line, i) => {
-            if (line.startsWith("## ")) return <h4 key={i} style={{ color: "#4f46e5", margin: "14px 0 4px", fontSize: "0.92rem", fontWeight: 800, borderBottom: "2px solid #e0e7ff", paddingBottom: 3 }}>{line.slice(3)}</h4>;
-            if (line.startsWith("- ")) return <li key={i} style={{ marginLeft: 14, marginBottom: 2, fontSize: "0.85rem" }}>{line.slice(2)}</li>;
-            if (line.trim() === "") return <br key={i} />;
-            return <p key={i} style={{ margin: "3px 0", fontSize: "0.85rem" }}>{line}</p>;
-          })}
-          {informeIaGenerando && <span style={{ color: "#7c3aed", fontWeight: 900, animation: "plan-ia-blink 0.8s step-end infinite" }}>▋</span>}
-        </div>
-        {ultimoEnvio && <p style={{ marginTop: 12, fontSize: "0.8rem", color: "#64748b" }}>Ultimo envio familiar: {ultimoEnvio}</p>}
+        {ultimoEnvio && <p style={{ marginTop: 12, fontSize: "0.8rem", color: "#64748b" }}>Entregado a la familia: {ultimoEnvio}</p>}
       </div>
     ),
   };
@@ -848,10 +962,9 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         <button
           type="button"
           className="secundario"
-          onClick={manejarGenerarInformeIA}
-          disabled={informeIaGenerando}
+          onClick={() => setTabActiva(TAB_INFORME)}
         >
-          {informeIaGenerando ? "⏳ Generando..." : "Ver informe IA completo"}
+          Ver informe a la familia
         </button>
       </section>
 
@@ -937,10 +1050,10 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       )}
 
       <section className="detalle-acciones-principales">
-        <button type="button" onClick={manejarGenerarInformeIA}>Generar Informe Individual IA</button>
+        <button type="button" onClick={() => setTabActiva(TAB_INFORME)}>Informe a la familia</button>
         <button type="button" onClick={manejarCrearPlanApoyo}>Crear Plan de Apoyo</button>
         <button type="button" onClick={abrirModalRegistroEvaluacion}>Registrar Evaluacion</button>
-        <button type="button" onClick={manejarEnviarReporte}>Enviar Reporte a Familia</button>
+        <button type="button" onClick={manejarEnviarReporte}>Marcar como entregado a la familia</button>
       </section>
     </div>
   );

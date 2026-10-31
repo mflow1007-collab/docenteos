@@ -132,6 +132,10 @@ export const obtenerResultadosEstudiante = async (estudianteId, { cursoId = "", 
     && (!cursoId || String(r.cursoId || "") === String(cursoId)));
 };
 
+/** F6 — Resultados de todo el curso. LANZA si no se pueden leer (informe de coordinación). */
+export const obtenerResultadosCurso = async (cursoId) =>
+  (await leerResultados({ estricto: true })).filter((r) => String(r.cursoId || "") === String(cursoId));
+
 /**
  * Códigos de indicador DÉBILES para el grado+asignatura (todos sus cursos).
  * La siguiente unidad los marca (REFORZAR). Nunca lanza: sin datos → [].
