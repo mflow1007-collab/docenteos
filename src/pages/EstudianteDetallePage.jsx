@@ -5,8 +5,11 @@ import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
 import { obtenerEvidenciasPorEstudiante } from "../services/evidenciasService.js";
-import { obtenerAvanceEstudiante } from "../services/avanceCurricularService.js";
+import { obtenerAvanceEstudiante, obtenerResultadosEstudiante } from "../services/avanceCurricularService.js";
 import { obtenerActividadesPorCurso } from "../services/actividadesService.js";
+import { obtenerAsistenciaCurso } from "../services/asistenciaService.js";
+import { construirLineaDeTiempo, senalesNecesitaApoyo } from "../services/seguimientoEstudiante.js";
+import { fechaLocalISO } from "../services/hiloPedagogico.js";
 import { actividadesDeEstudiante, ETIQUETAS_ENTREGA } from "../services/actividadesPlan.js";
 import { RegistroAnecdoticoPanel } from "../components/RegistroAnecdotico.jsx";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
@@ -107,6 +110,47 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       .then((datos) => setBancoEvidencias(datos.filter((e) => !esRegistroAnecdotico(e))))
       .catch(() => setBancoEvidencias([]));
   }, [tabActiva, bancoEvidencias, estudiante?.id, estudiante?.cursoId]);
+
+  // F5 — línea de tiempo + «Necesita apoyo»: se leen al abrir la ficha (la
+  // alerta va arriba). Cada fuente que falla queda en `errores`, nunca callada.
+  const [seguimiento, setSeguimiento] = useState(null); // null = cargando
+  // Clave estable: un array nuevo en cada render del padre no relee Firestore
+  const idsLegadoClave = (estudiante?.idsLegado || []).join("|");
+  useEffect(() => {
+    const estId = estudiante?.id;
+    const cursoId = estudiante?.cursoId;
+    if (!estId || !cursoId) { setSeguimiento({ datos: {}, errores: { curso: true } }); return; }
+    let vigente = true;
+    setSeguimiento(null);
+    const idsLegado = idsLegadoClave ? idsLegadoClave.split("|") : [];
+    const fuentes = {
+      actividades: obtenerActividadesPorCurso(cursoId),
+      resultados: obtenerResultadosEstudiante(estId, { cursoId, idsLegado }),
+      evidencias: obtenerEvidenciasPorEstudiante(estId, { cursoId, idsLegado }),
+      asistencia: obtenerAsistenciaCurso(cursoId, { estricto: true }),
+    };
+    Promise.allSettled(Object.values(fuentes)).then((res) => {
+      if (!vigente) return;
+      const datos = {}, errores = {};
+      Object.keys(fuentes).forEach((clave, i) => {
+        if (res[i].status === "fulfilled") datos[clave] = res[i].value || [];
+        else { datos[clave] = []; errores[clave] = res[i].reason?.message || "error de lectura"; }
+      });
+      setSeguimiento({ datos, errores });
+    });
+    return () => { vigente = false; };
+  }, [estudiante?.id, estudiante?.cursoId, idsLegadoClave]);
+
+  const { lineaDeTiempo, alertaApoyo } = useMemo(() => {
+    if (!seguimiento) return { lineaDeTiempo: null, alertaApoyo: null };
+    const base = { ...seguimiento.datos, ids: [estudiante?.id, ...idsLegadoClave.split("|")], hoy: fechaLocalISO() };
+    return {
+      lineaDeTiempo: construirLineaDeTiempo(base),
+      alertaApoyo: seguimiento.errores.curso
+        ? { necesitaApoyo: false, motivos: [], sinComprobar: ["entregas", "indicadores", "asistencia"] }
+        : senalesNecesitaApoyo({ ...base, errores: seguimiento.errores }),
+    };
+  }, [seguimiento, estudiante?.id, idsLegadoClave]);
 
   // Fase 9.4 — avance curricular del estudiante (sus resultados por indicador),
   // lazy al abrir Rendimiento. null = cargando; {porIndicador: []} = sin datos.
@@ -388,6 +432,29 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
 
   const contenidoTab = {
     "Resumen": (
+      <>
+      <div className="detalle-tab-lista" style={{ marginBottom: 16 }}>
+        <h4>Línea de tiempo</h4>
+        {lineaDeTiempo === null ? (
+          <p className="detalle-sin-datos">Cargando seguimiento…</p>
+        ) : (
+          <>
+            {seguimiento.errores.curso && <p role="alert" style={{ color: "#b91c1c", fontWeight: 700 }}>⚠️ El estudiante no tiene curso: no se puede leer su seguimiento.</p>}
+            {Object.entries(seguimiento.errores).filter(([k]) => k !== "curso").map(([k, msg]) => (
+              <p key={k} role="alert" style={{ color: "#b91c1c", fontWeight: 700 }}>⚠️ No se pudo leer {k}: {msg}</p>
+            ))}
+            {lineaDeTiempo.length === 0
+              ? <p className="detalle-sin-datos">Sin entregas, notas, evidencias, ausencias ni anotaciones todavía.</p>
+              : lineaDeTiempo.map((e) => (
+                  <p key={e.id}>
+                    {{ actividad: "📝", evidencia: "📎", asistencia: "📅", anecdotico: "🗒️" }[e.tipo]}{" "}
+                    {e.fecha || "sin fecha"} · <strong>{e.titulo}</strong>{e.detalle ? ` · ${e.detalle}` : ""}
+                    {e.enlace && <> · <a href={e.enlace} target="_blank" rel="noreferrer">enlace</a></>}
+                  </p>
+                ))}
+          </>
+        )}
+      </div>
       <div className="detalle-tab-panel-grid">
         <article>
           <h4>Panorama actual</h4>
@@ -401,6 +468,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
           <p>Incrementar el promedio a {Math.min(100, promedio + 6)}% y mantener asistencia por encima de 92%.</p>
         </article>
       </div>
+      </>
     ),
     "Rendimiento": (() => {
       // Fase 9.4 — avance real por indicador oficial (antes: texto de relleno)
@@ -589,6 +657,21 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         <h1>Perfil del Estudiante</h1>
         <p>Seguimiento academico individual</p>
       </section>
+
+      {/* F5 — «Necesita apoyo» (decisión 5): solo avisa, con su motivo */}
+      {alertaApoyo && (alertaApoyo.necesitaApoyo || alertaApoyo.sinComprobar.length > 0) && (
+        <section role="alert" className="detalle-card" style={{ borderLeft: `4px solid ${alertaApoyo.necesitaApoyo ? "#dc2626" : "#d97706"}`, marginBottom: 16 }}>
+          {alertaApoyo.necesitaApoyo && (
+            <>
+              <h3 style={{ color: "#b91c1c", margin: "0 0 6px" }}>Necesita apoyo</h3>
+              {alertaApoyo.motivos.map((m) => <p key={m.senal} style={{ margin: "2px 0" }}>• {m.texto}</p>)}
+            </>
+          )}
+          {alertaApoyo.sinComprobar.length > 0 && (
+            <p style={{ color: "#92400e", margin: "6px 0 0" }}>⚠️ Sin comprobar ({alertaApoyo.sinComprobar.join(", ")}): no se pudieron leer los datos.</p>
+          )}
+        </section>
+      )}
 
       <section className="detalle-main-grid">
         <article className="detalle-card detalle-identidad">
