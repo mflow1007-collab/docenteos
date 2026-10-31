@@ -115,8 +115,9 @@ export const obtenerInstrumentosDelDia = (planificacionId, claseId) =>
  *   1. guardarResultadoInstrumento      (F4 — fuente de verdad)
  *   2. actualizarRegistroDesdeResultado (F5 — regla 12, nunca pisa ajustes)
  *   3. crearEvidenciaDesdeResultado     (F8 — banco de evidencias)
- *   4. sincronizarEvaluacionPedagogica  (puente legacy: celda del registro
- *      por competencia/período + expediente; ya parcheado con regla 12)
+ *   4. sincronizarEvaluacionPedagogica  (puente legacy: resumen de la
+ *      evaluación + expediente; F7: ya no crea otra evidencia ni escribe la
+ *      celda de la C.F., que sale de las notas por indicador)
  *
  * Nunca falla silenciosamente: devuelve { exitosos, errores } con mensajes
  * claros por estudiante.
@@ -179,6 +180,8 @@ export const evaluarYRegistrar = async ({ instrumento, aplicaciones = [], claseT
         await sincronizarEvaluacionPedagogica({
           instrumento,
           cursoId: resultado.cursoId,
+          // F7: sin segunda evidencia ni celda de la C.F. (sale de las notas por indicador)
+          evidenciaDelResultado: evidencia?.evidenciaId || evidencia?.id || "",
           aplicacion: {
             estudianteId: resultado.estudianteId,
             estudiante: resultado.estudianteNombre || nombre,

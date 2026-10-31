@@ -21,6 +21,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { db, auth, guardarEvidenciaEstudiante } from "../firebase.js";
@@ -54,7 +55,10 @@ export const crearEvidencia = async (evidencia) => {
  */
 export const crearEvidenciaDesdeResultado = async (resultado, { instrumento = null, claseTitulo = "" } = {}) => {
   const evidencia = construirEvidencia(resultado, { instrumento, claseTitulo, docenteId: uid() || "" });
-  if (!evidencia) return null; // resultado pendiente: sin evaluación no hay evidencia
+  if (!evidencia) { // resultado pendiente (nota quitada): su evidencia se retira, no se borra
+    await retirarEvidenciaDeResultado(resultado);
+    return null;
+  }
 
   const evidenciaId = evidencia.evidenciaId;
   const { data } = await guardarEvidenciaEstudiante(evidencia);
@@ -72,6 +76,23 @@ export const crearEvidenciaDesdeResultado = async (resultado, { instrumento = nu
   }
 
   return data;
+};
+
+/**
+ * F7 — Al quitar una nota, la evidencia `evi-{resultadoId}` queda `retirada`
+ * (reversible: re-evaluar la devuelve). Si nunca existió, no hay nada que hacer.
+ */
+export const retirarEvidenciaDeResultado = async (resultado) => {
+  if (!disponible() || !resultado?.resultadoId) return;
+  const evidenciaId = `evi-${resultado.resultadoId}`;
+  const cambios = { retirada: true, retiradaEn: serverTimestamp(), actualizadoEn: serverTimestamp() };
+  const refs = [doc(db, "usuarios", uid(), "evidenciasPedagogicas", evidenciaId)];
+  if (resultado.cursoId && resultado.estudianteId) {
+    refs.push(doc(db, "usuarios", uid(), "cursos", String(resultado.cursoId), "estudiantes", String(resultado.estudianteId), "evidencias", evidenciaId));
+  }
+  await Promise.all(refs.map((ref) => updateDoc(ref, cambios).catch((error) => {
+    if (error?.code !== "not-found") throw error;
+  })));
 };
 
 /**

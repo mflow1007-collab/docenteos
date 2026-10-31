@@ -52,6 +52,63 @@ export const idsLegadoEstudiante = (estudiante, indice, { cursoId = "", grupoId 
   return [...new Set(ids)].filter((id) => id && id !== actual);
 };
 
+/**
+ * «est-N» lo usaban dos módulos con numeración distinta: Modo Aula (posición N-1)
+ * e Instrumentos (posición N). Así «est-1» puede ser de Ana (Modo Aula) o de
+ * Carlos (Instrumentos). Devuelve los ids de este estudiante que otro también
+ * podría reclamar y cuál le toca cuando el dato no trae nombre: el de Modo Aula,
+ * que es quien guardaba asistencia y resultados sin nombre (F7).
+ */
+export const idsAmbiguosEstudiante = (estudiante, indice) => {
+  const legado = idsLegadoEstudiante(estudiante, indice);
+  const candidatos = [`est-${indice + 1}`, ...(indice >= 1 ? [`est-${indice}`] : [])];
+  const ambiguos = candidatos.filter((id) => legado.includes(id));
+  return { nombre: nombreDeEstudiante(estudiante), ambiguos, sinNombre: ambiguos.includes(`est-${indice + 1}`) ? `est-${indice + 1}` : "" };
+};
+
+const claveNombre = (texto) => String(texto || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ");
+
+/** Nombre del estudiante guardado junto al dato (resultados, evidencias, anecdóticos). */
+export const nombreGuardado = (registro) =>
+  registro?.estudianteNombre || registro?.estudiante?.nombre || registro?.nombreEstudiante || "";
+
+/**
+ * ¿El dato es de este estudiante? Un id ambiguo solo cuenta si el nombre guardado
+ * coincide; sin nombre, solo el id que le toca (sinNombre). No borra nada.
+ */
+export const esDelEstudiante = (registro, { nombre = "", ambiguos = [], sinNombre = "" } = {}, nombreDe = nombreGuardado) => {
+  const id = String(registro?.estudianteId ?? "");
+  if (!ambiguos.includes(id)) return true;
+  const guardado = nombreDe(registro);
+  return guardado ? claveNombre(guardado) === claveNombre(nombre) : id === sinNombre;
+};
+
+/** Pase de lista sin las marcas de ids ambiguos que no le tocan (no traen nombre). */
+export const asistenciaDelEstudiante = (dias = [], { ambiguos = [], sinNombre = "" } = {}) => {
+  const fuera = new Set(ambiguos.filter((id) => id !== sinNombre));
+  if (!fuera.size) return dias;
+  return dias.map((dia) => ({
+    ...dia,
+    marcas: Object.fromEntries(Object.entries(dia?.marcas || {}).filter(([id]) => !fuera.has(String(id)))),
+  }));
+};
+
+/**
+ * Resultados, evidencias y pase de lista de UN estudiante sin lo que es de otro
+ * por un id ambiguo. La evidencia de un resultado sin nombre toma el nombre de su
+ * resultado (`evi-{resultadoId}`). Si `legado` no trae ambiguos, todo queda igual.
+ */
+export const depurarDatosLegado = (datos = {}, legado = null) => {
+  if (!legado?.ambiguos?.length) return datos;
+  const nombrePorResultado = new Map((datos.resultados || []).map((r) => [String(r.resultadoId || r.id || ""), nombreGuardado(r)]));
+  const nombreDe = (r) => nombreGuardado(r) || nombrePorResultado.get(String(r?.resultadoId || "")) || "";
+  const salida = { ...datos };
+  if (datos.resultados) salida.resultados = datos.resultados.filter((r) => esDelEstudiante(r, legado));
+  if (datos.evidencias) salida.evidencias = datos.evidencias.filter((e) => esDelEstudiante(e, legado, nombreDe));
+  if (datos.asistencia) salida.asistencia = asistenciaDelEstudiante(datos.asistencia, legado);
+  return salida;
+};
+
 /** Devuelve el curso con un `id` permanente en cada estudiante que no lo tenga. */
 export const conIdsEstudiantes = (curso) => {
   const lista = curso?.estudiantesDetalle;

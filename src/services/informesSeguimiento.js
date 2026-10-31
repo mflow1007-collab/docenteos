@@ -15,8 +15,11 @@
 import { actividadesConNota, senalesNecesitaApoyo, fechaDia } from "./seguimientoEstudiante.js";
 import { agregarResultadosPorIndicador, nivelLogroDesdePorcentaje } from "./hiloPedagogico.js";
 import { ETIQUETAS_ENTREGA } from "./actividadesPlan.js";
-import { calcularResumenEstudiante, normalizarNotasCompetencias } from "../utils/resumenCalificaciones.js";
+import {
+  aplicarCeldasIndicadores, calcularResumenEstudiante, celdasDesdeIndicadores, normalizarNotasCompetencias, notasConCalculoAceptado,
+} from "../utils/resumenCalificaciones.js";
 import { escHtml } from "../utils/html.js";
+import { depurarDatosLegado } from "../utils/idEstudiante.js";
 
 const conjuntoIds = (ids = []) => new Set(ids.filter(Boolean).map(String));
 const numero = (v) => (v === "" || v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v));
@@ -55,15 +58,42 @@ export const notasPorIndicador = ({ aspectos = [], notas = [], ids = [] } = {}) 
     .filter(Boolean);
 };
 
-/** C.F. del Registro › Calificaciones con el mismo cálculo de esa página. */
-export const cfDelRegistro = ({ registroCalificaciones = null, ids = [] } = {}) => {
-  const porEst = registroCalificaciones?.notasEstudiantes || {};
-  const clave = ids.filter(Boolean).map(String).find((id) => porEst[id]);
-  if (!clave) return null;
-  const notas = porEst[clave];
-  const resumen = calcularResumenEstudiante(normalizarNotasCompetencias(notas, notas?.competencias?.length || 4));
+/**
+ * C.F. del Registro › Calificaciones con el mismo cálculo de esa página. Solo la
+ * fila del estudiante (ids[0], la que muestra el Registro): un id legado como
+ * «est-1» puede ser de otro (F7).
+ * F7 (opción A): con `indicadores` ({ competencias, aspectos, instrumentos,
+ * resultados, notas, nivel }) se aplica antes el cálculo desde las notas por
+ * indicador, igual que al abrir el Registro (sin pisar lo puesto a mano), y se
+ * explica de dónde sale cada celda.
+ */
+export const cfDelRegistro = ({ registroCalificaciones = null, ids = [], indicadores = null } = {}) => {
+  const propio = String(ids.filter(Boolean)[0] || "");
+  const guardadas = registroCalificaciones?.notasEstudiantes?.[propio] || null;
+  const competencias = indicadores?.competencias || [];
+  let notas = guardadas;
+  if (competencias.length) {
+    const { celdas } = celdasDesdeIndicadores({ ...indicadores, ids });
+    const cantidad = Math.max(competencias.length, guardadas?.competencias?.length || 0);
+    notas = aplicarCeldasIndicadores(guardadas, celdas, cantidad).notas;
+  }
+  if (!notas) return null;
+  const normalizadas = normalizarNotasCompetencias(notas, notas?.competencias?.length || 4);
+  const resumen = calcularResumenEstudiante(normalizadas);
   if (!(resumen.cf > 0)) return null;
-  return { cf: resumen.cf, porCompetencia: resumen.compAvgs, situacion: resumen.situacion };
+  const cf = { cf: resumen.cf, porCompetencia: resumen.compAvgs, situacion: resumen.situacion };
+  if (!competencias.length) return cf;
+
+  const nombreCelda = (ci, pi) => `${competencias[ci]?.id || `C${ci + 1}`} P${pi + 1}`;
+  const desdeIndicadores = [], aMano = [], distintas = [];
+  normalizadas.competencias.forEach((comp, ci) => comp.periodos.forEach((per, pi) => {
+    if (per.p === "" || per.p === null || per.p === undefined) return;
+    if (per.desactualizado) distintas.push({ celda: nombreCelda(ci, pi), aMano: Number(per.p), calculo: per.valorCalculado });
+    if (per.origenCelda === "indicadores" && per.fuente === "instrumentos" && !per.ajusteManual) desdeIndicadores.push(nombreCelda(ci, pi));
+    else aMano.push(nombreCelda(ci, pi));
+  }));
+  const conCalculo = calcularResumenEstudiante(notasConCalculoAceptado(normalizadas));
+  return { ...cf, desdeIndicadores, aMano, distintas, cfConCalculo: distintas.length ? conCalculo.cf : null };
 };
 
 /** Totales de asistencia del pase de lista (Modo Aula) para el estudiante. */
@@ -89,12 +119,14 @@ export const construirInformeFamilia = ({
   estudiante = {}, cursoNombre = "", asignatura = "",
   actividades = [], resultados = [], aspectos = [], notas = [], registroCalificaciones = null,
   asistencia = [], anotacionesElegidas = [], ids = [], hoy = "", errores = {},
+  competencias = [], instrumentos = [], nivel = "",
 } = {}) => {
   const sinComprobar = [];
   if (errores.actividades || errores.resultados) sinComprobar.push("actividades");
   if (errores.registro) sinComprobar.push("notas por indicador");
   if (errores.calificaciones) sinComprobar.push("C.F. por competencias");
   if (errores.asistencia) sinComprobar.push("asistencia");
+  if (errores.malla || errores.instrumentos) sinComprobar.push("C.F. desde los indicadores");
 
   const indicadores = errores.registro ? [] : notasPorIndicador({ aspectos, notas, ids });
   const codigosRegistro = new Set(indicadores.map((i) => i.codigo));
@@ -109,7 +141,12 @@ export const construirInformeFamilia = ({
   const pendientes = conNota.filter((a) =>
     (a.estado === "no_entrego" && !a.nota) || (a.estado === "pendiente" && a.fecha && hoy && a.fecha <= hoy));
 
-  const cf = errores.calificaciones ? null : cfDelRegistro({ registroCalificaciones, ids });
+  // F7: la C.F. se pone al día con las notas por indicador (si se pudo leer todo)
+  const puedeCalcular = competencias.length && !errores.registro && !errores.resultados && !errores.instrumentos;
+  const cf = errores.calificaciones ? null : cfDelRegistro({
+    registroCalificaciones, ids,
+    indicadores: puedeCalcular ? { competencias, aspectos, instrumentos, resultados, notas, nivel } : null,
+  });
   const promedioIndicadores = indicadores.length
     ? Math.round(indicadores.reduce((s, i) => s + (i.porcentaje ?? 0), 0) / indicadores.length)
     : null;
@@ -119,8 +156,10 @@ export const construirInformeFamilia = ({
     cursoNombre, asignatura, fecha: hoy,
     indicadores, otrosResultados,
     cf,
-    // Aviso visible cuando las dos notas del Registro no dicen lo mismo
+    // Aviso visible cuando las dos notas del Registro no dicen lo mismo; con la
+    // C.F. calculada desde los indicadores (F7) la diferencia se explica celda a celda
     notasNoCoinciden: Boolean(cf && promedioIndicadores !== null && Math.abs(cf.cf - promedioIndicadores) >= 1),
+    cfSinMalla: Boolean(cf && !puedeCalcular),
     promedioIndicadores,
     actividades: conNota,
     pendientes,
@@ -158,7 +197,7 @@ export const textoInformeFamilia = (inf) => {
   l.push("");
   l.push("## Calificación por competencias (Registro › Calificaciones)");
   l.push(inf.cf ? `- C.F.: ${inf.cf.cf} · ${inf.cf.situacion}.` : "- Sin calificación por competencias registrada.");
-  if (inf.notasNoCoinciden) l.push(`- Aviso: la C.F. (${inf.cf.cf}) no coincide con el promedio por indicador (${inf.promedioIndicadores} %). Son dos registros distintos.`);
+  l.push(...lineasOrigenCF(inf).map((t) => `- ${t}`));
   l.push("");
   l.push("## Pendientes");
   if (!inf.pendientes.length) l.push("- No tiene actividades pendientes.");
@@ -181,6 +220,26 @@ export const textoInformeFamilia = (inf) => {
     l.push(`Sin comprobar (no se pudo leer): ${inf.sinComprobar.join(", ")}.`);
   }
   return l.join("\n");
+};
+
+/** De dónde sale la C.F. y por qué no coincide con el promedio por indicador (F7). */
+export const lineasOrigenCF = (inf) => {
+  const cf = inf.cf;
+  if (!cf) return [];
+  if (inf.cfSinMalla || !cf.aMano) {
+    return inf.notasNoCoinciden
+      ? [`Aviso: la C.F. (${cf.cf}) no coincide con el promedio por indicador (${inf.promedioIndicadores} %). Sin malla oficial del curso no se puede calcular desde los indicadores.`]
+      : [];
+  }
+  const l = [];
+  if (cf.desdeIndicadores.length) l.push(`Calculadas desde los indicadores: ${cf.desdeIndicadores.join(", ")}.`);
+  if (cf.aMano.length) l.push(`Puestas a mano por el docente: ${cf.aMano.join(", ")}.`);
+  for (const d of cf.distintas) l.push(`${d.celda}: a mano ${d.aMano}; según los indicadores ${d.calculo} (el docente aún no ha cambiado su nota).`);
+  if (cf.cfConCalculo !== null && cf.cfConCalculo !== cf.cf) l.push(`Con el cálculo desde los indicadores, la C.F. sería ${cf.cfConCalculo}.`);
+  if (inf.notasNoCoinciden) {
+    l.push(`Por qué no es igual al promedio por indicador (${inf.promedioIndicadores} %): la C.F. promedia por competencia y período${cf.aMano.length ? " e incluye las notas puestas a mano" : ""}.`);
+  }
+  return l;
 };
 
 /** Texto corto para pegar en WhatsApp: logros, pendientes y asistencia. */
@@ -260,10 +319,12 @@ export const construirInformeCurso = ({
 
   const porEstudiante = estudiantes.map((est) => {
     const ids = [est.id, ...(est.idsLegado || [])];
+    // F7: un «est-N» ambiguo cuenta solo para quien dice su nombre guardado
+    const propios = depurarDatosLegado({ resultados, asistencia }, est.legadoAmbiguo);
     return {
       nombre: est.nombre || est.id,
-      apoyo: senalesNecesitaApoyo({ actividades, resultados, asistencia, ids, hoy, errores }),
-      asistencia: errores.asistencia ? null : asistenciaDe({ asistencia, ids }),
+      apoyo: senalesNecesitaApoyo({ actividades, ...propios, ids, hoy, errores }),
+      asistencia: errores.asistencia ? null : asistenciaDe({ asistencia: propios.asistencia, ids }),
     };
   });
   const conAsistencia = porEstudiante.filter((e) => e.asistencia?.dias);

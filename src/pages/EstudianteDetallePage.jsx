@@ -3,18 +3,19 @@ import { AIService } from "../services/ai/AIService.js";
 import { conFundamento } from "../services/fundamentoDoctrinalService.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
-import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante, obtenerRegistroAspectos, obtenerRegistroNotas, obtenerRegistroCalificaciones } from "../firebase.js";
+import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante, obtenerInstrumentosFirestore, obtenerRegistroAspectos, obtenerRegistroNotas, obtenerRegistroCalificaciones } from "../firebase.js";
+import { obtenerCompetenciasMallaCurso } from "../services/mallaCursoService.js";
 import { obtenerEvidenciasPorEstudiante } from "../services/evidenciasService.js";
 import { obtenerAvanceEstudiante, obtenerResultadosEstudiante } from "../services/avanceCurricularService.js";
 import { obtenerActividadesPorCurso } from "../services/actividadesService.js";
 import { obtenerAsistenciaCurso } from "../services/asistenciaService.js";
 import { construirLineaDeTiempo, senalesNecesitaApoyo } from "../services/seguimientoEstudiante.js";
 import { construirInformeFamilia, textoInformeFamilia, textoWhatsApp, htmlDocumento } from "../services/informesSeguimiento.js";
-import { fechaLocalISO } from "../services/hiloPedagogico.js";
+import { evidenciasVigentes, fechaLocalISO } from "../services/hiloPedagogico.js";
 import { actividadesDeEstudiante, ETIQUETAS_ENTREGA } from "../services/actividadesPlan.js";
 import { RegistroAnecdoticoPanel } from "../components/RegistroAnecdotico.jsx";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
-import { avisoCedula, formatearCedula } from "../utils/idEstudiante.js";
+import { avisoCedula, depurarDatosLegado, formatearCedula } from "../utils/idEstudiante.js";
 
 const EVALUACIONES_BASE_DETALLE = [];
 
@@ -112,7 +113,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     if (!estId) { setBancoEvidencias([]); return; }
     obtenerEvidenciasPorEstudiante(estId, { cursoId: estudiante?.cursoId || "", idsLegado: estudiante?.idsLegado || [] })
       // El registro anecdótico se muestra aparte, en su propia pestaña
-      .then((datos) => setBancoEvidencias(datos.filter((e) => !esRegistroAnecdotico(e))))
+      .then((datos) => setBancoEvidencias(depurarDatosLegado({ evidencias: datos }, estudiante?.legadoAmbiguo).evidencias.filter((e) => !esRegistroAnecdotico(e))))
       .catch(() => setBancoEvidencias([]));
   }, [tabActiva, bancoEvidencias, estudiante?.id, estudiante?.cursoId]);
 
@@ -121,6 +122,8 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   const [seguimiento, setSeguimiento] = useState(null); // null = cargando
   // Clave estable: un array nuevo en cada render del padre no relee Firestore
   const idsLegadoClave = (estudiante?.idsLegado || []).join("|");
+  const legadoAmbiguo = estudiante?.legadoAmbiguo || null;
+  const legadoAmbiguoClave = JSON.stringify(legadoAmbiguo);
   useEffect(() => {
     const estId = estudiante?.id;
     const cursoId = estudiante?.cursoId;
@@ -141,10 +144,14 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         if (res[i].status === "fulfilled") datos[clave] = res[i].value || [];
         else { datos[clave] = []; errores[clave] = res[i].reason?.message || "error de lectura"; }
       });
-      setSeguimiento({ datos, errores });
+      // F7: «est-1» de Ana no es de Carlos (se decide por el nombre guardado)
+      const propios = depurarDatosLegado(datos, legadoAmbiguo);
+      // F7: sin evidencias retiradas, de notas quitadas ni copias del puente legacy
+      setSeguimiento({ datos: { ...propios, evidencias: evidenciasVigentes(propios.evidencias, errores.resultados ? null : propios.resultados) }, errores });
     });
     return () => { vigente = false; };
-  }, [estudiante?.id, estudiante?.cursoId, idsLegadoClave]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- legadoAmbiguo va por su clave estable
+  }, [estudiante?.id, estudiante?.cursoId, idsLegadoClave, legadoAmbiguoClave]);
 
   const { lineaDeTiempo, alertaApoyo } = useMemo(() => {
     if (!seguimiento) return { lineaDeTiempo: null, alertaApoyo: null };
@@ -349,18 +356,30 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         return { aspectos: a.data || [], notas: n.data || [] };
       }),
       obtenerRegistroCalificaciones(cursoId).then((r) => r?.data || null),
-    ]).then(([reg, cal]) => {
+      // F7: malla del curso + instrumentos para calcular la C.F. desde los indicadores
+      obtenerCompetenciasMallaCurso({ nombre: estudiante?.cursoNombre, grado: estudiante?.grado, nivel: estudiante?.nivel, area: estudiante?.area }),
+      obtenerInstrumentosFirestore().then((r) => {
+        if (r?.success === false) throw new Error("No se pudieron leer los instrumentos");
+        return (r?.data || []).filter((ins) => String(ins.cursoId || ins.vinculacion?.cursoId || "") === String(cursoId));
+      }),
+    ]).then(([reg, cal, malla, ins]) => {
       setRegistroInforme({
         datos: {
           ...(reg.status === "fulfilled" ? reg.value : {}),
           registroCalificaciones: cal.status === "fulfilled" ? cal.value : null,
+          competencias: malla.status === "fulfilled" ? malla.value.competencias : [],
+          instrumentos: ins.status === "fulfilled" ? ins.value : [],
+          nivel: estudiante?.nivel || "Secundaria",
         },
         errores: {
           ...(reg.status === "rejected" ? { registro: reg.reason?.message || "error de lectura" } : {}),
           ...(cal.status === "rejected" ? { calificaciones: cal.reason?.message || "error de lectura" } : {}),
+          ...(ins.status === "rejected" ? { instrumentos: ins.reason?.message || "error de lectura" } : {}),
+          ...(malla.status === "rejected" ? { malla: malla.reason?.message || "error de lectura" } : {}),
         },
       });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- el resto del estudiante cambia junto con cursoId
   }, [tabActiva, registroInforme, estudiante?.cursoId]);
 
   const anotacionesAnecdoticas = useMemo(
@@ -605,7 +624,9 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
     })(),
     "Evidencias": (() => {
       // Banco completo del hilo pedagógico; el expediente queda como respaldo
-      const banco = (bancoEvidencias?.length ? bancoEvidencias : evidenciasExpediente) || [];
+      // F7: sin retiradas, sin la de una nota quitada y sin la copia del puente legacy
+      const vigentes = bancoEvidencias?.length ? evidenciasVigentes(bancoEvidencias, seguimiento?.datos?.resultados || null) : null;
+      const banco = (bancoEvidencias?.length ? vigentes : evidenciasExpediente) || [];
       const periodos = [...new Set(banco.map((e) => e.periodo || e.periodoId).filter(Boolean))];
       const tipos = [...new Set(banco.map((e) => e.tipo).filter(Boolean))];
       const indicadores = [...new Set(banco.flatMap((e) => e.indicadorIds || e.indicadores || []))].filter(Boolean);
