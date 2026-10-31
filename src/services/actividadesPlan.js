@@ -325,3 +325,56 @@ export const actividadesDeEstudiante = (actividades = [], ids = []) => {
     .filter(Boolean)
     .sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)) || x.faseNumero - y.faseNumero);
 };
+
+// ─── F4 — Evaluar desde la actividad ─────────────────────────────────────────
+// La nota sale de la rúbrica de la actividad (filas del Anexo A) y va por
+// evaluarYRegistrar al resultado → aspectos por indicador → Registro.
+// Decisión 3: solo se evalúa a quien entregó; «No entregó» espera la decisión
+// del docente (0, otra oportunidad o Excusa). Decisión 4: el docente puede
+// excluir la actividad del cálculo (excluidaDeNota / excluidoDeNota).
+
+/**
+ * Puntúa la rúbrica con el nivel elegido en cada criterio. Fail-closed: si
+ * falta un nivel o no existe, error visible (no se guarda una nota a medias).
+ * @param {object} estructura - estructura de la rúbrica (construirRubricaActividad)
+ * @param {Record<string,string>} nivelesPorCriterio - { criterioId: "nivel1".."nivel4" }
+ * @returns {{ puntaje: number, puntajeMaximo: number, detalleCriterios: object[] }}
+ */
+export const puntuarRubrica = (estructura, nivelesPorCriterio = {}) => {
+  const criterios = estructura?.criterios || [];
+  if (!criterios.length) throw new Error("La rúbrica de la actividad no tiene criterios");
+  const detalleCriterios = criterios.map((c) => {
+    const nivel = nivelesPorCriterio[c.id];
+    if (!nivel) throw new Error(`Falta el nivel de «${c.criterio || c.id}»`);
+    const puntos = c.puntajesNiveles?.[nivel];
+    if (!Number.isFinite(Number(puntos))) throw new Error(`Nivel «${nivel}» inválido en «${c.criterio || c.id}»`);
+    return { criterioId: c.id, indicadorId: c.indicadorId || "", nivel, puntos: Number(puntos), puntajeMaximo: Number(c.puntajeMaximo) || 0 };
+  });
+  const suma = (k) => Number(detalleCriterios.reduce((s, d) => s + d[k], 0).toFixed(2));
+  return { puntaje: suma("puntos"), puntajeMaximo: suma("puntajeMaximo"), detalleCriterios };
+};
+
+/** Niveles ya guardados en un resultado, para precargar la rúbrica. */
+export const nivelesDeResultado = (resultado) =>
+  Object.fromEntries((resultado?.detalleCriterios || []).map((d) => [d.criterioId, d.nivel]));
+
+/**
+ * Quién se evalúa en la actividad: entregó → rúbrica; no entregó → decisión
+ * del docente; pendiente y excusa → no se evalúan. Orden alfabético.
+ */
+export const estudiantesParaEvaluar = (entregas = {}) => {
+  const grupos = { entrego: [], no_entrego: [], sinEvaluar: [] };
+  Object.entries(entregas || {})
+    .sort(([, a], [, b]) => String(a?.nombre).localeCompare(String(b?.nombre), "es"))
+    .forEach(([id, e]) => {
+      const fila = { id, nombre: e?.nombre || id, estado: ESTADOS_ENTREGA.includes(e?.estado) ? e.estado : "pendiente" };
+      (grupos[fila.estado] || grupos.sinEvaluar).push(fila);
+    });
+  return grupos;
+};
+
+/** Lista de instrumentos del plan con la exclusión de uno ya aplicada (para recalcular). */
+export const aplicarExclusion = (instrumentos = [], instrumentoId, excluido) =>
+  instrumentos.map((ins) => (String(ins.id || ins.instrumentoId) === String(instrumentoId)
+    ? { ...ins, excluidoDeNota: Boolean(excluido) }
+    : ins));

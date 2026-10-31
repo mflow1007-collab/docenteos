@@ -478,6 +478,7 @@ export const guardarResultadoInstrumento = async ({
   estado = "evaluado",
   observacionDocente = "",
   evidenciasIds = [],
+  detalleCriterios = [],
   fechaEvaluacion = new Date().toISOString(),
 }) => {
   if (!disponible()) throw new Error("Necesitas iniciar sesión para guardar resultados");
@@ -490,6 +491,7 @@ export const guardarResultadoInstrumento = async ({
     estado,
     observacionDocente,
     evidenciasIds,
+    detalleCriterios,
     docenteId: uid(),
   });
   resultado.fechaEvaluacion = fechaEvaluacion;

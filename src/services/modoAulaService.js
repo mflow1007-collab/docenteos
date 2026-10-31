@@ -124,7 +124,7 @@ export const obtenerInstrumentosDelDia = (planificacionId, claseId) =>
  * @param {object} params
  *   - instrumento: doc de usuarios/{uid}/instrumentos (con capa: indicadorIds…)
  *   - aplicaciones: [{ estudianteId, estudianteNombre, puntajeObtenido,
- *                      estado?, observacionDocente? }]
+ *                      estado?, observacionDocente?, detalleCriterios? }]
  *   - claseTitulo: para contextualizar la evidencia
  *   - sincronizarLegacy: mantener el puente al registro por competencias (default true)
  */
@@ -155,6 +155,7 @@ export const evaluarYRegistrar = async ({ instrumento, aplicaciones = [], claseT
         puntajeObtenido: aplicacion.puntajeObtenido,
         estado: aplicacion.estado || "evaluado",
         observacionDocente: aplicacion.observacionDocente || "",
+        detalleCriterios: aplicacion.detalleCriterios || [],
       });
 
       // 2. Mi Registro (regla 12) — con los resultados del estudiante al día

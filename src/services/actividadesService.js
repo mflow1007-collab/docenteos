@@ -12,8 +12,10 @@ import { db, auth, obtenerCursos } from "../firebase.js";
 import { obtenerEstudiantesPorCurso } from "./estudiantesService.js";
 import { idEstudiante, nombreDeEstudiante } from "../utils/idEstudiante.js";
 import { crearEvidencia } from "./evidenciasService.js";
+import { obtenerInstrumentosPorPlanificacion, obtenerResultadosPorPlanificacion } from "./instrumentosService.js";
+import { actualizarRegistroDesdeResultadoInstrumento } from "./registroService.js";
 import {
-  aplicarEntrega, construirActividadesDesdePlan, construirEvidenciaDeEntrega, fusionarActividad, unidadDePlan,
+  aplicarEntrega, aplicarExclusion, construirActividadesDesdePlan, construirEvidenciaDeEntrega, fusionarActividad, unidadDePlan,
 } from "./actividadesPlan.js";
 
 const uid = () => auth?.currentUser?.uid;
@@ -123,4 +125,46 @@ export const marcarEntrega = async (actividad, estudianteId, { estado, enlace } 
     }
   }
   return { entrega, avisoEvidencia };
+};
+
+/** F4 — La rúbrica guardada de la actividad (fail-closed si no existe). */
+export const obtenerInstrumentoDeActividad = async (actividad) => {
+  if (!db || !uid()) throw new Error("Necesitas iniciar sesión para evaluar");
+  if (!actividad?.instrumentoId) throw new Error("Esta actividad no tiene rúbrica: no da nota");
+  const snap = await getDoc(refInstrumento(actividad.instrumentoId));
+  if (!snap.exists()) throw new Error(`No se encontró la rúbrica ${actividad.instrumentoId}; vuelve a crear las actividades del plan`);
+  return { ...snap.data(), id: snap.id };
+};
+
+/**
+ * F4 (decisión 4) — El docente excluye (o vuelve a incluir) la actividad del
+ * cálculo. Reversible: marca la actividad y su rúbrica y recalcula los
+ * aspectos de quienes ya tienen resultado (regla 12: el ajuste manual no se pisa).
+ * @returns {{ recalculados: number, avisos: string[] }}
+ */
+export const cambiarExclusionDeNota = async (actividad, excluida) => {
+  if (!db || !uid()) throw new Error("Necesitas iniciar sesión para cambiar la actividad");
+  if (!actividad?.id || !actividad?.instrumentoId) throw new Error("Esta actividad no tiene rúbrica: no cuenta en la nota");
+  await updateDoc(refActividad(actividad.id), { excluidaDeNota: Boolean(excluida), updatedAt: serverTimestamp() });
+  await updateDoc(refInstrumento(actividad.instrumentoId), { excluidoDeNota: Boolean(excluida), updatedAt: serverTimestamp() });
+
+  const [instrumentos, resultados] = await Promise.all([
+    obtenerInstrumentosPorPlanificacion(actividad.planificacionId),
+    obtenerResultadosPorPlanificacion(actividad.planificacionId),
+  ]);
+  const lista = aplicarExclusion(instrumentos, actividad.instrumentoId, excluida);
+  const avisos = [];
+  let recalculados = 0;
+  for (const resultado of resultados.filter((r) => String(r.instrumentoId) === String(actividad.instrumentoId))) {
+    try {
+      await actualizarRegistroDesdeResultadoInstrumento(resultado, {
+        instrumentos: lista,
+        resultadosEstudiante: resultados.filter((r) => String(r.estudianteId) === String(resultado.estudianteId)),
+      });
+      recalculados += 1;
+    } catch (e) {
+      avisos.push(`No se recalculó el Registro de ${resultado.estudianteNombre || resultado.estudianteId}: ${e.message}`);
+    }
+  }
+  return { recalculados, avisos };
 };
