@@ -25,6 +25,7 @@ import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
 import { construirCapaCurricular, normalizarTexto, puntuarCursoParaPlan, UMBRAL_CURSO_PLAN } from "./hiloPedagogico.js";
 import { generarAspectosRegistroDesdePlanificacion } from "./registroService.js";
 import { crearInstrumentosPlaneadosDesdePlan } from "./instrumentosService.js";
+import { guardarActividadesDePlan } from "./actividadesService.js";
 import { cosecharSecuenciaDeUnidad } from "./bancoAprendizajeService.js";
 import { cosecharActividadesDeUnidad } from "./cosechaActividadesService.js";
 
@@ -156,6 +157,12 @@ export const vincularPlanificacionACurso = async (registroPlan, cursoId) => {
   } catch (error) {
     advertencias.push(`El plan quedó vinculado, pero los instrumentos planeados no se crearon: ${error.message}`);
   }
+  try {
+    const { avisos } = await guardarActividadesDePlan(plan);
+    advertencias.push(...avisos);
+  } catch (error) {
+    advertencias.push(`El plan quedó vinculado, pero sus actividades no se crearon: ${error.message}`);
+  }
   return { plan, advertencias };
 };
 
@@ -268,9 +275,22 @@ export const guardarPlanificacionConHilo = async (planificacion, { cursoId = "",
       instrumentos = await crearInstrumentosPlaneadosDesdePlan({
         id: resultado.id,
         capaCurricular: resultado.capaCurricular,
+        contenido: planificacion,
       });
     } catch (error) {
       advertencias.push(`El plan se guardó, pero los instrumentos planeados no se crearon: ${error.message}`);
+    }
+    // F2: una actividad por entrega de fase (solo planes con plan maestro)
+    try {
+      const { avisos } = await guardarActividadesDePlan({
+        id: resultado.id,
+        cursoId: resultado.capaCurricular.cursoId,
+        capaCurricular: resultado.capaCurricular,
+        contenido: planificacion,
+      });
+      advertencias.push(...avisos);
+    } catch (error) {
+      advertencias.push(`El plan se guardó, pero sus actividades no se crearon: ${error.message}`);
     }
   }
 

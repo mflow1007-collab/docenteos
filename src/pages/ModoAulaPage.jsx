@@ -21,6 +21,7 @@ import { estadoDocencia, diasDocenciaPrevios } from '../data/calendarioEscolarMI
 import { crearEvidencia } from '../services/evidenciasService.js'
 import { FormularioAnotacion } from '../components/RegistroAnecdotico.jsx'
 import { idEstudiante } from '../utils/idEstudiante.js'
+import ActividadesUnidadPanel from '../components/ActividadesUnidadPanel.jsx'
 import { formatearUnidadHTML, formatearGuiaMaestroHTML } from '../services/unidadAprendizajeService.js'
 import { generarGuiaMaestro } from '../services/guiaMaestroService.js'
 
@@ -2040,6 +2041,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           {avisosVinculo.map((aviso) => <div key={aviso}>⚠️ {aviso}</div>)}
         </div>
       )}
+
+      {/* ══ F2: actividades de la unidad (entregas de fase del plan maestro) ══ */}
+      <ActividadesUnidadPanel plan={planActivo} />
 
       {/* ══ AVISO: hoy no hay clase planificada → se muestra la próxima ══ */}
       {avisoClase && (

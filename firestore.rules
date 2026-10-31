@@ -44,6 +44,13 @@ service cloud.firestore {
           && request.resource.data.keys().hasAll(['cursoId', 'estudianteId', 'instrumentoId', 'estado'])
           && request.resource.data.estado in ['evaluado', 'pendiente', 'no_entrego'];
       }
+      // F2 recorrido actividad→informe: una actividad por entrega de fase del
+      // plan maestro, con las entregas de los estudiantes dentro del doc.
+      match /actividades/{docId} {
+        allow read, update: if isOwner(userId) || isAdmin();
+        allow create: if (isOwner(userId) || isAdmin())
+          && request.resource.data.keys().hasAll(['planificacionId', 'cursoId', 'faseNumero', 'entregas']);
+      }
       match /preferencias/{docId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }

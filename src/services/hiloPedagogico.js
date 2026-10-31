@@ -92,7 +92,7 @@ const MAPA_DIAS_SEMANA = {
   lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6, domingo: 0,
 };
 
-const calcularFechaSugerida = (fechaInicio, numeroSemana, nombreDia) => {
+export const calcularFechaSugerida = (fechaInicio, numeroSemana, nombreDia) => {
   if (!fechaInicio) return "";
   const base = new Date(`${fechaInicio}T12:00:00`);
   if (Number.isNaN(base.getTime())) return "";
