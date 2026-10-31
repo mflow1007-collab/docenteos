@@ -55,13 +55,20 @@ export const obtenerPaseLista = async (cursoId, fecha = hoyISO()) => {
   }
 };
 
-/** Todos los días con lista pasada del curso (para la cuadrícula del Registro). */
-export const obtenerAsistenciaCurso = async (cursoId) => {
-  if (!db || !uid() || !cursoId) return [];
+/**
+ * Todos los días con lista pasada del curso (para la cuadrícula del Registro).
+ * estricto (F5): lanza el error en vez de devolver [] (la alerta no calla fallos).
+ */
+export const obtenerAsistenciaCurso = async (cursoId, { estricto = false } = {}) => {
+  if (!db || !uid() || !cursoId) {
+    if (estricto) throw new Error("Usuario no autenticado o curso sin id");
+    return [];
+  }
   try {
     const snap = await getDocs(colAsistencia(cursoId));
     return snap.docs.map((d) => ({ fecha: d.id, ...d.data() }));
-  } catch {
+  } catch (e) {
+    if (estricto) throw e;
     return [];
   }
 };

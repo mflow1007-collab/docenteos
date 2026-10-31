@@ -11,7 +11,7 @@ import {
   obtenerActividadesPorPlanificacion, obtenerInstrumentoDeActividad,
 } from '../services/actividadesService.js'
 import {
-  alternarEstadoEntrega, estudiantesParaEvaluar, ETIQUETAS_ENTREGA, fechaDeActividad, nivelesDeResultado,
+  alternarEstadoEntrega, debeQuitarNota, estudiantesParaEvaluar, ETIQUETAS_ENTREGA, fechaDeActividad, nivelesDeResultado,
   puntuarRubrica, resumenEntregas, unidadDePlan,
 } from '../services/actividadesPlan.js'
 import { evaluarYRegistrar } from '../services/modoAulaService.js'
@@ -112,20 +112,29 @@ function EvaluarActividad({ actividad, onCambioEntrega }) {
 
   const criterios = instrumento.estructura?.criterios || []
   const opciones = instrumento.estructura?.niveles || []
-  const grupos = estudiantesParaEvaluar(actividad.entregas)
+  const grupos = estudiantesParaEvaluar(
+    actividad.entregas,
+    Object.keys(resultados).filter((id) => resultados[id]?.estado === 'evaluado'),
+  )
+
+  // Guarda el resultado y actualiza el Registro. estado 'pendiente' = quitar
+  // la nota (el aspecto queda vacío; un ajuste manual no se pisa).
+  const guardarResultado = async (est, aplicacion) => {
+    const { exitosos, errores } = await evaluarYRegistrar({
+      instrumento,
+      claseTitulo: actividad.claseTitulo || '',
+      // El puente legacy crearía otra columna y otra evidencia: aquí no (F7).
+      sincronizarLegacy: false,
+      aplicaciones: [{ estudianteId: est.id, estudianteNombre: est.nombre, estado: 'evaluado', ...aplicacion }],
+    })
+    if (errores.length) throw new Error(errores[0].mensaje)
+    setResultados((m) => ({ ...m, [est.id]: exitosos[0].resultado }))
+  }
 
   const registrar = async (est, aplicacion) => {
     setGuardando(est.id); setError('')
     try {
-      const { exitosos, errores } = await evaluarYRegistrar({
-        instrumento,
-        claseTitulo: actividad.claseTitulo || '',
-        // El puente legacy crearía otra columna y otra evidencia: aquí no (F7).
-        sincronizarLegacy: false,
-        aplicaciones: [{ estudianteId: est.id, estudianteNombre: est.nombre, estado: 'evaluado', ...aplicacion }],
-      })
-      if (errores.length) throw new Error(errores[0].mensaje)
-      setResultados((m) => ({ ...m, [est.id]: exitosos[0].resultado }))
+      await guardarResultado(est, aplicacion)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -147,6 +156,13 @@ function EvaluarActividad({ actividad, onCambioEntrega }) {
     try {
       const { entrega } = await marcarEntrega(actividad, est.id, { estado })
       onCambioEntrega(est.id, entrega)
+      if (debeQuitarNota(estado, resultados[est.id])) {
+        try {
+          await guardarResultado(est, { estado: 'pendiente', puntajeObtenido: null })
+        } catch (e) {
+          setError(`La entrega cambió, pero la nota anterior sigue en el Registro: ${e.message}`)
+        }
+      }
     } catch (e) {
       setError(`No se guardó la entrega: ${e.message}`)
     } finally {
@@ -167,7 +183,7 @@ function EvaluarActividad({ actividad, onCambioEntrega }) {
       {actividad.excluidaDeNota && (
         <div style={{ marginBottom:8, color:'#92400e', fontWeight:600 }}>Actividad excluida de la nota: lo que guardes queda registrado, pero no cuenta en el período.</div>
       )}
-      {!grupos.entrego.length && !grupos.no_entrego.length && (
+      {!grupos.entrego.length && !grupos.no_entrego.length && !grupos.conNota.length && (
         <div style={{ color:'#6b7280' }}>Nadie ha entregado todavía. Marca las entregas primero.</div>
       )}
       <div style={{ display:'grid', gap:10 }}>
@@ -212,6 +228,15 @@ function EvaluarActividad({ actividad, onCambioEntrega }) {
             <button type="button" style={boton} disabled={guardando === est.id} onClick={() => registrar(est, { puntajeObtenido: 0 })}>Poner 0</button>
             <button type="button" style={boton} disabled={guardando === est.id} onClick={() => cambiarEntrega(est, 'pendiente')}>Otra oportunidad</button>
             <button type="button" style={boton} disabled={guardando === est.id} onClick={() => cambiarEntrega(est, 'excusa')}>Excusa</button>
+          </div>
+        ))}
+        {grupos.conNota.map((est) => (
+          <div key={est.id} style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+            <span style={{ minWidth:170, fontWeight:700, color:'#1f2937' }}>{est.nombre}</span>
+            <span style={{ color:'#92400e' }}>{ETIQUETAS_ENTREGA[est.estado]}, pero tiene nota</span>
+            {nota(est)}
+            <button type="button" style={boton} disabled={guardando === est.id}
+              onClick={() => registrar(est, { estado: 'pendiente', puntajeObtenido: null })}>Quitar nota</button>
           </div>
         ))}
       </div>

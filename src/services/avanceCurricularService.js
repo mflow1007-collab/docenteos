@@ -27,9 +27,13 @@ const uid = () => getAuth().currentUser?.uid || "";
 const CACHE_TTL_MS = 60_000;
 let _cache = { uid: "", en: 0, resultados: null };
 
-const leerResultados = async () => {
+// estricto: lanza el error en vez de devolver [] (F5: la alerta no calla fallos)
+const leerResultados = async ({ estricto = false } = {}) => {
   const u = uid();
-  if (!db || !u) return [];
+  if (!db || !u) {
+    if (estricto) throw new Error("Usuario no autenticado");
+    return [];
+  }
   const ahora = Date.now();
   if (_cache.resultados && _cache.uid === u && ahora - _cache.en < CACHE_TTL_MS) {
     return _cache.resultados;
@@ -39,7 +43,8 @@ const leerResultados = async () => {
     const resultados = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     _cache = { uid: u, en: ahora, resultados };
     return resultados;
-  } catch {
+  } catch (e) {
+    if (estricto) throw e;
     return _cache.uid === u ? (_cache.resultados || []) : [];
   }
 };
@@ -114,6 +119,17 @@ export const obtenerAvanceEstudiante = async (estudianteId, { cursoId = "" } = {
   } catch {
     return { porIndicador: [], necesitaApoyo: [], totalResultados: 0 };
   }
+};
+
+/**
+ * F5 — Resultados del estudiante (con sus ids legados) en el curso. LANZA si
+ * no se pueden leer: la ficha muestra «sin comprobar» en vez de callarlo.
+ */
+export const obtenerResultadosEstudiante = async (estudianteId, { cursoId = "", idsLegado = [] } = {}) => {
+  const ids = new Set([estudianteId, ...idsLegado].filter(Boolean).map(String));
+  return (await leerResultados({ estricto: true })).filter((r) =>
+    ids.has(String(r.estudianteId || ""))
+    && (!cursoId || String(r.cursoId || "") === String(cursoId)));
 };
 
 /**
