@@ -4,7 +4,7 @@ import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import { guardarEstudianteEnSubcoleccion } from "../services/estudiantesService.js";
-import { avisoCedula, formatearCedula, idEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
+import { avisoCedula, formatearCedula, idEstudiante, idsAmbiguosEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
 import { enriquecerCursoInicial, generarEstudiantesDetalle } from "../utils/cursoUtils.js";
 import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
 
@@ -87,6 +87,7 @@ function EstudiantesPage({
         return {
           id: idEstudiante(estudiante, indice),
           idsLegado: idsLegadoEstudiante(estudiante, indice, { cursoId: curso.id }),
+          legadoAmbiguo: idsAmbiguosEstudiante(estudiante, indice), // F7: «est-N» se decide por nombre
           cedula: estudiante.cedula ?? "",
           nombre: estudiante.nombre,
           avatar: estudiante.nombre.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(),
@@ -97,6 +98,7 @@ function EstudiantesPage({
           esDemo: !curso.estudiantesDetalle?.length,
           cursoId: curso.id,
           cursoNombre: curso.nombre,
+          nivel: curso.nivel || "",
           area: curso.area || "General",
           grado: curso.grado || curso.nombre.split(" ").slice(0, 2).join(" "),
           seccion: curso.seccion || (curso.nombre.match(/[A-Z]$/)?.[0] || "A"),

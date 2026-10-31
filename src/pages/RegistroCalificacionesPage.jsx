@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { COMP_CODIGOS, COMP_DESCRIPCIONES, COMP_BLOQUES_MAP } from "../constants/registroCodigos.js";
 import { obtenerCompetencias } from "../services/curriculumService.js";
+import { obtenerCompetenciasMallaCurso } from "../services/mallaCursoService.js";
 import {
   guardarEvidenciaEstudiante,
   guardarRegistroAspecto,
@@ -12,7 +13,7 @@ import {
   obtenerRegistroCalificaciones,
   obtenerRegistroNotas,
 } from "../firebase";
-import { validarPonderacion } from "../services/hiloPedagogico.js";
+import { evidenciasVigentes, validarPonderacion } from "../services/hiloPedagogico.js";
 import { obtenerAvanceCurricular, obtenerResultadosCurso } from "../services/avanceCurricularService.js";
 import { obtenerActividadesPorCurso } from "../services/actividadesService.js";
 import { construirInformeCurso, htmlInformeCurso } from "../services/informesSeguimiento.js";
@@ -22,8 +23,8 @@ import { proximaEntregaReportes } from "../data/calendarioEscolarMINERD.js";
 import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
-import { calcularResumenEstudiante, normalizarNotasCompetencias } from "../utils/resumenCalificaciones.js";
-import { idEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
+import { aplicarCeldasIndicadores, calcularResumenEstudiante, celdasDesdeIndicadores, normalizarNotasCompetencias } from "../utils/resumenCalificaciones.js";
+import { depurarDatosLegado, idEstudiante, idsAmbiguosEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
@@ -266,6 +267,7 @@ function RegistroPage({
     crearAsistenciaParaEstudiantes(estudiantes)
   );
   const [competencias, setCompetencias] = useState(competenciasFallback);
+  const [mallaCompetencias, setMallaCompetencias] = useState({ estado: "cargando", fuente: "" });
 
   useEffect(() => {
     const nivel = curso?.nivel;
@@ -285,17 +287,37 @@ function RegistroPage({
       })));
     }
 
-    // Luego actualizar desde Firestore si hay datos del currículo importado
-    if (!nivel || !grado) return;
-    obtenerCompetencias(nivel, grado, areaRaw).then((comps) => {
-      if (comps?.length) {
+    // F7 (César): las columnas son las competencias de la malla oficial
+    // (curricularContent, la misma del generador); cada indicador va a la de
+    // su competencia. Sin malla, se queda lo de antes y la C.F. no se calcula
+    // desde los indicadores (aviso visible).
+    setMallaCompetencias({ estado: "cargando", fuente: "" });
+    obtenerCompetenciasMallaCurso(curso || {}).then(({ competencias: comps, fuente }) => {
+      if (comps.length) {
         setCompetencias(comps.map((c) => ({
           id: c.id,
           nombre: c.descripcion || COMP_DESCRIPCIONES[c.id] || c.id,
           indicadoresLogro: c.indicadoresLogro || [],
           contenidos: c.contenidos || {},
         })));
+        setMallaCompetencias({ estado: "ok", fuente });
+        return;
       }
+      setMallaCompetencias({ estado: "sin_malla", fuente });
+      // Luego actualizar desde Firestore si hay datos del currículo importado
+      if (!nivel || !grado) return;
+      obtenerCompetencias(nivel, grado, areaRaw).then((comps) => {
+        if (comps?.length) {
+          setCompetencias(comps.map((c) => ({
+            id: c.id,
+            nombre: c.descripcion || COMP_DESCRIPCIONES[c.id] || c.id,
+            indicadoresLogro: c.indicadoresLogro || [],
+            contenidos: c.contenidos || {},
+          })));
+        }
+      });
+    }).catch((err) => {
+      setMallaCompetencias({ estado: "error", fuente: err?.message || "error de lectura" });
     });
     // Recarga las competencias al cambiar de curso. curso?.id identifica el
     // curso de forma única: sus campos (área/grado/nivel) cambian junto con el
@@ -313,6 +335,12 @@ function RegistroPage({
   const [filtroEvidenciaEst, setFiltroEvidenciaEst] = useState("Todos");
   const [filtroEvidenciaTipo, setFiltroEvidenciaTipo] = useState("Todos");
   const [estadoNotasAspectos, setEstadoNotasAspectos] = useState("idle");
+  // F7 — C.F. desde las notas por indicador: listo = cursoId ya cargado
+  const [registroListo, setRegistroListo] = useState("");
+  const [hiloListo, setHiloListo] = useState("");
+  const [resultadosCurso, setResultadosCurso] = useState({ cursoId: "", lista: [], error: "" });
+  const [avisoCF, setAvisoCF] = useState(null);
+  const cfAplicadaRef = useRef("");
   const notasPendientesRef = useRef({});
   const estudiantesModificadosRef = useRef(new Set());
   const [guardando, setGuardando] = useState(false);
@@ -456,6 +484,7 @@ function RegistroPage({
       // El borrador local no debe bloquear el registro.
     }
 
+    setRegistroListo("");
     obtenerRegistroCalificaciones(cursoId)
       .then(({ data }) => {
         if (data) aplicarRegistroGuardado(data);
@@ -463,6 +492,7 @@ function RegistroPage({
       .catch(() => {})
       .finally(() => {
         registroCargadoRef.current = true;
+        setRegistroListo(cursoId);
       });
   }, [cursoId, draftKey]);
 
@@ -482,10 +512,12 @@ function RegistroPage({
       setRegistroAspectos(aspectos);
       setRegistroNotas(notas);
       // El registro anecdótico se muestra aparte (ficha del estudiante)
-      setEvidenciasCurso((evidenciasRes.data || []).filter((e) => !esRegistroAnecdotico(e)));
+      // F7: sin retiradas ni copias del puente legacy
+      setEvidenciasCurso(evidenciasVigentes((evidenciasRes.data || []).filter((e) => !esRegistroAnecdotico(e))));
       setInstrumentosCurso((instrumentosRes.data || []).filter(
         (ins) => String(ins.cursoId || ins.vinculacion?.cursoId || "") === String(cursoId)
       ));
+      setHiloListo(cursoId);
     }).catch(() => {
       if (activo) {
         setRegistroAspectos([]);
@@ -578,13 +610,68 @@ function RegistroPage({
             ci !== compIdx ? comp : {
               ...comp,
               periodos: comp.periodos.map((per, pi) =>
-                pi !== periodoIdx ? per : { ...per, [campo]: valor }
+                pi !== periodoIdx ? per
+                  // Regla 12: la P escrita a mano no la pisa el cálculo desde los indicadores
+                  : campo === "p" ? { ...per, p: valor, ajusteManual: valor !== "", desactualizado: false }
+                  : { ...per, [campo]: valor }
               ),
             }
           ),
         },
       };
     });
+  };
+
+  // Acepta el nuevo cálculo de una celda con ajuste manual («⚠️ Nuevo cálculo»)
+  const aceptarCalculoCelda = (estId, compIdx, periodoIdx) => {
+    estudiantesModificadosRef.current.add(estId);
+    setNotasEstudiantes((prev) => {
+      const actual = normalizarNotasCompetencias(prev[estId], cantidadCompetencias);
+      return {
+        ...prev,
+        [estId]: {
+          ...actual,
+          competencias: actual.competencias.map((comp, ci) => ci !== compIdx ? comp : {
+            ...comp,
+            periodos: comp.periodos.map((per, pi) => pi !== periodoIdx ? per : {
+              ...per, p: per.valorCalculado, rp: "", fuente: "instrumentos", ajusteManual: false, desactualizado: false,
+            }),
+          }),
+        },
+      };
+    });
+  };
+
+  // F7 — Lleva las notas por indicador a la C.F. (columna = competencia de la
+  // malla, período = fecha del resultado). Regla 12: no pisa lo puesto a mano.
+  const recalcularCFDesdeIndicadores = () => {
+    if (mallaCompetencias.estado !== "ok") return;
+    const notasLista = Object.values(registroNotas);
+    const sinCompetencia = new Set();
+    let sinPeriodo = 0;
+    const porEstudiante = estudiantes.map((est, i) => {
+      const { resultados } = depurarDatosLegado({ resultados: resultadosCurso.lista }, idsAmbiguosEstudiante(est, i));
+      const r = celdasDesdeIndicadores({
+        competencias, aspectos: registroAspectos, instrumentos: instrumentosCurso, resultados,
+        notas: notasLista, ids: [est.id, ...idsLegadoEstudiante(est, i, { cursoId })], nivel: curso?.nivel || "Secundaria",
+      });
+      r.sinCompetencia.forEach((c) => sinCompetencia.add(c));
+      sinPeriodo += r.sinPeriodo;
+      return [est.id, r.celdas];
+    });
+    let cambios = 0;
+    setNotasEstudiantes((prev) => {
+      const next = { ...prev };
+      for (const [estId, celdas] of porEstudiante) {
+        const r = aplicarCeldasIndicadores(prev[estId], celdas, cantidadCompetencias);
+        if (!r.cambios) continue;
+        cambios += r.cambios;
+        next[estId] = r.notas;
+        estudiantesModificadosRef.current.add(estId);
+      }
+      return cambios ? next : prev;
+    });
+    setAvisoCF({ fecha: new Date().toLocaleTimeString("es-DO"), sinCompetencia: [...sinCompetencia], sinPeriodo });
   };
 
   const actualizarExtraEstudiante = (estId, campo, valor) => {
@@ -594,6 +681,26 @@ function RegistroPage({
       return { ...prev, [estId]: { ...actual, [campo]: valor } };
     });
   };
+
+  useEffect(() => {
+    if (!cursoId) return undefined;
+    let vivo = true;
+    obtenerResultadosCurso(cursoId)
+      .then((lista) => { if (vivo) setResultadosCurso({ cursoId, lista: lista || [], error: "" }); })
+      .catch((e) => { if (vivo) setResultadosCurso({ cursoId, lista: [], error: e?.message || "error de lectura" }); });
+    return () => { vivo = false; };
+  }, [cursoId]);
+
+  // Al abrir el curso, con todo cargado, la C.F. se pone al día una vez sola
+  // (luego, con el botón). Si los resultados no se leyeron, no se calcula.
+  useEffect(() => {
+    if (cfAplicadaRef.current === cursoId) return;
+    if (mallaCompetencias.estado !== "ok" || registroListo !== cursoId || hiloListo !== cursoId) return;
+    if (resultadosCurso.cursoId !== cursoId || resultadosCurso.error) return;
+    cfAplicadaRef.current = cursoId;
+    recalcularCFDesdeIndicadores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se dispara cuando todo está cargado
+  }, [cursoId, mallaCompetencias.estado, registroListo, hiloListo, resultadosCurso, competencias]);
 
   const resumen = useMemo(() => {
     const asistenciaGeneral = promedio(
@@ -1051,7 +1158,7 @@ function RegistroPage({
     const informe = construirInformeCurso({
       cursoNombre, asignatura: area, ...resto,
       // Con sus ids legados, como la ficha: los resultados viejos (p. ej. «est-1») también cuentan
-      estudiantes: estudiantes.map((est, i) => ({ ...est, idsLegado: idsLegadoEstudiante(est, i, { cursoId }) })),
+      estudiantes: estudiantes.map((est, i) => ({ ...est, idsLegado: idsLegadoEstudiante(est, i, { cursoId }), legadoAmbiguo: idsAmbiguosEstudiante(est, i) })),
       aspectos: registro.aspectos || [], notas: registro.notas || [], hoy: fechaLocalISO(), errores,
     });
     win.document.open();
@@ -1276,6 +1383,36 @@ function RegistroPage({
           </button>
         ))}
       </section>
+
+      {/* F7 — de dónde sale la C.F.: notas por indicador → competencia de la malla × período */}
+      {(tabActiva === "Resumen" || tabActiva === "Calificaciones") && (() => {
+        const desactualizadas = Object.values(notasEstudiantes).reduce((n, notas) => n + (notas?.competencias || [])
+          .reduce((m, comp) => m + (comp?.periodos || []).filter((per) => per?.desactualizado).length, 0), 0);
+        const caja = { margin: "0 0 12px", padding: "10px 16px", borderRadius: 10, fontSize: 13 };
+        if (mallaCompetencias.estado === "cargando") return null;
+        if (mallaCompetencias.estado !== "ok") {
+          return (
+            <div role="alert" style={{ ...caja, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontWeight: 700 }}>
+              ⚠️ Sin malla oficial para este curso ({mallaCompetencias.fuente}): la C.F. no se calcula desde las notas por indicador. Las columnas son las de la tabla de respaldo.
+            </div>
+          );
+        }
+        return (
+          <div style={{ ...caja, background: "#f5f3ff", border: "1px solid #ddd6fe", color: "#4c1d95" }}>
+            <strong>C.F. desde las notas por indicador</strong> · columnas = competencias de la malla ({mallaCompetencias.fuente}); cada nota va al período por la fecha en que se evaluó. Lo que escribiste a mano no se cambia: si el cálculo da otro número verás «⚠️» en la celda.
+            {resultadosCurso.error && <div style={{ color: "#b91c1c", fontWeight: 700 }}>No se pudieron leer los resultados ({resultadosCurso.error}): la C.F. no se recalculó.</div>}
+            {desactualizadas > 0 && <div style={{ fontWeight: 700, color: "#b45309" }}>{desactualizadas} celda{desactualizadas === 1 ? "" : "s"} con nota a mano distinta del cálculo.</div>}
+            {avisoCF?.sinCompetencia?.length > 0 && <div style={{ fontWeight: 700, color: "#b91c1c" }}>Indicadores que no están en la malla (no cuentan): {avisoCF.sinCompetencia.join(", ")}.</div>}
+            {avisoCF?.sinPeriodo > 0 && <div style={{ fontWeight: 700, color: "#b91c1c" }}>{avisoCF.sinPeriodo} resultado{avisoCF.sinPeriodo === 1 ? "" : "s"} sin fecha dentro del calendario escolar (no cuentan).</div>}
+            <div style={{ marginTop: 6 }}>
+              <button type="button" className="mini-btn" onClick={recalcularCFDesdeIndicadores} disabled={Boolean(resultadosCurso.error)}>
+                Recalcular desde los indicadores
+              </button>
+              {avisoCF && <span style={{ marginLeft: 8, color: "#6b7280" }}>Calculado a las {avisoCF.fecha}</span>}
+            </div>
+          </div>
+        );
+      })()}
 
       {tabActiva === "Resumen" && (
         <section className="registro-panel">
@@ -2216,6 +2353,13 @@ function RegistroPage({
                         <input type="number" min="0" max="100" value={per.p}
                           onChange={(e) => actualizarNotaEstudiante(est.id, ci, pi, "p", e.target.value)}
                           className="rg-input-nota" />
+                        {per.desactualizado && per.valorCalculado !== null && per.valorCalculado !== undefined && (
+                          <button type="button" onClick={() => aceptarCalculoCelda(est.id, ci, pi)}
+                            title={`Nota a mano: ${per.p}. Desde los indicadores: ${per.valorCalculado}. Clic para usar el cálculo.`}
+                            style={{ display: "block", margin: "2px auto 0", padding: "0 4px", fontSize: 10, fontWeight: 700, color: "#b45309", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 4, cursor: "pointer" }}>
+                            ⚠️ {per.valorCalculado}
+                          </button>
+                        )}
                       </td>,
                       <td key={`${est.id}-c${ci}p${pi}-rp`} className={`rg-td rg-td-nota ${rpOk ? "rg-td-rp-ok" : "rg-td-rp-pend"} rg-comp-bg-${ci+1}`}>
                         {rpOk

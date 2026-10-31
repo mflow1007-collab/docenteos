@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { CAMPOS_REGISTRO_ANECDOTICO, fechaHoyISO, validarAnotacion } from "../utils/registroAnecdotico.js";
 import { crearAnotacionAnecdotica, obtenerAnotacionesAnecdoticas } from "../services/registroAnecdoticoService.js";
+import { depurarDatosLegado } from "../utils/idEstudiante.js";
 
 const estiloCampo = {
   width: "100%", border: "1px solid #e2e8f0", borderRadius: 7, padding: "6px 10px",
@@ -77,7 +78,7 @@ export function RegistroAnecdoticoPanel({ estudiante }) {
     setAnotaciones(null);
     setErrorCarga("");
     obtenerAnotacionesAnecdoticas(estudiante.id, { cursoId: estudiante.cursoId || "", idsLegado: estudiante.idsLegado || [] })
-      .then((datos) => { if (vigente) setAnotaciones(datos); })
+      .then((datos) => { if (vigente) setAnotaciones(depurarDatosLegado({ evidencias: datos }, estudiante.legadoAmbiguo).evidencias); })
       .catch((err) => {
         if (!vigente) return;
         setErrorCarga(`No se pudo cargar el registro anecdótico: ${err?.message || "error desconocido"}`);

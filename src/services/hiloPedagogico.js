@@ -1005,8 +1005,30 @@ export const construirEvidenciaDesdeResultado = (resultado, { instrumento = null
     observacionDocente: resultado.observacionDocente || "",
     indicadores: resultado.indicadorIds || [],
     origen: "instrumento",
+    retirada: false, // F7: re-evaluar devuelve la evidencia que se retiró al quitar la nota
     metadata: { estadoResultado: resultado.estado, tipoInstrumento: resultado.tipoInstrumento || "" },
   };
+};
+
+/**
+ * F7 — Evidencias que se muestran. PURO. Fuera: las retiradas (se quitó la
+ * nota), la de un resultado que volvió a «pendiente» (si se conocen los
+ * resultados) y la copia del puente legacy («eval-…») cuando existe la del
+ * resultado del mismo instrumento y estudiante. Nada se borra.
+ */
+export const evidenciasVigentes = (evidencias = [], resultados = null) => {
+  const estadoResultado = Array.isArray(resultados)
+    ? new Map(resultados.map((r) => [String(r?.resultadoId || r?.id || ""), r?.estado]))
+    : null;
+  const deResultado = new Set(evidencias
+    .filter((e) => e?.tipo === "resultado_instrumento")
+    .map((e) => `${e.instrumentoId}__${e.estudianteId}`));
+  return evidencias.filter((e) => {
+    if (e?.retirada === true) return false;
+    if (e?.tipo === "resultado_instrumento" && estadoResultado && estadoResultado.get(String(e.resultadoId || "")) === "pendiente") return false;
+    const id = String(e?.id || e?.evidenciaId || "");
+    return !(id.startsWith("eval-") && deResultado.has(`${e.instrumentoId}__${e.estudianteId}`));
+  });
 };
 
 // ─── Reglas 10-12 — Consolidación de nota (base de Mi Registro, Fase 5) ──────
