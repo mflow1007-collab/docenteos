@@ -889,7 +889,9 @@ export const nivelLogroDesdePorcentaje = (pct) => {
  * FASE 4 — Construye el documento de instrumentoResultados.
  * Reglas:
  *  - estado "pendiente" → puntaje null (NO cuenta como 0)
- *  - estado "no_entrego" → puntaje 0 explícito (decisión del docente)
+ *  - estado "no_entrego" → puntaje null: queda pendiente hasta que el docente
+ *    decida (pone 0, da otra oportunidad o lo cambia a excusa) — decisión 3
+ *    de César, 2026-10-30; antes contaba 0 automático
  *  - estado "evaluado" → requiere puntajeObtenido y puntajeMaximo válidos
  */
 export const construirResultadoInstrumento = ({
@@ -918,8 +920,6 @@ export const construirResultadoInstrumento = ({
     puntaje = Number(puntajeObtenido);
     if (!Number.isFinite(puntaje)) throw new Error("puntajeObtenido es obligatorio cuando estado = evaluado");
     puntaje = Math.min(puntajeMaximo, Math.max(0, puntaje));
-  } else if (estado === "no_entrego") {
-    puntaje = 0;
   }
 
   const porcentaje = puntaje === null ? null : Math.round((puntaje / puntajeMaximo) * 100);
@@ -1014,7 +1014,8 @@ export const construirEvidenciaDesdeResultado = (resultado, { instrumento = null
  *
  * - Instrumentos sin resultado o con estado "pendiente" NO cuentan como 0:
  *   se excluyen y la nota queda marcada como parcial.
- * - "no_entrego" cuenta como 0 (decisión explícita del docente).
+ * - "no_entrego" tampoco cuenta (decisión 3): sin número hasta que el docente
+ *   lo evalúe; si quiere 0, lo registra como evaluado con 0.
  * - Si las ponderaciones no suman 100, se normalizan proporcionalmente y se
  *   arrastra la advertencia de validarPonderacion.
  *
@@ -1034,7 +1035,7 @@ export const consolidarNotaEstudiante = ({ instrumentos = [], resultados = [] })
   for (const ins of instrumentosNormalizados) {
     const insId = String(ins.id || ins.instrumentoId);
     const resultado = porInstrumento.get(insId);
-    const cuentaComoEvaluado = resultado && (resultado.estado === "evaluado" || resultado.estado === "no_entrego");
+    const cuentaComoEvaluado = resultado?.estado === "evaluado";
 
     if (!cuentaComoEvaluado) {
       pendientes.push(insId);
@@ -1277,7 +1278,7 @@ const _normCodigoAvance = (c) => String(c || "").trim().toUpperCase().replace(/\
  * Agrega resultados de instrumento (Fase 4) en logro por indicador. PURO.
  * Reglas de conteo (las de la Fase 4):
  *   - "evaluado"   → cuenta con su porcentaje
- *   - "no_entrego" → cuenta como 0 (porcentaje ya viene en 0)
+ *   - "no_entrego" → NO cuenta (porcentaje null, decisión 3)
  *   - "pendiente"  → NO cuenta (porcentaje null)
  * Cada resultado aporta su porcentaje a TODOS los indicadorIds del instrumento.
  *

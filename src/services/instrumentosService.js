@@ -465,7 +465,7 @@ export const obtenerInstrumentosPorClase = async (planificacionId, claseId) => {
 /**
  * Guarda el resultado de un instrumento para un estudiante.
  * Estados: "evaluado" (con puntaje), "pendiente" (sin puntaje, NO cuenta 0),
- * "no_entrego" (0 explícito decidido por el docente).
+ * "no_entrego" (sin puntaje: pendiente hasta que el docente decida, decisión 3).
  *
  * Escribe además una marca de aplicación mínima en el instrumento (usos,
  * status activo) en el MISMO batch para no dejar estados a medias.

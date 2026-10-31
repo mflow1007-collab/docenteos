@@ -354,15 +354,22 @@ assert.equal(parcial.esParcial, true);
 assert.deepEqual(parcial.pendientes, [instrumentos[2].id]);
 ok("estudiante evaluado en 2 de 3 → nota PARCIAL 80 (pendiente ≠ 0) con instrumento pendiente identificado");
 
-// Regla 11 — "no entregó" marcado explícitamente sí cuenta como 0
+// Decisión 3 (2026-10-30) — "no entregó" queda pendiente: sin 0 automático
 const rNoEntrego = construirResultadoInstrumento({
   instrumento: instrumentos[2], estudianteId: "est-juan-perez-1", estado: "no_entrego",
 });
-assert.equal(rNoEntrego.puntajeObtenido, 0);
+assert.equal(rNoEntrego.puntajeObtenido, null);
+assert.equal(rNoEntrego.porcentaje, null);
 const conNoEntrega = consolidarNotaEstudiante({ instrumentos, resultados: [r1, r2, rNoEntrego] });
-assert.equal(conNoEntrega.valorCalculado, 60);
-assert.equal(conNoEntrega.esParcial, false);
-ok("'no entregó' explícito cuenta como 0 → 60/100 (ya no es parcial)");
+assert.equal(conNoEntrega.valorCalculado, 80);
+assert.equal(conNoEntrega.esParcial, true);
+assert.deepEqual(conNoEntrega.pendientes, [instrumentos[2].id]);
+// Si el docente decide 0, lo registra como evaluado con 0
+const rCero = construirResultadoInstrumento({
+  instrumento: instrumentos[2], estudianteId: "est-juan-perez-1", puntajeObtenido: 0,
+});
+assert.equal(consolidarNotaEstudiante({ instrumentos, resultados: [r1, r2, rCero] }).valorCalculado, 60);
+ok("'no entregó' NO pone 0: nota parcial 80 hasta que el docente decida (0 explícito → 60)");
 
 // Estado pendiente → sin puntaje, sin porcentaje
 const rPendiente = construirResultadoInstrumento({
@@ -582,11 +589,11 @@ const evidenciaPendiente = construirEvidenciaDesdeResultado(rPendiente, {});
 assert.equal(evidenciaPendiente, null);
 ok("resultado 'pendiente' no genera evidencia");
 
-// "No entregó" → evidencia descriptiva con 0
+// "No entregó" → evidencia descriptiva SIN número (decisión 3)
 const evidenciaNoEntrego = construirEvidenciaDesdeResultado(rNoEntrego, { instrumento: instrumentos[2] });
 assert.match(evidenciaNoEntrego.descripcion, /no entregó/);
-assert.equal(evidenciaNoEntrego.calificacionAsociada, 0);
-ok("'no entregó' genera evidencia explícita con calificación 0");
+assert.equal(evidenciaNoEntrego.calificacionAsociada, null);
+ok("'no entregó' genera evidencia explícita sin calificación");
 
 // ════════════════════════════ BLOQUE A.5 ═════════════════════════════════════
 
@@ -679,16 +686,16 @@ const resultadosF9 = [
 const avanceF9 = agregarResultadosPorIndicador(resultadosF9);
 assert.equal(avanceF9.length, 3, "3 indicadores agregados");
 const il1 = avanceF9.find((i) => i.codigo === "IL-ING-1-COM-1");
-// e1=90, e2=40, e3=0 (no_entrego cuenta como 0); e4 pendiente NO cuenta
-assert.equal(il1.evaluaciones, 3);
-assert.equal(il1.estudiantes, 3);
-assert.equal(il1.promedio, Math.round((90 + 40 + 0) / 3)); // 43
+// e1=90, e2=40; e3 no_entrego y e4 pendiente NO cuentan (decisión 3)
+assert.equal(il1.evaluaciones, 2);
+assert.equal(il1.estudiantes, 2);
+assert.equal(il1.promedio, Math.round((90 + 40) / 2)); // 65
 assert.equal(il1.nivel, "Necesita apoyo");
-assert.equal(il1.estudiantesApoyo, 2, "e2 y e3 bajo 70; e1 no");
+assert.equal(il1.estudiantesApoyo, 1, "e2 bajo 70; e1 no; e3 sin número");
 const il3 = avanceF9.find((i) => i.codigo === "IL-ING-1-COM-3");
 assert.equal(il3.promedio, 95);
 assert.equal(il3.nivel, "Logrado");
-ok("agregación por indicador: evaluado/no_entrego cuentan, pendiente no");
+ok("agregación por indicador: evaluado cuenta; no_entrego y pendiente no");
 
 const debilesF9 = indicadoresDebilesDeAvance(avanceF9, { umbral: 70, minEvaluaciones: 1 });
 assert.deepEqual(debilesF9, ["IL-ING-1-COM-1", "IL-ING-1-COM-2"]);

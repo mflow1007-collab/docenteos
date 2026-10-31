@@ -219,3 +219,109 @@ export const fusionarActividad = (nueva, existente) => {
 
 /** Fecha que vale: la que puso el docente o, si no, la prevista. */
 export const fechaDeActividad = (actividad) => actividad?.fechaAjustada || actividad?.fechaPrevista || "";
+
+// ─── F3 — Entregas por estudiante ────────────────────────────────────────────
+// Decisión 2: Pendiente / Entregó / No entregó / Excusa (sin «Entregó tarde»).
+// Decisión 3: la entrega NO es nota: marcar aquí no escribe resultados ni
+// Registro; «No entregó» queda sin número hasta que el docente evalúe.
+
+export const ETIQUETAS_ENTREGA = {
+  pendiente: "Pendiente", entrego: "Entregó", no_entrego: "No entregó", excusa: "Excusa",
+};
+
+/** Pulsar la marca que ya tiene el estudiante la quita (vuelve a pendiente). */
+export const alternarEstadoEntrega = (actual, pulsado) => (actual === pulsado ? "pendiente" : pulsado);
+
+const ENLACE = /^https?:\/\/\S+$/i;
+
+/**
+ * Nueva entrega de un estudiante. Conserva el nombre y el enlace previos;
+ * `enlace` = undefined no lo toca, "" lo quita. Fail-closed con estado o
+ * enlace inválidos.
+ */
+export const aplicarEntrega = (previa = {}, { estado, enlace, ahora = new Date().toISOString() } = {}) => {
+  const nuevoEstado = estado ?? previa.estado ?? "pendiente";
+  if (!ESTADOS_ENTREGA.includes(nuevoEstado)) {
+    throw new Error(`Estado de entrega inválido "${nuevoEstado}". Usa: ${ESTADOS_ENTREGA.join(", ")}`);
+  }
+  const limpio = enlace === undefined ? (previa.enlace || "") : String(enlace).trim();
+  if (limpio && !ENLACE.test(limpio)) throw new Error("El enlace de la evidencia debe empezar por http:// o https://");
+  return {
+    estado: nuevoEstado,
+    nombre: previa.nombre || "",
+    marcadaEn: nuevoEstado === "pendiente" ? null : (estado !== undefined && estado !== previa.estado ? ahora : previa.marcadaEn || ahora),
+    enlace: limpio,
+  };
+};
+
+/** Conteo por estado (las entregas sin estado conocido cuentan como pendientes). */
+export const resumenEntregas = (entregas = {}) => {
+  const resumen = { pendiente: 0, entrego: 0, no_entrego: 0, excusa: 0, total: 0 };
+  for (const e of Object.values(entregas || {})) {
+    resumen[ESTADOS_ENTREGA.includes(e?.estado) ? e.estado : "pendiente"] += 1;
+    resumen.total += 1;
+  }
+  return resumen;
+};
+
+export const crearEvidenciaEntregaId = (actividadId, estudianteId) => `evi-act-${actividadId}__${estudianteId}`;
+
+/**
+ * Evidencia (enlace) de una entrega: UNA por actividad + estudiante, con ID
+ * determinista para que volver a guardar actualice la misma y no duplique.
+ * null si la entrega no tiene enlace.
+ */
+export const construirEvidenciaDeEntrega = (actividad, estudianteId, entrega, { ahora = new Date().toISOString() } = {}) => {
+  if (!entrega?.enlace) return null;
+  if (!actividad?.id || !actividad?.cursoId || !estudianteId) {
+    throw new Error("La evidencia de la entrega necesita actividad, curso y estudiante");
+  }
+  const evidenciaId = crearEvidenciaEntregaId(actividad.id, estudianteId);
+  const titulo = `Entrega fase ${actividad.faseNumero} · ${actividad.faseNombre || ""}`.trim();
+  return {
+    evidenciaId,
+    id: evidenciaId,
+    tipo: "entrega_actividad",
+    origen: "actividad",
+    titulo,
+    descripcion: `${entrega.nombre || "El estudiante"}: ${actividad.entrega?.texto || titulo} (${ETIQUETAS_ENTREGA[entrega.estado] || entrega.estado}).`,
+    enlace: entrega.enlace,
+    estudianteId: String(estudianteId),
+    estudianteNombre: entrega.nombre || "",
+    cursoId: String(actividad.cursoId),
+    planificacionId: actividad.planificacionId || "",
+    claseId: actividad.claseId || "",
+    actividadId: actividad.id,
+    instrumentoId: actividad.instrumentoId || "",
+    indicadorId: actividad.indicadorIds?.[0] || "",
+    indicadorIds: actividad.indicadorIds || [],
+    fecha: ahora,
+    metadata: { estadoEntrega: entrega.estado },
+  };
+};
+
+/**
+ * Para la ficha: las actividades activas del curso en las que aparece el
+ * estudiante (por su ID o un ID legado), ordenadas por fecha.
+ */
+export const actividadesDeEstudiante = (actividades = [], ids = []) => {
+  const buscados = new Set(ids.filter(Boolean).map(String));
+  return actividades
+    .filter((a) => a?.activa !== false)
+    .map((a) => {
+      const clave = Object.keys(a.entregas || {}).find((k) => buscados.has(k));
+      if (!clave) return null;
+      const entrega = a.entregas[clave];
+      return {
+        actividadId: a.id,
+        faseNumero: a.faseNumero,
+        faseNombre: a.faseNombre || "",
+        entregaTexto: a.entrega?.texto || "",
+        fecha: fechaDeActividad(a),
+        estado: ESTADOS_ENTREGA.includes(entrega?.estado) ? entrega.estado : "pendiente",
+        enlace: entrega?.enlace || "",
+      };
+    })
+    .filter(Boolean)
+    .sort((x, y) => String(x.fecha).localeCompare(String(y.fecha)) || x.faseNumero - y.faseNumero);
+};

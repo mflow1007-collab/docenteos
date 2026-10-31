@@ -7,11 +7,14 @@
  * Escrituras parciales con merge: nunca destructivo.
  */
 
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { collection, doc, FieldPath, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { db, auth, obtenerCursos } from "../firebase.js";
 import { obtenerEstudiantesPorCurso } from "./estudiantesService.js";
 import { idEstudiante, nombreDeEstudiante } from "../utils/idEstudiante.js";
-import { construirActividadesDesdePlan, fusionarActividad, unidadDePlan } from "./actividadesPlan.js";
+import { crearEvidencia } from "./evidenciasService.js";
+import {
+  aplicarEntrega, construirActividadesDesdePlan, construirEvidenciaDeEntrega, fusionarActividad, unidadDePlan,
+} from "./actividadesPlan.js";
 
 const uid = () => auth?.currentUser?.uid;
 const refActividad = (id) => doc(db, "usuarios", uid(), "actividades", String(id));
@@ -80,4 +83,44 @@ export const actualizarActividad = async (actividadId, { fechaAjustada, activa }
   if (fechaAjustada !== undefined) cambios.fechaAjustada = fechaAjustada || null;
   if (activa !== undefined) cambios.activa = Boolean(activa);
   await updateDoc(refActividad(actividadId), cambios);
+};
+
+/** Actividades de un curso (ficha del estudiante: sus entregas y pendientes). */
+export const obtenerActividadesPorCurso = async (cursoId) => {
+  if (!db || !uid() || !cursoId) return [];
+  const snap = await getDocs(query(
+    collection(db, "usuarios", uid(), "actividades"),
+    where("cursoId", "==", String(cursoId)),
+  ));
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+};
+
+/**
+ * F3 — Marca la entrega de UN estudiante (y su enlace opcional). Solo escribe
+ * `entregas.<estId>` de la actividad: no toca resultados ni Registro
+ * (decisión 3). Con enlace, crea/actualiza UNA evidencia en el banco con ID
+ * determinista (actividad + estudiante).
+ * @returns {{ entrega, avisoEvidencia: string }} — la entrega ya guardada y,
+ *          si el enlace no llegó al banco, el motivo (visible en pantalla).
+ */
+export const marcarEntrega = async (actividad, estudianteId, { estado, enlace } = {}) => {
+  if (!db || !uid()) throw new Error("Necesitas iniciar sesión para marcar entregas");
+  if (!actividad?.id || !estudianteId) throw new Error("Falta la actividad o el estudiante");
+  const previa = actividad.entregas?.[estudianteId] || {};
+  const entrega = aplicarEntrega(previa, { estado, enlace });
+  const evidencia = construirEvidenciaDeEntrega(actividad, estudianteId, entrega);
+  if (evidencia) entrega.evidenciaId = evidencia.evidenciaId;
+  else if (previa.evidenciaId) entrega.evidenciaId = previa.evidenciaId; // la evidencia ya guardada se conserva
+
+  // FieldPath: el ID del estudiante puede traer puntos u otros caracteres.
+  await updateDoc(refActividad(actividad.id), new FieldPath("entregas", String(estudianteId)), entrega, "updatedAt", serverTimestamp());
+  let avisoEvidencia = "";
+  if (evidencia) {
+    try {
+      await crearEvidencia(evidencia);
+    } catch (e) {
+      avisoEvidencia = `La entrega quedó marcada, pero el enlace no se guardó como evidencia: ${e.message}`;
+    }
+  }
+  return { entrega, avisoEvidencia };
 };
