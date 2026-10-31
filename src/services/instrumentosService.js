@@ -39,6 +39,7 @@ import {
   ETIQUETA_TIPO_INSTRUMENTO,
 } from "./hiloPedagogico.js";
 import { sincronizarPuntajesAspectos } from "./registroService.js";
+import { clasesDeEntrega, unidadDePlan } from "./actividadesPlan.js";
 
 const uid = () => auth?.currentUser?.uid;
 const disponible = () => Boolean(db && uid());
@@ -374,7 +375,17 @@ export const crearInstrumentosPlaneadosDesdePlan = async (registroPlan) => {
 
   const instrumentos = [];
   const tipos = new Set();
-  const clasesEvaluables = (capa.clases || []).filter(tieneEvidenciaEvaluable);
+  // F2 (B1): con plan maestro, la clase de entrega se evalúa con la rúbrica de
+  // su actividad (actividadesService); no se le crea instrumento genérico.
+  let deEntrega = new Set();
+  try {
+    deEntrega = clasesDeEntrega(unidadDePlan(registroPlan), capa);
+  } catch {
+    // Entregas sin ubicar: guardarActividadesDePlan lo reporta al docente.
+  }
+  const clasesEvaluables = (capa.clases || [])
+    .filter(tieneEvidenciaEvaluable)
+    .filter((clase) => !deEntrega.has(clase.numeroClase));
 
   for (const clase of clasesEvaluables) {
     const tipo = tipoSugeridoPorEvidencia(clase);

@@ -1190,6 +1190,24 @@ const construirModeloCurricularSuperior = ({
 // recortado (aspectos clave, literal) · criterio oficial de referencia (el de la
 // misma posición en su competencia: comprensión / producción / interacción) ·
 // descriptores por nivel según la acción del indicador · ponderación que suma 100.
+/**
+ * Copia del plan maestro que se guarda en la unidad. Firestore no admite
+ * listas dentro de listas: los aspectos marcados por lista del indicador
+ * (string[][]) se guardan como [{ aspectos: string[] }]. El plan en memoria
+ * que usa la redacción no cambia.
+ */
+export const planMaestroParaGuardar = (plan) => ({
+  ...plan,
+  fases: (plan?.fases || []).map((fase) => ({
+    ...fase,
+    // Idempotente: una copia ya convertida (sin aspectosElegidos) queda igual.
+    indicadores: (fase.indicadores || []).map(({ aspectosElegidos, ...ind }) => (aspectosElegidos ? {
+      ...ind,
+      aspectosPorLista: aspectosElegidos.map((lista) => ({ aspectos: [...lista] })),
+    } : ind)),
+  })),
+});
+
 export const construirRubricaPlan = ({ competenciasDetalle = [], estructuraIndicadores = [] } = {}) => {
   const accionPorId = new Map((estructuraIndicadores || []).map((ind) => [ind.id, ind.accion]));
   const filas = (competenciasDetalle || []).flatMap((comp) => (comp.indicadores || [])
@@ -5696,7 +5714,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     // DocenteOS, separada del contenido oficial (regla 4.6).
     ...(rutaPlanMaestro ? {
       planMaestro: {
-        ...rutaPlanMaestro.plan,
+        ...planMaestroParaGuardar(rutaPlanMaestro.plan),
         situacion: datos.planMaestro?.situacion || null,
       },
       ampliacionDocenteOS: recogerAmpliacion(fasesSemanalesGeneradas),
