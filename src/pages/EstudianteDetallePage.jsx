@@ -6,6 +6,8 @@ import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTy
 import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
 import { obtenerEvidenciasPorEstudiante } from "../services/evidenciasService.js";
 import { obtenerAvanceEstudiante } from "../services/avanceCurricularService.js";
+import { obtenerActividadesPorCurso } from "../services/actividadesService.js";
+import { actividadesDeEstudiante, ETIQUETAS_ENTREGA } from "../services/actividadesPlan.js";
 import { RegistroAnecdoticoPanel } from "../components/RegistroAnecdotico.jsx";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
 import { avisoCedula, formatearCedula } from "../utils/idEstudiante.js";
@@ -50,7 +52,7 @@ function CedulaEditable({ estudiante, onGuardar }) {
 }
 
 function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "Resumen", onTabChange = () => {}, onGuardarCedula = null }) {
-  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Evidencias", "Registro anecdótico", "Asistencia", "Intervenciones", "Informe IA"];
+  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Actividades", "Evidencias", "Registro anecdótico", "Asistencia", "Intervenciones", "Informe IA"];
   const [tabActiva, setTabActiva] = useState(initialTab);
   const [periodoActual, setPeriodoActual] = useState(2);
   const [estadoPlan, setEstadoPlan] = useState("Pendiente de iniciar");
@@ -83,6 +85,17 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       .then((data) => { if (data) setExpediente(data); })
       .catch(() => {});
   }, [estudiante?.cursoId, estudiante?.id]);
+
+  // F3 — actividades del plan con la entrega de este estudiante (lazy)
+  const [actividadesEst, setActividadesEst] = useState(null); // null = aún no cargado
+  const [errorActividades, setErrorActividades] = useState("");
+  useEffect(() => {
+    if (tabActiva !== "Actividades" || actividadesEst !== null) return;
+    if (!estudiante?.id || !estudiante?.cursoId) { setActividadesEst([]); return; }
+    obtenerActividadesPorCurso(estudiante.cursoId)
+      .then((lista) => setActividadesEst(actividadesDeEstudiante(lista, [estudiante.id, ...(estudiante.idsLegado || [])])))
+      .catch((e) => { setErrorActividades(`No se pudieron leer las actividades: ${e.message}`); setActividadesEst([]); });
+  }, [tabActiva, actividadesEst, estudiante?.id, estudiante?.cursoId]);
 
   // Cargar el banco de evidencias al abrir la pestaña (lazy)
   useEffect(() => {
@@ -432,6 +445,31 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         }
       </div>
     ),
+    "Actividades": (() => {
+      if (actividadesEst === null) {
+        return <div className="detalle-tab-lista"><p className="detalle-sin-datos">Cargando actividades…</p></div>;
+      }
+      const pendientes = actividadesEst.filter((a) => a.estado === "pendiente" || a.estado === "no_entrego");
+      return (
+        <div className="detalle-tab-lista">
+          {errorActividades && <p role="alert" style={{ color: "#b91c1c", fontWeight: 700 }}>⚠️ {errorActividades}</p>}
+          {actividadesEst.length === 0 ? (
+            <p className="detalle-sin-datos">Sin actividades del plan para este estudiante. Se crean en Modo Aula desde el plan maestro de la unidad.</p>
+          ) : (
+            <>
+              <p><strong>{pendientes.length} pendiente{pendientes.length === 1 ? "" : "s"}</strong> de {actividadesEst.length} actividad{actividadesEst.length === 1 ? "" : "es"} (sin entregar o «No entregó»).</p>
+              {actividadesEst.map((a) => (
+                <p key={a.actividadId} style={a.estado === "pendiente" || a.estado === "no_entrego" ? { fontWeight: 600 } : undefined}>
+                  {a.estado === "entrego" ? "🟢" : a.estado === "excusa" ? "🟡" : a.estado === "no_entrego" ? "🔴" : "⚪"}{" "}
+                  {a.fecha || "sin fecha"} · Fase {a.faseNumero} · {a.faseNombre} · <strong>{ETIQUETAS_ENTREGA[a.estado]}</strong>
+                  {a.enlace && <> · <a href={a.enlace} target="_blank" rel="noreferrer">evidencia</a></>}
+                </p>
+              ))}
+            </>
+          )}
+        </div>
+      );
+    })(),
     "Evidencias": (() => {
       // Banco completo del hilo pedagógico; el expediente queda como respaldo
       const banco = (bancoEvidencias?.length ? bancoEvidencias : evidenciasExpediente) || [];
@@ -474,9 +512,13 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
               <p key={evidencia.id || evidencia.evidenciaId}>
                 {new Date(evidencia.fecha || evidencia.creadoEn || "2026-01-01").toLocaleDateString("es-DO")} ·
                 {" "}{evidencia.actividad || evidencia.titulo || evidencia.instrumento || "Evidencia"} ·
-                {" "}{evidencia.calificacion?.obtenida ?? evidencia.calificacionAsociada ?? evidencia.calificacion ?? "—"}/{evidencia.calificacion?.valorMaximo ?? evidencia.puntajeMaximo ?? "—"}
+                {/* La entrega de una actividad no es nota (decisión 3) */}
+                {evidencia.tipo === "entrega_actividad"
+                  ? ` ${ETIQUETAS_ENTREGA[evidencia.metadata?.estadoEntrega] || "Entrega"}`
+                  : <>{" "}{evidencia.calificacion?.obtenida ?? evidencia.calificacionAsociada ?? evidencia.calificacion ?? "—"}/{evidencia.calificacion?.valorMaximo ?? evidencia.puntajeMaximo ?? "—"}</>}
                 {evidencia.nivelLogro ? ` · ${evidencia.nivelLogro}` : ""}
                 {evidencia.indicadorId ? ` · ${evidencia.indicadorId}` : ""}
+                {evidencia.enlace && <> · <a href={evidencia.enlace} target="_blank" rel="noreferrer">abrir enlace</a></>}
               </p>
             ))
           )}
