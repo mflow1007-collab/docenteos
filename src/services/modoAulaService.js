@@ -12,7 +12,7 @@
 
 import { obtenerPlanificacionesDetalladas } from "../firebase.js";
 import { backfillCapaCurricular, obtenerPlanificacionActiva, vincularPlanificacionACurso } from "./planificacionDataService.js";
-import { obtenerClaseDeHoy } from "./hiloPedagogico.js";
+import { corregirFechasCapa, obtenerClaseDeHoy } from "./hiloPedagogico.js";
 import {
   guardarResultadoInstrumento,
   obtenerInstrumentosPorPlanificacion,
@@ -31,7 +31,11 @@ import { sincronizarEvaluacionPedagogica } from "./nucleoPedagogicoService.js";
  */
 export const asegurarCapaCurricular = async (registroPlan, { cursoId = "" } = {}) => {
   if (!registroPlan) return null;
-  if (registroPlan.capaCurricular) return registroPlan;
+  if (registroPlan.capaCurricular) {
+    // Capas viejas de unidades: fechaSugerida = nombre del día → se corrige en memoria
+    const capa = corregirFechasCapa(registroPlan.capaCurricular, registroPlan.contenido?.metadatos?.fechaInicio);
+    return capa === registroPlan.capaCurricular ? registroPlan : { ...registroPlan, capaCurricular: capa };
+  }
   try {
     const capa = await backfillCapaCurricular(registroPlan, { cursoId });
     return { ...registroPlan, capaCurricular: capa, cursoId: capa.cursoId || registroPlan.cursoId || "" };

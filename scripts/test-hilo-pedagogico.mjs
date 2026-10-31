@@ -38,6 +38,7 @@ import {
   // Fase 9 — cierre del ciclo
   agregarResultadosPorIndicador,
   indicadoresDebilesDeAvance,
+  corregirFechasCapa,
 } from "../src/services/hiloPedagogico.js";
 import { adaptarCurriculoLocal } from "../src/services/curriculoAdapter.js";
 
@@ -809,6 +810,46 @@ if (claseEnFeriado) {
   assert.ok(conFecha.every((c) => c.advertenciaCalendario === "" || c.advertenciaCalendario), "campo presente en todas las clases con fecha");
   ok("advertenciaCalendario presente en el contrato de la clase (ninguna cayó en el feriado con este horario)");
 }
+
+// ─── Unidad (fases): diaCalendario es el NOMBRE del día, no una fecha ───────
+console.log("\nUnidad — fechaSugerida ISO desde el nombre del día del horario");
+
+const unidadFases = {
+  metadatos: { fechaInicio: "2026-10-26", tema: "Escuela y educación" },
+  fases: [
+    { numero: 1, dias: [
+      { numeroGlobal: 1, semana: 1, diaCalendario: "Lunes", titulo: "A" },
+      { numeroGlobal: 2, semana: 1, diaCalendario: "Jueves", titulo: "B" },
+    ] },
+    { numero: 2, dias: [
+      { numeroGlobal: 3, semana: 2, diaCalendario: "Lunes", titulo: "C" },
+      { numeroGlobal: 4, semana: 2, diaCalendario: "2026-11-06", titulo: "D" },
+    ] },
+  ],
+};
+const capaUnidadFechas = construirCapaCurricular(unidadFases);
+assert.deepEqual(capaUnidadFechas.clases.map((c) => c.fechaSugerida), ["2026-10-26", "2026-10-29", "2026-11-02", "2026-11-06"]);
+assert.equal(capaUnidadFechas.clases[1].nombreDia, "Jueves");
+ok("unidad: «Lunes»/«Jueves» → fechas ISO por semana; un diaCalendario ya ISO se respeta");
+
+seleccion = obtenerClaseDeHoy(capaUnidadFechas, "2026-10-29");
+assert.equal(seleccion.esHoy, true);
+assert.equal(seleccion.clase.titulo, "B");
+ok("unidad: jueves 2026-10-29 → clase de HOY");
+
+// Capa guardada antes del arreglo: fechaSugerida = nombre del día
+const capaVieja = {
+  clases: capaUnidadFechas.clases.map((c, i) => ({ ...c, nombreDia: "", fechaSugerida: ["Lunes", "Jueves", "Lunes", "2026-11-06"][i] })),
+};
+seleccion = obtenerClaseDeHoy(capaVieja, "2026-10-29");
+assert.equal(seleccion.esHoy, false, "la capa vieja no casa la clase de hoy (el fallo)");
+const capaCorregida = corregirFechasCapa(capaVieja, "2026-10-26");
+assert.deepEqual(capaCorregida.clases.map((c) => c.fechaSugerida), ["2026-10-26", "2026-10-29", "2026-11-02", "2026-11-06"]);
+assert.equal(capaCorregida.clases[0].nombreDia, "Lunes");
+assert.equal(obtenerClaseDeHoy(capaCorregida, "2026-10-29").esHoy, true);
+assert.equal(corregirFechasCapa(capaUnidadFechas, "2026-10-26"), capaUnidadFechas, "capa sana: misma referencia");
+assert.ok(corregirFechasCapa(capaVieja, "").clases.every((c) => c.fechaSugerida === "" || c.fechaSugerida === "2026-11-06"), "sin fecha de inicio: vacía, nunca el nombre del día");
+ok("capa vieja corregida al leer: fechas ISO y clase de hoy; sin fecha de inicio queda vacía");
 
 // ─── Resumen ─────────────────────────────────────────────────────────────────
 console.log(`\n✅ ${pasos} verificaciones pasaron.`);
