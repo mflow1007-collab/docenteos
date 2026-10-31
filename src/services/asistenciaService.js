@@ -16,6 +16,7 @@ import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
 import { auth, db } from "../firebase.js";
+import { fechaLocalISO } from "./hiloPedagogico.js";
 
 const uid = () => auth?.currentUser?.uid ?? null;
 
@@ -24,7 +25,8 @@ export const ETIQUETA_ASISTENCIA = {
   presente: "Presente", tarde: "Tardanza", excusa: "Excusa", ausente: "Ausente",
 };
 
-export const hoyISO = () => new Date().toISOString().slice(0, 10);
+// Hora local: con UTC, el pase de lista de la noche caía en el día siguiente
+export const hoyISO = () => fechaLocalISO();
 
 // Presente y tardanza cuentan como asistencia; excusa y ausente no.
 const CUENTA_COMO_PRESENTE = new Set(["presente", "tarde"]);

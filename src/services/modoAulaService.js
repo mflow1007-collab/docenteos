@@ -12,7 +12,7 @@
 
 import { obtenerPlanificacionesDetalladas } from "../firebase.js";
 import { backfillCapaCurricular, obtenerPlanificacionActiva, vincularPlanificacionACurso } from "./planificacionDataService.js";
-import { corregirFechasCapa, obtenerClaseDeHoy } from "./hiloPedagogico.js";
+import { corregirFechasCapa, fechaLocalISO, obtenerClaseDeHoy } from "./hiloPedagogico.js";
 import {
   guardarResultadoInstrumento,
   obtenerInstrumentosPorPlanificacion,
@@ -50,7 +50,7 @@ export const asegurarCapaCurricular = async (registroPlan, { cursoId = "" } = {}
  * planificación activa, clase de hoy (o PRÓXIMA pendiente, nunca vacío),
  * indicador principal, instrumentos del día y evidencias esperadas.
  */
-export const obtenerContextoModoAula = async (cursoId, fecha = new Date().toISOString().slice(0, 10), { planes = null } = {}) => {
+export const obtenerContextoModoAula = async (cursoId, fecha = fechaLocalISO(), { planes = null } = {}) => {
   const lista = Array.isArray(planes)
     ? planes
     : (await obtenerPlanificacionesDetalladas()).data || [];
