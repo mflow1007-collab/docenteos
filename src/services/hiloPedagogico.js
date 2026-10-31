@@ -903,6 +903,7 @@ export const construirResultadoInstrumento = ({
   observacionDocente = "",
   evidenciasIds = [],
   docenteId = "",
+  detalleCriterios = [],
   fechaEvaluacion = new Date().toISOString(),
   ahora = new Date().toISOString(),
 }) => {
@@ -946,6 +947,8 @@ export const construirResultadoInstrumento = ({
     estado,
     observacionDocente,
     evidenciasIds: evidenciasIds.length ? evidenciasIds : (instrumento.evidenciaIds || []),
+    // F4 (A1): puntos por fila de la rúbrica → cada aspecto toma los de su indicador
+    detalleCriterios: estado === "evaluado" && Array.isArray(detalleCriterios) ? detalleCriterios : [],
     fechaEvaluacion,
     periodo: instrumento.periodo || "",
     origen: "instrumento",
@@ -1016,13 +1019,15 @@ export const construirEvidenciaDesdeResultado = (resultado, { instrumento = null
  *   se excluyen y la nota queda marcada como parcial.
  * - "no_entrego" tampoco cuenta (decisión 3): sin número hasta que el docente
  *   lo evalúe; si quiere 0, lo registra como evaluado con 0.
+ * - Instrumentos con `excluidoDeNota` (actividad excluida, F4) no entran.
  * - Si las ponderaciones no suman 100, se normalizan proporcionalmente y se
  *   arrastra la advertencia de validarPonderacion.
  *
  * @returns {{ valorCalculado, esParcial, pendientes[], evaluados[], advertenciaPonderacion, origenResultados[] }}
  */
 export const consolidarNotaEstudiante = ({ instrumentos = [], resultados = [] }) => {
-  const { instrumentosNormalizados, advertencia } = validarPonderacion(instrumentos);
+  // F4 (B1): una actividad excluida por el docente no cuenta ni queda pendiente
+  const { instrumentosNormalizados, advertencia } = validarPonderacion(instrumentos.filter((ins) => !ins.excluidoDeNota));
   const porInstrumento = new Map(
     resultados.map((r) => [String(r.instrumentoId), r])
   );
@@ -1118,9 +1123,9 @@ export const consolidarNotaAspecto = ({ aspecto, instrumentos = [], resultados =
   const delAspecto = instrumentos.filter((ins) => (ins.aspectoRegistroIds || []).includes(aspectoId));
   const consolidado = consolidarNotaEstudiante({
     instrumentos: delAspecto,
-    resultados: resultados.filter((r) =>
-      delAspecto.some((ins) => String(ins.id || ins.instrumentoId) === String(r.instrumentoId))
-    ),
+    resultados: resultados
+      .filter((r) => delAspecto.some((ins) => String(ins.id || ins.instrumentoId) === String(r.instrumentoId)))
+      .map((r) => parteDelIndicador(r, aspecto?.indicadorId)),
   });
   const puntajeMaximo = Number(aspecto?.puntajeMaximo) || 100;
   return {
@@ -1129,6 +1134,22 @@ export const consolidarNotaAspecto = ({ aspecto, instrumentos = [], resultados =
     valorCalculadoPuntos: consolidado.valorCalculado === null
       ? null
       : Math.round((consolidado.valorCalculado / 100) * puntajeMaximo),
+  };
+};
+
+/**
+ * F4 (A1): si el resultado trae puntos por fila de la rúbrica, el aspecto de
+ * un indicador solo toma las filas de ese indicador. Sin detalle (o sin filas
+ * de ese indicador) vale el resultado completo, como antes.
+ */
+export const parteDelIndicador = (resultado, indicadorId) => {
+  const filas = (resultado?.detalleCriterios || []).filter((c) => indicadorId && c.indicadorId === indicadorId);
+  const maximo = filas.reduce((s, c) => s + (Number(c.puntajeMaximo) || 0), 0);
+  if (resultado?.estado !== "evaluado" || !maximo) return resultado;
+  return {
+    ...resultado,
+    puntajeObtenido: filas.reduce((s, c) => s + (Number(c.puntos) || 0), 0),
+    puntajeMaximo: maximo,
   };
 };
 
