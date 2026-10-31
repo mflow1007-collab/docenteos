@@ -13,7 +13,7 @@
  * gradual, Fase 13).
  */
 
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import {
   db,
   auth,
@@ -22,7 +22,7 @@ import {
   obtenerCursos,
 } from "../firebase.js";
 import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
-import { construirCapaCurricular, normalizarTexto } from "./hiloPedagogico.js";
+import { construirCapaCurricular, normalizarTexto, puntuarCursoParaPlan, UMBRAL_CURSO_PLAN } from "./hiloPedagogico.js";
 import { generarAspectosRegistroDesdePlanificacion } from "./registroService.js";
 import { crearInstrumentosPlaneadosDesdePlan } from "./instrumentosService.js";
 import { cosecharSecuenciaDeUnidad } from "./bancoAprendizajeService.js";
@@ -107,28 +107,56 @@ export const resolverCursoParaPlanificacion = async (planificacion) => {
   const meta = planificacion?.metadatos || {};
   let cursos;
   try {
-    cursos = await obtenerCursos();
+    // obtenerCursos devuelve { success, mode, data }, no la lista: leer .data
+    // (antes se miraba .length del objeto y ningún plan se ataba a su curso).
+    const resultado = await obtenerCursos();
+    cursos = Array.isArray(resultado) ? resultado : resultado?.data;
   } catch {
     return null;
   }
   if (!cursos?.length) return null;
 
-  const gradoPlan = normalizarTexto(meta.grado || "");
-  const seccionPlan = normalizarTexto(meta.seccion || "");
-  const areaPlan = normalizarTexto(meta.asignatura || meta.area || "");
+  const puntuados = cursos
+    .map((curso) => ({ curso, puntaje: puntuarCursoParaPlan(meta, curso) }))
+    .sort((a, b) => b.puntaje - a.puntaje);
 
-  const puntuados = cursos.map((curso) => {
-    const gradoCurso = normalizarTexto([curso.grado, curso.nombre].filter(Boolean).join(" "));
-    const areaCurso = normalizarTexto([curso.area, curso.asignatura].filter(Boolean).join(" "));
-    const seccionCurso = normalizarTexto(curso.seccion || "");
-    let puntaje = 0;
-    if (gradoPlan && gradoCurso.includes(gradoPlan)) puntaje += 4;
-    if (areaPlan && (areaCurso.includes(areaPlan) || areaPlan.includes(areaCurso)) && areaCurso) puntaje += 5;
-    if (seccionPlan && seccionCurso === seccionPlan) puntaje += 2;
-    return { curso, puntaje };
-  }).sort((a, b) => b.puntaje - a.puntaje);
+  return puntuados[0]?.puntaje >= UMBRAL_CURSO_PLAN ? puntuados[0].curso : null;
+};
 
-  return puntuados[0]?.puntaje >= 7 ? puntuados[0].curso : null;
+/**
+ * F1 — Ata un plan ya guardado a su curso (planes guardados antes de que el
+ * resolvedor funcionara) y crea lo que el guardado no creó: los aspectos del
+ * Registro y los instrumentos planeados. Ambos usan IDs deterministas, así que
+ * repetirlo no duplica. Actualización parcial (updateDoc), nunca destructiva.
+ *
+ * @returns {{ plan, advertencias: string[] }} el plan con cursoId puesto
+ */
+export const vincularPlanificacionACurso = async (registroPlan, cursoId) => {
+  if (!registroPlan?.id || !cursoId) throw new Error("Para vincular hace falta el plan guardado y el curso");
+  if (!db || !auth?.currentUser) throw new Error("Firebase no disponible para vincular el plan");
+  const id = String(cursoId);
+  await updateDoc(doc(db, "planificaciones", String(registroPlan.id)), {
+    cursoId: id,
+    "capaCurricular.cursoId": id,
+    updatedAt: serverTimestamp(),
+  });
+  const plan = {
+    ...registroPlan,
+    cursoId: id,
+    capaCurricular: { ...registroPlan.capaCurricular, cursoId: id },
+  };
+  const advertencias = [];
+  try {
+    await generarAspectosRegistroDesdePlanificacion(plan);
+  } catch (error) {
+    advertencias.push(`El plan quedó vinculado, pero los aspectos del registro no se generaron: ${error.message}`);
+  }
+  try {
+    await crearInstrumentosPlaneadosDesdePlan(plan);
+  } catch (error) {
+    advertencias.push(`El plan quedó vinculado, pero los instrumentos planeados no se crearon: ${error.message}`);
+  }
+  return { plan, advertencias };
 };
 
 /**
@@ -297,9 +325,11 @@ export const listarPlanesSinCapa = async () => {
 };
 
 /**
- * FASE 10 — Planificación activa de un curso: la más reciente con capa
- * curricular del curso indicado; si no hay del curso, la más reciente con
- * capa; si no, la más reciente a secas (planes legacy).
+ * FASE 10 / F1 — Planificación activa de un curso: la más reciente con capa
+ * curricular atada a ese curso. Si no hay, la más reciente SIN curso cuyo
+ * grado + asignatura encajan con él (se marca `vincularA` para atarla). Si
+ * tampoco, null: nunca el plan de otro curso o grado (fail-closed; Modo Aula
+ * lo avisa). Sin cursoId se conserva el criterio anterior (la más reciente).
  *
  * @param {string} cursoId
  * @param {object} opciones  { planes } para reusar una lista ya cargada
@@ -311,13 +341,24 @@ export const obtenerPlanificacionActiva = async (cursoId = "", { planes = null }
   if (!lista.length) return null;
 
   const activas = lista.filter((p) => (p.capaCurricular?.estado || "activa") === "activa");
-  const delCurso = cursoId
-    ? activas.filter((p) => String(p.cursoId || p.capaCurricular?.cursoId || "") === String(cursoId))
-    : [];
-  return delCurso.find((p) => p.capaCurricular)
-    || activas.find((p) => p.capaCurricular)
-    || lista[0]
-    || null;
+  if (!cursoId) return activas.find((p) => p.capaCurricular) || lista[0] || null;
+
+  const cursoDe = (p) => String(p.cursoId || p.capaCurricular?.cursoId || "");
+  const delCurso = activas.find((p) => p.capaCurricular && cursoDe(p) === String(cursoId));
+  if (delCurso) return delCurso;
+
+  let curso = null;
+  try {
+    const resultado = await obtenerCursos();
+    const cursos = Array.isArray(resultado) ? resultado : resultado?.data || [];
+    curso = cursos.find((c) => String(c.id) === String(cursoId)) || null;
+  } catch {
+    return null;
+  }
+  if (!curso) return null;
+  const candidata = activas.find((p) => p.capaCurricular && !cursoDe(p)
+    && puntuarCursoParaPlan(p.contenido?.metadatos || {}, curso) >= UMBRAL_CURSO_PLAN);
+  return candidata ? { ...candidata, vincularA: String(cursoId) } : null;
 };
 
 // ─── Indicadores ya trabajados en planes anteriores (para tachar) ─────────────

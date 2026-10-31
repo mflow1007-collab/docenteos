@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { obtenerEvidenciasCurso } from "../firebase.js";
+import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
 
 const fechaLegible = (valor) => {
   if (!valor) return "Sin fecha";
@@ -107,7 +108,8 @@ export default function BancoEvidenciasPage({ cursos = [], cursoActivo = null, o
     obtenerEvidenciasCurso(cursoId)
       .then((res) => {
         if (!vigente) return;
-        const datos = Array.isArray(res?.data) ? res.data : [];
+        // El registro anecdótico se muestra aparte (ficha del estudiante)
+        const datos = (Array.isArray(res?.data) ? res.data : []).filter((e) => !esRegistroAnecdotico(e));
         datos.sort((a, b) => String(b.fecha || b.creadoEn || "").localeCompare(String(a.fecha || a.creadoEn || "")));
         setEvidencias(datos);
       })

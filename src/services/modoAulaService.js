@@ -11,7 +11,7 @@
  */
 
 import { obtenerPlanificacionesDetalladas } from "../firebase.js";
-import { backfillCapaCurricular, obtenerPlanificacionActiva } from "./planificacionDataService.js";
+import { backfillCapaCurricular, obtenerPlanificacionActiva, vincularPlanificacionACurso } from "./planificacionDataService.js";
 import { corregirFechasCapa, obtenerClaseDeHoy } from "./hiloPedagogico.js";
 import {
   guardarResultadoInstrumento,
@@ -58,6 +58,22 @@ export const obtenerContextoModoAula = async (cursoId, fecha = new Date().toISOS
 
   // Fase 10: selección delegada a obtenerPlanificacionActiva (curso → capa → reciente)
   let plan = await obtenerPlanificacionActiva(cursoId, { planes: lista });
+  // F1: el curso no tiene plan propio → aviso visible, nunca el de otro grado
+  if (!plan) return { plan: null, clase: null, esHoy: false, motivo: "sin-plan-del-curso", instrumentos: [] };
+
+  // F1: plan guardado sin curso que encaja con este → atarlo (aspectos + instrumentos)
+  let advertenciasVinculo = [];
+  if (plan.vincularA) {
+    const { vincularA, ...sinMarca } = plan;
+    try {
+      const vinculado = await vincularPlanificacionACurso(sinMarca, vincularA);
+      plan = vinculado.plan;
+      advertenciasVinculo = vinculado.advertencias;
+    } catch (error) {
+      plan = sinMarca;
+      advertenciasVinculo = [`No se pudo vincular el plan a este curso: ${error.message}`];
+    }
+  }
 
   plan = await asegurarCapaCurricular(plan, { cursoId });
 
@@ -84,6 +100,7 @@ export const obtenerContextoModoAula = async (cursoId, fecha = new Date().toISOS
     instrumentos,
     evidenciasEsperadas: clase?.evidenciasEsperadas || [],
     recursos: clase?.recursos || [],
+    advertenciasVinculo,
   };
 };
 
