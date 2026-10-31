@@ -1239,7 +1239,15 @@ export const puntuarCursoParaPlan = (meta = {}, curso = {}) => {
  *
  * @returns {{ clase, esHoy: boolean, motivo: "hoy"|"proxima"|"sin-fechas"|null }}
  */
-export const obtenerClaseDeHoy = (capa, fechaISO = new Date().toISOString().slice(0, 10)) => {
+// «Hoy» en la hora local del docente: toISOString da la fecha UTC, que en
+// República Dominicana (UTC−4) ya es el día siguiente desde las 8:00 p. m.
+export const fechaLocalISO = (fecha = new Date()) => {
+  const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dd = String(fecha.getDate()).padStart(2, "0");
+  return `${fecha.getFullYear()}-${mm}-${dd}`;
+};
+
+export const obtenerClaseDeHoy = (capa, fechaISO = fechaLocalISO()) => {
   const clases = capa?.clases || [];
   if (!clases.length) return { clase: null, esHoy: false, motivo: null };
 

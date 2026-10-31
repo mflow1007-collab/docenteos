@@ -39,6 +39,7 @@ import {
   agregarResultadosPorIndicador,
   indicadoresDebilesDeAvance,
   corregirFechasCapa,
+  fechaLocalISO,
 } from "../src/services/hiloPedagogico.js";
 import { adaptarCurriculoLocal } from "../src/services/curriculoAdapter.js";
 
@@ -850,6 +851,11 @@ assert.equal(obtenerClaseDeHoy(capaCorregida, "2026-10-29").esHoy, true);
 assert.equal(corregirFechasCapa(capaUnidadFechas, "2026-10-26"), capaUnidadFechas, "capa sana: misma referencia");
 assert.ok(corregirFechasCapa(capaVieja, "").clases.every((c) => c.fechaSugerida === "" || c.fechaSugerida === "2026-11-06"), "sin fecha de inicio: vacía, nunca el nombre del día");
 ok("capa vieja corregida al leer: fechas ISO y clase de hoy; sin fecha de inicio queda vacía");
+
+// «Hoy» en hora local, no UTC (21:30 del 31-oct en RD = 01:30 UTC del 1-nov)
+assert.equal(fechaLocalISO(new Date(2026, 9, 31, 21, 30)), "2026-10-31");
+assert.equal(fechaLocalISO(new Date(2026, 0, 5, 0, 5)), "2026-01-05");
+ok("fechaLocalISO: la fecha de hoy sale de la hora local del docente");
 
 // ─── Resumen ─────────────────────────────────────────────────────────────────
 console.log(`\n✅ ${pasos} verificaciones pasaron.`);
