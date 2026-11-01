@@ -79,6 +79,15 @@ check("el borrador cumple la Guía 1.2.2 y nunca dice «no saben el idioma»", (
   assert(/el Centro Hector Francisco Lopez/.test(s.contexto), "nombra el centro del formulario");
 });
 
+check("un título largo sigue cabiendo en las 8 líneas de la situación (máx. 800 caracteres)", () => {
+  const titulo = "Sports, hobbies, free time activities and healthy habits in my community and school";
+  const d = prellenar({ ...base, titulo });
+  const e = estado(d);
+  assert(e.listo, `no quedó lista: ${e.falta}`);
+  const { texto } = validarSituacion({ situacion: d.planMaestro.situacion, producto: d.productoFinalTexto, estrategia: d.planMaestro.estrategia });
+  assert(texto.length <= 800, `${texto.length} caracteres`);
+});
+
 check("secciones sugeridas: partes del título o presentación · tema · cierre", () => {
   igual(seccionesSugeridas({ titulo: "Food, drinks and health", asignatura: "Inglés" }), ["Food", "Drinks", "Health"], "varias partes");
   igual(seccionesSugeridas({ titulo: "Daily routines", asignatura: "Inglés" }), ["Introduction", "Daily routines", "Final Message"], "una idea, inglés");
