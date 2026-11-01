@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, query, orderBy, limit, getDocs, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase.js';
+import { costoPorPlan } from '../../utils/costoPorPlan.js';
 
 // ─── Config de proveedores ────────────────────────────────────────────────────
 
@@ -233,7 +234,11 @@ export default function AdminCostosIA() {
       const costoPorDia       = costoTotal / diasTranscurridos;
       const proyeccion30      = costoPorDia * 30;
 
+      // ── Etapa D: costo por plan (unidad / secuencia, agrupado por planId) ──
+      const porPlan = costoPorPlan(logs);
+
       setDatos({
+        porPlan,
         porProveedor,
         porModelo,
         porDia,
@@ -453,6 +458,72 @@ export default function AdminCostosIA() {
               </div>
             </div>
           )}
+
+          {/* Costo por plan — Etapa D */}
+          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '20px 24px', marginTop: 20 }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: '#1e293b' }}>
+              🧩 Costo por plan (unidad / secuencia)
+            </h3>
+            <p style={{ margin: '0 0 14px', fontSize: 12, color: '#64748b' }}>
+              Agrupado por el <code>planId</code> del cupo: incluye reintentos y reanudaciones del mismo plan.
+              «Rechazadas» = respuestas pagadas que un validador descartó.
+            </p>
+            {datos.porPlan.resumen ? (
+              <>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+                  {[
+                    ['Planes', String(datos.porPlan.resumen.planes)],
+                    ['Mínimo', usd(datos.porPlan.resumen.minimo)],
+                    ['Mediana', usd(datos.porPlan.resumen.mediana)],
+                    ['Media', usd(datos.porPlan.resumen.media)],
+                    ['Máximo', usd(datos.porPlan.resumen.maximo)],
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+                      <span style={{ display: 'block', color: '#64748b' }}>{k}</span>
+                      <strong style={{ color: '#1e293b', fontSize: 15 }}>{v}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #f1f5f9' }}>
+                        {['Inicio', 'Grado · asignatura', 'Llamadas', 'Rechazadas', 'Fases fallidas', 'Tokens', 'Costo'].map((h, i) => (
+                          <th key={h} style={{ textAlign: i < 2 ? 'left' : 'right', padding: '6px 8px', color: '#64748b', fontWeight: 600 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datos.porPlan.planes.map((p) => (
+                        <tr key={p.planId} style={{ borderBottom: '1px solid #f8fafc' }} title={p.planId}>
+                          <td style={{ padding: '7px 8px', color: '#334155' }}>
+                            {p.inicio ? new Date(p.inicio).toLocaleString('es-DO', { dateStyle: 'short', timeStyle: 'short' }) : '?'}
+                          </td>
+                          <td style={{ padding: '7px 8px', color: '#334155' }}>
+                            {p.claveCupo ? p.claveCupo.split('__').join(' · ') : p.planId.slice(0, 8)}
+                          </td>
+                          <td style={{ textAlign: 'right', padding: '7px 8px' }}>{p.llamadas}</td>
+                          <td style={{ textAlign: 'right', padding: '7px 8px', color: p.rechazadas ? '#d97706' : '#cbd5e1' }}>{p.rechazadas}</td>
+                          <td style={{ textAlign: 'right', padding: '7px 8px', color: p.fasesFallidas ? '#dc2626' : '#cbd5e1' }}>{p.fasesFallidas}</td>
+                          <td style={{ textAlign: 'right', padding: '7px 8px' }}>{(p.tokensEntrada + p.tokensSalida).toLocaleString()}</td>
+                          <td style={{ textAlign: 'right', padding: '7px 8px', fontWeight: 700, color: '#1e293b' }}>{usd(p.costo)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
+                Aún no hay registros con <code>planId</code> en este rango.
+              </p>
+            )}
+            {datos.porPlan.sinPlan.llamadas > 0 && (
+              <p style={{ margin: '12px 0 0', fontSize: 12, color: '#94a3b8' }}>
+                {datos.porPlan.sinPlan.llamadas} llamadas de planificación sin <code>planId</code> ({usd(datos.porPlan.sinPlan.costo)}): registros anteriores a esta medición o generaciones sin cupo.
+              </p>
+            )}
+          </div>
 
           {/* Tarifas de referencia */}
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 14, padding: '16px 24px', marginTop: 20 }}>
