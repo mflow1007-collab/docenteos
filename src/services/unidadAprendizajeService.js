@@ -26,6 +26,7 @@ import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion } from "./vistaPreviaPlanMaestroService.js";
 import {
   construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
+  seccionesDeClase,
 } from "./redaccionFaseService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -4881,7 +4882,7 @@ const _generarFasesConIA = async (
         const textos = (v) => (Array.isArray(v) ? v.map((x) => String(x || "").trim()).filter(Boolean) : []);
         fase.tituloSemana = fase.nombre;
         dia.tituloSemana = fase.nombre;
-        dia.seccionesProducto = textos(aiClase.seccionesProducto);
+        dia.seccionesProducto = seccionesDeClase(aiClase.seccionesProducto, contratoFase.secciones);
         dia.semillaUsada = textos(aiClase.semillaUsada);
         dia.ampliacion = (Array.isArray(aiClase.ampliacion) ? aiClase.ampliacion : [])
           .map((a) => ({

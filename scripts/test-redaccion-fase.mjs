@@ -15,7 +15,7 @@ import {
 } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { usarSemilla, aceptarRealineacion } from "../src/services/situacionAprendizajeService.js";
 import {
-  construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta,
+  construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta, seccionesDeClase,
   recortarIndicador, recogerAmpliacion, repartirSeccionesClases,
   motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro,
 } from "../src/services/redaccionFaseService.js";
@@ -146,6 +146,20 @@ check("validador: la pieza se nombra por la sección, no por el contenido (4.7)"
   lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: ["Role cards"] })] }, cc, 1, 1), /no es una sección/, "sección ajena");
   lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: ["Important Places"] })] }, cc, 1, 1), /que el plan le asigna/, "sección asignada sin avanzar");
   lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: "Role card set de seventh grade" })] }, cc, 1, 1), /debe nombrar la sección/, "pieza por contenido");
+});
+
+check("validador: secciones copiadas unidas con « · » se separan si todas son del producto (Etapa D)", () => {
+  const asignadas = cc.seccionesPorClase[0];
+  const unidas = [...cc.secciones].join(" · ");
+  // Todas las secciones unidas en un solo elemento: pasa (antes, rechazo pagado)
+  validarLoteContrato({ clases: [claseOk({ seccionesProducto: [unidas] })] }, cc, 1, 1);
+  igual(seccionesDeClase([unidas], cc.secciones), cc.secciones, "se separan en las secciones oficiales");
+  igual(seccionesDeClase([unidas.toUpperCase()], cc.secciones), cc.secciones, "y vuelven con su nombre oficial");
+  igual(seccionesDeClase(asignadas, cc.secciones), asignadas, "la lista bien formada no cambia");
+  // Una parte inventada: queda entera y el contrato la rechaza como antes
+  const conAjena = `${asignadas[0]} · Role cards`;
+  igual(seccionesDeClase([conAjena], cc.secciones), [conAjena], "con parte ajena no se separa");
+  lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: [conAjena] })] }, cc, 1, 1), /no es una sección/, "parte ajena");
 });
 
 check("validador 4.6: semilla obligatoria, malla de la unidad permitida, ampliación marcada y foco enriquecible", () => {

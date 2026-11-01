@@ -6,6 +6,9 @@
  *  C) R12: el ejemplo de formato del prompt ya no nombra «Role Play» y el
  *     prompt lista las técnicas ya usadas en el bloque como prohibidas.
  *  D) Gateway: Abacus corta a los 24 s como el resto (bajo el muro de ~25 s).
+ *  Secciones: el prompt da las secciones de cada clase como lista JSON y el
+ *     validador, la validación de fase y el guardado las separan si llegan
+ *     unidas con « · » (12 rechazos pagados en producción).
  *
  * Ejecutar: node scripts/test-reintentos-unidad.mjs
  */
@@ -65,6 +68,20 @@ check("ningún proveedor pasa de 24 s en generación (muro de ~25 s)", () => {
   const cortes = [...gateway.matchAll(/return esExtraccionPdf \? \d+_000 : (\d+)_000;/g)].map((m) => Number(m[1]));
   ok(cortes.length >= 6, `solo ${cortes.length} cortes`);
   ok(cortes.every((s) => s <= 24), `cortes: ${cortes.join(", ")}`);
+});
+
+console.log("\n── Secciones de la clase ──");
+check("el prompt da las secciones de cada clase como lista JSON, no unidas con « · »", () => {
+  ok(/Clase \$\{startDia \+ i\}: \$\{JSON\.stringify\(c\.seccionesPorClase/.test(fase), "no usa JSON.stringify");
+  ok(!/seccionesPorClase\?\.\[startDia \+ i - 1\] \|\| \[\]\)\.join\(' · '\)/.test(fase), "sigue uniendo con « · »");
+  ok(/una cadena por sección/.test(fase), "falta la instrucción");
+});
+const redaccion = readFileSync(new URL("../src/services/redaccionFaseService.js", import.meta.url), "utf8");
+const unidad = readFileSync(new URL("../src/services/unidadAprendizajeService.js", import.meta.url), "utf8");
+check("validador de lote, validación de fase y guardado usan seccionesDeClase", () => {
+  ok(/const suyas = seccionesDeClase\(clase\?\.seccionesProducto, secciones\)/.test(redaccion), "lote");
+  ok(/seccionesDeClase\(c\?\.seccionesProducto, contrato\.secciones\)/.test(redaccion), "fase completa");
+  ok(/dia\.seccionesProducto = seccionesDeClase\(aiClase\.seccionesProducto, contratoFase\.secciones\)/.test(unidad), "guardado");
 });
 
 console.log(`\n${pasos} pasos, ${fallos} fallos`);
