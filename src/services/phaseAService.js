@@ -89,9 +89,12 @@ const NOMBRE_PROVEEDOR = { openai: "OpenAI", anthropic: "Anthropic", gemini: "Ge
  * los proveedores sin créditos (2026-11-01: Abacus en cero cortaba unidades
  * que OpenAI sí podía redactar).
  */
-export const errorFinalEscalera = ({ ultimoRechazo = null, lastError = null, sinSaldo = [], prefijo = "" } = {}) => {
+export const errorFinalEscalera = ({ ultimoRechazo = null, lastError = null, sinSaldo = [], prefijo = "", falloPasajero = null } = {}) => {
   const nombres = [...sinSaldo].map((p) => NOMBRE_PROVEEDOR[p] || p);
-  if (!ultimoRechazo && (nombres.length || esErrorCreditosAgotados(lastError))) {
+  // Un fallo pasajero (respuesta vacía, timeout, 503) de un proveedor CON saldo
+  // no es «créditos agotados»: el error se puede reintentar.
+  const fallo = ultimoRechazo || falloPasajero;
+  if (!fallo && (nombres.length || esErrorCreditosAgotados(lastError))) {
     const agotado = new Error(
       `Créditos de IA agotados${nombres.length ? ` (${nombres.join(", ")} sin créditos)` : ""}: ${lastError?.message || "sin detalle"}`,
       { cause: lastError || undefined },
@@ -101,11 +104,11 @@ export const errorFinalEscalera = ({ ultimoRechazo = null, lastError = null, sin
     agotado.provider = [...sinSaldo][0] || lastError?.provider;
     return agotado;
   }
-  const fallo = ultimoRechazo || { err: lastError, provider: lastError?.provider || "desconocido", model: lastError?.model || "desconocido" };
+  const final = fallo || { err: lastError, provider: lastError?.provider || "desconocido", model: lastError?.model || "desconocido" };
   return new Error(
-    `${prefijo}Detalle: último ${fallo.provider}/${fallo.model} — ${fallo.err?.message}` +
+    `${prefijo}Detalle: último ${final.provider}/${final.model} — ${final.err?.message}` +
     `${nombres.length ? ` (sin créditos: ${nombres.join(", ")})` : ""}`,
-    { cause: fallo.err || undefined },
+    { cause: final.err || undefined },
   );
 };
 
@@ -1752,6 +1755,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   const fallosPorProveedor = new Map();
   const sinSaldo = new Set();      // proveedores sin créditos en esta escalera
   let ultimoRechazo = null;        // último fallo de un proveedor que SÍ respondió
+  let falloPasajero = null;        // vacío/timeout/503 de un proveedor con saldo
   const proveedoresProbados = new Set(); // con al menos un intento REAL (no sin-servicio)
   const anotarFallo = (p) => fallosPorProveedor.set(p, (fallosPorProveedor.get(p) || 0) + 1);
   const descartarProveedor = (p) => fallosPorProveedor.set(p, MAX_INTENTOS_POR_PROVEEDOR);
@@ -1989,6 +1993,8 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       if (!sinServicio) {
         proveedoresProbados.add(failedProvider);
         ultimoRechazo = { err: lastError, provider: failedProvider, model: lastModel };
+      } else if (!presupuestoAgotado && !esErrorCreditosAgotados(err)) {
+        falloPasajero = { err: lastError, provider: failedProvider, model: lastModel };
       }
       if (estructuralIncompleto || sinServicio) descartarProveedor(failedProvider);
       else anotarFallo(failedProvider);
@@ -2013,7 +2019,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   const consejo = sinProveedorComposicion
     ? ' No hay proveedor apto para composición de planificaciones; activa o corrige OpenAI, Anthropic, Gemini o Abacus en Administración → Motor de IA.'
     : '';
-  if (!ultimoRechazo && !sinSaldo.size) {
+  if (!ultimoRechazo && !falloPasajero && !sinSaldo.size) {
     throw new Error(
       `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) — ` +
       `revisa la configuración de proveedores de IA en Administración.${consejo} ` +
@@ -2022,6 +2028,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   }
   throw errorFinalEscalera({
     ultimoRechazo,
+    falloPasajero,
     lastError: Object.assign(lastError || new Error("sin detalle"), { provider: lastProvider, model: lastModel }),
     sinSaldo,
     prefijo: `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) en ${attemptsUsed} intentos. `,

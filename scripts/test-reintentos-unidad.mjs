@@ -120,6 +120,14 @@ check("ningún proveedor con saldo → AI_CREDITS_EXHAUSTED nombrando a los prov
   ok(esErrorCreditosAgotados(e) && e.code === "AI_CREDITS_EXHAUSTED", "no es definitivo");
   ok(/\(Abacus, OpenAI sin créditos\)/.test(e.message), e.message);
 });
+check("respuesta vacía de OpenAI con los demás sin saldo → fallo pasajero reintentable, no «créditos agotados»", () => {
+  const vacia = new Error("No hay ningún servicio de Inteligencia Artificial disponible en este momento. Último error: openai: respuesta vacía.");
+  const e = errorFinalEscalera({ falloPasajero: { err: vacia, provider: "openai", model: "desconocido" }, lastError: sinCreditos, sinSaldo: new Set(["abacus", "anthropic"]) });
+  ok(!esErrorCreditosAgotados(e), "se clasificó como créditos agotados");
+  ok(/openai\/desconocido — .*respuesta vacía/.test(e.message), e.message);
+  ok(/sin créditos: Abacus, Anthropic/.test(e.message), "no nombra a los proveedores sin saldo");
+  ok(/falloPasajero = \{ err: lastError, provider: failedProvider, model: lastModel \}/.test(fase), "la escalera no registra el fallo pasajero");
+});
 check("la escalera salta al proveedor sin saldo en vez de detener la generación", () => {
   const rama = (fase.match(/if \(esErrorCreditosAgotados\(err\)\) \{[\s\S]*?\n      \}/) || [""])[0];
   ok(rama, "no se encontró la rama de créditos");
