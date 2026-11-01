@@ -5,7 +5,7 @@ import { cosecharGuia } from "../services/bancoGuiasService.js";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import { conReanudacion } from "../services/reanudacionGeneracion.js";
-import { consultarCupoGrado, reservarCupoGrado, consultarTemaEnHistorial, registrarTemaUnidadEnHistorial } from "../firebase";
+import { consultarCupoGrado, reservarCupoGrado, consultarTemaEnHistorial, registrarTemaEnHistorial } from "../firebase";
 import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
 import { obtenerIndicadoresDebiles } from "../services/avanceCurricularService.js";
 import { indicadoresDebilesPorGradoAsignatura, mezclarIndicadoresDebiles } from "../services/diagnosticoIntegrationService.js";
@@ -127,7 +127,7 @@ export function useUnidadAprendizaje() {
         numSemanas: unidadDatos.numSemanas,
         usarCredito,
       });
-      if (temaUnidad) await registrarTemaUnidadEnHistorial(temaUnidad);
+      if (temaUnidad) await registrarTemaEnHistorial(temaUnidad);
       // Indicadores ya trabajados en planes anteriores del mismo grado +
       // asignatura → se muestran TACHADOS en el nuevo plan (el docente igual
       // puede re-elegirlos). No es fatal si falla la lectura del historial.

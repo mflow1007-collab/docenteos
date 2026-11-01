@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { generarPlanDiario, formatearPlanDiarioHTML } from "../services/planDiarioService";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
-import { verificarTemaAntesDeGenerar, registrarUsoTemaPlanificacion } from "../firebase";
+import { registrarTemaEnHistorial } from "../firebase";
 import { guardarPlanificacionConHilo } from "../services/planificacionDataService.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
@@ -52,7 +52,6 @@ export function usePlanDiario() {
   };
 
   const manejarGenerarDiario = async () => {
-    const { estadoTemas, setDialogoTema } = depsRef.current;
     const temaDiario = planDiarioDatos.tema?.trim();
     setCargandoDiario(true);
     setMensajeDiario({
@@ -60,27 +59,9 @@ export function usePlanDiario() {
       texto: "🔍 Verificando tema, grado y datos de la clase...",
     });
     try {
-      if (temaDiario) {
-        const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaDiario, contexto: "generacion" });
-        if (!verificacion?.permitido || verificacion?.requiereCredito) {
-          setDialogoTema({
-            abierto: true,
-            contexto: "diario",
-            payload: {
-              ...verificacion,
-              temaIngresado: temaDiario,
-              temas: {
-                temaActivo: estadoTemas.temaActivo,
-                temaSecundario: estadoTemas.temaSecundario,
-                temaTercero: estadoTemas.temaTercero,
-                temaCuarto: estadoTemas.temaCuarto,
-              },
-            },
-          });
-          return;
-        }
-        await registrarUsoTemaPlanificacion({ tituloTema: temaDiario, forzarNuevoTema: false, contexto: "generacion" });
-      }
+      // El plan diario se arma con plantillas (sin IA): no gasta cupo ni
+      // temas activos; solo queda en el historial del tema.
+      if (temaDiario) await registrarTemaEnHistorial(temaDiario);
       setMensajeDiario({
         tipo: "loading",
         texto: `✍️ Plan diario — escribiendo inicio, desarrollo y cierre · Trabajando: ${temaDiario || "tema de la clase"}`,
@@ -148,7 +129,7 @@ export function usePlanDiario() {
       texto: `✍️ Plan diario — escribiendo inicio, desarrollo y cierre · Trabajando: ${temaIngresado || planDiarioDatos.tema || "tema de la clase"}`,
     });
     try {
-      await registrarUsoTemaPlanificacion({ tituloTema: temaIngresado, forzarNuevoTema: true, contexto: "generacion" });
+      if (temaIngresado) await registrarTemaEnHistorial(temaIngresado);
       ejecutarGenerarDiario();
     } catch (error) {
       setMensajeDiario({ tipo: "error", texto: `❌ ${error.message}` });
