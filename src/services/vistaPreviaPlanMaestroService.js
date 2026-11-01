@@ -18,7 +18,10 @@
 import { construirPlanMaestro } from "./planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "./unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../data/indicadoresIngles2doEstructurados.js";
-import { validarSituacion } from "./situacionAprendizajeService.js";
+import {
+  validarSituacion, propuestasParaTemas, usarSemilla, alinearSiNoHay, recomendarEstrategia,
+  borradorSituacion, productoSugerido, seccionesSugeridas,
+} from "./situacionAprendizajeService.js";
 
 // Mallas con indicadores estructurados (Etapa 1). Solo Inglés 2do por ahora.
 const ESTRUCTURADOS_DISPONIBLES = [
@@ -158,14 +161,17 @@ export const prepararPlanMaestroGeneracion = ({ datos = {}, mallaPayload, horari
   };
   const vista = calcularVistaPrevia({ datos: datosPlan, mallaPayload });
   if (vista.error) {
-    throw error(`completa la «Vista previa del plan maestro» antes de generar. ${vista.error}`);
+    // `detalle` = solo lo que falta (sin repetir «Vista previa»): lo muestra el formulario.
+    const detalle = vista.error.replace(/^Vista previa: /, "");
+    throw Object.assign(error(`completa la «Vista previa del plan maestro» antes de generar: ${detalle}`), { detalle });
   }
   const pm = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
   const { texto, errores } = validarSituacion({
     situacion: pm.situacion, producto: datos.productoFinalTexto, estrategia: pm.estrategia,
   });
   if (errores.length) {
-    throw error(`la situación de aprendizaje no está lista: ${errores.join(" ")}`);
+    const detalle = `la situación de aprendizaje no está lista: ${errores.join(" ")}`;
+    throw Object.assign(error(detalle), { detalle });
   }
   return { aplica: true, plan: vista.plan, estructura, situacionTexto: texto };
 };
@@ -176,7 +182,7 @@ export const estadoPlanMaestroParaGenerar = (args) => {
     const r = prepararPlanMaestroGeneracion(args);
     return { aplica: r.aplica, listo: true, motivo: "" };
   } catch (e) {
-    return { aplica: true, listo: false, motivo: e.message };
+    return { aplica: true, listo: false, motivo: e.message, falta: e.detalle || e.message.replace(/^Vista previa: /, "") };
   }
 };
 
@@ -265,4 +271,63 @@ export const alternarAspecto = (pm, indicador, l, aspecto) => {
   if (marcados.every((x) => !x.length)) delete aspectos[indicador.id];
   else aspectos[indicador.id] = marcados;
   return { ...pm, aspectosElegidos: aspectos };
+};
+
+// ── Modo rápido: plan maestro prellenado (sin IA) ──────────────────────────
+
+/** El docente todavía no tocó el plan maestro: se puede prellenar sin pisar nada suyo. */
+export const planMaestroSinTocar = (planMaestro) => {
+  const pm = { ...PLAN_MAESTRO_INICIAL, ...(planMaestro || {}) };
+  return !pm.estrategia && !pm.situacion && !pm.competenciasElegidas.length && !(pm.secciones || []).length;
+};
+
+/**
+ * Prellena el plan maestro para que el docente pueda generar solo con el
+ * título: situación propuesta del tema (o un borrador), estrategia que
+ * recomienda la Guía 1.2.4, competencia Comunicativa (o la primera de la malla)
+ * con todos sus indicadores, producto y secciones. Todo queda visible y
+ * editable en la vista previa; nada sustituye a la malla oficial.
+ * @returns {{planMaestro: object, productoFinalTexto: string}}
+ */
+export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencias = [] } = {}) => {
+  const temas = temasDeLaUnidad(datos);
+  const semilla = propuestasParaTemas(temas)[0] || null;
+  let pm = { ...PLAN_MAESTRO_INICIAL };
+  // El producto que puso un prellenado anterior no cuenta como del docente.
+  const productoPrevio = String(datos.productoFinalTexto || "").trim();
+  let producto = productoPrevio === datos.planMaestro?.prellenado?.producto ? "" : productoPrevio;
+  if (semilla) {
+    pm = usarSemilla(pm, semilla, { centro: datos.centro });
+    producto = producto || semilla.producto.nombre;
+  } else {
+    pm = { ...pm, situacion: borradorSituacion(datos), secciones: seccionesSugeridas(datos) };
+    producto = producto || productoSugerido(datos);
+  }
+  const rec = recomendarEstrategia(pm.situacion.rasgos);
+  const estrategia = rec.recomendada.disponible ? rec.recomendada.clave : rec.mejorDisponible?.clave;
+  if (estrategia) pm = alinearSiNoHay({ ...pm, estrategia });
+  const comunicativa = competencias.find((c) => /comunicativa/i.test(c.nombre)) || competencias[0];
+  if (comunicativa) pm = alternarCompetencia(pm, comunicativa.id, indicadores);
+  const titulo = String(datos.titulo || "").trim();
+  return {
+    planMaestro: { ...pm, prellenado: { titulo, producto, firma: firmaPlanMaestro(pm) } },
+    productoFinalTexto: producto,
+  };
+};
+
+/** Firma del plan sin la marca de prellenado: si cambia, el docente lo tocó. */
+const firmaPlanMaestro = (pm) => JSON.stringify({ ...(pm || {}), prellenado: undefined });
+
+/**
+ * ¿Toca prellenar? Cuando el docente no ha tocado el plan, o cuando lo que hay
+ * es el prellenado de otro título y nadie lo cambió (el docente sigue
+ * escribiendo el título). Nunca pisa lo que el docente ajustó.
+ */
+export const debePrellenarPlanMaestro = ({ planMaestro, titulo = "", productoFinalTexto = "" } = {}) => {
+  const t = String(titulo || "").trim();
+  if (!t) return false;
+  if (planMaestroSinTocar(planMaestro)) return true;
+  const marca = planMaestro?.prellenado;
+  if (!marca || marca.titulo === t) return false;
+  return firmaPlanMaestro(planMaestro) === marca.firma && String(productoFinalTexto || "") === marca.producto;
 };

@@ -9,6 +9,8 @@
  *  Secciones: el prompt da las secciones de cada clase como lista JSON y el
  *     validador, la validación de fase y el guardado las separan si llegan
  *     unidas con « · » (12 rechazos pagados en producción).
+ *  Organización: una actividad = una organización (19 actividades rechazadas
+ *     por «en plenaria/en grupos» fuera del paréntesis).
  *
  * Ejecutar: node scripts/test-reintentos-unidad.mjs
  */
@@ -82,6 +84,10 @@ check("validador de lote, validación de fase y guardado usan seccionesDeClase",
   ok(/const suyas = seccionesDeClase\(clase\?\.seccionesProducto, secciones\)/.test(redaccion), "lote");
   ok(/seccionesDeClase\(c\?\.seccionesProducto, contrato\.secciones\)/.test(redaccion), "fase completa");
   ok(/dia\.seccionesProducto = seccionesDeClase\(aiClase\.seccionesProducto, contratoFase\.secciones\)/.test(unidad), "guardado");
+});
+
+check("regla 4.4: una actividad lleva una sola organización (si cambia, son dos)", () => {
+  ok(/Una actividad = UNA sola organización: si el trabajo cambia de agrupación \(parejas → plenaria\), son DOS actividades/.test(fase), "falta la regla en el prompt");
 });
 
 console.log(`\n${pasos} pasos, ${fallos} fallos`);

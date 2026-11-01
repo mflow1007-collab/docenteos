@@ -122,6 +122,11 @@ export default function SituacionAprendizajePanel({ datos, onChange, pm, temas }
 
       {s && (
         <div style={caja}>
+          {s.borrador && (
+            <p style={{ fontSize: 13, margin: "0 0 8px", color: "#92400e" }} role="note">
+              Borrador sugerido por DocenteOS con el título de la unidad. Si quieres, cámbialo por algo real de tu grupo.
+            </p>
+          )}
           <div className="pd-field">
             <label>¿Real o simulada?</label>
             <select value={s.origen} onChange={campo("origen")}>

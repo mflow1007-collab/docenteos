@@ -192,6 +192,69 @@ export const situacionDesdeSemilla = (semilla, { centro = "" } = {}) => ({
   rasgos: { ...semilla.rasgos },
 });
 
+// ── Borrador automático (modo rápido) ──────────────────────────────────────
+// Sin situación propuesta para el tema, DocenteOS arma un BORRADOR con el
+// título, el grado y el centro para que el docente pueda generar sin llenar
+// nada; lo ve marcado como borrador y lo ajusta si quiere. Sin IA. No es texto
+// oficial (banco pedagógico de DocenteOS) y nunca dice «no saben el idioma».
+
+const RASGOS_POR_DEFECTO = { naturaleza: "necesidad", contexto: "escuela", alcance: "resuelve", llegada: "actuar" };
+
+const idiomaDe = (asignatura = "") => {
+  const a = limpio(asignatura).toLowerCase();
+  if (a.startsWith("ingl")) return "inglés";
+  if (a.startsWith("franc")) return "francés";
+  return "";
+};
+
+/** Nombre de producto sugerido a partir del título (el docente lo cambia si quiere). */
+export const productoSugerido = ({ titulo = "", asignatura = "" } = {}) => {
+  const t = sinPuntoFinal(titulo);
+  if (!t) return "";
+  const idioma = idiomaDe(asignatura);
+  if (idioma === "inglés") return `${t} Booklet`;
+  if (idioma === "francés") return `Livret « ${t} »`;
+  return `Guía «${t}»`;
+};
+
+const mayuscula = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+
+/**
+ * Secciones sugeridas: las partes del título («My family and friends» →
+ * My family · Friends); si el título es una sola idea, presentación · tema ·
+ * cierre en el idioma de la asignatura.
+ */
+export const seccionesSugeridas = ({ titulo = "", asignatura = "" } = {}) => {
+  const t = sinPuntoFinal(titulo);
+  const partes = t.split(/\s*,\s*|\s+(?:and|y|et|&)\s+/i).map(limpio).filter(Boolean).map(mayuscula);
+  if (partes.length >= 2 && new Set(partes.map((p) => p.toLowerCase())).size === partes.length) return partes;
+  const idioma = idiomaDe(asignatura);
+  if (idioma === "inglés") return ["Introduction", mayuscula(t) || "Main Ideas", "Final Message"];
+  if (idioma === "francés") return ["Introduction", mayuscula(t) || "Idées principales", "Message final"];
+  return ["Presentación", mayuscula(t) || "Ideas principales", "Mensaje final"];
+};
+
+/** Situación de borrador por elementos (Guía 1.2.2) para el tema de la unidad. */
+export const borradorSituacion = ({ titulo = "", grado = "", centro = "", asignatura = "" } = {}) => {
+  const t = sinPuntoFinal(titulo);
+  const idioma = idiomaDe(asignatura);
+  const { centro: lugar } = lugaresDelCentro(centro);
+  return {
+    ...situacionVacia(),
+    origen: "simulada",
+    borrador: true,
+    contexto: `En ${lugar}, los estudiantes${grado ? ` de ${limpio(grado)}` : ""} trabajan el tema «${t}» y conviven con compañeros, familias y visitantes con quienes pueden compartirlo.`,
+    problema: idioma
+      ? `Necesitan presentar en ${idioma} lo que viven sobre «${t}» a personas que no hablan español, y todavía no tienen un material para hacerlo.`
+      : `Necesitan explicar «${t}» a otras personas del centro, y todavía no tienen un material claro para hacerlo.`,
+    productoDescripcion: idioma ? `un material bilingüe sobre ${t.toLowerCase()}` : `un material sobre ${t.toLowerCase()}`,
+    audiencia: "los compañeros de otras secciones y los visitantes del centro",
+    puntoDeLlegada: "Así valoran lo que aprenden y lo comparten con respeto y responsabilidad hacia los demás.",
+    competenciasLlegada: ["desarrollo_personal"],
+    rasgos: { ...RASGOS_POR_DEFECTO },
+  };
+};
+
 // ── Texto y validación ─────────────────────────────────────────────────────
 
 /** Los cinco elementos de la Guía 1.2.2, con la estrategia `estrategia`. */
@@ -320,7 +383,8 @@ export const aceptarRealineacion = (pm) => ({
   ...pm, situacion: { ...pm.situacion, estrategiaAlineada: pm.estrategia, rolPropio: "" },
 });
 
-export const fijarCampoSituacion = (pm, campo, valor) => ({ ...pm, situacion: { ...pm.situacion, [campo]: valor } });
+// Lo que el docente escribe deja de ser borrador de DocenteOS.
+export const fijarCampoSituacion = (pm, campo, valor) => ({ ...pm, situacion: { ...pm.situacion, [campo]: valor, borrador: false } });
 
 export const fijarRasgo = (pm, criterio, valor) => ({
   ...pm, situacion: { ...pm.situacion, rasgos: { ...pm.situacion.rasgos, [criterio]: valor } },

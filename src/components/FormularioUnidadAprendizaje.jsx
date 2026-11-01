@@ -619,7 +619,8 @@ export default function FormularioUnidadAprendizaje({
     !titulo && "Título de la Unidad",
     (grado && area && (!areaTieneMultiplesAsignaturas || asignatura) && estadoCurriculoAsesor.status === "loading") && "Verificación de malla curricular",
     (grado && area && (!areaTieneMultiplesAsignaturas || asignatura) && ["missing", "error"].includes(estadoCurriculoAsesor.status)) && "Malla curricular oficial exacta",
-    (estadoPlanMaestro.aplica && !estadoPlanMaestro.listo) && "Vista previa del plan maestro",
+    // Sin título no se pide nada de la vista previa: con el título DocenteOS la prellena.
+    (titulo && estadoPlanMaestro.aplica && !estadoPlanMaestro.listo) && "Vista previa del plan maestro",
   ].filter(Boolean);
 
   const puedoGenerar = camposFaltantes.length === 0;
@@ -1485,6 +1486,10 @@ export default function FormularioUnidadAprendizaje({
       </div>
 
       {/* ── Opcionales ── */}
+      {/* Con plan maestro, la estrategia y la situación se eligen en su vista
+          previa y el generador no lee estos campos: se ocultan para no pedir
+          lo mismo dos veces. */}
+      {!estadoPlanMaestro.aplica && (<>
       <details className="pd-detalles">
         <summary>Estrategia pedagógica (opcional · se auto-genera)</summary>
         <div className="pd-field pd-field-full">
@@ -1508,9 +1513,14 @@ export default function FormularioUnidadAprendizaje({
           />
         </div>
       </details>
+      </>)}
 
       <details className="pd-detalles">
-        <summary>Producto final de la unidad (opcional · DocenteOS completa lo que falte)</summary>
+        <summary>
+          {estadoPlanMaestro.aplica
+            ? "Producto final de la unidad (el nombre es obligatorio · lo demás, opcional)"
+            : "Producto final de la unidad (opcional · DocenteOS completa lo que falte)"}
+        </summary>
         <div className="pd-field pd-field-full">
           <label>Nombre del producto</label>
           <textarea
@@ -1618,8 +1628,23 @@ export default function FormularioUnidadAprendizaje({
               <span key={campo} className="pd-campo-badge">{campo}</span>
             ))}
           </div>
-          {estadoPlanMaestro.aplica && !estadoPlanMaestro.listo && (
-            <p className="pd-hint" style={{ marginTop: 6 }}>{estadoPlanMaestro.motivo}</p>
+          {titulo && estadoPlanMaestro.aplica && !estadoPlanMaestro.listo && (
+            <p className="pd-hint" style={{ marginTop: 6 }}>
+              Falta en la vista previa: {estadoPlanMaestro.falta}{" "}
+              <button
+                type="button"
+                className="pd-link-btn"
+                onClick={() => {
+                  // La vista previa es un <details> plegado: se abre y se lleva al docente a ella.
+                  const vista = document.getElementById("vista-previa-plan-maestro");
+                  if (!vista) return;
+                  vista.open = true;
+                  vista.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                Ir a la vista previa
+              </button>
+            </p>
           )}
         </div>
       )}
