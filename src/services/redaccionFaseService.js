@@ -181,6 +181,23 @@ const coincide = (a, b) => {
 };
 const listaTextos = (v) => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean) : []);
 
+/**
+ * Secciones que declara una clase. El prompt nombraba varias unidas con « · »
+ * y el modelo a veces copia ese texto como un solo elemento: se separa solo si
+ * no es ya una sección y TODAS sus partes son secciones del producto. Si alguna
+ * parte no lo es, queda entera y el contrato la rechaza como antes.
+ */
+export const seccionesDeClase = (valor, secciones = []) => {
+  const conocidas = new Map(secciones.map((x) => [normalizar(x), x]));
+  return listaTextos(valor).flatMap((s) => {
+    if (conocidas.has(normalizar(s)) || !s.includes("·")) return [s];
+    const partes = s.split("·").map((x) => x.trim()).filter(Boolean);
+    return partes.length > 1 && partes.every((x) => conocidas.has(normalizar(x)))
+      ? partes.map((x) => conocidas.get(normalizar(x)))
+      : [s];
+  });
+};
+
 // Indicador recortado (4.3): tronco + aspectos marcados + cierre. Una lista sin
 // marcar se conserva completa. Forma aprobada por César (Etapa 6, 2026-10-29):
 // los aspectos se unen con ", " y " y " como en la malla; la "y" pasa a "e"
@@ -320,7 +337,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
     const clase = data?.clases?.[idx];
     const etiqueta = `Contrato: clase ${idx + 1}`;
     motivos44.push(...motivosRedaccionClase(clase, `clase ${idx + 1}`, opciones));
-    const suyas = listaTextos(clase?.seccionesProducto);
+    const suyas = seccionesDeClase(clase?.seccionesProducto, secciones);
     if (secciones.length) {
       if (!suyas.length) throw new Error(`${etiqueta} sin "seccionesProducto" (la sección del producto que avanza).`);
       const ajena = suyas.find((s) => !secciones.some((x) => normalizar(x) === normalizar(s)));
@@ -378,7 +395,7 @@ export const validarFaseCompleta = (clases, contrato) => {
   if (!Array.isArray(clases) || clases.length < contrato.sesiones) {
     throw new Error(`Contrato: la fase ${contrato.numero} tiene ${clases?.length ?? 0} de ${contrato.sesiones} clases.`);
   }
-  const avanzadas = new Set(clases.flatMap((c) => listaTextos(c?.seccionesProducto)).map(normalizar));
+  const avanzadas = new Set(clases.flatMap((c) => seccionesDeClase(c?.seccionesProducto, contrato.secciones)).map(normalizar));
   const faltan = contrato.entrega.secciones.filter((s) => !avanzadas.has(normalizar(s)));
   if (faltan.length) {
     throw new Error(`Contrato: la fase ${contrato.numero} no avanza ${faltan.join(", ")}, que su entrega (${contrato.entrega.estado}) debe dejar.`);
