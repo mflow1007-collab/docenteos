@@ -1773,13 +1773,13 @@ export const consultarTemaEnHistorial = async (titulo) => {
   return snap.exists() ? { existe: true, ...snap.data() } : { existe: false };
 };
 
-/** Historial del tema de la unidad (no crítico: nunca bloquea la generación). */
-export const registrarTemaUnidadEnHistorial = async (titulo) => {
+/** Historial del tema (no crítico: nunca bloquea la generación ni el guardado). */
+export const registrarTemaEnHistorial = async (titulo) => {
   try {
     const user = getCurrentUserOrThrow();
     await upsertHistorialTema({ uid: user.uid, titulo, estado: "activo", activo: true, incrementarEdiciones: true });
   } catch (err) {
-    console.warn("[registrarTemaUnidadEnHistorial] no crítico:", err?.message);
+    console.warn("[registrarTemaEnHistorial] no crítico:", err?.message);
   }
 };
 

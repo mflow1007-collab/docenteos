@@ -48,8 +48,8 @@ import {
   obtenerPlanificacionesDetalladas,
   guardarPreferenciaUsuario,
   obtenerPreferenciaUsuario,
-  verificarTemaAntesDeGenerar,
   registrarUsoTemaPlanificacion,
+  registrarTemaEnHistorial,
   registrarUsoPDFTema,
   suscribirseEstadoTemasPlanificacion,
   subirImagenPlanificacion,
@@ -894,47 +894,9 @@ export default function PlanificacionPage({
     });
 
     try {
-      const verificacionTema = await verificarTemaAntesDeGenerar({ tituloTema: tema, contexto: "generacion" });
-      if (!verificacionTema?.permitido) {
-        if (verificacionTema?.motivo === "tercer_tema_sin_credito") {
-          setDialogoTema({
-            abierto: true,
-            payload: {
-              ...verificacionTema,
-              temaIngresado: tema,
-            },
-          });
-          setCargando(false);
-          return;
-        }
-        throw new Error(verificacionTema?.mensaje || "No se pudo validar el tema actual");
-      }
-
-      if (verificacionTema?.requiereCredito) {
-        setDialogoTema({
-          abierto: true,
-          payload: {
-            ...verificacionTema,
-            temaIngresado: tema,
-            mensaje:
-              "Ya tienes dos temas activos. Puedes seguir editándolos sin límites. Para iniciar un nuevo tema debes usar un nuevo crédito de planificación o una suscripción compatible.",
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-              temaTercero: estadoTemas.temaTercero,
-              temaCuarto: estadoTemas.temaCuarto,
-            },
-          },
-        });
-        setCargando(false);
-        return;
-      }
-
-      await registrarUsoTemaPlanificacion({
-        tituloTema: tema,
-        forzarNuevoTema: false,
-        contexto: "generacion",
-      });
+      // Estos tipos se arman con plantillas (sin IA): sin tope de temas.
+      // El cupo por grado solo aplica a la unidad y la secuencia (sí usan IA).
+      if (tema) await registrarTemaEnHistorial(tema);
 
       const gradoData = grados.find((item) => item.grado === grado);
       const curso = [grado, seccion].filter(Boolean).join(" ").trim();
@@ -1033,53 +995,9 @@ export default function PlanificacionPage({
 
     const temaParaControl = planificacion?.metadatos?.tema || tema;
 
-    if (temaParaControl) {
-      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaParaControl, contexto: "edicion" });
-      if (!verificacion?.permitido) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "guardar",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaParaControl,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-              temaTercero: estadoTemas.temaTercero,
-              temaCuarto: estadoTemas.temaCuarto,
-            },
-          },
-        });
-        return;
-      }
-      if (verificacion?.requiereCredito) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "guardar",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaParaControl,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-              temaTercero: estadoTemas.temaTercero,
-              temaCuarto: estadoTemas.temaCuarto,
-            },
-          },
-        });
-        return;
-      }
-    }
-
     setGuardando(true);
     try {
-      if (temaParaControl) {
-        await registrarUsoTemaPlanificacion({
-          tituloTema: temaParaControl,
-          forzarNuevoTema: false,
-          contexto: "edicion",
-        });
-      }
+      if (temaParaControl) await registrarTemaEnHistorial(temaParaControl);
       // Hilo pedagógico: guarda el plan (siempre) + capa curricular + aspectos
       // del registro + instrumentos planeados (IDs deterministas — reemplaza
       // al bridge legacy que duplicaba instrumentos en cada guardado).
