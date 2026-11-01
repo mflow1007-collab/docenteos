@@ -79,6 +79,36 @@ export const esErrorCreditosAgotados = (errOrMsg) => {
     || DEFINITIVE_CREDIT_ERROR_RE.test(msg);
 };
 
+const NOMBRE_PROVEEDOR = { openai: "OpenAI", anthropic: "Anthropic", gemini: "Gemini", abacus: "Abacus", nvidia: "NVIDIA" };
+
+/**
+ * Error final de la escalera de un lote. Sin saldo en un proveedor no es
+ * «créditos agotados» si otro proveedor sí respondió: el fallo real es el
+ * último rechazo del validador (y la fase se puede reintentar). Solo cuando
+ * ningún proveedor tenía saldo se devuelve AI_CREDITS_EXHAUSTED, nombrando a
+ * los proveedores sin créditos (2026-11-01: Abacus en cero cortaba unidades
+ * que OpenAI sí podía redactar).
+ */
+export const errorFinalEscalera = ({ ultimoRechazo = null, lastError = null, sinSaldo = [], prefijo = "" } = {}) => {
+  const nombres = [...sinSaldo].map((p) => NOMBRE_PROVEEDOR[p] || p);
+  if (!ultimoRechazo && (nombres.length || esErrorCreditosAgotados(lastError))) {
+    const agotado = new Error(
+      `Créditos de IA agotados${nombres.length ? ` (${nombres.join(", ")} sin créditos)` : ""}: ${lastError?.message || "sin detalle"}`,
+      { cause: lastError || undefined },
+    );
+    agotado.code = "AI_CREDITS_EXHAUSTED";
+    agotado.creditosAgotados = true;
+    agotado.provider = [...sinSaldo][0] || lastError?.provider;
+    return agotado;
+  }
+  const fallo = ultimoRechazo || { err: lastError, provider: lastError?.provider || "desconocido", model: lastError?.model || "desconocido" };
+  return new Error(
+    `${prefijo}Detalle: último ${fallo.provider}/${fallo.model} — ${fallo.err?.message}` +
+    `${nombres.length ? ` (sin créditos: ${nombres.join(", ")})` : ""}`,
+    { cause: fallo.err || undefined },
+  );
+};
+
 const getBudgetCooldownProviders = () => {
   const now = Date.now();
   for (const [provider, until] of providerBudgetCooldowns.entries()) {
@@ -1720,6 +1750,8 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // aptos, un tope de 4+ dejaría el límite sin efecto.
   const MAX_MODELOS_CON_SERVICIO = 2;
   const fallosPorProveedor = new Map();
+  const sinSaldo = new Set();      // proveedores sin créditos en esta escalera
+  let ultimoRechazo = null;        // último fallo de un proveedor que SÍ respondió
   const proveedoresProbados = new Set(); // con al menos un intento REAL (no sin-servicio)
   const anotarFallo = (p) => fallosPorProveedor.set(p, (fallosPorProveedor.get(p) || 0) + 1);
   const descartarProveedor = (p) => fallosPorProveedor.set(p, MAX_INTENTOS_POR_PROVEEDOR);
@@ -1928,8 +1960,9 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         throw lastError;
       }
 
-      // Saldo/billing agotado es definitivo para esta generación. No se rota
-      // por todos los modelos ni se vuelve a intentar en las fases siguientes.
+      // Saldo/billing agotado: ese proveedor queda fuera (también en las fases
+      // siguientes, por el enfriamiento) y la escalera sigue con los demás.
+      // Solo es definitivo si ningún proveedor tenía saldo (errorFinalEscalera).
       // Un 429/rate-limit temporal sigue usando la escalera normal.
       if (esErrorCreditosAgotados(err)) {
         cooldownProviderForBudget(failedProvider, msg);
@@ -1938,11 +1971,9 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
           raw: lastRaw, provider: lastProvider, model: lastModel,
           cupo: spec.cupoGeneracion,
         });
-        const agotado = new Error(`Créditos de IA agotados: ${msg}`, { cause: err });
-        agotado.code = "AI_CREDITS_EXHAUSTED";
-        agotado.creditosAgotados = true;
-        agotado.provider = failedProvider;
-        throw agotado;
+        sinSaldo.add(failedProvider);
+        descartarProveedor(failedProvider);
+        continue;
       }
 
       // Estructuralmente incompleto (R1: sin clases[] o menos de las esperadas):
@@ -1955,7 +1986,10 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       const sinServicio = presupuestoAgotado
         || /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|Cola vacía|503|tiempo de espera|desactivad|apagado/i.test(msg)
         || err?.timeout === true;
-      if (!sinServicio) proveedoresProbados.add(failedProvider);
+      if (!sinServicio) {
+        proveedoresProbados.add(failedProvider);
+        ultimoRechazo = { err: lastError, provider: failedProvider, model: lastModel };
+      }
       if (estructuralIncompleto || sinServicio) descartarProveedor(failedProvider);
       else anotarFallo(failedProvider);
       // Etapa 5: el siguiente intento recibe el motivo del rechazo del validador.
@@ -1979,11 +2013,19 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   const consejo = sinProveedorComposicion
     ? ' No hay proveedor apto para composición de planificaciones; activa o corrige OpenAI, Anthropic, Gemini o Abacus en Administración → Motor de IA.'
     : '';
-  throw new Error(
-    `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) — ` +
-    `revisa la configuración de proveedores de IA en Administración.${consejo} ` +
-    `Detalle: ${attemptsUsed} intentos, último ${lastProvider}/${lastModel} — ${lastError?.message}`,
-  );
+  if (!ultimoRechazo && !sinSaldo.size) {
+    throw new Error(
+      `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) — ` +
+      `revisa la configuración de proveedores de IA en Administración.${consejo} ` +
+      `Detalle: ${attemptsUsed} intentos, último ${lastProvider}/${lastModel} — ${lastError?.message}`,
+    );
+  }
+  throw errorFinalEscalera({
+    ultimoRechazo,
+    lastError: Object.assign(lastError || new Error("sin detalle"), { provider: lastProvider, model: lastModel }),
+    sinSaldo,
+    prefijo: `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) en ${attemptsUsed} intentos. `,
+  });
 }
 
 const esFalloRecuperablePorTamano = (err) => {

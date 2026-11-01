@@ -105,5 +105,28 @@ check("regla 4.4: una actividad lleva una sola organización (si cambia, son dos
   ok(/Una actividad = UNA sola organización: si el trabajo cambia de agrupación \(parejas → plenaria\), son DOS actividades/.test(fase), "falta la regla en el prompt");
 });
 
+console.log("\n── Saldo por proveedor (escalera) ──");
+const { errorFinalEscalera, esErrorCreditosAgotados } = await import("../src/services/phaseAService.js");
+const sinCreditos = new Error('No hay ningún servicio de Inteligencia Artificial disponible en este momento. Último error: abacus HTTP 429: {"error": {"message": "You have no remaining credits to use the LLM apis.", "code": "insufficient_quota"}}');
+check("Abacus sin saldo y OpenAI rechazado por el validador → el fallo es el rechazo, no «créditos agotados»", () => {
+  const rechazo = new Error("Redacción 4.4 (1): clase 1 — Cierre, actividad 1: «Completan» no está en la lista de verbos.");
+  const e = errorFinalEscalera({ ultimoRechazo: { err: rechazo, provider: "openai", model: "gpt-4o" }, lastError: sinCreditos, sinSaldo: new Set(["abacus"]) });
+  ok(!esErrorCreditosAgotados(e), "se clasificó como créditos agotados");
+  ok(/openai\/gpt-4o — Redacción 4\.4/.test(e.message), e.message);
+  ok(/sin créditos: Abacus/.test(e.message), "no nombra al proveedor sin saldo");
+});
+check("ningún proveedor con saldo → AI_CREDITS_EXHAUSTED nombrando a los proveedores", () => {
+  const e = errorFinalEscalera({ lastError: sinCreditos, sinSaldo: new Set(["abacus", "openai"]) });
+  ok(esErrorCreditosAgotados(e) && e.code === "AI_CREDITS_EXHAUSTED", "no es definitivo");
+  ok(/\(Abacus, OpenAI sin créditos\)/.test(e.message), e.message);
+});
+check("la escalera salta al proveedor sin saldo en vez de detener la generación", () => {
+  const rama = (fase.match(/if \(esErrorCreditosAgotados\(err\)\) \{[\s\S]*?\n      \}/) || [""])[0];
+  ok(rama, "no se encontró la rama de créditos");
+  ok(/sinSaldo\.add\(failedProvider\)/.test(rama) && /descartarProveedor\(failedProvider\)/.test(rama) && /continue;/.test(rama), "no salta al siguiente proveedor");
+  ok(!/throw/.test(rama), "sigue cortando la generación");
+  ok(/throw errorFinalEscalera\(/.test(fase), "el final de la escalera no usa errorFinalEscalera");
+});
+
 console.log(`\n${pasos} pasos, ${fallos} fallos`);
 if (fallos) process.exit(1);
