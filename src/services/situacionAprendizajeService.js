@@ -243,11 +243,13 @@ export const borradorSituacion = ({ titulo = "", grado = "", centro = "", asigna
     ...situacionVacia(),
     origen: "simulada",
     borrador: true,
-    contexto: `En ${lugar}, los estudiantes${grado ? ` de ${limpio(grado)}` : ""} trabajan el tema «${t}» y conviven con compañeros, familias y visitantes con quienes pueden compartirlo.`,
+    // Corto a propósito: el título sale también en el producto y la situación
+    // compuesta no puede pasar de 800 caracteres.
+    contexto: `En ${lugar}, los estudiantes${grado ? ` de ${limpio(grado)}` : ""} trabajan el tema «${t}».`,
     problema: idioma
-      ? `Necesitan presentar en ${idioma} lo que viven sobre «${t}» a personas que no hablan español, y todavía no tienen un material para hacerlo.`
-      : `Necesitan explicar «${t}» a otras personas del centro, y todavía no tienen un material claro para hacerlo.`,
-    productoDescripcion: idioma ? `un material bilingüe sobre ${t.toLowerCase()}` : `un material sobre ${t.toLowerCase()}`,
+      ? `Necesitan contarlo en ${idioma} a personas que no hablan español y todavía no tienen un material para hacerlo.`
+      : "Necesitan explicarlo a otras personas del centro y todavía no tienen un material claro para hacerlo.",
+    productoDescripcion: idioma ? "un material bilingüe sobre el tema" : "un material sobre el tema",
     audiencia: "los compañeros de otras secciones y los visitantes del centro",
     puntoDeLlegada: "Así valoran lo que aprenden y lo comparten con respeto y responsabilidad hacia los demás.",
     competenciasLlegada: ["desarrollo_personal"],

@@ -99,7 +99,9 @@ export default function SituacionAprendizajePanel({ datos, onChange, pm, temas }
         <p className="pd-hint" style={{ margin: "0 0 4px" }}>DocenteOS propone (simulada; puedes adaptarla):</p>
       ) : (
         <p className="pd-hint" style={{ margin: "0 0 4px" }}>
-          Todavía no hay situaciones propuestas para este tema: escribe la tuya con los cinco elementos.
+          {s?.borrador
+            ? "Todavía no hay situaciones propuestas para este tema: DocenteOS preparó un borrador (abajo) que puedes usar tal cual o adaptar."
+            : "Todavía no hay situaciones propuestas para este tema: escribe la tuya con los cinco elementos."}
         </p>
       )}
       {propuestas.map((p) => (
