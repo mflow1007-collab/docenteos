@@ -16,13 +16,14 @@ import {
 import { evidenciasVigentes, validarPonderacion } from "../services/hiloPedagogico.js";
 import { obtenerAvanceCurricular, obtenerResultadosCurso } from "../services/avanceCurricularService.js";
 import { obtenerActividadesPorCurso } from "../services/actividadesService.js";
-import { construirInformeCurso, htmlInformeCurso } from "../services/informesSeguimiento.js";
+import { construirInformeCurso, htmlInformeCurso, periodoDeFecha } from "../services/informesSeguimiento.js";
 import { fechaLocalISO } from "../services/hiloPedagogico.js";
 import { obtenerAsistenciaCurso, obtenerSuspensiones } from "../services/asistenciaService.js";
-import { proximaEntregaReportes } from "../data/calendarioEscolarMINERD.js";
+import { calendarioParaFecha, proximaEntregaReportes } from "../data/calendarioEscolarMINERD.js";
 import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
+import { escHtml } from "../utils/html.js";
 import { aplicarCeldasIndicadores, calcularResumenEstudiante, celdasDesdeIndicadores, normalizarNotasCompetencias } from "../utils/resumenCalificaciones.js";
 import { depurarDatosLegado, idEstudiante, idsAmbiguosEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -262,6 +263,8 @@ function RegistroPage({
 
   const [tabActiva, setTabActiva] = useState("Resumen");
   const [periodoActivo] = useState("Periodo 1");
+  // Informe para coordinación: "" = año completo; por defecto, el período en curso
+  const [periodoInforme, setPeriodoInforme] = useState(null);
   const [mesActivo, setMesActivo] = useState("Agosto");
   const [asistencia, setAsistencia] = useState(
     crearAsistenciaParaEstudiantes(estudiantes)
@@ -1143,12 +1146,16 @@ function RegistroPage({
 
   // F6 — Informe para coordinación (decisión 6, formato: tabla del curso en PDF).
   // Solo datos registrados; una fuente que falla sale «sin comprobar».
+  // Sin elección del docente: el período en curso (año completo fuera del calendario cargado)
+  const periodoInformeEfectivo = periodoInforme ?? (calendarioParaFecha(fechaLocalISO())
+    ? String(periodoDeFecha(curso?.nivel || "", fechaLocalISO()) || "") : "");
   const exportarInformeCoordinacion = async () => {
     if (!curso?.id) { setMensajeGuardado({ tipo: "error", texto: "Selecciona un curso para preparar el informe." }); return; }
     // La ventana se abre antes de leer: si se abre después del await el navegador la bloquea
     const win = window.open("", "_blank");
     if (!win) { alert("Permite ventanas emergentes para exportar el PDF."); return; }
     win.document.write("<p style=\"font-family:system-ui\">Preparando el informe…</p>");
+    const periodo = Number(periodoInformeEfectivo) || null;
     const fuentes = {
       actividades: obtenerActividadesPorCurso(cursoId),
       resultados: obtenerResultadosCurso(cursoId),
@@ -1158,6 +1165,13 @@ function RegistroPage({
         if (a.success === false || n.success === false) throw new Error("No se pudo leer el Registro por indicador");
         return { aspectos: a.data || [], notas: n.data || [] };
       }),
+      // Por período el promedio por indicador sale de los resultados (registroNotas no tiene fecha)
+      ...(periodo ? {
+        instrumentos: obtenerInstrumentosFirestore().then((r) => {
+          if (r.success === false) throw new Error("No se pudieron leer los instrumentos");
+          return (r.data || []).filter((ins) => String(ins.cursoId || ins.vinculacion?.cursoId || "") === String(cursoId));
+        }),
+      } : {}),
     };
     const res = await Promise.allSettled(Object.values(fuentes));
     const datos = {}, errores = {};
@@ -1166,12 +1180,21 @@ function RegistroPage({
       else { datos[clave] = []; errores[clave] = res[i].reason?.message || "error de lectura"; }
     });
     const { registro, ...resto } = datos;
-    const informe = construirInformeCurso({
-      cursoNombre, asignatura: area, ...resto,
-      // Con sus ids legados, como la ficha: los resultados viejos (p. ej. «est-1») también cuentan
-      estudiantes: estudiantes.map((est, i) => ({ ...est, idsLegado: idsLegadoEstudiante(est, i, { cursoId }), legadoAmbiguo: idsAmbiguosEstudiante(est, i) })),
-      aspectos: registro.aspectos || [], notas: registro.notas || [], hoy: fechaLocalISO(), errores,
-    });
+    let informe;
+    try {
+      informe = construirInformeCurso({
+        cursoNombre, asignatura: area, ...resto,
+        // Con sus ids legados, como la ficha: los resultados viejos (p. ej. «est-1») también cuentan
+        estudiantes: estudiantes.map((est, i) => ({ ...est, idsLegado: idsLegadoEstudiante(est, i, { cursoId }), legadoAmbiguo: idsAmbiguosEstudiante(est, i) })),
+        aspectos: registro.aspectos || [], notas: registro.notas || [], hoy: fechaLocalISO(), errores,
+        periodo, nivel: curso?.nivel || "",
+      });
+    } catch (e) {
+      win.document.open();
+      win.document.write(`<p style="font-family:system-ui;color:#b91c1c">${escHtml(e.message)}</p>`);
+      win.document.close();
+      return;
+    }
     win.document.open();
     win.document.write(htmlInformeCurso(informe));
     win.document.close();
@@ -1326,6 +1349,14 @@ function RegistroPage({
             </button>
             <button type="button" className="rh-btn-primary" onClick={exportarPDF}>📥 PDF</button>
             <button type="button" className="rh-btn-primary" onClick={exportarExcel}>📊 Excel</button>
+            <select
+              aria-label="Período del informe para coordinación"
+              value={periodoInformeEfectivo}
+              onChange={(e) => setPeriodoInforme(e.target.value)}
+            >
+              <option value="">Año completo</option>
+              {[1, 2, 3, 4].map((n) => <option key={n} value={String(n)}>P{n}</option>)}
+            </select>
             <button type="button" className="rh-btn-primary" onClick={exportarInformeCoordinacion}>📋 Informe para coordinación</button>
             <button type="button" className="rh-btn-ghost" onClick={() => window.print()}>🖨 Imprimir</button>
           </div>

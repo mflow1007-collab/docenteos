@@ -12,9 +12,10 @@
  * Fail-loud: una fuente que no se pudo leer sale en `sinComprobar`.
  */
 
-import { actividadesConNota, senalesNecesitaApoyo, fechaDia } from "./seguimientoEstudiante.js";
-import { agregarResultadosPorIndicador, nivelLogroDesdePorcentaje } from "./hiloPedagogico.js";
-import { ETIQUETAS_ENTREGA } from "./actividadesPlan.js";
+import { actividadesConNota, senalesNecesitaApoyo, fechaDia, restarDias } from "./seguimientoEstudiante.js";
+import { agregarResultadosPorIndicador, consolidarNotaAspecto, nivelLogroDesdePorcentaje } from "./hiloPedagogico.js";
+import { ETIQUETAS_ENTREGA, fechaDeActividad } from "./actividadesPlan.js";
+import { CALENDARIOS_ESCOLARES, calendarioParaFecha, proximaEntregaReportes } from "../data/calendarioEscolarMINERD.js";
 import {
   aplicarCeldasIndicadores, calcularResumenEstudiante, celdasDesdeIndicadores, normalizarNotasCompetencias, notasConCalculoAceptado,
 } from "../utils/resumenCalificaciones.js";
@@ -271,20 +272,120 @@ export const htmlDocumento = (titulo, texto) => {
 };
 
 /**
+ * Período (1-4) de una fecha: misma regla que la C.F. de F7
+ * (celdasDesdeIndicadores), los cortes de Reportes del calendario MINERD.
+ * null si no hay fecha o cae fuera del calendario cargado.
+ */
+export const periodoDeFecha = (nivel, fecha) => {
+  const f = fechaDia(fecha);
+  const corte = f ? proximaEntregaReportes(nivel, f) : null;
+  const n = Number(String(corte?.periodo || "").replace(/\D/g, ""));
+  return n >= 1 && n <= 4 ? n : null;
+};
+
+/**
+ * Rango del período del año escolar de `hoy` (o del último cargado), para el
+ * título. P1 no tiene «desde»: como en F7, todo lo anterior al primer corte es P1.
+ * null si el nivel no tiene cortes de Reportes.
+ */
+export const rangoPeriodo = (nivel, numero, hoy) => {
+  const cal = calendarioParaFecha(hoy)
+    || Object.entries(CALENDARIOS_ESCOLARES).map(([anio, c]) => ({ anio, ...c })).pop();
+  const nivelKey = cal ? proximaEntregaReportes(nivel, cal.docentes.inicio)?.nivel : "";
+  const cortes = cal?.reportesEvaluacion?.[nivelKey] || [];
+  const corte = cortes.find((c) => c.periodo === `P${numero}`);
+  if (!corte) return null;
+  const previo = cortes.find((c) => c.periodo === `P${numero - 1}`);
+  return { numero, etiqueta: `P${numero}`, desde: previo ? restarDias(previo.fecha, -1) : "", hasta: corte.fecha };
+};
+
+/**
+ * Promedio por indicador de UN período desde los resultados (registroNotas no
+ * tiene fecha): por estudiante, consolidarNotaAspecto con sus resultados del
+ * período. Como la C.F. de F7: solo cuenta quien tiene nota en el Registro, y
+ * el ajuste manual vale si todo el indicador cae en un solo período.
+ */
+const indicadoresDelPeriodo = ({ aspectos, notas, instrumentos, resultados, estudiantes, periodoDe, periodo }) =>
+  aspectos.filter(activo).map((aspecto) => {
+    const aspectoId = String(aspecto.aspectoId || aspecto.id);
+    const delAspecto = instrumentos.filter((ins) => (ins.aspectoRegistroIds || []).includes(aspecto.aspectoId || aspecto.id));
+    const valores = [];
+    for (const est of estudiantes) {
+      const ids = conjuntoIds([est.id, ...(est.idsLegado || [])]);
+      const propios = depurarDatosLegado({ resultados }, est.legadoAmbiguo).resultados.filter((r) => r?.estado === "evaluado"
+        && ids.has(String(r.estudianteId || ""))
+        && delAspecto.some((ins) => String(ins.id || ins.instrumentoId) === String(r.instrumentoId)));
+      const periodos = new Set(propios.map(periodoDe).filter((p) => p !== null));
+      const enPeriodo = propios.filter((r) => periodoDe(r) === periodo);
+      if (!enPeriodo.length) continue;
+      const nota = notas.find((n) => String(n?.aspectoId || "") === aspectoId && ids.has(String(n?.estudianteId || "")));
+      const obtenido = numero(nota?.valorObtenido);
+      if (obtenido === null) continue;
+      const maximo = numero(nota?.puntajeMaximo) ?? numero(aspecto.puntajeMaximo);
+      const valor = nota.ajusteManual && periodos.size === 1 && maximo
+        ? Math.round((obtenido / maximo) * 100)
+        : consolidarNotaAspecto({ aspecto, instrumentos, resultados: enPeriodo }).valorCalculado;
+      if (valor !== null && Number.isFinite(Number(valor))) valores.push(Math.round(Number(valor)));
+    }
+    const promedio = valores.length ? Math.round(valores.reduce((s, v) => s + v, 0) / valores.length) : null;
+    return {
+      codigo: codigoDe(aspecto),
+      texto: aspecto.aspectoVisible || aspecto.nombre || "",
+      evaluados: valores.length,
+      promedio,
+      nivel: nivelLogroDesdePorcentaje(promedio),
+    };
+  }).filter((i) => i.evaluados > 0);
+
+/**
  * Informe de coordinación de UN curso: % de entregas por actividad, promedio
  * por indicador (Registro), quién necesita apoyo y por qué, y asistencia.
+ * Con `periodo` (1-4) cada dato se filtra por su fecha (decisión de César):
+ * actividad = fecha ajustada o prevista; nota por indicador = fechaEvaluacion
+ * de los resultados; asistencia = día. Lo que no tiene fecha se avisa en
+ * `sinFecha`, nunca se reparte. Sin `periodo` = año completo (como en F6).
  */
 export const construirInformeCurso = ({
   cursoNombre = "", asignatura = "", estudiantes = [], actividades = [], resultados = [],
   aspectos = [], notas = [], asistencia = [], hoy = "", errores = {},
+  periodo = null, nivel = "", instrumentos = [],
 } = {}) => {
+  const rango = periodo ? rangoPeriodo(nivel, periodo, hoy) : null;
+  // Fail-closed: sin cortes del nivel no se puede separar por período
+  if (periodo && !rango) throw new Error(`No se puede separar por período: el nivel «${nivel || "sin nivel"}» no tiene cortes de Reportes en el calendario MINERD.`);
+
   const sinComprobar = [];
   if (errores.actividades) sinComprobar.push("entregas");
   if (errores.resultados) sinComprobar.push("resultados");
   if (errores.asistencia) sinComprobar.push("asistencia");
-  if (errores.registro) sinComprobar.push("promedio por indicador");
+  if (errores.registro || (periodo && errores.instrumentos)) sinComprobar.push("promedio por indicador");
 
-  const entregas = errores.actividades ? [] : actividades
+  // Filtro por período; lo que no tiene fecha se cuenta aparte
+  const sinFecha = { actividades: [], resultados: 0, asistencia: 0 };
+  const periodoResultado = (r) => periodoDeFecha(nivel, r?.fechaEvaluacion);
+  let actividadesP = actividades, resultadosP = resultados, asistenciaP = asistencia;
+  if (periodo) {
+    actividadesP = actividades.filter((a) => {
+      if (a?.activa === false) return false;
+      const p = periodoDeFecha(nivel, fechaDeActividad(a));
+      if (p === null) sinFecha.actividades.push(`Fase ${a.faseNumero}${a.faseNombre ? ` · ${a.faseNombre}` : ""}`);
+      return p === periodo;
+    });
+    resultadosP = resultados.filter((r) => {
+      const p = periodoResultado(r);
+      if (p === null && r?.estado === "evaluado") sinFecha.resultados += 1;
+      return p === periodo;
+    });
+    asistenciaP = asistencia.filter((dia) => {
+      const p = periodoDeFecha(nivel, dia?.fecha);
+      if (p === null) sinFecha.asistencia += 1;
+      return p === periodo;
+    });
+  }
+  // Ventana de ausencias: termina al cierre del período (o hoy si aún no cierra)
+  const corteApoyo = rango && hoy && rango.hasta < hoy ? rango.hasta : hoy;
+
+  const entregas = errores.actividades ? [] : actividadesP
     .filter((a) => a?.activa !== false)
     .map((a) => {
       const c = { entrego: 0, no_entrego: 0, excusa: 0, pendiente: 0 };
@@ -301,39 +402,45 @@ export const construirInformeCurso = ({
     })
     .sort((x, y) => x.faseNumero - y.faseNumero);
 
-  const indicadores = aspectos.filter(activo).map((aspecto) => {
-    const valores = notas
-      .filter((n) => String(n?.aspectoId || "") === String(aspecto.aspectoId || aspecto.id))
-      .map((n) => numero(n.porcentaje) ?? (numero(n.valorObtenido) !== null && numero(n.puntajeMaximo)
-        ? Math.round((numero(n.valorObtenido) / numero(n.puntajeMaximo)) * 100) : null))
-      .filter((v) => v !== null);
-    const promedio = valores.length ? Math.round(valores.reduce((s, v) => s + v, 0) / valores.length) : null;
-    return {
-      codigo: codigoDe(aspecto),
-      texto: aspecto.aspectoVisible || aspecto.nombre || "",
-      evaluados: valores.length,
-      promedio,
-      nivel: nivelLogroDesdePorcentaje(promedio),
-    };
-  }).filter((i) => i.evaluados > 0);
+  const indicadores = periodo
+    ? (errores.registro || errores.instrumentos || errores.resultados ? [] : indicadoresDelPeriodo({
+        aspectos, notas, instrumentos, resultados, estudiantes, periodoDe: periodoResultado, periodo,
+      }))
+    : aspectos.filter(activo).map((aspecto) => {
+      const valores = notas
+        .filter((n) => String(n?.aspectoId || "") === String(aspecto.aspectoId || aspecto.id))
+        .map((n) => numero(n.porcentaje) ?? (numero(n.valorObtenido) !== null && numero(n.puntajeMaximo)
+          ? Math.round((numero(n.valorObtenido) / numero(n.puntajeMaximo)) * 100) : null))
+        .filter((v) => v !== null);
+      const promedio = valores.length ? Math.round(valores.reduce((s, v) => s + v, 0) / valores.length) : null;
+      return {
+        codigo: codigoDe(aspecto),
+        texto: aspecto.aspectoVisible || aspecto.nombre || "",
+        evaluados: valores.length,
+        promedio,
+        nivel: nivelLogroDesdePorcentaje(promedio),
+      };
+    }).filter((i) => i.evaluados > 0);
 
   const porEstudiante = estudiantes.map((est) => {
     const ids = [est.id, ...(est.idsLegado || [])];
     // F7: un «est-N» ambiguo cuenta solo para quien dice su nombre guardado
-    const propios = depurarDatosLegado({ resultados, asistencia }, est.legadoAmbiguo);
+    const propios = depurarDatosLegado({ resultados: resultadosP, asistencia: asistenciaP }, est.legadoAmbiguo);
     return {
       nombre: est.nombre || est.id,
-      apoyo: senalesNecesitaApoyo({ actividades, ...propios, ids, hoy, errores }),
+      apoyo: senalesNecesitaApoyo({ actividades: actividadesP, ...propios, ids, hoy: corteApoyo, errores }),
       asistencia: errores.asistencia ? null : asistenciaDe({ asistencia: propios.asistencia, ids }),
     };
   });
   const conAsistencia = porEstudiante.filter((e) => e.asistencia?.dias);
   return {
     cursoNombre, asignatura, fecha: hoy,
+    periodo: rango,
+    sinFecha: periodo ? sinFecha : null,
     entregas, indicadores,
     apoyo: porEstudiante.filter((e) => e.apoyo.necesitaApoyo).map((e) => ({ nombre: e.nombre, motivos: e.apoyo.motivos.map((m) => m.texto) })),
     asistencia: errores.asistencia ? null : {
-      diasRegistrados: asistencia.length,
+      diasRegistrados: asistenciaP.length,
       promedio: conAsistencia.length
         ? Math.round(conAsistencia.reduce((s, e) => s + e.asistencia.porcentaje, 0) / conAsistencia.length) : null,
       ausencias: porEstudiante.filter((e) => e.asistencia?.ausente).map((e) => ({ nombre: e.nombre, ausente: e.asistencia.ausente })),
@@ -347,10 +454,17 @@ export const construirInformeCurso = ({
 export const htmlInformeCurso = (inf) => {
   const fila = (celdas) => `<tr>${celdas.map((c) => `<td>${escHtml(c)}</td>`).join("")}</tr>`;
   const cab = (celdas) => `<tr>${celdas.map((c) => `<th>${escHtml(c)}</th>`).join("")}</tr>`;
-  const titulo = `Informe para coordinación · ${inf.cursoNombre}${inf.asignatura ? ` · ${inf.asignatura}` : ""}`;
+  const p = inf.periodo;
+  const periodoTxt = p ? `${p.etiqueta} (${p.desde ? `${p.desde} → ` : "hasta "}${p.hasta})` : "Año completo";
+  const titulo = `Informe para coordinación · ${inf.cursoNombre}${inf.asignatura ? ` · ${inf.asignatura}` : ""} · ${periodoTxt}`;
   const partes = [];
-  partes.push(`<p class="meta">${escHtml(`${inf.totalEstudiantes} estudiantes · datos registrados hasta ${inf.fecha}`)}</p>`);
+  partes.push(`<p class="meta">${escHtml(`${inf.totalEstudiantes} estudiantes · ${periodoTxt} · datos registrados hasta ${inf.fecha}`)}</p>`);
+  if (p) partes.push(`<p class="meta">${escHtml("Período por fecha (cortes de Reportes del calendario MINERD): actividad = fecha ajustada o prevista; indicador = fecha de evaluación de los resultados; asistencia = día.")}</p>`);
   if (inf.sinComprobar.length) partes.push(`<p class="aviso">${escHtml(`Sin comprobar (no se pudo leer): ${inf.sinComprobar.join(", ")}.`)}</p>`);
+  const sf = inf.sinFecha;
+  if (sf?.actividades.length) partes.push(`<p class="aviso">${escHtml(`Sin fecha, no incluidas en ${p.etiqueta}: ${sf.actividades.join(", ")}.`)}</p>`);
+  if (sf?.resultados) partes.push(`<p class="aviso">${escHtml(`${sf.resultados} resultado${sf.resultados === 1 ? "" : "s"} evaluado${sf.resultados === 1 ? "" : "s"} sin fecha de evaluación (o fuera del calendario), no incluido${sf.resultados === 1 ? "" : "s"} en ${p.etiqueta}.`)}</p>`);
+  if (sf?.asistencia) partes.push(`<p class="aviso">${escHtml(`${sf.asistencia} día${sf.asistencia === 1 ? "" : "s"} de pase de lista fuera del calendario, no incluido${sf.asistencia === 1 ? "" : "s"} en ${p.etiqueta}.`)}</p>`);
 
   partes.push("<h2>Entregas por actividad</h2>");
   partes.push(inf.entregas.length
@@ -360,7 +474,7 @@ export const htmlInformeCurso = (inf) => {
       ])).join("")}</table>`
     : "<p>Sin actividades registradas.</p>");
 
-  partes.push("<h2>Promedio por indicador (Registro)</h2>");
+  partes.push(p ? `<h2>Promedio por indicador (resultados de ${escHtml(p.etiqueta)})</h2>` : "<h2>Promedio por indicador (Registro)</h2>");
   partes.push(inf.indicadores.length
     ? `<table>${cab(["Indicador", "Aspecto", "Evaluados", "Promedio", "Nivel"])}${inf.indicadores.map((i) => fila([
         i.codigo, i.texto, i.evaluados, `${i.promedio} %`, i.nivel,
