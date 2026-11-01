@@ -349,7 +349,7 @@ check("4.4: verbo de la lista (taxonomía, idioma solo en idiomas, gestión)", (
   assert(!motivoRedaccionActividad(`Escuchan (en parejas) un audio ${largo}`, { esIdioma: true }), "idioma");
   assert(/lista de verbos/.test(motivoRedaccionActividad(`Escuchan un audio ${largo}`)), "idioma fuera de idiomas");
   assert(!motivoRedaccionActividad("Socializan (en plenaria) el mapa."), "gestión");
-  for (const v of ["Participan", "Realizan", "Guardan", "Reciben", "Acordan", "Recordandon", "Discutan"]) {
+  for (const v of ["Participan", "Realizan", "Recopilan", "Reciben", "Acordan", "Recordandon", "Discutan"]) {
     assert(/lista de verbos/.test(motivoRedaccionActividad(`${v} en el Gallery Walk ${largo}`, { esIdioma: true })), v);
   }
 });
@@ -369,8 +369,8 @@ check("4.4: la síntesis no rechaza (decisión de César); el Cierre necesita un
   igual(motivosRedaccionClase(clase(["Socializan el mapa.", "Coevalúan (en parejas) los rótulos."]), "clase 1"), [], "cierre válido");
   assert(/Autónomo o Estratégico/.test(motivosRedaccionClase(clase(["Socializan el mapa.", "Revisan los rótulos."]), "clase 1")[0] || ""), "cierre sin nivel");
   // Todos los motivos del lote van en un solo rechazo.
-  lanza(() => validarLoteContrato({ clases: [claseOk(clase(["Guardan el mapa.", "Socializan ideas en grupo."]))] }, cc, 1, 1),
-    /Redacción 4\.4 \(3\):.*Guardan.*en grupo.*Autónomo/, "tres motivos juntos");
+  lanza(() => validarLoteContrato({ clases: [claseOk(clase(["Realizan el mapa.", "Socializan ideas en grupo."]))] }, cc, 1, 1),
+    /Redacción 4\.4 \(3\):.*Realizan.*en grupo.*Autónomo/, "tres motivos juntos");
 });
 check("4.4: avisos de progresión por papel y de exceso de expresiones", () => {
   const plan = { fases: [{ nombre: "Evaluación", roles: ["evaluacion"], indicadores: [], entrega: { secciones: [] } }] };

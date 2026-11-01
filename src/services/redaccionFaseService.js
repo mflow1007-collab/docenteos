@@ -96,13 +96,16 @@ export const VERBOS_POR_NIVEL = {
   estrategico: ["Adaptan", "Asesoran", "Ayudan", "Co-crean", "Componen", "Crean", "Generan", "Innovan", "Juzgan", "Lideran", "Predicen", "Proponen", "Proyectan", "Reconstruyen", "Transfieren", "Transforman", "Vinculan"],
 };
 // Verbos de idioma por acción del indicador (añadido de DocenteOS, no del Referente).
+// Exponen, Graban, Reescriben y Debaten: decisión de César (2026-11-01, Etapa D),
+// eran verbos legítimos que el validador rechazaba y se pagaban de nuevo.
 export const VERBOS_IDIOMA = {
   responde: ["Escuchan", "Leen", "Identifican", "Señalan", "Responden"],
-  produce: ["Escriben", "Redactan", "Describen", "Narran", "Presentan"],
-  interactua: ["Conversan", "Preguntan", "Entrevistan", "Representan", "Intercambian"],
+  produce: ["Escriben", "Redactan", "Describen", "Narran", "Presentan", "Exponen", "Graban", "Reescriben"],
+  interactua: ["Conversan", "Preguntan", "Entrevistan", "Representan", "Intercambian", "Debaten"],
 };
 // Gestión de la clase (decisión de César, Etapa 7): permitidos, no cuentan para el nivel.
-export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican"];
+// Guardan, Archivan y Entregan: decisión de César (2026-11-01, Etapa D).
+export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican", "Guardan", "Archivan", "Entregan"];
 const NIVELES = ["preformal", "receptivo", "resolutivo", "autonomo", "estrategico"];
 // Nivel mínimo esperado por papel de fase (progresión 4.4); su falta solo se avisa.
 export const NIVEL_MINIMO_POR_ROL = {

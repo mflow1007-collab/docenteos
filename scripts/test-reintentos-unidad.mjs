@@ -2,7 +2,9 @@
  * test-reintentos-unidad.mjs — Etapa D: menos rechazos pagados en la unidad.
  *
  *  A) Regla 4.4: el verbo se compara sin tildes ni mayúsculas (la lista no
- *     cambia): «Evaluan» / «Coevaluan» pasan; «Guardan» sigue rechazado.
+ *     cambia): «Evaluan» / «Coevaluan» pasan; «Participan» sigue rechazado.
+ *  B) Verbos añadidos por César: Guardan, Archivan, Entregan (gestión) y
+ *     Exponen, Graban, Reescriben, Debaten (idioma).
  *  C) R12: el ejemplo de formato del prompt ya no nombra «Role Play» y el
  *     prompt lista las técnicas ya usadas en el bloque como prohibidas.
  *  D) Gateway: Abacus corta a los 24 s como el resto (bajo el muro de ~25 s).
@@ -39,12 +41,25 @@ check("verbo de idioma y de gestión sin tilde también pasan", () => {
   ok(motivoRedaccionActividad(`REVISAN ${cola}`) === "", "REVISAN");
 });
 check("un verbo fuera de la lista sigue rechazado (la lista no cambia)", () => {
-  for (const v of ["Guardan", "Archivan", "Participan", "Realizan"]) {
+  for (const v of ["Recopilan", "Diseñan", "Participan", "Realizan"]) {
     ok(/no está en la lista de verbos/.test(motivoRedaccionActividad(`${v} ${cola}`)), v);
   }
 });
 check("la regla de la organización sigue igual", () => {
   ok(/va entre paréntesis/.test(motivoRedaccionActividad(`Evaluan en parejas ${cola}`)), "no avisó");
+});
+
+check("B) gestión: Guardan, Archivan y Entregan pasan en cualquier área y no cuentan para el nivel", () => {
+  for (const v of ["Guardan", "Archivan", "Entregan", "guardan"]) {
+    ok(motivoRedaccionActividad(`${v} ${cola}`) === "", v);
+    ok(nivelVerbo(`${v} ${cola}`) === null, `${v} no tiene nivel`);
+  }
+});
+check("B) idioma: Exponen, Graban, Reescriben y Debaten pasan solo en idiomas", () => {
+  for (const v of ["Exponen", "Graban", "Reescriben", "Debaten"]) {
+    ok(motivoRedaccionActividad(`${v} ${cola}`, { esIdioma: true }) === "", `${v} en idiomas`);
+    ok(/no está en la lista de verbos/.test(motivoRedaccionActividad(`${v} ${cola}`)), `${v} fuera de idiomas`);
+  }
 });
 
 console.log("\n── C) R12 en el prompt de la fase ──");
