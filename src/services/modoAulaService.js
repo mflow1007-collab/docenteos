@@ -11,8 +11,8 @@
  */
 
 import { obtenerPlanificacionesDetalladas } from "../firebase.js";
-import { backfillCapaCurricular, obtenerPlanificacionActiva } from "./planificacionDataService.js";
-import { obtenerClaseDeHoy } from "./hiloPedagogico.js";
+import { backfillCapaCurricular, obtenerPlanificacionActiva, vincularPlanificacionACurso } from "./planificacionDataService.js";
+import { corregirFechasCapa, fechaLocalISO, obtenerClaseDeHoy } from "./hiloPedagogico.js";
 import {
   guardarResultadoInstrumento,
   obtenerInstrumentosPorPlanificacion,
@@ -31,7 +31,11 @@ import { sincronizarEvaluacionPedagogica } from "./nucleoPedagogicoService.js";
  */
 export const asegurarCapaCurricular = async (registroPlan, { cursoId = "" } = {}) => {
   if (!registroPlan) return null;
-  if (registroPlan.capaCurricular) return registroPlan;
+  if (registroPlan.capaCurricular) {
+    // Capas viejas de unidades: fechaSugerida = nombre del día → se corrige en memoria
+    const capa = corregirFechasCapa(registroPlan.capaCurricular, registroPlan.contenido?.metadatos?.fechaInicio);
+    return capa === registroPlan.capaCurricular ? registroPlan : { ...registroPlan, capaCurricular: capa };
+  }
   try {
     const capa = await backfillCapaCurricular(registroPlan, { cursoId });
     return { ...registroPlan, capaCurricular: capa, cursoId: capa.cursoId || registroPlan.cursoId || "" };
@@ -46,7 +50,7 @@ export const asegurarCapaCurricular = async (registroPlan, { cursoId = "" } = {}
  * planificación activa, clase de hoy (o PRÓXIMA pendiente, nunca vacío),
  * indicador principal, instrumentos del día y evidencias esperadas.
  */
-export const obtenerContextoModoAula = async (cursoId, fecha = new Date().toISOString().slice(0, 10), { planes = null } = {}) => {
+export const obtenerContextoModoAula = async (cursoId, fecha = fechaLocalISO(), { planes = null } = {}) => {
   const lista = Array.isArray(planes)
     ? planes
     : (await obtenerPlanificacionesDetalladas()).data || [];
@@ -54,6 +58,22 @@ export const obtenerContextoModoAula = async (cursoId, fecha = new Date().toISOS
 
   // Fase 10: selección delegada a obtenerPlanificacionActiva (curso → capa → reciente)
   let plan = await obtenerPlanificacionActiva(cursoId, { planes: lista });
+  // F1: el curso no tiene plan propio → aviso visible, nunca el de otro grado
+  if (!plan) return { plan: null, clase: null, esHoy: false, motivo: "sin-plan-del-curso", instrumentos: [] };
+
+  // F1: plan guardado sin curso que encaja con este → atarlo (aspectos + instrumentos)
+  let advertenciasVinculo = [];
+  if (plan.vincularA) {
+    const { vincularA, ...sinMarca } = plan;
+    try {
+      const vinculado = await vincularPlanificacionACurso(sinMarca, vincularA);
+      plan = vinculado.plan;
+      advertenciasVinculo = vinculado.advertencias;
+    } catch (error) {
+      plan = sinMarca;
+      advertenciasVinculo = [`No se pudo vincular el plan a este curso: ${error.message}`];
+    }
+  }
 
   plan = await asegurarCapaCurricular(plan, { cursoId });
 
@@ -80,6 +100,7 @@ export const obtenerContextoModoAula = async (cursoId, fecha = new Date().toISOS
     instrumentos,
     evidenciasEsperadas: clase?.evidenciasEsperadas || [],
     recursos: clase?.recursos || [],
+    advertenciasVinculo,
   };
 };
 
@@ -94,8 +115,9 @@ export const obtenerInstrumentosDelDia = (planificacionId, claseId) =>
  *   1. guardarResultadoInstrumento      (F4 — fuente de verdad)
  *   2. actualizarRegistroDesdeResultado (F5 — regla 12, nunca pisa ajustes)
  *   3. crearEvidenciaDesdeResultado     (F8 — banco de evidencias)
- *   4. sincronizarEvaluacionPedagogica  (puente legacy: celda del registro
- *      por competencia/período + expediente; ya parcheado con regla 12)
+ *   4. sincronizarEvaluacionPedagogica  (puente legacy: resumen de la
+ *      evaluación + expediente; F7: ya no crea otra evidencia ni escribe la
+ *      celda de la C.F., que sale de las notas por indicador)
  *
  * Nunca falla silenciosamente: devuelve { exitosos, errores } con mensajes
  * claros por estudiante.
@@ -103,7 +125,7 @@ export const obtenerInstrumentosDelDia = (planificacionId, claseId) =>
  * @param {object} params
  *   - instrumento: doc de usuarios/{uid}/instrumentos (con capa: indicadorIds…)
  *   - aplicaciones: [{ estudianteId, estudianteNombre, puntajeObtenido,
- *                      estado?, observacionDocente? }]
+ *                      estado?, observacionDocente?, detalleCriterios? }]
  *   - claseTitulo: para contextualizar la evidencia
  *   - sincronizarLegacy: mantener el puente al registro por competencias (default true)
  */
@@ -134,6 +156,7 @@ export const evaluarYRegistrar = async ({ instrumento, aplicaciones = [], claseT
         puntajeObtenido: aplicacion.puntajeObtenido,
         estado: aplicacion.estado || "evaluado",
         observacionDocente: aplicacion.observacionDocente || "",
+        detalleCriterios: aplicacion.detalleCriterios || [],
       });
 
       // 2. Mi Registro (regla 12) — con los resultados del estudiante al día
@@ -157,6 +180,8 @@ export const evaluarYRegistrar = async ({ instrumento, aplicaciones = [], claseT
         await sincronizarEvaluacionPedagogica({
           instrumento,
           cursoId: resultado.cursoId,
+          // F7: sin segunda evidencia ni celda de la C.F. (sale de las notas por indicador)
+          evidenciaDelResultado: evidencia?.evidenciaId || evidencia?.id || "",
           aplicacion: {
             estudianteId: resultado.estudianteId,
             estudiante: resultado.estudianteNombre || nombre,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ModalConfirmacion from "../components/ModalConfirmacion.jsx";
 import { obtenerCompetencias } from "../services/curriculumService.js";
+import { idEstudiante } from "../utils/idEstudiante.js";
 import {
   obtenerPlanificacionesDetalladas,
   guardarInstrumentoFirestore,
@@ -613,7 +614,7 @@ function InstrumentosPage({
     const estudiantesCurso = cursoRelacionado?.estudiantesDetalle || cursoRelacionado?.estudiantesLista || cursoRelacionado?.estudiantesNombres || [];
     const estudiantesNormalizados = estudiantesCurso
       .map((estudiante, index) => ({
-        id: estudiante?.id || `est-${index}`,
+        id: idEstudiante(estudiante, index),
         nombre: nombreEstudiante(estudiante),
       }))
       .filter((estudiante) => estudiante.nombre);

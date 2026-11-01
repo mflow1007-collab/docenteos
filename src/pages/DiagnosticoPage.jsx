@@ -27,6 +27,7 @@ import { getAreas, getAsignaturas } from "../planning/areaAsignaturaMap.js";
 import { cargarReferentesDiagnosticos, vincularItemsAIndicadores, resolverContextoCurricular } from "../services/diagnosticoCurricularService.js";
 import { generarPruebaDiagnostica, pruebaGeneradaAItemsBanco, formatearPruebaDiagnosticaHTML, generarAnalisisInformeIA } from "../services/diagnosticoGeneracionService.js";
 import "./DiagnosticoPage.css";
+import { idEstudiante } from "../utils/idEstudiante.js";
 import "./DiagnosticoInforme.css";
 import "./DiagnosticoConstructor.css";
 
@@ -36,7 +37,6 @@ const anoEscolarActual = () => {
   return `${inicio}-${inicio + 1}`;
 };
 
-const idEstudiante = (estudiante, indice) => String(estudiante.id || estudiante.uid || `${indice}-${estudiante.nombre}`);
 const accionRecuperacion = (dimension = "", area = "") => {
   const clave = dimension.toLowerCase();
   if (clave.includes("oral") || clave.includes("escucha")) return "Modelado breve, audios o instrucciones pausadas, repetición con propósito y respuesta apoyada en imágenes; retirar los apoyos gradualmente.";

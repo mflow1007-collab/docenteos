@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { generarUnidadAprendizaje, formatearUnidadHTML, formatearGuiaMaestroHTML } from "../services/unidadAprendizajeService";
+import { generarUnidadAprendizaje, formatearUnidadHTML, formatearGuiaMaestroHTML, planMaestroParaGuardar } from "../services/unidadAprendizajeService";
 import { generarGuiaMaestro } from "../services/guiaMaestroService.js";
 import { cosecharGuia } from "../services/bancoGuiasService.js";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
@@ -187,6 +187,8 @@ export function useUnidadAprendizaje() {
         area: unidadDatos.area ?? unidad.area,
         grado: unidadDatos.grado ?? unidad.grado,
         metadatos: { ...unidad.metadatos, tema: unidad.metadatos?.titulo },
+        // Unidades generadas antes del arreglo: Firestore no admite listas anidadas.
+        ...(unidad.planMaestro ? { planMaestro: planMaestroParaGuardar(unidad.planMaestro) } : {}),
       };
       const resultadoGuardado = await guardarPlanificacionConHilo(payload, { cosecharActividades });
       // Banco de Guías: con el mismo consentimiento del docente, cosecha las

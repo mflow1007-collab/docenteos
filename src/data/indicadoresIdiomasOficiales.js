@@ -187,7 +187,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "Interactúa oralmente y por escrito de forma breve y sencilla, con una creciente cantidad de vocabulario variado, contenido en una serie de frases y oraciones sencillas enlazadas con conectores, en situaciones de comunicación donde debe dar explicaciones, opinar, sugerir, hacer prohibiciones y advertencias, dar instrucciones, dar noticias, narrar, inferir, predecir y comparar el pasado con el presente. Segundo Ciclo",
+        "descripcion": "Interactúa oralmente y por escrito de forma breve y sencilla, con una creciente cantidad de vocabulario variado, contenido en una serie de frases y oraciones sencillas enlazadas con conectores, en situaciones de comunicación donde debe dar explicaciones, opinar, sugerir, hacer prohibiciones y advertencias, dar instrucciones, dar noticias, narrar, inferir, predecir y comparar el pasado con el presente.",
         "competencia": "Comunicativa"
       },
       {
@@ -371,7 +371,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
-        "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
+        "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico-verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
@@ -449,15 +449,15 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "Utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
+        "descripcion": "Utiliza el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
-        "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
+        "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico-verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
-        "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
+        "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico-verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
@@ -623,7 +623,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "Utilizando el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y senillos sobre identificación personal, actividades inmediatas y descripción de su entorno, releyendo cuando sea necesario y ayudándose de las ilustraciones y otros elementos textuales y paratextuales del contexto.",
+        "descripcion": "Utiliza el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y senillos sobre identificación personal, actividades inmediatas y descripción de su entorno, releyendo cuando sea necesario y ayudándose de las ilustraciones y otros elementos textuales y paratextuales del contexto.",
         "competencia": "Pensamiento Lógico, Crítico y Creativo"
       },
       {
@@ -631,7 +631,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Pensamiento Lógico, Crítico y Creativo"
       },
       {
-        "descripcion": "Interactúa de forma oral y escrita muy breve y sencilla sobre situaciones de identificación personal, descripción de su entorno, actividades cotidianas y gustos y preferencias, utilizando el pensamiento lógico verbal para estructurar y seguir la secuencia de expresiones ensayadas y el pensamiento creativo para realizar el intercambio en la situación planteada.",
+        "descripcion": "Interactúa de forma oral y escrita muy breve y sencilla sobre situaciones de identificación personal, descripción de su entorno, actividades cotidianas y gustos y preferencias, utilizando el pensamiento lógico-verbal para estructurar y seguir la secuencia de expresiones ensayadas y el pensamiento creativo para realizar el intercambio en la situación planteada.",
         "competencia": "Pensamiento Lógico, Crítico y Creativo"
       },
       {
@@ -795,7 +795,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "Utilizando el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y sencillos sobre descripción de información personal propia y de otros y de estados físicos y anímicos, así como para adquisición de bienes y servicios, releyendo cuando sea necesario y ayudándose de imágenes y otros elementos textuales y paratextuales del contexto.",
+        "descripcion": "Utiliza el pensamiento lógico-verbal para comprender expresiones básicas en textos orales y escritos muy breves y sencillos sobre descripción de información personal propia y de otros y de estados físicos y anímicos, así como para adquisición de bienes y servicios, releyendo cuando sea necesario y ayudándose de imágenes y otros elementos textuales y paratextuales del contexto.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {
@@ -967,7 +967,7 @@ export const INDICADORES_OFICIALES_IDIOMAS = {
         "competencia": "Comunicativa"
       },
       {
-        "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de Primer Ciclo forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+        "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
         "competencia": "Pensamiento Lógico, Creativo y Crítico"
       },
       {

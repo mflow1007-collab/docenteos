@@ -1,4 +1,5 @@
 import { normalizarHorarioCurso, crearHorarioPorJornada } from "./horarioCurso.js";
+import { idEstudiante } from "./idEstudiante.js";
 
 const NOMBRES_DEMO = [
   "Ana García","Carlos Pérez","María López","José Rodríguez","Carmen Martínez",
@@ -102,8 +103,9 @@ function enriquecerCursoInicial(curso, indice = 0) {
 
 function aplicarRegistroACurso(curso, registro) {
   if (!registro) return curso;
-  const estudiantesDetalle = (curso.estudiantesDetalle?.length ? curso.estudiantesDetalle : generarEstudiantesDetalle(curso)).map((estudiante) => {
-    const notas = registro.notasEstudiantes?.[estudiante.id];
+  const estudiantesDetalle = (curso.estudiantesDetalle?.length ? curso.estudiantesDetalle : generarEstudiantesDetalle(curso)).map((estudiante, indice) => {
+    // Mismo ID que usa el Registro (regla única); antes fallaba sin `id`
+    const notas = registro.notasEstudiantes?.[idEstudiante(estudiante, indice)];
     if (!notas?.competencias) return estudiante;
     const finales = notas.competencias.flatMap((comp) =>
       (comp.periodos || []).map((periodo) => {

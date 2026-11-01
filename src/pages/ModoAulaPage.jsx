@@ -19,6 +19,9 @@ import {
 import { obtenerEstudiantesPorCurso } from '../services/estudiantesService.js'
 import { estadoDocencia, diasDocenciaPrevios } from '../data/calendarioEscolarMINERD.js'
 import { crearEvidencia } from '../services/evidenciasService.js'
+import { FormularioAnotacion } from '../components/RegistroAnecdotico.jsx'
+import { idEstudiante } from '../utils/idEstudiante.js'
+import ActividadesUnidadPanel from '../components/ActividadesUnidadPanel.jsx'
 import { formatearUnidadHTML, formatearGuiaMaestroHTML } from '../services/unidadAprendizajeService.js'
 import { generarGuiaMaestro } from '../services/guiaMaestroService.js'
 
@@ -919,6 +922,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const [estudianteEv, setEstudianteEv] = useState(null)
   const [guardandoEv, setGuardandoEv] = useState(false)
   const [errorEv, setErrorEv] = useState('')
+  const [avisoAnecdotico, setAvisoAnecdotico] = useState('')
 
   // ── Coach IA
   const [coachSug, setCoachSug] = useState(null)
@@ -944,6 +948,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
 
   // ── Hilo pedagógico: clase de hoy / próxima desde la capa curricular
   const [avisoClase, setAvisoClase] = useState(null)
+  // F1: el curso activo no tiene plan propio (no se muestra el de otro grado)
+  const [sinPlanCurso, setSinPlanCurso] = useState(false)
+  const [avisosVinculo, setAvisosVinculo] = useState([])
+  // Mientras se busca (y, si hace falta, se ata) el plan del curso
+  const [preparandoClase, setPreparandoClase] = useState(true)
 
   // ─── Cargar desde Firestore (actualiza sobre localStorage)
   useEffect(() => {
@@ -963,7 +972,14 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     ;(async () => {
       let det = null
       try {
+        if (vigente) setPreparandoClase(true)
         const ctx = await obtenerContextoModoAula(cursoActivo?.id || '', undefined, { planes })
+          .finally(() => { if (vigente) setPreparandoClase(false) })
+        if (ctx?.motivo === 'sin-plan-del-curso') {
+          if (vigente) { setSinPlanCurso(true); setCargando(false) }
+          return
+        }
+        if (vigente) setAvisosVinculo(ctx?.advertenciasVinculo || [])
         if (ctx?.plan && ctx?.clase && ctx.plan.capaCurricular) {
           const norm = normalizarClase(ctx.plan.contenido)
           const dia = norm?.dias.find(d => d.diaNum === ctx.clase.numeroClase) || norm?.dias[0]
@@ -1007,11 +1023,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     const plan = planActivo
     if (!plan?.id || String(plan.id).startsWith('local_')) return
     ;(async () => {
-      const conCapa = plan.capaCurricular ? plan : await asegurarCapaCurricular(plan)
+      const conCapa = await asegurarCapaCurricular(plan)
       if (!vigente) return
       const capa = conCapa?.capaCurricular
       if (!capa) { setAvisoClase(null); return }
-      if (!plan.capaCurricular) setPlanActivo(conCapa)
+      if (conCapa !== plan) setPlanActivo(conCapa)
 
       const { clase, esHoy, motivo } = obtenerClaseDeHoy(capa)
       if (!clase) { setAvisoClase(null); return }
@@ -1090,6 +1106,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   // ─── Seleccionar plan/día desde modal
   const seleccionar = (plan, dia) => {
     const norm = normalizarClase(plan.contenido)
+    setSinPlanCurso(false) // elección explícita del docente
     setPlanActivo(plan)
     setClaseNorm(norm)
     setInstrumentosGuardadosDia([])
@@ -1264,7 +1281,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       : estudiantesSub
     return fuente
       .map((estudiante, index) => ({
-        id: estudiante?.id || estudiante?.matricula || `est-${index + 1}`,
+        id: idEstudiante(estudiante, index),
         nombre: nombreEstudiante(estudiante) || `Estudiante ${index + 1}`,
         matricula: estudiante?.matricula || estudiante?.codigo || estudiante?.codigoEstudiante || '',
         grado: estudiante?.grado || claseNorm?.grado || cursoParaAula?.grado || '',
@@ -1963,6 +1980,34 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   )
 
   // ══════════════════════════════════════════════════════════════════════════
+  // PANTALLA: EL CURSO NO TIENE PLAN PROPIO (F1 — nunca el de otro grado)
+  // ══════════════════════════════════════════════════════════════════════════
+  if (sinPlanCurso && !planActivo) {
+    const nombreCurso = cursoActivo?.nombre || cursoActivo?.name || 'este curso'
+    return (
+      <div style={{ maxWidth:520, margin:'60px auto', textAlign:'center', padding:'0 20px' }}>
+        {SelectorModal}
+        <div style={{ fontSize:56, marginBottom:16 }}>🗂️</div>
+        <h2 style={{ fontSize:22, fontWeight:800, color:'#0f172a', marginBottom:8 }}>{nombreCurso} aún no tiene planificación</h2>
+        <p style={{ fontSize:14, color:'#64748b', marginBottom:24, lineHeight:1.6 }}>
+          Ninguna planificación guardada coincide con el grado y la asignatura de {nombreCurso}.
+          No se muestra la de otro curso para no registrar evidencias ni notas en el lugar equivocado.
+        </p>
+        <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
+          <button onClick={() => onIrA?.('planificacion')} style={{
+            background:'linear-gradient(135deg,#7c3aed,#6d28d9)', color:'#fff',
+            border:0, borderRadius:12, padding:'12px 22px', fontSize:14, fontWeight:800, cursor:'pointer',
+          }}>Generar su planificación ↗</button>
+          <button onClick={() => setMostrarSelector(true)} style={{
+            background:'#fff', color:'#4c1d95', border:'1px solid #c4b5fd',
+            borderRadius:12, padding:'12px 22px', fontSize:14, fontWeight:800, cursor:'pointer',
+          }}>Elegir una planificación</button>
+        </div>
+      </div>
+    )
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // WORKSPACE PRINCIPAL
   // ══════════════════════════════════════════════════════════════════════════
   return (
@@ -1976,6 +2021,29 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     }}>
       {SelectorModal}
       {InstrumentoModal}
+
+      {/* ══ F1: buscando / atando el plan del curso (la primera vez tarda) ══ */}
+      {preparandoClase && !planActivo && (
+        <div role="status" style={{
+          margin:'16px 24px 0', padding:'10px 18px', background:'#f5f3ff',
+          border:'1px solid #c4b5fd', borderRadius:12, color:'#4c1d95', fontSize:13, fontWeight:700,
+        }}>
+          ⏳ Preparando la clase de tu curso… Si es la primera vez, se vincula la planificación al curso y se crean sus aspectos e instrumentos.
+        </div>
+      )}
+
+      {/* ══ AVISO F1: el plan se ató al curso, pero algo no se generó ══ */}
+      {avisosVinculo.length > 0 && (
+        <div role="alert" style={{
+          margin:'16px 24px 0', padding:'10px 18px', background:'#fef2f2',
+          border:'1px solid #fecaca', borderRadius:12, color:'#b91c1c', fontSize:13, fontWeight:700,
+        }}>
+          {avisosVinculo.map((aviso) => <div key={aviso}>⚠️ {aviso}</div>)}
+        </div>
+      )}
+
+      {/* ══ F2: actividades de la unidad (entregas de fase del plan maestro) ══ */}
+      <ActividadesUnidadPanel plan={planActivo} />
 
       {/* ══ AVISO: hoy no hay clase planificada → se muestra la próxima ══ */}
       {avisoClase && (
@@ -2878,7 +2946,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                   <div style={{ fontSize:11, color:'#64748b' }}>{evidencias.length} registros</div>
                 </div>
               </div>
-              <button onClick={() => setAgregandoEv(v => !v)} style={{
+              <button onClick={() => { setAgregandoEv(v => !v); setAvisoAnecdotico('') }} style={{
                 background: agregandoEv ? '#fef3c7' : '#fff7ed',
                 border:`1px solid ${agregandoEv ? '#fbbf24' : '#fed7aa'}`,
                 color: agregandoEv ? '#92400e' : '#c2410c',
@@ -2966,10 +3034,30 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                   padding:'6px 10px', fontSize:12, marginBottom:8, color:'#374151',
                   background:'#fff', outline:'none',
                 }}>
-                  {['Observación','Trabajo escrito','Participación oral','Foto/Video','Lista de cotejo','Rúbrica aplicada','Otro'].map(c => (
+                  {['Observación','Registro anecdótico','Trabajo escrito','Participación oral','Foto/Video','Lista de cotejo','Rúbrica aplicada','Otro'].map(c => (
                     <option key={c}>{c}</option>
                   ))}
                 </select>
+                {categoriaEv === 'Registro anecdótico' ? (
+                  // Se guarda aparte: va a la pestaña «Registro anecdótico» de la ficha, no a esta línea de tiempo
+                  estudianteEv?.id ? (
+                    <FormularioAnotacion
+                      key={estudianteEv.id}
+                      estudiante={{ ...estudianteEv, cursoId: cursoParaAula?.id || '' }}
+                      origen="modo_aula"
+                      claseTitulo={diaActivo?.titulo || ''}
+                      contextoInicial={[claseNorm?.area, diaActivo?.titulo, diaActivo?.momentos?.[momentoOpen]?.nombre].filter(Boolean).join(' · ')}
+                      onGuardada={() => {
+                        setAvisoAnecdotico(`Anotación guardada en el registro anecdótico de ${estudianteEv.nombre}.`)
+                        setBusquedaEstudianteEv('')
+                        setEstudianteEv(null)
+                        setAgregandoEv(false)
+                      }}
+                    />
+                  ) : (
+                    <div style={{ fontSize:11.5, color:'#92400e' }}>Elige un estudiante para escribir la anotación.</div>
+                  )
+                ) : (<>
                 <textarea value={inputEvidencia} onChange={e => setInputEvidencia(e.target.value)}
                   rows={2} placeholder="Describe la evidencia…"
                   style={{
@@ -2999,7 +3087,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                   cursor: inputEvidencia.trim() && estudianteEv?.id && !guardandoEv ? 'pointer' : 'default',
                   opacity: inputEvidencia.trim() && estudianteEv?.id && !guardandoEv ? 1 : .5,
                 }}>{guardandoEv ? 'Guardando...' : 'Guardar evidencia'}</button>
+                </>)}
               </div>
+            )}
+            {avisoAnecdotico && !agregandoEv && (
+              <div role="status" style={{ marginBottom:10, fontSize:11.5, color:'#15803d', fontWeight:800 }}>✓ {avisoAnecdotico}</div>
             )}
 
             {/* Línea de tiempo */}
