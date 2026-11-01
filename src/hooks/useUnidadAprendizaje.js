@@ -96,6 +96,7 @@ export function useUnidadAprendizaje() {
             },
           });
           setCargandoUnidad(false);
+          setMensajeUnidad(null);
           return;
         }
       }
@@ -115,6 +116,7 @@ export function useUnidadAprendizaje() {
           },
         });
         setCargandoUnidad(false);
+        setMensajeUnidad(null);
         return;
       }
 
