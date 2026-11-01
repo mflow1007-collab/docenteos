@@ -16,6 +16,7 @@ import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
 import { db }                                   from '../firebase.js';
 import { invalidateGatewayConfig, loadGatewayConfig } from './ai/AIService.js';
 import { logUsage }                             from './ai/usage.js';
+import { camposCupo }                           from '../utils/costoPorPlan.js';
 import {
   construirArquitecturaUnidadMINERD,
   resolverFocosCurriculares,
@@ -164,7 +165,7 @@ Responde únicamente JSON puro con "clases[]" completo.\n\n`;
 
 // ─── Registro de errores de parseo en aiLogs/ ─────────────────────────────────
 
-async function logParseError({ contexto, attempt, motivo, raw, provider, model, stopReason = null, modoFallo = null, tokensSalidaReales = null, msHastaFallo = null, signalAbortado = null }) {
+async function logParseError({ contexto, attempt, motivo, raw, provider, model, stopReason = null, modoFallo = null, tokensSalidaReales = null, msHastaFallo = null, signalAbortado = null, cupo = null }) {
   try {
     const uid = getAuth().currentUser?.uid || null;
     await addDoc(collection(db, 'aiLogs'), {
@@ -196,6 +197,7 @@ async function logParseError({ contexto, attempt, motivo, raw, provider, model, 
       tiempoRespuesta: 0,
       cache:           false,
       error:           motivo,
+      ...camposCupo(cupo),
     });
   } catch { /* no-fatal */ }
 }
@@ -1774,6 +1776,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         ms: Date.now() - t0,
         exact: Boolean(usage),
         stopReason: stopReason || null,
+        cupo: spec.cupoGeneracion,
       });
 
       const result = extraerJSON(raw, stopReason);
@@ -1783,6 +1786,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
           stopReason: stopReason || null,
           modoFallo: result.modoFallo || null,
           tokensSalidaReales: usage?.out || null,
+          cupo: spec.cupoGeneracion,
         });
         console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${result.motivo}`,
           { inicio: raw.slice(0, 300), fin: raw.slice(-300), stopReason, modoFallo: result.modoFallo });
@@ -1818,7 +1822,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         && (result.data?.adaptacionesSemana || result.data?.observacionesSemana);
       if (soloMetaSemanal) {
         const motivo = 'R1: falta clases[]; el modelo devolvió solo metadata semanal';
-        await logParseError({ contexto: contextoLog, attempt, motivo, raw, provider, model });
+        await logParseError({ contexto: contextoLog, attempt, motivo, raw, provider, model, cupo: spec.cupoGeneracion });
         console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${motivo}`,
           { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
         lastError = new Error(motivo);
@@ -1911,6 +1915,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
             contexto: contextoLog, attempt, motivo: msg,
             raw: lastRaw, provider: lastProvider, model: lastModel,
             modoFallo: 'ABORTO_POR_TIEMPO', msHastaFallo, signalAbortado,
+            cupo: spec.cupoGeneracion,
           });
         }
         throw lastError;
@@ -1924,6 +1929,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         await logParseError({
           contexto: contextoLog, attempt, motivo: msg,
           raw: lastRaw, provider: lastProvider, model: lastModel,
+          cupo: spec.cupoGeneracion,
         });
         const agotado = new Error(`Créditos de IA agotados: ${msg}`, { cause: err });
         agotado.code = "AI_CREDITS_EXHAUSTED";
@@ -1954,6 +1960,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         contexto: contextoLog, attempt, motivo: err.message,
         raw: lastRaw, provider: lastProvider, model: lastModel,
         modoFallo: modoFalloCatch, msHastaFallo, signalAbortado,
+        cupo: spec.cupoGeneracion,
       });
     }
   }
@@ -2461,6 +2468,7 @@ export const generateWeekPlan = async (
       raw:      '',
       provider: 'combinado',
       model:    'combinado',
+      cupo: spec.cupoGeneracion,
     });
     // Etapa 5: los lotes de esta fase pasaron uno a uno pero no la fase entera;
     // se borran de la caché para que el reintento por fase los rehaga.

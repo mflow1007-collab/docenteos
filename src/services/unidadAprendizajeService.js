@@ -4643,6 +4643,7 @@ const _generarFasesConIA = async (
       fase: fase.numero,
       motivo: motivoLimpio,
       contingenciaSinIA: modoContingenciaSinIA,
+      cupo: contexto.cupoGeneracion,
     });
     const clasesBase = fase.dias.map((dia, i) => construirClaseBaseCurricular({
       dia,
@@ -4787,7 +4788,7 @@ const _generarFasesConIA = async (
             onProgress?.(`🔁 Fase ${fase.numero} (${fase.nombre}): el validador rechazó un lote; DocenteOS lo reintenta con la corrección.`);
             continue;
           }
-          await logFaseRedaccionFallida({ fase: fase.numero, nombre: fase.nombre, motivo, creditosAgotados: creditos });
+          await logFaseRedaccionFallida({ fase: fase.numero, nombre: fase.nombre, motivo, creditosAgotados: creditos, cupo: contexto.cupoGeneracion });
           const errorFase = new Error(
             `La IA no pudo redactar la fase ${fase.numero} «${fase.nombre}» (${intento} intento${intento > 1 ? "s" : ""}). ` +
             `DocenteOS no la rellena con plantilla. Las fases ya redactadas quedan guardadas en este navegador: vuelve a generar para reintentar solo lo que falta. ` +
