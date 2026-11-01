@@ -1631,6 +1631,11 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
   const tecnicasEjem = spec.esIdioma
     ? 'Listen and Solve / Information Gap / Role Play / Interview / Gallery Walk / Describe and Draw / Speaking Circle'
     : naturaleza.tecnicas.join(' / ');
+  // R12 rechaza repetir técnica dentro del mismo bloque: se nombran aquí las
+  // ya usadas en él para que el modelo no las repita (Etapa D: 28 rechazos pagados).
+  const tecnicasBloque = [...new Set((memoria || [])
+    .filter((m) => m.semana === semanaNum && m.actividadCLT)
+    .map((m) => m.actividadCLT))];
   const correccion = spec.correccionPrevia
     ? `\nUN INTENTO ANTERIOR DE ESTA FASE FUE RECHAZADO POR EL VALIDADOR: «${String(spec.correccionPrevia).slice(0, 400)}». Corrige exactamente eso.\n`
     : '';
@@ -1667,7 +1672,7 @@ REGLAS:
 6. EVIDENCIAS por momento {"conocimientos":[],"desempeno":[],"producto":[]}: Inicio 1 de conocimientos; Desarrollo de 1 a 3 según lo que hacen; Cierre 1 o 2 ligadas a la pieza. Nombran el contenido o la pieza; nada de "participación activa". Además "metacognicion" (2 preguntas${spec.esIdioma ? ` en ${idioma} sencillo` : ''}) y "recursos" (2-4 concretos, en español).
 7. "titulo" llamativo; "intencionPedagogica" con ESTE formato exacto (el validador la rechaza si falta "Desde el inicio hasta el final de la clase" o la palabra "mediante"): "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el contenido del día] mediante [las actividades concretas de esta clase], utilizando [la estructura o el vocabulario], [evidencia observable]." Nada de "diversas actividades".
 8. Encabezado: "tituloSemana" = «${c.nombre}»; "focoLinguistico" (ver arriba); "estrategiasDia": 2-3 estrategias separadas por " • " (${ESTRATEGIAS_OFICIALES_TEXTO}).
-9. "actividadCLT": {"nombre": técnica concreta (${tecnicasEjem}), "mecanica": 1-2 líneas}; una actividad del Desarrollo la nombra dentro de su paréntesis ("Representan (en parejas, Role Play) …"). No repitas técnicas ya usadas.${c.esApertura ? ' En esta fase de apertura la técnica es de presentación, diagnóstico o acuerdo (no de práctica de estructuras).' : ''}
+9. "actividadCLT": {"nombre": técnica concreta (${tecnicasEjem}), "mecanica": 1-2 líneas}; una actividad del Desarrollo la nombra dentro de su paréntesis ("<Verbo> (en parejas, <nombre de la técnica>) …"). No repitas técnicas ya usadas; cada clase de este lote usa una técnica distinta.${tecnicasBloque.length ? ` PROHIBIDAS en este bloque (ya usadas en él): ${tecnicasBloque.join(' · ')}.` : ''}${c.esApertura ? ' En esta fase de apertura la técnica es de presentación, diagnóstico o acuerdo (no de práctica de estructuras).' : ''}
 10. ${entregaTx}
 11. ${spec.esIdioma ? `"textoModelo": {"tipo":"dialogo|texto","titulo":"...","lineas":["..."]} breve en ${idioma}, para la sección que se avanza.` : 'Sin "textoModelo".'}
 12. El lote incluye "adaptacionesSemana" {"acceso","metodologicas","evaluacion"} y "observacionesSemana", ligadas al trabajo de ESTA fase (nunca genéricas).

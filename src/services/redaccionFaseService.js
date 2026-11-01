@@ -109,18 +109,21 @@ export const NIVEL_MINIMO_POR_ROL = {
   apertura: "receptivo", conocimiento: "receptivo", modelado: "resolutivo",
   aplicacion: "resolutivo", evaluacion: "autonomo", socializacion: "autonomo",
 };
-// Los verbos se comparan sin guiones: «Co-evalúan» = «Coevalúan», «Cocrean» = «Co-crean».
-const sinGuion = (verbo) => String(verbo ?? "").replace(/[-\u2010\u2011]/g, "");
-const NIVEL_DE_VERBO = new Map(NIVELES.flatMap((n) => VERBOS_POR_NIVEL[n].map((v) => [sinGuion(v), n])));
-const VERBOS_GESTION_SIN_GUION = new Set(VERBOS_GESTION.map(sinGuion));
-const VERBOS_IDIOMA_SIN_GUION = new Set(Object.values(VERBOS_IDIOMA).flat().map(sinGuion));
+// Los verbos se comparan sin guiones, tildes ni mayúsculas: «Co-evalúan» =
+// «Coevalúan» = «Coevaluan», «Cocrean» = «Co-crean». La lista no cambia; solo
+// deja de rechazar el mismo verbo escrito sin tilde (Etapa D: 6 rechazos pagados).
+const claveVerbo = (verbo) => String(verbo ?? "").replace(/[-\u2010\u2011]/g, "")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const NIVEL_DE_VERBO = new Map(NIVELES.flatMap((n) => VERBOS_POR_NIVEL[n].map((v) => [claveVerbo(v), n])));
+const VERBOS_GESTION_CLAVE = new Set(VERBOS_GESTION.map(claveVerbo));
+const VERBOS_IDIOMA_CLAVE = new Set(Object.values(VERBOS_IDIOMA).flat().map(claveVerbo));
 const MIN_PALABRAS_DESARROLLO = 18;
 // Organización del trabajo: va en el paréntesis que sigue al verbo (4.4).
 const ORGANIZACION_RE = /\b(en|por) (parejas|pares|tr[ií]os|equipos?|grupos?|peque[nñ]os grupos|plenaria)\b/i;
 
 const primeraPalabra = (texto) => (String(texto ?? "").trim().split(/[\s(,.:;]+/)[0] || "");
 /** Nivel de la taxonomía del verbo inicial (null si es de idioma, gestión o desconocido). */
-export const nivelVerbo = (texto) => NIVEL_DE_VERBO.get(sinGuion(primeraPalabra(texto))) || null;
+export const nivelVerbo = (texto) => NIVEL_DE_VERBO.get(claveVerbo(primeraPalabra(texto))) || null;
 
 /**
  * Regla 4.4 sobre una actividad del Desarrollo o del Cierre. Devuelve el
@@ -130,9 +133,9 @@ export const nivelVerbo = (texto) => NIVEL_DE_VERBO.get(sinGuion(primeraPalabra(
 export const motivoRedaccionActividad = (texto, { esIdioma = false } = {}) => {
   const t = String(texto ?? "").trim();
   const verbo = primeraPalabra(t);
-  const clave = sinGuion(verbo);
-  const permitido = NIVEL_DE_VERBO.has(clave) || VERBOS_GESTION_SIN_GUION.has(clave)
-    || (esIdioma && VERBOS_IDIOMA_SIN_GUION.has(clave));
+  const clave = claveVerbo(verbo);
+  const permitido = NIVEL_DE_VERBO.has(clave) || VERBOS_GESTION_CLAVE.has(clave)
+    || (esIdioma && VERBOS_IDIOMA_CLAVE.has(clave));
   if (!permitido) return `«${verbo}» no está en la lista de verbos (taxonomía del Referente${esIdioma ? ", verbos de idioma" : ""} o gestión de la clase)`;
   const parentesis = t.match(/^\S+\s*\(([^)]*)\)/);
   const resto = parentesis ? t.slice(parentesis[0].length) : t.slice(verbo.length);
