@@ -18,10 +18,12 @@ import {
   documentId,
   limit,
   orderBy,
+  Timestamp,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { esUsuarioDocenteOS } from "./utils/permisos.js";
+import { claveCupoGrado, calcularDesbloqueo, evaluarCupo, parcheDescuentoCredito } from "./utils/cupoGrado.js";
 import { COMP_CODIGOS, resolverCI, resolverPI } from "./constants/registroCodigos.js";
 import { aplicarNotaEnCelda } from "./services/hiloPedagogico.js";
 import { verificarTamanoDocumento, fusionarComoFirestore } from "./utils/tamanoDocumento.js";
@@ -1665,6 +1667,120 @@ export const registrarUsoTemaPlanificacion = async ({
   });
 
   return { success: true, ...resultado };
+};
+
+// ─── Etapa E: cupo de unidades por grado + asignatura ──────────────────────
+// Un documento por cupo: usuarios/{uid}/cuposGrado/{nivel__grado__asignatura}.
+// firestore.rules impide reemplazarlo antes de desbloqueoEn salvo con un
+// crédito (que baja en la misma transacción) o con un correo ilimitado.
+
+const refCupoGrado = (uid, clave) => doc(db, "usuarios", uid, "cuposGrado", clave);
+
+const esIlimitadoPlanes = async (user) => {
+  if (esUsuarioDocenteOS(user?.email)) return true;
+  const correo = String(user?.email || "").trim().toLowerCase();
+  if (!correo) return false;
+  const snap = await getDoc(doc(db, "limitesIlimitados", correo));
+  return snap.exists();
+};
+
+/** Estado del cupo antes de generar. Lanza si falta la clave o Firestore falla. */
+export const consultarCupoGrado = async ({ nivel, grado, asignatura, tema }) => {
+  const clave = claveCupoGrado({ nivel, grado, asignatura });
+  if (!clave.ok) throw new Error(clave.error);
+  const user = getCurrentUserOrThrow();
+  const [cupoSnap, userSnap, ilimitado] = await Promise.all([
+    getDoc(refCupoGrado(user.uid, clave.clave)),
+    getDoc(doc(db, "usuarios", user.uid)),
+    esIlimitadoPlanes(user),
+  ]);
+  const cupo = cupoSnap.exists() ? cupoSnap.data() : null;
+  const evaluacion = evaluarCupo({ cupo, ilimitado, tituloNormalizado: normalizarTema(tema) });
+  return {
+    clave: clave.clave,
+    ...evaluacion,
+    ilimitado,
+    cupo,
+    creditosDisponibles: resolverCreditosDisponibles(userSnap.exists() ? userSnap.data() : {}),
+  };
+};
+
+/**
+ * Reserva el cupo para un plan nuevo. Con usarCredito descuenta 1 crédito en la
+ * misma transacción. Devuelve { planId, clave } para el permiso del gateway.
+ */
+export const reservarCupoGrado = async ({
+  nivel, grado, asignatura, seccion = "", tema = "", fechaInicio = "", numSemanas, usarCredito = false,
+}) => {
+  const clave = claveCupoGrado({ nivel, grado, asignatura });
+  if (!clave.ok) throw new Error(clave.error);
+  const user = getCurrentUserOrThrow();
+  const ilimitado = await esIlimitadoPlanes(user);
+  const userRef = doc(db, "usuarios", user.uid);
+  const cupoRef = refCupoGrado(user.uid, clave.clave);
+  const tituloNormalizado = normalizarTema(tema);
+
+  const resultado = await runTransaction(db, async (tx) => {
+    const [cupoSnap, userSnap] = [await tx.get(cupoRef), await tx.get(userRef)];
+    const estado = evaluarCupo({ cupo: cupoSnap.exists() ? cupoSnap.data() : null, ilimitado, tituloNormalizado });
+    if (estado.estado === "reintento") return { planId: estado.planId, via: "reintento" };
+
+    let via = ilimitado ? "ilimitado" : "cupo";
+    if (estado.estado === "bloqueado") {
+      if (!usarCredito) {
+        throw new Error("Ya tienes un plan activo para este grado y asignatura. Se libera al empezar su penúltima semana o con 1 crédito.");
+      }
+      const parche = parcheDescuentoCredito(userSnap.exists() ? userSnap.data() : {});
+      if (!parche) throw new Error("No tienes créditos disponibles para liberar este grado antes de tiempo.");
+      tx.update(userRef, { ...parche, actualizadoEn: serverTimestamp() });
+      via = "credito";
+    }
+
+    const planId = globalThis.crypto?.randomUUID?.() || `plan-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    tx.set(cupoRef, {
+      planId,
+      tema: String(tema || "").trim(),
+      tituloNormalizado,
+      nivel: String(nivel || ""),
+      grado: String(grado || ""),
+      asignatura: String(asignatura || ""),
+      seccion: String(seccion || ""),
+      fechaInicio: String(fechaInicio || ""),
+      numSemanas: Math.max(Math.floor(Number(numSemanas) || 0), 1),
+      generadoEn: serverTimestamp(),
+      desbloqueoEn: Timestamp.fromDate(calcularDesbloqueo({ generadoEn: new Date(), fechaInicio, numSemanas })),
+      via,
+    }, { merge: true });
+    return { planId, via };
+  });
+
+  if (resultado.via !== "reintento") {
+    await registrarEventoAuditoria({
+      tipo: "planificacion",
+      evento: "reserva_cupo_grado",
+      modulo: "planificacion",
+      detalle: { clave: clave.clave, tema, via: resultado.via, consumioCredito: resultado.via === "credito" },
+    });
+  }
+  return { ...resultado, clave: clave.clave };
+};
+
+/** ¿El docente ya trabajó este tema? Solo informa (aviso, no bloqueo). */
+export const consultarTemaEnHistorial = async (titulo) => {
+  if (!String(titulo || "").trim()) return { existe: false };
+  const user = getCurrentUserOrThrow();
+  const snap = await getDoc(refHistorialTema(user.uid, titulo));
+  return snap.exists() ? { existe: true, ...snap.data() } : { existe: false };
+};
+
+/** Historial del tema de la unidad (no crítico: nunca bloquea la generación). */
+export const registrarTemaUnidadEnHistorial = async (titulo) => {
+  try {
+    const user = getCurrentUserOrThrow();
+    await upsertHistorialTema({ uid: user.uid, titulo, estado: "activo", activo: true, incrementarEdiciones: true });
+  } catch (err) {
+    console.warn("[registrarTemaUnidadEnHistorial] no crítico:", err?.message);
+  }
 };
 
 export const registrarUsoPDFTema = async ({ tituloTema }) => {

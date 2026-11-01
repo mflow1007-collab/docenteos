@@ -17,7 +17,7 @@ import {
   assertSucceeds,
   assertFails,
 } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc } from "firebase/firestore";
 
 const PROJECT_ID = "demo-docenteos";
 const DOCENTE = "docente-1";
@@ -181,6 +181,77 @@ await check("docente crea secuencia cosechada propia", () =>
   assertSucceeds(setDoc(nuevo(docente, "bancoAprendizaje"), { estado: "cosechada", procedencia: { docenteUid: DOCENTE } })));
 await check("docente NO crea secuencia validada", () =>
   assertFails(setDoc(nuevo(docente, "bancoAprendizaje"), { estado: "validada", procedencia: { docenteUid: DOCENTE } })));
+
+console.log("\nEtapa E: créditos y cupo por grado + asignatura");
+const CLAVE = "secundaria__2do-secundaria__ingles";
+const DIA = 24 * 60 * 60 * 1000;
+const cupo = (extra = {}) => ({
+  planId: `p-${++n}`, tema: "My Family", tituloNormalizado: "my family",
+  nivel: "Secundaria", grado: "2do Secundaria", asignatura: "Inglés", seccion: "A",
+  fechaInicio: "2026-11-02", numSemanas: 4,
+  generadoEn: serverTimestamp(), desbloqueoEn: Timestamp.fromMillis(Date.now() + 15 * DIA),
+  via: "cupo", ...extra,
+});
+const sembrarCupo = (uid, datos) => env.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), "usuarios", uid, "cuposGrado", CLAVE), datos);
+});
+await env.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), "usuarios", DOCENTE), { nombre: "Docente", creditosPlanificacionDisponibles: 2 });
+});
+await check("docente NO se sube créditos", () =>
+  assertFails(updateDoc(doc(docente, "usuarios", DOCENTE), { creditosPlanificacionDisponibles: 99 })));
+await check("docente NO se crea un campo de créditos con saldo", () =>
+  assertFails(updateDoc(doc(docente, "usuarios", DOCENTE), { creditos: 5 })));
+await check("docente sigue editando su perfil", () =>
+  assertSucceeds(updateDoc(doc(docente, "usuarios", DOCENTE), { nombre: "Docente 1" })));
+await check("docente NO crea su perfil con créditos", () =>
+  assertFails(setDoc(doc(env.authenticatedContext("nuevo-1", { email: "n@ejemplo.com", email_verified: true }).firestore(), "usuarios", "nuevo-1"), { creditos: 10 })));
+await check("registro normal (sin créditos) sigue funcionando", () =>
+  assertSucceeds(setDoc(doc(env.authenticatedContext("nuevo-2", { email: "m@ejemplo.com", email_verified: true }).firestore(), "usuarios", "nuevo-2"), { nombre: "M", usoMensual: "Pendiente de completar" }, { merge: true })));
+await check("admin sí asigna créditos", () =>
+  assertSucceeds(updateDoc(doc(admin, "usuarios", DOCENTE), { creditosPlanificacionDisponibles: 2 })));
+
+await check("docente reserva cupo libre", () =>
+  assertSucceeds(setDoc(doc(docente, "usuarios", DOCENTE, "cuposGrado", CLAVE), cupo(), { merge: true })));
+await check("NO reemplaza el cupo antes del desbloqueo", () =>
+  assertFails(setDoc(doc(docente, "usuarios", DOCENTE, "cuposGrado", CLAVE), cupo(), { merge: true })));
+await check("NO borra el cupo para liberar el grado", () =>
+  assertFails(deleteDoc(doc(docente, "usuarios", DOCENTE, "cuposGrado", CLAVE))));
+await check("NO reserva con desbloqueo a menos de 13 días", () =>
+  assertFails(setDoc(doc(docente, "usuarios", DOCENTE, "cuposGrado", "secundaria__3ro-secundaria__ingles"),
+    cupo({ desbloqueoEn: Timestamp.fromMillis(Date.now() + 3 * DIA) }))));
+await check("NO reserva con clave inventada", () =>
+  assertFails(setDoc(doc(docente, "usuarios", DOCENTE, "cuposGrado", "secundaria__2do-secundaria__ingles-b"), cupo())));
+await check("NO reserva con campos extra", () =>
+  assertFails(setDoc(doc(docente, "usuarios", DOCENTE, "cuposGrado", "secundaria__4to-secundaria__ingles"), cupo({ extra: 1 }))));
+await check("otro docente NO lee el cupo ajeno", () =>
+  assertFails(getDoc(doc(env.authenticatedContext(OTRO, { email: "o@ejemplo.com", email_verified: true }).firestore(), "usuarios", DOCENTE, "cuposGrado", CLAVE))));
+await check("con 1 crédito (baja en la misma transacción) sí reemplaza", () =>
+  assertSucceeds(runTransaction(docente, async (tx) => {
+    tx.update(doc(docente, "usuarios", DOCENTE), { creditosPlanificacionDisponibles: 1 });
+    tx.set(doc(docente, "usuarios", DOCENTE, "cuposGrado", CLAVE), cupo({ via: "credito" }), { merge: true });
+  })));
+await check("NO reemplaza diciendo 'credito' sin descontarlo", () =>
+  assertFails(setDoc(doc(docente, "usuarios", DOCENTE, "cuposGrado", CLAVE), cupo({ via: "credito" }), { merge: true })));
+await sembrarCupo(DOCENTE, { ...cupo(), generadoEn: Timestamp.fromMillis(Date.now() - 20 * DIA), desbloqueoEn: Timestamp.fromMillis(Date.now() - DIA) });
+await check("pasado el desbloqueo, sí reemplaza", () =>
+  assertSucceeds(setDoc(doc(docente, "usuarios", DOCENTE, "cuposGrado", CLAVE), cupo(), { merge: true })));
+
+const ilimitado = env.authenticatedContext("ilim-1", { email: "Cesar.Baez@docente.edu.do", email_verified: true }).firestore();
+await env.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), "limitesIlimitados", "cesar.baez@docente.edu.do"), { correo: "cesar.baez@docente.edu.do" });
+});
+await sembrarCupo("ilim-1", { ...cupo(), generadoEn: Timestamp.fromMillis(Date.now()), desbloqueoEn: Timestamp.fromMillis(Date.now() + 15 * DIA) });
+await check("correo de la lista: reemplaza sin esperar", () =>
+  assertSucceeds(setDoc(doc(ilimitado, "usuarios", "ilim-1", "cuposGrado", CLAVE), cupo({ via: "ilimitado" }), { merge: true })));
+await check("correo de la lista lee su propia entrada", () =>
+  assertSucceeds(getDoc(doc(ilimitado, "limitesIlimitados", "cesar.baez@docente.edu.do"))));
+await check("docente NO lee la entrada de otro", () =>
+  assertFails(getDoc(doc(docente, "limitesIlimitados", "cesar.baez@docente.edu.do"))));
+await check("docente NO se agrega a la lista", () =>
+  assertFails(setDoc(doc(docente, "limitesIlimitados", "docente@ejemplo.com"), { correo: "docente@ejemplo.com" })));
+await check("admin edita la lista", () =>
+  assertSucceeds(setDoc(doc(admin, "limitesIlimitados", "otro@ejemplo.com"), { correo: "otro@ejemplo.com" })));
 
 await env.cleanup();
 console.log(`\n${pasos} ok, ${fallos} fallos`);

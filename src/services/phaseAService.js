@@ -236,6 +236,7 @@ async function callGatewayCollect(
   providerOrder = PHASE_A_PROVIDER_ORDER,
   providersDisabledExtra = [],
   strictProvider = false,
+  cupo = null, // Etapa E: { planId, clave } — el gateway valida el cupo reservado
 ) {
   const user = getAuth().currentUser;
   if (!user) throw new Error('Usuario no autenticado');
@@ -304,6 +305,7 @@ async function callGatewayCollect(
         providersDisabled: providersDisabled.length ? providersDisabled : undefined,
         strictProvider,
         requireNonEmpty: true,
+        ...(cupo?.planId && cupo?.clave ? { cupo: { planId: cupo.planId, clave: cupo.clave } } : {}),
       }),
     });
   } catch (err) {
@@ -327,6 +329,8 @@ async function callGatewayCollect(
     error.provider = response.headers.get('X-AI-Provider') || providerOrder?.[0] || 'desconocido';
     error.model = response.headers.get('X-AI-Model') || 'desconocido';
     error.status = response.status;
+    // Etapa E: el gateway rechazó el permiso del cupo → definitivo, sin escalera
+    if (cupo && (response.status === 400 || response.status === 403)) error.cupoInvalido = true;
     // 504 del gateway = muro de tiempo agotado (cortó el bucle sin rotar). Se
     // marca timeout para que la escalera lo clasifique como ABORTO_POR_TIEMPO.
     if (bodyTimeout || response.status === 504) error.timeout = true;
@@ -1750,6 +1754,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         [providerIntento],
         proveedoresDescartados,
         true,
+        spec.cupoGeneracion,
       );
       lastProvider = provider;
       lastModel    = model;
@@ -1868,6 +1873,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       return result.data;
 
     } catch (err) {
+      if (err?.cupoInvalido) throw err;
       const msg = String(err?.message || err || '');
       // Medición directa del muro (punto 2): tiempo real hasta el fallo y si el
       // fallo fue por un abort de signal (timeout de Edge 24s o del fetch 90s).

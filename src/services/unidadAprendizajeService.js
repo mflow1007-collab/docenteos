@@ -4695,6 +4695,7 @@ const _generarFasesConIA = async (
       contextoComunitario: contexto.contextoComunitario || "",
     });
     specFase.rutaCurricular = rutaCurricular;
+    specFase.cupoGeneracion = contexto.cupoGeneracion || null;
     specFase.temaTrabajoSemana = temaTrabajoSemana;
     specFase.temasSemana = temasTrabajoFase;
     specFase.temasActivos = rutaCurricular?.temas || temasFase;
@@ -4777,6 +4778,8 @@ const _generarFasesConIA = async (
             memoriaAcumulada, progressWrapper,
           );
         } catch (err) {
+          // Etapa E: sin cupo válido no se genera (error visible, sin plantilla)
+          if (err?.cupoInvalido) throw err;
           const motivo = err?.message || String(err || "");
           const creditos = esErrorCreditosAgotados(err);
           if (!creditos && intento < INTENTOS_POR_FASE) {
@@ -4815,6 +4818,7 @@ const _generarFasesConIA = async (
           memoriaAcumulada, progressWrapper,
         );
       } catch (err) {
+        if (err?.cupoInvalido) throw err;
         if (esErrorCreditosAgotados(err)) modoContingenciaSinIA = true;
         console.warn(`[UnidadIA] Fase ${fase.numero} semana ${semanaGeneracion}: usando base curricular por fallo IA.`, err);
         onProgress?.(
@@ -5176,6 +5180,8 @@ export const generarUnidadAprendizaje = async (datos) => {
     // Rótulo del documento: "Unidad de Aprendizaje" o "Secuencia Didáctica"
     // (mismo esquema MINERD; solo cambia la etiqueta)
     tipoPlanificacion = "Unidad de Aprendizaje",
+    // Etapa E: { planId, clave } del cupo reservado; viaja a cada lote del gateway
+    cupoGeneracion = null,
     onProgress = null,
   } = datos;
 
@@ -5550,6 +5556,7 @@ export const generarUnidadAprendizaje = async (datos) => {
       indicadoresTrabajadosAntes,
       // Fase 9 — logro real bajo el umbral: marcado (REFORZAR) en el prompt
       indicadoresDebiles,
+      cupoGeneracion,
     },
     mallaContenidos,
     mallaPayload, allInds, allComps, durMinEf, grado,
