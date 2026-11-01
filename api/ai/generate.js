@@ -235,7 +235,10 @@ function getProviderTimeoutMs(provider, mod) {
   // reintenta, en vez de morir con 504. La extracción de PDF no pasa por este
   // muro del mismo modo (respuesta en streaming distinto), conserva su margen.
   switch (provider) {
-    case "abacus":    return esExtraccionPdf ? 30_000 : 20_000;
+    // Abacus (gpt-4o) iba a 20 s: en producción el 12 % de los rechazos pagados
+    // de la unidad eran lotes de 2 clases cortados por tiempo (Etapa D). Mismo
+    // margen que el resto, aún por debajo del muro de ~25 s.
+    case "abacus":    return esExtraccionPdf ? 30_000 : 24_000;
     case "nvidia":    return esExtraccionPdf ? 35_000 : 24_000;
     case "gemini":    return esExtraccionPdf ? 40_000 : 24_000;
     case "openai":    return esExtraccionPdf ? 45_000 : 24_000;
