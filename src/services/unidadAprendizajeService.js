@@ -2332,6 +2332,50 @@ const _justificaciones = {
     `El tema "${tema}" integra lectura, escritura, producción oral, investigación, pensamiento crítico, vocabulario especializado y presentación de productos complejos. Requiere una unidad extensa para garantizar el dominio real de las competencias sin sacrificar la calidad de los aprendizajes.`,
 };
 
+// R11 antes de generar (decisión de César, 2026-11-02): el producto del docente
+// se revisaba al FINAL, con todas las llamadas ya pagadas, y una lista de
+// formatos que se quede corta tiraba la unidad entera. Ahora se revisa antes
+// (formulario y arranque de la generación) y, como el docente ya lo aprobó,
+// se AVISA en vez de detener.
+const MOTIVOS_PRODUCTO_DOCENTE = [
+  [/sin formato auténtico/, "DocenteOS no reconoce el formato del producto (por ejemplo: guía, folleto, afiche, podcast, revista, presentación)"],
+  [/sin audiencia/, "no queda claro a quién va dirigido (por ejemplo: estudiantes, familias, comunidad, visitantes)"],
+  [/sin propósito/, "falta el propósito del producto («para …»)"],
+  [/estructurado incompleto/, "le falta una parte (formato, propósito, audiencia o socialización)"],
+  [/genérico o excesivo/, "el producto es demasiado genérico o demasiado largo"],
+  [/desconectado del tema/, "el producto no parece relacionado con el tema de la unidad"],
+  [/falta producto final/, "falta el producto final"],
+];
+
+export const motivoProductoFinal = (producto = "", tema = "") => {
+  try {
+    validarProductoFinalAutentico(producto, tema);
+    return "";
+  } catch (err) {
+    const msg = String(err?.message || "");
+    const motivo = MOTIVOS_PRODUCTO_DOCENTE.find(([re]) => re.test(msg));
+    return motivo ? motivo[1] : msg.replace(/^R11:\s*/, "");
+  }
+};
+
+// El mismo texto de producto que armará generarUnidadAprendizaje con los datos del formulario.
+export const productoFinalDeDatos = ({
+  titulo = "", area = "", asignatura = "", temasSeleccionados = [],
+  productoFinalTexto = "", productoFinalFormato = "", productoFinalProposito = "",
+  productoFinalAudiencia = "", productoFinalSocializacion = "",
+} = {}) => formatearProductoFinal(construirProductoEstructurado(
+  temasSeleccionados.length ? temasSeleccionados : [titulo],
+  {
+    area: resolverClave(asignatura, area, ESTRATEGIAS_POR_AREA),
+    asignatura: asignatura || area,
+    nombre: productoFinalTexto,
+    formato: productoFinalFormato,
+    proposito: productoFinalProposito,
+    audiencia: productoFinalAudiencia,
+    socializacion: productoFinalSocializacion,
+  },
+));
+
 export const analizarComplejidad = ({ area = "", grado = "", nivel = "", titulo = "", productoFinal = "" }) => {
   const tema = titulo.trim();
   const txt = `${tema} ${productoFinal}`.toLowerCase();
@@ -5457,6 +5501,18 @@ export const generarUnidadAprendizaje = async (datos) => {
     advertencias.push(avisoCriterios);
   }
 
+  // R11 — el producto del docente se revisa ANTES de pagar la generación; si no
+  // pasa, se avisa (ya lo aprobó) en lugar de tirar la unidad al final.
+  const motivoProductoDocente = productoFinalTexto ? motivoProductoFinal(producto, titulo) : "";
+  if (motivoProductoDocente) {
+    const avisoProducto =
+      `⚠️ Producto final: ${motivoProductoDocente}. La unidad se generó con el producto ` +
+      `tal como lo escribiste; revísalo si quieres ajustarlo.`;
+    console.warn(`[Unidad] ${avisoProducto}`);
+    onProgress?.(avisoProducto);
+    advertencias.push(avisoProducto);
+  }
+
   const modeloCurricularSuperior = construirModeloCurricularSuperior({
     payload: mallaPayload,
     titulo: temaMallaStr || titulo,
@@ -5590,7 +5646,9 @@ export const generarUnidadAprendizaje = async (datos) => {
   // 3A — producto final NOMBRADO: sustituye el rótulo genérico en todo el
   // documento (datos generales, situación, nota institucional y anexos)
   const productoNombrado = String(productoFinalNombre || "").trim() || producto;
-  validarProductoFinalAutentico(productoNombrado, titulo);
+  // El producto del docente ya se revisó antes de generar (aviso, no bloqueo);
+  // solo el que propuso la IA puede detener aquí.
+  if (!productoFinalTexto) validarProductoFinalAutentico(productoNombrado, titulo);
   const productoFinalDetalle = productoFinalNombre && productoFinalNombre !== producto
     ? {
         ...construirProductoEstructurado(temasProducto, {
