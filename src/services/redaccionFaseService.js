@@ -174,6 +174,38 @@ export const motivosRedaccionClase = (clase, etiqueta, opciones = {}) => {
 };
 
 export const TIPOS_AMPLIACION = ["vocabulario", "gramatica", "expresion", "funcion"];
+
+// Tiempos y estructuras que se reconocen en inglés (ampliación de la IA) y en
+// español (malla oficial). Orden: de lo más específico a lo más general, para
+// que «present perfect continuous» no se lea como «present perfect».
+const ESTRUCTURAS_GRAMATICA = [
+  ["presente_perfecto_continuo", /present perfect (continuous|progressive)|presente perfecto (continuo|progresivo)/],
+  ["pasado_perfecto_continuo", /past perfect (continuous|progressive)|pasado perfecto (continuo|progresivo)|pluscuamperfecto continuo/],
+  ["pasado_perfecto", /past perfect|pasado perfecto|pluscuamperfecto/],
+  ["futuro_perfecto", /future perfect|futuro perfecto/],
+  ["presente_perfecto", /present perfect|presente perfecto/],
+  ["pasado_continuo", /past (continuous|progressive)|pasado (continuo|progresivo)/],
+  ["presente_continuo", /present (continuous|progressive)|presente (continuo|progresivo)/],
+  ["pasado_simple", /(past simple|simple past)|pasado simple/],
+  ["presente_simple", /(present simple|simple present)|presente simple/],
+  ["voz_pasiva", /passive voice|voz pasiva/],
+  ["estilo_indirecto", /reported speech|indirect speech|estilo indirecto/],
+  ["tercer_condicional", /third conditional|tercer condicional/],
+  ["segundo_condicional", /second conditional|segundo condicional/],
+];
+const quitarTildes = (t) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+/** Estructura gramatical conocida de un texto (inglés o español), o null. */
+export const estructuraGramatical = (texto) => {
+  const t = quitarTildes(texto);
+  const hit = ESTRUCTURAS_GRAMATICA.find(([, re]) => re.test(t));
+  return hit ? hit[0] : null;
+};
+/** Estructuras que nombra la gramática de la malla del grado. */
+export const estructurasDeMalla = (textosGramatica = []) =>
+  [...new Set(textosGramatica.flatMap((g) => {
+    const t = quitarTildes(typeof g === "object" ? g?.estructura || g?.texto || "" : g);
+    return ESTRUCTURAS_GRAMATICA.filter(([, re]) => re.test(t)).map(([clave]) => clave);
+  }))];
 const CATEGORIAS_SEMILLA = ["vocabulario", "gramatica", "expresiones", "funcionales"];
 
 const error = (msg) => new Error(`Redacción por fase: ${msg}`);
@@ -377,6 +409,13 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
         if (secciones.length && !secciones.some((x) => normalizar(x) === normalizar(a?.seccion))) {
           throw new Error(`${etiqueta} — ampliación "${a.texto}" sin sección del producto que la justifique.`);
         }
+        // Auditoría 2026-11-02 (aprobado por César): la gramática que añade
+        // DocenteOS tiene que estar en la malla del grado. Solo se juzgan las
+        // estructuras reconocibles; lo que no se reconoce no se bloquea.
+        const estructura = a?.tipo === "gramatica" ? estructuraGramatical(a.texto) : null;
+        if (estructura && contrato.estructurasGrado?.length && !contrato.estructurasGrado.includes(estructura)) {
+          throw new Error(`${etiqueta} — la ampliación gramatical "${a.texto}" no está en la malla de este grado; usa una estructura del grado o no la añadas.`);
+        }
       });
       // Foco ajustado a 4.6 (Etapa 6+): la IA puede enriquecerlo más allá de
       // la semilla y de lo declarado; solo se prohíbe que el contenido sea el
@@ -424,6 +463,24 @@ export const validarFaseCompleta = (clases, contrato) => {
 /** Ampliación de DocenteOS de toda la unidad (capa separada, nunca curricularContent). */
 export const recogerAmpliacion = (fases = []) => fases.flatMap((f) => (f.dias || []).flatMap((d) =>
   (d.ampliacion || []).map((a) => ({ ...a, fase: f.numero, clase: d.numeroGlobal || null, origen: "DocenteOS" }))));
+
+/**
+ * Vocabulario de ampliación que de verdad se usa en las clases (auditoría
+ * 2026-11-02: «sports car driving» llegaba al glosario sin aparecer en ninguna
+ * actividad). Se quedan solo los términos que aparecen en el texto de alguna
+ * clase; los demás tipos no se tocan. Sin texto de clases, no se filtra.
+ */
+export const ampliacionUsadaEnClases = (ampliacion = [], fases = []) => {
+  const textoClases = quitarTildes(fases.flatMap((f) => f.dias || [])
+    .map(({ ampliacion: _a, semillaUsada: _s, ...dia }) => JSON.stringify(dia)).join(" "));
+  if (!textoClases.trim()) return ampliacion;
+  return ampliacion.flatMap((a) => {
+    if (a?.tipo !== "vocabulario") return [a];
+    const usados = String(a.texto || "").replace(/_/g, "").split(/\s*[,/;]\s*/)
+      .map((t) => t.trim()).filter((t) => t && textoClases.includes(quitarTildes(t)));
+    return usados.length ? [{ ...a, texto: usados.join(", ") }] : [];
+  });
+};
 
 /**
  * Validador global (capa 5, Etapa 6) de una unidad redactada con plan maestro.

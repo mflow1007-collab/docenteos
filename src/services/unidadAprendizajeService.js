@@ -26,7 +26,7 @@ import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion } from "./vistaPreviaPlanMaestroService.js";
 import {
   construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
-  seccionesDeClase,
+  seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases,
 } from "./redaccionFaseService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -1245,7 +1245,7 @@ export const construirAnexosUnidad = ({
   // producto (organizador del Anexo I, regla 4.7). Vacías → como antes.
   ampliacion = [], secciones = [],
   // Etapa 6: fases del plan maestro (entrega y secciones que avanza cada una)
-  // para la columna "Fase(s) y estado" del Anexo I. Vacías → como antes.
+  // para la columna "Estados de la sección" del Anexo I. Vacías → como antes.
   fasesPlan = [],
 }) => {
   const idioma = ES_IDIOMA(area);
@@ -1525,27 +1525,41 @@ export const construirAnexosUnidad = ({
 
   // Anexo I: con secciones del producto (plan maestro), el estudiante construye
   // la guía por SECCIONES, no por fases (regla 4.7); cada fila recoge las
-  // piezas que la unidad deja en esa sección.
+  // piezas que la unidad deja en esa sección, agrupadas por su estado
+  // (borrador → versión mejorada → versión final) para que se lean como etapas
+  // de una misma pieza y no como piezas repetidas (auditoría 2026-11-02).
+  const mayusculaInicial = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
   const piezasDeSeccion = (seccion) => (fases || [])
     .flatMap((fase) => fase.dias || [])
     .map((d) => String(d.aporteProducto || "").trim())
     .filter((a) => a && a.toLowerCase().includes(`«${seccion.toLowerCase()}»`))
-    .map((a) => a.replace(/^Secci[oó]n\s*«[^»]*»\s*(\([^)]*\))?\s*:\s*/i, "").replace(/\.$/, ""));
+    .map((a) => {
+      const m = a.match(/^Secci[oó]n\s*«[^»]*»\s*(?:\(([^)]*)\))?\s*:\s*/i);
+      return {
+        estado: mayusculaInicial(String(m?.[1] || "").trim()),
+        pieza: (m ? a.slice(m[0].length) : a).replace(/\.$/, ""),
+      };
+    });
+  const piezasPorEstado = (piezas) => {
+    const grupos = new Map();
+    piezas.forEach(({ estado, pieza }) => grupos.set(estado, [...(grupos.get(estado) || []), pieza]));
+    return [...grupos].map(([estado, lista]) => `${estado ? `${estado}: ` : ""}${lista.join("; ")}`).join(" · ");
+  };
   const organizadorProducto = (Array.isArray(secciones) && secciones.length)
     ? [
         { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).`, ...(fasesPlan.length ? { fases: "" } : {}) },
         ...secciones.map((seccion) => {
           const piezas = piezasDeSeccion(seccion);
-          const fasesSeccion = (fasesPlan || [])
-            .map((f, i) => ((f.entrega?.secciones || []).includes(seccion)
-              ? `F${i + 1} ${String(f.entrega?.estado || "").toLowerCase()}`
-              : ""))
-            .filter(Boolean);
+          // Estados por los que pasa la sección, en palabras y sin códigos de fase.
+          const estadosSeccion = [...new Set((fasesPlan || [])
+            .filter((f) => (f.entrega?.secciones || []).includes(seccion))
+            .map((f) => mayusculaInicial(String(f.entrega?.estado || "").trim().toLowerCase()))
+            .filter(Boolean))];
           return {
             seccion,
-            ...(fasesPlan.length ? { fases: fasesSeccion.join(" · ") } : {}),
+            ...(fasesPlan.length ? { fases: estadosSeccion.join(" → ") } : {}),
             incluye: piezas.length
-              ? `${piezas.join("; ")}.`
+              ? `${piezasPorEstado(piezas)}.`
               : "Lo que el grupo acordó para esta sección en el plan del producto.",
           };
         }),
@@ -4710,7 +4724,13 @@ const _generarFasesConIA = async (
       // Contrato de la fase: la IA solo puede usar los indicadores de la fase
       // y no hay secuencia base de plantilla que enriquecer.
       const permitidos = new Set(contratoFase.indicadores.map((ind) => ind.id));
-      specFase.contratoFase = contratoFase;
+      // Estructuras gramaticales de la malla del grado: la ampliación de
+      // DocenteOS no puede traer otras (auditoría 2026-11-02).
+      const gramaticaGrado = [
+        ...(mallaPayload?.contenidosPorTema || []).flatMap((t) => t?.conceptos?.gramatica || t?.conceptos?.["gramática"] || t?.gramatica || []),
+        ...(Array.isArray(mallaPayload?.gramatica) ? mallaPayload.gramatica : []),
+      ];
+      specFase.contratoFase = { ...contratoFase, estructurasGrado: estructurasDeMalla(gramaticaGrado) };
       specFase.situacionTexto = rutaPlanMaestro.situacionTexto;
       specFase.temaTrabajoSemana = "";
       specFase.indicadoresTrabajo = (allInds || []).filter((ind) => permitidos.has(ind.id || ind.codigoOficial));
@@ -5726,7 +5746,7 @@ export const generarUnidadAprendizaje = async (datos) => {
         ...planMaestroParaGuardar(rutaPlanMaestro.plan),
         situacion: datos.planMaestro?.situacion || null,
       },
-      ampliacionDocenteOS: recogerAmpliacion(fasesSemanalesGeneradas),
+      ampliacionDocenteOS: ampliacionUsadaEnClases(recogerAmpliacion(fasesSemanalesGeneradas), fasesSemanalesGeneradas),
     } : {}),
   };
 
@@ -6757,8 +6777,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <h3>ANEXO I — Organizador gráfico del producto final</h3>
     <table class="rubrica">
       ${(ax.organizadorProducto || []).some((o) => o.fases !== undefined)
-        ? `<tr><td colspan="4" style="font-size:9pt;color:#475569">Fases: ${(unidad.planMaestro?.fases || []).map((f, i) => `F${i + 1} ${escHtml(f.nombre)}`).join(" · ")}</td></tr>
-      <tr><th style="width:20%">Sección</th><th style="width:26%">Fase(s) y estado</th><th style="width:30%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
+        ? `<tr><th style="width:20%">Sección</th><th style="width:22%">Estados de la sección</th><th style="width:34%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
       ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.fases || ""}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`
         : `<tr><th style="width:28%">Sección</th><th style="width:42%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
       ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`}

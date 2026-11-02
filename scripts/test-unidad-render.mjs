@@ -1944,21 +1944,23 @@ check("con plan: indicador completo con aspectos resaltados, competencia no eleg
   validarUnidadRenderizada(u, h);
 });
 
-check("Anexo I con plan: columna de fases y estado por sección; sin plan, como antes", () => {
+check("Anexo I con plan: estados de cada sección en palabras, sin leyenda ni códigos de fase; sin plan, como antes", () => {
   const base = { area: "Inglés", tema: "Escuela", producto: "Guía", fases: [], secciones: ["Welcome", "Important Places"] };
   const fasesPlan = [
     { nombre: "Visión compartida", entrega: { estado: "Acuerdo y plan", secciones: ["Welcome", "Important Places"] } },
     { nombre: "Aplicación", entrega: { estado: "Versión final", secciones: ["Welcome"] } },
   ];
   const { organizadorProducto } = construirAnexosUnidad({ ...base, fasesPlan });
-  if (organizadorProducto[1].fases !== "F1 acuerdo y plan · F2 versión final") {
-    throw new Error(`fases de Welcome: ${organizadorProducto[1].fases}`);
+  if (organizadorProducto[1].fases !== "Acuerdo y plan → Versión final") {
+    throw new Error(`estados de Welcome: ${organizadorProducto[1].fases}`);
   }
-  if (organizadorProducto[2].fases !== "F1 acuerdo y plan") throw new Error("fases de Important Places");
-  if ("fases" in construirAnexosUnidad(base).organizadorProducto[1]) throw new Error("sin plan no debe haber columna de fases");
+  if (organizadorProducto[2].fases !== "Acuerdo y plan") throw new Error("estados de Important Places");
+  if ("fases" in construirAnexosUnidad(base).organizadorProducto[1]) throw new Error("sin plan no debe haber columna de estados");
   const u = structuredClone(unidadFixture);
   u.anexos = construirAnexosUnidad({ ...base, fasesPlan });
-  if (!formatearUnidadHTML(u, "").includes("Fase(s) y estado")) throw new Error("el Anexo I no muestra la columna");
+  const html = formatearUnidadHTML(u, "");
+  if (!html.includes("Estados de la sección")) throw new Error("el Anexo I no muestra la columna de estados");
+  if (/Fases: F1|Fase\(s\) y estado/.test(html)) throw new Error("el Anexo I sigue mostrando fases");
 });
 
 // ─── Criterios de evaluación oficiales (paso 7, Adecuación p. 39) ────────────

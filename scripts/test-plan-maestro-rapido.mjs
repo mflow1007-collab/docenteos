@@ -44,7 +44,7 @@ check("solo con el título la unidad queda lista para generar (tema sin situaci�
   const e = estado(d);
   assert(e.listo, `no quedó lista: ${e.falta}`);
   igual(d.productoFinalTexto, "My family and friends Booklet", "producto sugerido");
-  igual(d.planMaestro.secciones, ["My family", "Friends"], "secciones desde el título");
+  igual(d.planMaestro.secciones, ["My family", "My Friends", "Past Experiences", "Future Plans"], "secciones desde el título y las funciones");
   igual(d.planMaestro.estrategia, "proyectos", "estrategia recomendada por la Guía");
   assert(d.planMaestro.situacion.borrador, "la situación va marcada como borrador");
 });
@@ -88,10 +88,12 @@ check("un título largo sigue cabiendo en las 8 líneas de la situación (máx. 
   assert(texto.length <= 800, `${texto.length} caracteres`);
 });
 
-check("secciones sugeridas: partes del título o presentación · tema · cierre", () => {
-  igual(seccionesSugeridas({ titulo: "Food, drinks and health", asignatura: "Inglés" }), ["Food", "Drinks", "Health"], "varias partes");
-  igual(seccionesSugeridas({ titulo: "Daily routines", asignatura: "Inglés" }), ["Introduction", "Daily routines", "Final Message"], "una idea, inglés");
-  igual(seccionesSugeridas({ titulo: "La famille", asignatura: "Francés" }), ["Introduction", "La famille", "Message final"], "una idea, francés");
+check("secciones sugeridas: cada parte del título + experiencias y planes (idiomas); fuera de idiomas, como antes", () => {
+  igual(seccionesSugeridas({ titulo: "Hobbies and weekend activities", asignatura: "Inglés" }), ["My Hobbies", "My Weekend activities", "Past Experiences", "Future Plans"], "auditoría: más secciones visibles");
+  igual(seccionesSugeridas({ titulo: "Food, drinks and health", asignatura: "Inglés" }), ["My Food", "My Drinks", "My Health", "Past Experiences", "Future Plans"], "varias partes");
+  igual(seccionesSugeridas({ titulo: "Daily routines", asignatura: "Inglés" }), ["Introduction", "My Daily routines", "Past Experiences", "Future Plans"], "una idea, inglés");
+  igual(seccionesSugeridas({ titulo: "La famille", asignatura: "Francés" }), ["Introduction", "La famille", "Mes expériences", "Mes projets"], "una idea con artículo, francés");
+  igual(seccionesSugeridas({ titulo: "La célula y sus partes", asignatura: "Ciencias" }), ["La célula", "Sus partes"], "fuera de idiomas");
 });
 
 check("cuándo prellenar: sin tocar y con título; nunca sin título", () => {
@@ -107,7 +109,7 @@ check("mientras el docente escribe el título, el prellenado se rehace (incluido
   assert(debePrellenarPlanMaestro(d2), "título nuevo y nada tocado: se rehace");
   const d3 = prellenar(d2);
   igual(d3.productoFinalTexto, "My family and friends Booklet", "el producto sugerido viejo no se queda");
-  igual(d3.planMaestro.secciones, ["My family", "Friends"], "secciones del título nuevo");
+  igual(d3.planMaestro.secciones, ["My family", "My Friends", "Past Experiences", "Future Plans"], "secciones del título nuevo");
 });
 
 check("nunca pisa lo que el docente cambió", () => {
