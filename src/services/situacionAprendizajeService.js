@@ -220,17 +220,30 @@ export const productoSugerido = ({ titulo = "", asignatura = "" } = {}) => {
 const mayuscula = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 
 /**
- * Secciones sugeridas: las partes del título («My family and friends» →
- * My family · Friends); si el título es una sola idea, presentación · tema ·
- * cierre en el idioma de la asignatura.
+ * Secciones sugeridas (sin IA). En idiomas, cada parte del título pasa a ser
+ * una sección propia («My Hobbies», «My Weekend Activities») y se suman las
+ * funciones que la malla trabaja: experiencias (pasado) y planes (futuro).
+ * Auditoría 2026-11-02: con solo «Hobbies · Weekend activities» cada semana
+ * construía poco visible. Fuera de idiomas: las partes del título o
+ * presentación · tema · cierre. El docente las cambia en la vista previa.
  */
+// Con posesivo o artículo propio («My family», «La famille») la parte queda tal cual.
+const POSESIVO_RE = /^(my|our|the|mi|mis|ma|mon|mes|nuestro|nuestra|nuestros|nuestras|notre|nos|le|la|les|l')(\s|\b)/i;
+const FUNCIONES_SECCION = {
+  inglés: { mio: (p) => `My ${p}`, inicio: "Introduction", extra: ["Past Experiences", "Future Plans"] },
+  francés: { mio: (p) => `Mes ${p.toLowerCase()}`, inicio: "Introduction", extra: ["Mes expériences", "Mes projets"] },
+};
 export const seccionesSugeridas = ({ titulo = "", asignatura = "" } = {}) => {
   const t = sinPuntoFinal(titulo);
   const partes = t.split(/\s*,\s*|\s+(?:and|y|et|&)\s+/i).map(limpio).filter(Boolean).map(mayuscula);
-  if (partes.length >= 2 && new Set(partes.map((p) => p.toLowerCase())).size === partes.length) return partes;
-  const idioma = idiomaDe(asignatura);
-  if (idioma === "inglés") return ["Introduction", mayuscula(t) || "Main Ideas", "Final Message"];
-  if (idioma === "francés") return ["Introduction", mayuscula(t) || "Idées principales", "Message final"];
+  const distintas = new Set(partes.map((p) => p.toLowerCase())).size === partes.length;
+  const funciones = FUNCIONES_SECCION[idiomaDe(asignatura)];
+  if (funciones) {
+    const propias = (partes.length >= 2 && distintas ? partes.slice(0, 3) : [mayuscula(t) || "Main Ideas"])
+      .map((p) => (POSESIVO_RE.test(p) ? p : funciones.mio(p)));
+    return [...(propias.length === 1 ? [funciones.inicio] : []), ...propias, ...funciones.extra];
+  }
+  if (partes.length >= 2 && distintas) return partes;
   return ["Presentación", mayuscula(t) || "Ideas principales", "Mensaje final"];
 };
 

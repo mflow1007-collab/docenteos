@@ -16,6 +16,7 @@ import {
 import { usarSemilla, aceptarRealineacion } from "../src/services/situacionAprendizajeService.js";
 import {
   construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta, seccionesDeClase,
+  estructuraGramatical, estructurasDeMalla, ampliacionUsadaEnClases,
   recortarIndicador, recogerAmpliacion, repartirSeccionesClases,
   motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro,
 } from "../src/services/redaccionFaseService.js";
@@ -306,10 +307,34 @@ check("Anexo F: malla primero y la ampliación después, marcada como DocenteOS 
   igual(construirAnexosUnidad(baseAnexos).glosario.map((g) => g.origen), ["malla", "malla"], "sin ampliación, como antes");
 });
 
+check("ampliación gramatical: solo estructuras de la malla del grado (las desconocidas no se bloquean)", () => {
+  const estructuras = estructurasDeMalla(malla.contenidosPorTema.flatMap((t) => t.conceptos?.gramatica || []));
+  assert(estructuras.includes("presente_perfecto") && !estructuras.includes("presente_perfecto_continuo"), "estructuras de 2do");
+  igual(estructuraGramatical("present perfect continuous"), "presente_perfecto_continuo", "lo más específico primero");
+  igual(estructuraGramatical("connectors and, but, or"), null, "desconocida");
+  const ccG = { ...cc, estructurasGrado: estructuras };
+  const conAmpl = (texto) => claseOk({ ampliacion: [{ texto, tipo: "gramatica", seccion: cc.secciones[0] }] });
+  lanza(() => validarLoteContrato({ clases: [conAmpl("present perfect continuous")] }, ccG, 1, 1), /no está en la malla de este grado/, "fuera del grado");
+  validarLoteContrato({ clases: [conAmpl("present perfect for experiences")] }, ccG, 1, 1);
+  validarLoteContrato({ clases: [conAmpl("connectors and, but, or")] }, ccG, 1, 1);
+  validarLoteContrato({ clases: [conAmpl("present perfect continuous")] }, cc, 1, 1); // sin datos del grado no se bloquea
+});
+
+check("ampliación de vocabulario: solo los términos que aparecen en alguna clase", () => {
+  const fases = [{ numero: 3, dias: [{ numeroGlobal: 3, momentos: [{ actividades: ["Describen (en parejas) sus hobbies: hiking y swimming."] }] }] }];
+  const ampl = [
+    { texto: "Hiking, swimming, sports car driving", tipo: "vocabulario", seccion: "Hobbies" },
+    { texto: "sports car driving", tipo: "vocabulario", seccion: "Hobbies" },
+    { texto: "present perfect", tipo: "gramatica", seccion: "Hobbies" },
+  ];
+  igual(ampliacionUsadaEnClases(ampl, fases).map((a) => a.texto), ["Hiking, swimming", "present perfect"], "filtrada");
+  igual(ampliacionUsadaEnClases(ampl, []).length, 3, "sin clases no se filtra");
+});
+
 check("Anexo I: con secciones, una fila por sección con sus piezas; sin secciones, por fases (motor anterior)", () => {
   const { organizadorProducto } = construirAnexosUnidad({ ...baseAnexos, secciones: ["Welcome", "Important Places", "Final Recommendation"] });
   igual(organizadorProducto.map((o) => o.seccion), ["Título", "Welcome", "Important Places", "Final Recommendation"], "filas");
-  igual(organizadorProducto[2].incluye, "mapa etiquetado de la escuela; instrucciones bilingües.", "piezas de la sección");
+  igual(organizadorProducto[2].incluye, "mapa etiquetado de la escuela · Versión final: instrucciones bilingües.", "piezas agrupadas por estado");
   assert(/plan del producto/.test(organizadorProducto[3].incluye), "sección sin piezas");
   igual(construirAnexosUnidad(baseAnexos).organizadorProducto.map((o) => o.seccion), ["Título", "Fase 3 — Gestión del conocimiento", "Fase 5 — Aplicación", "Cierre"], "por fases");
 });
