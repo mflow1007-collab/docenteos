@@ -142,7 +142,11 @@ export const motivoRedaccionActividad = (texto, { esIdioma = false } = {}) => {
   if (!permitido) return `«${verbo}» no está en la lista de verbos (taxonomía del Referente${esIdioma ? ", verbos de idioma" : ""} o gestión de la clase)`;
   const parentesis = t.match(/^\S+\s*\(([^)]*)\)/);
   const resto = parentesis ? t.slice(parentesis[0].length) : t.slice(verbo.length);
-  if (ORGANIZACION_RE.test(resto)) return `la organización («${resto.match(ORGANIZACION_RE)[0]}») va entre paréntesis justo después del verbo: "${verbo} (en parejas) …"`;
+  // Decisión de César (2026-11-02): si el paréntesis ya nombra la organización,
+  // la actividad puede cambiar de agrupación después («Comparten (en parejas)
+  // … y luego en plenaria»). Era el rechazo pagado más frecuente.
+  const organizacionEnParentesis = Boolean(parentesis) && ORGANIZACION_RE.test(parentesis[1]);
+  if (!organizacionEnParentesis && ORGANIZACION_RE.test(resto)) return `la organización («${resto.match(ORGANIZACION_RE)[0]}») va entre paréntesis justo después del verbo: "${verbo} (en parejas) …"`;
   return "";
 };
 

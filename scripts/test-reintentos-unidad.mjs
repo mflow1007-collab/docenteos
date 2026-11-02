@@ -11,8 +11,9 @@
  *  Secciones: el prompt da las secciones de cada clase como lista JSON y el
  *     validador, la validación de fase y el guardado las separan si llegan
  *     unidas con « · » (12 rechazos pagados en producción).
- *  Organización: una actividad = una organización (19 actividades rechazadas
- *     por «en plenaria/en grupos» fuera del paréntesis).
+ *  Organización (decisión de César, 2026-11-02): si el paréntesis tras el verbo
+ *     ya nombra la organización, la actividad puede cambiar de agrupación
+ *     después («… y luego en plenaria»); era el rechazo pagado más frecuente.
  *
  * Ejecutar: node scripts/test-reintentos-unidad.mjs
  */
@@ -101,8 +102,12 @@ check("validador de lote, validación de fase y guardado usan seccionesDeClase",
   ok(/dia\.seccionesProducto = seccionesDeClase\(aiClase\.seccionesProducto, contratoFase\.secciones\)/.test(unidad), "guardado");
 });
 
-check("regla 4.4: una actividad lleva una sola organización (si cambia, son dos)", () => {
-  ok(/Una actividad = UNA sola organización: si el trabajo cambia de agrupación \(parejas → plenaria\), son DOS actividades/.test(fase), "falta la regla en el prompt");
+check("regla 4.4: con la organización en el paréntesis, la actividad puede cambiar de agrupación después", () => {
+  ok(motivoRedaccionActividad(`Comparten (en parejas) sus fichas y luego eligen en plenaria la mejor ${cola}`) === "", "parejas → plenaria");
+  ok(motivoRedaccionActividad(`Coevalúan (en parejas, Gallery Walk) los borradores y los comentan en grupos ${cola}`) === "", "con técnica");
+  ok(/va entre paréntesis/.test(motivoRedaccionActividad(`Comparten sus fichas en plenaria ${cola}`)), "sin paréntesis sigue rechazado");
+  ok(/va entre paréntesis/.test(motivoRedaccionActividad(`Elaboran (Gallery Walk) ideas en parejas ${cola}`)), "paréntesis sin organización sigue rechazado");
+  ok(/va SIEMPRE primero en ese paréntesis; si después el trabajo cambia de agrupación, puede nombrarse en la frase/.test(fase), "el prompt no explica la regla nueva");
 });
 
 console.log("\n── Saldo por proveedor (escalera) ──");
