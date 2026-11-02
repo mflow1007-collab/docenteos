@@ -672,8 +672,12 @@ const PRODUCTO_GENERICO = [
   'portafolio de evidencias', 'portfolio about', 'portfolio sobre',
 ];
 
-const PRODUCTO_FORMATO_RE = /\b(gu[ií]a|guide|mapa|map|recorrido|tour|diario|journal|bolet[ií]n|bulletin|campa[nñ]a|campaign|men[uú]|menu|podcast|video|afiche|affiche|poster|mural|maqueta|modelo|model|revista|magazine|folleto|brochure|debate|programa|program|informe|report|presentaci[oó]n|pr[eé]sentation|exposici[oó]n|exhibition|obra|dramatizaci[oó]n|dramatization|manual|cat[aá]logo|catalog|circuito|prototipo)\b/i;
-const PRODUCTO_AUDIENCIA_RE = /\b(estudiantes?|students?|[ée]l[eè]ves?|familias?|families|comunidad|community|communaut[eé]|visitantes?|visitors?|curso|class|centro educativo|p[uú]blico|audience|viajeros?|travelers?|usuarios?|lectores?|oyentes?)\b/i;
+// Límites de palabra que entienden tildes: \b de JS no corta después de «ú»
+// ni antes de «é», y «menú» o «élèves» nunca coincidían (2026-11-02: una unidad
+// de 12 clases falló al final por R11 con «… Booklet — menú comentado…»).
+// booklet/álbum/livret/cuadernillo: el modo rápido sugiere «<título> Booklet».
+const PRODUCTO_FORMATO_RE = /(?<![\p{L}\p{N}])(gu[ií]a|guide|mapa|map|recorrido|tour|diario|journal|bolet[ií]n|bulletin|campa[nñ]a|campaign|men[uú]|menu|podcast|video|afiche|affiche|poster|mural|maqueta|modelo|model|revista|magazine|folleto|brochure|booklet|[aá]lbum|album|livret|cuadernillo|debate|programa|program|informe|report|presentaci[oó]n|pr[eé]sentation|exposici[oó]n|exhibition|obra|dramatizaci[oó]n|dramatization|manual|cat[aá]logo|catalog|circuito|prototipo)(?![\p{L}\p{N}])/iu;
+const PRODUCTO_AUDIENCIA_RE = /(?<![\p{L}\p{N}])(estudiantes?|students?|[ée]l[eè]ves?|familias?|families|comunidad|community|communaut[eé]|visitantes?|visitors?|curso|class|centro educativo|p[uú]blico|audience|viajeros?|travelers?|usuarios?|lectores?|oyentes?)(?![\p{L}\p{N}])/iu;
 const PRODUCTO_ESTRUCTURADO_RE = /^(.+?)\s+—\s+(.+?)\s+para\s+(.+?),\s+dirigida\s+a\s+(.+?);\s+socializaci[oó]n:\s+(.+?)\.?$/i;
 
 const PRODUCT_RULES_BY_TOPIC = [
