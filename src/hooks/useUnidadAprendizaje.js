@@ -5,7 +5,8 @@ import { cosecharGuia } from "../services/bancoGuiasService.js";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import { conReanudacion } from "../services/reanudacionGeneracion.js";
-import { consultarCupoGrado, reservarCupoGrado, consultarTemaEnHistorial, registrarTemaEnHistorial } from "../firebase";
+import { auth, consultarCupoGrado, reservarCupoGrado, consultarTemaEnHistorial, registrarTemaEnHistorial } from "../firebase";
+import { esUsuarioDocenteOS } from "../utils/permisos.js";
 import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
 import { obtenerIndicadoresDebiles } from "../services/avanceCurricularService.js";
 import { indicadoresDebilesPorGradoAsignatura, mezclarIndicadoresDebiles } from "../services/diagnosticoIntegrationService.js";
@@ -83,7 +84,9 @@ export function useUnidadAprendizaje() {
       const datosCupo = { nivel: unidadDatos.nivel, grado: unidadDatos.grado, asignatura: unidadDatos.asignatura, tema: temaUnidad };
       const cupo = await consultarCupoGrado(datosCupo);
 
-      if (temaUnidad && !confirmarTemaRepetido && cupo.estado !== "reintento") {
+      // El admin genera sin el aviso de tema ya trabajado (no tiene tope).
+      const esAdmin = esUsuarioDocenteOS(auth.currentUser?.email);
+      if (temaUnidad && !confirmarTemaRepetido && !esAdmin && cupo.estado !== "reintento") {
         const historial = await consultarTemaEnHistorial(temaUnidad);
         if (historial.existe) {
           setDialogoTema({
