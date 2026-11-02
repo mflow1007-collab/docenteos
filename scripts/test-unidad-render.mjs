@@ -455,6 +455,19 @@ check("rechaza portafolio genérico aunque lo escriba el docente", () => {
   );
 });
 
+check("R11 reconoce «Booklet» y las palabras con tilde (menú, élèves) — fallo real del 2026-11-02", () => {
+  // El modo rápido sugiere «<título> Booklet» y esta unidad de 12 clases falló al final por R11.
+  validarProductoFinalAutentico(
+    "Food and healthy habits Booklet — menú comentado para promover decisiones alimentarias saludables, dirigida a estudiantes y familias de la comunidad escolar; socialización: feria oral en inglés.",
+    "Food and healthy habits",
+  );
+  validarProductoFinalAutentico("Hobbies and weekend activities Booklet para compartir con los estudiantes del centro", "Hobbies");
+  validarProductoFinalAutentico("Menú comentado para los estudiantes del curso", "Alimentación");
+  validarProductoFinalAutentico("Álbum de la familia para los visitantes", "La familia");
+  // Sin formato ni audiencia reconocibles sigue rechazado
+  esperaError(() => validarProductoFinalAutentico("Cosas de comida para todos", "Alimentación"), "sin formato");
+});
+
 check("la evaluación es diagnóstica al inicio, formativa durante el proceso y sumativa solo al valorar el producto", () => {
   const inicio = resolverEvaluacionMomento({ momento: "Inicio", faseIdx: 0, numeroDia: 1, totalDiasFase: 2 });
   const desarrolloCierrePrevio = resolverEvaluacionMomento({
