@@ -628,6 +628,8 @@ export const componerActividad = (actividad, seccion = '') => {
   if (!accion) return '';
   const producto = conMinuscula(sinPuntoFinal(actividad.producto));
   let destino = conMinuscula(sinPuntoFinal(actividad.destino));
+  // «…; en la carpeta del grupo.» quedaba suelto (revisión del 2026-11-03).
+  if (/^(en|a|al|para|dentro|junto)\s/i.test(destino)) destino = `se guarda ${destino}`;
   if (!destino && producto && seccion) destino = `se archiva en la sección «${seccion}»`;
   return `${accion}${producto ? `: ${producto}` : ''}${destino ? `; ${destino}` : ''}.`;
 };
@@ -1721,7 +1723,7 @@ REGLAS:
 3. REDACCIÓN DEL DESARROLLO Y DEL CIERRE (regla 4.4 de César; el validador rechaza la fase si no se cumplen a, b y el verbo del Cierre):
    a) Empieza con UN verbo en 3ª persona plural del presente tomado SOLO de estas listas — de esta fase: ${verbosFase}${verbosIdioma ? `; de idioma: ${verbosIdioma}` : ''}; de gestión de la clase: ${VERBOS_GESTION.join(', ')}. Otro verbo (Participan, Realizan, Colaboran, Discuten, Reciben…) = rechazo.
    b) Justo después del verbo, entre paréntesis, la organización y la técnica si la hay: "Representan (en parejas, juego de roles) …", "Elaboran (en equipos) …". Si es individual, sin paréntesis. La organización ("en parejas", "en equipos", "en grupos", "en plenaria") va SIEMPRE primero en ese paréntesis; si después el trabajo cambia de agrupación, puede nombrarse en la frase: "Comparten (en parejas) sus fichas y luego eligen en plenaria la mejor…".
-   c) Cada actividad del Desarrollo y del Cierre es un OBJETO de tres partes que el sistema une en una frase de 25-35 palabras: "accion" = verbo + paréntesis + lo que hacen con sus recursos (12-20 palabras; a, b, d y e se cumplen aquí); "producto" = lo que queda o se observa al terminar, con su condición oral o escrita (6-12 palabras); "destino" = dónde se recoge o se guarda (3-8 palabras). Ninguna de las tres va vacía.
+   c) Cada actividad del Desarrollo y del Cierre es un OBJETO de tres partes que el sistema une en una frase de 25-35 palabras: "accion" = verbo + paréntesis + lo que hacen con sus recursos (12-20 palabras; a, b, d y e se cumplen aquí); "producto" = lo que queda o se observa al terminar, con su condición oral o escrita (6-12 palabras); "destino" = dónde se recoge o se guarda, empezando con un verbo ("se guarda en…", "lo pegan en…", "la entregan al…"; 3-8 palabras). Ninguna de las tres va vacía.
    d) Si trabaja lengua concreta, menciona solo 1 o 2 expresiones${idioma ? ` en ${idioma}` : ''} en cursiva y con puntos suspensivos: "…piden y ofrecen ayuda para ubicarse (_Excuse me, could you help me?_, _It's next to the gym_…) y graban el diálogo."
    e) PROHIBIDO empezar con "Los estudiantes", "El docente", "Se" o con etiquetas ("Reflexión:"). No repitas el tema ni el nombre del producto entre actividades: usa elementos concretos (el plano de la escuela, el estudiante nuevo).
    Ejemplo: {"accion":"Representan (en parejas, juego de roles) la llegada de un estudiante nuevo pidiendo y ofreciendo ayuda para ubicarse en la escuela (_Excuse me, could you help me?_…)","producto":"un diálogo oral grabado con al menos tres indicaciones","destino":"lo guardan en el celular del equipo"} → el sistema escribe «Representan (…) …: un diálogo oral grabado…; lo guardan en el celular del equipo.»
