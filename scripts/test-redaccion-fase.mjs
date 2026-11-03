@@ -164,6 +164,19 @@ check("sección principal por clase: con una clase por fase, ninguna sección qu
     if (sec && !plan.fases[i].entrega.secciones.includes(sec)) throw new Error(`fase ${i + 1}: «${sec}» no está asignada a la fase`);
   }));
   igual(seccionesPrincipalesUnidad({ secciones: [], fases: [fase("Borrador", [])] }), [[""]], "sin secciones");
+  // Plan real de producción (2026-11-03): insumos también se reparten. Antes dos
+  // secciones quedaban solo en «insumos»; ahora las 5 tienen borrador o versión final.
+  const real = { secciones: S, fases: [
+    fase("Acuerdo y plan", S), fase("Insumos recopilados", S.slice(0, 2)), fase("Insumos recopilados", S.slice(2)),
+    fase("Borrador", S.slice(0, 2)), fase("Borrador", S.slice(2)),
+    fase("Versión final", S.slice(0, 1)), fase("Versión final", S.slice(1, 3)), fase("Versión final", S.slice(3)),
+    fase("Versión revisada", S),
+  ] };
+  const pr = seccionesPrincipalesUnidad(real).flat();
+  const deContenido = new Set(pr.slice(3, 8));
+  S.forEach((sec) => { if (!deContenido.has(sec)) throw new Error(`«${sec}» sin borrador ni versión final: ${pr.join(" · ")}`); });
+  igual(pr.slice(3, 8), ["Interviews with Owners", "Ordering Food", "Our Local Food", "Bilingual Menus", "Healthy Choices"], "borrador y final primero");
+  igual([pr[0], pr[8]], ["", ""], "las clases con todas las secciones siguen libres");
   // El contrato la lleva y el validador exige que el aporte la nombre
   igual(cc.seccionPrincipalPorClase.length, cc.sesiones, "contrato con principal por clase");
   const otra = cc.seccionPrincipalPorClase[0] && cc.seccionesPorClase[0].find((x) => x !== cc.seccionPrincipalPorClase[0]);

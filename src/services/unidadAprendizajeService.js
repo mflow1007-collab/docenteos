@@ -1951,7 +1951,7 @@ const derivarRecursos = (actividades, area, _faseNum) => {
   if (tiene(/celular|dispositivos? m[oó]vil|tel[eé]fono/)) tec.add("Teléfono o dispositivo móvil");
   // "proyecto" no significa que exista un proyector. Si se nombra, va siempre
   // (antes solo si no había otro tecnológico y se perdía junto a «digital»).
-  if (tiene(/\bproyector\b|\bproyectan\b|\bproyecci[oó]n\b/)) {
+  if (tiene(/\bproyector(es)?\b|\bproyectan\b|\bproyecci[oó]n\b/)) {
     tec.add("Proyector");
   }
 

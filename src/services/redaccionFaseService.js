@@ -368,8 +368,11 @@ export const repartirSeccionesClases = (secciones, sesiones) => {
  *   que avanzan todas (acuerdo y plan, insumos, revisión) el aporte nombra la
  *   que de verdad trabaja (antes la rotación a ciegas etiquetaba mal la clase 1).
  * - Primero se empareja cada sección con una clase distinta (caminos de
- *   aumento), para que ninguna quede sin clase propia si el reparto lo permite;
- *   las clases que sobran toman la que menos veces ha sido principal (empate:
+ *   aumento), para que ninguna quede sin clase propia si el reparto lo permite.
+ *   El emparejamiento va primero en las clases de BORRADOR y VERSIÓN FINAL y
+ *   después en las demás: en la prueba del 2026-11-03, dos secciones quedaron
+ *   solo en «insumos recopilados», sin borrador ni versión final.
+ *   Las clases que sobran toman la que menos veces ha sido principal (empate:
  *   la que menos en el mismo estado; luego el orden del producto).
  * Devuelve, por fase, la principal de cada clase ("" = sin principal fija).
  */
@@ -385,20 +388,25 @@ export const seccionesPrincipalesUnidad = (plan) => {
     });
   });
 
-  // Emparejamiento sección → clase (Kuhn): máximo de secciones con clase propia.
+  // Emparejamiento sección → clase (Kuhn): máximo de secciones con clase propia,
+  // primero entre las clases de borrador y versión final.
+  const esDeContenido = (estado) => /borrador|versi[oó]n final/i.test(estado);
   const duenaDe = new Map();
-  const buscar = (seccion, vistas) => {
+  const buscar = (seccion, vistas, admite) => {
     for (let r = 0; r < ranuras.length; r += 1) {
-      if (vistas.has(r) || !ranuras[r].asignadas.includes(seccion)) continue;
+      if (vistas.has(r) || !admite(ranuras[r]) || !ranuras[r].asignadas.includes(seccion)) continue;
       vistas.add(r);
-      if (!duenaDe.has(r) || buscar(duenaDe.get(r), vistas)) {
+      if (!duenaDe.has(r) || buscar(duenaDe.get(r), vistas, admite)) {
         duenaDe.set(r, seccion);
         return true;
       }
     }
     return false;
   };
-  orden.forEach((seccion) => buscar(seccion, new Set()));
+  orden.forEach((seccion) => buscar(seccion, new Set(), (ranura) => esDeContenido(ranura.estado)));
+  const conClase = new Set(duenaDe.values());
+  orden.filter((seccion) => !conClase.has(seccion))
+    .forEach((seccion) => buscar(seccion, new Set(), (ranura) => !esDeContenido(ranura.estado)));
 
   const usos = new Map();
   const cuenta = (clave) => usos.get(clave) || 0;
