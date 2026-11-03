@@ -199,16 +199,22 @@ check("Etapa 1A: cada sección de las semillas trae qué contiene y llega al con
     igual(Object.keys(s.propositos || {}), s.secciones, `propósitos de ${s.id}`);
     const textos = Object.values(s.propositos).map((t) => t.trim().toLowerCase());
     assert(textos.every(Boolean) && new Set(textos).size === textos.length, `propósitos vacíos o repetidos en ${s.id}`);
+    igual(Object.keys(s.piezas || {}), s.secciones, `piezas de ${s.id}`);
+    const piezas = Object.values(s.piezas).map((t) => t.trim().toLowerCase());
+    assert(piezas.every(Boolean) && new Set(piezas).size === piezas.length, `piezas vacías o repetidas en ${s.id}`);
   }
   igual(Object.keys(cc.propositosSecciones), escuela.secciones, "el contrato lleva los propósitos de la semilla");
+  igual(cc.piezasSecciones, escuela.piezas, "el contrato lleva las piezas visibles de la semilla");
   // Sección renombrada por el docente: pierde su propósito; las demás lo conservan.
   const otra = { ...pm, secciones: pm.secciones.map((x) => (x === "Welcome" ? "Hello" : x)) };
   const p2 = prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: otra }, mallaPayload: malla, horario });
   const c2 = construirContratoFase({ plan: p2.plan, indice: idxConContenido, estructura: p2.estructura });
   assert(!c2.propositosSecciones.Hello && !c2.propositosSecciones.Welcome, "la renombrada no tiene propósito");
+  assert(!c2.piezasSecciones.Hello && !c2.piezasSecciones.Welcome, "la renombrada no tiene pieza");
   igual(Object.keys(c2.propositosSecciones).length, escuela.secciones.length - 1, "las demás lo conservan");
   const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
   assert(/Qué contiene cada sección:/.test(faseTxt) && /SECCIONES DEL PRODUCTO: \$\{c\.secciones\.join\(' · '\)\}\.\$\{propositosTx\}/.test(faseTxt), "la IA no recibe los propósitos junto a las secciones");
+  assert(/pieza visible: \$\{piezas\[s\]\}/.test(faseTxt) && /avanza la pieza visible de su sección principal/.test(faseTxt), "la IA no recibe la pieza visible");
 });
 
 check("validador del contrato: clase que cumple pasa", () => {

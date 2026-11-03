@@ -1668,9 +1668,13 @@ AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor 
   // copiaba como un solo elemento y el contrato rechazaba el lote (Etapa D).
   const seccionesLote = Array.from({ length: count }, (_, i) =>
     `Clase ${startDia + i}: ${JSON.stringify(c.seccionesPorClase?.[startDia + i - 1] || [])}${c.seccionPrincipalPorClase?.[startDia + i - 1] ? ` — principal: «${c.seccionPrincipalPorClase[startDia + i - 1]}»` : ''}`).join('\n');
-  // Etapa 1A: qué contiene cada sección (solo las que lo traen, p. ej. las semillas).
-  const propositos = c.secciones.filter((s) => c.propositosSecciones?.[s]).map((s) => `- ${s}: ${c.propositosSecciones[s]}`);
-  const propositosTx = propositos.length ? `\nQué contiene cada sección:\n${propositos.join('\n')}` : '';
+  // Etapa 1A: qué contiene cada sección y la pieza visible que deja (solo las que lo traen, p. ej. las semillas).
+  const piezas = c.piezasSecciones || {};
+  const propositos = c.secciones.filter((s) => c.propositosSecciones?.[s] || piezas[s])
+    .map((s) => `- ${s}: ${[c.propositosSecciones?.[s], piezas[s] && `pieza visible: ${piezas[s]}`].filter(Boolean).join(' → ')}`);
+  const propositosTx = propositos.length
+    ? `\nQué contiene cada sección:\n${propositos.join('\n')}${c.secciones.some((s) => piezas[s]) ? '\nEl "aporteProducto" de una clase avanza la pieza visible de su sección principal.' : ''}`
+    : '';
   const seccionesTx = c.secciones.length
     ? `SECCIONES DEL PRODUCTO: ${c.secciones.join(' · ')}.${propositosTx}
 Esta fase lleva ${c.entrega.secciones.length ? c.entrega.secciones.join(' · ') : 'todas las secciones'} al estado «${c.entrega.estado}». Secciones que avanza CADA clase (decididas por el plan; copia la lista EXACTA en "seccionesProducto", una cadena por sección, nunca varias unidas en una):
