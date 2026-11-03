@@ -12,8 +12,9 @@
 import { readFileSync } from "node:fs";
 import {
   prellenarPlanMaestro, debePrellenarPlanMaestro, planMaestroSinTocar, estadoPlanMaestroParaGenerar,
-  resolverIndicadoresEstructurados, competenciasDeMalla, PLAN_MAESTRO_INICIAL,
+  resolverIndicadoresEstructurados, competenciasDeMalla, PLAN_MAESTRO_INICIAL, prepararPlanMaestroGeneracion,
 } from "../src/services/vistaPreviaPlanMaestroService.js";
+import { seccionesPrincipalesUnidad } from "../src/services/redaccionFaseService.js";
 import {
   fijarCampoSituacion, seccionesSugeridas, productoSugerido, borradorSituacion, validarSituacion,
 } from "../src/services/situacionAprendizajeService.js";
@@ -133,6 +134,55 @@ check("nunca pisa lo que el docente cambió", () => {
   assert(!editado.planMaestro.situacion.borrador, "lo editado deja de ser borrador");
   const otroProducto = { ...d1, titulo: "My family and friends", productoFinalTexto: "Mi álbum" };
   assert(!debePrellenarPlanMaestro(otroProducto), "producto cambiado");
+});
+
+// Etapa S3 (docs/DISENO_SECUENCIA_POR_FASES.md): con Inserción y secciones con
+// tipo de trabajo, cada fase lleva las secciones que nacen en ella.
+console.log("\n[Etapa S3 — secciones por fase de Inserción]");
+const planDe = (titulo, semanas, cambios = {}) => {
+  const h = { ...horario, semanas };
+  // Centro corto: con el nombre largo, la situación de Escuela pasa de 800 caracteres.
+  const d = prellenar({ ...base, centro: "Centro Hato Nuevo", numSemanas: semanas, titulo, temasSeleccionados: [titulo] });
+  const pm = { ...d.planMaestro, estrategia: "insercion_entorno", situacion: { ...d.planMaestro.situacion, estrategiaAlineada: "insercion_entorno" }, ...cambios };
+  return prepararPlanMaestroGeneracion({ datos: { ...d, planMaestro: pm }, mallaPayload: malla, horario: h }).plan;
+};
+const seccionesPorFase = (plan) => plan.fases.map((f) => (f.entrega.secciones.length === plan.secciones.length ? "todas" : f.entrega.secciones.join(", ")));
+const I = "Interviews with Owners", L = "Our Local Food", M = "Bilingual Menus", H = "Healthy Choices", O = "Ordering Food";
+
+check("«Alimentación» a 3 semanas reproduce la tabla aprobada", () => {
+  const plan = planDe("Alimentación", 3);
+  igual(seccionesPorFase(plan), ["todas", I, I, L, M, `${I}, ${L}`, `${H}, ${M}`, O, "todas"], "secciones por fase");
+  igual(seccionesPrincipalesUnidad(plan).flat(), ["", I, I, L, M, I, H, O, ""], "principal de cada clase");
+  igual(plan.fases.map((f) => f.entrega.estado), ["Acuerdo y plan", "Insumos recopilados", "Insumos recopilados", "Borrador", "Borrador",
+    "Versión final", "Versión final", "Versión final", "Versión revisada"], "estados del producto, como hoy");
+});
+check("«Alimentación» a 4 semanas: Healthy Choices y Ordering Food en clases distintas", () => {
+  const pr = seccionesPrincipalesUnidad(planDe("Alimentación", 4));
+  igual(pr.slice(5, 8), [[I, L], [H, M], [O, O]], "versiones finales, una clase por sección");
+});
+check("las 3 semillas a 3 y 4 semanas: toda sección es principal de alguna clase", () => {
+  for (const titulo of ["Alimentación", "Escuela y educación", "Actividades de la vida diaria"]) for (const semanas of [3, 4]) {
+    const plan = planDe(titulo, semanas);
+    const principales = seccionesPrincipalesUnidad(plan).flat();
+    plan.secciones.forEach((sec) => assert(principales.includes(sec), `${titulo} · ${semanas} sem: ${sec} sin clase propia`));
+  }
+});
+check("sin secciones de visita, instrumentos y visita reparten todas en orden (como hoy)", () => {
+  igual(seccionesPorFase(planDe("Escuela y educación", 3)).slice(1, 3),
+    ["Welcome, Important Places, School Directions", "Asking for Help, School Success Tips, Final Recommendation"], "fases 2 y 3");
+});
+check("respaldo: sin semilla, sección renombrada o estrategia sin mapa → reparto de hoy", () => {
+  igual(seccionesPorFase(planDe("My family and friends", 3)), ["todas", "My family, My Friends", "Past Experiences, Future Plans",
+    "My family, My Friends", "Past Experiences, Future Plans", "My family", "My Friends", "Past Experiences, Future Plans", "todas"], "sin semilla");
+  const renombrada = [L, I, M, "Healthy Food", O];
+  igual(seccionesPorFase(planDe("Alimentación", 3, { secciones: renombrada })),
+    seccionesPorFase(planDe("Alimentación", 3, { secciones: renombrada, tiposTrabajoSecciones: {} })), "renombrada");
+  const proyectos = (cambios) => {
+    const d = prellenar({ ...base, numSemanas: 3, titulo: "Alimentación", temasSeleccionados: ["Alimentación"] });
+    const pm = { ...d.planMaestro, estrategia: "proyectos", situacion: { ...d.planMaestro.situacion, estrategiaAlineada: "proyectos" }, ...cambios };
+    return seccionesPorFase(prepararPlanMaestroGeneracion({ datos: { ...d, planMaestro: pm }, mallaPayload: malla, horario: { ...horario, semanas: 3 } }).plan);
+  };
+  igual(proyectos(), proyectos({ tiposTrabajoSecciones: {} }), "ABProyecto sin mapa");
 });
 
 console.log(`\nModo rápido del plan maestro: ${pasos} pasos, ${fallos} fallos`);

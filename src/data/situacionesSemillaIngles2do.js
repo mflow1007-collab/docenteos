@@ -63,7 +63,7 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "School Directions": "analizar",
       "Asking for Help": "aplicar",
       "School Success Tips": "proponer",
-      "Final Recommendation": "evaluar",
+      "Final Recommendation": "proponer",
     },
     partenDe: {
       "Welcome": ["Important Places", "School Directions"],
