@@ -166,7 +166,12 @@ const asignarEntregas = (fases, producto, secciones, avisos) => {
       suyas = secciones.slice(Math.floor((k * secciones.length) / n), Math.floor(((k + 1) * secciones.length) / n));
       if (secciones.length && !suyas.length) avisos.push(`${estado} (avance ${k + 1} de ${n}): hay más avances que secciones; este avance no tiene sección propia.`);
     }
-    return { estado, texto: `${estado} de ${producto}${avance}`, secciones: [...suyas] };
+    // Avance parcial: el texto nombra sus secciones. Sin el rótulo «(avance N
+    // de M)», que no llega al aula, «Versión final de <producto>» se repetía en
+    // tres clases como si el producto entero estuviera terminado (2026-11-03).
+    const parcial = suyas.length > 0 && suyas.length < secciones.length;
+    const deQue = parcial ? `${suyas.slice(0, -1).join(", ")}${suyas.length > 1 ? " y " : ""}${suyas[suyas.length - 1]}` : producto;
+    return { estado, texto: `${estado} de ${deQue}${avance}`, secciones: [...suyas] };
   });
 };
 

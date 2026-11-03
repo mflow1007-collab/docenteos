@@ -107,6 +107,20 @@ check("una entrega del mismo producto por fase", () => {
   igual(p.fases.map((f) => f.entrega.estado), ["Acuerdo y plan", "Acuerdo y plan", "Insumos recopilados", "Borrador", "Versión final", "Versión revisada", "Presentación"], "estados");
   igual(p.fases[0].entrega.texto, `Acuerdo y plan de ${base.producto} (avance 1 de 2)`, "avance numerado");
 });
+check("avance parcial: la entrega nombra sus secciones, no el producto entero (2026-11-03)", () => {
+  const S = ["Our Local Food", "Interviews with Owners", "Bilingual Menus", "Healthy Choices", "Ordering Food"];
+  const q = plan({ estrategia: "insercion_entorno", horario: { semanas: 3, diasClase: ["Lunes", "Martes", "Miércoles"], horasPorDia: 1 }, secciones: S });
+  const parciales = q.fases.filter((f) => f.entrega.secciones.length && f.entrega.secciones.length < S.length);
+  assert(parciales.length > 0, "el plan de prueba no tiene avances parciales");
+  parciales.forEach((f) => {
+    assert(!f.entrega.texto.includes(base.producto), `fase ${f.numero} nombra el producto entero: ${f.entrega.texto}`);
+    f.entrega.secciones.forEach((sec) => assert(f.entrega.texto.includes(sec), `fase ${f.numero} no nombra ${sec}: ${f.entrega.texto}`));
+  });
+  q.fases.filter((f) => f.entrega.secciones.length === S.length)
+    .forEach((f) => assert(f.entrega.texto.includes(base.producto), `fase ${f.numero} con todas: ${f.entrega.texto}`));
+  const final = parciales.find((f) => /^Versión final de Our Local Food/.test(f.entrega.texto));
+  assert(final, `sin «Versión final de Our Local Food»: ${parciales.map((f) => f.entrega.texto).join(" | ")}`);
+});
 check("contenidos solo en conocimiento, modelado y aplicación", () => {
   p.fases.forEach((f) => {
     const n = Object.values(f.contenidos).reduce((s, l) => s + l.length, 0);

@@ -339,6 +339,12 @@ check("actividades por campos: el código arma la frase y la regla 4.4 la acepta
   igual(componerActividad({ accion: "Comparten (en plenaria) sus menús." }), "Comparten (en plenaria) sus menús.", "solo acción");
   igual(componerActividad("Frase vieja (en parejas) tal cual."), "Frase vieja (en parejas) tal cual.", "texto de unidades viejas o caché");
   igual(componerActividad({ producto: "x" }), "", "sin acción → vacía (el validador la rechaza como antes)");
+  igual(componerActividad({ accion: "Elaboran (en grupos) descripciones de platos", producto: "descripciones escritas", destino: "en la carpeta del grupo" }),
+    "Elaboran (en grupos) descripciones de platos: descripciones escritas; se guarda en la carpeta del grupo.", "destino sin verbo → «se guarda en…»");
+  igual(componerActividad({ accion: "Elaboran (en grupos) descripciones", producto: "notas", destino: "las archivan en la carpeta" }),
+    "Elaboran (en grupos) descripciones: notas; las archivan en la carpeta.", "destino con verbo no cambia");
+  const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/"destino" = dónde se recoge o se guarda, empezando con un verbo/.test(faseTxt), "la IA no recibe que el destino empiece con verbo");
   // Un lote con objetos pasa por normalizarVozBatch y llega al validador como texto
   const lote = loteFase();
   const des = lote.clases[0].momentos.find((m) => m.nombre === "Desarrollo");
