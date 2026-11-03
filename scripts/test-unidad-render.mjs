@@ -540,6 +540,7 @@ check("el rótulo «(avance N de M)» no llega al aula ni a la IA; el proyector 
   if (!/\]\.map\(sinRotuloAvance\)\.filter\(Boolean\);\s*\/\/ Sin repetir/.test(servicio)) throw new Error("los criterios de éxito conservan el rótulo");
   if (/\(\$\{c\.entrega\.texto\}\)|ENTREGA DE LA FASE: \$\{c\.entrega\.texto\}/.test(fase)) throw new Error("la IA sigue recibiendo el rótulo");
   if (/proyecci\[oó\]n\\b\/\) && tec\.size === 0/.test(servicio)) throw new Error("el proyector sigue dependiendo de que no haya otro tecnológico");
+  if (!/\\bproyector\(es\)\?\\b/.test(servicio)) throw new Error("«Proyectores» (plural) no se reconoce");
 });
 
 check("la evaluación es diagnóstica al inicio, formativa durante el proceso y sumativa solo al valorar el producto", () => {
