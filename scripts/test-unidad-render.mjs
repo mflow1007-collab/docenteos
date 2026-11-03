@@ -14,7 +14,7 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, construirPuntoPartida, construirRubricaPlan, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades, motivoProductoFinal, productoFinalDeDatos } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, construirPuntoPartida, construirRubricaPlan, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades, motivoProductoFinal, productoFinalDeDatos, sinRotuloAvance } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import {
@@ -529,6 +529,17 @@ check("avisos de redacción 4.4 solo para el administrador; el docente no los ve
   if (!/const esAdmin = esUsuarioDocenteOS\(auth\.currentUser\?\.email\)/.test(pantalla)) throw new Error("la pantalla no distingue al administrador");
   if (!/avisosGeneracion = avisosTodos\.filter\(\(texto\) => !esAvisoRedaccion\(texto\)\)/.test(pantalla)) throw new Error("el docente sigue viendo los avisos 4.4 de unidades guardadas");
   if (!/const avisosRedaccion = esAdmin/.test(pantalla)) throw new Error("los avisos de redacción no se limitan al administrador");
+});
+
+check("el rótulo «(avance N de M)» no llega al aula ni a la IA; el proyector nombrado siempre va (revisión «Alimentación», 2026-11-03)", () => {
+  if (sinRotuloAvance("Insumos recopilados de Our Healthy School Menu (avance 2 de 2)") !== "Insumos recopilados de Our Healthy School Menu") throw new Error("no quitó el rótulo");
+  if (sinRotuloAvance("Borrador del menú") !== "Borrador del menú") throw new Error("cambió un texto sin rótulo");
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  const fase = readFileSync(join(__dir, "../src/services/phaseAService.js"), "utf8");
+  if (!/producto: \(aiMom\.evidencias\?\.producto \|\| \[\]\)\.map\(sinRotuloAvance\)/.test(servicio)) throw new Error("la evidencia de producto conserva el rótulo");
+  if (!/\]\.map\(sinRotuloAvance\)\.filter\(Boolean\);\s*\/\/ Sin repetir/.test(servicio)) throw new Error("los criterios de éxito conservan el rótulo");
+  if (/\(\$\{c\.entrega\.texto\}\)|ENTREGA DE LA FASE: \$\{c\.entrega\.texto\}/.test(fase)) throw new Error("la IA sigue recibiendo el rótulo");
+  if (/proyecci\[oó\]n\\b\/\) && tec\.size === 0/.test(servicio)) throw new Error("el proyector sigue dependiendo de que no haya otro tecnológico");
 });
 
 check("la evaluación es diagnóstica al inicio, formativa durante el proceso y sumativa solo al valorar el producto", () => {

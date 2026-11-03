@@ -120,7 +120,7 @@ check("sin semilla no hay ampliación: fase con contenido sin contenidos → err
 const semilla1 = cc.semilla.vocabulario[0] || cc.semilla.gramatica[0];
 const claseOk = (extra = {}) => ({
   focoLinguistico: `${semilla1} + It's next to the library`,
-  aporteProducto: `Sección «${cc.seccionPrincipalPorClase[0]}»: mapa etiquetado de la escuela`,
+  aporteProducto: `Sección «${cc.seccionPrincipalPorClase[0] || cc.seccionesPorClase[0][0]}»: mapa etiquetado de la escuela`,
   seccionesProducto: cc.seccionesPorClase[0],
   semillaUsada: [semilla1],
   ampliacion: [{ texto: "It's next to the library", tipo: "expresion", seccion: "Important Places" }],
@@ -130,7 +130,7 @@ const claseOk = (extra = {}) => ({
 // Clase k de la fase (0 = primera) con sus secciones asignadas.
 const claseDe = (k, extra = {}) => claseOk({
   seccionesProducto: cc.seccionesPorClase[k],
-  aporteProducto: `Sección «${cc.seccionPrincipalPorClase[k]}»: pieza de la clase ${k + 1}`,
+  aporteProducto: `Sección «${cc.seccionPrincipalPorClase[k] || cc.seccionesPorClase[k][0]}»: pieza de la clase ${k + 1}`,
   ...extra,
 });
 
@@ -154,15 +154,19 @@ check("sección principal por clase: con una clase por fase, ninguna sección qu
     fase("Versión revisada", S),
   ] };
   const principales = seccionesPrincipalesUnidad(plan).flat();
-  igual(principales.length, 9, "una principal por clase");
+  igual(principales.length, 9, "una posición por clase");
   S.forEach((sec) => { if (!principales.includes(sec)) throw new Error(`«${sec}» nunca es principal: ${principales.join(" · ")}`); });
+  // Solo se fija donde la clase avanza una parte; las que avanzan todas quedan libres
+  igual([principales[0], principales[1], principales[2], principales[8]], ["", "", "", ""], "clases con todas las secciones sin principal");
+  // Emparejamiento: cada sección en una clase distinta (antes el orden dejaba fuera una)
+  igual(principales.slice(3, 8), ["Interviews with Owners", "Ordering Food", "Our Local Food", "Bilingual Menus", "Healthy Choices"], "reparto con cobertura");
   seccionesPrincipalesUnidad(plan).forEach((p, i) => p.forEach((sec) => {
-    if (!plan.fases[i].entrega.secciones.includes(sec)) throw new Error(`fase ${i + 1}: «${sec}» no está asignada a la fase`);
+    if (sec && !plan.fases[i].entrega.secciones.includes(sec)) throw new Error(`fase ${i + 1}: «${sec}» no está asignada a la fase`);
   }));
   igual(seccionesPrincipalesUnidad({ secciones: [], fases: [fase("Borrador", [])] }), [[""]], "sin secciones");
   // El contrato la lleva y el validador exige que el aporte la nombre
   igual(cc.seccionPrincipalPorClase.length, cc.sesiones, "contrato con principal por clase");
-  const otra = cc.seccionesPorClase[0].find((x) => x !== cc.seccionPrincipalPorClase[0]);
+  const otra = cc.seccionPrincipalPorClase[0] && cc.seccionesPorClase[0].find((x) => x !== cc.seccionPrincipalPorClase[0]);
   if (otra) lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: `Sección «${otra}»: pieza` })] }, cc, 1, 1), /sección principal/, "aporte con otra sección");
 });
 

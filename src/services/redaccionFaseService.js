@@ -363,27 +363,59 @@ export const repartirSeccionesClases = (secciones, sesiones) => {
  * Sección PRINCIPAL de cada clase, mirando toda la unidad (aprobado por César,
  * 2026-11-03): con una clase por fase, la clase recibía varias secciones y su
  * aporte nombraba solo una, así que una sección («Healthy Choices») nunca se
- * trabajó. En orden de clases se elige, entre las asignadas, la que menos veces
- * ha sido principal (empate: la que menos en el mismo estado; luego el orden del
- * producto). Devuelve, por fase, la principal de cada clase ("" sin secciones).
+ * trabajó.
+ * - Solo se fija en las clases que avanzan una PARTE de las secciones; en las
+ *   que avanzan todas (acuerdo y plan, insumos, revisión) el aporte nombra la
+ *   que de verdad trabaja (antes la rotación a ciegas etiquetaba mal la clase 1).
+ * - Primero se empareja cada sección con una clase distinta (caminos de
+ *   aumento), para que ninguna quede sin clase propia si el reparto lo permite;
+ *   las clases que sobran toman la que menos veces ha sido principal (empate:
+ *   la que menos en el mismo estado; luego el orden del producto).
+ * Devuelve, por fase, la principal de cada clase ("" = sin principal fija).
  */
 export const seccionesPrincipalesUnidad = (plan) => {
   const orden = plan?.secciones || [];
-  const usos = new Map();
-  const cuenta = (clave) => usos.get(clave) || 0;
-  return (plan?.fases || []).map((fase) => {
+  const ranuras = [];
+  const resultado = (plan?.fases || []).map((fase) => {
     const estado = fase.entrega?.estado || "";
     return repartirSeccionesClases(fase.entrega?.secciones || [], fase.sesiones).map((asignadas) => {
-      if (!asignadas.length) return "";
-      const principal = [...asignadas].sort((a, b) =>
-        cuenta(a) - cuenta(b)
-        || cuenta(`${estado}|${a}`) - cuenta(`${estado}|${b}`)
-        || orden.indexOf(a) - orden.indexOf(b))[0];
-      usos.set(principal, cuenta(principal) + 1);
-      usos.set(`${estado}|${principal}`, cuenta(`${estado}|${principal}`) + 1);
-      return principal;
+      const parcial = asignadas.length > 0 && asignadas.length < orden.length;
+      if (parcial) ranuras.push({ asignadas, estado, principal: "" });
+      return parcial ? ranuras[ranuras.length - 1] : null;
     });
   });
+
+  // Emparejamiento sección → clase (Kuhn): máximo de secciones con clase propia.
+  const duenaDe = new Map();
+  const buscar = (seccion, vistas) => {
+    for (let r = 0; r < ranuras.length; r += 1) {
+      if (vistas.has(r) || !ranuras[r].asignadas.includes(seccion)) continue;
+      vistas.add(r);
+      if (!duenaDe.has(r) || buscar(duenaDe.get(r), vistas)) {
+        duenaDe.set(r, seccion);
+        return true;
+      }
+    }
+    return false;
+  };
+  orden.forEach((seccion) => buscar(seccion, new Set()));
+
+  const usos = new Map();
+  const cuenta = (clave) => usos.get(clave) || 0;
+  const usar = (ranura, seccion) => {
+    ranura.principal = seccion;
+    usos.set(seccion, cuenta(seccion) + 1);
+    usos.set(`${ranura.estado}|${seccion}`, cuenta(`${ranura.estado}|${seccion}`) + 1);
+  };
+  duenaDe.forEach((seccion, r) => usar(ranuras[r], seccion));
+  ranuras.forEach((ranura) => {
+    if (ranura.principal) return;
+    usar(ranura, [...ranura.asignadas].sort((x, y) =>
+      cuenta(x) - cuenta(y)
+      || cuenta(`${ranura.estado}|${x}`) - cuenta(`${ranura.estado}|${y}`)
+      || orden.indexOf(x) - orden.indexOf(y))[0]);
+  });
+  return resultado.map((clases) => clases.map((ranura) => ranura?.principal || ""));
 };
 
 /** Códigos que la IA puede usar en "indicadoresTrabajados" en esta fase. */
