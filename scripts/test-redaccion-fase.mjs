@@ -190,10 +190,8 @@ check("tema repetido: solo palabras completas («retroalimentación» no es «al
   igual(contienePalabras("vida diaria", "vida diaria"), true, "tema de dos palabras");
   igual(contienePalabras("texto", ""), false, "tema vacío");
   const fase = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
-  if (!/25-35 palabras, CONTADAS/.test(fase)) throw new Error("la regla del largo no pide contar");
-  const ej = (fase.match(/Bien \((\d+) palabras\): "([^"]+)"/) || []);
-  igual(ej[2]?.split(/\s+/).length, Number(ej[1]), "el ejemplo bueno tiene las palabras que dice");
-  if (!(Number(ej[1]) >= 25 && Number(ej[1]) <= 35)) throw new Error(`el ejemplo bueno tiene ${ej[1]} palabras`);
+  if (!/es un OBJETO de tres partes que el sistema une en una frase de 25-35 palabras/.test(fase)) throw new Error("la IA no recibe el formato por campos");
+  if (!/"actividades":\[\{"accion":"Verbo \(organización, técnica\) \.\.\.","producto":"\.\.\.","destino":"\.\.\."\}/.test(fase)) throw new Error("el esquema JSON no pide objetos");
 });
 
 check("validador del contrato: clase que cumple pasa", () => {
@@ -322,8 +320,34 @@ const loteFase = (over = {}) => ({
   }],
 });
 
-const { validateBatch } = await import("../src/services/phaseAService.js");
+const { validateBatch, componerActividad, normalizarVozBatch } = await import("../src/services/phaseAService.js");
+
+
 const optsFase = { semanaNum: cc.numero, indicadoresPermitidos: indicadoresPermitidosFase(cc), contratoFase: cc, startDia: 1, esIdioma: true };
+
+check("actividades por campos: el código arma la frase y la regla 4.4 la acepta (2026-11-03)", () => {
+  const frase = componerActividad({
+    accion: "Elaboran (en equipos) un plano de la escuela con los lugares que necesita un estudiante nuevo",
+    producto: "Un plano rotulado que explican oralmente a otro equipo.",
+    destino: "lo pegan en su sección",
+  });
+  igual(frase, "Elaboran (en equipos) un plano de la escuela con los lugares que necesita un estudiante nuevo: un plano rotulado que explican oralmente a otro equipo; lo pegan en su sección.", "frase armada");
+  assert(frase.split(/\s+/).length >= 25, `solo ${frase.split(/\s+/).length} palabras`);
+  igual(motivoRedaccionActividad(frase), "", "la frase armada cumple la regla 4.4");
+  igual(componerActividad({ accion: "Comparten (en plenaria) sus menús", producto: "lista de mejoras" }, "Bilingual Menus"),
+    "Comparten (en plenaria) sus menús: lista de mejoras; se archiva en la sección «Bilingual Menus».", "sin destino → la sección");
+  igual(componerActividad({ accion: "Comparten (en plenaria) sus menús." }), "Comparten (en plenaria) sus menús.", "solo acción");
+  igual(componerActividad("Frase vieja (en parejas) tal cual."), "Frase vieja (en parejas) tal cual.", "texto de unidades viejas o caché");
+  igual(componerActividad({ producto: "x" }), "", "sin acción → vacía (el validador la rechaza como antes)");
+  // Un lote con objetos pasa por normalizarVozBatch y llega al validador como texto
+  const lote = loteFase();
+  const des = lote.clases[0].momentos.find((m) => m.nombre === "Desarrollo");
+  des.actividades = des.actividades.map((a) => ({ accion: a.replace(/\.$/, ""), producto: "una pieza escrita revisada", destino: "la guardan en su sección" }));
+  assert(des.actividades.every((a) => typeof a === "object"), "el lote de prueba no tiene objetos");
+  normalizarVozBatch(lote);
+  assert(des.actividades.every((a) => typeof a === "string" && /: una pieza escrita revisada; la guardan en su sección\.$/.test(a)), `no se armaron: ${JSON.stringify(des.actividades)}`);
+  validateBatch(lote, 45, 1, [], optsFase);
+});
 
 check("phaseA: un lote que cumple el contrato pasa y el foco ya no se exige literal de la malla", () => {
   validateBatch(loteFase(), 45, 1, [], optsFase);
