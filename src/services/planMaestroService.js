@@ -291,6 +291,7 @@ const repartirContenidos = (contenidosPorTema, numFasesContenido) => {
  * @param {{tema:string, vocabulario?:string[], gramatica?:string[], expresiones?:string[], funcionales?:string[]}[]} entrada.contenidosPorTema
  * @param {string[]} [entrada.secciones] - secciones del producto (regla 4.7); sin ellas, las entregas no nombran secciones.
  * @param {Object<string,string>} [entrada.propositosSecciones] - sección → qué contiene (Etapa 1A); solo se guardan las de secciones presentes.
+ * @param {Object<string,string>} [entrada.piezasSecciones] - sección → pieza visible que deja en el producto; igual que los propósitos.
  * @param {{unir?:number[][], subdividir?:Object<number,number>, sesionesPorFase?:number[]}} [entrada.ajustes]
  *   Números de fase = posición en la Guía (1 = primera fase impresa).
  */
@@ -305,6 +306,7 @@ export const construirPlanMaestro = ({
   contenidosPorTema,
   secciones = [],
   propositosSecciones = {},
+  piezasSecciones = {},
   ajustes = {},
 } = {}) => {
   const datosEstrategia = ESTRATEGIAS_FASES_GUIA_2025.find((e) => e.clave === estrategia);
@@ -368,6 +370,8 @@ export const construirPlanMaestro = ({
     secciones: seccionesLimpias,
     propositosSecciones: Object.fromEntries(seccionesLimpias
       .map((s) => [s, String(propositosSecciones?.[s] || "").trim()]).filter(([, t]) => t)),
+    piezasSecciones: Object.fromEntries(seccionesLimpias
+      .map((s) => [s, String(piezasSecciones?.[s] || "").trim()]).filter(([, t]) => t)),
     temas: contenidosPorTema.map((c) => c.tema),
     horario: { semanas, diasClase: [...diasClase], horasPorDia, totalSesiones },
     fases: fasesPlan,

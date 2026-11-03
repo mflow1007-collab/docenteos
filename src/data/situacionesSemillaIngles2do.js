@@ -13,6 +13,8 @@
  * situacionAprendizajeService.js). `secciones` = secciones del producto (4.7);
  * `propositos` = qué contiene cada una, por nombre (Etapa 1A de
  * docs/DISENO_APRENDIZAJE_DOCENTEOS.md): la IA lo recibe junto al nombre.
+ * `piezas` = la pieza visible que cada sección deja en el producto (auditoría
+ * de «Alimentación», 2026-11-03); el "aporteProducto" de la clase la avanza.
  * Lugar (regla de César, 2026-10-29): `{centro}` = el centro donde el docente
  * imparte docencia (dato del formulario); `{comunidad}` solo cuando la
  * situación ocurre fuera del centro (rasgos.contexto = "comunidad").
@@ -43,6 +45,14 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "School Success Tips": "consejos para adaptarse y que les vaya bien (horario, normas, hábitos)",
       "Final Recommendation": "el mensaje de cierre del grupo al recién llegado (la recomendación principal)",
     },
+    piezas: {
+      "Welcome": "una carta de bienvenida breve, firmada por el grupo",
+      "Important Places": "fichas de cada lugar (nombre en inglés, dibujo o foto, para qué sirve)",
+      "School Directions": "el plano del centro con las rutas y las indicaciones escritas",
+      "Asking for Help": "una tarjeta de bolsillo con frases para pedir ayuda y a quién acudir",
+      "School Success Tips": "un póster «Top tips» con los consejos",
+      "Final Recommendation": "un párrafo de cierre del grupo para el recién llegado",
+    },
   },
   {
     id: "ing2-rutinas-plan",
@@ -65,6 +75,13 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "Our Healthy Schedule": "el horario equilibrado que proponemos (escuela, casa, descanso)",
       "Tips for Families": "cómo pueden las familias apoyar ese horario (consejos dirigidos a ellas)",
     },
+    piezas: {
+      "Our Daily Routines": "la línea de tiempo de un día típico de cada estudiante",
+      "What We Found": "un gráfico de barras con los resultados de la encuesta y frases que lo explican",
+      "Problems and Causes": "una tabla problema → causa",
+      "Our Healthy Schedule": "el horario semanal equilibrado",
+      "Tips for Families": "un folleto de consejos para las familias",
+    },
   },
   {
     id: "ing2-alimentacion-menu",
@@ -86,6 +103,13 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "Bilingual Menus": "los menús en español e inglés: nombre, descripción y precio de cada plato",
       "Healthy Choices": "qué platos y alimentos recomendamos y por qué (alternativas más sanas)",
       "Ordering Food": "cómo pedir esos platos en inglés (diálogos de pedido entre cliente y dueño)",
+    },
+    piezas: {
+      "Our Local Food": "fichas de los platos típicos (nombre, ingredientes principales, dibujo o foto)",
+      "Interviews with Owners": "entrevistas transcritas (preguntas y respuestas de cada dueño)",
+      "Bilingual Menus": "el menú bilingüe de cada comedor (plato, descripción, precio)",
+      "Healthy Choices": "etiquetas «Healthy pick» junto a los platos del menú, cada una con su razón y la alternativa más sana",
+      "Ordering Food": "un diálogo de pedido modelo (cliente–dueño), listo para practicar",
     },
   },
 ];
