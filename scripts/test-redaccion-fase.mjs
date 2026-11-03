@@ -194,6 +194,23 @@ check("tema repetido: solo palabras completas («retroalimentación» no es «al
   if (!/"actividades":\[\{"accion":"Verbo \(organización, técnica\) \.\.\.","producto":"\.\.\.","destino":"\.\.\."\}/.test(fase)) throw new Error("el esquema JSON no pide objetos");
 });
 
+check("Etapa 1A: cada sección de las semillas trae qué contiene y llega al contrato", () => {
+  for (const s of SEMILLAS) {
+    igual(Object.keys(s.propositos || {}), s.secciones, `propósitos de ${s.id}`);
+    const textos = Object.values(s.propositos).map((t) => t.trim().toLowerCase());
+    assert(textos.every(Boolean) && new Set(textos).size === textos.length, `propósitos vacíos o repetidos en ${s.id}`);
+  }
+  igual(Object.keys(cc.propositosSecciones), escuela.secciones, "el contrato lleva los propósitos de la semilla");
+  // Sección renombrada por el docente: pierde su propósito; las demás lo conservan.
+  const otra = { ...pm, secciones: pm.secciones.map((x) => (x === "Welcome" ? "Hello" : x)) };
+  const p2 = prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: otra }, mallaPayload: malla, horario });
+  const c2 = construirContratoFase({ plan: p2.plan, indice: idxConContenido, estructura: p2.estructura });
+  assert(!c2.propositosSecciones.Hello && !c2.propositosSecciones.Welcome, "la renombrada no tiene propósito");
+  igual(Object.keys(c2.propositosSecciones).length, escuela.secciones.length - 1, "las demás lo conservan");
+  const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/Qué contiene cada sección:/.test(faseTxt) && /SECCIONES DEL PRODUCTO: \$\{c\.secciones\.join\(' · '\)\}\.\$\{propositosTx\}/.test(faseTxt), "la IA no recibe los propósitos junto a las secciones");
+});
+
 check("validador del contrato: clase que cumple pasa", () => {
   validarLoteContrato({ clases: [claseOk()] }, cc, 1, 1);
 });

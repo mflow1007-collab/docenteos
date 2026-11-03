@@ -339,6 +339,7 @@ export const construirContratoFase = ({ plan, indice, estructura }) => {
     seccionesPorClase: repartirSeccionesClases(fase.entrega.secciones, fase.sesiones),
     seccionPrincipalPorClase: seccionesPrincipalesUnidad(plan)[indice],
     secciones: [...(plan.secciones || [])],
+    propositosSecciones: { ...(plan.propositosSecciones || {}) },
     producto: plan.producto,
     estrategia: plan.estrategia.nombre,
     indicadores,
