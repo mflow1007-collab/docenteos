@@ -15,6 +15,10 @@
  * docs/DISENO_APRENDIZAJE_DOCENTEOS.md): la IA lo recibe junto al nombre.
  * `piezas` = la pieza visible que cada sección deja en el producto (auditoría
  * de «Alimentación», 2026-11-03); el "aporteProducto" de la clase la avanza.
+ * `tiposTrabajo` = el tipo de trabajo que construye cada sección (uno de
+ * TIPOS_TRABAJO, rolesFasesEstrategias.js) y `partenDe` = de qué secciones de
+ * la misma semilla se alimenta, siempre de fase igual o anterior (Etapa S2 de
+ * docs/DISENO_SECUENCIA_POR_FASES.md, aprobada por César el 2026-11-03).
  * Lugar (regla de César, 2026-10-29): `{centro}` = el centro donde el docente
  * imparte docencia (dato del formulario); `{comunidad}` solo cuando la
  * situación ocurre fuera del centro (rasgos.contexto = "comunidad").
@@ -53,6 +57,22 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "School Success Tips": "un póster «Top tips» con los consejos",
       "Final Recommendation": "un párrafo de cierre del grupo para el recién llegado",
     },
+    tiposTrabajo: {
+      "Welcome": "socializar",
+      "Important Places": "describir",
+      "School Directions": "analizar",
+      "Asking for Help": "aplicar",
+      "School Success Tips": "proponer",
+      "Final Recommendation": "evaluar",
+    },
+    partenDe: {
+      "Welcome": ["Important Places", "School Directions"],
+      "Important Places": [],
+      "School Directions": ["Important Places"],
+      "Asking for Help": ["Important Places"],
+      "School Success Tips": ["Important Places", "School Directions"],
+      "Final Recommendation": ["Welcome", "School Success Tips"],
+    },
   },
   {
     id: "ing2-rutinas-plan",
@@ -82,6 +102,20 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "Our Healthy Schedule": "el horario semanal equilibrado",
       "Tips for Families": "un folleto de consejos para las familias",
     },
+    tiposTrabajo: {
+      "Our Daily Routines": "describir",
+      "What We Found": "analizar",
+      "Problems and Causes": "analizar",
+      "Our Healthy Schedule": "proponer",
+      "Tips for Families": "aplicar",
+    },
+    partenDe: {
+      "Our Daily Routines": [],
+      "What We Found": ["Our Daily Routines"],
+      "Problems and Causes": ["What We Found"],
+      "Our Healthy Schedule": ["Problems and Causes", "Our Daily Routines"],
+      "Tips for Families": ["Our Healthy Schedule"],
+    },
   },
   {
     id: "ing2-alimentacion-menu",
@@ -110,6 +144,20 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "Bilingual Menus": "el menú bilingüe de cada comedor (plato, descripción, precio)",
       "Healthy Choices": "etiquetas «Healthy pick» junto a los platos del menú, cada una con su razón y la alternativa más sana",
       "Ordering Food": "un diálogo de pedido modelo (cliente–dueño), listo para practicar",
+    },
+    tiposTrabajo: {
+      "Our Local Food": "describir",
+      "Interviews with Owners": "visitar",
+      "Bilingual Menus": "analizar",
+      "Healthy Choices": "proponer",
+      "Ordering Food": "aplicar",
+    },
+    partenDe: {
+      "Our Local Food": ["Interviews with Owners"],
+      "Interviews with Owners": [],
+      "Bilingual Menus": ["Our Local Food"],
+      "Healthy Choices": ["Bilingual Menus", "Interviews with Owners"],
+      "Ordering Food": ["Bilingual Menus", "Healthy Choices"],
     },
   },
 ];

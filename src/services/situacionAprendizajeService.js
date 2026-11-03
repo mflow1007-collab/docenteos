@@ -392,9 +392,11 @@ export const usarSemilla = (pm, semilla, { centro = "" } = {}) => alinearSiNoHay
   ...pm, situacion: situacionDesdeSemilla(semilla, { centro }), secciones: [...semilla.secciones],
   propositosSecciones: { ...(semilla.propositos || {}) },
   piezasSecciones: { ...(semilla.piezas || {}) },
+  tiposTrabajoSecciones: { ...(semilla.tiposTrabajo || {}) },
+  partenDeSecciones: Object.fromEntries(Object.entries(semilla.partenDe || {}).map(([s, de]) => [s, [...de]])),
 });
 
-export const escribirSituacionPropia = (pm) => alinearSiNoHay({ ...pm, situacion: situacionVacia(), secciones: [], propositosSecciones: {}, piezasSecciones: {} });
+export const escribirSituacionPropia = (pm) => alinearSiNoHay({ ...pm, situacion: situacionVacia(), secciones: [], propositosSecciones: {}, piezasSecciones: {}, tiposTrabajoSecciones: {}, partenDeSecciones: {} });
 
 export const aceptarRealineacion = (pm) => ({
   ...pm, situacion: { ...pm.situacion, estrategiaAlineada: pm.estrategia, rolPropio: "" },

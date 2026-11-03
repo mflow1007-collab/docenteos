@@ -29,7 +29,7 @@
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import {
   ROLES_FASES_POR_ESTRATEGIA, ROL_POR_ACCION, PESO_SESIONES_POR_ROL,
-  ENTREGA_POR_ROL, ROLES_CON_CONTENIDO, rolesDeFaseGuia,
+  ENTREGA_POR_ROL, ROLES_CON_CONTENIDO, rolesDeFaseGuia, TIPOS_TRABAJO,
 } from "../data/rolesFasesEstrategias.js";
 
 const CATEGORIAS_CONTENIDO = ["vocabulario", "gramatica", "expresiones", "funcionales"];
@@ -292,6 +292,8 @@ const repartirContenidos = (contenidosPorTema, numFasesContenido) => {
  * @param {string[]} [entrada.secciones] - secciones del producto (regla 4.7); sin ellas, las entregas no nombran secciones.
  * @param {Object<string,string>} [entrada.propositosSecciones] - sección → qué contiene (Etapa 1A); solo se guardan las de secciones presentes.
  * @param {Object<string,string>} [entrada.piezasSecciones] - sección → pieza visible que deja en el producto; igual que los propósitos.
+ * @param {Object<string,string>} [entrada.tiposTrabajoSecciones] - sección → tipo de trabajo (Etapa S2); solo tipos de TIPOS_TRABAJO y secciones presentes. Aún no cambia el reparto (Etapa S3).
+ * @param {Object<string,string[]>} [entrada.partenDeSecciones] - sección → secciones de las que parte; solo secciones presentes.
  * @param {{unir?:number[][], subdividir?:Object<number,number>, sesionesPorFase?:number[]}} [entrada.ajustes]
  *   Números de fase = posición en la Guía (1 = primera fase impresa).
  */
@@ -307,6 +309,8 @@ export const construirPlanMaestro = ({
   secciones = [],
   propositosSecciones = {},
   piezasSecciones = {},
+  tiposTrabajoSecciones = {},
+  partenDeSecciones = {},
   ajustes = {},
 } = {}) => {
   const datosEstrategia = ESTRATEGIAS_FASES_GUIA_2025.find((e) => e.clave === estrategia);
@@ -372,6 +376,11 @@ export const construirPlanMaestro = ({
       .map((s) => [s, String(propositosSecciones?.[s] || "").trim()]).filter(([, t]) => t)),
     piezasSecciones: Object.fromEntries(seccionesLimpias
       .map((s) => [s, String(piezasSecciones?.[s] || "").trim()]).filter(([, t]) => t)),
+    tiposTrabajoSecciones: Object.fromEntries(seccionesLimpias
+      .map((s) => [s, tiposTrabajoSecciones?.[s]]).filter(([, t]) => TIPOS_TRABAJO.includes(t))),
+    partenDeSecciones: Object.fromEntries(seccionesLimpias
+      .map((s) => [s, [].concat(partenDeSecciones?.[s] || []).filter((d) => d !== s && seccionesLimpias.includes(d))])
+      .filter(([, de]) => de.length)),
     temas: contenidosPorTema.map((c) => c.tema),
     horario: { semanas, diasClase: [...diasClase], horasPorDia, totalSesiones },
     fases: fasesPlan,
