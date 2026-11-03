@@ -614,15 +614,36 @@ export function normalizarVozActividadMINERD(texto) {
   return original;
 }
 
-function normalizarVozBatch(data) {
+// Actividades por campos (aprobado por César, 2026-11-03): pedida como una
+// frase de 25-35 palabras, la IA no pasaba de 24 (mediana 17-18). Ahora entrega
+// {accion, producto, destino} y el código arma la frase; todo lo que lee
+// actividades (validadores 4.4, pantalla, PDF, banco) sigue recibiendo texto.
+// Una frase suelta (unidades viejas, caché) se acepta tal cual.
+const sinPuntoFinal = (t) => String(t ?? '').trim().replace(/[\s.;:,]+$/, '');
+const conMinuscula = (t) => t.replace(/^\p{Lu}(?!\p{Lu})/u, (c) => c.toLowerCase());
+export const componerActividad = (actividad, seccion = '') => {
+  if (typeof actividad === 'string') return actividad;
+  if (!actividad || typeof actividad !== 'object') return String(actividad ?? '');
+  const accion = sinPuntoFinal(actividad.accion || actividad.texto);
+  if (!accion) return '';
+  const producto = conMinuscula(sinPuntoFinal(actividad.producto));
+  let destino = conMinuscula(sinPuntoFinal(actividad.destino));
+  if (!destino && producto && seccion) destino = `se archiva en la sección «${seccion}»`;
+  return `${accion}${producto ? `: ${producto}` : ''}${destino ? `; ${destino}` : ''}.`;
+};
+
+export function normalizarVozBatch(data) {
   if (!data?.clases || !Array.isArray(data.clases)) return data;
   for (const clase of data.clases) {
     for (const campo of ['retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
       if (clase?.[campo]) clase[campo] = normalizarVozActividadMINERD(clase[campo]);
     }
+    const seccion = Array.isArray(clase?.seccionesProducto) ? String(clase.seccionesProducto[0] || '') : '';
     for (const momento of (clase?.momentos || [])) {
       if (Array.isArray(momento.actividades)) {
-        momento.actividades = momento.actividades.map(normalizarVozActividadMINERD);
+        momento.actividades = momento.actividades
+          .map((a) => componerActividad(a, seccion))
+          .map(normalizarVozActividadMINERD);
       }
       momento.evidencias = normalizarEvidenciasMomento(momento.evidencias, momento.nombre, momento.actividades || []);
     }
@@ -1700,10 +1721,10 @@ REGLAS:
 3. REDACCIÓN DEL DESARROLLO Y DEL CIERRE (regla 4.4 de César; el validador rechaza la fase si no se cumplen a, b y el verbo del Cierre):
    a) Empieza con UN verbo en 3ª persona plural del presente tomado SOLO de estas listas — de esta fase: ${verbosFase}${verbosIdioma ? `; de idioma: ${verbosIdioma}` : ''}; de gestión de la clase: ${VERBOS_GESTION.join(', ')}. Otro verbo (Participan, Realizan, Colaboran, Discuten, Reciben…) = rechazo.
    b) Justo después del verbo, entre paréntesis, la organización y la técnica si la hay: "Representan (en parejas, juego de roles) …", "Elaboran (en equipos) …". Si es individual, sin paréntesis. La organización ("en parejas", "en equipos", "en grupos", "en plenaria") va SIEMPRE primero en ese paréntesis; si después el trabajo cambia de agrupación, puede nombrarse en la frase: "Comparten (en parejas) sus fichas y luego eligen en plenaria la mejor…".
-   c) Actividad sintetizada de 25-35 palabras, CONTADAS (menos de 25 es demasiado corta y ninguna del Desarrollo puede quedarse en una línea): acción con sus recursos, evidencia, condiciones (oral/escrita, entrega) y dónde se recoge. Corta (10 palabras, NO): "Elaboran (en equipos) un plano de la escuela usando colores." Bien (31 palabras): "Elaboran (en equipos) un plano de la escuela con los lugares que necesita un estudiante nuevo, rotulan cada lugar, lo explican oralmente a otro equipo y lo pegan en su sección."
+   c) Cada actividad del Desarrollo y del Cierre es un OBJETO de tres partes que el sistema une en una frase de 25-35 palabras: "accion" = verbo + paréntesis + lo que hacen con sus recursos (12-20 palabras; a, b, d y e se cumplen aquí); "producto" = lo que queda o se observa al terminar, con su condición oral o escrita (6-12 palabras); "destino" = dónde se recoge o se guarda (3-8 palabras). Ninguna de las tres va vacía.
    d) Si trabaja lengua concreta, menciona solo 1 o 2 expresiones${idioma ? ` en ${idioma}` : ''} en cursiva y con puntos suspensivos: "…piden y ofrecen ayuda para ubicarse (_Excuse me, could you help me?_, _It's next to the gym_…) y graban el diálogo."
    e) PROHIBIDO empezar con "Los estudiantes", "El docente", "Se" o con etiquetas ("Reflexión:"). No repitas el tema ni el nombre del producto entre actividades: usa elementos concretos (el plano de la escuela, el estudiante nuevo).
-   Ejemplo: "Representan (en parejas, juego de roles) la llegada de un estudiante nuevo: piden y ofrecen ayuda para ubicarse en la escuela (_Excuse me, could you help me?_…) y graban el diálogo en el celular del equipo."
+   Ejemplo: {"accion":"Representan (en parejas, juego de roles) la llegada de un estudiante nuevo pidiendo y ofreciendo ayuda para ubicarse en la escuela (_Excuse me, could you help me?_…)","producto":"un diálogo oral grabado con al menos tres indicaciones","destino":"lo guardan en el celular del equipo"} → el sistema escribe «Representan (…) …: un diálogo oral grabado…; lo guardan en el celular del equipo.»
    El Inicio sigue su formato canónico (punto 5), con sus excepciones "Retroalimentación de…" y "Recuperación de saberes previos…".
 4. ${desarrolloTx} Solo UNA tarea de alta carga por clase.
    Cierre: 3 actividades con la misma redacción (punto 3), por su función y sin fórmulas fijas: compartir lo producido → retroalimentación, coevaluación o autoevaluación sobre UN aspecto concreto → mejora de la pieza y dónde se archiva en su sección. Al menos una empieza con un verbo Autónomo o Estratégico (${verbosCierre}…).
@@ -1716,7 +1737,7 @@ REGLAS:
 11. ${spec.esIdioma ? `"textoModelo": {"tipo":"dialogo|texto","titulo":"...","lineas":["..."]} breve en ${idioma}, para la sección que se avanza.` : 'Sin "textoModelo".'}
 12. El lote incluye "adaptacionesSemana" {"acceso","metodologicas","evaluacion"} y "observacionesSemana", ligadas al trabajo de ESTA fase (nunca genéricas).
 
-{"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Verbo (organización, técnica) ...","...","...","..."],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":[{"accion":"Verbo (organización, técnica) ...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":[{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote con rotación de proveedores ───────────────────────
