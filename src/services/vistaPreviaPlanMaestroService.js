@@ -126,6 +126,8 @@ export const armarEntradaPlanMaestro = ({ datos = {}, mallaPayload } = {}) => {
     secciones: pm.secciones || [],
     propositosSecciones: pm.propositosSecciones || {},
     piezasSecciones: pm.piezasSecciones || {},
+    tiposTrabajoSecciones: pm.tiposTrabajoSecciones || {},
+    partenDeSecciones: pm.partenDeSecciones || {},
     ajustes: {
       unir: pm.unir,
       subdividir: pm.subdividir,
@@ -302,7 +304,7 @@ export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencia
     pm = usarSemilla(pm, semilla, { centro: datos.centro });
     producto = producto || semilla.producto.nombre;
   } else {
-    pm = { ...pm, situacion: borradorSituacion(datos), secciones: seccionesSugeridas(datos), propositosSecciones: {}, piezasSecciones: {} };
+    pm = { ...pm, situacion: borradorSituacion(datos), secciones: seccionesSugeridas(datos), propositosSecciones: {}, piezasSecciones: {}, tiposTrabajoSecciones: {}, partenDeSecciones: {} };
     producto = producto || productoSugerido(datos);
   }
   const rec = recomendarEstrategia(pm.situacion.rasgos);

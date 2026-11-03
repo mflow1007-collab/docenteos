@@ -21,6 +21,7 @@ import {
   motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro,
 } from "../src/services/redaccionFaseService.js";
 import { SITUACIONES_SEMILLA_INGLES_2DO as SEMILLAS } from "../src/data/situacionesSemillaIngles2do.js";
+import { TIPOS_TRABAJO } from "../src/data/rolesFasesEstrategias.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS as IND, recomponerIndicador } from "../src/data/indicadoresIngles2doEstructurados.js";
 
 let pasos = 0, fallos = 0;
@@ -194,6 +195,32 @@ check("tema repetido: solo palabras completas («retroalimentación» no es «al
   if (!/"actividades":\[\{"accion":"Verbo \(organización, técnica\) \.\.\.","producto":"\.\.\.","destino":"\.\.\."\}/.test(fase)) throw new Error("el esquema JSON no pide objetos");
 });
 
+// Etapa S2 (docs/DISENO_SECUENCIA_POR_FASES.md): tipo de trabajo y «parte de» por sección.
+// TIPOS_TRABAJO va en el orden de las fases de Inserción: una sección solo parte
+// de otra de fase igual o anterior, y así no hay ciclos.
+check("Etapa S2: cada sección de las semillas trae su tipo de trabajo y de qué parte", () => {
+  for (const s of SEMILLAS) {
+    igual(Object.keys(s.tiposTrabajo || {}), s.secciones, `tipos de ${s.id}`);
+    igual(Object.keys(s.partenDe || {}), s.secciones, `«parte de» de ${s.id}`);
+    for (const sec of s.secciones) {
+      const t = s.tiposTrabajo[sec];
+      assert(TIPOS_TRABAJO.includes(t), `${s.id} · ${sec}: tipo desconocido ${t}`);
+      s.partenDe[sec].forEach((d) => {
+        assert(d !== sec && s.secciones.includes(d), `${s.id} · ${sec} parte de "${d}", que no es otra sección de la semilla`);
+        assert(TIPOS_TRABAJO.indexOf(s.tiposTrabajo[d]) <= TIPOS_TRABAJO.indexOf(t), `${s.id} · ${sec} (${t}) parte de ${d} (${s.tiposTrabajo[d]}), de una fase posterior`);
+      });
+    }
+  }
+});
+check("Etapa S2: tipos y «parte de» llegan al plan; la sección renombrada los pierde", () => {
+  igual(prep.plan.tiposTrabajoSecciones, escuela.tiposTrabajo, "tipos en el plan");
+  igual(prep.plan.partenDeSecciones, Object.fromEntries(Object.entries(escuela.partenDe).filter(([, de]) => de.length)), "«parte de» en el plan");
+  const otra = { ...pm, secciones: pm.secciones.map((x) => (x === "Welcome" ? "Hello" : x)) };
+  const p2 = prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: otra }, mallaPayload: malla, horario }).plan;
+  assert(!p2.tiposTrabajoSecciones.Hello && !p2.tiposTrabajoSecciones.Welcome, "la renombrada no tiene tipo");
+  igual(p2.partenDeSecciones["Final Recommendation"], ["School Success Tips"], "nadie parte de la renombrada");
+  igual(Object.keys(p2.tiposTrabajoSecciones).length, escuela.secciones.length - 1, "las demás lo conservan");
+});
 check("Etapa 1A: cada sección de las semillas trae qué contiene y llega al contrato", () => {
   for (const s of SEMILLAS) {
     igual(Object.keys(s.propositos || {}), s.secciones, `propósitos de ${s.id}`);

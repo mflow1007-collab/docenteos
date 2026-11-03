@@ -29,7 +29,8 @@
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import {
   ROLES_FASES_POR_ESTRATEGIA, ROL_POR_ACCION, PESO_SESIONES_POR_ROL,
-  ENTREGA_POR_ROL, ROLES_CON_CONTENIDO, rolesDeFaseGuia,
+  ENTREGA_POR_ROL, ROLES_CON_CONTENIDO, rolesDeFaseGuia, TIPOS_TRABAJO,
+  TIPO_TRABAJO_FASES_POR_ESTRATEGIA,
 } from "../data/rolesFasesEstrategias.js";
 
 const CATEGORIAS_CONTENIDO = ["vocabulario", "gramatica", "expresiones", "funcionales"];
@@ -147,12 +148,44 @@ const repartirSesiones = (fases, total, fijadas) => {
   return sesiones;
 };
 
-// 3. Entregas: el estado del producto que deja la fase (el de su último papel);
+// 3a. Secciones por tipo de trabajo (Etapa S3 de docs/DISENO_SECUENCIA_POR_FASES.md,
+// aprobada por César el 2026-11-03). Cada fase con contenido toma las secciones
+// que nacen en ella (su tipo); instrumentos y visita preparan las de "visitar"
+// (si no hay, reparten todas en orden, como hoy: así, a 3 semanas, la sección
+// que no cabe en las clases de contenido conserva su clase); socializar cierra
+// lo recogido y descrito, proponer cierra lo analizado. Fase sin ninguna → todas.
+// Devuelve null (reparto de hoy) si la estrategia no tiene mapa o alguna
+// sección no tiene tipo (p. ej. la añadió o renombró el docente); por fase,
+// null = esa fase como hoy.
+const SECCIONES_DE_TIPO_FASE = {
+  preparar_instrumentos: ["visitar"],
+  visitar: ["visitar"],
+  describir: ["describir"],
+  analizar: ["analizar"],
+  socializar: ["socializar", "visitar", "describir"],
+  proponer: ["proponer", "analizar"],
+  aplicar: ["aplicar"],
+};
+const seccionesPorTipoTrabajo = (fases, fasesGuia, mapa, secciones, tipoDe) => {
+  if (!mapa || !secciones.length || !secciones.every((s) => TIPOS_TRABAJO.includes(tipoDe[s]))) return null;
+  const hay = (tipo) => secciones.some((s) => tipoDe[s] === tipo);
+  return fases.map((fase) => {
+    if (!ROLES_CON_CONTENIDO.includes(fase.roles[fase.roles.length - 1])) return secciones;
+    const tipos = fase.fasesGuia.map((n) => mapa[fasesGuia.indexOf(n)]);
+    if (!hay("visitar") && tipos.every((t) => ["preparar_instrumentos", "visitar"].includes(t))) return null;
+    const buscados = [...new Set(tipos.flatMap((tipo) => SECCIONES_DE_TIPO_FASE[tipo] || []))];
+    const suyas = buscados.flatMap((tipo) => secciones.filter((s) => tipoDe[s] === tipo));
+    return suyas.length ? suyas : secciones;
+  });
+};
+
+// 3b. Entregas: el estado del producto que deja la fase (el de su último papel);
 // si el mismo estado se repite seguido, se numeran los avances.
 // Secciones (regla 4.7): cada entrega avanza todas las secciones a su estado;
 // los avances seguidos de una fase con contenido se reparten las secciones en
-// orden (avance 1: Welcome, Important Places; avance 2: …).
-const asignarEntregas = (fases, producto, secciones, avisos) => {
+// orden (avance 1: Welcome, Important Places; avance 2: …). Con `porTipo`
+// (3a), cada fase lleva las suyas.
+const asignarEntregas = (fases, producto, secciones, avisos, porTipo = null) => {
   const roles = fases.map((f) => f.roles[f.roles.length - 1]);
   const estados = roles.map((rol) => ENTREGA_POR_ROL[rol]);
   return estados.map((estado, i) => {
@@ -160,7 +193,9 @@ const asignarEntregas = (fases, producto, secciones, avisos) => {
     let fin = i; while (fin < estados.length - 1 && estados[fin + 1] === estado) fin += 1;
     const avance = fin > ini ? ` (avance ${i - ini + 1} de ${fin - ini + 1})` : "";
     let suyas = secciones;
-    if (fin > ini && ROLES_CON_CONTENIDO.includes(roles[i])) {
+    if (porTipo?.[i]) {
+      suyas = porTipo[i];
+    } else if (fin > ini && ROLES_CON_CONTENIDO.includes(roles[i])) {
       const n = fin - ini + 1;
       const k = i - ini;
       suyas = secciones.slice(Math.floor((k * secciones.length) / n), Math.floor(((k + 1) * secciones.length) / n));
@@ -292,6 +327,8 @@ const repartirContenidos = (contenidosPorTema, numFasesContenido) => {
  * @param {string[]} [entrada.secciones] - secciones del producto (regla 4.7); sin ellas, las entregas no nombran secciones.
  * @param {Object<string,string>} [entrada.propositosSecciones] - sección → qué contiene (Etapa 1A); solo se guardan las de secciones presentes.
  * @param {Object<string,string>} [entrada.piezasSecciones] - sección → pieza visible que deja en el producto; igual que los propósitos.
+ * @param {Object<string,string>} [entrada.tiposTrabajoSecciones] - sección → tipo de trabajo (Etapa S2); solo tipos de TIPOS_TRABAJO y secciones presentes. Si todas tienen tipo y la estrategia tiene mapa, reparte las secciones por fase (Etapa S3).
+ * @param {Object<string,string[]>} [entrada.partenDeSecciones] - sección → secciones de las que parte; solo secciones presentes.
  * @param {{unir?:number[][], subdividir?:Object<number,number>, sesionesPorFase?:number[]}} [entrada.ajustes]
  *   Números de fase = posición en la Guía (1 = primera fase impresa).
  */
@@ -307,6 +344,8 @@ export const construirPlanMaestro = ({
   secciones = [],
   propositosSecciones = {},
   piezasSecciones = {},
+  tiposTrabajoSecciones = {},
+  partenDeSecciones = {},
   ajustes = {},
 } = {}) => {
   const datosEstrategia = ESTRATEGIAS_FASES_GUIA_2025.find((e) => e.clave === estrategia);
@@ -328,7 +367,9 @@ export const construirPlanMaestro = ({
   const sesiones = repartirSesiones(fases, totalSesiones, ajustes.sesionesPorFase);
   const avisosSecciones = [];
   const seccionesLimpias = validarSecciones(secciones);
-  const entregas = asignarEntregas(fases, productoLimpio, seccionesLimpias, avisosSecciones);
+  const porTipo = seccionesPorTipoTrabajo(fases, datosEstrategia.fases, TIPO_TRABAJO_FASES_POR_ESTRATEGIA[estrategia],
+    seccionesLimpias, tiposTrabajoSecciones || {});
+  const entregas = asignarEntregas(fases, productoLimpio, seccionesLimpias, avisosSecciones, porTipo);
   const { elegidos, competencias } = resolverIndicadores({
     indicadoresEstructurados, competenciasElegidas, indicadoresElegidos, aspectosElegidos,
   });
@@ -372,6 +413,11 @@ export const construirPlanMaestro = ({
       .map((s) => [s, String(propositosSecciones?.[s] || "").trim()]).filter(([, t]) => t)),
     piezasSecciones: Object.fromEntries(seccionesLimpias
       .map((s) => [s, String(piezasSecciones?.[s] || "").trim()]).filter(([, t]) => t)),
+    tiposTrabajoSecciones: Object.fromEntries(seccionesLimpias
+      .map((s) => [s, tiposTrabajoSecciones?.[s]]).filter(([, t]) => TIPOS_TRABAJO.includes(t))),
+    partenDeSecciones: Object.fromEntries(seccionesLimpias
+      .map((s) => [s, [].concat(partenDeSecciones?.[s] || []).filter((d) => d !== s && seccionesLimpias.includes(d))])
+      .filter(([, de]) => de.length)),
     temas: contenidosPorTema.map((c) => c.tema),
     horario: { semanas, diasClase: [...diasClase], horasPorDia, totalSesiones },
     fases: fasesPlan,

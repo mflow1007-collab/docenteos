@@ -14,7 +14,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../src/data/indicadoresIngles2doEstructurados.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../src/data/estrategiasFasesGuia2025.js";
-import { ROLES_FASES_POR_ESTRATEGIA, ROL_POR_ACCION, ROLES_FASE, ENTREGA_POR_ROL } from "../src/data/rolesFasesEstrategias.js";
+import { ROLES_FASES_POR_ESTRATEGIA, ROL_POR_ACCION, ROLES_FASE, ENTREGA_POR_ROL, TIPOS_TRABAJO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA } from "../src/data/rolesFasesEstrategias.js";
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -67,6 +67,19 @@ check("los papeles nunca retroceden en ninguna estrategia", () => {
     const planos = roles.flat();
     planos.forEach((r, i) => assert(i === 0 || ORDEN_PAPEL[r] >= ORDEN_PAPEL[planos[i - 1]], `${clave}: ${planos[i - 1]} → ${r}`));
   }
+});
+
+// Etapa S1 (docs/DISENO_SECUENCIA_POR_FASES.md): tipo de trabajo por fase de Inserción.
+check("Inserción: las 9 fases con su tipo de trabajo, uno distinto por fase", () => {
+  const fases = ESTRATEGIAS_FASES_GUIA_2025.find((e) => e.clave === "insercion_entorno").fases;
+  const tipos = TIPO_TRABAJO_FASES_POR_ESTRATEGIA.insercion_entorno;
+  igual(tipos.length, fases.length, "tipos vs fases");
+  tipos.forEach((t) => assert(TIPOS_TRABAJO.includes(t), `tipo desconocido ${t}`));
+  igual(tipos, TIPOS_TRABAJO, "uno por fase, en el orden de la Guía");
+  fases.forEach((f, i) => console.log(`      ${i + 1}. ${f} → ${tipos[i]}`));
+});
+check("tipos de trabajo solo en estrategias de la Guía", () => {
+  Object.keys(TIPO_TRABAJO_FASES_POR_ESTRATEGIA).forEach((clave) => assert(ROLES_FASES_POR_ESTRATEGIA[clave], `${clave} no tiene papeles`));
 });
 
 console.log("Plan maestro — Inglés 2do, ABProyecto, 4 semanas × 4 días × 1 hora:");

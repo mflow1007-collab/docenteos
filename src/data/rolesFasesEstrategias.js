@@ -116,5 +116,30 @@ export const ROLES_FASES_POR_ESTRATEGIA = {
   ],
 };
 
+// Tipo de trabajo de cada fase (Etapa S1 de docs/DISENO_SECUENCIA_POR_FASES.md),
+// tomado de la Guía 2025 (pp. 20-22) y aprobado por César el 2026-11-03.
+// Distingue fases con el mismo papel (p. ej. socializar · proponer · aplicar,
+// las tres "aplicacion"). Una entrada por fase literal, en el mismo orden.
+// Solo Inserción por ahora; las demás estrategias, sin mapa (Etapa S7).
+// Todavía no lo consume nadie: el reparto por fase es la Etapa S3.
+export const TIPOS_TRABAJO = [
+  "recoger", "preparar_instrumentos", "visitar", "describir", "analizar",
+  "socializar", "proponer", "aplicar", "evaluar",
+];
+
+export const TIPO_TRABAJO_FASES_POR_ESTRATEGIA = {
+  insercion_entorno: [
+    "recoger",                // Recolección de información previa
+    "preparar_instrumentos",  // Elaboración de instrumentos de recolección
+    "visitar",                // Visita-recolección de los datos
+    "describir",              // Descripción y reflexión
+    "analizar",               // Análisis de los datos e información
+    "socializar",             // Socialización del conocimiento
+    "proponer",               // Elaboración de propuestas
+    "aplicar",                // Aplicación de los conocimientos
+    "evaluar",                // Evaluación y reconocimiento del proceso
+  ],
+};
+
 // Papeles de la fase n (1 = primera impresa) de una estrategia, siempre como lista.
 export const rolesDeFaseGuia = (roles, n) => [].concat(roles[n - 1]);

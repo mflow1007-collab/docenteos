@@ -12,8 +12,9 @@
 import { readFileSync } from "node:fs";
 import {
   prellenarPlanMaestro, debePrellenarPlanMaestro, planMaestroSinTocar, estadoPlanMaestroParaGenerar,
-  resolverIndicadoresEstructurados, competenciasDeMalla, PLAN_MAESTRO_INICIAL,
+  resolverIndicadoresEstructurados, competenciasDeMalla, PLAN_MAESTRO_INICIAL, prepararPlanMaestroGeneracion,
 } from "../src/services/vistaPreviaPlanMaestroService.js";
+import { seccionesPrincipalesUnidad, construirContratoFase, hiloPartenDe } from "../src/services/redaccionFaseService.js";
 import {
   fijarCampoSituacion, seccionesSugeridas, productoSugerido, borradorSituacion, validarSituacion,
 } from "../src/services/situacionAprendizajeService.js";
@@ -73,6 +74,10 @@ check("Etapa 1A: la semilla trae qué contiene cada sección; el borrador del t�
   igual(d.planMaestro.piezasSecciones["Healthy Choices"], "etiquetas «Healthy pick» junto a los platos del menú, cada una con su razón y la alternativa más sana", "pieza de Healthy Choices");
   igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.propositosSecciones, {}, "sin semilla, sin propósitos");
   igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.piezasSecciones, {}, "sin semilla, sin piezas");
+  igual(d.planMaestro.tiposTrabajoSecciones["Healthy Choices"], "proponer", "Etapa S2: tipo de Healthy Choices");
+  igual(d.planMaestro.partenDeSecciones["Ordering Food"], ["Bilingual Menus", "Healthy Choices"], "Etapa S2: de qué parte Ordering Food");
+  igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.tiposTrabajoSecciones, {}, "sin semilla, sin tipos");
+  igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.partenDeSecciones, {}, "sin semilla, sin «parte de»");
 });
 
 check("el producto que escribió el docente se respeta", () => {
@@ -129,6 +134,89 @@ check("nunca pisa lo que el docente cambió", () => {
   assert(!editado.planMaestro.situacion.borrador, "lo editado deja de ser borrador");
   const otroProducto = { ...d1, titulo: "My family and friends", productoFinalTexto: "Mi álbum" };
   assert(!debePrellenarPlanMaestro(otroProducto), "producto cambiado");
+});
+
+// Etapa S3 (docs/DISENO_SECUENCIA_POR_FASES.md): con Inserción y secciones con
+// tipo de trabajo, cada fase lleva las secciones que nacen en ella.
+console.log("\n[Etapa S3 — secciones por fase de Inserción]");
+const planDe = (titulo, semanas, cambios = {}) => {
+  const h = { ...horario, semanas };
+  // Centro corto: con el nombre largo, la situación de Escuela pasa de 800 caracteres.
+  const d = prellenar({ ...base, centro: "Centro Hato Nuevo", numSemanas: semanas, titulo, temasSeleccionados: [titulo] });
+  const pm = { ...d.planMaestro, estrategia: "insercion_entorno", situacion: { ...d.planMaestro.situacion, estrategiaAlineada: "insercion_entorno" }, ...cambios };
+  return prepararPlanMaestroGeneracion({ datos: { ...d, planMaestro: pm }, mallaPayload: malla, horario: h }).plan;
+};
+const seccionesPorFase = (plan) => plan.fases.map((f) => (f.entrega.secciones.length === plan.secciones.length ? "todas" : f.entrega.secciones.join(", ")));
+const I = "Interviews with Owners", L = "Our Local Food", M = "Bilingual Menus", H = "Healthy Choices", O = "Ordering Food";
+
+check("«Alimentación» a 3 semanas reproduce la tabla aprobada", () => {
+  const plan = planDe("Alimentación", 3);
+  igual(seccionesPorFase(plan), ["todas", I, I, L, M, `${I}, ${L}`, `${H}, ${M}`, O, "todas"], "secciones por fase");
+  igual(seccionesPrincipalesUnidad(plan).flat(), ["", I, I, L, M, I, H, O, ""], "principal de cada clase");
+  igual(plan.fases.map((f) => f.entrega.estado), ["Acuerdo y plan", "Insumos recopilados", "Insumos recopilados", "Borrador", "Borrador",
+    "Versión final", "Versión final", "Versión final", "Versión revisada"], "estados del producto, como hoy");
+});
+check("«Alimentación» a 4 semanas: Healthy Choices y Ordering Food en clases distintas", () => {
+  const pr = seccionesPrincipalesUnidad(planDe("Alimentación", 4));
+  igual(pr.slice(5, 8), [[I, L], [H, M], [O, O]], "versiones finales, una clase por sección");
+});
+check("las 3 semillas a 3 y 4 semanas: toda sección es principal de alguna clase", () => {
+  for (const titulo of ["Alimentación", "Escuela y educación", "Actividades de la vida diaria"]) for (const semanas of [3, 4]) {
+    const plan = planDe(titulo, semanas);
+    const principales = seccionesPrincipalesUnidad(plan).flat();
+    plan.secciones.forEach((sec) => assert(principales.includes(sec), `${titulo} · ${semanas} sem: ${sec} sin clase propia`));
+  }
+});
+check("sin secciones de visita, instrumentos y visita reparten todas en orden (como hoy)", () => {
+  igual(seccionesPorFase(planDe("Escuela y educación", 3)).slice(1, 3),
+    ["Welcome, Important Places, School Directions", "Asking for Help, School Success Tips, Final Recommendation"], "fases 2 y 3");
+});
+check("respaldo: sin semilla, sección renombrada o estrategia sin mapa → reparto de hoy", () => {
+  igual(seccionesPorFase(planDe("My family and friends", 3)), ["todas", "My family, My Friends", "Past Experiences, Future Plans",
+    "My family, My Friends", "Past Experiences, Future Plans", "My family", "My Friends", "Past Experiences, Future Plans", "todas"], "sin semilla");
+  const renombrada = [L, I, M, "Healthy Food", O];
+  igual(seccionesPorFase(planDe("Alimentación", 3, { secciones: renombrada })),
+    seccionesPorFase(planDe("Alimentación", 3, { secciones: renombrada, tiposTrabajoSecciones: {} })), "renombrada");
+  const proyectos = (cambios) => {
+    const d = prellenar({ ...base, numSemanas: 3, titulo: "Alimentación", temasSeleccionados: ["Alimentación"] });
+    const pm = { ...d.planMaestro, estrategia: "proyectos", situacion: { ...d.planMaestro.situacion, estrategiaAlineada: "proyectos" }, ...cambios };
+    return seccionesPorFase(prepararPlanMaestroGeneracion({ datos: { ...d, planMaestro: pm }, mallaPayload: malla, horario: { ...horario, semanas: 3 } }).plan);
+  };
+  igual(proyectos(), proyectos({ tiposTrabajoSecciones: {} }), "ABProyecto sin mapa");
+});
+
+// Etapa S4: cada clase recibe las piezas ya entregadas de las que parte.
+console.log("\n[Etapa S4 — hilo «parten de»]");
+const pieza = (seccion, estado, texto, semana) => ({ semana, aporteProducto: `Sección «${seccion}» (${estado}): ${texto}` });
+const memoriaAlimentacion = [
+  pieza(I, "insumos recopilados", "preguntas de la entrevista", 1),
+  pieza(I, "insumos recopilados", "entrevistas transcritas", 1),
+  pieza(L, "borrador", "fichas de los platos", 1),
+  pieza(M, "borrador", "borrador del menú", 2),
+  pieza(I, "versión final", "entrevistas compartidas", 2),
+];
+const hiloFase = (plan, indice, memoria) => {
+  const contrato = construirContratoFase({ plan, indice, estructura });
+  return hiloPartenDe({ contrato, memoria, startDia: 1, count: plan.fases[indice].sesiones });
+};
+check("«Alimentación»: Healthy Choices parte del menú y de las entrevistas; Ordering Food, del menú y de Healthy Choices", () => {
+  const plan = planDe("Alimentación", 3);
+  const h7 = hiloFase(plan, 6, memoriaAlimentacion);
+  assert(h7.startsWith("HILO DE LA UNIDAD"), `sin encabezado: ${h7}`);
+  igual(h7.split("\n")[1], `Clase 1 (principal «${H}»): parte de Sección «${M}» (borrador): borrador del menú [semana 2] · Sección «${I}» (versión final): entrevistas compartidas [semana 2]`, "clase 7");
+  const h8 = hiloFase(plan, 7, [...memoriaAlimentacion, pieza(H, "versión final", "etiquetas Healthy pick", 3)]);
+  igual(h8.split("\n")[1], `Clase 1 (principal «${O}»): parte de Sección «${M}» (borrador): borrador del menú [semana 2] · Sección «${H}» (versión final): etiquetas Healthy pick [semana 3]`, "clase 8");
+  igual(hiloFase(plan, 2, memoriaAlimentacion.slice(0, 1)).split("\n")[1], `Clase 1 (principal «${I}»): parte de Sección «${I}» (insumos recopilados): preguntas de la entrevista [semana 1]`, "la visita parte de las preguntas");
+});
+check("sin pieza entregada, sin línea; sin semilla, el hilo no existe (prompt como hoy)", () => {
+  igual(hiloFase(planDe("Alimentación", 3), 1, []), "", "clase 2 sin piezas previas");
+  igual(hiloFase(planDe("Alimentación", 3), 0, memoriaAlimentacion), "", "fase sin principal");
+  igual(hiloFase(planDe("My family and friends", 3), 6, [pieza("My family", "borrador", "algo", 1)]), "", "sin semilla");
+});
+check("el prompt de fase lleva el hilo y sube de versión (no reutiliza lotes del prompt anterior)", () => {
+  const txt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/const PROMPT_FASE_VERSION = 5;/.test(txt), "PROMPT_FASE_VERSION = 5");
+  assert(/hiloPartenDe\(\{ contrato: c, memoria, startDia, count \}\)/.test(txt), "buildFasePrompt arma el hilo");
 });
 
 console.log(`\nModo rápido del plan maestro: ${pasos} pasos, ${fallos} fallos`);
