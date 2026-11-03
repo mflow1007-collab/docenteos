@@ -130,7 +130,7 @@ export const nivelVerbo = (texto) => NIVEL_DE_VERBO.get(claveVerbo(primeraPalabr
 
 /**
  * Regla 4.4 sobre una actividad del Desarrollo o del Cierre. Devuelve el
- * motivo del rechazo, o "" si cumple. El Inicio canónico (saludo,
+ * motivo del aviso, o "" si cumple. El Inicio canónico (saludo,
  * «Retroalimentación de…», «Recuperación de…») no pasa por aquí.
  */
 export const motivoRedaccionActividad = (texto, { esIdioma = false } = {}) => {
@@ -475,6 +475,9 @@ const semillaPlana = (contrato) => CATEGORIAS_SEMILLA.flatMap((cat) => contrato.
  * Valida un lote de clases contra el contrato de su fase. `startDia` es la
  * posición de la primera clase del lote dentro de la fase (1 = primera).
  * Lanza el primer error encontrado (mismo estilo que validateBatch).
+ * La redacción 4.4 del Desarrollo y del Cierre es flexible (decisión de César,
+ * 2026-11-03): no rechaza; devuelve sus motivos por clase (índice del lote)
+ * para avisar al administrador.
  */
 export const validarLoteContrato = (data, contrato, count, startDia = 1, opciones = {}) => {
   const semilla = semillaPlana(contrato);
@@ -483,7 +486,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
   for (let idx = 0; idx < count; idx += 1) {
     const clase = data?.clases?.[idx];
     const etiqueta = `Contrato: clase ${idx + 1}`;
-    motivos44.push(...motivosRedaccionClase(clase, `clase ${idx + 1}`, opciones));
+    motivos44.push(motivosRedaccionClase(clase, `clase ${idx + 1}`, opciones));
     const suyas = seccionesDeClase(clase?.seccionesProducto, secciones);
     if (secciones.length) {
       if (!suyas.length) throw new Error(`${etiqueta} sin "seccionesProducto" (la sección del producto que avanza).`);
@@ -550,7 +553,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       throw new Error(`${etiqueta} es la última de la fase y no declara "entregaFase" (${contrato.entrega.texto}).`);
     }
   }
-  if (motivos44.length) throw new Error(`Redacción 4.4 (${motivos44.length}): ${motivos44.join("; ")}.`);
+  return motivos44;
 };
 
 /** Validación de la fase completa: cada fase deja su entrega y avanza sus secciones. */

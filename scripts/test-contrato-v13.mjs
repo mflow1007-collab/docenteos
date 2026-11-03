@@ -318,6 +318,54 @@ check("el system dice el nivel REAL del formulario, no siempre Secundario", () =
   if (nivelLabelPrompt("") !== "Secundario") throw new Error("sin nivel debe asumir Secundario (compatibilidad)");
 });
 
+// ── Plan maestro: Desarrollo y Cierre flexibles (César, 2026-11-03) ──
+console.log("\nCon contrato de fase — lo flexible avisa, lo fijo rechaza:");
+
+const contratoMinimo = {
+  numero: 1, secciones: [], conContenido: false, sesiones: 99, entrega: { texto: "Borrador" },
+  semilla: { vocabulario: [], gramatica: [], expresiones: [], funcionales: [] },
+};
+const conContrato = (extra = {}) => ({ semanaNum: 2, contratoFase: contratoMinimo, esIdioma: true, ...extra });
+
+check("sin técnica y con un verbo fuera de la lista: pasa y deja los dos avisos", () => {
+  const lote = loteValido([{ actividadCLT: null }]);
+  validateBatch(lote, DUR, 1, [], conContrato());
+  const avisos = lote.clases[0].avisosRedaccion.join(" | ");
+  if (!/actividadCLT/.test(avisos)) throw new Error(`falta el aviso de técnica: ${avisos}`);
+  if (!/«Participan» no está en la lista/.test(avisos)) throw new Error(`falta el aviso 4.4: ${avisos}`);
+});
+
+check("Desarrollo repetido y menos de 4 actividades: avisos, no rechazo", () => {
+  const memoria = [{ semana: 2, dia: 1, titulo: "Clase previa", desarrolloTexto: claseValida().momentos[1].actividades.join(" "), actividadCLT: "Information Gap", mecanicaCLT: "otra" }];
+  const lote = loteValido([{ dia: 3 }]);
+  validateBatch(lote, DUR, 1, [], conContrato({ memoria }));
+  if (!lote.clases[0].avisosRedaccion.some((a) => a.includes("repite el Desarrollo"))) throw new Error("falta el aviso R2");
+  const corta = claseValida();
+  corta.momentos[1].actividades = corta.momentos[1].actividades.slice(0, 3);
+  const loteCorto = loteValido([corta]);
+  validateBatch(loteCorto, DUR, 1, [], conContrato());
+  if (!loteCorto.clases[0].avisosRedaccion.some((a) => a.includes("mínimo 4"))) throw new Error("falta el aviso de mínimo");
+});
+
+check("la voz en 3.ª persona plural sigue rechazando con contrato", () => {
+  const clase = claseValida();
+  clase.momentos[1].actividades[2] = "Los estudiantes comparan sus oraciones en parejas.";
+  esperaError(() => validateBatch(loteValido([clase]), DUR, 1, [], conContrato()), "Voz");
+});
+
+check("el Inicio canónico y la copia del ejemplo siguen rechazando con contrato", () => {
+  esperaError(() => validateBatch(loteValido([{ saberesPrevios: "" }]), DUR, 1, [], conContrato()), "Inicio canónico");
+  const clase = claseValida();
+  clase.momentos[1].actividades[3] = EXEMPLARS_ESTILO[2];
+  esperaError(() => validateBatch(loteValido([clase]), DUR, 1, [], conContrato()), "copiada del ejemplo");
+});
+
+check("sin contrato no se añaden avisos (el motor anterior rechaza como antes)", () => {
+  const lote = loteValido();
+  validateBatch(lote, DUR, 1, foco, { semanaNum: 2 });
+  if ("avisosRedaccion" in lote.clases[0]) throw new Error("el motor anterior no debe llevar avisos");
+});
+
 console.log("\nC1 — contingencia por créditos agotados:");
 
 check("saldo agotado activa contingencia definitiva sin seguir reintentando", () => {

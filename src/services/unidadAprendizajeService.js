@@ -3505,6 +3505,8 @@ const _generarFasesConIA = async (
   const aportesProductoUsados = new Set();
   let modoContingenciaSinIA = false;
   const advertenciasIA = [];
+  // Desarrollo y Cierre aceptados con aviso (plan maestro): solo los ve el admin.
+  const avisosRedaccionIA = [];
   // A5: fases que la IA no completó y se armaron desde la malla (para marcarlas en la vista).
   const fasesBaseCurricular = [];
   const totalClases = fases.reduce((sum, f) => sum + f.dias.length, 0);
@@ -4920,6 +4922,11 @@ const _generarFasesConIA = async (
       if (!dia) {
         throw new Error(`R3: clase IA ${i + 1} de la semana ${fase.numero} sin día calendario correspondiente`);
       }
+      // Los motivos nombran la clase por su posición en el lote; aquí se
+      // nombra por su número en la unidad.
+      (Array.isArray(aiClase.avisosRedaccion) ? aiClase.avisosRedaccion : []).forEach((motivo) => {
+        avisosRedaccionIA.push(`Clase ${dia.numeroGlobal || i + 1}: ${String(motivo).replace(/\bclase \d+\s*(—\s*)?/i, "")}`);
+      });
       const anclaSecuencia = specFase.secuenciaBase?.[i] || null;
 
       // Título e intención pedagógica: SOLO del contrato validado de la IA
@@ -5233,7 +5240,7 @@ const _generarFasesConIA = async (
     globalOffset += numClases;
   }
 
-  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA, fasesBaseCurricular, combinacionesCreadas };
+  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA, avisosRedaccionIA, fasesBaseCurricular, combinacionesCreadas };
 };
 
 // ─── Exportación principal ────────────────────────────────────────────────────
@@ -5636,7 +5643,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     ? estrategiaSel.fases
     : null;
 
-  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], fasesBaseCurricular = [], combinacionesCreadas = [] } = await _generarFasesConIA(
+  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], avisosRedaccionIA = [], fasesBaseCurricular = [], combinacionesCreadas = [] } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
     {
       grado, nivel,
@@ -5949,6 +5956,17 @@ export const generarUnidadAprendizaje = async (datos) => {
       // van aparte y solo los ve el administrador (decisión de César, 2026-11-03).
       unidadResult.avisosRedaccion = [
         `⚠️ Redacción de las actividades (regla 4.4, ${global.avisos.length}): ${global.avisos.join("; ")}.`,
+      ];
+    }
+    // Lo flexible del Desarrollo y del Cierre que la IA no cumplió: se aceptó
+    // sin reintento pagado y se avisa al admin (decisión de César, 2026-11-03).
+    // Con tope, para no inflar el documento guardado (límite de 1 MiB).
+    if (avisosRedaccionIA.length) {
+      const MAX_AVISOS_LOTE = 40;
+      const resto = avisosRedaccionIA.length - MAX_AVISOS_LOTE;
+      unidadResult.avisosRedaccion = [
+        ...(unidadResult.avisosRedaccion || []),
+        `⚠️ Desarrollo y Cierre aceptados con aviso (${avisosRedaccionIA.length}): ${avisosRedaccionIA.slice(0, MAX_AVISOS_LOTE).join("; ")}${resto > 0 ? `; y ${resto} más` : ""}.`,
       ];
     }
   }

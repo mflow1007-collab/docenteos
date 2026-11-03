@@ -996,6 +996,12 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       .map(normalizarCodigo)
       .filter(Boolean),
   );
+  // Con contrato de fase (plan maestro), lo flexible del Desarrollo y del
+  // Cierre no rechaza el lote: queda como aviso para el administrador en
+  // clase.avisosRedaccion (decisión de César, 2026-11-03). Lo fijo (voz en 3.ª
+  // persona plural, Inicio canónico, indicadores, campos de la plantilla) sigue
+  // rechazando. Sin contrato, todo rechaza como antes.
+  const flexible = Boolean(opts.contratoFase);
 
   // 3A — nombre propio del producto final (solo el primer lote de la unidad)
   if (opts.exigirNombreProducto) {
@@ -1055,6 +1061,12 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     if (!Array.isArray(clase?.momentos) || clase.momentos.length !== 3) {
       throw new Error(`R1: clase ${idx + 1} debe tener 3 momentos`);
     }
+    const avisosClase = [];
+    if (flexible) clase.avisosRedaccion = avisosClase;
+    const avisarOFallar = (motivo) => {
+      if (!flexible) throw new Error(motivo);
+      avisosClase.push(motivo);
+    };
     if (!Array.isArray(clase.indicadoresTrabajados)) {
       throw new Error(`R1: clase ${idx + 1} sin indicadoresTrabajados[] (usa los códigos de la especificación)`);
     }
@@ -1139,20 +1151,20 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     const aporteNorm = _normTextoFoco(aporte);
     const aporteVago = APORTE_GENERICO.find((g) => aporteNorm.includes(_normTextoFoco(g)));
     if (aporteVago) {
-      throw new Error(`R11: clase ${idx + 1} — aporteProducto genérico ("${aporteVago}"): nombra el artefacto concreto (ej. "Inventario del espacio favorito con posesivos")`);
+      avisarOFallar(`R11: clase ${idx + 1} — aporteProducto genérico ("${aporteVago}"): nombra el artefacto concreto (ej. "Inventario del espacio favorito con posesivos")`);
     }
     const repetidoLote = [...aportesEnLote.entries()].find(([prev]) =>
       prev === aporteNorm || jaccardSimilarity(prev, aporteNorm) > 0.72
     );
     if (repetidoLote) {
-      throw new Error(`R11: clase ${idx + 1} repite la pieza del producto de la clase ${repetidoLote[1]} ("${aporte}")`);
+      avisarOFallar(`R11: clase ${idx + 1} repite la pieza del producto de la clase ${repetidoLote[1]} ("${aporte}")`);
     }
     const repetidoUnidad = memoria.find((prev) => {
       const previo = _normTextoFoco(prev.aporteProducto || '');
       return previo && (previo === aporteNorm || jaccardSimilarity(previo, aporteNorm) > 0.72);
     });
     if (repetidoUnidad) {
-      throw new Error(`R11: clase ${idx + 1} repite la pieza del producto de S${repetidoUnidad.semana}/C${repetidoUnidad.dia} ("${aporte}")`);
+      avisarOFallar(`R11: clase ${idx + 1} repite la pieza del producto de S${repetidoUnidad.semana}/C${repetidoUnidad.dia} ("${aporte}")`);
     }
     aportesEnLote.set(aporteNorm, idx + 1);
 
@@ -1196,29 +1208,32 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     // Listen and Act/Solve/Compare, Information Gap, Role Play, Gallery Walk,
     // Interview Stations, Frequency Walk, Speaking Circle, Describe and Draw…
     const clt = clase.actividadCLT;
-    if (!clt || !textoNoVacio(clt.nombre) || !textoNoVacio(clt.mecanica)) {
-      throw new Error(`R12: clase ${idx + 1} sin actividadCLT {nombre, mecanica} (técnica metodológica del Desarrollo)`);
+    // Sin técnica completa (solo posible con contrato, donde es aviso) se
+    // saltan los demás controles de técnica.
+    const cltCompleta = Boolean(clt && textoNoVacio(clt.nombre) && textoNoVacio(clt.mecanica));
+    if (!cltCompleta) {
+      avisarOFallar(`R12: clase ${idx + 1} sin actividadCLT {nombre, mecanica} (técnica metodológica del Desarrollo)`);
     }
-    const cltNombreNorm = _normTextoFoco(clt.nombre);
-    if (CLT_GENERICO.map(_normTextoFoco).includes(cltNombreNorm)) {
-      throw new Error(`R12: clase ${idx + 1} — "${clt.nombre}" no es un nombre metodológico (usa Listen and Solve, Information Gap, Role Play, Gallery Walk…)`);
+    const cltNombreNorm = cltCompleta ? _normTextoFoco(clt.nombre) : '';
+    if (cltCompleta && CLT_GENERICO.map(_normTextoFoco).includes(cltNombreNorm)) {
+      avisarOFallar(`R12: clase ${idx + 1} — "${clt.nombre}" no es un nombre metodológico (usa Listen and Solve, Information Gap, Role Play, Gallery Walk…)`);
     }
     // Marco amplio (ABP, Aprendizaje Cooperativo…): válido SOLO con calificador
     // específico. Desnudo = igual a un marco de la lista, sin misión/contenido
     // añadido → se rechaza; con misión ("ABP: Maqueta del acueducto") → pasa.
-    const marcoDesnudo = CLT_MARCO_AMPLIO.map(_normTextoFoco).find((m) => {
+    const marcoDesnudo = cltCompleta && CLT_MARCO_AMPLIO.map(_normTextoFoco).find((m) => {
       if (cltNombreNorm === m) return true;
       // "abp" / "enfoque comunicativo" al inicio sin nada distintivo detrás
       const resto = cltNombreNorm.replace(m, '').replace(/[:\-–—()]/g, ' ').trim();
       return cltNombreNorm.startsWith(m) && resto.length < 4;
     });
     if (marcoDesnudo) {
-      throw new Error(`R12: clase ${idx + 1} — "${clt.nombre}" es un marco amplio sin misión concreta. Nómbralo con su misión del día (ej. "Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto")`);
+      avisarOFallar(`R12: clase ${idx + 1} — "${clt.nombre}" es un marco amplio sin misión concreta. Nómbralo con su misión del día (ej. "Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto")`);
     }
-    if (cltEnLote.has(cltNombreNorm)) {
-      throw new Error(`R12: clase ${idx + 1} repite la técnica "${clt.nombre}" de la clase ${cltEnLote.get(cltNombreNorm)} del mismo lote`);
+    if (cltCompleta && cltEnLote.has(cltNombreNorm)) {
+      avisarOFallar(`R12: clase ${idx + 1} repite la técnica "${clt.nombre}" de la clase ${cltEnLote.get(cltNombreNorm)} del mismo lote`);
     }
-    cltEnLote.set(cltNombreNorm, idx + 1);
+    if (cltCompleta) cltEnLote.set(cltNombreNorm, idx + 1);
     // La técnica debe aparecer en ALGUNA actividad del Desarrollo (no
     // necesariamente la primera ni literal en la misma posición): tolerante a
     // que la IA la parafrasee alrededor, pero exige que esté presente. Para
@@ -1237,31 +1252,36 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     const raices = palabrasCLT.map((w) => w.slice(0, 5)).filter(Boolean);
     const cltPresente = desarrolloNorm.some((a) => a.includes(cltNombreNorm))
       || raices.some((r) => desarrolloNorm.some((a) => a.includes(r)));
-    if (!cltPresente) {
+    if (cltCompleta && !cltPresente) {
       const pista = opts.contratoFase ? `nómbrala en el paréntesis de una actividad: "Representan (en parejas, ${clt.nombre}) …"` : `"Participan en ${clt.nombre}: …"`;
-      throw new Error(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad (${pista})`);
+      avisarOFallar(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad (${pista})`);
     }
 
     // 3C — anti-repetición GLOBAL: contra TODAS las clases previas de la
-    // unidad (memoria acumulada), no solo las adyacentes del lote
+    // unidad (memoria acumulada), no solo las adyacentes del lote. Con aviso,
+    // una sola vez por clase.
     const nuevoDesarrollo = textoDesarrollo(clase);
+    let avisadoDesarrollo = false;
+    let avisadaTecnica = false;
     for (const prev of memoria) {
-      if (prev.desarrolloTexto) {
+      if (!avisadoDesarrollo && prev.desarrolloTexto) {
         const sim = jaccardSimilarity(nuevoDesarrollo, prev.desarrolloTexto);
         if (sim > 0.6) {
-          throw new Error(`R2: clase ${idx + 1} repite el Desarrollo de S${prev.semana}/C${prev.dia} "${prev.titulo}" (${(sim * 100).toFixed(0)}%)`);
+          avisarOFallar(`R2: clase ${idx + 1} repite el Desarrollo de S${prev.semana}/C${prev.dia} "${prev.titulo}" (${(sim * 100).toFixed(0)}%)`);
+          avisadoDesarrollo = true;
         }
       }
-      if (prev.actividadCLT && _normTextoFoco(prev.actividadCLT) === cltNombreNorm) {
+      if (!avisadaTecnica && cltNombreNorm && prev.actividadCLT && _normTextoFoco(prev.actividadCLT) === cltNombreNorm) {
         const mismoBloque = prev.semana === (data.semana ?? opts.semanaNum);
         const mecanicaSimilar = prev.mecanicaCLT
           ? jaccardSimilarity(String(clt.mecanica), String(prev.mecanicaCLT)) > 0.6
           : true;
         if (mismoBloque || mecanicaSimilar) {
-          throw new Error(
+          avisarOFallar(
             `R12: clase ${idx + 1} — técnica "${clt.nombre}" ya usada en S${prev.semana}/C${prev.dia}` +
             `${mismoBloque ? ' (mismo bloque)' : ' con mecánica similar'} — usa otra técnica o cambia la mecánica`,
           );
+          avisadaTecnica = true;
         }
       }
     }
@@ -1298,7 +1318,7 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       if (!esInicio) {
         const minActividades = m.nombre === 'Desarrollo' ? 4 : 3;
         if ((m.actividades || []).filter((x) => String(x || '').trim()).length < minActividades) {
-          throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
+          avisarOFallar(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
         }
         for (const act of m.actividades) {
           const voz = validarVozActividad(act);
@@ -1319,8 +1339,12 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     if (totalMin !== durMin) throw new Error(`R7: clase ${idx + 1} suma ${totalMin} min ≠ ${durMin} min`);
   }
 
-  // Etapa 5 — contrato de la fase (semilla 4.6, secciones 4.7, entrega).
-  if (opts.contratoFase) validarLoteContrato(data, opts.contratoFase, count, opts.startDia || 1, { esIdioma: Boolean(opts.esIdioma) });
+  // Etapa 5 — contrato de la fase (semilla 4.6, secciones 4.7, entrega). La
+  // redacción 4.4 vuelve como avisos por clase.
+  if (opts.contratoFase) {
+    validarLoteContrato(data, opts.contratoFase, count, opts.startDia || 1, { esIdioma: Boolean(opts.esIdioma) })
+      .forEach((motivos, idx) => data.clases[idx].avisosRedaccion.push(...motivos));
+  }
 
   // R16 — cuando el docente aportó una realidad concreta, esta debe entrar en
   // la experiencia de aprendizaje y no quedarse únicamente en el párrafo de
@@ -1334,9 +1358,9 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     );
     const conectadas = palabrasContexto.filter((palabra) => palabrasLote.has(palabra));
     if (!conectadas.length) {
-      throw new Error(
-        `R16: las actividades y evidencias del lote no aplican el contexto comunitario real (incorpora una situación, dato o necesidad vinculada con: ${palabrasContexto.slice(0, 4).join(', ')})`,
-      );
+      const motivo = `R16: las actividades y evidencias del lote no aplican el contexto comunitario real (incorpora una situación, dato o necesidad vinculada con: ${palabrasContexto.slice(0, 4).join(', ')})`;
+      if (!flexible) throw new Error(motivo);
+      data.clases[0].avisosRedaccion.push(motivo);
     }
   }
 }

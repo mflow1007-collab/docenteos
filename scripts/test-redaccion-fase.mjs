@@ -542,9 +542,10 @@ check("4.4: la síntesis no rechaza (decisión de César); el Cierre necesita un
   ] });
   igual(motivosRedaccionClase(clase(["Socializan el mapa.", "Coevalúan (en parejas) los rótulos."]), "clase 1"), [], "cierre válido");
   assert(/Autónomo o Estratégico/.test(motivosRedaccionClase(clase(["Socializan el mapa.", "Revisan los rótulos."]), "clase 1")[0] || ""), "cierre sin nivel");
-  // Todos los motivos del lote van en un solo rechazo.
-  lanza(() => validarLoteContrato({ clases: [claseOk(clase(["Realizan el mapa.", "Socializan ideas en grupo."]))] }, cc, 1, 1),
-    /Redacción 4\.4 \(3\):.*Realizan.*en grupo.*Autónomo/, "tres motivos juntos");
+  // La redacción 4.4 es flexible (César, 2026-11-03): no rechaza, devuelve los motivos por clase.
+  const motivos = validarLoteContrato({ clases: [claseOk(clase(["Realizan el mapa.", "Socializan ideas en grupo."]))] }, cc, 1, 1);
+  assert(motivos.length === 1 && motivos[0].length === 3, "tres motivos de la clase 1, sin rechazo");
+  assert(/Realizan.*en grupo.*Autónomo/.test(motivos[0].join(" ")), "verbo, organización y nivel del Cierre");
 });
 check("4.4: avisos de progresión por papel y de exceso de expresiones", () => {
   const plan = { fases: [{ nombre: "Evaluación", roles: ["evaluacion"], indicadores: [], entrega: { secciones: [] } }] };
