@@ -14,7 +14,7 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, construirPuntoPartida, construirRubricaPlan, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, construirPuntoPartida, construirRubricaPlan, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades, motivoProductoFinal, productoFinalDeDatos } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import {
@@ -466,6 +466,35 @@ check("R11 reconoce «Booklet» y las palabras con tilde (menú, élèves) — f
   validarProductoFinalAutentico("Álbum de la familia para los visitantes", "La familia");
   // Sin formato ni audiencia reconocibles sigue rechazado
   esperaError(() => validarProductoFinalAutentico("Cosas de comida para todos", "Alimentación"), "sin formato");
+});
+
+check("R11 del producto del docente: se revisa antes de generar y avisa, no detiene (decisión de César, 2026-11-02)", () => {
+  const datos = {
+    titulo: "Food and healthy habits", area: "Lenguas Extranjeras", asignatura: "Inglés",
+    productoFinalTexto: "Food and healthy habits Booklet", productoFinalFormato: "infografía comentada",
+    productoFinalProposito: "promover decisiones saludables", productoFinalAudiencia: "mis compañeros",
+    productoFinalSocializacion: "feria oral",
+  };
+  const producto = productoFinalDeDatos(datos);
+  if (!/^Food and healthy habits Booklet — infografía comentada para promover/.test(producto)) throw new Error(producto);
+  // «Booklet» pasa el formato; «mis compañeros» no está en la lista de audiencias → motivo legible, sin «R11:»
+  const motivo = motivoProductoFinal(producto, datos.titulo);
+  if (!/a quién va dirigido/.test(motivo)) throw new Error(`motivo: ${motivo}`);
+  if (motivoProductoFinal(productoFinalDeDatos({ ...datos, productoFinalAudiencia: "estudiantes y familias" }), datos.titulo) !== "") {
+    throw new Error("un producto válido devolvió motivo");
+  }
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  if (!/if \(!productoFinalTexto\) validarProductoFinalAutentico\(productoNombrado, titulo\);/.test(servicio)) {
+    throw new Error("el producto del docente sigue deteniendo la generación al final");
+  }
+  if (!/const motivoProductoDocente = productoFinalTexto \? motivoProductoFinal\(producto, titulo\) : "";[\s\S]{0,400}advertencias\.push\(avisoProducto\)/.test(servicio)) {
+    throw new Error("falta el aviso del producto antes de generar");
+  }
+  const posAviso = servicio.indexOf("const motivoProductoDocente");
+  const posIA = servicio.indexOf("await _generarFasesConIA(");
+  if (!(posAviso > 0 && posIA > posAviso)) throw new Error("el aviso no va antes de las llamadas a la IA");
+  const form = readFileSync(join(__dir, "../src/components/FormularioUnidadAprendizaje.jsx"), "utf8");
+  if (!/motivoProductoFinal\(productoFinalDeDatos\(datos\), titulo\)/.test(form)) throw new Error("el formulario no revisa el producto");
 });
 
 check("la evaluación es diagnóstica al inicio, formativa durante el proceso y sumativa solo al valorar el producto", () => {

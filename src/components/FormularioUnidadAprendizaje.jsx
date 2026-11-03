@@ -3,7 +3,7 @@
  * Incluye panel de recomendación de duración basado en análisis curricular
  */
 import { useEffect, useMemo, useState } from "react";
-import { analizarComplejidad } from "../services/unidadAprendizajeService";
+import { analizarComplejidad, motivoProductoFinal, productoFinalDeDatos } from "../services/unidadAprendizajeService";
 import {
   getAreas,
   getAreaCurricularDeAsignatura,
@@ -624,6 +624,12 @@ export default function FormularioUnidadAprendizaje({
   ].filter(Boolean);
 
   const puedoGenerar = camposFaltantes.length === 0;
+
+  // R11 antes de generar: avisa (no bloquea) si DocenteOS no reconoce el producto.
+  const motivoProducto = useMemo(
+    () => (titulo && productoFinalTexto ? motivoProductoFinal(productoFinalDeDatos(datos), titulo) : ""),
+    [datos, titulo, productoFinalTexto],
+  );
 
   return (
     <section className="planning-form-card pd-form">
@@ -1515,7 +1521,7 @@ export default function FormularioUnidadAprendizaje({
       </details>
       </>)}
 
-      <details className="pd-detalles">
+      <details className="pd-detalles" id="producto-final-unidad">
         <summary>
           {estadoPlanMaestro.aplica
             ? "Producto final de la unidad (el nombre es obligatorio · lo demás, opcional)"
@@ -1617,6 +1623,25 @@ export default function FormularioUnidadAprendizaje({
         horario={{ numSemanas, diasClase, horasPorDia }}
         estadoMalla={estadoCurriculoAsesor.status}
       />
+
+      {motivoProducto && (
+        <p className="pd-hint" style={{ marginTop: 8, color: "#92400e" }}>
+          ⚠️ Revisa el producto final: {motivoProducto}. Puedes generar igual; la unidad
+          saldrá con este aviso.{" "}
+          <button
+            type="button"
+            className="pd-link-btn"
+            onClick={() => {
+              const seccionProducto = document.getElementById("producto-final-unidad");
+              if (!seccionProducto) return;
+              seccionProducto.open = true;
+              seccionProducto.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            Ir al producto
+          </button>
+        </p>
+      )}
 
       {!puedoGenerar && (
         <div className="pd-campos-faltantes">
