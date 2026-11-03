@@ -26,7 +26,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
-import { validarLoteContrato, validarFaseCompleta, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
+import { validarLoteContrato, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -1641,7 +1641,8 @@ ${reglaInicio}
 // El plan maestro (código) ya decidió fases, sesiones, entrega, secciones,
 // semilla e indicadores; la IA redacta las clases de UNA fase dentro de ese
 // contrato (redaccionFaseService.js). Aprobado por César el 2026-10-29.
-const PROMPT_FASE_VERSION = 4;
+// v5 (Etapa S4): línea «HILO DE LA UNIDAD» con las piezas de las que parte cada clase.
+const PROMPT_FASE_VERSION = 5;
 function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
   const c = spec.contratoFase;
   const tInicio     = durMin <= 50 ? 10 : 15;
@@ -1664,6 +1665,7 @@ AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor 
 "focoLinguistico": lo que la SECCIÓN del día necesita comunicar — la función y la estructura o las expresiones con que se logra (ej. "Dar indicaciones para llegar a un lugar: imperativo y preposiciones de lugar (_turn left_, _next to_…)"). Puedes enriquecerlo con estructuras y expresiones útiles para la sección aunque no estén en la malla; lo nuevo que enseñes, decláralo en "ampliacion". El contenido nunca es el protagonista del día (regla 4.6): PROHIBIDO que el foco sea una etiqueta de la malla ("Vocabulario: high school") o una palabra suelta de la semilla; la semilla se usa DENTRO de las actividades de la sección.`
     : `ESTA FASE NO INTRODUCE CONTENIDO NUEVO: retoma lo ya trabajado (${lista(c.trabajado)}). "semillaUsada" y "ampliacion" van vacías ([]). "focoLinguistico" nombra lo que se retoma o el trabajo de la fase (p. ej. "Apropiación de la unidad / producto / evaluación").`;
   const piezasPrevias = (memoria || []).map((m) => String(m.aporteProducto || '').trim()).filter(Boolean).join(' | ');
+  const hiloTx = hiloPartenDe({ contrato: c, memoria, startDia, count });
   // Como lista JSON (una cadena por sección): unidas con « · » el modelo las
   // copiaba como un solo elemento y el contrato rechazaba el lote (Etapa D).
   const seccionesLote = Array.from({ length: count }, (_, i) =>
@@ -1679,7 +1681,7 @@ AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor 
     ? `SECCIONES DEL PRODUCTO: ${c.secciones.join(' · ')}.${propositosTx}
 Esta fase lleva ${c.entrega.secciones.length ? c.entrega.secciones.join(' · ') : 'todas las secciones'} al estado «${c.entrega.estado}». Secciones que avanza CADA clase (decididas por el plan; copia la lista EXACTA en "seccionesProducto", una cadena por sección, nunca varias unidas en una):
 ${seccionesLote}
-El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, el "aporteProducto" nombra su sección PRINCIPAL (la pieza es de esa sección) y las demás de su lista se tocan en las actividades. La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}`
+El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, el "aporteProducto" nombra su sección PRINCIPAL (la pieza es de esa sección) y las demás de su lista se tocan en las actividades. La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}${hiloTx ? `\n${hiloTx}` : ''}`
     : `Cada "aporteProducto" es una pieza concreta de «${c.producto}» que avanza su estado «${c.entrega.estado}».`;
   const entregaTx = ultima
     ? `La clase ${endDia} es la ÚLTIMA de la fase: incluye "entregaFase" con lo que el grupo entrega al cerrar la fase (${String(c.entrega.texto).replace(/\s*\(avance \d+ de \d+\)/gi, '')}), y su Cierre lo deja como evidencia de producto.`

@@ -14,7 +14,7 @@ import {
   prellenarPlanMaestro, debePrellenarPlanMaestro, planMaestroSinTocar, estadoPlanMaestroParaGenerar,
   resolverIndicadoresEstructurados, competenciasDeMalla, PLAN_MAESTRO_INICIAL, prepararPlanMaestroGeneracion,
 } from "../src/services/vistaPreviaPlanMaestroService.js";
-import { seccionesPrincipalesUnidad } from "../src/services/redaccionFaseService.js";
+import { seccionesPrincipalesUnidad, construirContratoFase, hiloPartenDe } from "../src/services/redaccionFaseService.js";
 import {
   fijarCampoSituacion, seccionesSugeridas, productoSugerido, borradorSituacion, validarSituacion,
 } from "../src/services/situacionAprendizajeService.js";
@@ -183,6 +183,40 @@ check("respaldo: sin semilla, sección renombrada o estrategia sin mapa → repa
     return seccionesPorFase(prepararPlanMaestroGeneracion({ datos: { ...d, planMaestro: pm }, mallaPayload: malla, horario: { ...horario, semanas: 3 } }).plan);
   };
   igual(proyectos(), proyectos({ tiposTrabajoSecciones: {} }), "ABProyecto sin mapa");
+});
+
+// Etapa S4: cada clase recibe las piezas ya entregadas de las que parte.
+console.log("\n[Etapa S4 — hilo «parten de»]");
+const pieza = (seccion, estado, texto, semana) => ({ semana, aporteProducto: `Sección «${seccion}» (${estado}): ${texto}` });
+const memoriaAlimentacion = [
+  pieza(I, "insumos recopilados", "preguntas de la entrevista", 1),
+  pieza(I, "insumos recopilados", "entrevistas transcritas", 1),
+  pieza(L, "borrador", "fichas de los platos", 1),
+  pieza(M, "borrador", "borrador del menú", 2),
+  pieza(I, "versión final", "entrevistas compartidas", 2),
+];
+const hiloFase = (plan, indice, memoria) => {
+  const contrato = construirContratoFase({ plan, indice, estructura });
+  return hiloPartenDe({ contrato, memoria, startDia: 1, count: plan.fases[indice].sesiones });
+};
+check("«Alimentación»: Healthy Choices parte del menú y de las entrevistas; Ordering Food, del menú y de Healthy Choices", () => {
+  const plan = planDe("Alimentación", 3);
+  const h7 = hiloFase(plan, 6, memoriaAlimentacion);
+  assert(h7.startsWith("HILO DE LA UNIDAD"), `sin encabezado: ${h7}`);
+  igual(h7.split("\n")[1], `Clase 1 (principal «${H}»): parte de Sección «${M}» (borrador): borrador del menú [semana 2] · Sección «${I}» (versión final): entrevistas compartidas [semana 2]`, "clase 7");
+  const h8 = hiloFase(plan, 7, [...memoriaAlimentacion, pieza(H, "versión final", "etiquetas Healthy pick", 3)]);
+  igual(h8.split("\n")[1], `Clase 1 (principal «${O}»): parte de Sección «${M}» (borrador): borrador del menú [semana 2] · Sección «${H}» (versión final): etiquetas Healthy pick [semana 3]`, "clase 8");
+  igual(hiloFase(plan, 2, memoriaAlimentacion.slice(0, 1)).split("\n")[1], `Clase 1 (principal «${I}»): parte de Sección «${I}» (insumos recopilados): preguntas de la entrevista [semana 1]`, "la visita parte de las preguntas");
+});
+check("sin pieza entregada, sin línea; sin semilla, el hilo no existe (prompt como hoy)", () => {
+  igual(hiloFase(planDe("Alimentación", 3), 1, []), "", "clase 2 sin piezas previas");
+  igual(hiloFase(planDe("Alimentación", 3), 0, memoriaAlimentacion), "", "fase sin principal");
+  igual(hiloFase(planDe("My family and friends", 3), 6, [pieza("My family", "borrador", "algo", 1)]), "", "sin semilla");
+});
+check("el prompt de fase lleva el hilo y sube de versión (no reutiliza lotes del prompt anterior)", () => {
+  const txt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/const PROMPT_FASE_VERSION = 5;/.test(txt), "PROMPT_FASE_VERSION = 5");
+  assert(/hiloPartenDe\(\{ contrato: c, memoria, startDia, count \}\)/.test(txt), "buildFasePrompt arma el hilo");
 });
 
 console.log(`\nModo rápido del plan maestro: ${pasos} pasos, ${fallos} fallos`);

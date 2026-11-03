@@ -341,6 +341,7 @@ export const construirContratoFase = ({ plan, indice, estructura }) => {
     secciones: [...(plan.secciones || [])],
     propositosSecciones: { ...(plan.propositosSecciones || {}) },
     piezasSecciones: { ...(plan.piezasSecciones || {}) },
+    partenDeSecciones: Object.fromEntries(Object.entries(plan.partenDeSecciones || {}).map(([s, de]) => [s, [...de]])),
     producto: plan.producto,
     estrategia: plan.estrategia.nombre,
     indicadores,
@@ -432,6 +433,37 @@ export const seccionesPrincipalesUnidad = (plan) => {
       || orden.indexOf(x) - orden.indexOf(y))[0]);
   });
   return resultado.map((clases) => clases.map((ranura) => ranura?.principal || ""));
+};
+
+/**
+ * Hilo positivo (Etapa S4 de docs/DISENO_SECUENCIA_POR_FASES.md, aprobada por
+ * César el 2026-11-03): de qué piezas ya entregadas parte cada clase del lote.
+ * Fuentes = las secciones de las que parte su principal + la propia principal;
+ * de cada una, la ÚLTIMA pieza de la memoria («Sección «X» (estado): pieza»).
+ * Fuente sin pieza entregada → se omite; clase sin fuentes → sin línea; sin
+ * «parte de» (unidades sin semilla) → "".
+ */
+export const hiloPartenDe = ({ contrato, memoria = [], startDia = 1, count = 1 }) => {
+  const partenDe = contrato?.partenDeSecciones || {};
+  if (!Object.keys(partenDe).length) return "";
+  const ultimaPieza = new Map();
+  (memoria || []).forEach((m) => {
+    const texto = String(m?.aporteProducto || "").trim();
+    const seccion = texto.match(/^Secci[oó]n «([^»]+)»/)?.[1];
+    if (seccion) ultimaPieza.set(normalizar(seccion), { texto, semana: m.semana });
+  });
+  const lineas = [];
+  for (let k = startDia; k < startDia + count; k += 1) {
+    const principal = contrato.seccionPrincipalPorClase?.[k - 1];
+    if (!principal) continue;
+    const piezas = [...new Set([...(partenDe[principal] || []), principal])]
+      .map((s) => ultimaPieza.get(normalizar(s))).filter(Boolean)
+      .map((p) => `${p.texto}${p.semana ? ` [semana ${p.semana}]` : ""}`);
+    if (piezas.length) lineas.push(`Clase ${k} (principal «${principal}»): parte de ${piezas.join(" · ")}`);
+  }
+  return lineas.length
+    ? `HILO DE LA UNIDAD — de qué parte cada clase (usa estas piezas como insumo dentro de las actividades; tómalas, no las repitas):\n${lineas.join("\n")}`
+    : "";
 };
 
 /** Códigos que la IA puede usar en "indicadoresTrabajados" en esta fase. */
