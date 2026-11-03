@@ -1644,12 +1644,12 @@ AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor 
   // Como lista JSON (una cadena por sección): unidas con « · » el modelo las
   // copiaba como un solo elemento y el contrato rechazaba el lote (Etapa D).
   const seccionesLote = Array.from({ length: count }, (_, i) =>
-    `Clase ${startDia + i}: ${JSON.stringify(c.seccionesPorClase?.[startDia + i - 1] || [])}`).join('\n');
+    `Clase ${startDia + i}: ${JSON.stringify(c.seccionesPorClase?.[startDia + i - 1] || [])}${c.seccionPrincipalPorClase?.[startDia + i - 1] ? ` — principal: «${c.seccionPrincipalPorClase[startDia + i - 1]}»` : ''}`).join('\n');
   const seccionesTx = c.secciones.length
     ? `SECCIONES DEL PRODUCTO: ${c.secciones.join(' · ')}.
 Esta fase lleva ${c.entrega.secciones.length ? c.entrega.secciones.join(' · ') : 'todas las secciones'} al estado «${c.entrega.estado}». Secciones que avanza CADA clase (decididas por el plan; copia la lista EXACTA en "seccionesProducto", una cadena por sección, nunca varias unidas en una):
 ${seccionesLote}
-El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, nombra al menos una y la pieza las abarca. La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}`
+El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, el "aporteProducto" nombra su sección PRINCIPAL (la pieza es de esa sección) y las demás de su lista se tocan en las actividades. La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}`
     : `Cada "aporteProducto" es una pieza concreta de «${c.producto}» que avanza su estado «${c.entrega.estado}».`;
   const entregaTx = ultima
     ? `La clase ${endDia} es la ÚLTIMA de la fase: incluye "entregaFase" con lo que el grupo entrega al cerrar la fase (${c.entrega.texto}), y su Cierre lo deja como evidencia de producto.`

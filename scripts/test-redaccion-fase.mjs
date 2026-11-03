@@ -17,7 +17,7 @@ import { usarSemilla, aceptarRealineacion } from "../src/services/situacionApren
 import {
   construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta, seccionesDeClase,
   estructuraGramatical, estructurasDeMalla, ampliacionUsadaEnClases,
-  recortarIndicador, recogerAmpliacion, repartirSeccionesClases,
+  recortarIndicador, recogerAmpliacion, repartirSeccionesClases, seccionesPrincipalesUnidad,
   motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro,
 } from "../src/services/redaccionFaseService.js";
 import { SITUACIONES_SEMILLA_INGLES_2DO as SEMILLAS } from "../src/data/situacionesSemillaIngles2do.js";
@@ -120,7 +120,7 @@ check("sin semilla no hay ampliación: fase con contenido sin contenidos → err
 const semilla1 = cc.semilla.vocabulario[0] || cc.semilla.gramatica[0];
 const claseOk = (extra = {}) => ({
   focoLinguistico: `${semilla1} + It's next to the library`,
-  aporteProducto: "Sección «Important Places»: mapa etiquetado de la escuela",
+  aporteProducto: `Sección «${cc.seccionPrincipalPorClase[0]}»: mapa etiquetado de la escuela`,
   seccionesProducto: cc.seccionesPorClase[0],
   semillaUsada: [semilla1],
   ampliacion: [{ texto: "It's next to the library", tipo: "expresion", seccion: "Important Places" }],
@@ -130,7 +130,7 @@ const claseOk = (extra = {}) => ({
 // Clase k de la fase (0 = primera) con sus secciones asignadas.
 const claseDe = (k, extra = {}) => claseOk({
   seccionesProducto: cc.seccionesPorClase[k],
-  aporteProducto: `Sección «${cc.seccionesPorClase[k][0]}»: pieza de la clase ${k + 1}`,
+  aporteProducto: `Sección «${cc.seccionPrincipalPorClase[k]}»: pieza de la clase ${k + 1}`,
   ...extra,
 });
 
@@ -143,6 +143,29 @@ check("secciones por clase: las decide el plan, en orden y sin dejar ninguna", (
   contratos.forEach((c) => igual([...new Set(c.seccionesPorClase.flat())], c.entrega.secciones, `fase ${c.numero} cubre su entrega`));
 });
 
+check("sección principal por clase: con una clase por fase, ninguna sección queda sin trabajar (prueba «Alimentación», 2026-11-03)", () => {
+  // 9 fases de 1 clase y 5 secciones: antes la IA elegía siempre otra y «Healthy Choices» nunca tuvo pieza.
+  const S = ["Our Local Food", "Interviews with Owners", "Bilingual Menus", "Healthy Choices", "Ordering Food"];
+  const fase = (estado, secciones) => ({ sesiones: 1, entrega: { estado, secciones } });
+  const plan = { secciones: S, fases: [
+    fase("Acuerdo y plan", S), fase("Insumos recopilados", S), fase("Insumos recopilados", S),
+    fase("Borrador", S.slice(0, 2)), fase("Borrador", S.slice(2)),
+    fase("Versión final", S.slice(0, 1)), fase("Versión final", S.slice(1, 3)), fase("Versión final", S.slice(3)),
+    fase("Versión revisada", S),
+  ] };
+  const principales = seccionesPrincipalesUnidad(plan).flat();
+  igual(principales.length, 9, "una principal por clase");
+  S.forEach((sec) => { if (!principales.includes(sec)) throw new Error(`«${sec}» nunca es principal: ${principales.join(" · ")}`); });
+  seccionesPrincipalesUnidad(plan).forEach((p, i) => p.forEach((sec) => {
+    if (!plan.fases[i].entrega.secciones.includes(sec)) throw new Error(`fase ${i + 1}: «${sec}» no está asignada a la fase`);
+  }));
+  igual(seccionesPrincipalesUnidad({ secciones: [], fases: [fase("Borrador", [])] }), [[""]], "sin secciones");
+  // El contrato la lleva y el validador exige que el aporte la nombre
+  igual(cc.seccionPrincipalPorClase.length, cc.sesiones, "contrato con principal por clase");
+  const otra = cc.seccionesPorClase[0].find((x) => x !== cc.seccionPrincipalPorClase[0]);
+  if (otra) lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: `Sección «${otra}»: pieza` })] }, cc, 1, 1), /sección principal/, "aporte con otra sección");
+});
+
 check("validador del contrato: clase que cumple pasa", () => {
   validarLoteContrato({ clases: [claseOk()] }, cc, 1, 1);
 });
@@ -151,7 +174,7 @@ check("validador: la pieza se nombra por la sección, no por el contenido (4.7)"
   lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: [] })] }, cc, 1, 1), /seccionesProducto/, "sin sección");
   lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: ["Role cards"] })] }, cc, 1, 1), /no es una sección/, "sección ajena");
   lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: ["Important Places"] })] }, cc, 1, 1), /que el plan le asigna/, "sección asignada sin avanzar");
-  lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: "Role card set de seventh grade" })] }, cc, 1, 1), /debe nombrar la sección/, "pieza por contenido");
+  lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: "Role card set de seventh grade" })] }, cc, 1, 1), /debe nombrar (la|su) sección/, "pieza por contenido");
 });
 
 check("validador: secciones copiadas unidas con « · » se separan si todas son del producto (Etapa D)", () => {
@@ -278,7 +301,7 @@ check("phaseA: un lote que cumple el contrato pasa y el foco ya no se exige lite
 });
 
 check("phaseA: el contrato se aplica dentro del validador del lote", () => {
-  lanza(() => validateBatch(loteFase({ aporteProducto: "Role card set de seventh grade" }), 45, 1, [], optsFase), /debe nombrar la sección/, "pieza por contenido");
+  lanza(() => validateBatch(loteFase({ aporteProducto: "Role card set de seventh grade" }), 45, 1, [], optsFase), /debe nombrar (la|su) sección/, "pieza por contenido");
   lanza(() => validateBatch(loteFase({ semillaUsada: [] }), 45, 1, [], optsFase), /semillaUsada/, "sin semilla");
   const otro = contratos.find((c, i) => i !== idxConContenido && c.indicadores.every((x) => x.id !== indicadoresPermitidosFase(cc)[0]));
   if (otro) lanza(() => validateBatch(loteFase(), 45, 1, [], { ...optsFase, indicadoresPermitidos: indicadoresPermitidosFase(otro) }), /no precargados/, "indicador de otra fase");

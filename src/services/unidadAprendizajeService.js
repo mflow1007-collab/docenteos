@@ -5044,13 +5044,15 @@ const _generarFasesConIA = async (
         // existente (resolverEvaluacionMomento: diagnóstica→formativa→sumativa).
         // Se imprime como etiqueta sutil DENTRO de la misma celda, igual que las
         // etiquetas de naturaleza: NO añade columnas ni toca la plantilla.
+        // «final» va donde está la valoración SUMATIVA del producto (el
+        // Desarrollo de la clase de valoración, TABLA_EVALUACION). Antes iba en
+        // el Cierre de toda la última fase, que es formativo (prueba
+        // «Alimentación», 2026-11-03, aprobado por César).
         const esCierre = mi === 2;
-        const esFaseFinal = fase.numero === fases.length;
-        const funcionEvidencia = esInicio
+        const esValoracionFinal = !esInicio && !esCierre && orig.evaluacion?.tipo === "Sumativa";
+        const funcionEvidencia = esInicio || esCierre
           ? "de proceso"
-          : esCierre
-            ? (esFaseFinal ? "final" : "de proceso")
-            : "de componente";
+          : esValoracionFinal ? "final" : "de componente";
         // Render desagregado DENTRO de la celda Evidencias existente
         // (contenido, no columnas nuevas): **Conocimientos:** / **Desempeño:**
         // / **Producto:** con numeración — como el documento modelo. Usa las
