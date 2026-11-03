@@ -498,7 +498,11 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
         if (!(coincide(aporte, principal) || normalizar(aporte).includes(normalizar(principal)))) {
           throw new Error(`${etiqueta} — "aporteProducto" debe nombrar su sección principal «${principal}»: la pieza de esta clase es de esa sección.`);
         }
-      } else if (!suyas.some((s) => coincide(aporte, s) || normalizar(aporte).includes(normalizar(s)))) {
+      } else if (!suyas.some((s) => coincide(aporte, s) || normalizar(aporte).includes(normalizar(s)))
+        // Clase que avanza TODAS las secciones (acuerdo y plan, revisión): su
+        // pieza es del producto entero; nombrar una sección la contaba de más
+        // en el Anexo H (auditoría de «Alimentación», 2026-11-03).
+        && !(asignadas.length === secciones.length && contrato.producto && normalizar(aporte).includes(normalizar(contrato.producto)))) {
         throw new Error(`${etiqueta} — "aporteProducto" debe nombrar la sección que avanza (${suyas.join(" · ")}), no el contenido.`);
       }
     }

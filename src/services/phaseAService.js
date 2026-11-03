@@ -1642,7 +1642,8 @@ ${reglaInicio}
 // semilla e indicadores; la IA redacta las clases de UNA fase dentro de ese
 // contrato (redaccionFaseService.js). Aprobado por César el 2026-10-29.
 // v5 (Etapa S4): línea «HILO DE LA UNIDAD» con las piezas de las que parte cada clase.
-const PROMPT_FASE_VERSION = 5;
+// v6: la clase que avanza todas las secciones nombra el producto entero en su aporte.
+const PROMPT_FASE_VERSION = 6;
 function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
   const c = spec.contratoFase;
   const tInicio     = durMin <= 50 ? 10 : 15;
@@ -1681,7 +1682,7 @@ AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor 
     ? `SECCIONES DEL PRODUCTO: ${c.secciones.join(' · ')}.${propositosTx}
 Esta fase lleva ${c.entrega.secciones.length ? c.entrega.secciones.join(' · ') : 'todas las secciones'} al estado «${c.entrega.estado}». Secciones que avanza CADA clase (decididas por el plan; copia la lista EXACTA en "seccionesProducto", una cadena por sección, nunca varias unidas en una):
 ${seccionesLote}
-El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, el "aporteProducto" nombra su sección PRINCIPAL (la pieza es de esa sección) y las demás de su lista se tocan en las actividades. La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}${hiloTx ? `\n${hiloTx}` : ''}`
+El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, el "aporteProducto" nombra su sección PRINCIPAL (la pieza es de esa sección) y las demás de su lista se tocan en las actividades. Si la clase avanza TODAS las secciones (sin principal), el "aporteProducto" nombra el producto entero: "«${c.producto}» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>". La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}${hiloTx ? `\n${hiloTx}` : ''}`
     : `Cada "aporteProducto" es una pieza concreta de «${c.producto}» que avanza su estado «${c.entrega.estado}».`;
   const entregaTx = ultima
     ? `La clase ${endDia} es la ÚLTIMA de la fase: incluye "entregaFase" con lo que el grupo entrega al cerrar la fase (${String(c.entrega.texto).replace(/\s*\(avance \d+ de \d+\)/gi, '')}), y su Cierre lo deja como evidencia de producto.`
