@@ -527,7 +527,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 
           {fase.tituloSemana && (
             <div className="ua-semana-header">
-              {m.titulo} — SEMANA {fase.numero} ({fase.dias?.length || 0} día{(fase.dias?.length || 0) === 1 ? "" : "s"}): &ldquo;{fase.tituloSemana}&rdquo;
+              {m.titulo} — {etiquetaSemanas(fase)} ({fase.dias?.length || 0} día{(fase.dias?.length || 0) === 1 ? "" : "s"}): &ldquo;{fase.tituloSemana}&rdquo;
             </div>
           )}
 
@@ -552,7 +552,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
                 {(dia.focoLinguistico || editando) && (
                   <span> · {editando
                     ? editable({ ruta: `fasesSemanales.${fi}.dias.${di}.focoLinguistico`, valor: dia.focoLinguistico, placeholder: "Foco lingüístico / estructura" })
-                    : dia.focoLinguistico}</span>
+                    : parseFormatting(dia.focoLinguistico)}</span>
                 )}
                 {dia.etapaProgresion && (
                   <span className="ua-etapa-badge">{dia.etapaProgresion}</span>
@@ -695,6 +695,16 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 }
 
 /**
+/**
+ * Semana(s) del CALENDARIO de la fase, como el PDF: una unidad de 3 semanas
+ * con 9 fases decía «SEMANA 9». Unidades guardadas sin dia.semana → número de fase.
+ */
+function etiquetaSemanas(fase) {
+  const semanas = [...new Set((fase.dias || []).map((d) => Number(d?.semana)).filter((n) => n > 0))];
+  if (!semanas.length) return `SEMANA ${fase.numero}`;
+  return semanas.length === 1 ? `SEMANA ${semanas[0]}` : `SEMANAS ${semanas[0]}–${semanas[semanas.length - 1]}`;
+}
+
 /** Convierte **negrita** y _cursiva_ dentro de una cadena en nodos React */
 function parseFormatting(text) {
   const parts = String(text ?? "").split(/(\*\*[^*]+\*\*|_[^_]+_)/g);

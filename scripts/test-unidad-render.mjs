@@ -497,6 +497,21 @@ check("R11 del producto del docente: se revisa antes de generar y avisa, no deti
   if (!/motivoProductoFinal\(productoFinalDeDatos\(datos\), titulo\)/.test(form)) throw new Error("el formulario no revisa el producto");
 });
 
+check("pantalla y criterios de éxito coherentes (prueba «Alimentación» del 2026-11-03)", () => {
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  const pantalla = readFileSync(join(__dir, "../src/components/ResultadoUnidadAprendizaje.jsx"), "utf8");
+  // 9 fases en 3 semanas: la pantalla decía «SEMANA 9»; ahora usa dia.semana como el PDF
+  if (/SEMANA \{fase\.numero\}/.test(pantalla)) throw new Error("la pantalla sigue usando el número de fase como semana");
+  if (!/function etiquetaSemanas\(fase\)[\s\S]{0,200}d\?\.semana/.test(pantalla)) throw new Error("falta etiquetaSemanas con dia.semana");
+  // «_have_ y _want_» se veía con guiones bajos en el subtítulo del día
+  if (!/parseFormatting\(dia\.focoLinguistico\)/.test(pantalla)) throw new Error("el foco del día no convierte _cursiva_");
+  // «Hoy tendrás éxito si…» repetía la misma evidencia de Desarrollo y Cierre
+  if (!/criteriosUnicos = \[\.\.\.new Map\(evidenciasClase\.map/.test(servicio)) throw new Error("los criterios de éxito no se deduplican");
+  // Didácticos con proyector/ordenadores y tecnológicos «No requerido»
+  if (!/derivarRecursos\(\[\.\.\.orig\.actividades, \.\.\.aiMom\.recursos\.map\(String\)\]/.test(servicio)) throw new Error("tecnológicos no miran los didácticos");
+  if (!/ordenador\|laptop\|tableta/.test(servicio) || !/dispositivos\? m\[oó\]vil/.test(servicio)) throw new Error("faltan ordenadores/dispositivos móviles");
+});
+
 check("la evaluación es diagnóstica al inicio, formativa durante el proceso y sumativa solo al valorar el producto", () => {
   const inicio = resolverEvaluacionMomento({ momento: "Inicio", faseIdx: 0, numeroDia: 1, totalDiasFase: 2 });
   const desarrolloCierrePrevio = resolverEvaluacionMomento({
