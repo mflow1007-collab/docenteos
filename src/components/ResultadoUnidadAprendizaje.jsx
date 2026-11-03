@@ -6,6 +6,8 @@
 
 import { useState } from "react";
 import AuditoriaModal from "./AuditoriaModal.jsx";
+import { auth } from "../firebase";
+import { esUsuarioDocenteOS } from "../utils/permisos.js";
 
 const textoSeguro = (value) => {
   if (typeof value === "string" || typeof value === "number") return String(value).trim();
@@ -206,7 +208,16 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
     );
   };
   const fasesBaseCurricular = Array.isArray(unidad.fasesBaseCurricular) ? unidad.fasesBaseCurricular : [];
-  const avisosGeneracion = Array.isArray(unidad.advertencias) ? unidad.advertencias.filter(Boolean).map(String) : [];
+  // Los avisos de redacción (regla 4.4) son ajustes de la generación que el
+  // docente no puede aplicar: solo los ve el administrador. Las unidades
+  // anteriores los traen dentro de «advertencias».
+  const esAvisoRedaccion = (texto) => texto.startsWith("⚠️ Redacción de las actividades (regla 4.4");
+  const esAdmin = esUsuarioDocenteOS(auth.currentUser?.email);
+  const avisosTodos = Array.isArray(unidad.advertencias) ? unidad.advertencias.filter(Boolean).map(String) : [];
+  const avisosGeneracion = avisosTodos.filter((texto) => !esAvisoRedaccion(texto));
+  const avisosRedaccion = esAdmin
+    ? [...avisosTodos.filter(esAvisoRedaccion), ...(Array.isArray(unidad.avisosRedaccion) ? unidad.avisosRedaccion.filter(Boolean).map(String) : [])]
+    : [];
   const competenciasDetalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
   const competenciasVisibles = competenciasDetalle.length
     ? competenciasDetalle
@@ -247,6 +258,16 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
           </summary>
           <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
             {avisosGeneracion.map((texto, i) => <li key={i}>{texto}</li>)}
+          </ul>
+        </details>
+      )}
+      {avisosRedaccion.length > 0 && (
+        <details className="mensaje info">
+          <summary style={{ cursor: "pointer" }}>
+            🛠️ Avisos de redacción de la IA (solo administración)
+          </summary>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+            {avisosRedaccion.map((texto, i) => <li key={i}>{texto}</li>)}
           </ul>
         </details>
       )}

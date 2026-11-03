@@ -521,6 +521,16 @@ check("R4: la evidencia «final» va en el Desarrollo sumativo, no en el Cierre 
   if (resolverEvaluacionMomento({ momento: "Desarrollo", faseIdx: 3, numeroDia: 1, totalDiasFase: 1 }).tipo !== "Sumativa") throw new Error("Desarrollo final dejó de ser sumativo");
 });
 
+check("avisos de redacción 4.4 solo para el administrador; el docente no los ve (2026-11-03)", () => {
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  const pantalla = readFileSync(join(__dir, "../src/components/ResultadoUnidadAprendizaje.jsx"), "utf8");
+  if (!/unidadResult\.avisosRedaccion = \[\s*`⚠️ Redacción de las actividades \(regla 4\.4/.test(servicio)) throw new Error("los avisos 4.4 siguen en advertencias");
+  if (!/seccionesProducto: unidadResult\.planMaestro\?\.secciones/.test(servicio)) throw new Error("la coherencia no recibe las secciones");
+  if (!/const esAdmin = esUsuarioDocenteOS\(auth\.currentUser\?\.email\)/.test(pantalla)) throw new Error("la pantalla no distingue al administrador");
+  if (!/avisosGeneracion = avisosTodos\.filter\(\(texto\) => !esAvisoRedaccion\(texto\)\)/.test(pantalla)) throw new Error("el docente sigue viendo los avisos 4.4 de unidades guardadas");
+  if (!/const avisosRedaccion = esAdmin/.test(pantalla)) throw new Error("los avisos de redacción no se limitan al administrador");
+});
+
 check("la evaluación es diagnóstica al inicio, formativa durante el proceso y sumativa solo al valorar el producto", () => {
   const inicio = resolverEvaluacionMomento({ momento: "Inicio", faseIdx: 0, numeroDia: 1, totalDiasFase: 2 });
   const desarrolloCierrePrevio = resolverEvaluacionMomento({

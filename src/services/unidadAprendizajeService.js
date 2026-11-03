@@ -2986,6 +2986,7 @@ export const validarCoherenciaProducto = ({
   indicadoresPorFase = [],
   asignaturasVinculadas = [],
   textoSituacion = "",
+  seccionesProducto = [],
 } = {}) => {
   const avisos = [];
 
@@ -3090,9 +3091,13 @@ export const validarCoherenciaProducto = ({
   if (!aportes.length) return avisos;
 
   // Vocabulario del producto + tema central: contra esto medimos pertinencia.
+  // Con plan maestro cada pieza se nombra por su SECCIÓN (regla 4.7): sin los
+  // nombres de las secciones, «Our Local Food» contaba como ajena al producto
+  // (prueba «Alimentación», 2026-11-03: falsa alarma en 5 de 9 piezas).
   const tokensProducto = new Set([
     ...tokensTrazaAula(temaCentral),
     ...tokensTrazaAula(producto),
+    ...(Array.isArray(seccionesProducto) ? seccionesProducto : []).flatMap((sec) => tokensTrazaAula(sec)),
   ]);
 
   // Palabras de "relleno" que delatan derivas típicas hacia temas paralelos
@@ -5906,6 +5911,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     ...validarCoherenciaProducto({
       producto: productoNombrado,
       temaCentral: temaMallaStr || titulo,
+      seccionesProducto: unidadResult.planMaestro?.secciones || [],
       aportesProducto,
       numSemanas,
       corpusDocumento,
@@ -5933,8 +5939,9 @@ export const generarUnidadAprendizaje = async (datos) => {
       throw new Error(`Validación del plan maestro: ${global.errores.join("; ")}.`);
     }
     if (global.avisos.length) {
-      unidadResult.advertencias = [
-        ...(unidadResult.advertencias || []),
+      // Ajustes de la generación (regla 4.4) que el docente no puede aplicar:
+      // van aparte y solo los ve el administrador (decisión de César, 2026-11-03).
+      unidadResult.avisosRedaccion = [
         `⚠️ Redacción de las actividades (regla 4.4, ${global.avisos.length}): ${global.avisos.join("; ")}.`,
       ];
     }
