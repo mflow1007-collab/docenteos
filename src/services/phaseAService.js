@@ -1652,7 +1652,7 @@ ${seccionesLote}
 El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, el "aporteProducto" nombra su sección PRINCIPAL (la pieza es de esa sección) y las demás de su lista se tocan en las actividades. La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}`
     : `Cada "aporteProducto" es una pieza concreta de «${c.producto}» que avanza su estado «${c.entrega.estado}».`;
   const entregaTx = ultima
-    ? `La clase ${endDia} es la ÚLTIMA de la fase: incluye "entregaFase" con lo que el grupo entrega al cerrar la fase (${c.entrega.texto}), y su Cierre lo deja como evidencia de producto.`
+    ? `La clase ${endDia} es la ÚLTIMA de la fase: incluye "entregaFase" con lo que el grupo entrega al cerrar la fase (${String(c.entrega.texto).replace(/\s*\(avance \d+ de \d+\)/gi, '')}), y su Cierre lo deja como evidencia de producto.`
     : 'Solo la última clase de la fase incluye "entregaFase"; en estas clases va vacío ("").';
   const naturaleza = spec.esIdioma ? null : resolverNaturalezaArea(spec.area, spec.asignatura);
   // Regla 4.4: verbos del nivel que pide el papel de la fase (y el siguiente),
@@ -1686,7 +1686,7 @@ ESTRATEGIA: ${c.estrategia}. PRODUCTO CENTRAL: «${c.producto}» (nombre fijo; n
 ${spec.contextoComunitario ? `CONTEXTO COMUNITARIO REAL (palabras del docente; no inventes otros datos locales): ${spec.contextoComunitario}\n` : ''}
 CONTRATO DE LA FASE ${c.numero} DE ${c.total}: «${c.nombre}» (fase literal de la Guía: ${c.fasesGuia.join(' + ')}). Sesiones de la fase: ${c.sesiones}; aquí redactas ${rango}.
 PROPÓSITO: ${c.proposito}
-ENTREGA DE LA FASE: ${c.entrega.texto}.
+ENTREGA DE LA FASE: ${String(c.entrega.texto).replace(/\s*\(avance \d+ de \d+\)/gi, '')}.
 ${seccionesTx}
 INDICADORES DE ESTA FASE (copia de 1 a 3 CÓDIGOS EXACTOS en "indicadoresTrabajados"; las actividades y evidencias deben permitir comprobarlos):
 ${indText}

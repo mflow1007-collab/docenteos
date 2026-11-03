@@ -1949,8 +1949,9 @@ const derivarRecursos = (actividades, area, _faseNum) => {
   }
   if (tiene(/computadora|ordenador|laptop|tableta/)) tec.add("Computadora o tableta");
   if (tiene(/celular|dispositivos? m[oó]vil|tel[eé]fono/)) tec.add("Teléfono o dispositivo móvil");
-  // "proyecto" no significa que exista un proyector.
-  if (tiene(/\bproyector\b|\bproyectan\b|\bproyecci[oó]n\b/) && tec.size === 0) {
+  // "proyecto" no significa que exista un proyector. Si se nombra, va siempre
+  // (antes solo si no había otro tecnológico y se perdía junto a «digital»).
+  if (tiene(/\bproyector\b|\bproyectan\b|\bproyecci[oó]n\b/)) {
     tec.add("Proyector");
   }
 
@@ -3451,6 +3452,11 @@ const marcarIndicadoresPlan = (detalle = [], rutaPlanMaestro = null) => {
 // (saludoInicial, retroalimentacionPrevia, saberesPrevios, actividadEnganche).
 // La retroalimentación de la clase anterior vive AQUÍ (posición 2), no en el
 // Cierre. Posición 5 fija del formato oficial.
+
+// «Borrador de X (avance 2 de 2)» es el rótulo interno de la entrega de la fase;
+// la IA lo copiaba en la evidencia y en «Hoy tendrás éxito si…» (prueba
+// «Alimentación», 2026-11-03).
+export const sinRotuloAvance = (texto) => String(texto ?? "").replace(/\s*\(avance \d+ de \d+\)/gi, "").trim();
 
 export const construirInicioCanonico = (clase = {}) => {
   const saludo = String(clase.saludoInicial || "").trim().replace(/^\(+|\)+$/g, "");
@@ -5024,7 +5030,7 @@ const _generarFasesConIA = async (
         // Clave de comparación laxa (sin acentos/signos/mayúsculas) para detectar
         // cuándo un "producto" repite textualmente un "desempeño".
         const _clave = (t) => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-        const _desempeno = (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean);
+        const _desempeno = (aiMom.evidencias?.desempeno || []).map(sinRotuloAvance).filter(Boolean);
         const _clavesDesempeno = new Set(_desempeno.map(_clave));
         // Producto = SOLO entregables tangibles: se eliminan los ítems que
         // repiten un desempeño (p. ej. "Participación en la discusión" colada
@@ -5033,9 +5039,9 @@ const _generarFasesConIA = async (
         // render para que el de-dup afecte TAMBIÉN al texto del PDF, no solo la
         // trazabilidad interna.
         const evidenciasPorTipo = {
-          conocimientos: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
+          conocimientos: (aiMom.evidencias?.conocimientos || []).map(sinRotuloAvance).filter(Boolean),
           desempeno: _desempeno,
-          producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean)
+          producto: (aiMom.evidencias?.producto || []).map(sinRotuloAvance).filter(Boolean)
             .filter((e) => !_clavesDesempeno.has(_clave(e))),
         };
         // R4 — 2º EJE de las evidencias: la FUNCIÓN evaluativa (de proceso / de
@@ -5158,7 +5164,7 @@ const _generarFasesConIA = async (
       const evidenciasClase = [
         ...evDesempenoProducto(aiClase.momentos[1]?.evidencias).slice(0, 3),
         ...evDesempenoProducto(aiClase.momentos[2]?.evidencias).slice(0, 1),
-      ].map((e) => String(e).trim()).filter(Boolean);
+      ].map(sinRotuloAvance).filter(Boolean);
       // Sin repetir: Desarrollo y Cierre a veces traen la misma evidencia.
       const criteriosUnicos = [...new Map(evidenciasClase.map((e) => [_normTexto(e).replace(/\.$/, ""), e])).values()];
       if (criteriosUnicos.length) {
