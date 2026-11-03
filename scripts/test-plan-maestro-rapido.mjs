@@ -65,6 +65,14 @@ check("tema con situación propuesta: usa la semilla, su producto y sus seccione
   assert(!d.planMaestro.situacion.borrador, "la semilla no es borrador");
 });
 
+check("Etapa 1A: la semilla trae qué contiene cada sección; el borrador del título, ninguno", () => {
+  const d = prellenar({ ...base, titulo: "Alimentación" });
+  igual(d.planMaestro.situacion.semillaId, "ing2-alimentacion-menu", "semilla");
+  igual(d.planMaestro.propositosSecciones["Healthy Choices"], "qué platos y alimentos recomendamos y por qué (alternativas más sanas)", "Healthy Choices");
+  igual(d.planMaestro.propositosSecciones["Ordering Food"], "cómo pedir esos platos en inglés (diálogos de pedido entre cliente y dueño)", "Ordering Food");
+  igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.propositosSecciones, {}, "sin semilla, sin propósitos");
+});
+
 check("el producto que escribió el docente se respeta", () => {
   const d = prellenar({ ...base, titulo: "My family and friends", productoFinalTexto: "My Family and Friends Album" });
   igual(d.productoFinalTexto, "My Family and Friends Album", "producto del docente");

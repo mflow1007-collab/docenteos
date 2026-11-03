@@ -390,9 +390,10 @@ export const alinearSiNoHay = (pm) => (pm.situacion && !pm.situacion.estrategiaA
 
 export const usarSemilla = (pm, semilla, { centro = "" } = {}) => alinearSiNoHay({
   ...pm, situacion: situacionDesdeSemilla(semilla, { centro }), secciones: [...semilla.secciones],
+  propositosSecciones: { ...(semilla.propositos || {}) },
 });
 
-export const escribirSituacionPropia = (pm) => alinearSiNoHay({ ...pm, situacion: situacionVacia(), secciones: [] });
+export const escribirSituacionPropia = (pm) => alinearSiNoHay({ ...pm, situacion: situacionVacia(), secciones: [], propositosSecciones: {} });
 
 export const aceptarRealineacion = (pm) => ({
   ...pm, situacion: { ...pm.situacion, estrategiaAlineada: pm.estrategia, rolPropio: "" },
