@@ -295,6 +295,22 @@ check("validador: fases sin contenido no amplían ni exigen semilla", () => {
   lanza(() => validarLoteContrato({ clases: [claseOk({ semillaUsada: [] })] }, ap, 1, 2), /ampliacion" debe ir vacía/, "ampliación en apertura");
 });
 
+check("clase con TODAS las secciones: su aporte puede nombrar el producto entero (no una sección de más)", () => {
+  const ap = contratos[0];
+  igual(ap.seccionesPorClase[0], ap.secciones, "la apertura avanza todas las secciones");
+  const base = { semillaUsada: [], ampliacion: [], focoLinguistico: "Apropiación de la unidad", seccionesProducto: ap.seccionesPorClase[0], entregaFase: ap.entrega.texto };
+  validarLoteContrato({ clases: [claseOk({ ...base, aporteProducto: `«${ap.producto}» (acuerdo y plan): plan de secciones acordado` })] }, ap, 1, 1);
+  validarLoteContrato({ clases: [claseOk({ ...base, aporteProducto: `Sección «${ap.secciones[0]}» (acuerdo y plan): plan` })] }, ap, 1, 1);
+  lanza(() => validarLoteContrato({ clases: [claseOk({ ...base, aporteProducto: "plan de vocabulario" })] }, ap, 1, 1), /debe nombrar la sección/, "ni producto ni sección");
+  // Clase con PARTE de las secciones: el producto entero no basta.
+  if (cc.seccionesPorClase[0].length < cc.secciones.length && !cc.seccionPrincipalPorClase[0]) {
+    lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: `«${cc.producto}»: mapa` })] }, cc, 1, 1), /debe nombrar/, "parcial con producto");
+  }
+  const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/Si la clase avanza TODAS las secciones \(sin principal\), el "aporteProducto" nombra el producto entero/.test(faseTxt), "el prompt lo pide");
+  assert(/const PROMPT_FASE_VERSION = 6;/.test(faseTxt), "versión del prompt");
+});
+
 check("cada fase deja su entrega: la última clase la declara y se avanzan sus secciones", () => {
   const ultima = cc.sesiones;
   lanza(() => validarLoteContrato({ clases: [claseDe(ultima - 1)] }, cc, 1, ultima), /entregaFase/, "última sin entrega");

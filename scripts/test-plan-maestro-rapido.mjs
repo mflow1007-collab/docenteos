@@ -215,7 +215,7 @@ check("sin pieza entregada, sin línea; sin semilla, el hilo no existe (prompt c
 });
 check("el prompt de fase lleva el hilo y sube de versión (no reutiliza lotes del prompt anterior)", () => {
   const txt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
-  assert(/const PROMPT_FASE_VERSION = 5;/.test(txt), "PROMPT_FASE_VERSION = 5");
+  assert(/const PROMPT_FASE_VERSION = \d+;/.test(txt) && !/PROMPT_FASE_VERSION = [1-4];/.test(txt), "PROMPT_FASE_VERSION ≥ 5");
   assert(/hiloPartenDe\(\{ contrato: c, memoria, startDia, count \}\)/.test(txt), "buildFasePrompt arma el hilo");
 });
 
