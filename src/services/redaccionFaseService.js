@@ -331,6 +331,7 @@ export const construirContratoFase = ({ plan, indice, estructura }) => {
     rangoSesiones: { ...fase.rangoSesiones },
     entrega: { estado: fase.entrega.estado, texto: fase.entrega.texto, secciones: [...fase.entrega.secciones] },
     seccionesPorClase: repartirSeccionesClases(fase.entrega.secciones, fase.sesiones),
+    seccionPrincipalPorClase: seccionesPrincipalesUnidad(plan)[indice],
     secciones: [...(plan.secciones || [])],
     producto: plan.producto,
     estrategia: plan.estrategia.nombre,
@@ -356,6 +357,33 @@ export const repartirSeccionesClases = (secciones, sesiones) => {
   }
   return Array.from({ length: sesiones }, (_, k) =>
     secciones.slice(Math.floor((k * secciones.length) / sesiones), Math.floor(((k + 1) * secciones.length) / sesiones)));
+};
+
+/**
+ * Sección PRINCIPAL de cada clase, mirando toda la unidad (aprobado por César,
+ * 2026-11-03): con una clase por fase, la clase recibía varias secciones y su
+ * aporte nombraba solo una, así que una sección («Healthy Choices») nunca se
+ * trabajó. En orden de clases se elige, entre las asignadas, la que menos veces
+ * ha sido principal (empate: la que menos en el mismo estado; luego el orden del
+ * producto). Devuelve, por fase, la principal de cada clase ("" sin secciones).
+ */
+export const seccionesPrincipalesUnidad = (plan) => {
+  const orden = plan?.secciones || [];
+  const usos = new Map();
+  const cuenta = (clave) => usos.get(clave) || 0;
+  return (plan?.fases || []).map((fase) => {
+    const estado = fase.entrega?.estado || "";
+    return repartirSeccionesClases(fase.entrega?.secciones || [], fase.sesiones).map((asignadas) => {
+      if (!asignadas.length) return "";
+      const principal = [...asignadas].sort((a, b) =>
+        cuenta(a) - cuenta(b)
+        || cuenta(`${estado}|${a}`) - cuenta(`${estado}|${b}`)
+        || orden.indexOf(a) - orden.indexOf(b))[0];
+      usos.set(principal, cuenta(principal) + 1);
+      usos.set(`${estado}|${principal}`, cuenta(`${estado}|${principal}`) + 1);
+      return principal;
+    });
+  });
 };
 
 /** Códigos que la IA puede usar en "indicadoresTrabajados" en esta fase. */
@@ -385,7 +413,12 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       const faltan = asignadas.filter((a) => !suyas.some((s) => normalizar(s) === normalizar(a)));
       if (faltan.length) throw new Error(`${etiqueta} no avanza ${faltan.join(", ")}, que el plan le asigna.`);
       const aporte = String(clase?.aporteProducto || "");
-      if (!suyas.some((s) => coincide(aporte, s) || normalizar(aporte).includes(normalizar(s)))) {
+      const principal = contrato.seccionPrincipalPorClase?.[startDia + idx - 1] || "";
+      if (principal) {
+        if (!(coincide(aporte, principal) || normalizar(aporte).includes(normalizar(principal)))) {
+          throw new Error(`${etiqueta} — "aporteProducto" debe nombrar su sección principal «${principal}»: la pieza de esta clase es de esa sección.`);
+        }
+      } else if (!suyas.some((s) => coincide(aporte, s) || normalizar(aporte).includes(normalizar(s)))) {
         throw new Error(`${etiqueta} — "aporteProducto" debe nombrar la sección que avanza (${suyas.join(" · ")}), no el contenido.`);
       }
     }

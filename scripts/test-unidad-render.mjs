@@ -512,6 +512,15 @@ check("pantalla y criterios de éxito coherentes (prueba «Alimentación» del 2
   if (!/ordenador\|laptop\|tableta/.test(servicio) || !/dispositivos\? m\[oó\]vil/.test(servicio)) throw new Error("faltan ordenadores/dispositivos móviles");
 });
 
+check("R4: la evidencia «final» va en el Desarrollo sumativo, no en el Cierre formativo (prueba «Alimentación», 2026-11-03)", () => {
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  if (!/const esValoracionFinal = !esInicio && !esCierre && orig\.evaluacion\?\.tipo === "Sumativa";/.test(servicio)) throw new Error("la etiqueta final no sigue a la sumativa");
+  if (/esCierre\s*\?\s*\(esFaseFinal \? "final"/.test(servicio)) throw new Error("el Cierre de la última fase sigue marcado como final");
+  // La política de evaluación no cambia: sumativa solo en el Desarrollo de la clase de valoración
+  if (resolverEvaluacionMomento({ momento: "Cierre", faseIdx: 3, numeroDia: 1, totalDiasFase: 1 }).tipo !== "Formativa") throw new Error("Cierre dejó de ser formativo");
+  if (resolverEvaluacionMomento({ momento: "Desarrollo", faseIdx: 3, numeroDia: 1, totalDiasFase: 1 }).tipo !== "Sumativa") throw new Error("Desarrollo final dejó de ser sumativo");
+});
+
 check("la evaluación es diagnóstica al inicio, formativa durante el proceso y sumativa solo al valorar el producto", () => {
   const inicio = resolverEvaluacionMomento({ momento: "Inicio", faseIdx: 0, numeroDia: 1, totalDiasFase: 2 });
   const desarrolloCierrePrevio = resolverEvaluacionMomento({
