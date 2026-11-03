@@ -1938,7 +1938,7 @@ const derivarRecursos = (actividades, area, _faseNum) => {
   if (tiene(/video|clip|film|audiovisual/)) {
     tec.add("Proyector"); tec.add("Video / clip audiovisual"); tec.add("Parlantes");
   }
-  if (tiene(/audio|podcast|grabaci[oó]n|comprens[ioó]n auditiva/) && !tiene(/video/)) {
+  if (tiene(/audio|podcast|grabaci[oó]n|grabadora|comprens[ioó]n auditiva/) && !tiene(/video/)) {
     tec.add("Grabación de audio"); tec.add("Parlantes");
   }
   if (tiene(/presentaci[oó]n digital|diapositiv|canva|powerpoin/)) {
@@ -1947,6 +1947,8 @@ const derivarRecursos = (actividades, area, _faseNum) => {
   if (tiene(/internet|plataforma|liveworksheet|kahoot|digital/)) {
     tec.add("Computadora o tableta"); tec.add("Acceso a internet");
   }
+  if (tiene(/computadora|ordenador|laptop|tableta/)) tec.add("Computadora o tableta");
+  if (tiene(/celular|dispositivos? m[oó]vil|tel[eé]fono/)) tec.add("Teléfono o dispositivo móvil");
   // "proyecto" no significa que exista un proyector.
   if (tiene(/\bproyector\b|\bproyectan\b|\bproyecci[oó]n\b/) && tec.size === 0) {
     tec.add("Proyector");
@@ -5133,7 +5135,9 @@ const _generarFasesConIA = async (
           humanos: "Docente y estudiantes",
           didacticos: aiMom.recursos.map((r) => String(r).trim()).filter(Boolean).join(", "),
           // Tecnológicos: derivación determinística desde las actividades reales
-          tecnologicos: derivarRecursos(orig.actividades, area, fase.numero).tecnologicos,
+          // y los recursos didácticos de la IA (si piden proyector u ordenadores,
+          // los tecnológicos no pueden decir «No requerido»).
+          tecnologicos: derivarRecursos([...orig.actividades, ...aiMom.recursos.map(String)], area, fase.numero).tecnologicos,
         };
       });
 
@@ -5148,8 +5152,10 @@ const _generarFasesConIA = async (
         ...evDesempenoProducto(aiClase.momentos[1]?.evidencias).slice(0, 3),
         ...evDesempenoProducto(aiClase.momentos[2]?.evidencias).slice(0, 1),
       ].map((e) => String(e).trim()).filter(Boolean);
-      if (evidenciasClase.length) {
-        dia.criteriosExito = evidenciasClase.map((e) => `☐ ${e.replace(/\.$/, "")}.`);
+      // Sin repetir: Desarrollo y Cierre a veces traen la misma evidencia.
+      const criteriosUnicos = [...new Map(evidenciasClase.map((e) => [_normTexto(e).replace(/\.$/, ""), e])).values()];
+      if (criteriosUnicos.length) {
+        dia.criteriosExito = criteriosUnicos.map((e) => `☐ ${e.replace(/\.$/, "")}.`);
       }
 
       // R3: contrato — todos los campos del render deben estar presentes post-merge
