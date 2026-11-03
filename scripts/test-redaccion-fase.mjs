@@ -17,7 +17,7 @@ import { usarSemilla, aceptarRealineacion } from "../src/services/situacionApren
 import {
   construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta, seccionesDeClase,
   estructuraGramatical, estructurasDeMalla, ampliacionUsadaEnClases,
-  recortarIndicador, recogerAmpliacion, repartirSeccionesClases, seccionesPrincipalesUnidad,
+  recortarIndicador, recogerAmpliacion, repartirSeccionesClases, seccionesPrincipalesUnidad, contienePalabras,
   motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro,
 } from "../src/services/redaccionFaseService.js";
 import { SITUACIONES_SEMILLA_INGLES_2DO as SEMILLAS } from "../src/data/situacionesSemillaIngles2do.js";
@@ -181,6 +181,19 @@ check("sección principal por clase: con una clase por fase, ninguna sección qu
   igual(cc.seccionPrincipalPorClase.length, cc.sesiones, "contrato con principal por clase");
   const otra = cc.seccionPrincipalPorClase[0] && cc.seccionesPorClase[0].find((x) => x !== cc.seccionPrincipalPorClase[0]);
   if (otra) lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: `Sección «${otra}»: pieza` })] }, cc, 1, 1), /sección principal/, "aporte con otra sección");
+});
+
+check("tema repetido: solo palabras completas («retroalimentación» no es «alimentación», 2026-11-03)", () => {
+  igual(contienePalabras("retroalimentacion de la clase anterior", "alimentacion"), false, "retroalimentación");
+  igual(contienePalabras("describen la alimentacion del barrio", "alimentacion"), true, "palabra completa");
+  igual(contienePalabras("hablan sobre alimentacion.", "sobre alimentacion"), true, "frase con puntuación");
+  igual(contienePalabras("vida diaria", "vida diaria"), true, "tema de dos palabras");
+  igual(contienePalabras("texto", ""), false, "tema vacío");
+  const fase = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  if (!/25-35 palabras, CONTADAS/.test(fase)) throw new Error("la regla del largo no pide contar");
+  const ej = (fase.match(/Bien \((\d+) palabras\): "([^"]+)"/) || []);
+  igual(ej[2]?.split(/\s+/).length, Number(ej[1]), "el ejemplo bueno tiene las palabras que dice");
+  if (!(Number(ej[1]) >= 25 && Number(ej[1]) <= 35)) throw new Error(`el ejemplo bueno tiene ${ej[1]} palabras`);
 });
 
 check("validador del contrato: clase que cumple pasa", () => {

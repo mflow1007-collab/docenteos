@@ -151,6 +151,12 @@ export const motivoRedaccionActividad = (texto, { esIdioma = false } = {}) => {
 };
 
 /** Palabras de una actividad; la síntesis (25-35) solo se avisa (decisión de César, Etapa 7). */
+// ¿`texto` contiene `frase` como palabras completas? Ambos ya normalizados.
+export const contienePalabras = (texto, frase) => {
+  const escapada = String(frase ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return Boolean(escapada) && new RegExp(`(^|[^a-z0-9ñ])${escapada}([^a-z0-9ñ]|$)`).test(String(texto ?? ""));
+};
+
 export const palabrasActividad = (texto) => String(texto ?? "").trim().split(/\s+/).filter(Boolean).length;
 
 /**
@@ -597,9 +603,11 @@ export const validarUnidadPlanMaestro = (unidad) => {
     const conProducto = producto ? actividades.filter((a) => a.includes(producto)).length : 0;
     if (conProducto > 1) avisos.push(`${ref}: el nombre del producto se repite en ${conProducto} actividades (se nombra una vez por clase)`);
     temas.forEach((tema) => {
-      const conTema = actividades.filter((a) => a.includes(tema)).length;
+      // Palabra completa: «retroalimentación» contenía «alimentación» y el aviso
+      // saltaba en casi todas las clases (prueba «Alimentación», 2026-11-03).
+      const conTema = actividades.filter((a) => contienePalabras(a, tema)).length;
       if (conTema > 1) avisos.push(`${ref}: el tema «${tema}» se repite en ${conTema} actividades`);
-      if (actividades.some((a) => a.includes(`sobre ${tema}`))) avisos.push(`${ref}: una actividad dice «sobre ${tema}»; exprésalo con elementos concretos`);
+      if (actividades.some((a) => contienePalabras(a, `sobre ${tema}`))) avisos.push(`${ref}: una actividad dice «sobre ${tema}»; exprésalo con elementos concretos`);
     });
   }));
   // Regla 4.4 (avisos): progresión de verbos por papel de fase y expresiones
