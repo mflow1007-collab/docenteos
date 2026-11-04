@@ -18,7 +18,7 @@ import {
   construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta, seccionesDeClase,
   estructuraGramatical, estructurasDeMalla, ampliacionUsadaEnClases,
   recortarIndicador, recogerAmpliacion, repartirSeccionesClases, seccionesPrincipalesUnidad, contienePalabras,
-  motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro,
+  motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro, actividadAnteAudiencia,
 } from "../src/services/redaccionFaseService.js";
 import { SITUACIONES_SEMILLA_INGLES_2DO as SEMILLAS } from "../src/data/situacionesSemillaIngles2do.js";
 import { TIPOS_TRABAJO } from "../src/data/rolesFasesEstrategias.js";
@@ -308,7 +308,7 @@ check("clase con TODAS las secciones: su aporte puede nombrar el producto entero
   }
   const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
   assert(/Si la clase avanza TODAS las secciones \(sin principal\), el "aporteProducto" nombra el producto entero/.test(faseTxt), "el prompt lo pide");
-  assert(/const PROMPT_FASE_VERSION = 6;/.test(faseTxt), "versión del prompt");
+  assert(/const PROMPT_FASE_VERSION = 8;/.test(faseTxt), "versión del prompt");
 });
 
 check("cada fase deja su entrega: la última clase la declara y se avanzan sus secciones", () => {
@@ -440,20 +440,52 @@ const fasesAnexo = [
 ];
 const baseAnexos = { area: "Inglés", tema: "Escuela y educación", producto: "Our School Survival Guide", vocabulario: ["high school", "freshman"], fases: fasesAnexo };
 
-check("Anexo F: malla primero y la ampliación después, marcada como DocenteOS y sin repetir", () => {
+check("Anexo F: primero el vocabulario del proyecto (sin singular y plural repetidos), después la malla", () => {
   const { glosario } = construirAnexosUnidad({
     ...baseAnexos,
     ampliacion: [
-      { texto: "_library, cafeteria_, Freshman", tipo: "vocabulario", seccion: "Important Places" },
       { texto: "Excuse me, could you help me?", tipo: "expresion", seccion: "Asking for Help" },
+      { texto: "_library, cafeteria_, Freshman, libraries, ingredient, ingredients", tipo: "vocabulario", seccion: "Important Places" },
       { texto: "can + verbo", tipo: "gramatica", seccion: "Asking for Help" },
+      { texto: "Greetings and basic polite expressions important for smooth interactions during interviews", tipo: "expresion", seccion: "Asking for Help" },
     ],
   });
   igual(glosario.map((g) => [g.termino, g.origen]), [
+    ["library", "DocenteOS"], ["cafeteria", "DocenteOS"], ["libraries", "DocenteOS"], ["ingredient", "DocenteOS"], ["Excuse me, could you help me?", "DocenteOS"],
     ["high school", "malla"], ["freshman", "malla"],
-    ["library", "DocenteOS"], ["cafeteria", "DocenteOS"], ["Excuse me, could you help me?", "DocenteOS"],
   ], "glosario");
   igual(construirAnexosUnidad(baseAnexos).glosario.map((g) => g.origen), ["malla", "malla"], "sin ampliación, como antes");
+});
+
+check("Anexo F: en la malla, lo trabajado en las clases va primero", () => {
+  const fasesUso = [{ dias: [{ semillaUsada: ["Vocabulario: menu", "ingredients"] }, { semillaUsada: ["menu", "chat"] }] }];
+  const { glosario } = construirAnexosUnidad({ ...baseAnexos, vocabulario: ["texting", "chat", "park", "menu", "ingredients"], fases: fasesUso });
+  igual(glosario.map((g) => g.termino), ["menu", "chat", "ingredients", "texting", "park"], "de más a menos usado (empate: orden de la malla)");
+});
+
+// Audiencia real (César, 2026-11-03): la fase de aplicación ocurre ante ella.
+check("audiencia real: se reconoce la actividad real y no la simulada", () => {
+  const aud = "los dueños de los comedores y los visitantes";
+  assert(actividadAnteAudiencia("Presentan (en equipos) la guía a un dueño invitado: comentarios escritos; se guardan.", aud), "a un dueño");
+  assert(actividadAnteAudiencia("Entregan la guía ante los visitantes del barrio.", aud), "ante los visitantes");
+  assert(actividadAnteAudiencia("Registran los comentarios de un visitante sobre el menú.", aud), "comentarios de");
+  assert(!actividadAnteAudiencia("Practican (en parejas, Role Play) con un dueño de restaurante ordenando comida.", aud), "juego de roles");
+  assert(!actividadAnteAudiencia("Corrigen el diálogo entre un cliente y un dueño.", aud), "solo menciona");
+});
+check("audiencia real: sin ella la fase se rechaza; la evaluación solo avisa", () => {
+  const aud = "los dueños de los comedores y los visitantes";
+  const contrato = { numero: 8, secciones: [], conContenido: false, sesiones: 1, entrega: { texto: "x" }, semilla: { vocabulario: [], gramatica: [], expresiones: [], funcionales: [] } };
+  const clase = (actividad, evidencias = {}) => ({ entregaFase: "x", momentos: [
+    { nombre: "Desarrollo", actividades: [actividad], evidencias },
+    { nombre: "Cierre", actividades: ["Coevalúan (en parejas) la pieza."] },
+  ] });
+  lanza(() => validarLoteContrato({ clases: [clase("Practican (en parejas, Role Play) el pedido.")] }, { ...contrato, audienciaReal: aud }, 1, 1), /audiencia real/, "sin audiencia");
+  validarLoteContrato({ clases: [clase("Presentan (en equipos) la guía a un dueño invitado.")] }, { ...contrato, audienciaReal: aud }, 1, 1);
+  validarLoteContrato({ clases: [clase("Practican (en parejas, Role Play) el pedido.")] }, contrato, 1, 1);
+  const sinRegistro = validarLoteContrato({ clases: [clase("Evalúan la guía.")] }, { ...contrato, audienciaRegistro: aud }, 1, 1);
+  assert(sinRegistro[0].some((m) => /registra los comentarios/.test(m)), "aviso sin registro");
+  const conRegistro = validarLoteContrato({ clases: [clase("Evalúan la guía.", { producto: ["Registro de comentarios de los dueños de comedores."] })] }, { ...contrato, audienciaRegistro: aud }, 1, 1);
+  assert(!conRegistro[0].some((m) => /registra los comentarios/.test(m)), "con registro no avisa");
 });
 
 check("ampliación gramatical: solo estructuras de la malla del grado (las desconocidas no se bloquean)", () => {
@@ -542,9 +574,10 @@ check("4.4: la síntesis no rechaza (decisión de César); el Cierre necesita un
   ] });
   igual(motivosRedaccionClase(clase(["Socializan el mapa.", "Coevalúan (en parejas) los rótulos."]), "clase 1"), [], "cierre válido");
   assert(/Autónomo o Estratégico/.test(motivosRedaccionClase(clase(["Socializan el mapa.", "Revisan los rótulos."]), "clase 1")[0] || ""), "cierre sin nivel");
-  // Todos los motivos del lote van en un solo rechazo.
-  lanza(() => validarLoteContrato({ clases: [claseOk(clase(["Realizan el mapa.", "Socializan ideas en grupo."]))] }, cc, 1, 1),
-    /Redacción 4\.4 \(3\):.*Realizan.*en grupo.*Autónomo/, "tres motivos juntos");
+  // La redacción 4.4 es flexible (César, 2026-11-03): no rechaza, devuelve los motivos por clase.
+  const motivos = validarLoteContrato({ clases: [claseOk(clase(["Realizan el mapa.", "Socializan ideas en grupo."]))] }, cc, 1, 1);
+  assert(motivos.length === 1 && motivos[0].length === 3, "tres motivos de la clase 1, sin rechazo");
+  assert(/Realizan.*en grupo.*Autónomo/.test(motivos[0].join(" ")), "verbo, organización y nivel del Cierre");
 });
 check("4.4: avisos de progresión por papel y de exceso de expresiones", () => {
   const plan = { fases: [{ nombre: "Evaluación", roles: ["evaluacion"], indicadores: [], entrega: { secciones: [] } }] };

@@ -1460,25 +1460,40 @@ export const construirAnexosUnidad = ({
   // Glosario: primero el vocabulario oficial de la malla; después, hasta 16,
   // la ampliación de DocenteOS (vocabulario y expresiones), marcada como tal
   // para no presentarla como contenido oficial (regla 4.6).
+  // Dos bloques (César, 2026-11-03): primero el vocabulario clave del proyecto
+  // (ampliación de DocenteOS, sin repetir singular y plural); después, los
+  // términos del currículo, con lo trabajado en las clases primero.
   const limpiarTermino = (t) => String(t || "").replace(/_/g, "").replace(/[.;:]+$/, "").replace(/\s+/g, " ").trim();
-  const glosarioMalla = (vocabulario || []).slice(0, 16).map((termino) => ({
-    termino: String(termino),
-    traduccion: "",
-    origen: "malla",
-  }));
-  const vistosGlosario = new Set(glosarioMalla.map((g) => limpiarTermino(g.termino).toLowerCase()));
-  const glosarioAmpliacion = (Array.isArray(ampliacion) ? ampliacion : [])
-    .filter((a) => a?.tipo === "vocabulario" || a?.tipo === "expresion")
-    .flatMap((a) => (a.tipo === "vocabulario" ? String(a.texto || "").split(/\s*[,/]\s*/) : [a.texto]))
+  const MAX_GLOSARIO = 16;
+  const claveTermino = (t) => limpiarTermino(String(t || "").replace(/^\s*vocabulario\s*:\s*/i, "")).toLowerCase();
+  const usosMalla = new Map();
+  fases.flatMap((f) => f?.dias || []).forEach((d) => (Array.isArray(d?.semillaUsada) ? d.semillaUsada : [])
+    .forEach((s) => usosMalla.set(claveTermino(s), (usosMalla.get(claveTermino(s)) || 0) + 1)));
+  const vocabularioMalla = [...new Set((vocabulario || []).map(String))];
+  const usadosMalla = vocabularioMalla.filter((t) => usosMalla.has(claveTermino(t)))
+    .sort((a, b) => usosMalla.get(claveTermino(b)) - usosMalla.get(claveTermino(a)));
+  const restoMalla = vocabularioMalla.filter((t) => !usadosMalla.includes(t));
+  const glosarioMalla = [...usadosMalla, ...restoMalla].slice(0, MAX_GLOSARIO)
+    .map((termino) => ({ termino, traduccion: "", origen: "malla" }));
+  // «ingredient» e «ingredients» cuentan como un solo término.
+  const claveSingular = (t) => claveTermino(t).replace(/(?<=[a-z]{3})s$/, "");
+  const vistosGlosario = new Set(vocabularioMalla.map(claveSingular));
+  const ampliacionGlosario = Array.isArray(ampliacion) ? ampliacion : [];
+  const glosarioProyecto = [
+    ...ampliacionGlosario.filter((a) => a?.tipo === "vocabulario").flatMap((a) => String(a.texto || "").split(/\s*[,/]\s*/)),
+    ...ampliacionGlosario.filter((a) => a?.tipo === "expresion").map((a) => a.texto),
+  ]
     .map(limpiarTermino)
     .filter((t) => {
-      const clave = t.toLowerCase();
-      if (!t || vistosGlosario.has(clave)) return false;
+      const clave = claveSingular(t);
+      // Una explicación larga de la IA no es un término de glosario.
+      if (!t || t.split(" ").length > 8 || vistosGlosario.has(clave)) return false;
       vistosGlosario.add(clave);
       return true;
     })
+    .slice(0, MAX_GLOSARIO)
     .map((termino) => ({ termino, traduccion: "", origen: "DocenteOS" }));
-  const glosario = [...glosarioMalla, ...glosarioAmpliacion].slice(0, 16);
+  const glosario = [...glosarioProyecto, ...glosarioMalla];
 
   const sentenceStarters = idioma ? [
     { funcion: "Describir / Informar", starter: "This is... / It has... / There is / There are..." },
@@ -1557,7 +1572,7 @@ export const construirAnexosUnidad = ({
             .filter(Boolean))];
           return {
             seccion,
-            ...(fasesPlan.length ? { fases: estadosSeccion.join(" → ") } : {}),
+            ...(fasesPlan.length ? { fases: estadosSeccion.join(" → "), evidencia: piezas[piezas.length - 1]?.pieza || "" } : {}),
             incluye: piezas.length
               ? `${piezasPorEstado(piezas)}.`
               : "Lo que el grupo acordó para esta sección en el plan del producto.",
@@ -3505,6 +3520,8 @@ const _generarFasesConIA = async (
   const aportesProductoUsados = new Set();
   let modoContingenciaSinIA = false;
   const advertenciasIA = [];
+  // Desarrollo y Cierre aceptados con aviso (plan maestro): solo los ve el admin.
+  const avisosRedaccionIA = [];
   // A5: fases que la IA no completó y se armaron desde la malla (para marcarlas en la vista).
   const fasesBaseCurricular = [];
   const totalClases = fases.reduce((sum, f) => sum + f.dias.length, 0);
@@ -4920,6 +4937,11 @@ const _generarFasesConIA = async (
       if (!dia) {
         throw new Error(`R3: clase IA ${i + 1} de la semana ${fase.numero} sin día calendario correspondiente`);
       }
+      // Los motivos nombran la clase por su posición en el lote; aquí se
+      // nombra por su número en la unidad.
+      (Array.isArray(aiClase.avisosRedaccion) ? aiClase.avisosRedaccion : []).forEach((motivo) => {
+        avisosRedaccionIA.push(`Clase ${dia.numeroGlobal || i + 1}: ${String(motivo).replace(/\bclase \d+\s*(—\s*)?/i, "")}`);
+      });
       const anclaSecuencia = specFase.secuenciaBase?.[i] || null;
 
       // Título e intención pedagógica: SOLO del contrato validado de la IA
@@ -5233,7 +5255,7 @@ const _generarFasesConIA = async (
     globalOffset += numClases;
   }
 
-  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA, fasesBaseCurricular, combinacionesCreadas };
+  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA, avisosRedaccionIA, fasesBaseCurricular, combinacionesCreadas };
 };
 
 // ─── Exportación principal ────────────────────────────────────────────────────
@@ -5436,6 +5458,7 @@ export const generarUnidadAprendizaje = async (datos) => {
       estructura: prepPlanMaestro.estructura,
       contratos: prepPlanMaestro.plan.fases.map((_, indice) => construirContratoFase({
         plan: prepPlanMaestro.plan, indice, estructura: prepPlanMaestro.estructura,
+        audiencia: datos.planMaestro?.situacion?.audiencia || "",
       })),
     };
   } else {
@@ -5636,7 +5659,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     ? estrategiaSel.fases
     : null;
 
-  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], fasesBaseCurricular = [], combinacionesCreadas = [] } = await _generarFasesConIA(
+  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], avisosRedaccionIA = [], fasesBaseCurricular = [], combinacionesCreadas = [] } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
     {
       grado, nivel,
@@ -5949,6 +5972,17 @@ export const generarUnidadAprendizaje = async (datos) => {
       // van aparte y solo los ve el administrador (decisión de César, 2026-11-03).
       unidadResult.avisosRedaccion = [
         `⚠️ Redacción de las actividades (regla 4.4, ${global.avisos.length}): ${global.avisos.join("; ")}.`,
+      ];
+    }
+    // Lo flexible del Desarrollo y del Cierre que la IA no cumplió: se aceptó
+    // sin reintento pagado y se avisa al admin (decisión de César, 2026-11-03).
+    // Con tope, para no inflar el documento guardado (límite de 1 MiB).
+    if (avisosRedaccionIA.length) {
+      const MAX_AVISOS_LOTE = 40;
+      const resto = avisosRedaccionIA.length - MAX_AVISOS_LOTE;
+      unidadResult.avisosRedaccion = [
+        ...(unidadResult.avisosRedaccion || []),
+        `⚠️ Desarrollo y Cierre aceptados con aviso (${avisosRedaccionIA.length}): ${avisosRedaccionIA.slice(0, MAX_AVISOS_LOTE).join("; ")}${resto > 0 ? `; y ${resto} más` : ""}.`,
       ];
     }
   }
@@ -6828,18 +6862,26 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       ${(ax.escalaValoracion || []).map((i) => `<tr><td>${textoItemInstrumento(i)}${trazaInstrumentoHtml(i)}</td><td></td><td></td><td></td></tr>`).join("")}
     </table>
 
-    ${ax.glosario?.length ? `
-    <h3>ANEXO F — Glosario de la unidad</h3>
-    <p class="nota">La columna Español se completa con los estudiantes durante la unidad.${ax.glosario.some((g) => g.origen === "DocenteOS") ? " Los términos marcados con (DocenteOS) son ampliación de DocenteOS para el producto, no contenido oficial de la malla." : ""}</p>
-    <table class="rubrica">
+    ${ax.glosario?.length ? (() => {
+      const tablaGlosario = (lista) => `<table class="rubrica">
       <tr><th>Término</th><th>Español</th><th>Término</th><th>Español</th></tr>
-      ${Array.from({ length: Math.ceil(ax.glosario.length / 2) }, (_, i) => {
-        const a = ax.glosario[i * 2];
-        const b = ax.glosario[i * 2 + 1];
-        const termino = (g) => (g?.termino ? `${g.termino}${g.origen === "DocenteOS" ? ' <small style="color:#64748b">(DocenteOS)</small>' : ""}` : "");
-        return `<tr><td>${termino(a)}</td><td>${a?.traduccion || ""}</td><td>${termino(b)}</td><td>${b?.traduccion || ""}</td></tr>`;
+      ${Array.from({ length: Math.ceil(lista.length / 2) }, (_, i) => {
+        const a = lista[i * 2];
+        const b = lista[i * 2 + 1];
+        return `<tr><td>${a?.termino || ""}</td><td>${a?.traduccion || ""}</td><td>${b?.termino || ""}</td><td>${b?.traduccion || ""}</td></tr>`;
       }).join("")}
-    </table>` : ""}
+    </table>`;
+      const proyecto = ax.glosario.filter((g) => g.origen === "DocenteOS");
+      const curriculo = ax.glosario.filter((g) => g.origen !== "DocenteOS");
+      return `
+    <h3>ANEXO F — Glosario de la unidad</h3>
+    <p class="nota">La columna Español se completa con los estudiantes durante la unidad.</p>
+    ${proyecto.length ? `<h4>Vocabulario clave del proyecto</h4>
+    <p class="nota">Ampliación de DocenteOS para el producto; no es contenido oficial de la malla.</p>
+    ${tablaGlosario(proyecto)}
+    ${curriculo.length ? `<h4>Otros términos del currículo asociados</h4>
+    ${tablaGlosario(curriculo)}` : ""}` : tablaGlosario(curriculo)}`;
+    })() : ""}
 
     <h3>ANEXO G — Frases de apoyo (Sentence starters)</h3>
     <table class="rubrica">
@@ -6856,8 +6898,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <h3>ANEXO I — Organizador gráfico del producto final</h3>
     <table class="rubrica">
       ${(ax.organizadorProducto || []).some((o) => o.fases !== undefined)
-        ? `<tr><th style="width:20%">Sección</th><th style="width:22%">Estados de la sección</th><th style="width:34%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
-      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.fases || ""}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`
+        ? `<tr><th style="width:16%">Sección</th><th style="width:16%">Estados de la sección</th><th style="width:20%">Evidencia principal</th><th style="width:28%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
+      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.fases || ""}</td><td>${o.evidencia || ""}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`
         : `<tr><th style="width:28%">Sección</th><th style="width:42%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
       ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`}
     </table>
