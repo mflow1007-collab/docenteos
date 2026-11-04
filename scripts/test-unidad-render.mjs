@@ -529,6 +529,7 @@ check("avisos de redacción 4.4 solo para el administrador; el docente no los ve
   if (!/const esAdmin = esUsuarioDocenteOS\(auth\.currentUser\?\.email\)/.test(pantalla)) throw new Error("la pantalla no distingue al administrador");
   if (!/avisosGeneracion = avisosTodos\.filter\(\(texto\) => !esAvisoRedaccion\(texto\)\)/.test(pantalla)) throw new Error("el docente sigue viendo los avisos 4.4 de unidades guardadas");
   if (!/const avisosRedaccion = esAdmin/.test(pantalla)) throw new Error("los avisos de redacción no se limitan al administrador");
+  if (!/texto\.startsWith\("⚠ Producto-fantasma"\)/.test(pantalla)) throw new Error("el docente sigue viendo el aviso de producto fantasma");
 });
 
 check("el rótulo «(avance N de M)» no llega al aula ni a la IA; el proyector nombrado siempre va (revisión «Alimentación», 2026-11-03)", () => {

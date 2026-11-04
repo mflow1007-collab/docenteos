@@ -211,7 +211,9 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
   // Los avisos de redacción (regla 4.4) son ajustes de la generación que el
   // docente no puede aplicar: solo los ve el administrador. Las unidades
   // anteriores los traen dentro de «advertencias».
-  const esAvisoRedaccion = (texto) => texto.startsWith("⚠️ Redacción de las actividades (regla 4.4");
+  // Producto fantasma (César, 2026-11-04): suele saltar con el producto traducido
+  // en un título; el docente no tiene qué corregir.
+  const esAvisoRedaccion = (texto) => texto.startsWith("⚠️ Redacción de las actividades (regla 4.4") || texto.startsWith("⚠ Producto-fantasma");
   const esAdmin = esUsuarioDocenteOS(auth.currentUser?.email);
   const avisosTodos = Array.isArray(unidad.advertencias) ? unidad.advertencias.filter(Boolean).map(String) : [];
   const avisosGeneracion = avisosTodos.filter((texto) => !esAvisoRedaccion(texto));
