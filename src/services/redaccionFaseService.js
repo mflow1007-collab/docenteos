@@ -304,6 +304,11 @@ export const construirContratoFase = ({ plan, indice, estructura, audiencia = ""
   const audienciaReal = esDeTipo("aplicar") ? audienciaLimpia : "";
   // Fase de tipo «evaluar»: se pide el registro de comentarios de esa audiencia.
   const audienciaRegistro = esDeTipo("evaluar") ? audienciaLimpia : "";
+  // Fase de tipo «analizar»: las secciones de «proponer» arrancan aquí su
+  // borrador como secundarias; alguna actividad debe trabajarlas (César, 2026-11-04).
+  const seccionesQueArrancan = esDeTipo("analizar")
+    ? (fase.entrega?.secciones || []).filter((s) => plan.tiposTrabajoSecciones?.[s] === "proponer")
+    : [];
   const porId = new Map((estructura?.indicadores || []).map((ind) => [ind.id, ind]));
   const aIndicador = (ind, retoma) => {
     const base = porId.get(ind.id);
@@ -362,6 +367,7 @@ export const construirContratoFase = ({ plan, indice, estructura, audiencia = ""
     esApertura: (fase.roles || []).every((r) => r === "apertura"),
     audienciaReal,
     audienciaRegistro,
+    seccionesQueArrancan,
   };
 };
 
@@ -414,8 +420,13 @@ export const seccionesPrincipalesUnidad = (plan) => {
   const esDeContenido = (estado) => /borrador|versi[oó]n final/i.test(estado);
   const duenaDe = new Map();
   const buscar = (seccion, vistas, admite) => {
-    for (let r = 0; r < ranuras.length; r += 1) {
-      if (vistas.has(r) || !admite(ranuras[r]) || !ranuras[r].asignadas.includes(seccion)) continue;
+    // Cada sección prefiere la clase donde va primero (donde nace su tipo de
+    // trabajo): en una clase donde es secundaria, no le quita la principal a otra.
+    const candidatas = ranuras.map((_, r) => r)
+      .filter((r) => ranuras[r].asignadas.includes(seccion))
+      .sort((a, b) => ranuras[a].asignadas.indexOf(seccion) - ranuras[b].asignadas.indexOf(seccion));
+    for (const r of candidatas) {
+      if (vistas.has(r) || !admite(ranuras[r])) continue;
       vistas.add(r);
       if (!duenaDe.has(r) || buscar(duenaDe.get(r), vistas, admite)) {
         duenaDe.set(r, seccion);
@@ -589,6 +600,11 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
   // y la de evaluación deja el registro de sus comentarios (avisa).
   if (startDia + count - 1 >= contrato.sesiones) {
     const clasesLote = (data?.clases || []).slice(0, count);
+    const sinTrabajar = (contrato.seccionesQueArrancan || []).filter((s) => !clasesLote
+      .some((c) => textosActividades(c).some((a) => normalizar(a).includes(normalizar(s)))));
+    if (sinTrabajar.length) {
+      throw new Error(`Contrato: esta fase deja el primer borrador de ${sinTrabajar.join(", ")} y ninguna actividad lo trabaja: una actividad del Desarrollo o del Cierre lo hace y nombra la sección ("Seleccionan (en equipos) una primera versión para «${sinTrabajar[0]}»…").`);
+    }
     if (contrato.audienciaReal
       && !clasesLote.some((c) => textosActividades(c).some((a) => actividadAnteAudiencia(a, contrato.audienciaReal)))) {
       throw new Error(`Contrato: la fase de aplicación no ocurre ante su audiencia real (${contrato.audienciaReal}): una actividad del Desarrollo o del Cierre, que no sea simulada, presenta o entrega la pieza a esa audiencia ("Presentan (en equipos) … a un dueño invitado").`);

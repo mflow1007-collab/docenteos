@@ -1667,7 +1667,7 @@ ${reglaInicio}
 // contrato (redaccionFaseService.js). Aprobado por César el 2026-10-29.
 // v5 (Etapa S4): línea «HILO DE LA UNIDAD» con las piezas de las que parte cada clase.
 // v6: la clase que avanza todas las secciones nombra el producto entero en su aporte.
-const PROMPT_FASE_VERSION = 8;
+const PROMPT_FASE_VERSION = 9;
 function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
   const c = spec.contratoFase;
   const tInicio     = durMin <= 50 ? 10 : 15;
@@ -1744,7 +1744,7 @@ ${spec.contextoComunitario ? `CONTEXTO COMUNITARIO REAL (palabras del docente; n
 CONTRATO DE LA FASE ${c.numero} DE ${c.total}: «${c.nombre}» (fase literal de la Guía: ${c.fasesGuia.join(' + ')}). Sesiones de la fase: ${c.sesiones}; aquí redactas ${rango}.
 PROPÓSITO: ${c.proposito}
 ENTREGA DE LA FASE: ${String(c.entrega.texto).replace(/\s*\(avance \d+ de \d+\)/gi, '')}.
-${c.audienciaReal ? `APLICACIÓN ANTE LA AUDIENCIA REAL: en esta fase el grupo presenta o entrega lo que avanza a su audiencia real (${c.audienciaReal}), aunque sea de forma simbólica (un invitado de la comunidad en el aula, la entrega de la pieza o la retroalimentación de un visitante). Al menos una actividad del Desarrollo o del Cierre lo hace y deja evidencia, nombrando a quién: "Presentan (en equipos) la pieza a un dueño invitado…". Un juego de roles o una simulación NO cuenta; el validador rechaza la fase si falta.\n` : ''}${c.audienciaRegistro ? `REGISTRO DE LA COMUNIDAD: una evidencia de producto de esta fase es el registro de comentarios de su audiencia real (${c.audienciaRegistro}).\n` : ''}${seccionesTx}
+${c.audienciaReal ? `APLICACIÓN ANTE LA AUDIENCIA REAL: en esta fase el grupo presenta o entrega lo que avanza a su audiencia real (${c.audienciaReal}), aunque sea de forma simbólica (un invitado de la comunidad en el aula, la entrega de la pieza o la retroalimentación de un visitante). Al menos una actividad del Desarrollo o del Cierre lo hace y deja evidencia, nombrando a quién: "Presentan (en equipos) la pieza a un dueño invitado…". Un juego de roles o una simulación NO cuenta; el validador rechaza la fase si falta.\n` : ''}${c.seccionesQueArrancan?.length ? `PRIMER BORRADOR DE ${c.seccionesQueArrancan.map((s) => `«${s}»`).join(', ')}: esta fase lo deja. Al menos una actividad del Desarrollo o del Cierre lo trabaja y nombra la sección: "Seleccionan (en equipos) una primera versión para «${c.seccionesQueArrancan[0]}»…"; el validador rechaza la fase si falta.\n` : ''}${c.audienciaRegistro ? `REGISTRO DE LA COMUNIDAD: una evidencia de producto de esta fase es el registro de comentarios de su audiencia real (${c.audienciaRegistro}).\n` : ''}${seccionesTx}
 INDICADORES DE ESTA FASE (copia de 1 a 3 CÓDIGOS EXACTOS en "indicadoresTrabajados"; las actividades y evidencias deben permitir comprobarlos):
 ${indText}
 ${semillaTx}

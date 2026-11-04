@@ -151,7 +151,7 @@ const I = "Interviews with Owners", L = "Our Local Food", M = "Bilingual Menus",
 
 check("«Alimentación» a 3 semanas reproduce la tabla aprobada", () => {
   const plan = planDe("Alimentación", 3);
-  igual(seccionesPorFase(plan), ["todas", I, I, L, M, `${I}, ${L}`, `${H}, ${M}`, O, "todas"], "secciones por fase");
+  igual(seccionesPorFase(plan), ["todas", I, I, L, `${M}, ${H}`, `${I}, ${L}`, `${H}, ${M}`, O, "todas"], "secciones por fase (Healthy Choices arranca su borrador en la fase 5)");
   igual(seccionesPrincipalesUnidad(plan).flat(), ["", I, I, L, M, I, H, O, ""], "principal de cada clase");
   igual(plan.fases.map((f) => f.entrega.estado), ["Acuerdo y plan", "Insumos recopilados", "Insumos recopilados", "Borrador", "Borrador",
     "Versión final", "Versión final", "Versión final", "Versión revisada"], "estados del producto, como hoy");
@@ -227,6 +227,8 @@ check("«Alimentación»: solo la fase de aplicación lleva la audiencia real", 
   const conAudiencia = plan.fases.map((_, i) => construirContratoFase({ plan, indice: i, estructura, audiencia }).audienciaReal);
   igual(conAudiencia, ["", "", "", "", "", "", "", audiencia, ""], "fase 8 «Aplicación de los conocimientos»");
   igual(construirContratoFase({ plan, indice: 7, estructura }).audienciaReal, "", "sin audiencia, nada");
+  igual(plan.fases.map((_, i) => construirContratoFase({ plan, indice: i, estructura }).seccionesQueArrancan),
+    [[], [], [], [], [H], [], [], [], []], "Healthy Choices arranca su borrador en la fase 5");
   igual(plan.fases.map((_, i) => construirContratoFase({ plan, indice: i, estructura, audiencia }).audienciaRegistro),
     ["", "", "", "", "", "", "", "", audiencia], "registro de comentarios en la fase 9");
   const proyectos = planDe("Alimentación", 3, { estrategia: "proyectos", situacion: { ...prellenar({ ...base, titulo: "Alimentación", temasSeleccionados: ["Alimentación"] }).planMaestro.situacion, estrategiaAlineada: "proyectos" } });
