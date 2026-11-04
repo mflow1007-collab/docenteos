@@ -1111,6 +1111,29 @@ check("ortografía: tildes en cualquier parte; mal conjugados solo como primera 
   }
 });
 
+check("futuro: los regulares conocidos pasan a presente; lo demás se rechaza", () => {
+  const convierte = [
+    ["Compartirán (en plenaria) el plan.", "Comparten (en plenaria) el plan."],
+    ["Coevaluarán el menú.", "Coevalúan el menú."],
+    ["Revisarán la ficha y corregirán errores.", "Revisan la ficha y corregirán errores."],
+    ["Escribirán un párrafo.", "Escriben un párrafo."],
+  ];
+  for (const [entrada, esperado] of convierte) {
+    const salida = normalizarVozActividadMINERD(entrada);
+    if (salida !== esperado) throw new Error(`"${entrada}" → "${salida}"`);
+    if (!validarVozActividad(salida).ok) throw new Error(`rechazó "${salida}"`);
+  }
+  for (const entrada of ["Harán un póster.", "Tendrán una ficha.", "Recomendarán platos.", "Investigarán los precios."]) {
+    const salida = normalizarVozActividadMINERD(entrada);
+    if (salida !== entrada) throw new Error(`no debía cambiar: "${entrada}" → "${salida}"`);
+    if (validarVozActividad(salida).ok) throw new Error(`aceptó el futuro: "${salida}"`);
+  }
+  // Terminan en «ran» sin tilde: son presente y siguen pasando.
+  for (const entrada of ["Comparan los menús.", "Elaboran una ficha.", "Mejoran el texto."]) {
+    if (normalizarVozActividadMINERD(entrada) !== entrada || !validarVozActividad(entrada).ok) throw new Error(`presente tocado: "${entrada}"`);
+  }
+});
+
 check("normalizarVozActividadMINERD repara arranques nominales comunes", () => {
   const casos = [
     ["Ticket final sobre las partes de la casa.", "Completan un ticket de salida"],

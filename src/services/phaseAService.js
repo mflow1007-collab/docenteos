@@ -521,6 +521,10 @@ export function validarVozActividad(texto) {
   if (!esCanonica && ARRANQUES_NOMINALES.test(t)) {
     return { ok: false, motivo: `inicia con sustantivo o recurso, no con acción observable: "${primera}"` };
   }
+  // «-n» no basta: «Compartirán» es 3.ª plural, pero en futuro (regla fija: presente).
+  if (/rán$/.test(primera)) {
+    return { ok: false, motivo: `verbo en futuro, debe ir en presente: "${primera}"` };
+  }
   const esVerboPluralPresente = /^[A-ZÁÉÍÓÚÜÑ]/.test(primera) && /n$/.test(primera);
   if (!esVerboPluralPresente && !esCanonica) {
     return { ok: false, motivo: `no inicia con verbo en tercera persona plural del presente: "${primera}"` };
@@ -538,8 +542,20 @@ const VERBOS_SIN_TILDE = {
 const VERBOS_MAL_CONJUGADOS = { reciban: 'Reciben', revisen: 'Revisan', archiven: 'Archivan', archivian: 'Archivan' };
 const RE_VERBOS_SIN_TILDE = new RegExp(`\\b(${Object.keys(VERBOS_SIN_TILDE).join('|')})\\b`, 'gi');
 const RE_VERBOS_MAL_CONJUGADOS = new RegExp(`^(${Object.keys(VERBOS_MAL_CONJUGADOS).join('|')})\\b`, 'i');
+// Futuro a presente, solo en la primera palabra y solo si el presente regular
+// (Revisarán→Revisan, Compartirán→Comparten) es un verbo conocido de las listas.
+// Lo demás no se adivina: Harán, Tendrán o Recomendarán (sería «Recomendan») no se
+// tocan y validarVozActividad los rechaza (César, 2026-11-04).
+const claveVerboPresente = (v) => String(v).replace(/-/g, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const PRESENTES_CONOCIDOS = new Map(
+  [...Object.values(VERBOS_POR_NIVEL), ...Object.values(VERBOS_IDIOMA), VERBOS_GESTION, VERBOS_VOZ_MINERD]
+    .flat().map((v) => [claveVerboPresente(v), v]),
+);
+const futuroAPresente = (texto) => texto.replace(/^(\S+)([aei])rán(?=$|[\s(,.:;])/i, (m, raiz, vocal) => (
+  PRESENTES_CONOCIDOS.get(claveVerboPresente(`${raiz}${vocal.toLowerCase() === 'a' ? 'an' : 'en'}`)) || m
+));
 export function corregirOrtografiaVerbos(texto) {
-  return String(texto ?? '')
+  return futuroAPresente(String(texto ?? ''))
     .replace(RE_VERBOS_SIN_TILDE, (m) => {
       const bien = VERBOS_SIN_TILDE[m.toLowerCase()];
       return m[0] === m[0].toUpperCase() ? bien[0].toUpperCase() + bien.slice(1) : bien;
