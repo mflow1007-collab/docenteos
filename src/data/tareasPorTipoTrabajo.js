@@ -72,7 +72,7 @@ export const TAREAS_POR_TIPO = {
 
 // Reunidas: comentar por estaciones y corregir abarcan varias secciones a la vez.
 export const SECCIONES_POR_COMENTAR = 3;
-export const SECCIONES_POR_CORREGIR = 2;
+export const SECCIONES_POR_CORREGIR = 3;
 export const TAREA_COMENTAR = tarea("comentar", "comentar por estaciones", [15, 30], "I", "desempeno", "oral", "estaciones por grupo", "Comentarios por sección", "socializar", "aplicacion", "M", "Piezas de las secciones, ficha de comentarios");
 export const TAREA_CORREGIR = tarea("corregir", "corregir, probar y verificar datos", [15, 30], "P", "producto", "escrita", "grupo editor de cada sección", "Versión final de las secciones", null, "aplicacion", "M", "Piezas, comentarios, tabla común", { cierraSeccion: true });
 
@@ -90,3 +90,91 @@ export const TAREAS_UNIDAD = {
 // Sección cuyo tipo aprobado aún no está en la semilla: cambiarla en la semilla
 // alteraría la generación actual, así que el mapa lo resuelve por su cuenta.
 export const TIPO_APROBADO_POR_SECCION = { "School Directions": "orientar" };
+
+// Qué hace cada tarea y qué no, para que la clase no invada a otra, y una señal para
+// avisar al administrador si la redacción se aleja (primera prueba real, 2026-11-04).
+export const DETALLE_TAREA = {
+  acordar: { hace: "Presentan la situación, acuerdan producto, audiencia, grupos y rúbrica, y aplican el diagnóstico: escuchan oraciones y marcan imágenes, leen un menú o texto breve, escriben dos oraciones y responden una pregunta en parejas. No se redactan preguntas ni piezas.", senal: "acuerd|diagn|plan" },
+  visitar_modelo: { hace: "Escuchan o leen una entrevista modelo e identifican qué pregunta da cada dato. Aún no escriben el guion ni entrevistan.", senal: "identific|modelo", soloComprender: true },
+  visitar_guion: { hace: "Escriben el guion con una pregunta firmada por cada estudiante y fijan los turnos. No entrevistan todavía.", senal: "guion|pregunta" },
+  visitar_entrevistar: { hace: "Entrevistan según la modalidad, por turnos, con una pregunta por estudiante; todos anotan en la tabla común y al final comprueban que no falte ningún dato.", senal: "entrevist" },
+  visitar_registrar: { hace: "Redactan desde las notas de la tabla un registro de la entrevista. Se llama registro, no transcripción: nadie grabó.", senal: "regist|redact" },
+  visitar_segunda: { hace: "Hacen una segunda ronda de preguntas solo sobre los datos que faltan en la tabla.", senal: "entrevist|pregunt" },
+  describir_modelo: { hace: "Analizan una pieza modelo y anotan cómo se hace. Es apoyo breve.", senal: "analiz|observ|identific|modelo" },
+  describir_redactar: { hace: "Cada estudiante redacta y firma su pieza con los datos recibidos.", senal: "redact|escrib|elabor" },
+  analizar_ordenar: { hace: "Ordenan los datos recibidos y analizan un modelo para decidir el formato. Aún no redactan la pieza.", senal: "orden|clasific|organiz", soloComprender: true },
+  analizar_borrador: { hace: "Redactan el borrador con los datos ordenados, cada estudiante firma una entrada, y comprueban cada dato contra su fuente.", senal: "borrador|redact|escrib" },
+  analizar_verificar: { hace: "Verifican con otra fuente solo los datos dudosos.", senal: "verific|comprob" },
+  proponer_comparar: { hace: "Leen un texto breve y comparan en una tabla con lo que ya tienen. Aún no escriben la pieza.", senal: "compar", soloComprender: true },
+  proponer_elegir: { hace: "Discuten qué proponer y justifican su elección con la tabla.", senal: "elig|justific|discut|debat|propon" },
+  proponer_elaborar: { hace: "Elaboran la pieza con lo elegido, con su razón y su alternativa.", senal: "elabor|redact|escrib" },
+  aplicar_modelo: { hace: "Analizan un modelo e identifican sus frases. Es la parte de comprensión de esta tarea.", senal: "modelo|identific|escuch|analiz" },
+  aplicar_escribir: { hace: "Escriben la pieza usando lo identificado y las piezas ya hechas.", senal: "escrib|redact" },
+  aplicar_ensayar: { hace: "Ensayan con la pieza y el producto reales, en los dos papeles.", senal: "ensay|represent|practic" },
+  aplicar_anotar: { hace: "Anotan qué falló y qué cambiar. Aún no corrigen.", senal: "anot|observ|registr|coment" },
+  aplicar_segundo: { hace: "Repiten el ensayo probando lo que anotaron.", senal: "ensay|represent|practic" },
+  aplicar_corregir: { hace: "Corrigen la pieza con lo anotado en el ensayo y la dejan final.", senal: "corrig|ajust|mejor" },
+  socializar_reunir: { hace: "Reúnen lo que ya tienen de las otras secciones.", senal: "reun|revis|seleccion" },
+  socializar_redactar: { hace: "Redactan el mensaje con lo reunido.", senal: "redact|escrib" },
+  socializar_leer: { hace: "Lo leen a otro grupo y anotan qué no se entendió.", senal: "le[ae]n|compart|present" },
+  orientar_recorrido: { hace: "Hacen el recorrido o el mapa con los lugares reales.", senal: "recorr|map|plano" },
+  orientar_instrucciones: { hace: "Escriben las instrucciones paso a paso desde el recorrido.", senal: "instruc|escrib|redact" },
+  orientar_probar: { hace: "Un compañero sigue las instrucciones y anotan dónde se pierde.", senal: "prueb|sig|compañero" },
+  comentar: { hace: "Solo comentan y registran dos fortalezas y una mejora por pieza. La corrección va después.", senal: "coment|recorr|fortalez" },
+  corregir: { hace: "El grupo editor corrige con los comentarios, verifica los datos contra su fuente y pasa a limpio.", senal: "corrig|verific|mejor" },
+  glosario: { hace: "Reúnen el vocabulario clave de la guía con su traducción.", senal: "glosario|vocabulario" },
+  integrar: { hace: "Reúnen todas las secciones en un solo producto y revisan que los datos coincidan. No se reescribe ni se presenta a nadie todavía.", senal: "reun|integr|compil|junt|ensambl|un[ei]n?\\b" },
+  presentar: { hace: "Presentan TODAS las secciones del producto a la audiencia y lo ponen a prueba con ella (si es un menú y una guía para pedir, hacen pedidos reales con el menú). Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos.", senal: "present" },
+  audiencia_secundaria: { hace: "Prueban el producto con la audiencia secundaria y recogen sus comentarios.", senal: "present|prueb|muestr" },
+  evaluar_comentarios: { hace: "Leen los comentarios de la audiencia, responden por escrito qué piden cambiar y corrigen el producto completo, que queda listo para entregar a la audiencia. Las respuestas son la evidencia de comprensión.", senal: "comentari" },
+  evaluar_proceso: { hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
+};
+
+// Inventario de datos (César, 2026-11-04): lo que cada sección necesita y lo que recoge,
+// para que ninguna pieza exija un dato sin origen. Banco pedagógico. Las secciones
+// fuera de esta lista (temas sin semilla) no se comprueban.
+export const INVENTARIO_POR_SECCION = {
+  // Alimentación
+  "Interviews with Owners": { recoge: ["platos", "ingredientes", "precios", "horario", "clientes"] },
+  "Our Local Food": { necesita: ["platos", "ingredientes"] },
+  "Bilingual Menus": { necesita: ["platos", "precios"] },
+  "Healthy Choices": { necesita: ["platos", "ingredientes"] },
+  "Ordering Food": { necesita: ["platos", "precios"] },
+  // Escuela y educación
+  "Important Places": { recoge: ["lugares", "función del lugar", "personas"] },
+  "School Directions": { necesita: ["lugares"], recoge: ["rutas"] },
+  "Asking for Help": { necesita: ["lugares", "personas"] },
+  "School Success Tips": { necesita: ["lugares"] },
+  "Welcome": { necesita: ["lugares"] },
+  "Final Recommendation": {},
+  // Actividades de la vida diaria
+  "Our Daily Routines": { recoge: ["horario"] },
+  "What We Found": { necesita: ["horario"], recoge: ["horas de sueño", "llegadas tarde"] },
+  "Problems and Causes": { necesita: ["horas de sueño", "llegadas tarde"] },
+  "Our Healthy Schedule": { necesita: ["horario"] },
+  "Tips for Families": { necesita: ["horario"] },
+};
+// Cómo se reconoce cada dato en el texto de la clase (sin tildes).
+export const MARCAS_DATO = {
+  platos: "plato|dish|menu|sell|serve", ingredientes: "ingredient|made (with|of)|lleva",
+  precios: "precio|price|how much|cost", horario: "horario|hour|open|schedule|time|wake|get up",
+  clientes: "client|customer", lugares: "lugar|place|library|cafeteria|office",
+  "función del lugar": "para que|what .* for|funcion|sirve", personas: "persona|who|quien|teacher|principal",
+  rutas: "ruta|turn|left|right|next to|recorrido", "horas de sueño": "sueno|sleep|horas", "llegadas tarde": "tarde|late",
+};
+
+// Alcance de la semilla cuando la fuente es un solo dueño invitado (ficha de la unidad).
+export const ALCANCE_POR_SEMILLA = {
+  "ing2-alimentacion-menu": {
+    conInvitado: {
+      productoDescripcion: "el menú bilingüe y las recomendaciones del comedor participante",
+      audiencia: "el dueño del comedor participante y los visitantes",
+      audienciaDetalle: {
+        principal: "el dueño del comedor participante",
+        secundarias: [{ quien: "los visitantes", funcion: "consultan el menú para saber qué piden" }],
+      },
+      invitado: "dueño invitado",
+      visitante: "otro docente que hace de visitante",
+    },
+  },
+};

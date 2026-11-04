@@ -17,10 +17,13 @@ import { construirPlanMaestro } from "./planMaestroService.js";
 import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR,
-  SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION,
+  SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
+  INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA,
 } from "../data/tareasPorTipoTrabajo.js";
 
 export const CLASES_MINIMAS = 3;
+// Más contenidos no caben con sentido en una clase: lo demás queda sin marcar en la tabla.
+export const TOPE_CONTENIDOS_POR_CLASE = 6;
 const ORDEN_TIPOS = ["visitar", "socializar", "describir", "analizar", "orientar", "proponer", "aplicar"];
 const error = (msg) => new Error(`Mapa de clases: ${msg}`);
 const ACCION_DE = { C: "responde", P: "produce", I: "interactua" };
@@ -262,7 +265,12 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
   const hay = (fila, letra) => fila.tareas.some((t) => [].concat(t.demuestra).includes(letra));
   const utiles = filas.filter((f) => !f.flexible);
   const candidatas = (fn) => { const l = utiles.filter(fn); return l.length ? l : utiles; };
-  const poner = (fila, cat, texto) => { fila.contenidos.push({ categoria: cat, texto }); };
+  const sinLugar = [];
+  // Prioridad = el orden en que se llama: funciones, su gramática, vocabulario, expresiones.
+  const poner = (fila, cat, texto) => {
+    const destino = fila.contenidos.length < TOPE_CONTENIDOS_POR_CLASE ? fila : utiles.find((f) => f.contenidos.length < TOPE_CONTENIDOS_POR_CLASE);
+    if (destino) destino.contenidos.push({ categoria: cat, texto }); else sinLugar.push(`${cat}:${texto}`);
+  };
   const enOrden = (lista, cat, destinos) => lista.forEach((t, i) => poner(destinos[Math.floor((i * destinos.length) / lista.length)], cat, t));
   const conUso = candidatas((f) => hay(f, "P") || hay(f, "I"));
   const lugarFuncion = {};
@@ -280,7 +288,7 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
   enOrden(sinFuncion, "gramatica", conUso);
   enOrden(items.vocabulario, "vocabulario", candidatas((f) => hay(f, "C") || hay(f, "P")));
   enOrden(items.expresiones, "expresiones", candidatas((f) => hay(f, "I")));
-  return Object.values(items).flat().length;
+  return sinLugar;
 };
 
 // Indicadores: la tarea que demuestra una acción lleva un indicador de esa acción,
@@ -307,10 +315,18 @@ const ubicarIndicadores = (filas, indicadores) => {
     const destinos = filas.filter((f) => f.tareas.some((t) => [].concat(t.demuestra).includes(letra)));
     lista.filter((id) => !filas.some((f) => f.indicadores.includes(id))).forEach((id, i) => {
       if (!destinos.length) return;
-      const fila = destinos[i % destinos.length];
+      const fila = [...destinos].sort((a, b) => a.indicadores.length - b.indicadores.length)[0] || destinos[i % destinos.length];
       fila.indicadores.push(id);
       fila.tareas.find((t) => [].concat(t.demuestra).includes(letra)).indicadores.push(id);
     });
+  });
+  // Clase sin tarea evaluable (autoevaluación sola, clase flexible): retoma el último
+  // indicador trabajado, porque la plantilla exige al menos uno.
+  let ultimo = null;
+  filas.forEach((f) => {
+    if (f.indicadores.length) { ultimo = f.indicadores[f.indicadores.length - 1]; return; }
+    const previo = ultimo || indicadores[0]?.id;
+    if (previo) { f.indicadores.push(previo); f.indicadorRetomado = true; }
   });
   // Elegidos sin tarea de su acción (la selección no cuadra con las tareas): se declaran.
   return indicadores.filter((ind) => !filas.some((f) => f.indicadores.includes(ind.id))).map((ind) => ind.id);
@@ -348,6 +364,136 @@ const encadenar = (filas, partenDe) => {
       .filter((r, i, l) => l.findIndex((x) => x.texto === r.texto && x.clase === r.clase) === i);
   });
 };
+
+// Inventario: qué datos debe recoger cada clase. La entrevista recoge lo que necesitan
+// las piezas posteriores; una sección que recoge, lo hace en su primera tarea.
+const ponerDatosARecoger = (filas, secciones) => {
+  const inv = (s) => INVENTARIO_POR_SECCION[s] || {};
+  const recogidos = new Set();
+  const empezadas = new Set();
+  filas.forEach((fila) => {
+    const datos = new Set();
+    fila.tareas.forEach((t) => {
+      if (t.secciones.length !== 1 || ["acordar", "comentar", "corregir"].includes(t.clave)) return;
+      const primera = !empezadas.has(t.secciones[0]);
+      empezadas.add(t.secciones[0]);
+      if (!["visitar_guion", "visitar_entrevistar"].includes(t.clave) && !primera) return;
+      t.secciones.forEach((s) => {
+        (inv(s).recoge || []).filter((d) => t.clave.startsWith("visitar") || !recogidos.has(d)).forEach((d) => datos.add(d));
+      });
+    });
+    fila.datosRecoge = [...datos];
+    if (!fila.tareas.some((t) => t.clave === "visitar_guion")) datos.forEach((d) => recogidos.add(d));
+  });
+  return secciones;
+};
+
+// Evaluación de una clase: sale de sus tareas, la IA no la decide.
+const AGENTE_TAREA = { comentar: "Coevaluación", evaluar_proceso: "Autoevaluación y coevaluación", aplicar_ensayar: "Coevaluación" };
+const TECNICA_EVIDENCIA = {
+  conocimiento: ["Preguntas de comprensión", "Lista de cotejo"],
+  desempeno: ["Observación directa", "Lista de cotejo oral (Anexo B)"],
+  producto: ["Revisión de producciones", "Escala de valoración (Anexo E.2)"],
+};
+export const evaluacionDeFila = (fila) => {
+  if (fila.flexible) return { tipo: "Formativa", agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Registro anecdótico (Anexo C)" };
+  const claves = fila.tareas.map((t) => t.clave);
+  const sumativa = fila.tareas.some((t) => t.sumativa);
+  const conFormativa = sumativa && fila.tareas.some((t) => !t.sumativa);
+  const tipo = claves.includes("acordar") ? "Diagnóstica" : sumativa
+    ? (conFormativa ? "Sumativa solo en lo marcado; formativa en lo demás" : "Sumativa") : "Formativa";
+  const agente = [...new Set(["Heteroevaluación", ...claves.map((c) => AGENTE_TAREA[c]).filter(Boolean)])]
+    .filter((a, _, l) => l.length === 1 || a !== "Heteroevaluación" || sumativa).join(" y ");
+  const pares = [...new Set(fila.tareas.filter((t) => t.demuestra !== null).map((t) => t.evidencia))].map((e) => TECNICA_EVIDENCIA[e]);
+  const lista = pares.length ? pares : [TECNICA_EVIDENCIA.desempeno];
+  let instrumento = [...new Set(lista.map((p) => p[1]))].join(" y ");
+  if (claves.includes("presentar")) instrumento = "Rúbrica analítica (Anexo A) y lista de cotejo oral (Anexo B)";
+  else if (fila.tareas.some((t) => t.cierraSeccion) || claves.includes("integrar")) instrumento = "Rúbrica analítica (Anexo A)";
+  else if (claves.includes("acordar")) instrumento = "Evaluación diagnóstica (Anexo J)";
+  else if (claves.includes("evaluar_proceso")) instrumento = "Lista de cotejo; autoevaluación (Anexo E) y coevaluación (Anexo D)";
+  return { tipo, agente, tecnica: [...new Set(lista.map((p) => p[0]))].join(" y "), instrumento };
+};
+
+/** Recursos humanos de una clase: el invitado cuenta si la tarea lo requiere. */
+export const humanosDeFila = (fila, alcance = null) => {
+  const claves = fila.tareas.map((t) => t.clave);
+  const invitado = alcance?.invitado || "la persona invitada";
+  if (claves.includes("presentar")) {
+    return `Docente, estudiantes, ${invitado}${alcance?.visitante ? ` y ${alcance.visitante}` : ""}`;
+  }
+  if (claves.includes("visitar_entrevistar") && fila.modalidad === "invitado") return `Docente, estudiantes y ${invitado}`;
+  return "Docente y estudiantes";
+};
+
+/**
+ * Ficha de la unidad: una sola decisión de modalidad y alcance, que leen la situación,
+ * el producto y el ambiente (César, 2026-11-04). Devuelve los datos con la situación ya
+ * ajustada. Nunca pisa lo que escribió el docente.
+ */
+export const conFichaDeUnidad = (datos) => {
+  const pm = datos.planMaestro || {};
+  const s = pm.situacion;
+  if (!s || pm.estrategia !== "insercion_entorno") return datos;
+  // Mismos valores por defecto que el generador: el formulario puede no enviarlos.
+  const total = Number(datos.numSemanas || 4) * (datos.diasClase?.length || 3) * Number(datos.horasPorDia || 1);
+  const modalidad = total <= CLASES_MINIMAS ? "simulada" : (pm.modalidadVisita || MODALIDAD_VISITA_POR_DEFECTO);
+  if (modalidad === "entre_sesiones" || s.rolPropio) return { ...datos, planMaestro: { ...pm, modalidadVisita: modalidad } };
+  const alcance = ALCANCE_POR_SEMILLA[s.semillaId]?.conInvitado;
+  const audienciaDelDocente = s.audienciaDetalle?.de !== s.audiencia;
+  const situacion = {
+    ...s,
+    rolPropio: modalidad === "simulada"
+      ? "asumen el rol de investigadores: con una entrevista simulada en clase, usan sus propios instrumentos, analizan los datos y elaboran"
+      : "asumen el rol de investigadores: traen el entorno al aula, entrevistan a un invitado con sus propios instrumentos, analizan los datos y elaboran",
+    ...(alcance && !audienciaDelDocente ? {
+      productoDescripcion: alcance.productoDescripcion,
+      audiencia: alcance.audiencia,
+      audienciaDetalle: { ...alcance.audienciaDetalle, de: alcance.audiencia },
+    } : {}),
+  };
+  return { ...datos, planMaestro: { ...pm, modalidadVisita: modalidad, situacion } };
+};
+
+/** Ambiente: solo lo que las tareas usan; ninguna clase depende de tecnología. */
+export const ambienteDeMapa = (mapa) => {
+  const conInvitado = mapa.filas.some((f) => f.modalidad === "invitado");
+  return `Aula ordinaria organizada por grupos editores, con la tabla común, el cartel del acuerdo y las secciones del producto a la vista. Se usan pizarra, cartulinas y materiales impresos; ninguna clase depende de electricidad o internet.${conInvitado ? " El entorno entra al aula por medio de la persona invitada." : ""}`;
+};
+
+const estadoDeTarea = (t) => {
+  if (t.cierraSeccion) return "versión final";
+  if ([].concat(t.demuestra).includes("P")) return "borrador";
+  return "insumos recopilados";
+};
+
+/** Anexo I desde el mapa: cada sección con su propio proceso, estados y evidencia. */
+export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, propositos = {} } = {}) => {
+  const filas = mapa.filas.filter((f) => !f.flexible);
+  const COMPARTIDAS = ["acordar", "comentar", "glosario", "integrar", "presentar", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
+  return [
+    { seccion: "Título", incluye: `Mi nombre y el título del producto (${producto}).`, fases: "" },
+    ...mapa.secciones.map((seccion) => {
+      const suyas = filas.flatMap((f) => f.tareas.filter((t) => t.secciones.includes(seccion) && !COMPARTIDAS.includes(t.clave)).map((t) => ({ ...t, clase: f.clase })));
+      const estados = [...new Set(suyas.map(estadoDeTarea))];
+      const seCierraEn = suyas.find((t) => t.cierraSeccion);
+      const comentada = filas.find((f) => f.tareas.some((t) => t.clave === "comentar" && t.secciones.includes(seccion)));
+      const operaciones = suyas.map((t) => `${t.nombre} (C${t.clase})`);
+      if (comentada) operaciones.splice(Math.max(0, operaciones.length - (seCierraEn ? 1 : 0)), 0, `comentar (C${comentada.clase})`);
+      const produce = [...suyas].reverse().find((t) => t.demuestra === "P" && !t.cierraSeccion) || suyas[suyas.length - 1];
+      return {
+        seccion,
+        fases: estados.map((e) => e.charAt(0).toUpperCase() + e.slice(1)).join(" → "),
+        operaciones,
+        evidencia: String(produce?.entrega || "").replace(/\s*\(borrador\)/i, ""),
+        incluye: piezas[seccion] || propositos[seccion] || `Lo trabajado en la sección «${seccion}».`,
+      };
+    }),
+  ];
+};
+
+/** Anexo H desde el mapa: una fila por clase. */
+export const checklistDesdeMapa = (mapa, producto = "") => mapa.filas.filter((f) => !f.flexible)
+  .map((f) => ({ paso: `Clase ${f.clase}. ${aporteDeFila(f, producto, mapa.secciones)}`, semana: `Semana ${f.semana}` }));
 
 // Ajustes para el plan maestro: las fases que comparten clase se unen; el resto
 // recibe tantas sesiones como filas. Null si la estrategia tiene fases con partes.
@@ -417,6 +563,8 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
       entrega: t.entrega, individual: Boolean(t.individual), sumativa: Boolean(t.sumativa), cierraSeccion: Boolean(t.cierraSeccion),
       llegaAudiencia: Boolean(t.llegaAudiencia), ampliacion: Boolean(t.ampliacion), recursos: t.recursos,
       modalidad: t.usaModalidad ? modalidad : null, recibe: [], indicadores: [],
+      instruccion: DETALLE_TAREA[t.clave]?.hace || "", senal: DETALLE_TAREA[t.clave]?.senal || "",
+      soloComprender: Boolean(DETALLE_TAREA[t.clave]?.soloComprender),
     }));
     const usados = lista.some((t) => t.paralelo)
       ? [...new Set(lista.map((t) => t.secciones[0]))].reduce((m, s) => Math.max(m, lista.filter((t) => t.secciones[0] === s).reduce((a, t) => a + t.minutos, 0)), 0)
@@ -466,12 +614,15 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   });
 
   filas.forEach((f, i) => { f.semana = Math.ceil((i + 1) / (diasClase.length * horasPorDia)); });
+  ponerDatosARecoger(filas, plan.secciones);
   encadenar(filas, plan.partenDeSecciones);
   const indicadoresElegidos = plan.fases.flatMap((f) => f.indicadores);
   const sinTarea = ubicarIndicadores(filas, indicadoresElegidos);
   sinTarea.forEach((id) => avisos.push(`El indicador ${id} no tiene tarea de su acción en este mapa.`));
-  ubicarContenidos(filas, plan, contenidosSeleccionados);
+  const contenidosSinLugar = ubicarContenidos(filas, plan, contenidosSeleccionados);
+  if (contenidosSinLugar.length) avisos.push(`${contenidosSinLugar.length} contenido(s) del tema quedan sin marcar: no caben con sentido en este tiempo.`);
   return {
+    contenidosSinLugar,
     filas, modo, total, capacidad, tipos, seccionesSupuestas: supuestas, avisos, breve,
     estrategia: clave, secciones: plan.secciones, indicadores: indicadoresElegidos.map((i) => i.id),
     contenidos: CATEGORIAS.flatMap((cat) => [...new Set(plan.fases.flatMap((f) => (f.contenidos?.[cat] || []).map((c) => `${cat}:${c.texto}`)))]),
@@ -480,9 +631,67 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   };
 };
 
+// Estado que deja la clase, para el «aporte al producto» que escribe el código.
+const estadoDeFila = (fila) => {
+  const claves = fila.tareas.map((t) => t.clave);
+  if (claves.includes("acordar")) return "acuerdo y plan";
+  if (claves.some((c) => c.startsWith("evaluar"))) return "versión revisada";
+  if (claves.includes("presentar") || claves.includes("audiencia_secundaria")) return "presentación";
+  if (fila.tareas.some((t) => t.cierraSeccion) || claves.includes("integrar")) return "versión final";
+  if (claves.includes("comentar")) return "comentarios";
+  if (fila.tareas.some((t) => [].concat(t.demuestra).includes("P"))) return "borrador";
+  return "insumos recopilados";
+};
+
+/** «Aporte al producto» de una fila: lo escribe el código, no la IA. */
+export const aporteDeFila = (fila, producto, secciones = []) => {
+  if (fila.flexible) return `«${producto}» (refuerzo): clase flexible del docente, sin pieza nueva`;
+  const estado = estadoDeFila(fila);
+  const pieza = fila.entregas.join("; ");
+  if (fila.secciones.length === secciones.length && secciones.length > 1) return `«${producto}» (${estado}): ${pieza}`;
+  if (fila.secciones.length === 1) return `Sección «${fila.secciones[0]}» (${estado}): ${pieza}`;
+  return `Secciones ${fila.secciones.map((s) => `«${s}»`).join(" · ")} (${estado}): ${pieza}`;
+};
+
+/**
+ * Plan maestro ajustado al mapa: sesiones y uniones por minutos, y en cada fase
+ * sus indicadores y las secciones que de verdad avanza. Null si la estrategia
+ * tiene fases con partes, que no se pueden unir.
+ */
+export const planDesdeMapa = (entrada, mapa) => {
+  if (!mapa.ajustesPlan) return null;
+  const plan = construirPlanMaestro({ ...entrada, ajustes: mapa.ajustesPlan });
+  const porId = new Map(plan.fases.flatMap((f) => f.indicadores).map((ind) => [ind.id, ind]));
+  let desde = 0;
+  const filasPorFase = plan.fases.map((fase) => {
+    const filas = mapa.filas.slice(desde, desde + fase.sesiones);
+    desde += fase.sesiones;
+    fase.indicadores = [...new Set(filas.flatMap((f) => f.indicadores))].map((id) => porId.get(id)).filter(Boolean);
+    const secciones = plan.secciones.filter((s) => filas.some((f) => f.flexible || f.secciones.includes(s)));
+    const parcial = secciones.length && secciones.length < plan.secciones.length;
+    fase.entrega = {
+      ...fase.entrega, secciones,
+      texto: `${fase.entrega.estado} de ${parcial ? secciones.join(", ") : plan.producto}`,
+    };
+    return filas;
+  });
+  if (desde !== mapa.filas.length) throw error(`las fases del plan suman ${desde} clases y el mapa tiene ${mapa.filas.length}.`);
+  return { plan, filasPorFase };
+};
+
 /** Reglas de calidad del diseño. Devuelve la lista de incumplimientos (vacía = cumple). */
 export const verificarMapa = (mapa) => {
   const fallos = [];
+  // Inventario: ningún dato sin origen en una clase anterior o en la misma.
+  const recogidoEn = {};
+  mapa.filas.forEach((f) => (f.datosRecoge || []).forEach((d) => { recogidoEn[d] = recogidoEn[d] ?? f.clase; }));
+  mapa.filas.forEach((f) => f.tareas.forEach((t) => {
+    if (!["P"].some((l) => [].concat(t.demuestra).includes(l)) || t.secciones.length !== 1) return;
+    (INVENTARIO_POR_SECCION[t.secciones[0]]?.necesita || []).forEach((d) => {
+      if (recogidoEn[d] === undefined && mapa.modo !== "breve") fallos.push(`«${t.secciones[0]}» necesita «${d}» y ninguna clase lo recoge`);
+      else if (recogidoEn[d] > f.clase && mapa.modo !== "breve") fallos.push(`«${t.secciones[0]}» necesita «${d}» en la clase ${f.clase}, antes de recogerlo en la ${recogidoEn[d]}`);
+    });
+  }));
   const reales = mapa.filas.filter((f) => !f.flexible);
   const tareas = reales.flatMap((f) => f.tareas.map((t) => ({ ...t, clase: f.clase })));
   if (mapa.filas.length !== mapa.total) fallos.push(`hay ${mapa.filas.length} filas para ${mapa.total} clases`);
@@ -504,6 +713,7 @@ export const verificarMapa = (mapa) => {
   mapa.indicadores.forEach((id) => { if (!reales.some((f) => f.indicadores.includes(id))) fallos.push(`el indicador ${id} no tiene tarea`); });
   const puestos = new Set(reales.flatMap((f) => f.contenidos.map((c) => `${c.categoria}:${c.texto}`)));
   mapa.contenidos.filter((c) => !mapa.seleccionados || mapa.seleccionados.includes(c.slice(c.indexOf(":") + 1)))
+    .filter((c) => !mapa.contenidosSinLugar.includes(c))
     .forEach((c) => { if (!puestos.has(c)) fallos.push(`el contenido «${c}» no tiene lugar`); });
   if (!tareas.some((t) => t.llegaAudiencia)) fallos.push("el producto no llega a su audiencia");
   const presentar = tareas.find((t) => t.llegaAudiencia);

@@ -26,7 +26,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
-import { validarLoteContrato, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
+import { aplicarFilasMapa, validarLoteContrato, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -869,7 +869,7 @@ const EVIDENCIA_NO_EVALUABLE = [
 // Evidencias proporcionales al trabajo real: se conservan más evidencias solo
 // cuando las actividades producen artefactos o desempeños observables.
 const CLAVES_EVIDENCIA = ['conocimientos', 'desempeno', 'producto'];
-function validarEvidenciasMomento(ev, nombreMomento, etiqueta) {
+function validarEvidenciasMomento(ev, nombreMomento, etiqueta, conMapa = false) {
   if (!ev || typeof ev !== 'object' || Array.isArray(ev)) {
     throw new Error(`R4: ${etiqueta} — "evidencias" debe ser objeto {conocimientos/desempeno/producto} con arrays, no lista plana`);
   }
@@ -884,7 +884,8 @@ function validarEvidenciasMomento(ev, nombreMomento, etiqueta) {
   if (nombre.includes('inicio') && (c < 1 || c > 1 || d !== 0 || p !== 0)) {
     throw new Error(`R4: ${etiqueta} — Inicio debe traer 1 evidencia diagnóstica de conocimientos`);
   }
-  if (nombre.includes('desarrollo') && (c !== 0 || d + p < 1 || d + p > 3)) {
+  // Con mapa de clases, el Desarrollo también puede dejar evidencia de conocimiento (Guía 2025, p. 29).
+  if (nombre.includes('desarrollo') && ((!conMapa && c !== 0) || c + d + p < 1 || c + d + p > 3)) {
     throw new Error(`R4: ${etiqueta} — Desarrollo debe traer de 1 a 3 evidencias derivadas de sus actividades`);
   }
   if (nombre.includes('cierre') && (c !== 0 || d > 1 || p < 1 || d + p > 2)) {
@@ -1065,6 +1066,8 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
   // persona plural, Inicio canónico, indicadores, campos de la plantilla) sigue
   // rechazando. Sin contrato, todo rechaza como antes.
   const flexible = Boolean(opts.contratoFase);
+  // Mapa de clases: lo fijo se copia de la fila antes de validar.
+  aplicarFilasMapa(data, opts.contratoFase, opts.startDia || 1);
 
   // 3A — nombre propio del producto final (solo el primer lote de la unidad)
   if (opts.exigirNombreProducto) {
@@ -1129,6 +1132,8 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     const avisosClase = [];
     if (flexible) clase.avisosRedaccion = avisosClase;
     const avisarOFallar = (motivo) => {
+      // Con mapa de clases no se pide técnica de catálogo: forzarla daba etiquetas sin sentido.
+      if (opts.contratoFase?.mapaClases && /^R12:/.test(motivo)) return;
       if (!flexible) throw new Error(motivo);
       avisosClase.push(motivo);
     };
@@ -1282,7 +1287,9 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
         throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin actividades`);
       }
       if (!esInicio) {
-        const minActividades = m.nombre === 'Desarrollo' ? 4 : 3;
+        // Con mapa de clases, el número lo piden las tareas de la fila (César, 2026-11-04).
+        const conMapa = Boolean(opts.contratoFase?.mapaClases);
+        const minActividades = conMapa ? 2 : (m.nombre === 'Desarrollo' ? 4 : 3);
         if ((m.actividades || []).filter((x) => String(x || '').trim()).length < minActividades) {
           avisarOFallar(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
         }
@@ -1291,7 +1298,7 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
           if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} "${m.nombre}" — ${voz.motivo}`);
         }
       }
-      validarEvidenciasMomento(m.evidencias, m.nombre, `clase ${idx + 1} momento "${m.nombre}"`);
+      validarEvidenciasMomento(m.evidencias, m.nombre, `clase ${idx + 1} momento "${m.nombre}"`, Boolean(opts.contratoFase?.mapaClases));
       if (!listaNoVacia(m.metacognicion)) {
         throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin metacognicion`);
       }
@@ -1733,8 +1740,9 @@ ${reglaInicio}
 // v5 (Etapa S4): línea «HILO DE LA UNIDAD» con las piezas de las que parte cada clase.
 // v6: la clase que avanza todas las secciones nombra el producto entero en su aporte.
 // v10: cómo ocurre la visita (modalidad del plan) y adecuaciones según la barrera.
-const PROMPT_FASE_VERSION = 10;
-function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
+// v11: con mapa de clases, la IA redacta solo la fila de cada clase (César, 2026-11-04).
+const PROMPT_FASE_VERSION = 11;
+export function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
   const c = spec.contratoFase;
   const tInicio     = durMin <= 50 ? 10 : 15;
   const tCierre     = durMin <= 50 ? 5  : 10;
@@ -1755,6 +1763,7 @@ La semilla es el mínimo, no el límite: la clase puede usar además otros conte
 AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor del TEMA y del PRODUCTO con vocabulario concreto del entorno, estructuras y expresiones útiles para la sección que se avanza${spec.nivelMCERL ? `, al nivel ${spec.nivelMCERL}` : ', al nivel del grado'}. Lo que añadas NO es contenido oficial: decláralo en "ampliacion" como [{"texto":"...","tipo":"vocabulario|gramatica|expresion|funcion","seccion":"<sección del producto a la que sirve>"}]. Nada fuera de la malla va en "semillaUsada".
 "focoLinguistico": lo que la SECCIÓN del día necesita comunicar — la función y la estructura o las expresiones con que se logra (ej. "Dar indicaciones para llegar a un lugar: imperativo y preposiciones de lugar (_turn left_, _next to_…)"). Puedes enriquecerlo con estructuras y expresiones útiles para la sección aunque no estén en la malla; lo nuevo que enseñes, decláralo en "ampliacion". El contenido nunca es el protagonista del día (regla 4.6): PROHIBIDO que el foco sea una etiqueta de la malla ("Vocabulario: high school") o una palabra suelta de la semilla; la semilla se usa DENTRO de las actividades de la sección.`
     : `ESTA FASE NO INTRODUCE CONTENIDO NUEVO: retoma lo ya trabajado (${lista(c.trabajado)}). "semillaUsada" y "ampliacion" van vacías ([]). "focoLinguistico" nombra lo que se retoma o el trabajo de la fase (p. ej. "Apropiación de la unidad / producto / evaluación").`;
+  const filasLote = c.mapaClases ? c.mapaClases.slice(startDia - 1, endDia) : null;
   const piezasPrevias = (memoria || []).map((m) => String(m.aporteProducto || '').trim()).filter(Boolean).join(' | ');
   const hiloTx = hiloPartenDe({ contrato: c, memoria, startDia, count });
   // Como lista JSON (una cadena por sección): unidas con « · » el modelo las
@@ -1768,7 +1777,9 @@ AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor 
   const propositosTx = propositos.length
     ? `\nQué contiene cada sección:\n${propositos.join('\n')}${c.secciones.some((s) => piezas[s]) ? '\nEl "aporteProducto" de una clase avanza la pieza visible de su sección principal.' : ''}`
     : '';
-  const seccionesTx = c.secciones.length
+  const seccionesTx = c.mapaClases
+    ? `SECCIONES DEL PRODUCTO: ${c.secciones.join(' · ')}.${propositosTx}`
+    : c.secciones.length
     ? `SECCIONES DEL PRODUCTO: ${c.secciones.join(' · ')}.${propositosTx}
 Esta fase lleva ${c.entrega.secciones.length ? c.entrega.secciones.join(' · ') : 'todas las secciones'} al estado «${c.entrega.estado}». Secciones que avanza CADA clase (decididas por el plan; copia la lista EXACTA en "seccionesProducto", una cadena por sección, nunca varias unidas en una):
 ${seccionesLote}
@@ -1802,7 +1813,47 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
     ? `\nUN INTENTO ANTERIOR DE ESTA FASE FUE RECHAZADO POR EL VALIDADOR: «${String(spec.correccionPrevia).slice(0, 400)}». Corrige exactamente eso.\n`
     : '';
 
-  return `Eres un DOCENTE dominicano experto del Nivel ${nivelLabelPrompt(spec.nivel)} planificando TU clase de ${spec.area} para ${spec.grado}. El plan maestro de la unidad YA está decidido por DocenteOS; tú redactas ${rango} de UNA fase dentro de su contrato.
+  const textoInd = (id) => c.indicadores.find((i) => i.id === id)?.texto || '';
+  const EVIDENCIA_TX = { conocimiento: 'conocimiento', desempeno: 'desempeño', producto: 'producto' };
+  const filaTx = (f) => {
+    const cabeza = `Clase ${f.clase} (Semana ${f.semana})`;
+    if (f.flexible) return `${cabeza} — CLASE FLEXIBLE del docente: refuerzo o puesta al día de lo que el grupo necesite. Sin pieza nueva.`;
+    const recursos = [...new Set(f.tareas.flatMap((t) => [t.recursos.humanos, t.recursos.didacticos]))];
+    return [
+      `${cabeza} — Sección: ${f.secciones.join(' · ')}`,
+      '- Tareas del Desarrollo, en este orden:',
+      ...f.tareas.map((t) => `   · ${t.paralelo ? `[${t.secciones[0]}] ` : ''}${t.nombre} (${t.minutos} min): ${t.instruccion}`),
+      ...(f.tareas.some((t) => t.paralelo) ? ['- Trabajo por grupos a la vez: cada grupo hace solo las tareas de su sección.'] : []),
+      `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,
+      `- Recibe: ${f.recibe.length ? f.recibe.map((r) => `${r.texto}${r.clase ? ` (clase ${r.clase})` : ''}`).join('; ') : 'la situación de aprendizaje'}`,
+      `- Entrega: ${f.entregas.join('; ')}`,
+      ...(f.datosRecoge?.length ? [`- Datos que esta clase DEBE preguntar y dejar anotados, porque las piezas siguientes los necesitan: ${f.datosRecoge.join(', ')}. Nómbralos en una actividad o en el texto modelo.`] : []),
+      `- Indicador que demuestra: ${f.indicadores.slice(0, 3).map((id) => `[${id}] ${textoInd(id)}`).join(' | ')}${f.indicadorRetomado ? ' (se retoma)' : ''}`,
+      `- Evidencia: ${f.tareas.map((t) => `${EVIDENCIA_TX[t.evidencia]}, ${t.condicion}${t.individual ? ', individual' : ''}${t.sumativa ? ', sumativa' : ''}`).join('; ')}`,
+      ...(f.modalidad && c.instruccionVisita ? [`- Modalidad de la entrevista: ${c.instruccionVisita}`] : []),
+      `- Contenidos que debe usar: ${f.contenidos.length ? f.contenidos.map((x) => x.texto).join('; ') : 'los que esta tarea necesite de lo ya trabajado'}`,
+      `- Recursos disponibles: ${recursos.join('; ')}`,
+    ].join('\n');
+  };
+  const mapaTx = filasLote ? `MAPA DE ESTAS CLASES. DocenteOS ya decidió cada clase; tú solo redactas.
+
+${filasLote.map(filaTx).join('\n\n')}
+
+REGLAS DEL MAPA:
+1. Redacta cada tarea como 1 o 2 actividades del Desarrollo, en el orden dado y dentro de sus minutos. No añadas tareas ni repitas una tarea de otra clase.
+2. Parte de lo que la clase recibe. Todo dato del producto (precios, horarios, ingredientes, cantidades, calorías) sale de ahí. Si un dato falta, escribe «falta dato»; nunca lo inventes.
+3. Cada contenido listado aparece escrito en una actividad o en "textoModelo", con un ejemplo en inglés. En "contenidosEnClase" copia, para cada uno, un fragmento SIN CAMBIOS ni puntos suspensivos de ese texto: [{"contenido":"<el de la lista, completo>","frase":"<fragmento literal>"}].
+4. Mantén la modalidad indicada en toda la clase. Si es un rol, dilo.
+5. Usa solo los recursos disponibles. Si necesitas otro, usa el que está en la lista. Nadie graba ni usa celulares: lo oral se observa o se anota.
+6. Deja vacíos "indicadoresTrabajados", "seccionesProducto", "aporteProducto", "semillaUsada" y "entregaFase", y no escribas minutos: los pone el sistema.
+7. "focoLinguistico": lo que la sección necesita comunicar, con la función y la estructura o expresiones (ej. "Dar indicaciones: imperativo (_turn left_…)"); nunca una etiqueta de la malla. La estructura sale solo de los contenidos listados; no traigas otra gramática.
+${c.conContenido ? `8. AMPLIACIÓN DE DOCENTEOS: puedes añadir en "ampliacion" vocabulario concreto del tema para la sección que se avanza, con {"texto","tipo","seccion"}.` : '8. "ampliacion" va vacía ([]): esta fase no introduce contenido nuevo.'}
+` : '';
+  const desarrolloMapaTx = filasLote ? 'Desarrollo: ENTRE 2 Y 5 actividades, las que pidan las tareas del mapa; la gramática nunca se enseña como regla suelta.' : desarrolloTx;
+  const cierreTx = filasLote
+    ? `Cierre: 2 actividades con la misma redacción (punto 3), en sus 5 minutos: compartir o revisar lo producido → reflexión sobre UN aspecto concreto. Al menos una empieza con un verbo Autónomo o Estratégico (${verbosCierre}…).`
+    : `Cierre: 3 actividades con la misma redacción (punto 3), por su función y sin fórmulas fijas: compartir lo producido → retroalimentación, coevaluación o autoevaluación sobre UN aspecto concreto → mejora de la pieza y dónde se archiva en su sección. Al menos una empieza con un verbo Autónomo o Estratégico (${verbosCierre}…).`;
+  const prompt = `Eres un DOCENTE dominicano experto del Nivel ${nivelLabelPrompt(spec.nivel)} planificando TU clase de ${spec.area} para ${spec.grado}. El plan maestro de la unidad YA está decidido por DocenteOS; tú redactas ${rango} de UNA fase dentro de su contrato.
 ${correccion}
 SITUACIÓN DE APRENDIZAJE: ${spec.situacionTexto || '—'}
 ESTRATEGIA: ${c.estrategia}. PRODUCTO CENTRAL: «${c.producto}» (nombre fijo; no propongas otro).
@@ -1811,9 +1862,9 @@ CONTRATO DE LA FASE ${c.numero} DE ${c.total}: «${c.nombre}» (fase literal de 
 PROPÓSITO: ${c.proposito}
 ENTREGA DE LA FASE: ${String(c.entrega.texto).replace(/\s*\(avance \d+ de \d+\)/gi, '')}.
 ${c.audienciaReal ? `APLICACIÓN ANTE LA AUDIENCIA REAL: en esta fase el grupo presenta o entrega lo que avanza a su audiencia real (${c.audienciaReal}), aunque sea de forma simbólica (un invitado de la comunidad en el aula, la entrega de la pieza o la retroalimentación de un visitante). Al menos una actividad del Desarrollo o del Cierre lo hace y deja evidencia, nombrando a quién: "Presentan (en equipos) la pieza a un dueño invitado…". Un juego de roles o una simulación NO cuenta; el validador rechaza la fase si falta.\n` : ''}${c.instruccionVisita ? `CÓMO OCURRE LA VISITA (lo decidió el docente): ${c.instruccionVisita}\n` : ''}${c.seccionesQueArrancan?.length ? `PRIMER BORRADOR DE ${c.seccionesQueArrancan.map((s) => `«${s}»`).join(', ')}: esta fase lo deja. Al menos una actividad del Desarrollo o del Cierre lo trabaja y nombra la sección: "Seleccionan (en equipos) una primera versión para «${c.seccionesQueArrancan[0]}»…"; el validador rechaza la fase si falta.\n` : ''}${c.audienciaRegistro ? `REGISTRO DE LA COMUNIDAD: una evidencia de producto de esta fase es el registro de comentarios de su audiencia real (${c.audienciaRegistro}).\n` : ''}${seccionesTx}
-INDICADORES DE ESTA FASE (copia de 1 a 3 CÓDIGOS EXACTOS en "indicadoresTrabajados"; las actividades y evidencias deben permitir comprobarlos):
+${filasLote ? 'INDICADORES DE ESTA FASE (el sistema los asigna por clase; las actividades y evidencias deben permitir comprobar el de cada una):' : 'INDICADORES DE ESTA FASE (copia de 1 a 3 CÓDIGOS EXACTOS en "indicadoresTrabajados"; las actividades y evidencias deben permitir comprobarlos):'}
 ${indText}
-${semillaTx}
+${filasLote ? mapaTx : semillaTx}
 ${formatearMemoria(memoria)}
 SALIDA: JSON puro con "clases" = EXACTAMENTE ${count} clase(s) (días ${startDia}-${endDia} de la fase).
 
@@ -1828,18 +1879,21 @@ REGLAS:
    e) PROHIBIDO empezar con "Los estudiantes", "El docente", "Se" o con etiquetas ("Reflexión:"). No repitas el tema ni el nombre del producto entre actividades: usa elementos concretos (el plano de la escuela, el estudiante nuevo).
    Ejemplo: {"accion":"Representan (en parejas, juego de roles) la llegada de un estudiante nuevo pidiendo y ofreciendo ayuda para ubicarse en la escuela (_Excuse me, could you help me?_…)","producto":"un diálogo oral grabado con al menos tres indicaciones","destino":"lo guardan en el celular del equipo"} → el sistema escribe «Representan (…) …: un diálogo oral grabado…; lo guardan en el celular del equipo.»
    El Inicio sigue su formato canónico (punto 5), con sus excepciones "Retroalimentación de…" y "Recuperación de saberes previos…".
-4. ${desarrolloTx} Solo UNA tarea de alta carga por clase.
-   Cierre: 3 actividades con la misma redacción (punto 3), por su función y sin fórmulas fijas: compartir lo producido → retroalimentación, coevaluación o autoevaluación sobre UN aspecto concreto → mejora de la pieza y dónde se archiva en su sección. Al menos una empieza con un verbo Autónomo o Estratégico (${verbosCierre}…).
+4. ${desarrolloMapaTx} Solo UNA tarea de alta carga por clase.
+   ${cierreTx}
 5. CADA clase incluye las piezas del Inicio: "saludoInicial" (${spec.esIdioma ? `saludo en ${idioma}` : 'saludo'}, variado), "retroalimentacionPrevia" ("Retroalimentación de…" con una pregunta), "saberesPrevios" ("Recuperación de saberes previos…"), "actividadEnganche" (empieza con verbo).
 6. EVIDENCIAS por momento {"conocimientos":[],"desempeno":[],"producto":[]}: Inicio 1 de conocimientos; Desarrollo de 1 a 3 según lo que hacen; Cierre 1 o 2 ligadas a la pieza. Nombran el contenido o la pieza; nada de "participación activa". Además "metacognicion" (2 preguntas${spec.esIdioma ? ` en ${idioma} sencillo` : ''}) y "recursos" (2-4 concretos, en español).
 7. "titulo" llamativo; "intencionPedagogica" con ESTE formato exacto (el validador la rechaza si falta "Desde el inicio hasta el final de la clase" o la palabra "mediante"): "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el contenido del día] mediante [las actividades concretas de esta clase], utilizando [la estructura o el vocabulario], [evidencia observable]." Nada de "diversas actividades".
 8. Encabezado: "tituloSemana" = «${c.nombre}»; "focoLinguistico" (ver arriba); "estrategiasDia": 2-3 estrategias separadas por " • " (${ESTRATEGIAS_OFICIALES_TEXTO}).
 9. "actividadCLT": {"nombre": técnica concreta (${tecnicasEjem}), "mecanica": 1-2 líneas}; una actividad del Desarrollo la nombra dentro de su paréntesis ("<Verbo> (en parejas, <nombre de la técnica>) …"). No repitas técnicas ya usadas; cada clase de este lote usa una técnica distinta.${tecnicasBloque.length ? ` PROHIBIDAS en este bloque (ya usadas en él): ${tecnicasBloque.join(' · ')}.` : ''}${c.esApertura ? ' En esta fase de apertura la técnica es de presentación, diagnóstico o acuerdo (no de práctica de estructuras).' : ''}
-10. ${entregaTx}
+10. ${filasLote ? 'La entrega de la fase la pone el sistema.' : entregaTx}
 11. ${spec.esIdioma ? `"textoModelo": {"tipo":"dialogo|texto","titulo":"...","lineas":["..."]} breve en ${idioma}, para la sección que se avanza.` : 'Sin "textoModelo".'}
 12. El lote incluye "adaptacionesSemana" {"acceso","metodologicas","evaluacion"} y "observacionesSemana", ligadas al trabajo de ESTA fase (nunca genéricas). Cada adecuación responde a una barrera concreta, conserva el aprendizaje evaluado y dice cómo da acceso a él: para una dificultad auditiva, transcripciones, instrucciones escritas y apoyos visuales (una grabación sola no la resuelve); para una dificultad visual, audio, lectura en voz alta o material ampliado.
 
-{"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":[{"accion":"Verbo (organización, técnica) ...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":[{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],${filasLote ? '"contenidosEnClase":[{"contenido":"...","frase":"..."}],' : ''}"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":[{"accion":"Verbo (organización, técnica) ...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":[{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+  if (!filasLote) return prompt;
+  // Con mapa de clases no se pide técnica de catálogo (forzarla daba etiquetas sin sentido).
+  return prompt.replace(/\n9\. "actividadCLT":[^\n]*/, '\n9. "actividadCLT": déjala vacía ({"nombre":"","mecanica":""}) y no nombres técnicas de catálogo: la tarea de la fila ya dice qué se hace. El paréntesis de cada actividad lleva solo la organización.');
 }
 
 // ─── Generación de un lote con rotación de proveedores ───────────────────────
@@ -2480,7 +2534,9 @@ export const generateWeekPlan = async (
   spec, semanaNum, durMin, numClases, numSemanas = 4,
   memoriaAcumulada = [], onProgress = null,
 ) => {
-  const batches    = Math.ceil(numClases / BATCH_SIZE);
+  // Con mapa de clases, una clase por lote: los lotes de 2 se cortaban por tiempo y se pagaban dos veces.
+  const tamLote    = spec.contratoFase?.mapaClases ? 1 : BATCH_SIZE;
+  const batches    = Math.ceil(numClases / tamLote);
   const allClases  = [];
   let adaptacionesSemana = null;   // NEAE ligadas al foco (contrato R14)
   let observacionesSemana = '';
@@ -2502,8 +2558,8 @@ export const generateWeekPlan = async (
   const baseCheckpointKey = checkpointBaseKey(spec, semanaNum, durMin, numClases, numSemanas);
 
   for (let b = 0; b < batches; b++) {
-    const startDia   = b * BATCH_SIZE + 1;
-    const count      = Math.min(BATCH_SIZE, numClases - b * BATCH_SIZE);
+    const startDia   = b * tamLote + 1;
+    const count      = Math.min(tamLote, numClases - b * tamLote);
     const endDia     = startDia + count - 1;
     const contextoLog = `S${semanaNum}/C${startDia}-${endDia}`;
 

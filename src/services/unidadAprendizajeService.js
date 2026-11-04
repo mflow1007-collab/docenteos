@@ -24,7 +24,9 @@ import {
 } from "./curriculumCombinacionService.js";
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
-import { prepararPlanMaestroGeneracion } from "./vistaPreviaPlanMaestroService.js";
+import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
+import { armarMapaClases, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
   construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
@@ -5253,6 +5255,14 @@ const _generarFasesConIA = async (
           }))
           .filter((a) => a.texto);
         dia.entregaFase = String(aiClase.entregaFase || "").trim();
+        const filaMapa = contratoFase.mapaClases?.[i];
+        if (filaMapa) {
+          dia.tareasMapa = filaMapa.tareas.map((t) => ({ clave: t.clave, minutos: t.minutos }));
+          // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
+          // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
+          const alcance = ALCANCE_POR_SEMILLA[contexto.planMaestro?.semillaId]?.conInvitado || null;
+          dia.fijoDelMapa = { evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance) };
+        }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
         tipo: "unidad_aprendizaje",
@@ -5525,7 +5535,30 @@ const _generarFasesConIA = async (
 
 // ─── Exportación principal ────────────────────────────────────────────────────
 
-export const generarUnidadAprendizaje = async (datos) => {
+// Mapa de clases (Etapa 2 del esqueleto, César, 2026-11-04): solo Inglés y detrás de
+// una condición. Apagado por defecto: sin él, todo se genera como antes. Si el docente
+// ajustó fases o sesiones a mano, su decisión manda y no se usa el mapa.
+export const debeUsarMapaClases = ({ datos = {}, asignatura = "" } = {}) => {
+  const activo = datos.usarMapaClases === true || import.meta.env?.VITE_MAPA_CLASES === "1";
+  if (!activo || !/^ingl/i.test(String(asignatura).trim())) return false;
+  const pm = datos.planMaestro || {};
+  return !(pm.unir?.length || Object.keys(pm.subdividir || {}).length || pm.sesionesPorFase);
+};
+
+export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas, diasClase, horasPorDia, duracionMin }) => {
+  if (!debeUsarMapaClases({ datos, asignatura })) return null;
+  const { entrada } = armarEntradaPlanMaestro({ datos: { ...datos, numSemanas, diasClase, horasPorDia }, mallaPayload });
+  const mapa = armarMapaClases({ ...entrada, duracionMin, modalidadVisita: datos.planMaestro?.modalidadVisita || "" });
+  const r = planDesdeMapa(entrada, mapa);
+  if (!r) return { avisos: [`ℹ️ La estrategia tiene fases con partes: esta unidad no usa el mapa de clases.`] };
+  return { ...r, mapa, avisos: mapa.avisos, modalidad: mapa.filas.find((f) => f.modalidad)?.modalidad || "" };
+};
+
+export const generarUnidadAprendizaje = async (datosFormulario) => {
+  // Mapa de clases: una sola ficha de modalidad y alcance para cabecera, clases y anexos.
+  const datos = debeUsarMapaClases({ datos: datosFormulario, asignatura: datosFormulario?.asignatura })
+    ? conFichaDeUnidad(datosFormulario)
+    : datosFormulario;
   const {
     grado = "", seccion = "", area = "", asignatura = "",
     titulo = "", numSemanas = 4,
@@ -5591,7 +5624,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   };
   const productoDetalleBase = construirProductoEstructurado(temasProducto, { ...camposProducto, nombre: productoFinalTexto });
   const producto = situacionPlan
-    ? `${productoDetalleBase.nombre} — ${productoDetalleBase.formato}, dirigida a ${productoDetalleBase.audiencia}.`
+    ? `${productoDetalleBase.nombre} — ${productoDetalleBase.formato}, dirigida a ${productoDetalleBase.audiencia}.`.replace(/dirigida a el\b/, "dirigida al")
     : formatearProductoFinal(productoDetalleBase);
 
   const ejes = getEjesTematicos(claveContenido);
@@ -5727,14 +5760,23 @@ export const generarUnidadAprendizaje = async (datos) => {
   if (prepPlanMaestro.aplica) {
     estrategiaEf = prepPlanMaestro.plan.estrategia.nombre;
     situacion = prepPlanMaestro.situacionTexto;
+    const conMapa = prepararMapaClases({
+      datos, mallaPayload, asignatura: datos.asignatura || claveContenido, numSemanas,
+      diasClase: diasClaseFinal, horasPorDia: horasPorDiaEf, duracionMin: duracionHoraClase,
+    });
+    if (conMapa?.avisos?.length) avisosPlanMaestro.push(...conMapa.avisos);
+    const planFinal = conMapa?.plan || prepPlanMaestro.plan;
     rutaPlanMaestro = {
-      plan: prepPlanMaestro.plan,
+      mapa: conMapa?.mapa || null,
+      semillaId: datos.planMaestro?.situacion?.semillaId || "",
+      plan: planFinal,
       situacionTexto: prepPlanMaestro.situacionTexto,
       estructura: prepPlanMaestro.estructura,
-      contratos: prepPlanMaestro.plan.fases.map((_, indice) => construirContratoFase({
-        plan: prepPlanMaestro.plan, indice, estructura: prepPlanMaestro.estructura,
+      contratos: planFinal.fases.map((_, indice) => construirContratoFase({
+        plan: planFinal, indice, estructura: prepPlanMaestro.estructura,
         audiencia: datos.planMaestro?.situacion?.audiencia || "",
-        modalidadVisita: datos.planMaestro?.modalidadVisita || "",
+        modalidadVisita: conMapa?.modalidad || datos.planMaestro?.modalidadVisita || "",
+        filasMapa: conMapa?.filasPorFase[indice] || null,
       })),
     };
   } else {
@@ -6045,7 +6087,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     },
     ejesTematicos: ejesFinal,
     situacionAprendizaje: situacionFinal,
-    ambienteAprendizaje: ambiente,
+    ambienteAprendizaje: rutaPlanMaestro?.mapa ? ambienteDeMapa(rutaPlanMaestro.mapa) : ambiente,
     puntoPartida: construirPuntoPartida({
       textoDocente: puntoPartidaTexto,
       debilesDiagnostico: debilesDiagnostico.descripciones,
@@ -6145,7 +6187,8 @@ export const generarUnidadAprendizaje = async (datos) => {
   // calculan por actividad; lo que no cabe se avisa, nunca se estira la clase.
   const avisosTiempo = [];
   if (rutaPlanMaestro) {
-    ajustarIndicadoresPorActividad(fasesSemanalesGeneradas, {
+    // Con mapa de clases, cada clase ya trae sus indicadores: este ajuste los pisaba.
+    if (!rutaPlanMaestro.contratos?.some((c) => c.mapaClases)) ajustarIndicadoresPorActividad(fasesSemanalesGeneradas, {
       plan: rutaPlanMaestro.plan,
       relaciones: especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesMalla || [],
       elegidos: competenciasDetalleEnriquecidas.flatMap((c) => c.indicadores || [])
@@ -6159,9 +6202,19 @@ export const generarUnidadAprendizaje = async (datos) => {
     });
     (fasesSemanalesGeneradas || []).flatMap((f) => f.dias || []).forEach((d, i) => {
       const desarrollo = (d.momentos || []).find((m) => m?.nombre === "Desarrollo");
+      if (d.fijoDelMapa && desarrollo) {
+        desarrollo.evaluacion = { ...desarrollo.evaluacion, ...d.fijoDelMapa.evaluacion };
+        desarrollo.recursos = { ...desarrollo.recursos, humanos: d.fijoDelMapa.humanos, tecnologicos: "No requerido para esta actividad" };
+        delete d.fijoDelMapa;
+      }
       if (!desarrollo?.actividades?.length) return;
       const total = Number.parseInt(String(desarrollo.tiempo || ""), 10) || 0;
-      const { minutos, necesarios } = minutosPorDemanda({ totalMinutos: total, actividades: desarrollo.actividades });
+      // Con mapa y una actividad por tarea, los minutos son los de la fila.
+      const delMapa = d.tareasMapa?.length === desarrollo.actividades.length ? d.tareasMapa.map((t) => t.minutos) : null;
+      if (delMapa) delMapa[delMapa.length - 1] += total - delMapa.reduce((s, m) => s + m, 0);
+      const { minutos, necesarios } = delMapa
+        ? { minutos: delMapa, necesarios: 0 }
+        : minutosPorDemanda({ totalMinutos: total, actividades: desarrollo.actividades });
       desarrollo.minutosActividad = minutos;
       if (necesarios > total) avisosTiempo.push(`clase ${i + 1}: el Desarrollo necesita unos ${necesarios} min y tiene ${total}`);
     });
@@ -6195,7 +6248,7 @@ export const generarUnidadAprendizaje = async (datos) => {
       .filter((a) => a.semana <= Math.ceil(numSemanas / 2))
       .map((a) => a.texto),
   });
-  unidadResult.anexos = construirAnexosUnidad({
+  const anexosBase = construirAnexosUnidad({
     area: claveContenido,
     tema: titulo,
     producto: productoNombrado,
@@ -6227,6 +6280,18 @@ export const generarUnidadAprendizaje = async (datos) => {
       .map((momento) => momento.recursos?.tecnologicos || "")
       .filter(Boolean),
   });
+  // Mapa de clases: Anexos H e I se calculan de las clases, sección por sección; nada se graba.
+  unidadResult.anexos = rutaPlanMaestro?.mapa
+    ? JSON.parse(JSON.stringify({
+      ...anexosBase,
+      organizadorProducto: organizadorDesdeMapa(rutaPlanMaestro.mapa, {
+        producto: productoNombrado,
+        piezas: unidadResult.planMaestro?.piezasSecciones,
+        propositos: unidadResult.planMaestro?.propositosSecciones,
+      }),
+      checklistProducto: checklistDesdeMapa(rutaPlanMaestro.mapa, productoNombrado),
+    }).replaceAll("observado o grabado", "observado"))
+    : anexosBase;
   if (rutaPlanMaestro) {
     // Con plan maestro el Anexo A sigue la plantilla de la Guía 2025.
     unidadResult.anexos.rubricaPlan = construirRubricaPlan({

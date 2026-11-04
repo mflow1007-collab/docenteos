@@ -23,6 +23,8 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
+import { aporteDeFila } from "./mapaClasesService.js";
+import { MARCAS_DATO } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { recomponerIndicador } from "../data/indicadoresIngles2doEstructurados.js";
@@ -292,7 +294,7 @@ export const segmentarIndicador = (ind, aspectosElegidos = []) => {
  * Contrato de la fase `indice` del plan.
  * Las fases sin indicadores propios retoman los de la unidad.
  */
-export const construirContratoFase = ({ plan, indice, estructura, audiencia = "", modalidadVisita = "" }) => {
+export const construirContratoFase = ({ plan, indice, estructura, audiencia = "", modalidadVisita = "", filasMapa = null }) => {
   const fase = plan?.fases?.[indice];
   if (!fase) throw error(`el plan maestro no tiene la fase ${indice + 1}.`);
   // Fase de tipo «aplicar» (hoy solo Inserción): el grupo lo hace ante la
@@ -354,8 +356,12 @@ export const construirContratoFase = ({ plan, indice, estructura, audiencia = ""
     sesiones: fase.sesiones,
     rangoSesiones: { ...fase.rangoSesiones },
     entrega: { estado: fase.entrega.estado, texto: fase.entrega.texto, secciones: [...fase.entrega.secciones] },
-    seccionesPorClase: repartirSeccionesClases(fase.entrega.secciones, fase.sesiones),
-    seccionPrincipalPorClase: seccionesPrincipalesUnidad(plan)[indice],
+    // Con mapa de clases, cada fila ya dice sus secciones y el código escribe el aporte.
+    seccionesPorClase: filasMapa
+      ? filasMapa.map((f) => (f.flexible ? [...(plan.secciones || [])] : [...f.secciones]))
+      : repartirSeccionesClases(fase.entrega.secciones, fase.sesiones),
+    seccionPrincipalPorClase: filasMapa ? filasMapa.map(() => "") : seccionesPrincipalesUnidad(plan)[indice],
+    ...(filasMapa ? { mapaClases: filasMapa } : {}),
     secciones: [...(plan.secciones || [])],
     propositosSecciones: { ...(plan.propositosSecciones || {}) },
     piezasSecciones: { ...(plan.piezasSecciones || {}) },
@@ -370,7 +376,7 @@ export const construirContratoFase = ({ plan, indice, estructura, audiencia = ""
     esApertura: (fase.roles || []).every((r) => r === "apertura"),
     audienciaReal,
     audienciaRegistro,
-    seccionesQueArrancan,
+    seccionesQueArrancan: filasMapa ? [] : seccionesQueArrancan,
     ...(visita ? { modalidadVisita: visita.clave, instruccionVisita: visita.instruccion } : {}),
   };
 };
@@ -530,6 +536,99 @@ const textosActividades = (clase) => (clase?.momentos || [])
   .flatMap((m) => m.actividades || []);
 
 /**
+ * Mapa de clases: lo fijo de cada clase lo pone el código, no la IA (secciones,
+ * indicadores, aporte al producto y entrega de la fase).
+ */
+export const aplicarFilasMapa = (data, contrato, startDia = 1) => {
+  (contrato?.mapaClases ? data?.clases || [] : []).forEach((clase, i) => {
+    const fila = contrato.mapaClases[startDia + i - 1];
+    if (!clase || !fila) return;
+    clase.seccionesProducto = [...(contrato.seccionesPorClase?.[startDia + i - 1] || [])];
+    clase.indicadoresTrabajados = fila.indicadores.slice(0, 3);
+    clase.aporteProducto = aporteDeFila(fila, contrato.producto, contrato.secciones);
+    clase.entregaFase = startDia + i === contrato.sesiones ? contrato.entrega.texto : "";
+    // El tipo de cada evidencia del Desarrollo lo dice la tarea, no la normalización.
+    const desarrollo = (clase.momentos || []).find((m) => m?.nombre === "Desarrollo");
+    if (desarrollo?.evidencias && fila.tareas.length) {
+      const e = desarrollo.evidencias;
+      const textos = [...(e.conocimientos || []), ...(e.desempeno || []), ...(e.producto || [])].slice(0, 3);
+      const nuevas = { conocimientos: [], desempeno: [], producto: [] };
+      textos.forEach((texto, k) => {
+        const tipo = fila.tareas[Math.min(k, fila.tareas.length - 1)].evidencia;
+        nuevas[tipo === "conocimiento" ? "conocimientos" : tipo].push(texto);
+      });
+      desarrollo.evidencias = nuevas;
+    }
+  });
+  return data;
+};
+
+// Marcas de un contenido de la malla: sus ejemplos («…: bread, salad») o, sin ellos, su nombre.
+const marcasDeContenido = (contenido) => {
+  const texto = sinEtiqueta(contenido).replace(/^funcional:\s*/i, "");
+  const dos = texto.indexOf(":");
+  const partes = (dos >= 0 ? texto.slice(dos + 1) : texto).split(/[,;.?!…]+/);
+  return [...partes, dos >= 0 ? texto.slice(0, dos) : ""].map(normalizar).filter((m) => m.length > 2);
+};
+
+/**
+ * Contenidos de la fila que no se ven en la clase: ni sus ejemplos ni su nombre
+ * aparecen, ni la frase que declaró la IA está en el texto. En la primera prueba
+ * real la IA parafraseaba la frase y una regla literal rechazaba todos los lotes
+ * (César, 2026-11-04): por eso es un aviso, no un rechazo.
+ */
+export const contenidosSinUsar = (clase, fila) => {
+  const texto = normalizar([
+    ...textosActividades(clase).map((a) => (typeof a === "string" ? a : Object.values(a || {}).join(" "))),
+    ...(clase?.textoModelo?.lineas || []),
+    clase?.saberesPrevios, clase?.actividadEnganche, clase?.retroalimentacionPrevia,
+  ].join(" "));
+  const declarados = Array.isArray(clase?.contenidosEnClase) ? clase.contenidosEnClase : [];
+  return (fila?.contenidos || []).map((c) => c.texto).filter((contenido) => {
+    if (marcasDeContenido(contenido).some((m) => texto.includes(m))) return false;
+    const frase = normalizar(declarados.find((d) => coincide(d?.contenido, contenido))?.frase);
+    return !frase || !texto.includes(frase);
+  });
+};
+
+const textoComoCadena = (a) => (typeof a === "string" ? a : Object.values(a || {}).join(" "));
+
+/** Actividad que hace grabar a los estudiantes o usa sus celulares (decisión de César, 2026-11-04). */
+export const grabacionProhibida = (clase) => textosActividades(clase).map(textoComoCadena)
+  .find((a) => {
+    const t = normalizar(a);
+    if (/\b(sin grabar|no graban|no se graba)\b/.test(t)) return false;
+    return /\bgrab(a|an|ar|ado|ada|acion|aciones)\b/.test(t) || /\b(celular|celulares|movil|moviles)\b/.test(t);
+  }) || "";
+
+/** Datos del inventario que la clase debía recoger y no se ven. Solo la entrevista y su guion rechazan. */
+export const datosSinRecoger = (clase, fila) => {
+  if (!fila?.tareas?.some((t) => ["visitar_guion", "visitar_entrevistar"].includes(t.clave))) return [];
+  const texto = normalizar([
+    ...textosActividades(clase).map(textoComoCadena),
+    ...(clase?.textoModelo?.lineas || []),
+  ].join(" "));
+  return (fila.datosRecoge || []).filter((d) => MARCAS_DATO[d] && !new RegExp(MARCAS_DATO[d]).test(texto));
+};
+
+/** Dónde se aleja la clase de su fila: lo ve el administrador, no el docente. */
+export const motivosFidelidad = (clase, fila) => {
+  const motivos = [];
+  if (!fila || fila.flexible) return motivos;
+  const actividades = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
+  const texto = normalizar(actividades.join(" "));
+  fila.tareas.forEach((t) => {
+    if (t.senal && !t.paralelo && !new RegExp(t.senal).test(texto)) motivos.push(`no se ve la tarea «${t.nombre}» que pide el mapa`);
+  });
+  if (fila.tareas.every((t) => t.soloComprender) && actividades.some((a) => /^(escriben|redactan|elaboran)\b/.test(normalizar(a)))) {
+    motivos.push("escribe una pieza en una clase de comprender, adelantando otra tarea");
+  }
+  const dato = actividades.find((a) => /\b(calorias?|proteinas?|porcentaje)\b|\b\d+ pesos\b/.test(normalizar(a)) || /\d\s*%/.test(a));
+  if (dato) motivos.push(`usa un dato sin fuente recibida: "${dato.slice(0, 80)}"`);
+  return motivos;
+};
+
+/**
  * Valida un lote de clases contra el contrato de su fase. `startDia` es la
  * posición de la primera clase del lote dentro de la fase (1 = primera).
  * Lanza el primer error encontrado (mismo estilo que validateBatch).
@@ -568,19 +667,8 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       }
     }
     const ampliacion = Array.isArray(clase?.ampliacion) ? clase.ampliacion : [];
-    if (!contrato.conContenido) {
-      if (ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
-    } else {
-      const usada = listaTextos(clase?.semillaUsada);
-      if (!usada.length) throw new Error(`${etiqueta} sin "semillaUsada" (al menos un contenido de la malla de esta fase).`);
-      // Etapa 6+: la semilla de la fase es obligatoria; otros contenidos de la
-      // malla de la unidad también valen en "semillaUsada".
-      if (!usada.some((u) => semilla.some((s) => coincide(u, s)))) {
-        throw new Error(`${etiqueta} — "semillaUsada" no incluye ningún contenido de la semilla de esta fase (${semilla.slice(0, 4).join(" · ")}).`);
-      }
-      const malla = [...semilla, ...(contrato.mallaUnidad || [])];
-      const fuera = usada.find((u) => !malla.some((s) => coincide(u, s)));
-      if (fuera) throw new Error(`${etiqueta} — "${fuera}" no es un contenido de la malla de la unidad; lo añadido va en "ampliacion".`);
+    const filaMapa = contrato.mapaClases?.[startDia + idx - 1];
+    const revisarAmpliacionYFoco = () => {
       ampliacion.forEach((a, k) => {
         if (!String(a?.texto || "").trim()) throw new Error(`${etiqueta} — ampliación ${k + 1} sin texto.`);
         if (!TIPOS_AMPLIACION.includes(a?.tipo)) throw new Error(`${etiqueta} — ampliación ${k + 1} con tipo "${a?.tipo}" (usa ${TIPOS_AMPLIACION.join(", ")}).`);
@@ -606,6 +694,31 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
         || semilla.some((s) => normalizar(sinEtiqueta(s)) === normalizar(sinEtiqueta(foco)))) {
         throw new Error(`${etiqueta} — "focoLinguistico" no puede ser una etiqueta de la malla ni una palabra de la semilla: nombra lo que la sección necesita comunicar.`);
       }
+    };
+    if (filaMapa) {
+      const sinUsar = contenidosSinUsar(clase, filaMapa);
+      if (sinUsar.length) motivos44[idx].push(`clase ${idx + 1} — no se ven estos contenidos del mapa: ${sinUsar.join(" · ")}`);
+      const grabacion = grabacionProhibida(clase);
+      if (grabacion) throw new Error(`${etiqueta} — nadie graba con celulares de estudiantes: "${grabacion.slice(0, 90)}". Quita la grabación; lo oral se observa o se anota.`);
+      const sinDatos = datosSinRecoger(clase, filaMapa);
+      if (sinDatos.length) throw new Error(`${etiqueta} — esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
+      motivosFidelidad(clase, filaMapa).forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
+      if (!contrato.conContenido && ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
+      revisarAmpliacionYFoco();
+    } else if (!contrato.conContenido) {
+      if (ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
+    } else {
+      const usada = listaTextos(clase?.semillaUsada);
+      if (!usada.length) throw new Error(`${etiqueta} sin "semillaUsada" (al menos un contenido de la malla de esta fase).`);
+      // Etapa 6+: la semilla de la fase es obligatoria; otros contenidos de la
+      // malla de la unidad también valen en "semillaUsada".
+      if (!usada.some((u) => semilla.some((s) => coincide(u, s)))) {
+        throw new Error(`${etiqueta} — "semillaUsada" no incluye ningún contenido de la semilla de esta fase (${semilla.slice(0, 4).join(" · ")}).`);
+      }
+      const malla = [...semilla, ...(contrato.mallaUnidad || [])];
+      const fuera = usada.find((u) => !malla.some((s) => coincide(u, s)));
+      if (fuera) throw new Error(`${etiqueta} — "${fuera}" no es un contenido de la malla de la unidad; lo añadido va en "ampliacion".`);
+      revisarAmpliacionYFoco();
     }
     if (startDia + idx === contrato.sesiones && !String(clase?.entregaFase || "").trim()) {
       throw new Error(`${etiqueta} es la última de la fase y no declara "entregaFase" (${contrato.entrega.texto}).`);

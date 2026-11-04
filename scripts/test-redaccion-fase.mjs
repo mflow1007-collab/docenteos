@@ -308,7 +308,7 @@ check("clase con TODAS las secciones: su aporte puede nombrar el producto entero
   }
   const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
   assert(/Si la clase avanza TODAS las secciones \(sin principal\), el "aporteProducto" nombra el producto entero/.test(faseTxt), "el prompt lo pide");
-  assert(/const PROMPT_FASE_VERSION = 10;/.test(faseTxt), "versión del prompt");
+  assert(/const PROMPT_FASE_VERSION = 11;/.test(faseTxt), "versión del prompt");
 });
 
 check("cada fase deja su entrega: la última clase la declara y se avanzan sus secciones", () => {
