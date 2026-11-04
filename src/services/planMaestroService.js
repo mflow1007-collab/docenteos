@@ -153,7 +153,9 @@ const repartirSesiones = (fases, total, fijadas) => {
 // que nacen en ella (su tipo); instrumentos y visita preparan las de "visitar"
 // (si no hay, reparten todas en orden, como hoy: así, a 3 semanas, la sección
 // que no cabe en las clases de contenido conserva su clase); socializar cierra
-// lo recogido y descrito, proponer cierra lo analizado. Fase sin ninguna → todas.
+// lo recogido y descrito, proponer cierra lo analizado; analizar arranca el
+// borrador de lo que se propondrá (como secundaria; César, 2026-11-04). Fase sin
+// ninguna → todas.
 // Devuelve null (reparto de hoy) si la estrategia no tiene mapa o alguna
 // sección no tiene tipo (p. ej. la añadió o renombró el docente); por fase,
 // null = esa fase como hoy.
@@ -161,7 +163,7 @@ const SECCIONES_DE_TIPO_FASE = {
   preparar_instrumentos: ["visitar"],
   visitar: ["visitar"],
   describir: ["describir"],
-  analizar: ["analizar"],
+  analizar: ["analizar", "proponer"],
   socializar: ["socializar", "visitar", "describir"],
   proponer: ["proponer", "analizar"],
   aplicar: ["aplicar"],

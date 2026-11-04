@@ -160,7 +160,7 @@ check("sección principal por clase: con una clase por fase, ninguna sección qu
   // Solo se fija donde la clase avanza una parte; las que avanzan todas quedan libres
   igual([principales[0], principales[1], principales[2], principales[8]], ["", "", "", ""], "clases con todas las secciones sin principal");
   // Emparejamiento: cada sección en una clase distinta (antes el orden dejaba fuera una)
-  igual(principales.slice(3, 8), ["Interviews with Owners", "Ordering Food", "Our Local Food", "Bilingual Menus", "Healthy Choices"], "reparto con cobertura");
+  igual(principales.slice(3, 8), ["Interviews with Owners", "Healthy Choices", "Our Local Food", "Bilingual Menus", "Ordering Food"], "reparto con cobertura");
   seccionesPrincipalesUnidad(plan).forEach((p, i) => p.forEach((sec) => {
     if (sec && !plan.fases[i].entrega.secciones.includes(sec)) throw new Error(`fase ${i + 1}: «${sec}» no está asignada a la fase`);
   }));
@@ -176,7 +176,7 @@ check("sección principal por clase: con una clase por fase, ninguna sección qu
   const pr = seccionesPrincipalesUnidad(real).flat();
   const deContenido = new Set(pr.slice(3, 8));
   S.forEach((sec) => { if (!deContenido.has(sec)) throw new Error(`«${sec}» sin borrador ni versión final: ${pr.join(" · ")}`); });
-  igual(pr.slice(3, 8), ["Interviews with Owners", "Ordering Food", "Our Local Food", "Bilingual Menus", "Healthy Choices"], "borrador y final primero");
+  igual(pr.slice(3, 8), ["Interviews with Owners", "Healthy Choices", "Our Local Food", "Bilingual Menus", "Ordering Food"], "borrador y final primero");
   igual([pr[0], pr[8]], ["", ""], "las clases con todas las secciones siguen libres");
   // El contrato la lleva y el validador exige que el aporte la nombre
   igual(cc.seccionPrincipalPorClase.length, cc.sesiones, "contrato con principal por clase");
@@ -308,7 +308,7 @@ check("clase con TODAS las secciones: su aporte puede nombrar el producto entero
   }
   const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
   assert(/Si la clase avanza TODAS las secciones \(sin principal\), el "aporteProducto" nombra el producto entero/.test(faseTxt), "el prompt lo pide");
-  assert(/const PROMPT_FASE_VERSION = 8;/.test(faseTxt), "versión del prompt");
+  assert(/const PROMPT_FASE_VERSION = 9;/.test(faseTxt), "versión del prompt");
 });
 
 check("cada fase deja su entrega: la última clase la declara y se avanzan sus secciones", () => {
@@ -471,6 +471,14 @@ check("audiencia real: se reconoce la actividad real y no la simulada", () => {
   assert(actividadAnteAudiencia("Registran los comentarios de un visitante sobre el menú.", aud), "comentarios de");
   assert(!actividadAnteAudiencia("Practican (en parejas, Role Play) con un dueño de restaurante ordenando comida.", aud), "juego de roles");
   assert(!actividadAnteAudiencia("Corrigen el diálogo entre un cliente y un dueño.", aud), "solo menciona");
+});
+check("sección que arranca su borrador: sin una actividad que la nombre, se rechaza", () => {
+  const contrato = { numero: 5, secciones: [], conContenido: false, sesiones: 1, entrega: { texto: "x" }, semilla: { vocabulario: [], gramatica: [], expresiones: [], funcionales: [] }, seccionesQueArrancan: ["Healthy Choices"] };
+  const clase = (actividad) => ({ entregaFase: "x", momentos: [
+    { nombre: "Desarrollo", actividades: [actividad] }, { nombre: "Cierre", actividades: ["Coevalúan (en parejas) la pieza."] },
+  ] });
+  lanza(() => validarLoteContrato({ clases: [clase("Redactan (en parejas) el menú bilingüe.")] }, contrato, 1, 1), /primer borrador de Healthy Choices/, "sin actividad");
+  validarLoteContrato({ clases: [clase("Seleccionan (en equipos) opciones sanas para «Healthy Choices».")] }, contrato, 1, 1);
 });
 check("audiencia real: sin ella la fase se rechaza; la evaluación solo avisa", () => {
   const aud = "los dueños de los comedores y los visitantes";
