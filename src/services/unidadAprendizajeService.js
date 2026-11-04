@@ -882,7 +882,7 @@ export const construirSituacionNarrativa = ({
 };
 
 // Nota institucional de organización temporal (versión parametrizada del modelo)
-const construirNotaInstitucional = ({ clasesPorSemana, durMin, producto, nivel = "" }) => `Conforme al enfoque de atención a la diversidad, evaluación formativa y aprendizaje centrado en el estudiante establecido en el Diseño Curricular del Nivel ${/primaria|primario/i.test(nivel) ? "Primario" : /inicial|kinder|preprimario/i.test(nivel) ? "Inicial" : "Secundario"} del MINERD, la presente unidad organiza su tiempo en torno a un núcleo esencial de ${clasesPorSemana} clase(s) semanal(es) de ${durMin} minutos, complementado por sesiones pedagógicas flexibles que fortalecen la calidad, la pertinencia y la equidad de los aprendizajes. Dichas sesiones no representan una sobreplanificación ni un error en la distribución temporal, sino una decisión metodológica intencional orientada a responder a la diversidad del aula.
+const construirNotaInstitucional = ({ clasesPorSemana, durMin, producto, nivel = "" }) => `Conforme al enfoque de atención a la diversidad, evaluación formativa y aprendizaje centrado en el estudiante establecido en el Diseño Curricular del Nivel ${/primaria|primario/i.test(nivel) ? "Primario" : /inicial|kinder|preprimario/i.test(nivel) ? "Inicial" : "Secundario"} del MINERD, la presente unidad organiza su tiempo en torno a un núcleo esencial de ${clasesPorSemana === 1 ? "1 clase semanal" : `${clasesPorSemana} clases semanales`} de ${durMin} minutos, complementado por sesiones pedagógicas flexibles que fortalecen la calidad, la pertinencia y la equidad de los aprendizajes. Dichas sesiones no representan una sobreplanificación ni un error en la distribución temporal, sino una decisión metodológica intencional orientada a responder a la diversidad del aula.
 Las sesiones flexibles permiten responder a los hallazgos de la evaluación diagnóstica de inicio, habilitar procesos de recuperación pedagógica, nivelación y ampliación según los ritmos de aprendizaje, dar seguimiento continuo a los indicadores de logro y acompañar la construcción progresiva del producto final (${producto.replace(/\.$/, "")}) antes de su valoración sumativa, además de absorber los ajustes propios del calendario escolar y las dinámicas institucionales sin afectar la secuencia didáctica.
 Nota: ante fallas de electricidad, internet o equipos, las actividades que usan TV, proyector o audio se realizan con las alternativas físicas del Anexo L — Plan B tecnológico (imágenes impresas, flashcards, lectura en voz alta y dramatización).`;
 
@@ -1328,11 +1328,80 @@ const VERBOS_DIMENSION = new Map([
 ]);
 export const dimensionDeActividad = (texto = "") =>
   VERBOS_DIMENSION.get(String(texto || "").trim().split(/[\s(,.:;]+/)[0].toLowerCase()) || "";
-const dimensionesDeClase = (dia = {}) => [...new Set((dia.momentos || [])
+const actividadesDeClase = (dia = {}) => (dia.momentos || [])
   .filter((m) => m?.nombre !== "Inicio")
   .flatMap((m) => m?.actividades || [])
-  .map(dimensionDeActividad)
-  .filter(Boolean))];
+  .map((a) => String(a?.texto || a || ""));
+const dimensionesDeClase = (dia = {}) => [...new Set(actividadesDeClase(dia).map(dimensionDeActividad).filter(Boolean))];
+// La actividad que hace observable un desempeño oral, sin lo que deja escrito.
+// Presentar o exponer pesa más que socializar, que suele ser una puesta en común.
+const VERBOS_PRESENTACION = /^(presentan|exponen|representan)\b/i;
+const VERBOS_PUESTA_EN_COMUN = /^socializan\b/i;
+const primeraParte = (texto = "") => String(texto).split(":")[0].replace(/[.\s]+$/, "").trim();
+const actividadDe = (dia, cumple) => primeraParte(actividadesDeClase(dia).find(cumple) || "");
+
+// La pieza de una clase con lo que permite rastrear su evaluación.
+export const aporteDeClase = (d = {}) => ({
+  semana: d.semana || 1,
+  texto: d.aporteProducto,
+  indicadores: (Array.isArray(d.indicadoresTrabajados) ? d.indicadoresTrabajados : [])
+    .map((ind) => String(ind?.codigoOficial || ind?.codigo || ind?.id || ind || "").trim()).filter(Boolean),
+  dimensiones: dimensionesDeClase(d),
+  actividadInteraccion: actividadDe(d, (a) => dimensionDeActividad(a) === "interaccion"),
+  actividadOral: actividadDe(d, (a) => VERBOS_PRESENTACION.test(a.trim()))
+    || actividadDe(d, (a) => VERBOS_PUESTA_EN_COMUN.test(a.trim())),
+});
+
+/**
+ * Indicadores de cada clase según lo que sus actividades piden demostrar. El plan
+ * reparte cada indicador a un solo tipo de fase y las demás retoman los anteriores,
+ * así que entrevistar o pedir comida quedaba como I01. Conserva los que el plan
+ * fija a la fase y lo declarado si ninguna actividad dice su dimensión; nunca sale
+ * de lo elegido. Modifica las clases y devuelve cuántas cambió.
+ */
+export const ajustarIndicadoresPorActividad = (fases = [], { plan = null, relaciones = [], elegidos = [] } = {}) => {
+  const clave = normalizarCodigoIndicador;
+  const elegidosSet = new Set(elegidos.map(clave));
+  const porDimension = new Map();
+  relaciones
+    .filter((r) => r?.dimension && elegidosSet.has(clave(r.indicadorId)))
+    .forEach((r) => porDimension.set(r.dimension, [...(porDimension.get(r.dimension) || []), r.indicadorId]));
+  if (!porDimension.size) return 0;
+  let cambiadas = 0;
+  (fases || []).forEach((fase, i) => {
+    const delPlan = (plan?.fases?.[i]?.indicadores || []).map((ind) => String(ind?.id || ind));
+    (fase?.dias || []).forEach((dia) => {
+      const delaActividad = dimensionesDeClase(dia).flatMap((d) => porDimension.get(d) || []);
+      if (!delaActividad.length) return;
+      const nuevos = [...new Set([...delPlan, ...delaActividad])].slice(0, 3);
+      const antes = (dia.indicadoresTrabajados || []).map(clave).sort().join();
+      if (antes === [...nuevos].map(clave).sort().join()) return;
+      dia.indicadoresTrabajados = nuevos;
+      (dia.momentos || []).forEach((m) => {
+        if (m?.evidenciasDetalle) m.evidenciasDetalle.indicadores = [...nuevos];
+      });
+      cambiadas += 1;
+    });
+  });
+  return cambiadas;
+};
+
+/**
+ * Secciones que no llegan a versión final o revisada, según sus piezas reales.
+ * Las clases que avanzan la guía entera no cuentan: nada dice qué hicieron con
+ * cada sección.
+ */
+export const seccionesSinFinal = (organizador = []) => (organizador || [])
+  .filter((o) => o?.fases !== undefined && o.seccion !== "Título" && !/final|revisad/i.test(o.fases || ""))
+  .map((o) => o.seccion);
+
+// Un plan se escribe antes de la clase: lo que dice que ya pasó es inventado.
+const HECHO_INVENTADO = /(^|[^\p{L}])(se observ[oó]|se not[oó]|mostraron|han mostrado|demostraron|motivaron|participaron|lograron|respondieron|fueron|estuvieron|tuvieron|han sido|hubo)(?!\p{L})/iu;
+export const sinHechosInventados = (texto = "") => {
+  const oraciones = String(texto || "").split(/(?<=[.!?])\s+/);
+  const quedan = oraciones.filter((o) => !HECHO_INVENTADO.test(o));
+  return { texto: quedan.join(" ").trim(), quitadas: oraciones.length - quedan.length };
+};
 
 export const construirAnexosUnidad = ({
   area, tema, producto, vocabulario = [], fases = [], numSemanas = 4,
@@ -1393,6 +1462,8 @@ export const construirAnexosUnidad = ({
       etapa: etapaDePieza(aporte?.texto || aporte),
       indicadores: (Array.isArray(aporte?.indicadores) ? aporte.indicadores : []).map(normalizarCodigoIndicador),
       dimensiones: Array.isArray(aporte?.dimensiones) ? aporte.dimensiones : [],
+      actividadInteraccion: String(aporte?.actividadInteraccion || ""),
+      actividadOral: String(aporte?.actividadOral || ""),
     }))
     .filter((pieza) => pieza.texto);
   // Selecciona la pieza disponible en la etapa que el ítem evalúa. «Acuerdo y
@@ -1401,7 +1472,14 @@ export const construirAnexosUnidad = ({
   // trabajaron ese indicador y esa dimensión; una coincidencia léxica fuerte
   // (≥ 2 palabras propias) desempata y, si no la hay, se rota por `indiceFila`
   // para que cada fila referencie una pieza real distinta.
-  const seleccionarPieza = (texto = "", indiceFila = null, { etapas = null, codigo = "", dimension = "" } = {}) => {
+  const seleccionarPieza = (texto = "", indiceFila = null, { etapas = null, codigo = "", dimension = "", oral = false } = {}) => {
+    // La presentación del producto es la última que se planifica y, si la hay, la
+    // que presenta o expone en vez de solo poner en común.
+    if (oral && piezasTrazables.some((p) => p.actividadOral)) {
+      const orales = piezasTrazables.filter((p) => p.actividadOral);
+      const fuertes = orales.filter((p) => VERBOS_PRESENTACION.test(p.actividadOral));
+      return (fuertes.length ? fuertes : orales).at(-1).texto;
+    }
     let grupo = piezasTrazables;
     const acotar = (cumple) => {
       const acotado = grupo.filter(cumple);
@@ -1424,6 +1502,7 @@ export const construirAnexosUnidad = ({
     return candidatos[0]?.pieza.texto || productoCorto;
   };
   const avisosSeleccion = [];
+  const avisosEvidencia = [];
   const crearTrazaInstrumento = ({
     tipo,
     item,
@@ -1432,6 +1511,8 @@ export const construirAnexosUnidad = ({
     piezaProducto = "",
     exige = "",
     etapas = null,
+    // El ítem valora una presentación: su evidencia es lo observado, no un escrito.
+    oral = false,
   }) => {
     // `exige` = lo que el ítem pide demostrar (comprensión, producción o
     // interacción). Si la selección no tiene un indicador de esa dimensión, no se
@@ -1445,7 +1526,7 @@ export const construirAnexosUnidad = ({
     });
     const codigoRelacion = relacion?.indicadorId || "";
     const pieza = piezaProducto
-      || seleccionarPieza([item, evidencia].filter(Boolean).join(" "), index, { etapas, codigo: codigoRelacion, dimension: exige });
+      || seleccionarPieza([item, evidencia].filter(Boolean).join(" "), index, { etapas, codigo: codigoRelacion, dimension: exige, oral });
     // FALLBACK sin dimensión (áreas sin tríada, ítems de meta-lenguaje): vínculo
     // general y transparente con el indicador priorizado de la unidad.
     const dominante = fueraDeSeleccion ? null : indicadoresTrazables.find((ind) => ind.codigo) || null;
@@ -1460,6 +1541,24 @@ export const construirAnexosUnidad = ({
     if (fueraDeSeleccion) avisosSeleccion.push(`${tipo}: «${String(item).slice(0, 70)}» pide ${NOMBRE_DIMENSION[dimension]} y ningún indicador elegido la cubre`);
     const momentoEvaluativo = MOMENTO_EVALUATIVO_POR_INSTRUMENTO[tipo] || "formativo";
     const textoPieza = String(pieza).replace(/[.\s]+$/, "");
+    // Una interacción o una presentación no se prueba con una pieza escrita: la
+    // evidencia es lo que se observa en la actividad que la clase planificó. Si no
+    // hay tal actividad, no se inventa: se dice y se avisa.
+    const claseDePieza = piezasTrazables.find((p) => p.texto === pieza);
+    let evidenciaObservada = "";
+    if (!evidencia && tipo !== "diagnostica" && piezasTrazables.some((p) => p.etapa)) {
+      if (oral) {
+        evidenciaObservada = claseDePieza?.actividadOral
+          ? `Presentación oral observada: ${claseDePieza.actividadOral}.`
+          : `Presentación oral de ${productoCorto}, que falta planificar en una clase.`;
+        if (!claseDePieza?.actividadOral) avisosEvidencia.push(`«${String(item).slice(0, 60)}»: ninguna clase planifica una presentación oral`);
+      } else if (exige === "interaccion") {
+        evidenciaObservada = claseDePieza?.actividadInteraccion
+          ? `Intercambio observado o grabado: ${claseDePieza.actividadInteraccion}.`
+          : `Intercambio oral observado, que falta planificar en una clase.`;
+        if (!claseDePieza?.actividadInteraccion) avisosEvidencia.push(`«${String(item).slice(0, 60)}»: ninguna clase planifica ese intercambio`);
+      }
+    }
     return {
       instrumentoId: `${tipo}-${index + 1}`,
       criterioOficialId: relacion?.criterioId || "",
@@ -1487,7 +1586,7 @@ export const construirAnexosUnidad = ({
           : "relacionado",
       exige: exige || "",
       momentoEvaluativo,
-      evidencia: (typeof evidencia === "function" ? evidencia(textoPieza) : evidencia) || `Desempeño observable en ${textoPieza}.`,
+      evidencia: (typeof evidencia === "function" ? evidencia(textoPieza) : evidencia) || evidenciaObservada || `Desempeño observable en ${textoPieza}.`,
       piezaProducto: pieza,
       actividadOrigen: `Actividad de elaboración, práctica o revisión vinculada con ${textoPieza}.`,
       destinoRegistro: momentoEvaluativo === "diagnostico"
@@ -1579,7 +1678,8 @@ export const construirAnexosUnidad = ({
       index,
       exige: EXIGE_AUTOEVALUACION[index] || "",
       etapas: index === autoevaluacionBase.length - 1 ? ETAPAS_FINALES : ETAPAS_PROCESO,
-      evidencia: (pieza) => `Juicio del estudiante sustentado con una evidencia de ${pieza}.`,
+      oral: index === autoevaluacionBase.length - 1,
+      evidencia: index === autoevaluacionBase.length - 1 ? "" : (pieza) => `Juicio del estudiante sustentado con una evidencia de ${pieza}.`,
     }),
   }));
   const coevaluacion = [
@@ -1772,8 +1872,8 @@ export const construirAnexosUnidad = ({
     { perfil: "Dificultad en la lectura", acceso: "Leer las consignas en voz alta, usar textos breves con imágenes y resaltar palabras clave.", evaluacion: "Permitir respuestas orales o con imágenes; evaluar la comprensión sin penalizar la velocidad lectora." },
     { perfil: "Dificultad de atención", acceso: "Ubicar cerca del docente, dar instrucciones cortas una a la vez y alternar actividades.", evaluacion: "Evaluar en tramos cortos, verificar comprensión con preguntas directas y permitir pausas." },
     { perfil: "Dificultad en la expresión oral", acceso: "Practicar con frases modelo y diálogos guiados; permitir ensayo previo en parejas y apoyos visuales.", evaluacion: "Valorar la intención comunicativa más que la perfección; permitir grabaciones." },
-    { perfil: "Dificultad auditiva", acceso: "Dar las instrucciones por escrito, entregar la transcripción de cada audio o diálogo, usar apoyos visuales y ubicar al estudiante donde vea al docente y a sus compañeros.", evaluacion: "Evaluar la comprensión con el texto o la transcripción, sin depender del audio; el aprendizaje evaluado es el mismo." },
-    { perfil: "Dificultad visual", acceso: "Leer en voz alta los textos y lo que se escribe en la pizarra, entregar material ampliado con buen contraste y describir las imágenes.", evaluacion: "Permitir respuestas orales o material ampliado y más tiempo; el aprendizaje evaluado es el mismo." },
+    { perfil: "Dificultad auditiva", acceso: "Dar las instrucciones por escrito, entregar la transcripción de cada audio o diálogo, usar apoyos visuales y ubicar al estudiante donde vea al docente y a sus compañeros.", evaluacion: "Valorar la comprensión con el texto o la transcripción y anotar la adecuación usada: se observa la comprensión de lo comunicado, no la comprensión auditiva." },
+    { perfil: "Dificultad visual", acceso: "Leer en voz alta los textos y lo que se escribe en la pizarra, entregar material ampliado con buen contraste y describir las imágenes.", evaluacion: "Permitir respuestas orales o material ampliado y más tiempo, y anotar la adecuación usada." },
     { perfil: "Estudiantes avanzados", acceso: "Asignar retos adicionales, rol de tutor par y tareas de creación.", evaluacion: "Evaluar con criterios de mayor complejidad: riqueza de vocabulario, creatividad e interacción ampliada." },
   ];
 
@@ -1805,6 +1905,7 @@ export const construirAnexosUnidad = ({
     rubricaTrazable: true,
     instrumentosTrazables: true,
     avisosSeleccion: [...new Set(avisosSeleccion)],
+    avisosEvidencia: [...new Set(avisosEvidencia)],
     indicadoresRubrica: textosUnicos(indicadoresTrazables.map((ind) =>
       [ind.codigo, ind.descripcion].filter(Boolean).join(" — ")
     )),
@@ -5400,7 +5501,9 @@ const _generarFasesConIA = async (
       };
     }
     if (weekPlan.observacionesSemana) {
-      fase.observacionesSemana = String(weekPlan.observacionesSemana).trim();
+      const observaciones = sinHechosInventados(weekPlan.observacionesSemana);
+      fase.observacionesSemana = observaciones.texto;
+      if (observaciones.quitadas) avisosRedaccionIA.push(`Fase ${fase.numero}: se quitó de las observaciones lo que narraba hechos que aún no han ocurrido`);
     }
 
     // generateWeekPlan actualiza esta memoria internamente. El respaldo no,
@@ -6042,6 +6145,18 @@ export const generarUnidadAprendizaje = async (datos) => {
   // calculan por actividad; lo que no cabe se avisa, nunca se estira la clase.
   const avisosTiempo = [];
   if (rutaPlanMaestro) {
+    ajustarIndicadoresPorActividad(fasesSemanalesGeneradas, {
+      plan: rutaPlanMaestro.plan,
+      relaciones: especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesMalla || [],
+      elegidos: competenciasDetalleEnriquecidas.flatMap((c) => c.indicadores || [])
+        .filter((i) => i?.aplicaTemaActual).map((i) => i.codigo || i.id),
+    });
+    (fasesSemanalesGeneradas || []).flatMap((f) => f.dias || []).flatMap((d) => d.momentos || []).forEach((m) => {
+      // Si una actividad cuenta con un invitado, también es un recurso de la clase.
+      if (m?.recursos && (m.actividades || []).some((a) => /invitad/i.test(String(a)))) {
+        m.recursos.humanos = "Docente, estudiantes e invitado";
+      }
+    });
     (fasesSemanalesGeneradas || []).flatMap((f) => f.dias || []).forEach((d, i) => {
       const desarrollo = (d.momentos || []).find((m) => m?.nombre === "Desarrollo");
       if (!desarrollo?.actividades?.length) return;
@@ -6054,13 +6169,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   const aportesProducto = (fasesSemanalesGeneradas || [])
     .flatMap((f) => f.dias || [])
     .filter((d) => d.aporteProducto)
-    .map((d) => ({
-      semana: d.semana || 1,
-      texto: d.aporteProducto,
-      indicadores: (Array.isArray(d.indicadoresTrabajados) ? d.indicadoresTrabajados : [])
-        .map((ind) => String(ind?.codigoOficial || ind?.codigo || ind?.id || ind || "").trim()).filter(Boolean),
-      dimensiones: dimensionesDeClase(d),
-    }));
+    .map(aporteDeClase);
 
   // R3 — corpus del documento completo para detectar productos-fantasma:
   // nombres de fase, intenciones pedagógicas, títulos de día y evidencias (es
@@ -6190,6 +6299,8 @@ export const generarUnidadAprendizaje = async (datos) => {
     ...(avisosTiempo.length ? [`Tiempo: ${avisosTiempo.join("; ")}.`] : []),
     ...(Array.isArray(avisosDatosGrupo) ? avisosDatosGrupo : []),
     ...(unidadResult.anexos?.avisosSeleccion?.length ? [`Selección curricular por revisar: ${unidadResult.anexos.avisosSeleccion.join("; ")}.`] : []),
+    ...(unidadResult.anexos?.avisosEvidencia?.length ? [`Evidencias por planificar: ${unidadResult.anexos.avisosEvidencia.join("; ")}.`] : []),
+    ...(seccionesSinFinal(unidadResult.anexos?.organizadorProducto).length ? [`Secciones sin pieza final: ${seccionesSinFinal(unidadResult.anexos.organizadorProducto).join(", ")}.`] : []),
     ...(codigosEvaluacionSinTexto.length ? [`Evaluaciones: códigos fuera de esta malla, omitidos del Punto de partida: ${codigosEvaluacionSinTexto.join(", ")}.`] : []),
   ].filter(Boolean);
   if (avisosGrupo.length) {

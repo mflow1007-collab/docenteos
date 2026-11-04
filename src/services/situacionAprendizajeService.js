@@ -210,10 +210,7 @@ export const audienciasDeSituacion = (situacion = null) => {
   return {
     principal: detalle.principal,
     secundarias,
-    frase: [
-      `${detalle.principal} (audiencia principal)`,
-      ...secundarias.map((s) => `${s.quien} (${s.funcion})`),
-    ].join("; "),
+    frase: [detalle.principal, ...secundarias.map((s) => `también a ${s.quien}, que ${s.funcion}`)].join("; "),
   };
 };
 

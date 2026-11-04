@@ -6,7 +6,7 @@
  */
 import fs from "node:fs";
 import { construirArquitecturaUnidadMINERD, relacionarCriteriosConIndicadores, triadaOficial, extraerCriteriosEvaluacionCanonicos, seleccionarRelacionParaEvidencia } from "../src/services/curriculumBrainService.js";
-import { construirAnexosUnidad, minutosPorDemanda, operacionesDeSeccion, dimensionDeActividad, distribuirTiempoActividades } from "../src/services/unidadAprendizajeService.js";
+import { construirAnexosUnidad, ajustarIndicadoresPorActividad, sinHechosInventados, seccionesSinFinal, minutosPorDemanda, operacionesDeSeccion, dimensionDeActividad, distribuirTiempoActividades } from "../src/services/unidadAprendizajeService.js";
 import { motivoAdecuacionBarrera } from "../src/services/phaseAService.js";
 import { audienciasDeSituacion, situacionDesdeSemilla } from "../src/services/situacionAprendizajeService.js";
 import { SITUACIONES_SEMILLA_INGLES_2DO as SEMILLAS } from "../src/data/situacionesSemillaIngles2do.js";
@@ -134,6 +134,60 @@ check("otro tema y producto: las mismas reglas", () => {
   assert(!filas(ax).some((f) => /acuerdo y plan/.test(f.piezaProducto)), "plan inicial");
 });
 
+check("interacción y presentación se evidencian con lo observado, no con un escrito", () => {
+  const ax = anexosCon({ aportesProducto: [
+    { semana: 1, texto: "Sección «Help» (versión final): una tarjeta", dimensiones: ["interaccion"], actividadInteraccion: "Intercambian (en parejas) preguntas" },
+    { semana: 2, texto: "Sección «Welcome» (versión final): una carta", dimensiones: ["produccion"] },
+    { semana: 3, texto: "«Guía» (versión revisada): guía", dimensiones: ["produccion"], actividadOral: "Presentan (en plenaria) la guía" },
+  ] });
+  const interaccion = ax.listaCotejoOral.find((f) => f.exige === "interaccion");
+  assert(/^Intercambio observado o grabado: Intercambian/.test(interaccion.evidencia), interaccion.evidencia);
+  const presenta = ax.autoevaluacion[ax.autoevaluacion.length - 1];
+  assert(/^Presentación oral observada: Presentan/.test(presenta.evidencia), presenta.evidencia);
+  igual(ax.avisosEvidencia, [], "sin avisos");
+});
+check("si ninguna clase presenta ni intercambia, no se inventa: se dice y se avisa", () => {
+  const ax = anexosCon({ aportesProducto: [{ semana: 2, texto: "Sección «A» (versión final): una carta", dimensiones: ["produccion"] }] });
+  const presenta = ax.autoevaluacion[ax.autoevaluacion.length - 1];
+  assert(/falta planificar/.test(presenta.evidencia), presenta.evidencia);
+  assert(ax.avisosEvidencia.some((a) => /presentación oral/.test(a)), "aviso");
+});
+check("una unidad sin etapas (motor anterior) conserva su evidencia", () => {
+  const ax = anexosCon({ aportesProducto: ["Póster de rutinas", "Guion oral"] });
+  assert(ax.listaCotejoOral.every((f) => /^Desempeño observable/.test(f.evidencia)), "evidencia");
+});
+
+console.log("3b. Indicadores por actividad:");
+const claseDe = (actividades, indicadores = ["ING-2-I01"]) => ({ indicadoresTrabajados: indicadores, momentos: [{ nombre: "Desarrollo", actividades, evidenciasDetalle: {} }] });
+const elegidosIds = ["ING-2-I01", "ING-2-I02", "ING-2-I03"];
+check("entrevistar y transcribir ya no queda solo en I01", () => {
+  const dia = claseDe(["Entrevistan (en parejas) al invitado.", "Redactan (en parejas) la transcripción."]);
+  igual(ajustarIndicadoresPorActividad([{ dias: [dia] }], { relaciones, elegidos: elegidosIds }), 1, "cambiadas");
+  igual(dia.indicadoresTrabajados, ["ING-2-I03", "ING-2-I02"], "indicadores");
+  igual(dia.momentos[0].evidenciasDetalle.indicadores, ["ING-2-I03", "ING-2-I02"], "evidencias de la clase");
+});
+check("conserva el indicador que el plan fija a la fase y no sale de lo elegido", () => {
+  const dia = claseDe(["Redactan x."], ["ING-2-I01"]);
+  ajustarIndicadoresPorActividad([{ dias: [dia] }], { plan: { fases: [{ indicadores: [{ id: "ING-2-I01" }] }] }, relaciones, elegidos: elegidosIds });
+  igual(dia.indicadoresTrabajados, ["ING-2-I01", "ING-2-I02"], "plan + actividad");
+  const soloUno = claseDe(["Redactan x."], ["ING-2-I01"]);
+  ajustarIndicadoresPorActividad([{ dias: [soloUno] }], { relaciones, elegidos: ["ING-2-I01"] });
+  igual(soloUno.indicadoresTrabajados, ["ING-2-I01"], "sin elegidos de esa dimensión");
+});
+check("sin dimensión en sus actividades, la clase conserva lo declarado", () => {
+  const dia = claseDe(["Analizan los datos.", "Reflexionan sobre x."]);
+  ajustarIndicadoresPorActividad([{ dias: [dia] }], { relaciones, elegidos: elegidosIds });
+  igual(dia.indicadoresTrabajados, ["ING-2-I01"], "declarado");
+});
+check("las observaciones no narran lo que aún no ha ocurrido", () => {
+  const r = sinHechosInventados("Se observó que algunos no entienden. Conviene repasar el presente. Los estudiantes mostraron interés.");
+  igual(r, { texto: "Conviene repasar el presente.", quitadas: 2 }, "observaciones");
+  igual(sinHechosInventados("Observar si aplican las estructuras.").quitadas, 0, "previsión");
+});
+check("secciones sin pieza final se señalan", () => {
+  igual(seccionesSinFinal([{ seccion: "Título", fases: "" }, { seccion: "A", fases: "Borrador" }, { seccion: "B", fases: "Borrador → Versión final" }, { seccion: "C", fases: "" }, { seccion: "Sin plan" }]), ["A", "C"], "secciones");
+});
+
 console.log("4. Adecuaciones según la barrera:");
 check("una grabación sola no resuelve una barrera auditiva; con transcripción, sí", () => {
   assert(motivoAdecuacionBarrera("Utilización de grabaciones de las entrevistas para estudiantes con dificultades auditivas."), "debía rechazarla");
@@ -149,7 +203,7 @@ check("Anexo K: perfiles auditivo y visual que conservan el aprendizaje", () => 
   const perfiles = anexosCon().neaePorPerfil;
   const auditiva = perfiles.find((p) => /auditiva/.test(p.perfil));
   assert(/transcripción/.test(auditiva.acceso) && /escrito/.test(auditiva.acceso), "acceso");
-  assert(/mismo/.test(auditiva.evaluacion), "aprendizaje");
+  assert(/no la comprensión auditiva/.test(auditiva.evaluacion), "no afirma que mida lo mismo");
   igual(motivoAdecuacionBarrera(`${auditiva.perfil}: ${auditiva.acceso}`), "", "pasa su propio validador");
   assert(perfiles.some((p) => /visual/.test(p.perfil)), "visual");
 });
@@ -194,7 +248,7 @@ check("principal y secundarias con función, en las tres semillas", () => {
   for (const s of SEMILLAS) {
     const a = audienciasDeSituacion(situacionDesdeSemilla(s));
     assert(a.principal && a.secundarias.every((x) => x.quien && x.funcion), s.id);
-    assert(a.frase.includes("audiencia principal"), s.id);
+    assert(a.frase.startsWith(a.principal) && a.frase.includes("también a"), s.id);
   }
 });
 check("si el docente cambia la audiencia, manda la suya", () => {
