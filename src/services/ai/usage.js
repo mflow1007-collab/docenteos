@@ -8,6 +8,7 @@
 import { db } from "../../firebase.js";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { camposCupo } from "../../utils/costoPorPlan.js";
 
 // Tarifas aproximadas en USD por 1M tokens (actualizar según cambien)
 const COST_RATES = {
@@ -44,6 +45,7 @@ function estimateCost(model, tokensIn, tokensOut) {
  * @param {number} [opts.ms]            - Tiempo de respuesta en ms
  * @param {boolean} [opts.fromCache]    - Si la respuesta vino del cache
  * @param {string|null} [opts.error]    - Mensaje de error si falló
+ * @param {Object|null} [opts.cupo]     - { planId, clave } del plan (Etapa E), si lo hay
  */
 export async function logUsage({
   module,
@@ -56,6 +58,7 @@ export async function logUsage({
   exact     = false, // true = tokens EXACTOS reportados por el proveedor
   error     = null,
   stopReason = null, // motivo de parada del proveedor (max_tokens/length/end_turn…)
+  cupo      = null, // Etapa E: { planId, clave } del plan que hizo la llamada
 }) {
   try {
     const uid = getAuth().currentUser?.uid || null;
@@ -74,6 +77,7 @@ export async function logUsage({
       tokensExactos:   exact,
       stopReason:      stopReason || null,
       error:           error || null,
+      ...camposCupo(cupo),
     });
   } catch {
     // logging no-fatal — nunca romper la experiencia de usuario
@@ -92,6 +96,7 @@ export async function logFaseRedaccionFallida({
   nombre = "",
   motivo = "",
   creditosAgotados = false,
+  cupo = null,
 }) {
   try {
     const uid = getAuth().currentUser?.uid || null;
@@ -115,6 +120,7 @@ export async function logFaseRedaccionFallida({
       tiempoRespuesta:   0,
       cache:             false,
       error:             `Fase sin redactar: ${motivoLimpio}`.slice(0, 500),
+      ...camposCupo(cupo),
     });
   } catch {
     // logging no-fatal — el error visible ya lo recibe el docente
@@ -133,6 +139,7 @@ export async function logCaidaBaseCurricular({
   fase = null,
   motivo = "",
   contingenciaSinIA = false,
+  cupo = null,
 }) {
   try {
     const uid = getAuth().currentUser?.uid || null;
@@ -156,6 +163,7 @@ export async function logCaidaBaseCurricular({
       tiempoRespuesta:   0,
       cache:             false,
       error:             `Fase a base curricular: ${motivoLimpio}`.slice(0, 500),
+      ...camposCupo(cupo),
     });
   } catch {
     // logging no-fatal — nunca romper la experiencia de usuario

@@ -121,6 +121,8 @@ const empujarLinea = (items, linea) => {
 // la segmentación en ítems de un grado no sea perfecta.
 const unirComoTexto = (items = []) => items.join(" ").replace(/\s+/g, " ").trim();
 
+const SUBENCABEZADO_INFINITIVO = /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(ar|er|ir)\b/;
+
 // Extrae una SECCIÓN del bloque "conceptos" (Temas, Vocabulario, Expresiones o
 // Gramática): las líneas entre su encabezado y el siguiente encabezado conocido.
 // El texto que venga PEGADO al encabezado ("Gramática Oraciones:") se conserva
@@ -137,6 +139,13 @@ const extraerSeccion = (conceptosLineas = [], claveSeccion) => {
     if (head && head.clave === claveSeccion) { dentro = true; continue; }
     if (!dentro) continue;
     if (head) break; // llegó otro encabezado conocido
+    // Vocabulario agrupado por función (francés 4to): "Comprar", "Dar y pedir
+    // información…" van SIN viñeta y en mayúscula. Son subencabezados, no la
+    // continuación del ítem anterior (antes salía "Fecha Comprar").
+    if (claveSeccion === "vocabulario" && !linea.startsWith("•") && SUBENCABEZADO_INFINITIVO.test(linea)) {
+      items.push(linea);
+      continue;
+    }
     empujarLinea(items, linea);
   }
   return items.filter(Boolean);
@@ -150,18 +159,25 @@ const extraerSeccion = (conceptosLineas = [], claveSeccion) => {
 // Repara el fragmento huérfano "verbal para responder/comprender…" que aparece en
 // el indicador COMPR de la competencia de Pensamiento Lógico-Verbal (inglés 6to,
 // francés 2do y 4to): la conversión del PDF perdió su arranque ("…utilizando el
-// pensamiento lógico-"), que quedó pegado al indicador anterior. Se antepone ese
-// arranque literal, sin duplicar el verbo que el fragmento ya trae.
+// pensamiento lóg"). El guion de "lógico-verbal" sale del PDF como "•" y la
+// extracción literal partió ahí. Revisado contra el PDF (2026-10-30): las tres
+// veces el texto oficial es "Utiliza el pensamiento lógico-verbal para…".
 const repararFragmentoLogicoVerbal = (t) => {
-  // El fragmento ya trae el verbo y el complemento ("verbal para responder/comprender
-  // …"); solo le falta el arranque "…utilizando el pensamiento lógico-" que el PDF
-  // dejó pegado al indicador anterior. Se antepone únicamente ese arranque para no
-  // duplicar el verbo (así no queda "Responde … para responder …").
   if (/^verbal para (responder|comprender)\b/i.test(t)) {
-    return `Utilizando el pensamiento lógico-${t}`;
+    return `Utiliza el pensamiento lógico-${t}`;
   }
   return t;
 };
+
+// El último indicador de cada grado arrastra el número de página impreso
+// ("…a otras personas. 144") y el rótulo de página "Primer/Segundo Ciclo" se
+// cuela en dos indicadores (al final en Inglés 3ro; a media frase en Francés 6to:
+// "comprendiendo de Primer Ciclo forma…"). Ningún indicador oficial nombra el
+// ciclo, así que el rótulo se quita donde esté; el número, solo al final.
+const quitarRotuloPagina = (t) => String(t)
+  .replace(/\s+(Primer|Segundo)\s+Ciclo\b/g, "")
+  .replace(/\s+\d{3}\s*$/, "")
+  .trim();
 
 const unirIndicadoresPartidos = (lineas = []) => {
   const unidos = [];
@@ -177,12 +193,15 @@ const unirIndicadoresPartidos = (lineas = []) => {
     // cerrado (termina en ".") NO se absorbe: es un indicador partido aparte.
     const previoCortado = previo && !/[.!?:;]$/.test(previo);
     if (empiezaMinuscula && previoCortado) {
-      unidos[unidos.length - 1] = `${previo} ${t}`.trim();
+      // "…lógico" + "verbales…": el corte fue el guion de "lógico-verbal" (sale
+      // como "•" del PDF), así que se une con guion y no con espacio.
+      const sep = /lógico$/i.test(previo) && /^verbal/i.test(t) ? "-" : " ";
+      unidos[unidos.length - 1] = `${previo}${sep}${t}`.trim();
     } else {
       unidos.push(repararFragmentoLogicoVerbal(t));
     }
   }
-  return unidos;
+  return unidos.map(quitarRotuloPagina);
 };
 
 // Los TEMAS oficiales son la sección "Temas". Algunos grados (p. ej. francés 6to)

@@ -8,13 +8,13 @@
  * Desde la Etapa 5 es obligatoria donde existe: la generación redacta cada
  * fase de este plan con la IA.
  */
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { ROLES_FASES_POR_ESTRATEGIA, rolesDeFaseGuia } from "../data/rolesFasesEstrategias.js";
 import {
   PLAN_MAESTRO_INICIAL, calcularVistaPrevia, resolverIndicadoresEstructurados, competenciasDeMalla,
   temasDeLaUnidad, alternarUnionConSiguiente, fijarPartes, fijarSesiones, repartirDeNuevo,
-  alternarCompetencia, alternarIndicador, alternarAspecto,
+  alternarCompetencia, alternarIndicador, alternarAspecto, prellenarPlanMaestro, debePrellenarPlanMaestro,
 } from "../services/vistaPreviaPlanMaestroService.js";
 import SituacionAprendizajePanel from "./SituacionAprendizajePanel.jsx";
 
@@ -70,6 +70,28 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
       return { indicadores: null, error: e.message };
     }
   }, [mallaPayload]);
+
+  // Modo rápido: con el título basta. DocenteOS prellena el plan (sin IA) y el
+  // docente lo ajusta solo si quiere; nunca pisa lo que el docente cambió.
+  // Siempre con los datos más recientes (el prellenado espera a que termine el título).
+  const datosActuales = useRef(datos);
+  useEffect(() => { datosActuales.current = datos; });
+  const prellenar = () => onChange({
+    ...datosActuales.current,
+    ...prellenarPlanMaestro({
+      datos: datosActuales.current,
+      indicadores: estructura.indicadores,
+      competencias: competenciasDeMalla(mallaPayload, estructura.indicadores),
+    }),
+  });
+  useEffect(() => {
+    if (!estructura.indicadores) return undefined;
+    if (!debePrellenarPlanMaestro({ planMaestro: datos.planMaestro, titulo: datos.titulo, productoFinalTexto: datos.productoFinalTexto })) return undefined;
+    // Espera a que el docente termine de escribir el título.
+    const t = setTimeout(prellenar, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datos.titulo, datos.planMaestro, datos.productoFinalTexto, estructura.indicadores]);
 
   const vista = calcularVistaPrevia({ datos: datosPlan, mallaPayload });
   // Si las sesiones fijadas no cuadran, se muestran las fases del reparto
@@ -298,12 +320,37 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
     );
   }
 
+  const listo = Boolean(vista.plan) && !vista.error;
+  const resumen = listo
+    ? `${vista.plan.estrategia.nombre} · ${vista.plan.fases.length} fases · ${vista.plan.horario.totalSesiones} clases${datos.productoFinalTexto ? ` · «${datos.productoFinalTexto}»` : ""}`
+    : "";
+
   return (
-    <details className="pd-detalles">
-      <summary>Vista previa del plan maestro (sin IA · no gasta créditos)</summary>
-      <p className="pd-hint" style={{ margin: "6px 0 8px" }}>
-        Revisa y ajusta la estructura de la unidad. Es obligatoria: la IA redacta la unidad fase por fase con este plan.
-      </p>
+    <details className="pd-detalles" id="vista-previa-plan-maestro">
+      <summary>
+        {estructura.indicadores
+          ? <>Plan de la unidad{resumen ? <> · <strong>{resumen}</strong></> : ""} · <span style={{ fontWeight: 400 }}>revisar y ajustar (opcional)</span></>
+          : "Vista previa del plan maestro (sin IA · no gasta créditos)"}
+      </summary>
+      {estructura.indicadores ? (
+        <p className="pd-hint" style={{ margin: "6px 0 8px" }}>
+          {pm.prellenado
+            ? "DocenteOS ya preparó este plan con la malla oficial y una situación sugerida. Puedes generar así; cambia solo lo que quieras adaptar a tu grupo."
+            : "Este es el plan con el que la IA redacta la unidad, fase por fase, sobre la malla oficial."}
+          {estructura.indicadores && String(datos.titulo || "").trim() && (
+            <>
+              {" "}
+              <button type="button" className="pd-link-btn" onClick={prellenar}>
+                {pm.prellenado ? "Volver a sugerir" : "Sugerir un plan completo"}
+              </button>
+            </>
+          )}
+        </p>
+      ) : (
+        <p className="pd-hint" style={{ margin: "6px 0 8px" }}>
+          Revisa y ajusta la estructura de la unidad.
+        </p>
+      )}
       {cuerpo}
     </details>
   );

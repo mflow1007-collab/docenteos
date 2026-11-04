@@ -6,6 +6,8 @@
 
 import { useState } from "react";
 import AuditoriaModal from "./AuditoriaModal.jsx";
+import { auth } from "../firebase";
+import { esUsuarioDocenteOS } from "../utils/permisos.js";
 
 const textoSeguro = (value) => {
   if (typeof value === "string" || typeof value === "number") return String(value).trim();
@@ -206,11 +208,28 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
     );
   };
   const fasesBaseCurricular = Array.isArray(unidad.fasesBaseCurricular) ? unidad.fasesBaseCurricular : [];
-  const avisosGeneracion = Array.isArray(unidad.advertencias) ? unidad.advertencias.filter(Boolean).map(String) : [];
+  // Los avisos de redacción (regla 4.4) son ajustes de la generación que el
+  // docente no puede aplicar: solo los ve el administrador. Las unidades
+  // anteriores los traen dentro de «advertencias».
+  // Producto fantasma (César, 2026-11-04): suele saltar con el producto traducido
+  // en un título; el docente no tiene qué corregir.
+  const esAvisoRedaccion = (texto) => texto.startsWith("⚠️ Redacción de las actividades (regla 4.4") || texto.startsWith("⚠ Producto-fantasma");
+  const esAdmin = esUsuarioDocenteOS(auth.currentUser?.email);
+  const avisosTodos = Array.isArray(unidad.advertencias) ? unidad.advertencias.filter(Boolean).map(String) : [];
+  const avisosGeneracion = avisosTodos.filter((texto) => !esAvisoRedaccion(texto));
+  const avisosRedaccion = esAdmin
+    ? [...avisosTodos.filter(esAvisoRedaccion), ...(Array.isArray(unidad.avisosRedaccion) ? unidad.avisosRedaccion.filter(Boolean).map(String) : [])]
+    : [];
   const competenciasDetalle = Array.isArray(unidad.competenciasDetalle) ? unidad.competenciasDetalle : [];
   const competenciasVisibles = competenciasDetalle.length
     ? competenciasDetalle
     : (Array.isArray(modeloSuperior.competencias) ? modeloSuperior.competencias : []);
+  // Criterios de evaluación (paso 7): columna solo si la unidad los trae
+  // (las guardadas antes no los tienen y no se muestra una columna vacía).
+  const hayCriterios = competenciasVisibles.some((c) => Array.isArray(c?.criterios) && c.criterios.length);
+  const competenciaElegida = (comp) => (typeof comp?.elegidaPlan === "boolean"
+    ? comp.elegidaPlan
+    : (comp?.indicadores || []).some((ind) => ind?.aplicaTemaActual));
 
   return (
     <div className="ua-resultado">
@@ -241,6 +260,16 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
           </summary>
           <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
             {avisosGeneracion.map((texto, i) => <li key={i}>{texto}</li>)}
+          </ul>
+        </details>
+      )}
+      {avisosRedaccion.length > 0 && (
+        <details className="mensaje info">
+          <summary style={{ cursor: "pointer" }}>
+            🛠️ Avisos de redacción de la IA (solo administración)
+          </summary>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+            {avisosRedaccion.map((texto, i) => <li key={i}>{texto}</li>)}
           </ul>
         </details>
       )}
@@ -381,6 +410,17 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
       <section className="ua-section">
         <div className="ua-section-head">SITUACIÓN DE APRENDIZAJE</div>
         <p className="ua-text-block">{editable({ ruta: "situacionAprendizaje", valor: unidad.situacionAprendizaje, multilinea: true })}</p>
+        {/* Punto de partida del grupo (Adecuación 2023, pp. 38-39): fuera de las 8 líneas; solo con datos reales */}
+        {unidad.puntoPartida && (
+          <>
+            <div className="ua-section-head" style={{ marginTop: 8 }}>PUNTO DE PARTIDA DEL GRUPO</div>
+            <div className="ua-text-block">
+              {String(unidad.puntoPartida).split("\n").map((linea, i) => (
+                <p key={i}>{linea}</p>
+              ))}
+            </div>
+          </>
+        )}
         <div className="ua-section-head" style={{ marginTop: 8 }}>AMBIENTE DE APRENDIZAJE</div>
         <p className="ua-text-block">{editable({ ruta: "ambienteAprendizaje", valor: unidad.ambienteAprendizaje, multilinea: true })}</p>
         {unidad.notaInstitucional && (
@@ -421,6 +461,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
               <tr>
                 <td className="ua-lbl">Competencias</td>
                 <td className="ua-lbl">Indicadores de Logro</td>
+                {hayCriterios && <td className="ua-lbl">Criterios de evaluación</td>}
               </tr>
               {competenciasVisibles.map((comp, i) => (
                 <tr key={i}>
@@ -430,6 +471,15 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
                     {comp.especifica && <><br /><em>{comp.especifica}</em></>}
                   </td>
                   <td>{renderIndicadores(comp.indicadores, "No registrado en la malla.", i)}</td>
+                  {hayCriterios && (
+                    <td>
+                      {(comp.criterios || []).length ? (
+                        <ul className="ua-list" style={competenciaElegida(comp) ? { fontWeight: 700 } : undefined}>
+                          {comp.criterios.map((c, ci) => <li key={ci}>{c}</li>)}
+                        </ul>
+                      ) : "No registrado en la malla."}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -500,7 +550,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 
           {fase.tituloSemana && (
             <div className="ua-semana-header">
-              {m.titulo} — SEMANA {fase.numero} ({fase.dias?.length || 0} día{(fase.dias?.length || 0) === 1 ? "" : "s"}): &ldquo;{fase.tituloSemana}&rdquo;
+              {m.titulo} — {etiquetaSemanas(fase)} ({fase.dias?.length || 0} día{(fase.dias?.length || 0) === 1 ? "" : "s"}): &ldquo;{fase.tituloSemana}&rdquo;
             </div>
           )}
 
@@ -525,7 +575,7 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
                 {(dia.focoLinguistico || editando) && (
                   <span> · {editando
                     ? editable({ ruta: `fasesSemanales.${fi}.dias.${di}.focoLinguistico`, valor: dia.focoLinguistico, placeholder: "Foco lingüístico / estructura" })
-                    : dia.focoLinguistico}</span>
+                    : parseFormatting(dia.focoLinguistico)}</span>
                 )}
                 {dia.etapaProgresion && (
                   <span className="ua-etapa-badge">{dia.etapaProgresion}</span>
@@ -668,6 +718,16 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
 }
 
 /**
+/**
+ * Semana(s) del CALENDARIO de la fase, como el PDF: una unidad de 3 semanas
+ * con 9 fases decía «SEMANA 9». Unidades guardadas sin dia.semana → número de fase.
+ */
+function etiquetaSemanas(fase) {
+  const semanas = [...new Set((fase.dias || []).map((d) => Number(d?.semana)).filter((n) => n > 0))];
+  if (!semanas.length) return `SEMANA ${fase.numero}`;
+  return semanas.length === 1 ? `SEMANA ${semanas[0]}` : `SEMANAS ${semanas[0]}–${semanas[semanas.length - 1]}`;
+}
+
 /** Convierte **negrita** y _cursiva_ dentro de una cadena en nodos React */
 function parseFormatting(text) {
   const parts = String(text ?? "").split(/(\*\*[^*]+\*\*|_[^_]+_)/g);

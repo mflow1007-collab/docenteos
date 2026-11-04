@@ -14,7 +14,7 @@
  * Ejecutar: node scripts/test-unidad-render.mjs
  */
 
-import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, construirPuntoPartida, construirRubricaPlan, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades, motivoProductoFinal, productoFinalDeDatos, sinRotuloAvance } from "../src/services/unidadAprendizajeService.js";
 import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import {
@@ -33,6 +33,7 @@ import {
   relacionarCriteriosConIndicadores,
 } from "../src/services/curriculumBrainService.js";
 import { readFileSync } from "node:fs";
+import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../src/data/indicadoresIngles2doEstructurados.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -452,6 +453,95 @@ check("rechaza portafolio genérico aunque lo escriba el docente", () => {
     "Our School Survival Guide: guía bilingüe para orientar a estudiantes nuevos",
     "Escuela y educación",
   );
+});
+
+check("R11 reconoce «Booklet» y las palabras con tilde (menú, élèves) — fallo real del 2026-11-02", () => {
+  // El modo rápido sugiere «<título> Booklet» y esta unidad de 12 clases falló al final por R11.
+  validarProductoFinalAutentico(
+    "Food and healthy habits Booklet — menú comentado para promover decisiones alimentarias saludables, dirigida a estudiantes y familias de la comunidad escolar; socialización: feria oral en inglés.",
+    "Food and healthy habits",
+  );
+  validarProductoFinalAutentico("Hobbies and weekend activities Booklet para compartir con los estudiantes del centro", "Hobbies");
+  validarProductoFinalAutentico("Menú comentado para los estudiantes del curso", "Alimentación");
+  validarProductoFinalAutentico("Álbum de la familia para los visitantes", "La familia");
+  // Sin formato ni audiencia reconocibles sigue rechazado
+  esperaError(() => validarProductoFinalAutentico("Cosas de comida para todos", "Alimentación"), "sin formato");
+});
+
+check("R11 del producto del docente: se revisa antes de generar y avisa, no detiene (decisión de César, 2026-11-02)", () => {
+  const datos = {
+    titulo: "Food and healthy habits", area: "Lenguas Extranjeras", asignatura: "Inglés",
+    productoFinalTexto: "Food and healthy habits Booklet", productoFinalFormato: "infografía comentada",
+    productoFinalProposito: "promover decisiones saludables", productoFinalAudiencia: "mis compañeros",
+    productoFinalSocializacion: "feria oral",
+  };
+  const producto = productoFinalDeDatos(datos);
+  if (!/^Food and healthy habits Booklet — infografía comentada para promover/.test(producto)) throw new Error(producto);
+  // «Booklet» pasa el formato; «mis compañeros» no está en la lista de audiencias → motivo legible, sin «R11:»
+  const motivo = motivoProductoFinal(producto, datos.titulo);
+  if (!/a quién va dirigido/.test(motivo)) throw new Error(`motivo: ${motivo}`);
+  if (motivoProductoFinal(productoFinalDeDatos({ ...datos, productoFinalAudiencia: "estudiantes y familias" }), datos.titulo) !== "") {
+    throw new Error("un producto válido devolvió motivo");
+  }
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  if (!/if \(!productoFinalTexto\) validarProductoFinalAutentico\(productoNombrado, titulo\);/.test(servicio)) {
+    throw new Error("el producto del docente sigue deteniendo la generación al final");
+  }
+  if (!/const motivoProductoDocente = productoFinalTexto \? motivoProductoFinal\(producto, titulo\) : "";[\s\S]{0,400}advertencias\.push\(avisoProducto\)/.test(servicio)) {
+    throw new Error("falta el aviso del producto antes de generar");
+  }
+  const posAviso = servicio.indexOf("const motivoProductoDocente");
+  const posIA = servicio.indexOf("await _generarFasesConIA(");
+  if (!(posAviso > 0 && posIA > posAviso)) throw new Error("el aviso no va antes de las llamadas a la IA");
+  const form = readFileSync(join(__dir, "../src/components/FormularioUnidadAprendizaje.jsx"), "utf8");
+  if (!/motivoProductoFinal\(productoFinalDeDatos\(datos\), titulo\)/.test(form)) throw new Error("el formulario no revisa el producto");
+});
+
+check("pantalla y criterios de éxito coherentes (prueba «Alimentación» del 2026-11-03)", () => {
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  const pantalla = readFileSync(join(__dir, "../src/components/ResultadoUnidadAprendizaje.jsx"), "utf8");
+  // 9 fases en 3 semanas: la pantalla decía «SEMANA 9»; ahora usa dia.semana como el PDF
+  if (/SEMANA \{fase\.numero\}/.test(pantalla)) throw new Error("la pantalla sigue usando el número de fase como semana");
+  if (!/function etiquetaSemanas\(fase\)[\s\S]{0,200}d\?\.semana/.test(pantalla)) throw new Error("falta etiquetaSemanas con dia.semana");
+  // «_have_ y _want_» se veía con guiones bajos en el subtítulo del día
+  if (!/parseFormatting\(dia\.focoLinguistico\)/.test(pantalla)) throw new Error("el foco del día no convierte _cursiva_");
+  // «Hoy tendrás éxito si…» repetía la misma evidencia de Desarrollo y Cierre
+  if (!/criteriosUnicos = \[\.\.\.new Map\(evidenciasClase\.map/.test(servicio)) throw new Error("los criterios de éxito no se deduplican");
+  // Didácticos con proyector/ordenadores y tecnológicos «No requerido»
+  if (!/derivarRecursos\(\[\.\.\.orig\.actividades, \.\.\.aiMom\.recursos\.map\(String\)\]/.test(servicio)) throw new Error("tecnológicos no miran los didácticos");
+  if (!/ordenador\|laptop\|tableta/.test(servicio) || !/dispositivos\? m\[oó\]vil/.test(servicio)) throw new Error("faltan ordenadores/dispositivos móviles");
+});
+
+check("R4: la evidencia «final» va en el Desarrollo sumativo, no en el Cierre formativo (prueba «Alimentación», 2026-11-03)", () => {
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  if (!/const esValoracionFinal = !esInicio && !esCierre && orig\.evaluacion\?\.tipo === "Sumativa";/.test(servicio)) throw new Error("la etiqueta final no sigue a la sumativa");
+  if (/esCierre\s*\?\s*\(esFaseFinal \? "final"/.test(servicio)) throw new Error("el Cierre de la última fase sigue marcado como final");
+  // La política de evaluación no cambia: sumativa solo en el Desarrollo de la clase de valoración
+  if (resolverEvaluacionMomento({ momento: "Cierre", faseIdx: 3, numeroDia: 1, totalDiasFase: 1 }).tipo !== "Formativa") throw new Error("Cierre dejó de ser formativo");
+  if (resolverEvaluacionMomento({ momento: "Desarrollo", faseIdx: 3, numeroDia: 1, totalDiasFase: 1 }).tipo !== "Sumativa") throw new Error("Desarrollo final dejó de ser sumativo");
+});
+
+check("avisos de redacción 4.4 solo para el administrador; el docente no los ve (2026-11-03)", () => {
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  const pantalla = readFileSync(join(__dir, "../src/components/ResultadoUnidadAprendizaje.jsx"), "utf8");
+  if (!/unidadResult\.avisosRedaccion = \[\s*`⚠️ Redacción de las actividades \(regla 4\.4/.test(servicio)) throw new Error("los avisos 4.4 siguen en advertencias");
+  if (!/seccionesProducto: unidadResult\.planMaestro\?\.secciones/.test(servicio)) throw new Error("la coherencia no recibe las secciones");
+  if (!/const esAdmin = esUsuarioDocenteOS\(auth\.currentUser\?\.email\)/.test(pantalla)) throw new Error("la pantalla no distingue al administrador");
+  if (!/avisosGeneracion = avisosTodos\.filter\(\(texto\) => !esAvisoRedaccion\(texto\)\)/.test(pantalla)) throw new Error("el docente sigue viendo los avisos 4.4 de unidades guardadas");
+  if (!/const avisosRedaccion = esAdmin/.test(pantalla)) throw new Error("los avisos de redacción no se limitan al administrador");
+  if (!/texto\.startsWith\("⚠ Producto-fantasma"\)/.test(pantalla)) throw new Error("el docente sigue viendo el aviso de producto fantasma");
+});
+
+check("el rótulo «(avance N de M)» no llega al aula ni a la IA; el proyector nombrado siempre va (revisión «Alimentación», 2026-11-03)", () => {
+  if (sinRotuloAvance("Insumos recopilados de Our Healthy School Menu (avance 2 de 2)") !== "Insumos recopilados de Our Healthy School Menu") throw new Error("no quitó el rótulo");
+  if (sinRotuloAvance("Borrador del menú") !== "Borrador del menú") throw new Error("cambió un texto sin rótulo");
+  const servicio = readFileSync(join(__dir, "../src/services/unidadAprendizajeService.js"), "utf8");
+  const fase = readFileSync(join(__dir, "../src/services/phaseAService.js"), "utf8");
+  if (!/producto: \(aiMom\.evidencias\?\.producto \|\| \[\]\)\.map\(sinRotuloAvance\)/.test(servicio)) throw new Error("la evidencia de producto conserva el rótulo");
+  if (!/\]\.map\(sinRotuloAvance\)\.filter\(Boolean\);\s*\/\/ Sin repetir/.test(servicio)) throw new Error("los criterios de éxito conservan el rótulo");
+  if (/\(\$\{c\.entrega\.texto\}\)|ENTREGA DE LA FASE: \$\{c\.entrega\.texto\}/.test(fase)) throw new Error("la IA sigue recibiendo el rótulo");
+  if (/proyecci\[oó\]n\\b\/\) && tec\.size === 0/.test(servicio)) throw new Error("el proyector sigue dependiendo de que no haya otro tecnológico");
+  if (!/\\bproyector\(es\)\?\\b/.test(servicio)) throw new Error("«Proyectores» (plural) no se reconoce");
 });
 
 check("la evaluación es diagnóstica al inicio, formativa durante el proceso y sumativa solo al valorar el producto", () => {
@@ -1943,21 +2033,144 @@ check("con plan: indicador completo con aspectos resaltados, competencia no eleg
   validarUnidadRenderizada(u, h);
 });
 
-check("Anexo I con plan: columna de fases y estado por sección; sin plan, como antes", () => {
+check("Anexo I con plan: estados de cada sección en palabras, sin leyenda ni códigos de fase; sin plan, como antes", () => {
   const base = { area: "Inglés", tema: "Escuela", producto: "Guía", fases: [], secciones: ["Welcome", "Important Places"] };
   const fasesPlan = [
     { nombre: "Visión compartida", entrega: { estado: "Acuerdo y plan", secciones: ["Welcome", "Important Places"] } },
     { nombre: "Aplicación", entrega: { estado: "Versión final", secciones: ["Welcome"] } },
   ];
   const { organizadorProducto } = construirAnexosUnidad({ ...base, fasesPlan });
-  if (organizadorProducto[1].fases !== "F1 acuerdo y plan · F2 versión final") {
-    throw new Error(`fases de Welcome: ${organizadorProducto[1].fases}`);
+  if (organizadorProducto[1].fases !== "Acuerdo y plan → Versión final") {
+    throw new Error(`estados de Welcome: ${organizadorProducto[1].fases}`);
   }
-  if (organizadorProducto[2].fases !== "F1 acuerdo y plan") throw new Error("fases de Important Places");
-  if ("fases" in construirAnexosUnidad(base).organizadorProducto[1]) throw new Error("sin plan no debe haber columna de fases");
+  if (organizadorProducto[2].fases !== "Acuerdo y plan") throw new Error("estados de Important Places");
+  if ("fases" in construirAnexosUnidad(base).organizadorProducto[1]) throw new Error("sin plan no debe haber columna de estados");
   const u = structuredClone(unidadFixture);
   u.anexos = construirAnexosUnidad({ ...base, fasesPlan });
-  if (!formatearUnidadHTML(u, "").includes("Fase(s) y estado")) throw new Error("el Anexo I no muestra la columna");
+  const html = formatearUnidadHTML(u, "");
+  if (!html.includes("Estados de la sección")) throw new Error("el Anexo I no muestra la columna de estados");
+  if (!html.includes("Evidencia principal")) throw new Error("el Anexo I no muestra la columna de evidencia");
+  if (/Fases: F1|Fase\(s\) y estado/.test(html)) throw new Error("el Anexo I sigue mostrando fases");
+});
+
+// ─── Criterios de evaluación oficiales (paso 7, Adecuación p. 39) ────────────
+// Malla REAL de Inglés 2do: 3 criterios por competencia, 21 en total, texto literal.
+
+check("malla real Inglés 2do: 21 criterios, 3 por competencia, texto literal", () => {
+  const malla = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
+  const detalle = construirCompetenciasDetalle(malla.competencias, malla.indicadores, [], malla.criteriosEvaluacion);
+  if (detalle.length !== 7) throw new Error(`esperaba 7 competencias, hay ${detalle.length}`);
+  const total = detalle.reduce((n, c) => n + c.criterios.length, 0);
+  if (total !== 21) throw new Error(`esperaba 21 criterios, hay ${total}`);
+  detalle.forEach((c, i) => {
+    if (c.criterios.length !== 3) throw new Error(`${c.codigo}: esperaba 3 criterios, hay ${c.criterios.length}`);
+    if (JSON.stringify(c.criterios) !== JSON.stringify(malla.competencias[i].criteriosEvaluacion)) {
+      throw new Error(`${c.codigo}: los criterios no son literales de la malla`);
+    }
+  });
+});
+
+check("criterios solo en la raíz + división exacta → bloques; inexacta → vacíos (no se inventan)", () => {
+  const comps = [{ id: "C1", especifica: "Comp 1" }, { id: "C2", especifica: "Comp 2" }];
+  const exacta = construirCompetenciasDetalle(comps, [], [], ["A", "B", "C", "D"]);
+  if (JSON.stringify(exacta.map((c) => c.criterios)) !== JSON.stringify([["A", "B"], ["C", "D"]])) {
+    throw new Error("no repartió los criterios raíz en bloques");
+  }
+  const inexacta = construirCompetenciasDetalle(comps, [], [], ["A", "B", "C"]);
+  if (inexacta.some((c) => c.criterios.length)) throw new Error("repartió criterios con división inexacta");
+});
+
+check("PDF: columna de criterios con negrita en la competencia elegida; sin criterios, sin columna", () => {
+  const u = structuredClone(unidadFixture);
+  const detalle = Array.isArray(u.competenciasDetalle) && u.competenciasDetalle.length
+    ? u.competenciasDetalle
+    : [{ codigo: "C1", competenciaFundamental: "Comunicativa", especifica: "Comp", indicadores: [{ codigo: "IL-1", descripcion: "Ind", aplicaTemaActual: true }] }];
+  if (formatearUnidadHTML({ ...u, competenciasDetalle: detalle.map(({ criterios, ...c }) => c) }, "").includes("Criterios de evaluación</td>")) {
+    throw new Error("sin criterios no debe haber columna");
+  }
+  const conCriterios = detalle.map((c, i) => ({ ...c, elegidaPlan: i === 0, criterios: [`Criterio oficial ${i + 1}.`] }));
+  const htmlCrit = formatearUnidadHTML({ ...u, competenciasDetalle: conCriterios }, "");
+  if (!htmlCrit.includes("Criterios de evaluación</td>")) throw new Error("falta la cabecera de la columna");
+  if (!/font-weight:700"><li[^>]*>Criterio oficial 1\./.test(htmlCrit)) throw new Error("el criterio de la competencia elegida no va en negrita");
+});
+
+// ─── Punto de partida del grupo (Adecuación 2023, pp. 38-39) ──────────────────
+
+check("punto de partida: sin datos → null (no se inventa)", () => {
+  if (construirPuntoPartida({}) !== null) throw new Error("sin datos debe ser null");
+  if (construirPuntoPartida({ textoDocente: "  ", debilesDiagnostico: [""] }) !== null) throw new Error("vacíos deben ser null");
+});
+
+check("punto de partida: docente + diagnóstico + evaluaciones, sin duplicar y con tope", () => {
+  const diag = ["A.", "B", "C", "D", "E", "F", "G"];
+  const texto = construirPuntoPartida({
+    textoDocente: "Reconocen el vocabulario, pero no lo usan.",
+    debilesDiagnostico: diag,
+    debilesEvaluaciones: ["B", "IL-3 — Escribe textos breves"],
+  });
+  const lineas = texto.split("\n");
+  if (lineas.length !== 3) throw new Error(`esperaba 3 líneas, hay ${lineas.length}`);
+  if (lineas[0] !== "Reconocen el vocabulario, pero no lo usan.") throw new Error("el texto del docente no va primero y literal");
+  if (!lineas[1].includes("«A»; «B»; «C»; «D»; «E»; y 2 más")) throw new Error(`tope o formato del diagnóstico: ${lineas[1]}`);
+  if (lineas[2] !== "Evaluaciones anteriores del curso — logro bajo en: «IL-3 — Escribe textos breves».") {
+    throw new Error(`evaluaciones (sin repetir lo del diagnóstico): ${lineas[2]}`);
+  }
+});
+
+check("PDF: bloque PUNTO DE PARTIDA solo cuando la unidad lo trae", () => {
+  if (formatearUnidadHTML({ ...unidadFixture, puntoPartida: null }, "").includes("PUNTO DE PARTIDA DEL GRUPO")) {
+    throw new Error("sin punto de partida no debe salir el bloque");
+  }
+  const htmlPP = formatearUnidadHTML({ ...unidadFixture, puntoPartida: "Línea uno.\nLínea <dos>." }, "");
+  if (!htmlPP.includes("PUNTO DE PARTIDA DEL GRUPO")) throw new Error("falta el bloque");
+  if (!htmlPP.includes("<p style=\"margin-bottom:6pt\">Línea &lt;dos&gt;.</p>")) throw new Error("no escapa o no separa las líneas");
+  if (htmlPP.indexOf("PUNTO DE PARTIDA DEL GRUPO") > htmlPP.indexOf("AMBIENTE DE APRENDIZAJE")) throw new Error("debe ir antes del ambiente");
+});
+
+// ─── Anexo A con plan maestro: rúbrica de la Guía 2025 (pp. 40-42) ───────────
+
+const rubricaInglesDosDemo = () => {
+  const malla = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
+  const detalle = construirCompetenciasDetalle(malla.competencias, malla.indicadores, [], malla.criteriosEvaluacion);
+  // Elegidos en el plan: I01 (responde), I05 (produce), I09 (interactúa).
+  const elegidos = new Set(["ING-2-I01", "ING-2-I05", "ING-2-I09"]);
+  return detalle.map((comp) => ({
+    ...comp,
+    indicadores: comp.indicadores.map((ind) => (elegidos.has(ind.codigo) ? { ...ind, recorte: `Recorte de ${ind.codigo}` } : ind)),
+  }));
+};
+
+check("rúbrica con plan: una fila por indicador elegido, acción, criterio por posición y ponderación 100", () => {
+  const filas = construirRubricaPlan({
+    competenciasDetalle: rubricaInglesDosDemo(),
+    estructuraIndicadores: INDICADORES_INGLES_2DO_ESTRUCTURADOS,
+  });
+  if (filas.length !== 3) throw new Error(`esperaba 3 filas, hay ${filas.length}`);
+  if (filas.map((f) => f.accion).join(",") !== "responde,produce,interactua") throw new Error("acciones mal asignadas");
+  if (!filas[0].criterioReferencia.startsWith("Comprensión de textos orales")) throw new Error("I01 debe ir con el criterio de comprensión");
+  if (!filas[1].criterioReferencia.startsWith("Utilización del pensamiento lógico-verbal")) throw new Error("I05 debe ir con el 2.º criterio de su competencia");
+  if (filas.reduce((n, f) => n + f.ponderacion, 0) !== 100) throw new Error("la ponderación no suma 100");
+  if (filas[0].niveles.map((n) => n.porcentaje).join("/") !== "55/70/85/100") throw new Error("niveles de la Guía");
+  if (!filas[2].niveles[3].descriptor.startsWith("Adapta")) throw new Error("descriptor estratégico de interactúa");
+});
+
+check("rúbrica con plan: indicador sin acción → error visible", () => {
+  let error = "";
+  try {
+    construirRubricaPlan({ competenciasDetalle: rubricaInglesDosDemo(), estructuraIndicadores: [] });
+  } catch (e) { error = e.message; }
+  if (!error.includes("no tiene acción")) throw new Error("debía fallar con error visible");
+});
+
+check("PDF: Anexo A con plantilla de la Guía si hay rubricaPlan; si no, la rúbrica anterior", () => {
+  const filas = construirRubricaPlan({ competenciasDetalle: rubricaInglesDosDemo(), estructuraIndicadores: INDICADORES_INGLES_2DO_ESTRUCTURADOS });
+  const anexosBase = construirAnexosUnidad({ area: "Inglés", tema: "School and education", producto: "School guide" });
+  const conPlan = formatearUnidadHTML({ ...unidadFixture, anexos: { ...anexosBase, rubricaPlan: filas } }, "");
+  if (!conPlan.includes("Receptivo — 55 %") || !conPlan.includes("Estratégico — 100 %")) throw new Error("faltan los niveles de la Guía");
+  if (conPlan.includes("Nivel 4 — Excelente")) throw new Error("con plan no debe salir la rúbrica anterior");
+  if (!conPlan.includes("Criterio de referencia:")) throw new Error("falta el criterio de referencia");
+  const sinPlan = formatearUnidadHTML({ ...unidadFixture, anexos: anexosBase }, "");
+  if (!sinPlan.includes("Nivel 4 — Excelente") || sinPlan.includes("Receptivo — 55 %")) throw new Error("sin plan debe quedar la rúbrica anterior");
 });
 
 // ─── Resultado ────────────────────────────────────────────────────────────────

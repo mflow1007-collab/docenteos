@@ -23,7 +23,8 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { ROLES_CON_CONTENIDO } from "../data/rolesFasesEstrategias.js";
+import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA } from "../data/rolesFasesEstrategias.js";
+import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { recomponerIndicador } from "../data/indicadoresIngles2doEstructurados.js";
 
 // Propósito de cada papel de fase. Interpretación de DocenteOS (no es texto
@@ -96,46 +97,67 @@ export const VERBOS_POR_NIVEL = {
   estrategico: ["Adaptan", "Asesoran", "Ayudan", "Co-crean", "Componen", "Crean", "Generan", "Innovan", "Juzgan", "Lideran", "Predicen", "Proponen", "Proyectan", "Reconstruyen", "Transfieren", "Transforman", "Vinculan"],
 };
 // Verbos de idioma por acción del indicador (añadido de DocenteOS, no del Referente).
+// Exponen, Graban, Reescriben y Debaten: decisión de César (2026-11-01, Etapa D),
+// eran verbos legítimos que el validador rechazaba y se pagaban de nuevo.
 export const VERBOS_IDIOMA = {
   responde: ["Escuchan", "Leen", "Identifican", "Señalan", "Responden"],
-  produce: ["Escriben", "Redactan", "Describen", "Narran", "Presentan"],
-  interactua: ["Conversan", "Preguntan", "Entrevistan", "Representan", "Intercambian"],
+  produce: ["Escriben", "Redactan", "Describen", "Narran", "Presentan", "Exponen", "Graban", "Reescriben"],
+  interactua: ["Conversan", "Preguntan", "Entrevistan", "Representan", "Intercambian", "Debaten"],
 };
 // Gestión de la clase (decisión de César, Etapa 7): permitidos, no cuentan para el nivel.
-export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican"];
+// Guardan, Archivan y Entregan: decisión de César (2026-11-01, Etapa D).
+export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican", "Guardan", "Archivan", "Entregan"];
 const NIVELES = ["preformal", "receptivo", "resolutivo", "autonomo", "estrategico"];
 // Nivel mínimo esperado por papel de fase (progresión 4.4); su falta solo se avisa.
 export const NIVEL_MINIMO_POR_ROL = {
   apertura: "receptivo", conocimiento: "receptivo", modelado: "resolutivo",
   aplicacion: "resolutivo", evaluacion: "autonomo", socializacion: "autonomo",
 };
-const NIVEL_DE_VERBO = new Map(NIVELES.flatMap((n) => VERBOS_POR_NIVEL[n].map((v) => [v, n])));
+// Los verbos se comparan sin guiones, tildes ni mayúsculas: «Co-evalúan» =
+// «Coevalúan» = «Coevaluan», «Cocrean» = «Co-crean». La lista no cambia; solo
+// deja de rechazar el mismo verbo escrito sin tilde (Etapa D: 6 rechazos pagados).
+const claveVerbo = (verbo) => String(verbo ?? "").replace(/[-\u2010\u2011]/g, "")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const NIVEL_DE_VERBO = new Map(NIVELES.flatMap((n) => VERBOS_POR_NIVEL[n].map((v) => [claveVerbo(v), n])));
+const VERBOS_GESTION_CLAVE = new Set(VERBOS_GESTION.map(claveVerbo));
+const VERBOS_IDIOMA_CLAVE = new Set(Object.values(VERBOS_IDIOMA).flat().map(claveVerbo));
 const MIN_PALABRAS_DESARROLLO = 18;
 // Organización del trabajo: va en el paréntesis que sigue al verbo (4.4).
 const ORGANIZACION_RE = /\b(en|por) (parejas|pares|tr[ií]os|equipos?|grupos?|peque[nñ]os grupos|plenaria)\b/i;
 
 const primeraPalabra = (texto) => (String(texto ?? "").trim().split(/[\s(,.:;]+/)[0] || "");
 /** Nivel de la taxonomía del verbo inicial (null si es de idioma, gestión o desconocido). */
-export const nivelVerbo = (texto) => NIVEL_DE_VERBO.get(primeraPalabra(texto)) || null;
+export const nivelVerbo = (texto) => NIVEL_DE_VERBO.get(claveVerbo(primeraPalabra(texto))) || null;
 
 /**
  * Regla 4.4 sobre una actividad del Desarrollo o del Cierre. Devuelve el
- * motivo del rechazo, o "" si cumple. El Inicio canónico (saludo,
+ * motivo del aviso, o "" si cumple. El Inicio canónico (saludo,
  * «Retroalimentación de…», «Recuperación de…») no pasa por aquí.
  */
 export const motivoRedaccionActividad = (texto, { esIdioma = false } = {}) => {
   const t = String(texto ?? "").trim();
   const verbo = primeraPalabra(t);
-  const permitido = NIVEL_DE_VERBO.has(verbo) || VERBOS_GESTION.includes(verbo)
-    || (esIdioma && Object.values(VERBOS_IDIOMA).some((vs) => vs.includes(verbo)));
+  const clave = claveVerbo(verbo);
+  const permitido = NIVEL_DE_VERBO.has(clave) || VERBOS_GESTION_CLAVE.has(clave)
+    || (esIdioma && VERBOS_IDIOMA_CLAVE.has(clave));
   if (!permitido) return `«${verbo}» no está en la lista de verbos (taxonomía del Referente${esIdioma ? ", verbos de idioma" : ""} o gestión de la clase)`;
   const parentesis = t.match(/^\S+\s*\(([^)]*)\)/);
   const resto = parentesis ? t.slice(parentesis[0].length) : t.slice(verbo.length);
-  if (ORGANIZACION_RE.test(resto)) return `la organización («${resto.match(ORGANIZACION_RE)[0]}») va entre paréntesis justo después del verbo: "${verbo} (en parejas) …"`;
+  // Decisión de César (2026-11-02): si el paréntesis ya nombra la organización,
+  // la actividad puede cambiar de agrupación después («Comparten (en parejas)
+  // … y luego en plenaria»). Era el rechazo pagado más frecuente.
+  const organizacionEnParentesis = Boolean(parentesis) && ORGANIZACION_RE.test(parentesis[1]);
+  if (!organizacionEnParentesis && ORGANIZACION_RE.test(resto)) return `la organización («${resto.match(ORGANIZACION_RE)[0]}») va entre paréntesis justo después del verbo: "${verbo} (en parejas) …"`;
   return "";
 };
 
 /** Palabras de una actividad; la síntesis (25-35) solo se avisa (decisión de César, Etapa 7). */
+// ¿`texto` contiene `frase` como palabras completas? Ambos ya normalizados.
+export const contienePalabras = (texto, frase) => {
+  const escapada = String(frase ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return Boolean(escapada) && new RegExp(`(^|[^a-z0-9ñ])${escapada}([^a-z0-9ñ]|$)`).test(String(texto ?? ""));
+};
+
 export const palabrasActividad = (texto) => String(texto ?? "").trim().split(/\s+/).filter(Boolean).length;
 
 /**
@@ -159,6 +181,38 @@ export const motivosRedaccionClase = (clase, etiqueta, opciones = {}) => {
 };
 
 export const TIPOS_AMPLIACION = ["vocabulario", "gramatica", "expresion", "funcion"];
+
+// Tiempos y estructuras que se reconocen en inglés (ampliación de la IA) y en
+// español (malla oficial). Orden: de lo más específico a lo más general, para
+// que «present perfect continuous» no se lea como «present perfect».
+const ESTRUCTURAS_GRAMATICA = [
+  ["presente_perfecto_continuo", /present perfect (continuous|progressive)|presente perfecto (continuo|progresivo)/],
+  ["pasado_perfecto_continuo", /past perfect (continuous|progressive)|pasado perfecto (continuo|progresivo)|pluscuamperfecto continuo/],
+  ["pasado_perfecto", /past perfect|pasado perfecto|pluscuamperfecto/],
+  ["futuro_perfecto", /future perfect|futuro perfecto/],
+  ["presente_perfecto", /present perfect|presente perfecto/],
+  ["pasado_continuo", /past (continuous|progressive)|pasado (continuo|progresivo)/],
+  ["presente_continuo", /present (continuous|progressive)|presente (continuo|progresivo)/],
+  ["pasado_simple", /(past simple|simple past)|pasado simple/],
+  ["presente_simple", /(present simple|simple present)|presente simple/],
+  ["voz_pasiva", /passive voice|voz pasiva/],
+  ["estilo_indirecto", /reported speech|indirect speech|estilo indirecto/],
+  ["tercer_condicional", /third conditional|tercer condicional/],
+  ["segundo_condicional", /second conditional|segundo condicional/],
+];
+const quitarTildes = (t) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+/** Estructura gramatical conocida de un texto (inglés o español), o null. */
+export const estructuraGramatical = (texto) => {
+  const t = quitarTildes(texto);
+  const hit = ESTRUCTURAS_GRAMATICA.find(([, re]) => re.test(t));
+  return hit ? hit[0] : null;
+};
+/** Estructuras que nombra la gramática de la malla del grado. */
+export const estructurasDeMalla = (textosGramatica = []) =>
+  [...new Set(textosGramatica.flatMap((g) => {
+    const t = quitarTildes(typeof g === "object" ? g?.estructura || g?.texto || "" : g);
+    return ESTRUCTURAS_GRAMATICA.filter(([, re]) => re.test(t)).map(([clave]) => clave);
+  }))];
 const CATEGORIAS_SEMILLA = ["vocabulario", "gramatica", "expresiones", "funcionales"];
 
 const error = (msg) => new Error(`Redacción por fase: ${msg}`);
@@ -172,6 +226,23 @@ const coincide = (a, b) => {
   return Boolean(na && nb && (na.includes(nb) || nb.includes(na)));
 };
 const listaTextos = (v) => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean) : []);
+
+/**
+ * Secciones que declara una clase. El prompt nombraba varias unidas con « · »
+ * y el modelo a veces copia ese texto como un solo elemento: se separa solo si
+ * no es ya una sección y TODAS sus partes son secciones del producto. Si alguna
+ * parte no lo es, queda entera y el contrato la rechaza como antes.
+ */
+export const seccionesDeClase = (valor, secciones = []) => {
+  const conocidas = new Map(secciones.map((x) => [normalizar(x), x]));
+  return listaTextos(valor).flatMap((s) => {
+    if (conocidas.has(normalizar(s)) || !s.includes("·")) return [s];
+    const partes = s.split("·").map((x) => x.trim()).filter(Boolean);
+    return partes.length > 1 && partes.every((x) => conocidas.has(normalizar(x)))
+      ? partes.map((x) => conocidas.get(normalizar(x)))
+      : [s];
+  });
+};
 
 // Indicador recortado (4.3): tronco + aspectos marcados + cierre. Una lista sin
 // marcar se conserva completa. Forma aprobada por César (Etapa 6, 2026-10-29):
@@ -221,9 +292,23 @@ export const segmentarIndicador = (ind, aspectosElegidos = []) => {
  * Contrato de la fase `indice` del plan.
  * Las fases sin indicadores propios retoman los de la unidad.
  */
-export const construirContratoFase = ({ plan, indice, estructura }) => {
+export const construirContratoFase = ({ plan, indice, estructura, audiencia = "" }) => {
   const fase = plan?.fases?.[indice];
   if (!fase) throw error(`el plan maestro no tiene la fase ${indice + 1}.`);
+  // Fase de tipo «aplicar» (hoy solo Inserción): el grupo lo hace ante la
+  // audiencia real de la situación (César, 2026-11-03). Sin audiencia, nada.
+  const mapaTipos = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[plan.estrategia?.clave];
+  const fasesLiterales = ESTRATEGIAS_FASES_GUIA_2025.find((e) => e.clave === plan.estrategia?.clave)?.fases || [];
+  const esDeTipo = (tipo) => Boolean(mapaTipos) && (fase.fasesGuia || []).some((n) => mapaTipos[fasesLiterales.indexOf(n)] === tipo);
+  const audienciaLimpia = String(audiencia || "").trim();
+  const audienciaReal = esDeTipo("aplicar") ? audienciaLimpia : "";
+  // Fase de tipo «evaluar»: se pide el registro de comentarios de esa audiencia.
+  const audienciaRegistro = esDeTipo("evaluar") ? audienciaLimpia : "";
+  // Fase de tipo «analizar»: las secciones de «proponer» arrancan aquí su
+  // borrador como secundarias; alguna actividad debe trabajarlas (César, 2026-11-04).
+  const seccionesQueArrancan = esDeTipo("analizar")
+    ? (fase.entrega?.secciones || []).filter((s) => plan.tiposTrabajoSecciones?.[s] === "proponer")
+    : [];
   const porId = new Map((estructura?.indicadores || []).map((ind) => [ind.id, ind]));
   const aIndicador = (ind, retoma) => {
     const base = porId.get(ind.id);
@@ -267,7 +352,11 @@ export const construirContratoFase = ({ plan, indice, estructura }) => {
     rangoSesiones: { ...fase.rangoSesiones },
     entrega: { estado: fase.entrega.estado, texto: fase.entrega.texto, secciones: [...fase.entrega.secciones] },
     seccionesPorClase: repartirSeccionesClases(fase.entrega.secciones, fase.sesiones),
+    seccionPrincipalPorClase: seccionesPrincipalesUnidad(plan)[indice],
     secciones: [...(plan.secciones || [])],
+    propositosSecciones: { ...(plan.propositosSecciones || {}) },
+    piezasSecciones: { ...(plan.piezasSecciones || {}) },
+    partenDeSecciones: Object.fromEntries(Object.entries(plan.partenDeSecciones || {}).map(([s, de]) => [s, [...de]])),
     producto: plan.producto,
     estrategia: plan.estrategia.nombre,
     indicadores,
@@ -276,6 +365,9 @@ export const construirContratoFase = ({ plan, indice, estructura }) => {
     mallaUnidad: conContenido ? mallaUnidad : [],
     trabajado: conContenido ? [] : [...new Set(trabajado)],
     esApertura: (fase.roles || []).every((r) => r === "apertura"),
+    audienciaReal,
+    audienciaRegistro,
+    seccionesQueArrancan,
   };
 };
 
@@ -294,15 +386,141 @@ export const repartirSeccionesClases = (secciones, sesiones) => {
     secciones.slice(Math.floor((k * secciones.length) / sesiones), Math.floor(((k + 1) * secciones.length) / sesiones)));
 };
 
+/**
+ * Sección PRINCIPAL de cada clase, mirando toda la unidad (aprobado por César,
+ * 2026-11-03): con una clase por fase, la clase recibía varias secciones y su
+ * aporte nombraba solo una, así que una sección («Healthy Choices») nunca se
+ * trabajó.
+ * - Solo se fija en las clases que avanzan una PARTE de las secciones; en las
+ *   que avanzan todas (acuerdo y plan, insumos, revisión) el aporte nombra la
+ *   que de verdad trabaja (antes la rotación a ciegas etiquetaba mal la clase 1).
+ * - Primero se empareja cada sección con una clase distinta (caminos de
+ *   aumento), para que ninguna quede sin clase propia si el reparto lo permite.
+ *   El emparejamiento va primero en las clases de BORRADOR y VERSIÓN FINAL y
+ *   después en las demás: en la prueba del 2026-11-03, dos secciones quedaron
+ *   solo en «insumos recopilados», sin borrador ni versión final.
+ *   Las clases que sobran toman la que menos veces ha sido principal (empate:
+ *   la que menos en el mismo estado; luego el orden del producto).
+ * Devuelve, por fase, la principal de cada clase ("" = sin principal fija).
+ */
+export const seccionesPrincipalesUnidad = (plan) => {
+  const orden = plan?.secciones || [];
+  const ranuras = [];
+  const resultado = (plan?.fases || []).map((fase) => {
+    const estado = fase.entrega?.estado || "";
+    return repartirSeccionesClases(fase.entrega?.secciones || [], fase.sesiones).map((asignadas) => {
+      const parcial = asignadas.length > 0 && asignadas.length < orden.length;
+      if (parcial) ranuras.push({ asignadas, estado, principal: "" });
+      return parcial ? ranuras[ranuras.length - 1] : null;
+    });
+  });
+
+  // Emparejamiento sección → clase (Kuhn): máximo de secciones con clase propia,
+  // primero entre las clases de borrador y versión final.
+  const esDeContenido = (estado) => /borrador|versi[oó]n final/i.test(estado);
+  const duenaDe = new Map();
+  const buscar = (seccion, vistas, admite) => {
+    // Cada sección prefiere la clase donde va primero (donde nace su tipo de
+    // trabajo): en una clase donde es secundaria, no le quita la principal a otra.
+    const candidatas = ranuras.map((_, r) => r)
+      .filter((r) => ranuras[r].asignadas.includes(seccion))
+      .sort((a, b) => ranuras[a].asignadas.indexOf(seccion) - ranuras[b].asignadas.indexOf(seccion));
+    for (const r of candidatas) {
+      if (vistas.has(r) || !admite(ranuras[r])) continue;
+      vistas.add(r);
+      if (!duenaDe.has(r) || buscar(duenaDe.get(r), vistas, admite)) {
+        duenaDe.set(r, seccion);
+        return true;
+      }
+    }
+    return false;
+  };
+  orden.forEach((seccion) => buscar(seccion, new Set(), (ranura) => esDeContenido(ranura.estado)));
+  const conClase = new Set(duenaDe.values());
+  orden.filter((seccion) => !conClase.has(seccion))
+    .forEach((seccion) => buscar(seccion, new Set(), (ranura) => !esDeContenido(ranura.estado)));
+
+  const usos = new Map();
+  const cuenta = (clave) => usos.get(clave) || 0;
+  const usar = (ranura, seccion) => {
+    ranura.principal = seccion;
+    usos.set(seccion, cuenta(seccion) + 1);
+    usos.set(`${ranura.estado}|${seccion}`, cuenta(`${ranura.estado}|${seccion}`) + 1);
+  };
+  duenaDe.forEach((seccion, r) => usar(ranuras[r], seccion));
+  ranuras.forEach((ranura) => {
+    if (ranura.principal) return;
+    usar(ranura, [...ranura.asignadas].sort((x, y) =>
+      cuenta(x) - cuenta(y)
+      || cuenta(`${ranura.estado}|${x}`) - cuenta(`${ranura.estado}|${y}`)
+      || orden.indexOf(x) - orden.indexOf(y))[0]);
+  });
+  return resultado.map((clases) => clases.map((ranura) => ranura?.principal || ""));
+};
+
+/**
+ * Hilo positivo (Etapa S4 de docs/DISENO_SECUENCIA_POR_FASES.md, aprobada por
+ * César el 2026-11-03): de qué piezas ya entregadas parte cada clase del lote.
+ * Fuentes = las secciones de las que parte su principal + la propia principal;
+ * de cada una, la ÚLTIMA pieza de la memoria («Sección «X» (estado): pieza»).
+ * Fuente sin pieza entregada → se omite; clase sin fuentes → sin línea; sin
+ * «parte de» (unidades sin semilla) → "".
+ */
+export const hiloPartenDe = ({ contrato, memoria = [], startDia = 1, count = 1 }) => {
+  const partenDe = contrato?.partenDeSecciones || {};
+  if (!Object.keys(partenDe).length) return "";
+  const ultimaPieza = new Map();
+  (memoria || []).forEach((m) => {
+    const texto = String(m?.aporteProducto || "").trim();
+    const seccion = texto.match(/^Secci[oó]n «([^»]+)»/)?.[1];
+    if (seccion) ultimaPieza.set(normalizar(seccion), { texto, semana: m.semana });
+  });
+  const lineas = [];
+  for (let k = startDia; k < startDia + count; k += 1) {
+    const principal = contrato.seccionPrincipalPorClase?.[k - 1];
+    if (!principal) continue;
+    const piezas = [...new Set([...(partenDe[principal] || []), principal])]
+      .map((s) => ultimaPieza.get(normalizar(s))).filter(Boolean)
+      .map((p) => `${p.texto}${p.semana ? ` [semana ${p.semana}]` : ""}`);
+    if (piezas.length) lineas.push(`Clase ${k} (principal «${principal}»): parte de ${piezas.join(" · ")}`);
+  }
+  return lineas.length
+    ? `HILO DE LA UNIDAD — de qué parte cada clase (usa estas piezas como insumo dentro de las actividades; tómalas, no las repitas):\n${lineas.join("\n")}`
+    : "";
+};
+
 /** Códigos que la IA puede usar en "indicadoresTrabajados" en esta fase. */
 export const indicadoresPermitidosFase = (contrato) => contrato.indicadores.map((i) => i.id);
 
 const semillaPlana = (contrato) => CATEGORIAS_SEMILLA.flatMap((cat) => contrato.semilla[cat]);
 
+// Audiencia real (César, 2026-11-03): raíces de sus palabras («los dueños de los
+// comedores» → dueno, comedor), para reconocerla en singular o plural.
+const PALABRAS_VACIAS_AUDIENCIA = new Set(["otras", "otros", "todos", "todas"]);
+const raicesAudiencia = (audiencia) => normalizar(audiencia).split(" ")
+  .filter((p) => p.length >= 5 && !PALABRAS_VACIAS_AUDIENCIA.has(p))
+  .map((p) => p.slice(0, Math.max(5, p.length - 2)));
+// Lo simulado no cuenta: un juego de roles «con un dueño» sigue siendo en el aula.
+const ACTIVIDAD_SIMULADA_RE = /role play|juego de roles|simul|represent|como clientes/;
+/** ¿La actividad se hace ante la audiencia real (no solo la menciona)? */
+export const actividadAnteAudiencia = (actividad, audiencia) => {
+  const texto = normalizar(actividad);
+  if (ACTIVIDAD_SIMULADA_RE.test(texto)) return false;
+  return raicesAudiencia(audiencia).some((raiz) => new RegExp(
+    `\\b(?:(?:a|al|ante|con|para)|(?:retroalimentacion|comentarios|opinion|opiniones|sugerencias) de)\\s+(?:(?:los|las|el|la|un|una|unos|unas|sus|cada|algun|algunos|algunas)\\s+)?(?:[a-z]+\\s+)?${raiz}`,
+  ).test(texto));
+};
+const textosActividades = (clase) => (clase?.momentos || [])
+  .filter((m) => m?.nombre === "Desarrollo" || m?.nombre === "Cierre")
+  .flatMap((m) => m.actividades || []);
+
 /**
  * Valida un lote de clases contra el contrato de su fase. `startDia` es la
  * posición de la primera clase del lote dentro de la fase (1 = primera).
  * Lanza el primer error encontrado (mismo estilo que validateBatch).
+ * La redacción 4.4 del Desarrollo y del Cierre es flexible (decisión de César,
+ * 2026-11-03): no rechaza; devuelve sus motivos por clase (índice del lote)
+ * para avisar al administrador.
  */
 export const validarLoteContrato = (data, contrato, count, startDia = 1, opciones = {}) => {
   const semilla = semillaPlana(contrato);
@@ -311,8 +529,8 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
   for (let idx = 0; idx < count; idx += 1) {
     const clase = data?.clases?.[idx];
     const etiqueta = `Contrato: clase ${idx + 1}`;
-    motivos44.push(...motivosRedaccionClase(clase, `clase ${idx + 1}`, opciones));
-    const suyas = listaTextos(clase?.seccionesProducto);
+    motivos44.push(motivosRedaccionClase(clase, `clase ${idx + 1}`, opciones));
+    const suyas = seccionesDeClase(clase?.seccionesProducto, secciones);
     if (secciones.length) {
       if (!suyas.length) throw new Error(`${etiqueta} sin "seccionesProducto" (la sección del producto que avanza).`);
       const ajena = suyas.find((s) => !secciones.some((x) => normalizar(x) === normalizar(s)));
@@ -321,7 +539,16 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       const faltan = asignadas.filter((a) => !suyas.some((s) => normalizar(s) === normalizar(a)));
       if (faltan.length) throw new Error(`${etiqueta} no avanza ${faltan.join(", ")}, que el plan le asigna.`);
       const aporte = String(clase?.aporteProducto || "");
-      if (!suyas.some((s) => coincide(aporte, s) || normalizar(aporte).includes(normalizar(s)))) {
+      const principal = contrato.seccionPrincipalPorClase?.[startDia + idx - 1] || "";
+      if (principal) {
+        if (!(coincide(aporte, principal) || normalizar(aporte).includes(normalizar(principal)))) {
+          throw new Error(`${etiqueta} — "aporteProducto" debe nombrar su sección principal «${principal}»: la pieza de esta clase es de esa sección.`);
+        }
+      } else if (!suyas.some((s) => coincide(aporte, s) || normalizar(aporte).includes(normalizar(s)))
+        // Clase que avanza TODAS las secciones (acuerdo y plan, revisión): su
+        // pieza es del producto entero; nombrar una sección la contaba de más
+        // en el Anexo H (auditoría de «Alimentación», 2026-11-03).
+        && !(asignadas.length === secciones.length && contrato.producto && normalizar(aporte).includes(normalizar(contrato.producto)))) {
         throw new Error(`${etiqueta} — "aporteProducto" debe nombrar la sección que avanza (${suyas.join(" · ")}), no el contenido.`);
       }
     }
@@ -345,6 +572,13 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
         if (secciones.length && !secciones.some((x) => normalizar(x) === normalizar(a?.seccion))) {
           throw new Error(`${etiqueta} — ampliación "${a.texto}" sin sección del producto que la justifique.`);
         }
+        // Auditoría 2026-11-02 (aprobado por César): la gramática que añade
+        // DocenteOS tiene que estar en la malla del grado. Solo se juzgan las
+        // estructuras reconocibles; lo que no se reconoce no se bloquea.
+        const estructura = a?.tipo === "gramatica" ? estructuraGramatical(a.texto) : null;
+        if (estructura && contrato.estructurasGrado?.length && !contrato.estructurasGrado.includes(estructura)) {
+          throw new Error(`${etiqueta} — la ampliación gramatical "${a.texto}" no está en la malla de este grado; usa una estructura del grado o no la añadas.`);
+        }
       });
       // Foco ajustado a 4.6 (Etapa 6+): la IA puede enriquecerlo más allá de
       // la semilla y de lo declarado; solo se prohíbe que el contenido sea el
@@ -362,7 +596,31 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       throw new Error(`${etiqueta} es la última de la fase y no declara "entregaFase" (${contrato.entrega.texto}).`);
     }
   }
-  if (motivos44.length) throw new Error(`Redacción 4.4 (${motivos44.length}): ${motivos44.join("; ")}.`);
+  // Al cerrar la fase: la de aplicación ocurre ante la audiencia real (rechaza)
+  // y la de evaluación deja el registro de sus comentarios (avisa).
+  if (startDia + count - 1 >= contrato.sesiones) {
+    const clasesLote = (data?.clases || []).slice(0, count);
+    const sinTrabajar = (contrato.seccionesQueArrancan || []).filter((s) => !clasesLote
+      .some((c) => textosActividades(c).some((a) => normalizar(a).includes(normalizar(s)))));
+    if (sinTrabajar.length) {
+      throw new Error(`Contrato: esta fase deja el primer borrador de ${sinTrabajar.join(", ")} y ninguna actividad lo trabaja: una actividad del Desarrollo o del Cierre lo hace y nombra la sección ("Seleccionan (en equipos) una primera versión para «${sinTrabajar[0]}»…").`);
+    }
+    if (contrato.audienciaReal
+      && !clasesLote.some((c) => textosActividades(c).some((a) => actividadAnteAudiencia(a, contrato.audienciaReal)))) {
+      throw new Error(`Contrato: la fase de aplicación no ocurre ante su audiencia real (${contrato.audienciaReal}): una actividad del Desarrollo o del Cierre, que no sea simulada, presenta o entrega la pieza a esa audiencia ("Presentan (en equipos) … a un dueño invitado").`);
+    }
+    if (contrato.audienciaRegistro) {
+      const raices = raicesAudiencia(contrato.audienciaRegistro);
+      const registrada = clasesLote.some((c) => (c?.momentos || []).some((m) => {
+        const evidencias = normalizar(JSON.stringify(m?.evidencias || {}));
+        return /comentarios|retroalimentacion|opiniones/.test(evidencias) && raices.some((r) => evidencias.includes(r));
+      }));
+      if (!registrada && motivos44.length) {
+        motivos44[motivos44.length - 1].push(`clase ${count} — ninguna evidencia registra los comentarios de la audiencia real (${contrato.audienciaRegistro})`);
+      }
+    }
+  }
+  return motivos44;
 };
 
 /** Validación de la fase completa: cada fase deja su entrega y avanza sus secciones. */
@@ -370,7 +628,7 @@ export const validarFaseCompleta = (clases, contrato) => {
   if (!Array.isArray(clases) || clases.length < contrato.sesiones) {
     throw new Error(`Contrato: la fase ${contrato.numero} tiene ${clases?.length ?? 0} de ${contrato.sesiones} clases.`);
   }
-  const avanzadas = new Set(clases.flatMap((c) => listaTextos(c?.seccionesProducto)).map(normalizar));
+  const avanzadas = new Set(clases.flatMap((c) => seccionesDeClase(c?.seccionesProducto, contrato.secciones)).map(normalizar));
   const faltan = contrato.entrega.secciones.filter((s) => !avanzadas.has(normalizar(s)));
   if (faltan.length) {
     throw new Error(`Contrato: la fase ${contrato.numero} no avanza ${faltan.join(", ")}, que su entrega (${contrato.entrega.estado}) debe dejar.`);
@@ -392,6 +650,24 @@ export const validarFaseCompleta = (clases, contrato) => {
 /** Ampliación de DocenteOS de toda la unidad (capa separada, nunca curricularContent). */
 export const recogerAmpliacion = (fases = []) => fases.flatMap((f) => (f.dias || []).flatMap((d) =>
   (d.ampliacion || []).map((a) => ({ ...a, fase: f.numero, clase: d.numeroGlobal || null, origen: "DocenteOS" }))));
+
+/**
+ * Vocabulario de ampliación que de verdad se usa en las clases (auditoría
+ * 2026-11-02: «sports car driving» llegaba al glosario sin aparecer en ninguna
+ * actividad). Se quedan solo los términos que aparecen en el texto de alguna
+ * clase; los demás tipos no se tocan. Sin texto de clases, no se filtra.
+ */
+export const ampliacionUsadaEnClases = (ampliacion = [], fases = []) => {
+  const textoClases = quitarTildes(fases.flatMap((f) => f.dias || [])
+    .map(({ ampliacion: _a, semillaUsada: _s, ...dia }) => JSON.stringify(dia)).join(" "));
+  if (!textoClases.trim()) return ampliacion;
+  return ampliacion.flatMap((a) => {
+    if (a?.tipo !== "vocabulario") return [a];
+    const usados = String(a.texto || "").replace(/_/g, "").split(/\s*[,/;]\s*/)
+      .map((t) => t.trim()).filter((t) => t && textoClases.includes(quitarTildes(t)));
+    return usados.length ? [{ ...a, texto: usados.join(", ") }] : [];
+  });
+};
 
 /**
  * Validador global (capa 5, Etapa 6) de una unidad redactada con plan maestro.
@@ -435,9 +711,11 @@ export const validarUnidadPlanMaestro = (unidad) => {
     const conProducto = producto ? actividades.filter((a) => a.includes(producto)).length : 0;
     if (conProducto > 1) avisos.push(`${ref}: el nombre del producto se repite en ${conProducto} actividades (se nombra una vez por clase)`);
     temas.forEach((tema) => {
-      const conTema = actividades.filter((a) => a.includes(tema)).length;
+      // Palabra completa: «retroalimentación» contenía «alimentación» y el aviso
+      // saltaba en casi todas las clases (prueba «Alimentación», 2026-11-03).
+      const conTema = actividades.filter((a) => contienePalabras(a, tema)).length;
       if (conTema > 1) avisos.push(`${ref}: el tema «${tema}» se repite en ${conTema} actividades`);
-      if (actividades.some((a) => a.includes(`sobre ${tema}`))) avisos.push(`${ref}: una actividad dice «sobre ${tema}»; exprésalo con elementos concretos`);
+      if (actividades.some((a) => contienePalabras(a, `sobre ${tema}`))) avisos.push(`${ref}: una actividad dice «sobre ${tema}»; exprésalo con elementos concretos`);
     });
   }));
   // Regla 4.4 (avisos): progresión de verbos por papel de fase y expresiones

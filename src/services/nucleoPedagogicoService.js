@@ -246,14 +246,24 @@ const actualizarExpedienteConEvidencia = async ({ evidencia, instrumento, regist
   );
 };
 
-export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion, cursoId }) => {
+/**
+ * `evidenciaDelResultado` (F7): id de la evidencia que ya guardó la ruta nueva
+ * (evaluarYRegistrar: resultado → notas por indicador → evidencia). Con él, el
+ * puente no crea otra evidencia ni otra columna/nota de aspecto ni escribe la
+ * celda de la C.F. (sale de las notas por indicador); solo deja el resumen de
+ * la evaluación y el expediente.
+ */
+export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion, cursoId, evidenciaDelResultado = "" }) => {
   const cursoIdRegistro = cursoId || instrumento.cursoId || "registro-general";
   const resultado = await obtenerRegistroCalificaciones(cursoIdRegistro).catch(() => ({ data: null }));
   const registroActual = resultado?.data || {};
   const evaluacionesActuales = registroActual.evaluacionesInstrumentos || {};
   const evaluacionId = crearEvaluacionIdPedagogica(instrumento);
   const referencias = crearReferenciasPedagogicas({ instrumento, aplicacion, cursoIdRegistro });
-  const evidencia = crearEvidenciaDesdeEvaluacion({ instrumento, aplicacion, cursoIdRegistro });
+  const evidenciaLegacy = crearEvidenciaDesdeEvaluacion({ instrumento, aplicacion, cursoIdRegistro });
+  const evidencia = evidenciaDelResultado
+    ? { ...evidenciaLegacy, id: evidenciaDelResultado, evidenciaId: evidenciaDelResultado }
+    : evidenciaLegacy;
   const aspectoId = evidencia.aspectoId;
 
   const evaluacionBase = evaluacionesActuales[evaluacionId] || {
@@ -355,11 +365,13 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
   });
   // Regla 12: nunca pisar una celda ajustada/manual — solo actualizar el
   // cálculo y marcarla desactualizada para que el docente decida.
-  competencias[competenciaIdx].periodos[periodoIdx] = aplicarNotaEnCelda(
-    competencias[competenciaIdx].periodos[periodoIdx],
-    estudianteConsolidado.porcentaje,
-    { evaluacionId, evidenciaId: evidencia.id }
-  );
+  if (!evidenciaDelResultado) {
+    competencias[competenciaIdx].periodos[periodoIdx] = aplicarNotaEnCelda(
+      competencias[competenciaIdx].periodos[periodoIdx],
+      estudianteConsolidado.porcentaje,
+      { evaluacionId, evidenciaId: evidencia.id }
+    );
+  }
 
   notasEstudiantes[aplicacion.estudianteId] = {
     ...notasPrevias,
@@ -402,6 +414,16 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
       updatedAt: new Date().toISOString(),
     },
   });
+
+  // F7: la ruta nueva ya guardó evidencia y notas por indicador; solo el expediente
+  if (evidenciaDelResultado) {
+    await actualizarExpedienteConEvidencia({ evidencia, instrumento, registroResumen: estudianteConsolidado });
+    return {
+      evaluacion: evaluacionConAplicacion,
+      evidencia,
+      registro: notasEstudiantes[aplicacion.estudianteId],
+    };
+  }
 
   guardarEvidenciaLocal(cursoIdRegistro, evidencia);
 

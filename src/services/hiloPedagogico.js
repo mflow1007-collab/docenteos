@@ -92,7 +92,7 @@ const MAPA_DIAS_SEMANA = {
   lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6, domingo: 0,
 };
 
-const calcularFechaSugerida = (fechaInicio, numeroSemana, nombreDia) => {
+export const calcularFechaSugerida = (fechaInicio, numeroSemana, nombreDia) => {
   if (!fechaInicio) return "";
   const base = new Date(`${fechaInicio}T12:00:00`);
   if (Number.isNaN(base.getTime())) return "";
@@ -104,6 +104,37 @@ const calcularFechaSugerida = (fechaInicio, numeroSemana, nombreDia) => {
   const fecha = new Date(lunesBase);
   fecha.setDate(lunesBase.getDate() + (numeroSemana - 1) * 7 + ((objetivo + 6) % 7));
   return fecha.toISOString().slice(0, 10);
+};
+
+const esFechaISO = (valor) => /^\d{4}-\d{2}-\d{2}$/.test(String(valor || ""));
+
+// HITO 3.2 — calendario escolar: si la fecha cae en día no lectivo, la clase
+// queda ANOTADA (no se mueve — reprogramarla es decisión del docente).
+const advertenciaCalendario = (fechaSugerida) => {
+  const noLectivo = esFechaISO(fechaSugerida) ? diaNoLectivo(fechaSugerida) : null;
+  return noLectivo
+    ? `${noLectivo.tipo === "receso" ? "Receso" : noLectivo.tipo === "fin-de-semana" ? "Fin de semana" : "Feriado"}: ${noLectivo.nombre}${noLectivo.estimado ? " (estimado)" : ""}`
+    : "";
+};
+
+/**
+ * Capas guardadas antes del arreglo de fechas: en las unidades, fechaSugerida
+ * quedó como nombre del día («Jueves»). Se recalcula AL LEER (en memoria, sin
+ * escribir en Firestore) con la fecha de inicio del plan. Devuelve la misma
+ * capa si no hay nada que corregir.
+ */
+export const corregirFechasCapa = (capa, fechaInicio = "") => {
+  const clases = Array.isArray(capa?.clases) ? capa.clases : [];
+  if (!clases.some((c) => c?.fechaSugerida && !esFechaISO(c.fechaSugerida))) return capa;
+  return {
+    ...capa,
+    clases: clases.map((c) => {
+      if (!c?.fechaSugerida || esFechaISO(c.fechaSugerida)) return c;
+      const nombreDia = c.nombreDia || c.fechaSugerida;
+      const fechaSugerida = calcularFechaSugerida(fechaInicio, c.semana || 1, nombreDia);
+      return { ...c, nombreDia, fechaSugerida, advertenciaCalendario: advertenciaCalendario(fechaSugerida) };
+    }),
+  };
 };
 
 const momentosAActividades = (momentos = []) => {
@@ -341,20 +372,20 @@ const construirClase = ({
     criteriosExito: Array.isArray(dia.criteriosExito) ? dia.criteriosExito : criteriosExito,
   });
 
-  const fechaSugerida = dia.diaCalendario || calcularFechaSugerida(fechaInicio, semana, dia.nombre || "");
-  // HITO 3.2 — calendario escolar: si la fecha cae en día no lectivo, la clase
-  // queda ANOTADA (no se mueve — reprogramarla es decisión del docente).
-  const noLectivo = /^\d{4}-\d{2}-\d{2}$/.test(fechaSugerida) ? diaNoLectivo(fechaSugerida) : null;
+  // Las unidades guardan en diaCalendario el NOMBRE del día del horario
+  // («Jueves»): solo se usa como fecha si ya es ISO; si no, se calcula.
+  const nombreDia = dia.nombre || (esFechaISO(dia.diaCalendario) ? "" : dia.diaCalendario || "");
+  const fechaSugerida = esFechaISO(dia.diaCalendario)
+    ? dia.diaCalendario
+    : calcularFechaSugerida(fechaInicio, semana, nombreDia);
 
   return {
     claseId,
     numeroClase,
     semana,
-    nombreDia: dia.nombre || "",
+    nombreDia,
     fechaSugerida,
-    advertenciaCalendario: noLectivo
-      ? `${noLectivo.tipo === "receso" ? "Receso" : noLectivo.tipo === "fin-de-semana" ? "Fin de semana" : "Feriado"}: ${noLectivo.nombre}${noLectivo.estimado ? " (estimado)" : ""}`
-      : "",
+    advertenciaCalendario: advertenciaCalendario(fechaSugerida),
     titulo: dia.tituloDia || dia.titulo || `Clase ${numeroClase}`,
     intencionPedagogica: dia.intencionPedagogica || "",
     actividades,
@@ -858,7 +889,9 @@ export const nivelLogroDesdePorcentaje = (pct) => {
  * FASE 4 — Construye el documento de instrumentoResultados.
  * Reglas:
  *  - estado "pendiente" → puntaje null (NO cuenta como 0)
- *  - estado "no_entrego" → puntaje 0 explícito (decisión del docente)
+ *  - estado "no_entrego" → puntaje null: queda pendiente hasta que el docente
+ *    decida (pone 0, da otra oportunidad o lo cambia a excusa) — decisión 3
+ *    de César, 2026-10-30; antes contaba 0 automático
  *  - estado "evaluado" → requiere puntajeObtenido y puntajeMaximo válidos
  */
 export const construirResultadoInstrumento = ({
@@ -870,6 +903,7 @@ export const construirResultadoInstrumento = ({
   observacionDocente = "",
   evidenciasIds = [],
   docenteId = "",
+  detalleCriterios = [],
   fechaEvaluacion = new Date().toISOString(),
   ahora = new Date().toISOString(),
 }) => {
@@ -887,8 +921,6 @@ export const construirResultadoInstrumento = ({
     puntaje = Number(puntajeObtenido);
     if (!Number.isFinite(puntaje)) throw new Error("puntajeObtenido es obligatorio cuando estado = evaluado");
     puntaje = Math.min(puntajeMaximo, Math.max(0, puntaje));
-  } else if (estado === "no_entrego") {
-    puntaje = 0;
   }
 
   const porcentaje = puntaje === null ? null : Math.round((puntaje / puntajeMaximo) * 100);
@@ -915,6 +947,8 @@ export const construirResultadoInstrumento = ({
     estado,
     observacionDocente,
     evidenciasIds: evidenciasIds.length ? evidenciasIds : (instrumento.evidenciaIds || []),
+    // F4 (A1): puntos por fila de la rúbrica → cada aspecto toma los de su indicador
+    detalleCriterios: estado === "evaluado" && Array.isArray(detalleCriterios) ? detalleCriterios : [],
     fechaEvaluacion,
     periodo: instrumento.periodo || "",
     origen: "instrumento",
@@ -971,8 +1005,30 @@ export const construirEvidenciaDesdeResultado = (resultado, { instrumento = null
     observacionDocente: resultado.observacionDocente || "",
     indicadores: resultado.indicadorIds || [],
     origen: "instrumento",
+    retirada: false, // F7: re-evaluar devuelve la evidencia que se retiró al quitar la nota
     metadata: { estadoResultado: resultado.estado, tipoInstrumento: resultado.tipoInstrumento || "" },
   };
+};
+
+/**
+ * F7 — Evidencias que se muestran. PURO. Fuera: las retiradas (se quitó la
+ * nota), la de un resultado que volvió a «pendiente» (si se conocen los
+ * resultados) y la copia del puente legacy («eval-…») cuando existe la del
+ * resultado del mismo instrumento y estudiante. Nada se borra.
+ */
+export const evidenciasVigentes = (evidencias = [], resultados = null) => {
+  const estadoResultado = Array.isArray(resultados)
+    ? new Map(resultados.map((r) => [String(r?.resultadoId || r?.id || ""), r?.estado]))
+    : null;
+  const deResultado = new Set(evidencias
+    .filter((e) => e?.tipo === "resultado_instrumento")
+    .map((e) => `${e.instrumentoId}__${e.estudianteId}`));
+  return evidencias.filter((e) => {
+    if (e?.retirada === true) return false;
+    if (e?.tipo === "resultado_instrumento" && estadoResultado && estadoResultado.get(String(e.resultadoId || "")) === "pendiente") return false;
+    const id = String(e?.id || e?.evidenciaId || "");
+    return !(id.startsWith("eval-") && deResultado.has(`${e.instrumentoId}__${e.estudianteId}`));
+  });
 };
 
 // ─── Reglas 10-12 — Consolidación de nota (base de Mi Registro, Fase 5) ──────
@@ -983,14 +1039,17 @@ export const construirEvidenciaDesdeResultado = (resultado, { instrumento = null
  *
  * - Instrumentos sin resultado o con estado "pendiente" NO cuentan como 0:
  *   se excluyen y la nota queda marcada como parcial.
- * - "no_entrego" cuenta como 0 (decisión explícita del docente).
+ * - "no_entrego" tampoco cuenta (decisión 3): sin número hasta que el docente
+ *   lo evalúe; si quiere 0, lo registra como evaluado con 0.
+ * - Instrumentos con `excluidoDeNota` (actividad excluida, F4) no entran.
  * - Si las ponderaciones no suman 100, se normalizan proporcionalmente y se
  *   arrastra la advertencia de validarPonderacion.
  *
  * @returns {{ valorCalculado, esParcial, pendientes[], evaluados[], advertenciaPonderacion, origenResultados[] }}
  */
 export const consolidarNotaEstudiante = ({ instrumentos = [], resultados = [] }) => {
-  const { instrumentosNormalizados, advertencia } = validarPonderacion(instrumentos);
+  // F4 (B1): una actividad excluida por el docente no cuenta ni queda pendiente
+  const { instrumentosNormalizados, advertencia } = validarPonderacion(instrumentos.filter((ins) => !ins.excluidoDeNota));
   const porInstrumento = new Map(
     resultados.map((r) => [String(r.instrumentoId), r])
   );
@@ -1003,7 +1062,7 @@ export const consolidarNotaEstudiante = ({ instrumentos = [], resultados = [] })
   for (const ins of instrumentosNormalizados) {
     const insId = String(ins.id || ins.instrumentoId);
     const resultado = porInstrumento.get(insId);
-    const cuentaComoEvaluado = resultado && (resultado.estado === "evaluado" || resultado.estado === "no_entrego");
+    const cuentaComoEvaluado = resultado?.estado === "evaluado";
 
     if (!cuentaComoEvaluado) {
       pendientes.push(insId);
@@ -1086,9 +1145,9 @@ export const consolidarNotaAspecto = ({ aspecto, instrumentos = [], resultados =
   const delAspecto = instrumentos.filter((ins) => (ins.aspectoRegistroIds || []).includes(aspectoId));
   const consolidado = consolidarNotaEstudiante({
     instrumentos: delAspecto,
-    resultados: resultados.filter((r) =>
-      delAspecto.some((ins) => String(ins.id || ins.instrumentoId) === String(r.instrumentoId))
-    ),
+    resultados: resultados
+      .filter((r) => delAspecto.some((ins) => String(ins.id || ins.instrumentoId) === String(r.instrumentoId)))
+      .map((r) => parteDelIndicador(r, aspecto?.indicadorId)),
   });
   const puntajeMaximo = Number(aspecto?.puntajeMaximo) || 100;
   return {
@@ -1097,6 +1156,22 @@ export const consolidarNotaAspecto = ({ aspecto, instrumentos = [], resultados =
     valorCalculadoPuntos: consolidado.valorCalculado === null
       ? null
       : Math.round((consolidado.valorCalculado / 100) * puntajeMaximo),
+  };
+};
+
+/**
+ * F4 (A1): si el resultado trae puntos por fila de la rúbrica, el aspecto de
+ * un indicador solo toma las filas de ese indicador. Sin detalle (o sin filas
+ * de ese indicador) vale el resultado completo, como antes.
+ */
+export const parteDelIndicador = (resultado, indicadorId) => {
+  const filas = (resultado?.detalleCriterios || []).filter((c) => indicadorId && c.indicadorId === indicadorId);
+  const maximo = filas.reduce((s, c) => s + (Number(c.puntajeMaximo) || 0), 0);
+  if (resultado?.estado !== "evaluado" || !maximo) return resultado;
+  return {
+    ...resultado,
+    puntajeObtenido: filas.reduce((s, c) => s + (Number(c.puntos) || 0), 0),
+    puntajeMaximo: maximo,
   };
 };
 
@@ -1172,6 +1247,34 @@ export const aplicarNotaEnCelda = (celdaPrevia = {}, nuevaNota, meta = {}) => {
   };
 };
 
+// ─── F1 — Plan ↔ curso ───────────────────────────────────────────────────────
+
+/**
+ * Puntaje mínimo para atar un plan a un curso: grado (4) + asignatura (5),
+ * los dos obligatorios. Con 7 bastaban asignatura + sección y un plan de 1ro A
+ * se ataba al curso 2do A.
+ */
+export const UMBRAL_CURSO_PLAN = 9;
+
+/**
+ * Cuánto encaja un curso con los metadatos de un plan (los planes legacy no
+ * guardan cursoId): grado 4, área/asignatura 5, sección 2. Con menos de
+ * UMBRAL_CURSO_PLAN no se ata — mejor sin curso que con el curso equivocado.
+ */
+export const puntuarCursoParaPlan = (meta = {}, curso = {}) => {
+  const gradoPlan = normalizarTexto(meta.grado || "");
+  const seccionPlan = normalizarTexto(meta.seccion || "");
+  const areaPlan = normalizarTexto(meta.asignatura || meta.area || "");
+  const gradoCurso = normalizarTexto([curso.grado, curso.nombre].filter(Boolean).join(" "));
+  const areaCurso = normalizarTexto([curso.area, curso.asignatura].filter(Boolean).join(" "));
+  const seccionCurso = normalizarTexto(curso.seccion || "");
+  let puntaje = 0;
+  if (gradoPlan && gradoCurso.includes(gradoPlan)) puntaje += 4;
+  if (areaPlan && areaCurso && (areaCurso.includes(areaPlan) || areaPlan.includes(areaCurso))) puntaje += 5;
+  if (seccionPlan && seccionCurso === seccionPlan) puntaje += 2;
+  return puntaje;
+};
+
 // ─── Fase 6 — Clase de hoy / próxima clase (Modo Aula) ───────────────────────
 
 /**
@@ -1180,7 +1283,15 @@ export const aplicarNotaEnCelda = (celdaPrevia = {}, nuevaNota, meta = {}) => {
  *
  * @returns {{ clase, esHoy: boolean, motivo: "hoy"|"proxima"|"sin-fechas"|null }}
  */
-export const obtenerClaseDeHoy = (capa, fechaISO = new Date().toISOString().slice(0, 10)) => {
+// «Hoy» en la hora local del docente: toISOString da la fecha UTC, que en
+// República Dominicana (UTC−4) ya es el día siguiente desde las 8:00 p. m.
+export const fechaLocalISO = (fecha = new Date()) => {
+  const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dd = String(fecha.getDate()).padStart(2, "0");
+  return `${fecha.getFullYear()}-${mm}-${dd}`;
+};
+
+export const obtenerClaseDeHoy = (capa, fechaISO = fechaLocalISO()) => {
   const clases = capa?.clases || [];
   if (!clases.length) return { clase: null, esHoy: false, motivo: null };
 
@@ -1210,7 +1321,7 @@ const _normCodigoAvance = (c) => String(c || "").trim().toUpperCase().replace(/\
  * Agrega resultados de instrumento (Fase 4) en logro por indicador. PURO.
  * Reglas de conteo (las de la Fase 4):
  *   - "evaluado"   → cuenta con su porcentaje
- *   - "no_entrego" → cuenta como 0 (porcentaje ya viene en 0)
+ *   - "no_entrego" → NO cuenta (porcentaje null, decisión 3)
  *   - "pendiente"  → NO cuenta (porcentaje null)
  * Cada resultado aporta su porcentaje a TODOS los indicadorIds del instrumento.
  *

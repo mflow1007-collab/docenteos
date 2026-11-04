@@ -211,5 +211,25 @@ check("R7: compat. hacia atrás — sin textoSituacion no corre", () => {
   assert(!avisos.some((a) => /Transversalidad declarada/.test(a)), "corrió R7 sin datos (debería ser no-op)");
 });
 
+check("piezas nombradas por la sección del producto no son desalineación (prueba «Alimentación», 2026-11-03)", () => {
+  const producto = "Our Healthy School Menu — menú comentado para promover decisiones alimentarias saludables, dirigida a estudiantes y familias de la comunidad escolar; socialización: feria oral en inglés.";
+  const secciones = ["Our Local Food", "Interviews with Owners", "Bilingual Menus", "Healthy Choices", "Ordering Food"];
+  const aportesProducto = [
+    "Sección «Our Local Food» (acuerdo y plan): Lista de preguntas para entrevistas",
+    "Sección «Interviews with Owners» (insumos recopilados): Banco de preguntas",
+    "Sección «Bilingual Menus» (insumos recopilados): Vocabulario de platos",
+    "Sección «Our Local Food» (borrador): Descripción escrita de un plato local",
+    "Sección «Ordering Food» (versión final): Guía para pedir en un comedor",
+  ].map((texto, i) => ({ semana: 1 + Math.floor(i / 2), texto }));
+  const sin = validarCoherenciaProducto({ producto, temaCentral: "Alimentación", aportesProducto, numSemanas: 3 });
+  assert(sin.some((a) => /desalineación temática/.test(a)), "sin secciones debía reproducir la falsa alarma");
+  const con = validarCoherenciaProducto({ producto, temaCentral: "Alimentación", aportesProducto, numSemanas: 3, seccionesProducto: secciones });
+  assert(!con.some((a) => /desalineación temática/.test(a)), `con secciones sigue la alarma: ${con.join(" | ")}`);
+  // Una deriva real sigue avisando aunque haya secciones
+  const deriva = validarCoherenciaProducto({ producto, temaCentral: "Alimentación", numSemanas: 3, seccionesProducto: secciones,
+    aportesProducto: aportesDesalineados });
+  assert(deriva.some((a) => /desalineación temática/.test(a)), "la deriva real dejó de avisar");
+});
+
 console.log(`\nCoherencia del producto: ${pasos} pasos, ${fallos} fallos`);
 process.exit(fallos ? 1 : 0);

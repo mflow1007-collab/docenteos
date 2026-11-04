@@ -10,7 +10,15 @@
  * es una necesidad que el idioma ayuda a resolver, nunca "no saben inglés".
  * `rasgos` son las respuestas a los criterios de la Guía 1.2.4 con que
  * DocenteOS recomienda la estrategia (ver CRITERIOS_ESTRATEGIA en
- * situacionAprendizajeService.js). `secciones` = secciones del producto (4.7).
+ * situacionAprendizajeService.js). `secciones` = secciones del producto (4.7);
+ * `propositos` = qué contiene cada una, por nombre (Etapa 1A de
+ * docs/DISENO_APRENDIZAJE_DOCENTEOS.md): la IA lo recibe junto al nombre.
+ * `piezas` = la pieza visible que cada sección deja en el producto (auditoría
+ * de «Alimentación», 2026-11-03); el "aporteProducto" de la clase la avanza.
+ * `tiposTrabajo` = el tipo de trabajo que construye cada sección (uno de
+ * TIPOS_TRABAJO, rolesFasesEstrategias.js) y `partenDe` = de qué secciones de
+ * la misma semilla se alimenta, siempre de fase igual o anterior (Etapa S2 de
+ * docs/DISENO_SECUENCIA_POR_FASES.md, aprobada por César el 2026-11-03).
  * Lugar (regla de César, 2026-10-29): `{centro}` = el centro donde el docente
  * imparte docencia (dato del formulario); `{comunidad}` solo cuando la
  * situación ocurre fuera del centro (rasgos.contexto = "comunidad").
@@ -33,6 +41,38 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
     competenciasLlegada: ["etica_ciudadana", "desarrollo_personal"],
     rasgos: { naturaleza: "necesidad", contexto: "escuela", alcance: "resuelve", llegada: "actuar" },
     secciones: ["Welcome", "Important Places", "School Directions", "Asking for Help", "School Success Tips", "Final Recommendation"],
+    propositos: {
+      "Welcome": "quiénes somos y para qué sirve la guía (presentación del centro al recién llegado)",
+      "Important Places": "qué lugares tiene el centro y qué se hace en cada uno (biblioteca, dirección, cafetería…)",
+      "School Directions": "cómo llegar a esos lugares desde la entrada (indicaciones paso a paso)",
+      "Asking for Help": "a quién acudir y cómo pedir ayuda en inglés (frases y mini-diálogos)",
+      "School Success Tips": "consejos para adaptarse y que les vaya bien (horario, normas, hábitos)",
+      "Final Recommendation": "el mensaje de cierre del grupo al recién llegado (la recomendación principal)",
+    },
+    piezas: {
+      "Welcome": "una carta de bienvenida breve, firmada por el grupo",
+      "Important Places": "fichas de cada lugar (nombre en inglés, dibujo o foto, para qué sirve)",
+      "School Directions": "el plano del centro con las rutas y las indicaciones escritas",
+      "Asking for Help": "una tarjeta de bolsillo con frases para pedir ayuda y a quién acudir",
+      "School Success Tips": "un póster «Top tips» con los consejos",
+      "Final Recommendation": "un párrafo de cierre del grupo para el recién llegado",
+    },
+    tiposTrabajo: {
+      "Welcome": "socializar",
+      "Important Places": "describir",
+      "School Directions": "analizar",
+      "Asking for Help": "aplicar",
+      "School Success Tips": "proponer",
+      "Final Recommendation": "proponer",
+    },
+    partenDe: {
+      "Welcome": ["Important Places", "School Directions"],
+      "Important Places": [],
+      "School Directions": ["Important Places"],
+      "Asking for Help": ["Important Places"],
+      "School Success Tips": ["Important Places", "School Directions"],
+      "Final Recommendation": ["Welcome", "School Success Tips"],
+    },
   },
   {
     id: "ing2-rutinas-plan",
@@ -48,6 +88,34 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
     competenciasLlegada: ["desarrollo_personal", "ambiental_salud"],
     rasgos: { naturaleza: "problema_abierto", contexto: "escuela", alcance: "propone", llegada: "participar" },
     secciones: ["Our Daily Routines", "What We Found", "Problems and Causes", "Our Healthy Schedule", "Tips for Families"],
+    propositos: {
+      "Our Daily Routines": "cómo es hoy un día típico del grupo (rutinas y horarios reales)",
+      "What We Found": "qué datos salieron al comparar las rutinas (encuesta: horas de sueño, llegadas tarde, tareas)",
+      "Problems and Causes": "qué problemas se repiten y por qué ocurren (causas)",
+      "Our Healthy Schedule": "el horario equilibrado que proponemos (escuela, casa, descanso)",
+      "Tips for Families": "cómo pueden las familias apoyar ese horario (consejos dirigidos a ellas)",
+    },
+    piezas: {
+      "Our Daily Routines": "la línea de tiempo de un día típico de cada estudiante",
+      "What We Found": "un gráfico de barras con los resultados de la encuesta y frases que lo explican",
+      "Problems and Causes": "una tabla problema → causa",
+      "Our Healthy Schedule": "el horario semanal equilibrado",
+      "Tips for Families": "un folleto de consejos para las familias",
+    },
+    tiposTrabajo: {
+      "Our Daily Routines": "describir",
+      "What We Found": "analizar",
+      "Problems and Causes": "analizar",
+      "Our Healthy Schedule": "proponer",
+      "Tips for Families": "aplicar",
+    },
+    partenDe: {
+      "Our Daily Routines": [],
+      "What We Found": ["Our Daily Routines"],
+      "Problems and Causes": ["What We Found"],
+      "Our Healthy Schedule": ["Problems and Causes", "Our Daily Routines"],
+      "Tips for Families": ["Our Healthy Schedule"],
+    },
   },
   {
     id: "ing2-alimentacion-menu",
@@ -63,5 +131,33 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
     competenciasLlegada: ["etica_ciudadana", "ambiental_salud"],
     rasgos: { naturaleza: "necesidad", contexto: "comunidad", alcance: "propone", llegada: "actuar" },
     secciones: ["Our Local Food", "Interviews with Owners", "Bilingual Menus", "Healthy Choices", "Ordering Food"],
+    propositos: {
+      "Our Local Food": "qué platos y alimentos típicos ofrece el barrio (descripción de la comida local)",
+      "Interviews with Owners": "qué cuentan los dueños sobre su negocio y sus clientes (preguntas y respuestas de la entrevista)",
+      "Bilingual Menus": "los menús en español e inglés: nombre, descripción y precio de cada plato",
+      "Healthy Choices": "qué platos y alimentos recomendamos y por qué (alternativas más sanas)",
+      "Ordering Food": "cómo pedir esos platos en inglés (diálogos de pedido entre cliente y dueño)",
+    },
+    piezas: {
+      "Our Local Food": "fichas de los platos típicos (nombre, ingredientes principales, dibujo o foto)",
+      "Interviews with Owners": "entrevistas transcritas (preguntas y respuestas de cada dueño)",
+      "Bilingual Menus": "el menú bilingüe de cada comedor (plato, descripción, precio)",
+      "Healthy Choices": "etiquetas «Healthy pick» junto a los platos del menú, cada una con su razón y la alternativa más sana",
+      "Ordering Food": "una guía rápida para pedir: expresiones de cortesía, frases para ordenar, preguntas frecuentes y un diálogo modelo",
+    },
+    tiposTrabajo: {
+      "Our Local Food": "describir",
+      "Interviews with Owners": "visitar",
+      "Bilingual Menus": "analizar",
+      "Healthy Choices": "proponer",
+      "Ordering Food": "aplicar",
+    },
+    partenDe: {
+      "Our Local Food": ["Interviews with Owners"],
+      "Interviews with Owners": [],
+      "Bilingual Menus": ["Our Local Food"],
+      "Healthy Choices": ["Bilingual Menus", "Interviews with Owners"],
+      "Ordering Food": ["Bilingual Menus", "Healthy Choices"],
+    },
   },
 ];

@@ -3,7 +3,7 @@
  * Incluye panel de recomendación de duración basado en análisis curricular
  */
 import { useEffect, useMemo, useState } from "react";
-import { analizarComplejidad } from "../services/unidadAprendizajeService";
+import { analizarComplejidad, motivoProductoFinal, productoFinalDeDatos } from "../services/unidadAprendizajeService";
 import {
   getAreas,
   getAreaCurricularDeAsignatura,
@@ -191,6 +191,7 @@ export default function FormularioUnidadAprendizaje({
     productoFinalFormato = "", productoFinalProposito = "",
     productoFinalAudiencia = "", productoFinalSocializacion = "",
     contextoComunitario = "",
+    puntoPartidaTexto = "",
     zonaEscolar = "",
     asignaturasVinculadasTexto = "",
     nombreDocente = "", cedula = "", regional = "",
@@ -618,10 +619,17 @@ export default function FormularioUnidadAprendizaje({
     !titulo && "Título de la Unidad",
     (grado && area && (!areaTieneMultiplesAsignaturas || asignatura) && estadoCurriculoAsesor.status === "loading") && "Verificación de malla curricular",
     (grado && area && (!areaTieneMultiplesAsignaturas || asignatura) && ["missing", "error"].includes(estadoCurriculoAsesor.status)) && "Malla curricular oficial exacta",
-    (estadoPlanMaestro.aplica && !estadoPlanMaestro.listo) && "Vista previa del plan maestro",
+    // Sin título no se pide nada de la vista previa: con el título DocenteOS la prellena.
+    (titulo && estadoPlanMaestro.aplica && !estadoPlanMaestro.listo) && "Vista previa del plan maestro",
   ].filter(Boolean);
 
   const puedoGenerar = camposFaltantes.length === 0;
+
+  // R11 antes de generar: avisa (no bloquea) si DocenteOS no reconoce el producto.
+  const motivoProducto = useMemo(
+    () => (titulo && productoFinalTexto ? motivoProductoFinal(productoFinalDeDatos(datos), titulo) : ""),
+    [datos, titulo, productoFinalTexto],
+  );
 
   return (
     <section className="planning-form-card pd-form">
@@ -1484,6 +1492,10 @@ export default function FormularioUnidadAprendizaje({
       </div>
 
       {/* ── Opcionales ── */}
+      {/* Con plan maestro, la estrategia y la situación se eligen en su vista
+          previa y el generador no lee estos campos: se ocultan para no pedir
+          lo mismo dos veces. */}
+      {!estadoPlanMaestro.aplica && (<>
       <details className="pd-detalles">
         <summary>Estrategia pedagógica (opcional · se auto-genera)</summary>
         <div className="pd-field pd-field-full">
@@ -1507,9 +1519,14 @@ export default function FormularioUnidadAprendizaje({
           />
         </div>
       </details>
+      </>)}
 
-      <details className="pd-detalles">
-        <summary>Producto final de la unidad (opcional · DocenteOS completa lo que falte)</summary>
+      <details className="pd-detalles" id="producto-final-unidad">
+        <summary>
+          {estadoPlanMaestro.aplica
+            ? "Producto final de la unidad (el nombre es obligatorio · lo demás, opcional)"
+            : "Producto final de la unidad (opcional · DocenteOS completa lo que falte)"}
+        </summary>
         <div className="pd-field pd-field-full">
           <label>Nombre del producto</label>
           <textarea
@@ -1585,6 +1602,18 @@ export default function FormularioUnidadAprendizaje({
             Se guarda en tu perfil para reutilizarlo en próximas unidades.
           </p>
         </div>
+        <div className="pd-field pd-field-full">
+          <label>Punto de partida del grupo (opcional)</label>
+          <textarea
+            rows={2}
+            value={puntoPartidaTexto}
+            onChange={set("puntoPartidaTexto")}
+            placeholder="En 1-2 líneas: qué saben ya y qué les cuesta a tus estudiantes en este tema (ej. reconocen el vocabulario de la escuela, pero no lo usan para pedir ayuda)."
+          />
+          <p className="pd-hint" style={{ marginTop: 4 }}>
+            Sale en la unidad como «Punto de partida del grupo», junto con lo que diga el diagnóstico del curso. Si no hay ni texto ni diagnóstico, ese bloque no aparece.
+          </p>
+        </div>
       </details>
 
       <VistaPreviaPlanMaestro
@@ -1594,6 +1623,25 @@ export default function FormularioUnidadAprendizaje({
         horario={{ numSemanas, diasClase, horasPorDia }}
         estadoMalla={estadoCurriculoAsesor.status}
       />
+
+      {motivoProducto && (
+        <p className="pd-hint" style={{ marginTop: 8, color: "#92400e" }}>
+          ⚠️ Revisa el producto final: {motivoProducto}. Puedes generar igual; la unidad
+          saldrá con este aviso.{" "}
+          <button
+            type="button"
+            className="pd-link-btn"
+            onClick={() => {
+              const seccionProducto = document.getElementById("producto-final-unidad");
+              if (!seccionProducto) return;
+              seccionProducto.open = true;
+              seccionProducto.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            Ir al producto
+          </button>
+        </p>
+      )}
 
       {!puedoGenerar && (
         <div className="pd-campos-faltantes">
@@ -1605,8 +1653,23 @@ export default function FormularioUnidadAprendizaje({
               <span key={campo} className="pd-campo-badge">{campo}</span>
             ))}
           </div>
-          {estadoPlanMaestro.aplica && !estadoPlanMaestro.listo && (
-            <p className="pd-hint" style={{ marginTop: 6 }}>{estadoPlanMaestro.motivo}</p>
+          {titulo && estadoPlanMaestro.aplica && !estadoPlanMaestro.listo && (
+            <p className="pd-hint" style={{ marginTop: 6 }}>
+              Falta en la vista previa: {estadoPlanMaestro.falta}{" "}
+              <button
+                type="button"
+                className="pd-link-btn"
+                onClick={() => {
+                  // La vista previa es un <details> plegado: se abre y se lleva al docente a ella.
+                  const vista = document.getElementById("vista-previa-plan-maestro");
+                  if (!vista) return;
+                  vista.open = true;
+                  vista.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                Ir a la vista previa
+              </button>
+            </p>
           )}
         </div>
       )}

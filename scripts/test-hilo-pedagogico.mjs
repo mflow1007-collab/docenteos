@@ -38,6 +38,8 @@ import {
   // Fase 9 — cierre del ciclo
   agregarResultadosPorIndicador,
   indicadoresDebilesDeAvance,
+  corregirFechasCapa,
+  fechaLocalISO,
 } from "../src/services/hiloPedagogico.js";
 import { adaptarCurriculoLocal } from "../src/services/curriculoAdapter.js";
 
@@ -352,15 +354,22 @@ assert.equal(parcial.esParcial, true);
 assert.deepEqual(parcial.pendientes, [instrumentos[2].id]);
 ok("estudiante evaluado en 2 de 3 → nota PARCIAL 80 (pendiente ≠ 0) con instrumento pendiente identificado");
 
-// Regla 11 — "no entregó" marcado explícitamente sí cuenta como 0
+// Decisión 3 (2026-10-30) — "no entregó" queda pendiente: sin 0 automático
 const rNoEntrego = construirResultadoInstrumento({
   instrumento: instrumentos[2], estudianteId: "est-juan-perez-1", estado: "no_entrego",
 });
-assert.equal(rNoEntrego.puntajeObtenido, 0);
+assert.equal(rNoEntrego.puntajeObtenido, null);
+assert.equal(rNoEntrego.porcentaje, null);
 const conNoEntrega = consolidarNotaEstudiante({ instrumentos, resultados: [r1, r2, rNoEntrego] });
-assert.equal(conNoEntrega.valorCalculado, 60);
-assert.equal(conNoEntrega.esParcial, false);
-ok("'no entregó' explícito cuenta como 0 → 60/100 (ya no es parcial)");
+assert.equal(conNoEntrega.valorCalculado, 80);
+assert.equal(conNoEntrega.esParcial, true);
+assert.deepEqual(conNoEntrega.pendientes, [instrumentos[2].id]);
+// Si el docente decide 0, lo registra como evaluado con 0
+const rCero = construirResultadoInstrumento({
+  instrumento: instrumentos[2], estudianteId: "est-juan-perez-1", puntajeObtenido: 0,
+});
+assert.equal(consolidarNotaEstudiante({ instrumentos, resultados: [r1, r2, rCero] }).valorCalculado, 60);
+ok("'no entregó' NO pone 0: nota parcial 80 hasta que el docente decida (0 explícito → 60)");
 
 // Estado pendiente → sin puntaje, sin porcentaje
 const rPendiente = construirResultadoInstrumento({
@@ -580,11 +589,11 @@ const evidenciaPendiente = construirEvidenciaDesdeResultado(rPendiente, {});
 assert.equal(evidenciaPendiente, null);
 ok("resultado 'pendiente' no genera evidencia");
 
-// "No entregó" → evidencia descriptiva con 0
+// "No entregó" → evidencia descriptiva SIN número (decisión 3)
 const evidenciaNoEntrego = construirEvidenciaDesdeResultado(rNoEntrego, { instrumento: instrumentos[2] });
 assert.match(evidenciaNoEntrego.descripcion, /no entregó/);
-assert.equal(evidenciaNoEntrego.calificacionAsociada, 0);
-ok("'no entregó' genera evidencia explícita con calificación 0");
+assert.equal(evidenciaNoEntrego.calificacionAsociada, null);
+ok("'no entregó' genera evidencia explícita sin calificación");
 
 // ════════════════════════════ BLOQUE A.5 ═════════════════════════════════════
 
@@ -677,16 +686,16 @@ const resultadosF9 = [
 const avanceF9 = agregarResultadosPorIndicador(resultadosF9);
 assert.equal(avanceF9.length, 3, "3 indicadores agregados");
 const il1 = avanceF9.find((i) => i.codigo === "IL-ING-1-COM-1");
-// e1=90, e2=40, e3=0 (no_entrego cuenta como 0); e4 pendiente NO cuenta
-assert.equal(il1.evaluaciones, 3);
-assert.equal(il1.estudiantes, 3);
-assert.equal(il1.promedio, Math.round((90 + 40 + 0) / 3)); // 43
+// e1=90, e2=40; e3 no_entrego y e4 pendiente NO cuentan (decisión 3)
+assert.equal(il1.evaluaciones, 2);
+assert.equal(il1.estudiantes, 2);
+assert.equal(il1.promedio, Math.round((90 + 40) / 2)); // 65
 assert.equal(il1.nivel, "Necesita apoyo");
-assert.equal(il1.estudiantesApoyo, 2, "e2 y e3 bajo 70; e1 no");
+assert.equal(il1.estudiantesApoyo, 1, "e2 bajo 70; e1 no; e3 sin número");
 const il3 = avanceF9.find((i) => i.codigo === "IL-ING-1-COM-3");
 assert.equal(il3.promedio, 95);
 assert.equal(il3.nivel, "Logrado");
-ok("agregación por indicador: evaluado/no_entrego cuentan, pendiente no");
+ok("agregación por indicador: evaluado cuenta; no_entrego y pendiente no");
 
 const debilesF9 = indicadoresDebilesDeAvance(avanceF9, { umbral: 70, minEvaluaciones: 1 });
 assert.deepEqual(debilesF9, ["IL-ING-1-COM-1", "IL-ING-1-COM-2"]);
@@ -809,6 +818,51 @@ if (claseEnFeriado) {
   assert.ok(conFecha.every((c) => c.advertenciaCalendario === "" || c.advertenciaCalendario), "campo presente en todas las clases con fecha");
   ok("advertenciaCalendario presente en el contrato de la clase (ninguna cayó en el feriado con este horario)");
 }
+
+// ─── Unidad (fases): diaCalendario es el NOMBRE del día, no una fecha ───────
+console.log("\nUnidad — fechaSugerida ISO desde el nombre del día del horario");
+
+const unidadFases = {
+  metadatos: { fechaInicio: "2026-10-26", tema: "Escuela y educación" },
+  fases: [
+    { numero: 1, dias: [
+      { numeroGlobal: 1, semana: 1, diaCalendario: "Lunes", titulo: "A" },
+      { numeroGlobal: 2, semana: 1, diaCalendario: "Jueves", titulo: "B" },
+    ] },
+    { numero: 2, dias: [
+      { numeroGlobal: 3, semana: 2, diaCalendario: "Lunes", titulo: "C" },
+      { numeroGlobal: 4, semana: 2, diaCalendario: "2026-11-06", titulo: "D" },
+    ] },
+  ],
+};
+const capaUnidadFechas = construirCapaCurricular(unidadFases);
+assert.deepEqual(capaUnidadFechas.clases.map((c) => c.fechaSugerida), ["2026-10-26", "2026-10-29", "2026-11-02", "2026-11-06"]);
+assert.equal(capaUnidadFechas.clases[1].nombreDia, "Jueves");
+ok("unidad: «Lunes»/«Jueves» → fechas ISO por semana; un diaCalendario ya ISO se respeta");
+
+seleccion = obtenerClaseDeHoy(capaUnidadFechas, "2026-10-29");
+assert.equal(seleccion.esHoy, true);
+assert.equal(seleccion.clase.titulo, "B");
+ok("unidad: jueves 2026-10-29 → clase de HOY");
+
+// Capa guardada antes del arreglo: fechaSugerida = nombre del día
+const capaVieja = {
+  clases: capaUnidadFechas.clases.map((c, i) => ({ ...c, nombreDia: "", fechaSugerida: ["Lunes", "Jueves", "Lunes", "2026-11-06"][i] })),
+};
+seleccion = obtenerClaseDeHoy(capaVieja, "2026-10-29");
+assert.equal(seleccion.esHoy, false, "la capa vieja no casa la clase de hoy (el fallo)");
+const capaCorregida = corregirFechasCapa(capaVieja, "2026-10-26");
+assert.deepEqual(capaCorregida.clases.map((c) => c.fechaSugerida), ["2026-10-26", "2026-10-29", "2026-11-02", "2026-11-06"]);
+assert.equal(capaCorregida.clases[0].nombreDia, "Lunes");
+assert.equal(obtenerClaseDeHoy(capaCorregida, "2026-10-29").esHoy, true);
+assert.equal(corregirFechasCapa(capaUnidadFechas, "2026-10-26"), capaUnidadFechas, "capa sana: misma referencia");
+assert.ok(corregirFechasCapa(capaVieja, "").clases.every((c) => c.fechaSugerida === "" || c.fechaSugerida === "2026-11-06"), "sin fecha de inicio: vacía, nunca el nombre del día");
+ok("capa vieja corregida al leer: fechas ISO y clase de hoy; sin fecha de inicio queda vacía");
+
+// «Hoy» en hora local, no UTC (21:30 del 31-oct en RD = 01:30 UTC del 1-nov)
+assert.equal(fechaLocalISO(new Date(2026, 9, 31, 21, 30)), "2026-10-31");
+assert.equal(fechaLocalISO(new Date(2026, 0, 5, 0, 5)), "2026-01-05");
+ok("fechaLocalISO: la fecha de hoy sale de la hora local del docente");
 
 // ─── Resumen ─────────────────────────────────────────────────────────────────
 console.log(`\n✅ ${pasos} verificaciones pasaron.`);

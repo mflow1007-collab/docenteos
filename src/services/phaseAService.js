@@ -16,6 +16,7 @@ import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
 import { db }                                   from '../firebase.js';
 import { invalidateGatewayConfig, loadGatewayConfig } from './ai/AIService.js';
 import { logUsage }                             from './ai/usage.js';
+import { camposCupo }                           from '../utils/costoPorPlan.js';
 import {
   construirArquitecturaUnidadMINERD,
   resolverFocosCurriculares,
@@ -25,7 +26,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
-import { validarLoteContrato, validarFaseCompleta, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
+import { validarLoteContrato, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -76,6 +77,39 @@ export const esErrorCreditosAgotados = (errOrMsg) => {
   return errOrMsg?.code === "AI_CREDITS_EXHAUSTED"
     || errOrMsg?.creditosAgotados === true
     || DEFINITIVE_CREDIT_ERROR_RE.test(msg);
+};
+
+const NOMBRE_PROVEEDOR = { openai: "OpenAI", anthropic: "Anthropic", gemini: "Gemini", abacus: "Abacus", nvidia: "NVIDIA" };
+
+/**
+ * Error final de la escalera de un lote. Sin saldo en un proveedor no es
+ * «créditos agotados» si otro proveedor sí respondió: el fallo real es el
+ * último rechazo del validador (y la fase se puede reintentar). Solo cuando
+ * ningún proveedor tenía saldo se devuelve AI_CREDITS_EXHAUSTED, nombrando a
+ * los proveedores sin créditos (2026-11-01: Abacus en cero cortaba unidades
+ * que OpenAI sí podía redactar).
+ */
+export const errorFinalEscalera = ({ ultimoRechazo = null, lastError = null, sinSaldo = [], prefijo = "", falloPasajero = null } = {}) => {
+  const nombres = [...sinSaldo].map((p) => NOMBRE_PROVEEDOR[p] || p);
+  // Un fallo pasajero (respuesta vacía, timeout, 503) de un proveedor CON saldo
+  // no es «créditos agotados»: el error se puede reintentar.
+  const fallo = ultimoRechazo || falloPasajero;
+  if (!fallo && (nombres.length || esErrorCreditosAgotados(lastError))) {
+    const agotado = new Error(
+      `Créditos de IA agotados${nombres.length ? ` (${nombres.join(", ")} sin créditos)` : ""}: ${lastError?.message || "sin detalle"}`,
+      { cause: lastError || undefined },
+    );
+    agotado.code = "AI_CREDITS_EXHAUSTED";
+    agotado.creditosAgotados = true;
+    agotado.provider = [...sinSaldo][0] || lastError?.provider;
+    return agotado;
+  }
+  const final = fallo || { err: lastError, provider: lastError?.provider || "desconocido", model: lastError?.model || "desconocido" };
+  return new Error(
+    `${prefijo}Detalle: último ${final.provider}/${final.model} — ${final.err?.message}` +
+    `${nombres.length ? ` (sin créditos: ${nombres.join(", ")})` : ""}`,
+    { cause: final.err || undefined },
+  );
 };
 
 const getBudgetCooldownProviders = () => {
@@ -164,7 +198,7 @@ Responde únicamente JSON puro con "clases[]" completo.\n\n`;
 
 // ─── Registro de errores de parseo en aiLogs/ ─────────────────────────────────
 
-async function logParseError({ contexto, attempt, motivo, raw, provider, model, stopReason = null, modoFallo = null, tokensSalidaReales = null, msHastaFallo = null, signalAbortado = null }) {
+async function logParseError({ contexto, attempt, motivo, raw, provider, model, stopReason = null, modoFallo = null, tokensSalidaReales = null, msHastaFallo = null, signalAbortado = null, cupo = null }) {
   try {
     const uid = getAuth().currentUser?.uid || null;
     await addDoc(collection(db, 'aiLogs'), {
@@ -196,6 +230,7 @@ async function logParseError({ contexto, attempt, motivo, raw, provider, model, 
       tiempoRespuesta: 0,
       cache:           false,
       error:           motivo,
+      ...camposCupo(cupo),
     });
   } catch { /* no-fatal */ }
 }
@@ -236,6 +271,7 @@ async function callGatewayCollect(
   providerOrder = PHASE_A_PROVIDER_ORDER,
   providersDisabledExtra = [],
   strictProvider = false,
+  cupo = null, // Etapa E: { planId, clave } — el gateway valida el cupo reservado
 ) {
   const user = getAuth().currentUser;
   if (!user) throw new Error('Usuario no autenticado');
@@ -304,6 +340,7 @@ async function callGatewayCollect(
         providersDisabled: providersDisabled.length ? providersDisabled : undefined,
         strictProvider,
         requireNonEmpty: true,
+        ...(cupo?.planId && cupo?.clave ? { cupo: { planId: cupo.planId, clave: cupo.clave } } : {}),
       }),
     });
   } catch (err) {
@@ -327,6 +364,8 @@ async function callGatewayCollect(
     error.provider = response.headers.get('X-AI-Provider') || providerOrder?.[0] || 'desconocido';
     error.model = response.headers.get('X-AI-Model') || 'desconocido';
     error.status = response.status;
+    // Etapa E: el gateway rechazó el permiso del cupo → definitivo, sin escalera
+    if (cupo && (response.status === 400 || response.status === 403)) error.cupoInvalido = true;
     // 504 del gateway = muro de tiempo agotado (cortó el bucle sin rotar). Se
     // marca timeout para que la escalera lo clasifique como ABORTO_POR_TIEMPO.
     if (bodyTimeout || response.status === 504) error.timeout = true;
@@ -575,15 +614,38 @@ export function normalizarVozActividadMINERD(texto) {
   return original;
 }
 
-function normalizarVozBatch(data) {
+// Actividades por campos (aprobado por César, 2026-11-03): pedida como una
+// frase de 25-35 palabras, la IA no pasaba de 24 (mediana 17-18). Ahora entrega
+// {accion, producto, destino} y el código arma la frase; todo lo que lee
+// actividades (validadores 4.4, pantalla, PDF, banco) sigue recibiendo texto.
+// Una frase suelta (unidades viejas, caché) se acepta tal cual.
+const sinPuntoFinal = (t) => String(t ?? '').trim().replace(/[\s.;:,]+$/, '');
+const conMinuscula = (t) => t.replace(/^\p{Lu}(?!\p{Lu})/u, (c) => c.toLowerCase());
+export const componerActividad = (actividad, seccion = '') => {
+  if (typeof actividad === 'string') return actividad;
+  if (!actividad || typeof actividad !== 'object') return String(actividad ?? '');
+  const accion = sinPuntoFinal(actividad.accion || actividad.texto);
+  if (!accion) return '';
+  const producto = conMinuscula(sinPuntoFinal(actividad.producto));
+  let destino = conMinuscula(sinPuntoFinal(actividad.destino));
+  // «…; en la carpeta del grupo.» quedaba suelto (revisión del 2026-11-03).
+  if (/^(en|a|al|para|dentro|junto)\s/i.test(destino)) destino = `se guarda ${destino}`;
+  if (!destino && producto && seccion) destino = `se archiva en la sección «${seccion}»`;
+  return `${accion}${producto ? `: ${producto}` : ''}${destino ? `; ${destino}` : ''}.`;
+};
+
+export function normalizarVozBatch(data) {
   if (!data?.clases || !Array.isArray(data.clases)) return data;
   for (const clase of data.clases) {
     for (const campo of ['retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
       if (clase?.[campo]) clase[campo] = normalizarVozActividadMINERD(clase[campo]);
     }
+    const seccion = Array.isArray(clase?.seccionesProducto) ? String(clase.seccionesProducto[0] || '') : '';
     for (const momento of (clase?.momentos || [])) {
       if (Array.isArray(momento.actividades)) {
-        momento.actividades = momento.actividades.map(normalizarVozActividadMINERD);
+        momento.actividades = momento.actividades
+          .map((a) => componerActividad(a, seccion))
+          .map(normalizarVozActividadMINERD);
       }
       momento.evidencias = normalizarEvidenciasMomento(momento.evidencias, momento.nombre, momento.actividades || []);
     }
@@ -633,8 +695,12 @@ const PRODUCTO_GENERICO = [
   'portafolio de evidencias', 'portfolio about', 'portfolio sobre',
 ];
 
-const PRODUCTO_FORMATO_RE = /\b(gu[ií]a|guide|mapa|map|recorrido|tour|diario|journal|bolet[ií]n|bulletin|campa[nñ]a|campaign|men[uú]|menu|podcast|video|afiche|affiche|poster|mural|maqueta|modelo|model|revista|magazine|folleto|brochure|debate|programa|program|informe|report|presentaci[oó]n|pr[eé]sentation|exposici[oó]n|exhibition|obra|dramatizaci[oó]n|dramatization|manual|cat[aá]logo|catalog|circuito|prototipo)\b/i;
-const PRODUCTO_AUDIENCIA_RE = /\b(estudiantes?|students?|[ée]l[eè]ves?|familias?|families|comunidad|community|communaut[eé]|visitantes?|visitors?|curso|class|centro educativo|p[uú]blico|audience|viajeros?|travelers?|usuarios?|lectores?|oyentes?)\b/i;
+// Límites de palabra que entienden tildes: \b de JS no corta después de «ú»
+// ni antes de «é», y «menú» o «élèves» nunca coincidían (2026-11-02: una unidad
+// de 12 clases falló al final por R11 con «… Booklet — menú comentado…»).
+// booklet/álbum/livret/cuadernillo: el modo rápido sugiere «<título> Booklet».
+const PRODUCTO_FORMATO_RE = /(?<![\p{L}\p{N}])(gu[ií]a|guide|mapa|map|recorrido|tour|diario|journal|bolet[ií]n|bulletin|campa[nñ]a|campaign|men[uú]|menu|podcast|video|afiche|affiche|poster|mural|maqueta|modelo|model|revista|magazine|folleto|brochure|booklet|[aá]lbum|album|livret|cuadernillo|debate|programa|program|informe|report|presentaci[oó]n|pr[eé]sentation|exposici[oó]n|exhibition|obra|dramatizaci[oó]n|dramatization|manual|cat[aá]logo|catalog|circuito|prototipo)(?![\p{L}\p{N}])/iu;
+const PRODUCTO_AUDIENCIA_RE = /(?<![\p{L}\p{N}])(estudiantes?|students?|[ée]l[eè]ves?|familias?|families|comunidad|community|communaut[eé]|visitantes?|visitors?|curso|class|centro educativo|p[uú]blico|audience|viajeros?|travelers?|usuarios?|lectores?|oyentes?)(?![\p{L}\p{N}])/iu;
 const PRODUCTO_ESTRUCTURADO_RE = /^(.+?)\s+—\s+(.+?)\s+para\s+(.+?),\s+dirigida\s+a\s+(.+?);\s+socializaci[oó]n:\s+(.+?)\.?$/i;
 
 const PRODUCT_RULES_BY_TOPIC = [
@@ -930,6 +996,12 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       .map(normalizarCodigo)
       .filter(Boolean),
   );
+  // Con contrato de fase (plan maestro), lo flexible del Desarrollo y del
+  // Cierre no rechaza el lote: queda como aviso para el administrador en
+  // clase.avisosRedaccion (decisión de César, 2026-11-03). Lo fijo (voz en 3.ª
+  // persona plural, Inicio canónico, indicadores, campos de la plantilla) sigue
+  // rechazando. Sin contrato, todo rechaza como antes.
+  const flexible = Boolean(opts.contratoFase);
 
   // 3A — nombre propio del producto final (solo el primer lote de la unidad)
   if (opts.exigirNombreProducto) {
@@ -989,6 +1061,12 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     if (!Array.isArray(clase?.momentos) || clase.momentos.length !== 3) {
       throw new Error(`R1: clase ${idx + 1} debe tener 3 momentos`);
     }
+    const avisosClase = [];
+    if (flexible) clase.avisosRedaccion = avisosClase;
+    const avisarOFallar = (motivo) => {
+      if (!flexible) throw new Error(motivo);
+      avisosClase.push(motivo);
+    };
     if (!Array.isArray(clase.indicadoresTrabajados)) {
       throw new Error(`R1: clase ${idx + 1} sin indicadoresTrabajados[] (usa los códigos de la especificación)`);
     }
@@ -1073,20 +1151,20 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     const aporteNorm = _normTextoFoco(aporte);
     const aporteVago = APORTE_GENERICO.find((g) => aporteNorm.includes(_normTextoFoco(g)));
     if (aporteVago) {
-      throw new Error(`R11: clase ${idx + 1} — aporteProducto genérico ("${aporteVago}"): nombra el artefacto concreto (ej. "Inventario del espacio favorito con posesivos")`);
+      avisarOFallar(`R11: clase ${idx + 1} — aporteProducto genérico ("${aporteVago}"): nombra el artefacto concreto (ej. "Inventario del espacio favorito con posesivos")`);
     }
     const repetidoLote = [...aportesEnLote.entries()].find(([prev]) =>
       prev === aporteNorm || jaccardSimilarity(prev, aporteNorm) > 0.72
     );
     if (repetidoLote) {
-      throw new Error(`R11: clase ${idx + 1} repite la pieza del producto de la clase ${repetidoLote[1]} ("${aporte}")`);
+      avisarOFallar(`R11: clase ${idx + 1} repite la pieza del producto de la clase ${repetidoLote[1]} ("${aporte}")`);
     }
     const repetidoUnidad = memoria.find((prev) => {
       const previo = _normTextoFoco(prev.aporteProducto || '');
       return previo && (previo === aporteNorm || jaccardSimilarity(previo, aporteNorm) > 0.72);
     });
     if (repetidoUnidad) {
-      throw new Error(`R11: clase ${idx + 1} repite la pieza del producto de S${repetidoUnidad.semana}/C${repetidoUnidad.dia} ("${aporte}")`);
+      avisarOFallar(`R11: clase ${idx + 1} repite la pieza del producto de S${repetidoUnidad.semana}/C${repetidoUnidad.dia} ("${aporte}")`);
     }
     aportesEnLote.set(aporteNorm, idx + 1);
 
@@ -1130,29 +1208,32 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     // Listen and Act/Solve/Compare, Information Gap, Role Play, Gallery Walk,
     // Interview Stations, Frequency Walk, Speaking Circle, Describe and Draw…
     const clt = clase.actividadCLT;
-    if (!clt || !textoNoVacio(clt.nombre) || !textoNoVacio(clt.mecanica)) {
-      throw new Error(`R12: clase ${idx + 1} sin actividadCLT {nombre, mecanica} (técnica metodológica del Desarrollo)`);
+    // Sin técnica completa (solo posible con contrato, donde es aviso) se
+    // saltan los demás controles de técnica.
+    const cltCompleta = Boolean(clt && textoNoVacio(clt.nombre) && textoNoVacio(clt.mecanica));
+    if (!cltCompleta) {
+      avisarOFallar(`R12: clase ${idx + 1} sin actividadCLT {nombre, mecanica} (técnica metodológica del Desarrollo)`);
     }
-    const cltNombreNorm = _normTextoFoco(clt.nombre);
-    if (CLT_GENERICO.map(_normTextoFoco).includes(cltNombreNorm)) {
-      throw new Error(`R12: clase ${idx + 1} — "${clt.nombre}" no es un nombre metodológico (usa Listen and Solve, Information Gap, Role Play, Gallery Walk…)`);
+    const cltNombreNorm = cltCompleta ? _normTextoFoco(clt.nombre) : '';
+    if (cltCompleta && CLT_GENERICO.map(_normTextoFoco).includes(cltNombreNorm)) {
+      avisarOFallar(`R12: clase ${idx + 1} — "${clt.nombre}" no es un nombre metodológico (usa Listen and Solve, Information Gap, Role Play, Gallery Walk…)`);
     }
     // Marco amplio (ABP, Aprendizaje Cooperativo…): válido SOLO con calificador
     // específico. Desnudo = igual a un marco de la lista, sin misión/contenido
     // añadido → se rechaza; con misión ("ABP: Maqueta del acueducto") → pasa.
-    const marcoDesnudo = CLT_MARCO_AMPLIO.map(_normTextoFoco).find((m) => {
+    const marcoDesnudo = cltCompleta && CLT_MARCO_AMPLIO.map(_normTextoFoco).find((m) => {
       if (cltNombreNorm === m) return true;
       // "abp" / "enfoque comunicativo" al inicio sin nada distintivo detrás
       const resto = cltNombreNorm.replace(m, '').replace(/[:\-–—()]/g, ' ').trim();
       return cltNombreNorm.startsWith(m) && resto.length < 4;
     });
     if (marcoDesnudo) {
-      throw new Error(`R12: clase ${idx + 1} — "${clt.nombre}" es un marco amplio sin misión concreta. Nómbralo con su misión del día (ej. "Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto")`);
+      avisarOFallar(`R12: clase ${idx + 1} — "${clt.nombre}" es un marco amplio sin misión concreta. Nómbralo con su misión del día (ej. "Aprendizaje Cooperativo: Rompecabezas del ecosistema", "ABP: Maqueta del acueducto")`);
     }
-    if (cltEnLote.has(cltNombreNorm)) {
-      throw new Error(`R12: clase ${idx + 1} repite la técnica "${clt.nombre}" de la clase ${cltEnLote.get(cltNombreNorm)} del mismo lote`);
+    if (cltCompleta && cltEnLote.has(cltNombreNorm)) {
+      avisarOFallar(`R12: clase ${idx + 1} repite la técnica "${clt.nombre}" de la clase ${cltEnLote.get(cltNombreNorm)} del mismo lote`);
     }
-    cltEnLote.set(cltNombreNorm, idx + 1);
+    if (cltCompleta) cltEnLote.set(cltNombreNorm, idx + 1);
     // La técnica debe aparecer en ALGUNA actividad del Desarrollo (no
     // necesariamente la primera ni literal en la misma posición): tolerante a
     // que la IA la parafrasee alrededor, pero exige que esté presente. Para
@@ -1171,31 +1252,36 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     const raices = palabrasCLT.map((w) => w.slice(0, 5)).filter(Boolean);
     const cltPresente = desarrolloNorm.some((a) => a.includes(cltNombreNorm))
       || raices.some((r) => desarrolloNorm.some((a) => a.includes(r)));
-    if (!cltPresente) {
+    if (cltCompleta && !cltPresente) {
       const pista = opts.contratoFase ? `nómbrala en el paréntesis de una actividad: "Representan (en parejas, ${clt.nombre}) …"` : `"Participan en ${clt.nombre}: …"`;
-      throw new Error(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad (${pista})`);
+      avisarOFallar(`R12: clase ${idx + 1} — el Desarrollo no nombra su técnica "${clt.nombre}" en ninguna actividad (${pista})`);
     }
 
     // 3C — anti-repetición GLOBAL: contra TODAS las clases previas de la
-    // unidad (memoria acumulada), no solo las adyacentes del lote
+    // unidad (memoria acumulada), no solo las adyacentes del lote. Con aviso,
+    // una sola vez por clase.
     const nuevoDesarrollo = textoDesarrollo(clase);
+    let avisadoDesarrollo = false;
+    let avisadaTecnica = false;
     for (const prev of memoria) {
-      if (prev.desarrolloTexto) {
+      if (!avisadoDesarrollo && prev.desarrolloTexto) {
         const sim = jaccardSimilarity(nuevoDesarrollo, prev.desarrolloTexto);
         if (sim > 0.6) {
-          throw new Error(`R2: clase ${idx + 1} repite el Desarrollo de S${prev.semana}/C${prev.dia} "${prev.titulo}" (${(sim * 100).toFixed(0)}%)`);
+          avisarOFallar(`R2: clase ${idx + 1} repite el Desarrollo de S${prev.semana}/C${prev.dia} "${prev.titulo}" (${(sim * 100).toFixed(0)}%)`);
+          avisadoDesarrollo = true;
         }
       }
-      if (prev.actividadCLT && _normTextoFoco(prev.actividadCLT) === cltNombreNorm) {
+      if (!avisadaTecnica && cltNombreNorm && prev.actividadCLT && _normTextoFoco(prev.actividadCLT) === cltNombreNorm) {
         const mismoBloque = prev.semana === (data.semana ?? opts.semanaNum);
         const mecanicaSimilar = prev.mecanicaCLT
           ? jaccardSimilarity(String(clt.mecanica), String(prev.mecanicaCLT)) > 0.6
           : true;
         if (mismoBloque || mecanicaSimilar) {
-          throw new Error(
+          avisarOFallar(
             `R12: clase ${idx + 1} — técnica "${clt.nombre}" ya usada en S${prev.semana}/C${prev.dia}` +
             `${mismoBloque ? ' (mismo bloque)' : ' con mecánica similar'} — usa otra técnica o cambia la mecánica`,
           );
+          avisadaTecnica = true;
         }
       }
     }
@@ -1232,7 +1318,7 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       if (!esInicio) {
         const minActividades = m.nombre === 'Desarrollo' ? 4 : 3;
         if ((m.actividades || []).filter((x) => String(x || '').trim()).length < minActividades) {
-          throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
+          avisarOFallar(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
         }
         for (const act of m.actividades) {
           const voz = validarVozActividad(act);
@@ -1253,8 +1339,12 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     if (totalMin !== durMin) throw new Error(`R7: clase ${idx + 1} suma ${totalMin} min ≠ ${durMin} min`);
   }
 
-  // Etapa 5 — contrato de la fase (semilla 4.6, secciones 4.7, entrega).
-  if (opts.contratoFase) validarLoteContrato(data, opts.contratoFase, count, opts.startDia || 1, { esIdioma: Boolean(opts.esIdioma) });
+  // Etapa 5 — contrato de la fase (semilla 4.6, secciones 4.7, entrega). La
+  // redacción 4.4 vuelve como avisos por clase.
+  if (opts.contratoFase) {
+    validarLoteContrato(data, opts.contratoFase, count, opts.startDia || 1, { esIdioma: Boolean(opts.esIdioma) })
+      .forEach((motivos, idx) => data.clases[idx].avisosRedaccion.push(...motivos));
+  }
 
   // R16 — cuando el docente aportó una realidad concreta, esta debe entrar en
   // la experiencia de aprendizaje y no quedarse únicamente en el párrafo de
@@ -1268,9 +1358,9 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     );
     const conectadas = palabrasContexto.filter((palabra) => palabrasLote.has(palabra));
     if (!conectadas.length) {
-      throw new Error(
-        `R16: las actividades y evidencias del lote no aplican el contexto comunitario real (incorpora una situación, dato o necesidad vinculada con: ${palabrasContexto.slice(0, 4).join(', ')})`,
-      );
+      const motivo = `R16: las actividades y evidencias del lote no aplican el contexto comunitario real (incorpora una situación, dato o necesidad vinculada con: ${palabrasContexto.slice(0, 4).join(', ')})`;
+      if (!flexible) throw new Error(motivo);
+      data.clases[0].avisosRedaccion.push(motivo);
     }
   }
 }
@@ -1575,7 +1665,9 @@ ${reglaInicio}
 // El plan maestro (código) ya decidió fases, sesiones, entrega, secciones,
 // semilla e indicadores; la IA redacta las clases de UNA fase dentro de ese
 // contrato (redaccionFaseService.js). Aprobado por César el 2026-10-29.
-const PROMPT_FASE_VERSION = 4;
+// v5 (Etapa S4): línea «HILO DE LA UNIDAD» con las piezas de las que parte cada clase.
+// v6: la clase que avanza todas las secciones nombra el producto entero en su aporte.
+const PROMPT_FASE_VERSION = 9;
 function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
   const c = spec.contratoFase;
   const tInicio     = durMin <= 50 ? 10 : 15;
@@ -1598,16 +1690,26 @@ AMPLIACIÓN DE DOCENTEOS (regla 4.6): a partir de la semilla, amplía alrededor 
 "focoLinguistico": lo que la SECCIÓN del día necesita comunicar — la función y la estructura o las expresiones con que se logra (ej. "Dar indicaciones para llegar a un lugar: imperativo y preposiciones de lugar (_turn left_, _next to_…)"). Puedes enriquecerlo con estructuras y expresiones útiles para la sección aunque no estén en la malla; lo nuevo que enseñes, decláralo en "ampliacion". El contenido nunca es el protagonista del día (regla 4.6): PROHIBIDO que el foco sea una etiqueta de la malla ("Vocabulario: high school") o una palabra suelta de la semilla; la semilla se usa DENTRO de las actividades de la sección.`
     : `ESTA FASE NO INTRODUCE CONTENIDO NUEVO: retoma lo ya trabajado (${lista(c.trabajado)}). "semillaUsada" y "ampliacion" van vacías ([]). "focoLinguistico" nombra lo que se retoma o el trabajo de la fase (p. ej. "Apropiación de la unidad / producto / evaluación").`;
   const piezasPrevias = (memoria || []).map((m) => String(m.aporteProducto || '').trim()).filter(Boolean).join(' | ');
+  const hiloTx = hiloPartenDe({ contrato: c, memoria, startDia, count });
+  // Como lista JSON (una cadena por sección): unidas con « · » el modelo las
+  // copiaba como un solo elemento y el contrato rechazaba el lote (Etapa D).
   const seccionesLote = Array.from({ length: count }, (_, i) =>
-    `Clase ${startDia + i}: ${(c.seccionesPorClase?.[startDia + i - 1] || []).join(' · ') || '—'}`).join('\n');
+    `Clase ${startDia + i}: ${JSON.stringify(c.seccionesPorClase?.[startDia + i - 1] || [])}${c.seccionPrincipalPorClase?.[startDia + i - 1] ? ` — principal: «${c.seccionPrincipalPorClase[startDia + i - 1]}»` : ''}`).join('\n');
+  // Etapa 1A: qué contiene cada sección y la pieza visible que deja (solo las que lo traen, p. ej. las semillas).
+  const piezas = c.piezasSecciones || {};
+  const propositos = c.secciones.filter((s) => c.propositosSecciones?.[s] || piezas[s])
+    .map((s) => `- ${s}: ${[c.propositosSecciones?.[s], piezas[s] && `pieza visible: ${piezas[s]}`].filter(Boolean).join(' → ')}`);
+  const propositosTx = propositos.length
+    ? `\nQué contiene cada sección:\n${propositos.join('\n')}${c.secciones.some((s) => piezas[s]) ? '\nEl "aporteProducto" de una clase avanza la pieza visible de su sección principal.' : ''}`
+    : '';
   const seccionesTx = c.secciones.length
-    ? `SECCIONES DEL PRODUCTO: ${c.secciones.join(' · ')}.
-Esta fase lleva ${c.entrega.secciones.length ? c.entrega.secciones.join(' · ') : 'todas las secciones'} al estado «${c.entrega.estado}». Secciones que avanza CADA clase (decididas por el plan; cópialas EXACTAS en "seccionesProducto"):
+    ? `SECCIONES DEL PRODUCTO: ${c.secciones.join(' · ')}.${propositosTx}
+Esta fase lleva ${c.entrega.secciones.length ? c.entrega.secciones.join(' · ') : 'todas las secciones'} al estado «${c.entrega.estado}». Secciones que avanza CADA clase (decididas por el plan; copia la lista EXACTA en "seccionesProducto", una cadena por sección, nunca varias unidas en una):
 ${seccionesLote}
-El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, nombra al menos una y la pieza las abarca. La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}`
+El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, con una pieza concreta y NUEVA: "Sección «<sección>» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>"; si la clase avanza varias secciones, el "aporteProducto" nombra su sección PRINCIPAL (la pieza es de esa sección) y las demás de su lista se tocan en las actividades. Si la clase avanza TODAS las secciones (sin principal), el "aporteProducto" nombra el producto entero: "«${c.producto}» (${c.entrega.estado.toLowerCase()}): <la pieza que deja ESTA clase>". La pieza se nombra por la sección, nunca por el contenido (NO "Role card set de seventh grade"). Si la sección ya tuvo piezas en fases anteriores, esta clase la lleva al estado «${c.entrega.estado}» con otra pieza (no repitas ninguna de las ya entregadas).${piezasPrevias ? `\nPIEZAS YA ENTREGADAS EN LA UNIDAD (prohibido repetirlas): ${piezasPrevias}` : ''}${hiloTx ? `\n${hiloTx}` : ''}`
     : `Cada "aporteProducto" es una pieza concreta de «${c.producto}» que avanza su estado «${c.entrega.estado}».`;
   const entregaTx = ultima
-    ? `La clase ${endDia} es la ÚLTIMA de la fase: incluye "entregaFase" con lo que el grupo entrega al cerrar la fase (${c.entrega.texto}), y su Cierre lo deja como evidencia de producto.`
+    ? `La clase ${endDia} es la ÚLTIMA de la fase: incluye "entregaFase" con lo que el grupo entrega al cerrar la fase (${String(c.entrega.texto).replace(/\s*\(avance \d+ de \d+\)/gi, '')}), y su Cierre lo deja como evidencia de producto.`
     : 'Solo la última clase de la fase incluye "entregaFase"; en estas clases va vacío ("").';
   const naturaleza = spec.esIdioma ? null : resolverNaturalezaArea(spec.area, spec.asignatura);
   // Regla 4.4: verbos del nivel que pide el papel de la fase (y el siguiente),
@@ -1625,6 +1727,11 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
   const tecnicasEjem = spec.esIdioma
     ? 'Listen and Solve / Information Gap / Role Play / Interview / Gallery Walk / Describe and Draw / Speaking Circle'
     : naturaleza.tecnicas.join(' / ');
+  // R12 rechaza repetir técnica dentro del mismo bloque: se nombran aquí las
+  // ya usadas en él para que el modelo no las repita (Etapa D: 28 rechazos pagados).
+  const tecnicasBloque = [...new Set((memoria || [])
+    .filter((m) => m.semana === semanaNum && m.actividadCLT)
+    .map((m) => m.actividadCLT))];
   const correccion = spec.correccionPrevia
     ? `\nUN INTENTO ANTERIOR DE ESTA FASE FUE RECHAZADO POR EL VALIDADOR: «${String(spec.correccionPrevia).slice(0, 400)}». Corrige exactamente eso.\n`
     : '';
@@ -1636,8 +1743,8 @@ ESTRATEGIA: ${c.estrategia}. PRODUCTO CENTRAL: «${c.producto}» (nombre fijo; n
 ${spec.contextoComunitario ? `CONTEXTO COMUNITARIO REAL (palabras del docente; no inventes otros datos locales): ${spec.contextoComunitario}\n` : ''}
 CONTRATO DE LA FASE ${c.numero} DE ${c.total}: «${c.nombre}» (fase literal de la Guía: ${c.fasesGuia.join(' + ')}). Sesiones de la fase: ${c.sesiones}; aquí redactas ${rango}.
 PROPÓSITO: ${c.proposito}
-ENTREGA DE LA FASE: ${c.entrega.texto}.
-${seccionesTx}
+ENTREGA DE LA FASE: ${String(c.entrega.texto).replace(/\s*\(avance \d+ de \d+\)/gi, '')}.
+${c.audienciaReal ? `APLICACIÓN ANTE LA AUDIENCIA REAL: en esta fase el grupo presenta o entrega lo que avanza a su audiencia real (${c.audienciaReal}), aunque sea de forma simbólica (un invitado de la comunidad en el aula, la entrega de la pieza o la retroalimentación de un visitante). Al menos una actividad del Desarrollo o del Cierre lo hace y deja evidencia, nombrando a quién: "Presentan (en equipos) la pieza a un dueño invitado…". Un juego de roles o una simulación NO cuenta; el validador rechaza la fase si falta.\n` : ''}${c.seccionesQueArrancan?.length ? `PRIMER BORRADOR DE ${c.seccionesQueArrancan.map((s) => `«${s}»`).join(', ')}: esta fase lo deja. Al menos una actividad del Desarrollo o del Cierre lo trabaja y nombra la sección: "Seleccionan (en equipos) una primera versión para «${c.seccionesQueArrancan[0]}»…"; el validador rechaza la fase si falta.\n` : ''}${c.audienciaRegistro ? `REGISTRO DE LA COMUNIDAD: una evidencia de producto de esta fase es el registro de comentarios de su audiencia real (${c.audienciaRegistro}).\n` : ''}${seccionesTx}
 INDICADORES DE ESTA FASE (copia de 1 a 3 CÓDIGOS EXACTOS en "indicadoresTrabajados"; las actividades y evidencias deben permitir comprobarlos):
 ${indText}
 ${semillaTx}
@@ -1648,12 +1755,12 @@ REGLAS:
 1. Solo JSON, sin texto ni markdown.
 2. Tiempos: Inicio=${tInicio} min, Desarrollo=${tDesarrollo} min, Cierre=${tCierre} min.
 3. REDACCIÓN DEL DESARROLLO Y DEL CIERRE (regla 4.4 de César; el validador rechaza la fase si no se cumplen a, b y el verbo del Cierre):
-   a) Empieza con UN verbo en 3ª persona plural del presente tomado SOLO de estas listas — de esta fase: ${verbosFase}${verbosIdioma ? `; de idioma: ${verbosIdioma}` : ''}; de gestión de la clase: ${VERBOS_GESTION.join(', ')}. Otro verbo (Participan, Realizan, Colaboran, Discuten, Guardan, Reciben…) = rechazo.
-   b) Justo después del verbo, entre paréntesis, la organización y la técnica si la hay: "Representan (en parejas, juego de roles) …", "Elaboran (en equipos) …". Si es individual, sin paréntesis. La organización ("en parejas", "en equipos", "en grupos", "en plenaria") NUNCA va en otra parte de la frase.
-   c) Actividad sintetizada de 25-35 palabras: acción con sus recursos, evidencia, condiciones (oral/escrita, entrega) y dónde se recoge.
+   a) Empieza con UN verbo en 3ª persona plural del presente tomado SOLO de estas listas — de esta fase: ${verbosFase}${verbosIdioma ? `; de idioma: ${verbosIdioma}` : ''}; de gestión de la clase: ${VERBOS_GESTION.join(', ')}. Otro verbo (Participan, Realizan, Colaboran, Discuten, Reciben…) = rechazo.
+   b) Justo después del verbo, entre paréntesis, la organización y la técnica si la hay: "Representan (en parejas, juego de roles) …", "Elaboran (en equipos) …". Si es individual, sin paréntesis. La organización ("en parejas", "en equipos", "en grupos", "en plenaria") va SIEMPRE primero en ese paréntesis; si después el trabajo cambia de agrupación, puede nombrarse en la frase: "Comparten (en parejas) sus fichas y luego eligen en plenaria la mejor…".
+   c) Cada actividad del Desarrollo y del Cierre es un OBJETO de tres partes que el sistema une en una frase de 25-35 palabras: "accion" = verbo + paréntesis + lo que hacen con sus recursos (12-20 palabras; a, b, d y e se cumplen aquí); "producto" = lo que queda o se observa al terminar, con su condición oral o escrita (6-12 palabras); "destino" = dónde se recoge o se guarda, empezando con un verbo ("se guarda en…", "lo pegan en…", "la entregan al…"; 3-8 palabras). Ninguna de las tres va vacía.
    d) Si trabaja lengua concreta, menciona solo 1 o 2 expresiones${idioma ? ` en ${idioma}` : ''} en cursiva y con puntos suspensivos: "…piden y ofrecen ayuda para ubicarse (_Excuse me, could you help me?_, _It's next to the gym_…) y graban el diálogo."
    e) PROHIBIDO empezar con "Los estudiantes", "El docente", "Se" o con etiquetas ("Reflexión:"). No repitas el tema ni el nombre del producto entre actividades: usa elementos concretos (el plano de la escuela, el estudiante nuevo).
-   Ejemplo: "Representan (en parejas, juego de roles) la llegada de un estudiante nuevo: piden y ofrecen ayuda para ubicarse en la escuela (_Excuse me, could you help me?_…) y graban el diálogo en el celular del equipo."
+   Ejemplo: {"accion":"Representan (en parejas, juego de roles) la llegada de un estudiante nuevo pidiendo y ofreciendo ayuda para ubicarse en la escuela (_Excuse me, could you help me?_…)","producto":"un diálogo oral grabado con al menos tres indicaciones","destino":"lo guardan en el celular del equipo"} → el sistema escribe «Representan (…) …: un diálogo oral grabado…; lo guardan en el celular del equipo.»
    El Inicio sigue su formato canónico (punto 5), con sus excepciones "Retroalimentación de…" y "Recuperación de saberes previos…".
 4. ${desarrolloTx} Solo UNA tarea de alta carga por clase.
    Cierre: 3 actividades con la misma redacción (punto 3), por su función y sin fórmulas fijas: compartir lo producido → retroalimentación, coevaluación o autoevaluación sobre UN aspecto concreto → mejora de la pieza y dónde se archiva en su sección. Al menos una empieza con un verbo Autónomo o Estratégico (${verbosCierre}…).
@@ -1661,12 +1768,12 @@ REGLAS:
 6. EVIDENCIAS por momento {"conocimientos":[],"desempeno":[],"producto":[]}: Inicio 1 de conocimientos; Desarrollo de 1 a 3 según lo que hacen; Cierre 1 o 2 ligadas a la pieza. Nombran el contenido o la pieza; nada de "participación activa". Además "metacognicion" (2 preguntas${spec.esIdioma ? ` en ${idioma} sencillo` : ''}) y "recursos" (2-4 concretos, en español).
 7. "titulo" llamativo; "intencionPedagogica" con ESTE formato exacto (el validador la rechaza si falta "Desde el inicio hasta el final de la clase" o la palabra "mediante"): "Desde el inicio hasta el final de la clase, los estudiantes [qué harán con el contenido del día] mediante [las actividades concretas de esta clase], utilizando [la estructura o el vocabulario], [evidencia observable]." Nada de "diversas actividades".
 8. Encabezado: "tituloSemana" = «${c.nombre}»; "focoLinguistico" (ver arriba); "estrategiasDia": 2-3 estrategias separadas por " • " (${ESTRATEGIAS_OFICIALES_TEXTO}).
-9. "actividadCLT": {"nombre": técnica concreta (${tecnicasEjem}), "mecanica": 1-2 líneas}; una actividad del Desarrollo la nombra dentro de su paréntesis ("Representan (en parejas, Role Play) …"). No repitas técnicas ya usadas.${c.esApertura ? ' En esta fase de apertura la técnica es de presentación, diagnóstico o acuerdo (no de práctica de estructuras).' : ''}
+9. "actividadCLT": {"nombre": técnica concreta (${tecnicasEjem}), "mecanica": 1-2 líneas}; una actividad del Desarrollo la nombra dentro de su paréntesis ("<Verbo> (en parejas, <nombre de la técnica>) …"). No repitas técnicas ya usadas; cada clase de este lote usa una técnica distinta.${tecnicasBloque.length ? ` PROHIBIDAS en este bloque (ya usadas en él): ${tecnicasBloque.join(' · ')}.` : ''}${c.esApertura ? ' En esta fase de apertura la técnica es de presentación, diagnóstico o acuerdo (no de práctica de estructuras).' : ''}
 10. ${entregaTx}
 11. ${spec.esIdioma ? `"textoModelo": {"tipo":"dialogo|texto","titulo":"...","lineas":["..."]} breve en ${idioma}, para la sección que se avanza.` : 'Sin "textoModelo".'}
 12. El lote incluye "adaptacionesSemana" {"acceso","metodologicas","evaluacion"} y "observacionesSemana", ligadas al trabajo de ESTA fase (nunca genéricas).
 
-{"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":["Verbo (organización, técnica) ...","...","...","..."],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":["...","...","..."],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
+{"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":[{"accion":"Verbo (organización, técnica) ...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":[{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }
 
 // ─── Generación de un lote con rotación de proveedores ───────────────────────
@@ -1707,6 +1814,9 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // aptos, un tope de 4+ dejaría el límite sin efecto.
   const MAX_MODELOS_CON_SERVICIO = 2;
   const fallosPorProveedor = new Map();
+  const sinSaldo = new Set();      // proveedores sin créditos en esta escalera
+  let ultimoRechazo = null;        // último fallo de un proveedor que SÍ respondió
+  let falloPasajero = null;        // vacío/timeout/503 de un proveedor con saldo
   const proveedoresProbados = new Set(); // con al menos un intento REAL (no sin-servicio)
   const anotarFallo = (p) => fallosPorProveedor.set(p, (fallosPorProveedor.get(p) || 0) + 1);
   const descartarProveedor = (p) => fallosPorProveedor.set(p, MAX_INTENTOS_POR_PROVEEDOR);
@@ -1750,6 +1860,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         [providerIntento],
         proveedoresDescartados,
         true,
+        spec.cupoGeneracion,
       );
       lastProvider = provider;
       lastModel    = model;
@@ -1769,6 +1880,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         ms: Date.now() - t0,
         exact: Boolean(usage),
         stopReason: stopReason || null,
+        cupo: spec.cupoGeneracion,
       });
 
       const result = extraerJSON(raw, stopReason);
@@ -1778,6 +1890,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
           stopReason: stopReason || null,
           modoFallo: result.modoFallo || null,
           tokensSalidaReales: usage?.out || null,
+          cupo: spec.cupoGeneracion,
         });
         console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${result.motivo}`,
           { inicio: raw.slice(0, 300), fin: raw.slice(-300), stopReason, modoFallo: result.modoFallo });
@@ -1813,7 +1926,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         && (result.data?.adaptacionesSemana || result.data?.observacionesSemana);
       if (soloMetaSemanal) {
         const motivo = 'R1: falta clases[]; el modelo devolvió solo metadata semanal';
-        await logParseError({ contexto: contextoLog, attempt, motivo, raw, provider, model });
+        await logParseError({ contexto: contextoLog, attempt, motivo, raw, provider, model, cupo: spec.cupoGeneracion });
         console.error(`[FaseA] ${contextoLog} intento ${attempt}: ${motivo}`,
           { inicio: raw.slice(0, 300), fin: raw.slice(-300) });
         lastError = new Error(motivo);
@@ -1868,6 +1981,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       return result.data;
 
     } catch (err) {
+      if (err?.cupoInvalido) throw err;
       const msg = String(err?.message || err || '');
       // Medición directa del muro (punto 2): tiempo real hasta el fallo y si el
       // fallo fue por un abort de signal (timeout de Edge 24s o del fetch 90s).
@@ -1905,25 +2019,26 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
             contexto: contextoLog, attempt, motivo: msg,
             raw: lastRaw, provider: lastProvider, model: lastModel,
             modoFallo: 'ABORTO_POR_TIEMPO', msHastaFallo, signalAbortado,
+            cupo: spec.cupoGeneracion,
           });
         }
         throw lastError;
       }
 
-      // Saldo/billing agotado es definitivo para esta generación. No se rota
-      // por todos los modelos ni se vuelve a intentar en las fases siguientes.
+      // Saldo/billing agotado: ese proveedor queda fuera (también en las fases
+      // siguientes, por el enfriamiento) y la escalera sigue con los demás.
+      // Solo es definitivo si ningún proveedor tenía saldo (errorFinalEscalera).
       // Un 429/rate-limit temporal sigue usando la escalera normal.
       if (esErrorCreditosAgotados(err)) {
         cooldownProviderForBudget(failedProvider, msg);
         await logParseError({
           contexto: contextoLog, attempt, motivo: msg,
           raw: lastRaw, provider: lastProvider, model: lastModel,
+          cupo: spec.cupoGeneracion,
         });
-        const agotado = new Error(`Créditos de IA agotados: ${msg}`, { cause: err });
-        agotado.code = "AI_CREDITS_EXHAUSTED";
-        agotado.creditosAgotados = true;
-        agotado.provider = failedProvider;
-        throw agotado;
+        sinSaldo.add(failedProvider);
+        descartarProveedor(failedProvider);
+        continue;
       }
 
       // Estructuralmente incompleto (R1: sin clases[] o menos de las esperadas):
@@ -1936,7 +2051,12 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       const sinServicio = presupuestoAgotado
         || /No hay ningún servicio de Inteligencia Artificial|Todos los proveedores|Cola vacía|503|tiempo de espera|desactivad|apagado/i.test(msg)
         || err?.timeout === true;
-      if (!sinServicio) proveedoresProbados.add(failedProvider);
+      if (!sinServicio) {
+        proveedoresProbados.add(failedProvider);
+        ultimoRechazo = { err: lastError, provider: failedProvider, model: lastModel };
+      } else if (!presupuestoAgotado && !esErrorCreditosAgotados(err)) {
+        falloPasajero = { err: lastError, provider: failedProvider, model: lastModel };
+      }
       if (estructuralIncompleto || sinServicio) descartarProveedor(failedProvider);
       else anotarFallo(failedProvider);
       // Etapa 5: el siguiente intento recibe el motivo del rechazo del validador.
@@ -1948,6 +2068,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         contexto: contextoLog, attempt, motivo: err.message,
         raw: lastRaw, provider: lastProvider, model: lastModel,
         modoFallo: modoFalloCatch, msHastaFallo, signalAbortado,
+        cupo: spec.cupoGeneracion,
       });
     }
   }
@@ -1959,11 +2080,20 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   const consejo = sinProveedorComposicion
     ? ' No hay proveedor apto para composición de planificaciones; activa o corrige OpenAI, Anthropic, Gemini o Abacus en Administración → Motor de IA.'
     : '';
-  throw new Error(
-    `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) — ` +
-    `revisa la configuración de proveedores de IA en Administración.${consejo} ` +
-    `Detalle: ${attemptsUsed} intentos, último ${lastProvider}/${lastModel} — ${lastError?.message}`,
-  );
+  if (!ultimoRechazo && !falloPasajero && !sinSaldo.size) {
+    throw new Error(
+      `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) — ` +
+      `revisa la configuración de proveedores de IA en Administración.${consejo} ` +
+      `Detalle: ${attemptsUsed} intentos, último ${lastProvider}/${lastModel} — ${lastError?.message}`,
+    );
+  }
+  throw errorFinalEscalera({
+    ultimoRechazo,
+    falloPasajero,
+    lastError: Object.assign(lastError || new Error("sin detalle"), { provider: lastProvider, model: lastModel }),
+    sinSaldo,
+    prefijo: `Ningún modelo disponible pudo componer la semana ${semanaNum} (${contextoLog}) en ${attemptsUsed} intentos. `,
+  });
 }
 
 const esFalloRecuperablePorTamano = (err) => {
@@ -2455,6 +2585,7 @@ export const generateWeekPlan = async (
       raw:      '',
       provider: 'combinado',
       model:    'combinado',
+      cupo: spec.cupoGeneracion,
     });
     // Etapa 5: los lotes de esta fase pasaron uno a uno pero no la fase entera;
     // se borran de la caché para que el reintento por fase los rehaga.

@@ -73,7 +73,7 @@
         },
         {
           "id": "ING-5-I06",
-          "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
+          "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico-verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
           "competenciaId": "ING-5-C02"
         }
       ],
@@ -216,7 +216,7 @@
         },
         {
           "id": "ING-5-I21",
-          "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias. 167",
+          "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias.",
           "competenciaId": "ING-5-C07"
         }
       ],
@@ -255,7 +255,7 @@
     },
     {
       "id": "ING-5-I06",
-      "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
+      "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico-verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
       "competenciaId": "ING-5-C02"
     },
     {
@@ -330,7 +330,7 @@
     },
     {
       "id": "ING-5-I21",
-      "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias. 167",
+      "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias.",
       "competenciaId": "ING-5-C07"
     }
   ],
@@ -362,7 +362,7 @@
     },
     {
       "id": "ING-5-I06",
-      "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
+      "descripcion": "Interactúa de forma sostenida en situaciones habituales de comunicación en inglés, utilizando elementos lógico-verbales para estructurar y presentar su mensaje de manera creativa y crítica, al comparar y contrastar ideas, experiencias y puntos de vista sobre temas cotidianos y abstractos de manera clara y coherente.",
       "competenciaId": "ING-5-C02"
     },
     {
@@ -437,7 +437,7 @@
     },
     {
       "id": "ING-5-I21",
-      "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias. 167",
+      "descripcion": "Muestra una actitud y conducta cortés y respetuosa al interactuar en inglés sencillo pero sostenido, refiriéndose a detalles, costumbres y experiencias pasadas, consejos y sugerencias.",
       "competenciaId": "ING-5-C07"
     }
   ],

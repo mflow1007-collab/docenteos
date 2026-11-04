@@ -48,8 +48,8 @@ import {
   obtenerPlanificacionesDetalladas,
   guardarPreferenciaUsuario,
   obtenerPreferenciaUsuario,
-  verificarTemaAntesDeGenerar,
   registrarUsoTemaPlanificacion,
+  registrarTemaEnHistorial,
   registrarUsoPDFTema,
   suscribirseEstadoTemasPlanificacion,
   subirImagenPlanificacion,
@@ -142,7 +142,7 @@ export default function PlanificacionPage({
     unidadDatos, setUnidadDatos,
     unidad, setUnidad,
     cargandoUnidad, guardandoUnidad, mensajeUnidad, setMensajeUnidad,
-    manejarGenerarUnidad, manejarGenerarUnidadForzado,
+    manejarGenerarUnidad, manejarGenerarUnidadForzado, manejarGenerarUnidadConfirmandoTema,
     manejarGuardarUnidad, manejarDescargarUnidad,
     manejarVerUnidad, manejarVerGuia, manejarRegenerarGuia, manejarNuevaUnidad, manejarAplicarAcciones,
   } = unidadHook;
@@ -894,47 +894,9 @@ export default function PlanificacionPage({
     });
 
     try {
-      const verificacionTema = await verificarTemaAntesDeGenerar({ tituloTema: tema, contexto: "generacion" });
-      if (!verificacionTema?.permitido) {
-        if (verificacionTema?.motivo === "tercer_tema_sin_credito") {
-          setDialogoTema({
-            abierto: true,
-            payload: {
-              ...verificacionTema,
-              temaIngresado: tema,
-            },
-          });
-          setCargando(false);
-          return;
-        }
-        throw new Error(verificacionTema?.mensaje || "No se pudo validar el tema actual");
-      }
-
-      if (verificacionTema?.requiereCredito) {
-        setDialogoTema({
-          abierto: true,
-          payload: {
-            ...verificacionTema,
-            temaIngresado: tema,
-            mensaje:
-              "Ya tienes dos temas activos. Puedes seguir editándolos sin límites. Para iniciar un nuevo tema debes usar un nuevo crédito de planificación o una suscripción compatible.",
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-              temaTercero: estadoTemas.temaTercero,
-              temaCuarto: estadoTemas.temaCuarto,
-            },
-          },
-        });
-        setCargando(false);
-        return;
-      }
-
-      await registrarUsoTemaPlanificacion({
-        tituloTema: tema,
-        forzarNuevoTema: false,
-        contexto: "generacion",
-      });
+      // Estos tipos se arman con plantillas (sin IA): sin tope de temas.
+      // El cupo por grado solo aplica a la unidad y la secuencia (sí usan IA).
+      if (tema) await registrarTemaEnHistorial(tema);
 
       const gradoData = grados.find((item) => item.grado === grado);
       const curso = [grado, seccion].filter(Boolean).join(" ").trim();
@@ -1033,53 +995,9 @@ export default function PlanificacionPage({
 
     const temaParaControl = planificacion?.metadatos?.tema || tema;
 
-    if (temaParaControl) {
-      const verificacion = await verificarTemaAntesDeGenerar({ tituloTema: temaParaControl, contexto: "edicion" });
-      if (!verificacion?.permitido) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "guardar",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaParaControl,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-              temaTercero: estadoTemas.temaTercero,
-              temaCuarto: estadoTemas.temaCuarto,
-            },
-          },
-        });
-        return;
-      }
-      if (verificacion?.requiereCredito) {
-        setDialogoTema({
-          abierto: true,
-          contexto: "guardar",
-          payload: {
-            ...verificacion,
-            temaIngresado: temaParaControl,
-            temas: {
-              temaActivo: estadoTemas.temaActivo,
-              temaSecundario: estadoTemas.temaSecundario,
-              temaTercero: estadoTemas.temaTercero,
-              temaCuarto: estadoTemas.temaCuarto,
-            },
-          },
-        });
-        return;
-      }
-    }
-
     setGuardando(true);
     try {
-      if (temaParaControl) {
-        await registrarUsoTemaPlanificacion({
-          tituloTema: temaParaControl,
-          forzarNuevoTema: false,
-          contexto: "edicion",
-        });
-      }
+      if (temaParaControl) await registrarTemaEnHistorial(temaParaControl);
       // Hilo pedagógico: guarda el plan (siempre) + capa curricular + aspectos
       // del registro + instrumentos planeados (IDs deterministas — reemplaza
       // al bridge legacy que duplicaba instrumentos en cada guardado).
@@ -1799,9 +1717,19 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
       ].filter(Boolean)
     : [];
   const esBloqueoTemaRepetido = dialogoTema?.payload?.motivo === "tema_repetido_reusar_banco";
+  // Etapa E (unidad): aviso de tema ya trabajado y cupo del grado ocupado
+  const esAvisoTemaRepetido = dialogoTema?.payload?.motivo === "tema_repetido_aviso";
+  const esCupoGradoOcupado = dialogoTema?.payload?.motivo === "cupo_grado_ocupado";
+  const fechaDesbloqueoCupo = dialogoTema?.payload?.desbloqueoEn
+    ? new Date(dialogoTema.payload.desbloqueoEn).toLocaleDateString("es-DO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : "";
   const creditosDialogo = Number(dialogoTema?.payload?.creditosDisponibles || 0);
   const puedeUsarCreditoDialogo = dialogoTema?.payload?.puedeCrearNuevoTema !== false && creditosDialogo > 0;
-  const tituloDialogoTema = esBloqueoTemaRepetido
+  const tituloDialogoTema = esAvisoTemaRepetido
+    ? "Tema ya trabajado"
+    : esCupoGradoOcupado
+      ? "Este grado ya tiene un plan activo"
+      : esBloqueoTemaRepetido
     ? "Tema ya generado"
     : temasDialogoActivos.length >= 4
       ? "Ya tienes cuatro temas activos"
@@ -1821,6 +1749,18 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
             <p>
               {dialogoTema?.payload?.mensaje || "Puedes seguir editándolos sin límites. Para iniciar un nuevo tema debes usar un nuevo crédito de planificación o disponer de una suscripción que lo permita."}
             </p>
+            {esCupoGradoOcupado && (
+              <div className="tema-modal-temas">
+                {dialogoTema?.payload?.temaCupo && (
+                  <span><strong>Plan activo:</strong> {textoUI(dialogoTema.payload.temaCupo)}</span>
+                )}
+                <span><strong>Se libera:</strong> {fechaDesbloqueoCupo || "No disponible"}</span>
+                <span className="tema-modal-creditos">
+                  Créditos disponibles: <strong>{creditosDialogo}</strong>
+                </span>
+              </div>
+            )}
+            {!esAvisoTemaRepetido && !esCupoGradoOcupado && (
             <div className="tema-modal-temas">
               {temasDialogoActivos.length ? temasDialogoActivos.map((temaItem, index) => (
                   <span key={`${textoUI(temaItem?.titulo, "tema")}-${index}`}>
@@ -1836,14 +1776,29 @@ Las actividades están planificadas para ${minClase} min. Adapta para clases de 
                 Créditos disponibles: <strong>{Number(dialogoTema?.payload?.creditosDisponibles || 0)}</strong>
               </span>
             </div>
+            )}
             <div className="tema-modal-acciones">
-              <button type="button" className="tema-modal-btn-seguir" onClick={manejarDialogoTemaSeguirEditando}>
-                Seguir editando
-              </button>
+              {!esAvisoTemaRepetido && !esCupoGradoOcupado && (
+                <button type="button" className="tema-modal-btn-seguir" onClick={manejarDialogoTemaSeguirEditando}>
+                  Seguir editando
+                </button>
+              )}
               <button type="button" className="tema-modal-btn-cancelar" onClick={manejarDialogoTemaCancelar}>
                 Cancelar
               </button>
-              {!esBloqueoTemaRepetido && (
+              {esAvisoTemaRepetido && (
+                <button
+                  type="button"
+                  className="tema-modal-btn-credito"
+                  onClick={() => {
+                    setDialogoTema({ abierto: false, payload: null, contexto: "planificacion" });
+                    manejarGenerarUnidadConfirmandoTema();
+                  }}
+                >
+                  Generar uno nuevo
+                </button>
+              )}
+              {!esBloqueoTemaRepetido && !esAvisoTemaRepetido && (
                 <button
                   type="button"
                   className="tema-modal-btn-credito"

@@ -15,11 +15,13 @@ import {
 } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { usarSemilla, aceptarRealineacion } from "../src/services/situacionAprendizajeService.js";
 import {
-  construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta,
-  recortarIndicador, recogerAmpliacion, repartirSeccionesClases,
-  motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro,
+  construirContratoFase, indicadoresPermitidosFase, validarLoteContrato, validarFaseCompleta, seccionesDeClase,
+  estructuraGramatical, estructurasDeMalla, ampliacionUsadaEnClases,
+  recortarIndicador, recogerAmpliacion, repartirSeccionesClases, seccionesPrincipalesUnidad, contienePalabras,
+  motivoRedaccionActividad, motivosRedaccionClase, validarUnidadPlanMaestro, actividadAnteAudiencia,
 } from "../src/services/redaccionFaseService.js";
 import { SITUACIONES_SEMILLA_INGLES_2DO as SEMILLAS } from "../src/data/situacionesSemillaIngles2do.js";
+import { TIPOS_TRABAJO } from "../src/data/rolesFasesEstrategias.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS as IND, recomponerIndicador } from "../src/data/indicadoresIngles2doEstructurados.js";
 
 let pasos = 0, fallos = 0;
@@ -65,6 +67,11 @@ check("vista previa obligatoria: sin estrategia, sin competencias o con situaci�
   lanza(() => prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: { ...pm, situacion: { ...pm.situacion, problema: "" } } }, mallaPayload: malla, horario }), /situación.*problema/, "situación incompleta");
   const estado = estadoPlanMaestroParaGenerar({ datos: { ...datos, planMaestro: PLAN_MAESTRO_INICIAL }, mallaPayload: malla, horario });
   igual([estado.aplica, estado.listo], [true, false], "estado para el botón");
+  // El aviso del formulario dice solo lo que falta, sin repetir «Vista previa»
+  igual(estado.falta, "elige la estrategia de la unidad.", "lo que falta");
+  assert(!/Vista previa: .*Vista previa: /.test(estado.motivo), "el error no repite el prefijo");
+  const sinProblema = estadoPlanMaestroParaGenerar({ datos: { ...datos, planMaestro: { ...pm, situacion: { ...pm.situacion, problema: "" } } }, mallaPayload: malla, horario });
+  assert(/^la situación de aprendizaje no está lista: .*problema/.test(sinProblema.falta), "situación incompleta: lo que falta");
 });
 
 check("asignatura sin indicadores estructurados → no aplica (genera como antes)", () => {
@@ -114,7 +121,7 @@ check("sin semilla no hay ampliación: fase con contenido sin contenidos → err
 const semilla1 = cc.semilla.vocabulario[0] || cc.semilla.gramatica[0];
 const claseOk = (extra = {}) => ({
   focoLinguistico: `${semilla1} + It's next to the library`,
-  aporteProducto: "Sección «Important Places»: mapa etiquetado de la escuela",
+  aporteProducto: `Sección «${cc.seccionPrincipalPorClase[0] || cc.seccionesPorClase[0][0]}»: mapa etiquetado de la escuela`,
   seccionesProducto: cc.seccionesPorClase[0],
   semillaUsada: [semilla1],
   ampliacion: [{ texto: "It's next to the library", tipo: "expresion", seccion: "Important Places" }],
@@ -124,7 +131,7 @@ const claseOk = (extra = {}) => ({
 // Clase k de la fase (0 = primera) con sus secciones asignadas.
 const claseDe = (k, extra = {}) => claseOk({
   seccionesProducto: cc.seccionesPorClase[k],
-  aporteProducto: `Sección «${cc.seccionesPorClase[k][0]}»: pieza de la clase ${k + 1}`,
+  aporteProducto: `Sección «${cc.seccionPrincipalPorClase[k] || cc.seccionesPorClase[k][0]}»: pieza de la clase ${k + 1}`,
   ...extra,
 });
 
@@ -137,6 +144,106 @@ check("secciones por clase: las decide el plan, en orden y sin dejar ninguna", (
   contratos.forEach((c) => igual([...new Set(c.seccionesPorClase.flat())], c.entrega.secciones, `fase ${c.numero} cubre su entrega`));
 });
 
+check("sección principal por clase: con una clase por fase, ninguna sección queda sin trabajar (prueba «Alimentación», 2026-11-03)", () => {
+  // 9 fases de 1 clase y 5 secciones: antes la IA elegía siempre otra y «Healthy Choices» nunca tuvo pieza.
+  const S = ["Our Local Food", "Interviews with Owners", "Bilingual Menus", "Healthy Choices", "Ordering Food"];
+  const fase = (estado, secciones) => ({ sesiones: 1, entrega: { estado, secciones } });
+  const plan = { secciones: S, fases: [
+    fase("Acuerdo y plan", S), fase("Insumos recopilados", S), fase("Insumos recopilados", S),
+    fase("Borrador", S.slice(0, 2)), fase("Borrador", S.slice(2)),
+    fase("Versión final", S.slice(0, 1)), fase("Versión final", S.slice(1, 3)), fase("Versión final", S.slice(3)),
+    fase("Versión revisada", S),
+  ] };
+  const principales = seccionesPrincipalesUnidad(plan).flat();
+  igual(principales.length, 9, "una posición por clase");
+  S.forEach((sec) => { if (!principales.includes(sec)) throw new Error(`«${sec}» nunca es principal: ${principales.join(" · ")}`); });
+  // Solo se fija donde la clase avanza una parte; las que avanzan todas quedan libres
+  igual([principales[0], principales[1], principales[2], principales[8]], ["", "", "", ""], "clases con todas las secciones sin principal");
+  // Emparejamiento: cada sección en una clase distinta (antes el orden dejaba fuera una)
+  igual(principales.slice(3, 8), ["Interviews with Owners", "Healthy Choices", "Our Local Food", "Bilingual Menus", "Ordering Food"], "reparto con cobertura");
+  seccionesPrincipalesUnidad(plan).forEach((p, i) => p.forEach((sec) => {
+    if (sec && !plan.fases[i].entrega.secciones.includes(sec)) throw new Error(`fase ${i + 1}: «${sec}» no está asignada a la fase`);
+  }));
+  igual(seccionesPrincipalesUnidad({ secciones: [], fases: [fase("Borrador", [])] }), [[""]], "sin secciones");
+  // Plan real de producción (2026-11-03): insumos también se reparten. Antes dos
+  // secciones quedaban solo en «insumos»; ahora las 5 tienen borrador o versión final.
+  const real = { secciones: S, fases: [
+    fase("Acuerdo y plan", S), fase("Insumos recopilados", S.slice(0, 2)), fase("Insumos recopilados", S.slice(2)),
+    fase("Borrador", S.slice(0, 2)), fase("Borrador", S.slice(2)),
+    fase("Versión final", S.slice(0, 1)), fase("Versión final", S.slice(1, 3)), fase("Versión final", S.slice(3)),
+    fase("Versión revisada", S),
+  ] };
+  const pr = seccionesPrincipalesUnidad(real).flat();
+  const deContenido = new Set(pr.slice(3, 8));
+  S.forEach((sec) => { if (!deContenido.has(sec)) throw new Error(`«${sec}» sin borrador ni versión final: ${pr.join(" · ")}`); });
+  igual(pr.slice(3, 8), ["Interviews with Owners", "Healthy Choices", "Our Local Food", "Bilingual Menus", "Ordering Food"], "borrador y final primero");
+  igual([pr[0], pr[8]], ["", ""], "las clases con todas las secciones siguen libres");
+  // El contrato la lleva y el validador exige que el aporte la nombre
+  igual(cc.seccionPrincipalPorClase.length, cc.sesiones, "contrato con principal por clase");
+  const otra = cc.seccionPrincipalPorClase[0] && cc.seccionesPorClase[0].find((x) => x !== cc.seccionPrincipalPorClase[0]);
+  if (otra) lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: `Sección «${otra}»: pieza` })] }, cc, 1, 1), /sección principal/, "aporte con otra sección");
+});
+
+check("tema repetido: solo palabras completas («retroalimentación» no es «alimentación», 2026-11-03)", () => {
+  igual(contienePalabras("retroalimentacion de la clase anterior", "alimentacion"), false, "retroalimentación");
+  igual(contienePalabras("describen la alimentacion del barrio", "alimentacion"), true, "palabra completa");
+  igual(contienePalabras("hablan sobre alimentacion.", "sobre alimentacion"), true, "frase con puntuación");
+  igual(contienePalabras("vida diaria", "vida diaria"), true, "tema de dos palabras");
+  igual(contienePalabras("texto", ""), false, "tema vacío");
+  const fase = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  if (!/es un OBJETO de tres partes que el sistema une en una frase de 25-35 palabras/.test(fase)) throw new Error("la IA no recibe el formato por campos");
+  if (!/"actividades":\[\{"accion":"Verbo \(organización, técnica\) \.\.\.","producto":"\.\.\.","destino":"\.\.\."\}/.test(fase)) throw new Error("el esquema JSON no pide objetos");
+});
+
+// Etapa S2 (docs/DISENO_SECUENCIA_POR_FASES.md): tipo de trabajo y «parte de» por sección.
+// TIPOS_TRABAJO va en el orden de las fases de Inserción: una sección solo parte
+// de otra de fase igual o anterior, y así no hay ciclos.
+check("Etapa S2: cada sección de las semillas trae su tipo de trabajo y de qué parte", () => {
+  for (const s of SEMILLAS) {
+    igual(Object.keys(s.tiposTrabajo || {}), s.secciones, `tipos de ${s.id}`);
+    igual(Object.keys(s.partenDe || {}), s.secciones, `«parte de» de ${s.id}`);
+    for (const sec of s.secciones) {
+      const t = s.tiposTrabajo[sec];
+      assert(TIPOS_TRABAJO.includes(t), `${s.id} · ${sec}: tipo desconocido ${t}`);
+      s.partenDe[sec].forEach((d) => {
+        assert(d !== sec && s.secciones.includes(d), `${s.id} · ${sec} parte de "${d}", que no es otra sección de la semilla`);
+        assert(TIPOS_TRABAJO.indexOf(s.tiposTrabajo[d]) <= TIPOS_TRABAJO.indexOf(t), `${s.id} · ${sec} (${t}) parte de ${d} (${s.tiposTrabajo[d]}), de una fase posterior`);
+      });
+    }
+  }
+});
+check("Etapa S2: tipos y «parte de» llegan al plan; la sección renombrada los pierde", () => {
+  igual(prep.plan.tiposTrabajoSecciones, escuela.tiposTrabajo, "tipos en el plan");
+  igual(prep.plan.partenDeSecciones, Object.fromEntries(Object.entries(escuela.partenDe).filter(([, de]) => de.length)), "«parte de» en el plan");
+  const otra = { ...pm, secciones: pm.secciones.map((x) => (x === "Welcome" ? "Hello" : x)) };
+  const p2 = prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: otra }, mallaPayload: malla, horario }).plan;
+  assert(!p2.tiposTrabajoSecciones.Hello && !p2.tiposTrabajoSecciones.Welcome, "la renombrada no tiene tipo");
+  igual(p2.partenDeSecciones["Final Recommendation"], ["School Success Tips"], "nadie parte de la renombrada");
+  igual(Object.keys(p2.tiposTrabajoSecciones).length, escuela.secciones.length - 1, "las demás lo conservan");
+});
+check("Etapa 1A: cada sección de las semillas trae qué contiene y llega al contrato", () => {
+  for (const s of SEMILLAS) {
+    igual(Object.keys(s.propositos || {}), s.secciones, `propósitos de ${s.id}`);
+    const textos = Object.values(s.propositos).map((t) => t.trim().toLowerCase());
+    assert(textos.every(Boolean) && new Set(textos).size === textos.length, `propósitos vacíos o repetidos en ${s.id}`);
+    igual(Object.keys(s.piezas || {}), s.secciones, `piezas de ${s.id}`);
+    const piezas = Object.values(s.piezas).map((t) => t.trim().toLowerCase());
+    assert(piezas.every(Boolean) && new Set(piezas).size === piezas.length, `piezas vacías o repetidas en ${s.id}`);
+  }
+  igual(Object.keys(cc.propositosSecciones), escuela.secciones, "el contrato lleva los propósitos de la semilla");
+  igual(cc.piezasSecciones, escuela.piezas, "el contrato lleva las piezas visibles de la semilla");
+  // Sección renombrada por el docente: pierde su propósito; las demás lo conservan.
+  const otra = { ...pm, secciones: pm.secciones.map((x) => (x === "Welcome" ? "Hello" : x)) };
+  const p2 = prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: otra }, mallaPayload: malla, horario });
+  const c2 = construirContratoFase({ plan: p2.plan, indice: idxConContenido, estructura: p2.estructura });
+  assert(!c2.propositosSecciones.Hello && !c2.propositosSecciones.Welcome, "la renombrada no tiene propósito");
+  assert(!c2.piezasSecciones.Hello && !c2.piezasSecciones.Welcome, "la renombrada no tiene pieza");
+  igual(Object.keys(c2.propositosSecciones).length, escuela.secciones.length - 1, "las demás lo conservan");
+  const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/Qué contiene cada sección:/.test(faseTxt) && /SECCIONES DEL PRODUCTO: \$\{c\.secciones\.join\(' · '\)\}\.\$\{propositosTx\}/.test(faseTxt), "la IA no recibe los propósitos junto a las secciones");
+  assert(/pieza visible: \$\{piezas\[s\]\}/.test(faseTxt) && /avanza la pieza visible de su sección principal/.test(faseTxt), "la IA no recibe la pieza visible");
+});
+
 check("validador del contrato: clase que cumple pasa", () => {
   validarLoteContrato({ clases: [claseOk()] }, cc, 1, 1);
 });
@@ -145,7 +252,21 @@ check("validador: la pieza se nombra por la sección, no por el contenido (4.7)"
   lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: [] })] }, cc, 1, 1), /seccionesProducto/, "sin sección");
   lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: ["Role cards"] })] }, cc, 1, 1), /no es una sección/, "sección ajena");
   lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: ["Important Places"] })] }, cc, 1, 1), /que el plan le asigna/, "sección asignada sin avanzar");
-  lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: "Role card set de seventh grade" })] }, cc, 1, 1), /debe nombrar la sección/, "pieza por contenido");
+  lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: "Role card set de seventh grade" })] }, cc, 1, 1), /debe nombrar (la|su) sección/, "pieza por contenido");
+});
+
+check("validador: secciones copiadas unidas con « · » se separan si todas son del producto (Etapa D)", () => {
+  const asignadas = cc.seccionesPorClase[0];
+  const unidas = [...cc.secciones].join(" · ");
+  // Todas las secciones unidas en un solo elemento: pasa (antes, rechazo pagado)
+  validarLoteContrato({ clases: [claseOk({ seccionesProducto: [unidas] })] }, cc, 1, 1);
+  igual(seccionesDeClase([unidas], cc.secciones), cc.secciones, "se separan en las secciones oficiales");
+  igual(seccionesDeClase([unidas.toUpperCase()], cc.secciones), cc.secciones, "y vuelven con su nombre oficial");
+  igual(seccionesDeClase(asignadas, cc.secciones), asignadas, "la lista bien formada no cambia");
+  // Una parte inventada: queda entera y el contrato la rechaza como antes
+  const conAjena = `${asignadas[0]} · Role cards`;
+  igual(seccionesDeClase([conAjena], cc.secciones), [conAjena], "con parte ajena no se separa");
+  lanza(() => validarLoteContrato({ clases: [claseOk({ seccionesProducto: [conAjena] })] }, cc, 1, 1), /no es una sección/, "parte ajena");
 });
 
 check("validador 4.6: semilla obligatoria, malla de la unidad permitida, ampliación marcada y foco enriquecible", () => {
@@ -172,6 +293,22 @@ check("validador: fases sin contenido no amplían ni exigen semilla", () => {
   const ap = contratos[0];
   validarLoteContrato({ clases: [claseOk({ semillaUsada: [], ampliacion: [], focoLinguistico: "Apropiación de la unidad" })] }, ap, 1, 2);
   lanza(() => validarLoteContrato({ clases: [claseOk({ semillaUsada: [] })] }, ap, 1, 2), /ampliacion" debe ir vacía/, "ampliación en apertura");
+});
+
+check("clase con TODAS las secciones: su aporte puede nombrar el producto entero (no una sección de más)", () => {
+  const ap = contratos[0];
+  igual(ap.seccionesPorClase[0], ap.secciones, "la apertura avanza todas las secciones");
+  const base = { semillaUsada: [], ampliacion: [], focoLinguistico: "Apropiación de la unidad", seccionesProducto: ap.seccionesPorClase[0], entregaFase: ap.entrega.texto };
+  validarLoteContrato({ clases: [claseOk({ ...base, aporteProducto: `«${ap.producto}» (acuerdo y plan): plan de secciones acordado` })] }, ap, 1, 1);
+  validarLoteContrato({ clases: [claseOk({ ...base, aporteProducto: `Sección «${ap.secciones[0]}» (acuerdo y plan): plan` })] }, ap, 1, 1);
+  lanza(() => validarLoteContrato({ clases: [claseOk({ ...base, aporteProducto: "plan de vocabulario" })] }, ap, 1, 1), /debe nombrar la sección/, "ni producto ni sección");
+  // Clase con PARTE de las secciones: el producto entero no basta.
+  if (cc.seccionesPorClase[0].length < cc.secciones.length && !cc.seccionPrincipalPorClase[0]) {
+    lanza(() => validarLoteContrato({ clases: [claseOk({ aporteProducto: `«${cc.producto}»: mapa` })] }, cc, 1, 1), /debe nombrar/, "parcial con producto");
+  }
+  const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/Si la clase avanza TODAS las secciones \(sin principal\), el "aporteProducto" nombra el producto entero/.test(faseTxt), "el prompt lo pide");
+  assert(/const PROMPT_FASE_VERSION = 9;/.test(faseTxt), "versión del prompt");
 });
 
 check("cada fase deja su entrega: la última clase la declara y se avanzan sus secciones", () => {
@@ -249,8 +386,40 @@ const loteFase = (over = {}) => ({
   }],
 });
 
-const { validateBatch } = await import("../src/services/phaseAService.js");
+const { validateBatch, componerActividad, normalizarVozBatch } = await import("../src/services/phaseAService.js");
+
+
 const optsFase = { semanaNum: cc.numero, indicadoresPermitidos: indicadoresPermitidosFase(cc), contratoFase: cc, startDia: 1, esIdioma: true };
+
+check("actividades por campos: el código arma la frase y la regla 4.4 la acepta (2026-11-03)", () => {
+  const frase = componerActividad({
+    accion: "Elaboran (en equipos) un plano de la escuela con los lugares que necesita un estudiante nuevo",
+    producto: "Un plano rotulado que explican oralmente a otro equipo.",
+    destino: "lo pegan en su sección",
+  });
+  igual(frase, "Elaboran (en equipos) un plano de la escuela con los lugares que necesita un estudiante nuevo: un plano rotulado que explican oralmente a otro equipo; lo pegan en su sección.", "frase armada");
+  assert(frase.split(/\s+/).length >= 25, `solo ${frase.split(/\s+/).length} palabras`);
+  igual(motivoRedaccionActividad(frase), "", "la frase armada cumple la regla 4.4");
+  igual(componerActividad({ accion: "Comparten (en plenaria) sus menús", producto: "lista de mejoras" }, "Bilingual Menus"),
+    "Comparten (en plenaria) sus menús: lista de mejoras; se archiva en la sección «Bilingual Menus».", "sin destino → la sección");
+  igual(componerActividad({ accion: "Comparten (en plenaria) sus menús." }), "Comparten (en plenaria) sus menús.", "solo acción");
+  igual(componerActividad("Frase vieja (en parejas) tal cual."), "Frase vieja (en parejas) tal cual.", "texto de unidades viejas o caché");
+  igual(componerActividad({ producto: "x" }), "", "sin acción → vacía (el validador la rechaza como antes)");
+  igual(componerActividad({ accion: "Elaboran (en grupos) descripciones de platos", producto: "descripciones escritas", destino: "en la carpeta del grupo" }),
+    "Elaboran (en grupos) descripciones de platos: descripciones escritas; se guarda en la carpeta del grupo.", "destino sin verbo → «se guarda en…»");
+  igual(componerActividad({ accion: "Elaboran (en grupos) descripciones", producto: "notas", destino: "las archivan en la carpeta" }),
+    "Elaboran (en grupos) descripciones: notas; las archivan en la carpeta.", "destino con verbo no cambia");
+  const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/"destino" = dónde se recoge o se guarda, empezando con un verbo/.test(faseTxt), "la IA no recibe que el destino empiece con verbo");
+  // Un lote con objetos pasa por normalizarVozBatch y llega al validador como texto
+  const lote = loteFase();
+  const des = lote.clases[0].momentos.find((m) => m.nombre === "Desarrollo");
+  des.actividades = des.actividades.map((a) => ({ accion: a.replace(/\.$/, ""), producto: "una pieza escrita revisada", destino: "la guardan en su sección" }));
+  assert(des.actividades.every((a) => typeof a === "object"), "el lote de prueba no tiene objetos");
+  normalizarVozBatch(lote);
+  assert(des.actividades.every((a) => typeof a === "string" && /: una pieza escrita revisada; la guardan en su sección\.$/.test(a)), `no se armaron: ${JSON.stringify(des.actividades)}`);
+  validateBatch(lote, 45, 1, [], optsFase);
+});
 
 check("phaseA: un lote que cumple el contrato pasa y el foco ya no se exige literal de la malla", () => {
   validateBatch(loteFase(), 45, 1, [], optsFase);
@@ -258,7 +427,7 @@ check("phaseA: un lote que cumple el contrato pasa y el foco ya no se exige lite
 });
 
 check("phaseA: el contrato se aplica dentro del validador del lote", () => {
-  lanza(() => validateBatch(loteFase({ aporteProducto: "Role card set de seventh grade" }), 45, 1, [], optsFase), /debe nombrar la sección/, "pieza por contenido");
+  lanza(() => validateBatch(loteFase({ aporteProducto: "Role card set de seventh grade" }), 45, 1, [], optsFase), /debe nombrar (la|su) sección/, "pieza por contenido");
   lanza(() => validateBatch(loteFase({ semillaUsada: [] }), 45, 1, [], optsFase), /semillaUsada/, "sin semilla");
   const otro = contratos.find((c, i) => i !== idxConContenido && c.indicadores.every((x) => x.id !== indicadoresPermitidosFase(cc)[0]));
   if (otro) lanza(() => validateBatch(loteFase(), 45, 1, [], { ...optsFase, indicadoresPermitidos: indicadoresPermitidosFase(otro) }), /no precargados/, "indicador de otra fase");
@@ -271,26 +440,90 @@ const fasesAnexo = [
 ];
 const baseAnexos = { area: "Inglés", tema: "Escuela y educación", producto: "Our School Survival Guide", vocabulario: ["high school", "freshman"], fases: fasesAnexo };
 
-check("Anexo F: malla primero y la ampliación después, marcada como DocenteOS y sin repetir", () => {
+check("Anexo F: primero el vocabulario del proyecto (sin singular y plural repetidos), después la malla", () => {
   const { glosario } = construirAnexosUnidad({
     ...baseAnexos,
     ampliacion: [
-      { texto: "_library, cafeteria_, Freshman", tipo: "vocabulario", seccion: "Important Places" },
       { texto: "Excuse me, could you help me?", tipo: "expresion", seccion: "Asking for Help" },
+      { texto: "_library, cafeteria_, Freshman, libraries, ingredient, ingredients", tipo: "vocabulario", seccion: "Important Places" },
       { texto: "can + verbo", tipo: "gramatica", seccion: "Asking for Help" },
+      { texto: "Greetings and basic polite expressions important for smooth interactions during interviews", tipo: "expresion", seccion: "Asking for Help" },
     ],
   });
   igual(glosario.map((g) => [g.termino, g.origen]), [
+    ["library", "DocenteOS"], ["cafeteria", "DocenteOS"], ["libraries", "DocenteOS"], ["ingredient", "DocenteOS"], ["Excuse me, could you help me?", "DocenteOS"],
     ["high school", "malla"], ["freshman", "malla"],
-    ["library", "DocenteOS"], ["cafeteria", "DocenteOS"], ["Excuse me, could you help me?", "DocenteOS"],
   ], "glosario");
   igual(construirAnexosUnidad(baseAnexos).glosario.map((g) => g.origen), ["malla", "malla"], "sin ampliación, como antes");
+});
+
+check("Anexo F: en la malla, lo trabajado en las clases va primero", () => {
+  const fasesUso = [{ dias: [{ semillaUsada: ["Vocabulario: menu", "ingredients"] }, { semillaUsada: ["menu", "chat"] }] }];
+  const { glosario } = construirAnexosUnidad({ ...baseAnexos, vocabulario: ["texting", "chat", "park", "menu", "ingredients"], fases: fasesUso });
+  igual(glosario.map((g) => g.termino), ["menu", "chat", "ingredients", "texting", "park"], "de más a menos usado (empate: orden de la malla)");
+});
+
+// Audiencia real (César, 2026-11-03): la fase de aplicación ocurre ante ella.
+check("audiencia real: se reconoce la actividad real y no la simulada", () => {
+  const aud = "los dueños de los comedores y los visitantes";
+  assert(actividadAnteAudiencia("Presentan (en equipos) la guía a un dueño invitado: comentarios escritos; se guardan.", aud), "a un dueño");
+  assert(actividadAnteAudiencia("Entregan la guía ante los visitantes del barrio.", aud), "ante los visitantes");
+  assert(actividadAnteAudiencia("Registran los comentarios de un visitante sobre el menú.", aud), "comentarios de");
+  assert(!actividadAnteAudiencia("Practican (en parejas, Role Play) con un dueño de restaurante ordenando comida.", aud), "juego de roles");
+  assert(!actividadAnteAudiencia("Corrigen el diálogo entre un cliente y un dueño.", aud), "solo menciona");
+});
+check("sección que arranca su borrador: sin una actividad que la nombre, se rechaza", () => {
+  const contrato = { numero: 5, secciones: [], conContenido: false, sesiones: 1, entrega: { texto: "x" }, semilla: { vocabulario: [], gramatica: [], expresiones: [], funcionales: [] }, seccionesQueArrancan: ["Healthy Choices"] };
+  const clase = (actividad) => ({ entregaFase: "x", momentos: [
+    { nombre: "Desarrollo", actividades: [actividad] }, { nombre: "Cierre", actividades: ["Coevalúan (en parejas) la pieza."] },
+  ] });
+  lanza(() => validarLoteContrato({ clases: [clase("Redactan (en parejas) el menú bilingüe.")] }, contrato, 1, 1), /primer borrador de Healthy Choices/, "sin actividad");
+  validarLoteContrato({ clases: [clase("Seleccionan (en equipos) opciones sanas para «Healthy Choices».")] }, contrato, 1, 1);
+});
+check("audiencia real: sin ella la fase se rechaza; la evaluación solo avisa", () => {
+  const aud = "los dueños de los comedores y los visitantes";
+  const contrato = { numero: 8, secciones: [], conContenido: false, sesiones: 1, entrega: { texto: "x" }, semilla: { vocabulario: [], gramatica: [], expresiones: [], funcionales: [] } };
+  const clase = (actividad, evidencias = {}) => ({ entregaFase: "x", momentos: [
+    { nombre: "Desarrollo", actividades: [actividad], evidencias },
+    { nombre: "Cierre", actividades: ["Coevalúan (en parejas) la pieza."] },
+  ] });
+  lanza(() => validarLoteContrato({ clases: [clase("Practican (en parejas, Role Play) el pedido.")] }, { ...contrato, audienciaReal: aud }, 1, 1), /audiencia real/, "sin audiencia");
+  validarLoteContrato({ clases: [clase("Presentan (en equipos) la guía a un dueño invitado.")] }, { ...contrato, audienciaReal: aud }, 1, 1);
+  validarLoteContrato({ clases: [clase("Practican (en parejas, Role Play) el pedido.")] }, contrato, 1, 1);
+  const sinRegistro = validarLoteContrato({ clases: [clase("Evalúan la guía.")] }, { ...contrato, audienciaRegistro: aud }, 1, 1);
+  assert(sinRegistro[0].some((m) => /registra los comentarios/.test(m)), "aviso sin registro");
+  const conRegistro = validarLoteContrato({ clases: [clase("Evalúan la guía.", { producto: ["Registro de comentarios de los dueños de comedores."] })] }, { ...contrato, audienciaRegistro: aud }, 1, 1);
+  assert(!conRegistro[0].some((m) => /registra los comentarios/.test(m)), "con registro no avisa");
+});
+
+check("ampliación gramatical: solo estructuras de la malla del grado (las desconocidas no se bloquean)", () => {
+  const estructuras = estructurasDeMalla(malla.contenidosPorTema.flatMap((t) => t.conceptos?.gramatica || []));
+  assert(estructuras.includes("presente_perfecto") && !estructuras.includes("presente_perfecto_continuo"), "estructuras de 2do");
+  igual(estructuraGramatical("present perfect continuous"), "presente_perfecto_continuo", "lo más específico primero");
+  igual(estructuraGramatical("connectors and, but, or"), null, "desconocida");
+  const ccG = { ...cc, estructurasGrado: estructuras };
+  const conAmpl = (texto) => claseOk({ ampliacion: [{ texto, tipo: "gramatica", seccion: cc.secciones[0] }] });
+  lanza(() => validarLoteContrato({ clases: [conAmpl("present perfect continuous")] }, ccG, 1, 1), /no está en la malla de este grado/, "fuera del grado");
+  validarLoteContrato({ clases: [conAmpl("present perfect for experiences")] }, ccG, 1, 1);
+  validarLoteContrato({ clases: [conAmpl("connectors and, but, or")] }, ccG, 1, 1);
+  validarLoteContrato({ clases: [conAmpl("present perfect continuous")] }, cc, 1, 1); // sin datos del grado no se bloquea
+});
+
+check("ampliación de vocabulario: solo los términos que aparecen en alguna clase", () => {
+  const fases = [{ numero: 3, dias: [{ numeroGlobal: 3, momentos: [{ actividades: ["Describen (en parejas) sus hobbies: hiking y swimming."] }] }] }];
+  const ampl = [
+    { texto: "Hiking, swimming, sports car driving", tipo: "vocabulario", seccion: "Hobbies" },
+    { texto: "sports car driving", tipo: "vocabulario", seccion: "Hobbies" },
+    { texto: "present perfect", tipo: "gramatica", seccion: "Hobbies" },
+  ];
+  igual(ampliacionUsadaEnClases(ampl, fases).map((a) => a.texto), ["Hiking, swimming", "present perfect"], "filtrada");
+  igual(ampliacionUsadaEnClases(ampl, []).length, 3, "sin clases no se filtra");
 });
 
 check("Anexo I: con secciones, una fila por sección con sus piezas; sin secciones, por fases (motor anterior)", () => {
   const { organizadorProducto } = construirAnexosUnidad({ ...baseAnexos, secciones: ["Welcome", "Important Places", "Final Recommendation"] });
   igual(organizadorProducto.map((o) => o.seccion), ["Título", "Welcome", "Important Places", "Final Recommendation"], "filas");
-  igual(organizadorProducto[2].incluye, "mapa etiquetado de la escuela; instrucciones bilingües.", "piezas de la sección");
+  igual(organizadorProducto[2].incluye, "mapa etiquetado de la escuela · Versión final: instrucciones bilingües.", "piezas agrupadas por estado");
   assert(/plan del producto/.test(organizadorProducto[3].incluye), "sección sin piezas");
   igual(construirAnexosUnidad(baseAnexos).organizadorProducto.map((o) => o.seccion), ["Título", "Fase 3 — Gestión del conocimiento", "Fase 5 — Aplicación", "Cierre"], "por fases");
 });
@@ -330,7 +563,7 @@ check("4.4: verbo de la lista (taxonomía, idioma solo en idiomas, gestión)", (
   assert(!motivoRedaccionActividad(`Escuchan (en parejas) un audio ${largo}`, { esIdioma: true }), "idioma");
   assert(/lista de verbos/.test(motivoRedaccionActividad(`Escuchan un audio ${largo}`)), "idioma fuera de idiomas");
   assert(!motivoRedaccionActividad("Socializan (en plenaria) el mapa."), "gestión");
-  for (const v of ["Participan", "Realizan", "Guardan", "Reciben", "Acordan", "Recordandon", "Discutan"]) {
+  for (const v of ["Participan", "Realizan", "Recopilan", "Reciben", "Acordan", "Recordandon", "Discutan"]) {
     assert(/lista de verbos/.test(motivoRedaccionActividad(`${v} en el Gallery Walk ${largo}`, { esIdioma: true })), v);
   }
 });
@@ -349,9 +582,10 @@ check("4.4: la síntesis no rechaza (decisión de César); el Cierre necesita un
   ] });
   igual(motivosRedaccionClase(clase(["Socializan el mapa.", "Coevalúan (en parejas) los rótulos."]), "clase 1"), [], "cierre válido");
   assert(/Autónomo o Estratégico/.test(motivosRedaccionClase(clase(["Socializan el mapa.", "Revisan los rótulos."]), "clase 1")[0] || ""), "cierre sin nivel");
-  // Todos los motivos del lote van en un solo rechazo.
-  lanza(() => validarLoteContrato({ clases: [claseOk(clase(["Guardan el mapa.", "Socializan ideas en grupo."]))] }, cc, 1, 1),
-    /Redacción 4\.4 \(3\):.*Guardan.*en grupo.*Autónomo/, "tres motivos juntos");
+  // La redacción 4.4 es flexible (César, 2026-11-03): no rechaza, devuelve los motivos por clase.
+  const motivos = validarLoteContrato({ clases: [claseOk(clase(["Realizan el mapa.", "Socializan ideas en grupo."]))] }, cc, 1, 1);
+  assert(motivos.length === 1 && motivos[0].length === 3, "tres motivos de la clase 1, sin rechazo");
+  assert(/Realizan.*en grupo.*Autónomo/.test(motivos[0].join(" ")), "verbo, organización y nivel del Cierre");
 });
 check("4.4: avisos de progresión por papel y de exceso de expresiones", () => {
   const plan = { fases: [{ nombre: "Evaluación", roles: ["evaluacion"], indicadores: [], entrega: { secciones: [] } }] };
@@ -360,6 +594,15 @@ check("4.4: avisos de progresión por papel y de exceso de expresiones", () => {
   assert(avisos.some((a) => /nivel autonomo/.test(a)), "progresión");
   assert(avisos.some((a) => /menos de 18 palabras/.test(a)), "síntesis");
   assert(avisos.some((a) => /3 expresiones/.test(a)), "expresiones");
+});
+
+check("4.4: los verbos se comparan sin guion («Co-evalúan» = «Coevalúan», «Cocrean» = «Co-crean»)", () => {
+  assert(motivoRedaccionActividad("Co-evalúan (en parejas) la guía con la lista de cotejo y anotan una mejora.") === "", "Co-evalúan");
+  assert(motivoRedaccionActividad("Cocrean (en equipos) el mapa de la escuela.") === "", "Cocrean");
+  assert(motivoRedaccionActividad("Coevalúan (en parejas) la guía.") === "", "Coevalúan sigue valiendo");
+  assert(/no está en la lista/.test(motivoRedaccionActividad("Co-escriben (en parejas) la guía.")), "un verbo fuera de la lista sigue rechazado");
+  const clase = { momentos: [{ nombre: "Cierre", actividades: ["Co-evalúan (en parejas) la guía con la lista de cotejo."] }] };
+  assert(motivosRedaccionClase(clase, "Clase 1").length === 0, "un Cierre con «Co-evalúan» es de nivel Autónomo");
 });
 
 console.log(`\n${pasos} ✓ · ${fallos} ✗`);

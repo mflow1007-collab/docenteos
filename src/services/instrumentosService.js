@@ -39,6 +39,7 @@ import {
   ETIQUETA_TIPO_INSTRUMENTO,
 } from "./hiloPedagogico.js";
 import { sincronizarPuntajesAspectos } from "./registroService.js";
+import { clasesDeEntrega, unidadDePlan } from "./actividadesPlan.js";
 
 const uid = () => auth?.currentUser?.uid;
 const disponible = () => Boolean(db && uid());
@@ -312,11 +313,16 @@ export const crearInstrumentoDesdePlanificacion = async (registroPlan, definicio
     updatedAt: serverTimestamp(),
   }, { merge: true });
 
-  // Vincular con el aspecto del registro (no bloquea si falla; se reporta)
-  try {
-    await guardarRegistroAspectoDesdeInstrumento(instrumento);
-  } catch (error) {
-    console.warn("[instrumentosService] Instrumento guardado, pero falló el vínculo con el aspecto:", error);
+  // Vincular con el aspecto del registro (no bloquea si falla; se reporta).
+  // Si el instrumento ya alimenta los aspectos de sus indicadores
+  // (aspectoRegistroIds), NO crea columna propia: sería la misma nota dos
+  // veces (en 2do A dejó el Registro en 1050/100 puntos).
+  if (!instrumento.aspectoRegistroIds?.length) {
+    try {
+      await guardarRegistroAspectoDesdeInstrumento(instrumento);
+    } catch (error) {
+      console.warn("[instrumentosService] Instrumento guardado, pero falló el vínculo con el aspecto:", error);
+    }
   }
 
   return instrumento;
@@ -369,7 +375,17 @@ export const crearInstrumentosPlaneadosDesdePlan = async (registroPlan) => {
 
   const instrumentos = [];
   const tipos = new Set();
-  const clasesEvaluables = (capa.clases || []).filter(tieneEvidenciaEvaluable);
+  // F2 (B1): con plan maestro, la clase de entrega se evalúa con la rúbrica de
+  // su actividad (actividadesService); no se le crea instrumento genérico.
+  let deEntrega = new Set();
+  try {
+    deEntrega = clasesDeEntrega(unidadDePlan(registroPlan), capa);
+  } catch {
+    // Entregas sin ubicar: guardarActividadesDePlan lo reporta al docente.
+  }
+  const clasesEvaluables = (capa.clases || [])
+    .filter(tieneEvidenciaEvaluable)
+    .filter((clase) => !deEntrega.has(clase.numeroClase));
 
   for (const clase of clasesEvaluables) {
     const tipo = tipoSugeridoPorEvidencia(clase);
@@ -449,7 +465,7 @@ export const obtenerInstrumentosPorClase = async (planificacionId, claseId) => {
 /**
  * Guarda el resultado de un instrumento para un estudiante.
  * Estados: "evaluado" (con puntaje), "pendiente" (sin puntaje, NO cuenta 0),
- * "no_entrego" (0 explícito decidido por el docente).
+ * "no_entrego" (sin puntaje: pendiente hasta que el docente decida, decisión 3).
  *
  * Escribe además una marca de aplicación mínima en el instrumento (usos,
  * status activo) en el MISMO batch para no dejar estados a medias.
@@ -462,6 +478,7 @@ export const guardarResultadoInstrumento = async ({
   estado = "evaluado",
   observacionDocente = "",
   evidenciasIds = [],
+  detalleCriterios = [],
   fechaEvaluacion = new Date().toISOString(),
 }) => {
   if (!disponible()) throw new Error("Necesitas iniciar sesión para guardar resultados");
@@ -474,6 +491,7 @@ export const guardarResultadoInstrumento = async ({
     estado,
     observacionDocente,
     evidenciasIds,
+    detalleCriterios,
     docenteId: uid(),
   });
   resultado.fechaEvaluacion = fechaEvaluacion;

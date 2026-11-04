@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../firebase.js'
 
 const DEFAULTS = {
@@ -13,6 +13,82 @@ const DEFAULTS = {
   modalidades:       'Regular, Adultos, Especial, Técnico Vocacional',
   dominioAdmin:      '@docenteos.com',
   nombrePlataforma:  'DocenteOS',
+}
+
+// Etapa E: correos sin límite de planes por grado (además de @docenteos.com).
+// Un documento por correo en limitesIlimitados/{correo}; las reglas lo consultan.
+function PanelIlimitados() {
+  const [correos,   setCorreos]   = useState([])
+  const [nuevo,     setNuevo]     = useState('')
+  const [porQuitar, setPorQuitar] = useState('')
+  const [estado,    setEstado]    = useState({ tipo: '', texto: '' })
+
+  const cargar = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'limitesIlimitados'))
+      setCorreos(snap.docs.map((d) => d.id).sort())
+    } catch (err) {
+      setEstado({ tipo: 'error', texto: 'No se pudo leer la lista: ' + err.message })
+    }
+  }
+  useEffect(() => { cargar() }, [])
+
+  const agregar = async () => {
+    const correo = nuevo.trim().toLowerCase()
+    if (!/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(correo)) {
+      setEstado({ tipo: 'error', texto: 'Escribe un correo válido.' })
+      return
+    }
+    try {
+      await setDoc(doc(db, 'limitesIlimitados', correo), { correo, agregadoEn: serverTimestamp() }, { merge: true })
+      setNuevo('')
+      setEstado({ tipo: 'success', texto: `✓ ${correo} ya no tiene límite de planes.` })
+      cargar()
+    } catch (err) {
+      setEstado({ tipo: 'error', texto: 'No se pudo agregar: ' + err.message })
+    }
+  }
+
+  const quitar = async (correo) => {
+    try {
+      await deleteDoc(doc(db, 'limitesIlimitados', correo))
+      setPorQuitar('')
+      setEstado({ tipo: 'success', texto: `✓ ${correo} vuelve al límite normal.` })
+      cargar()
+    } catch (err) {
+      setEstado({ tipo: 'error', texto: 'No se pudo quitar: ' + err.message })
+    }
+  }
+
+  return (
+    <div className="admin-info-panel" style={{ marginTop: 14 }}>
+      <h3>Correos sin límite de planes</h3>
+      <span className="admin-form-hint">
+        Los correos @docenteos.com verificados ya son ilimitados. Los de esta lista también pueden generar sin el cupo de 1 plan por grado y asignatura.
+      </span>
+      {estado.texto && <div className={`admin-alert ${estado.tipo}`} style={{ marginTop: 10 }}>{estado.texto}</div>}
+      <div className="admin-form-grid cols-1" style={{ marginTop: 12 }}>
+        {correos.map((correo) => (
+          <div key={correo} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ flex: 1 }}>{correo}</span>
+            {porQuitar === correo ? (
+              <>
+                <button className="admin-btn admin-btn-danger" onClick={() => quitar(correo)}>Confirmar quitar</button>
+                <button className="admin-btn" onClick={() => setPorQuitar('')}>Cancelar</button>
+              </>
+            ) : (
+              <button className="admin-btn" onClick={() => setPorQuitar(correo)}>Quitar</button>
+            )}
+          </div>
+        ))}
+        {!correos.length && <span className="admin-form-hint">La lista está vacía.</span>}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input className="admin-form-input" style={{ flex: 1 }} value={nuevo} onChange={(e) => setNuevo(e.target.value)} placeholder="correo@ejemplo.com" />
+          <button className="admin-btn admin-btn-primary" onClick={agregar}>Agregar</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function AdminConfiguracion() {
@@ -150,6 +226,8 @@ export default function AdminConfiguracion() {
           </div>
         </div>
       </div>
+
+      <PanelIlimitados />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
         <button className="admin-btn admin-btn-primary" onClick={guardar} disabled={guardando}>

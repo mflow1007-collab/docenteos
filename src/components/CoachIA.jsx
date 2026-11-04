@@ -35,7 +35,7 @@ const TIPS = {
     { color: '#16a34a', tag: 'Buena práctica',  msg: 'Registra intervenciones desde el perfil del estudiante para dar seguimiento.' },
   ],
   'detalle-estudiante': [
-    { color: '#7c3aed', tag: 'Perfil',          msg: 'Usa la pestaña "Informe IA" para obtener un análisis pedagógico del estudiante.' },
+    { color: '#7c3aed', tag: 'Perfil',          msg: 'Usa la pestaña "Informe a la familia" para preparar el informe con los datos registrados.' },
     { color: '#2563eb', tag: 'Tip',             msg: 'Las intervenciones registradas aquí son visibles para coordinación.' },
   ],
   ia: [

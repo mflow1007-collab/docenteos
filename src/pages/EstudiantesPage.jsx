@@ -3,7 +3,8 @@ import { AIService } from "../services/ai/AIService.js";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
-import { guardarEstudiantesEnSubcoleccion } from "../services/estudiantesService.js";
+import { guardarEstudianteEnSubcoleccion } from "../services/estudiantesService.js";
+import { avisoCedula, formatearCedula, idEstudiante, idsAmbiguosEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
 import { enriquecerCursoInicial, generarEstudiantesDetalle } from "../utils/cursoUtils.js";
 import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
 
@@ -36,7 +37,7 @@ function EstudiantesPage({
   const [panelIaAccion, setPanelIaAccion] = useState(null);
   const [estudiantesExtra, setEstudiantesExtra] = useState([]);
   const [modalAgregar, setModalAgregar] = useState(false);
-  const [formNuevo, setFormNuevo] = useState({ nombre: "", cursoId: "", nombreCursoNuevo: "" });
+  const [formNuevo, setFormNuevo] = useState({ nombre: "", cedula: "", cursoId: "", nombreCursoNuevo: "" });
   const [periodoExpandido, setPeriodoExpandido] = useState(null);
   const [panelIaGenerando, setPanelIaGenerando] = useState(false);
   const [panelIaError, setPanelIaError] = useState(null);
@@ -84,7 +85,10 @@ function EstudiantesPage({
         const asistencia = estudiante.asistencia ?? null;
         const nivelRiesgo = promedio === null ? "—" : promedio < 60 ? "Alto" : promedio < 70 ? "Medio" : "Bajo";
         return {
-          id: `${curso.id}-${indice}-${estudiante.nombre}`,
+          id: idEstudiante(estudiante, indice),
+          idsLegado: idsLegadoEstudiante(estudiante, indice, { cursoId: curso.id }),
+          legadoAmbiguo: idsAmbiguosEstudiante(estudiante, indice), // F7: «est-N» se decide por nombre
+          cedula: estudiante.cedula ?? "",
           nombre: estudiante.nombre,
           avatar: estudiante.nombre.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(),
           promedio,
@@ -94,6 +98,7 @@ function EstudiantesPage({
           esDemo: !curso.estudiantesDetalle?.length,
           cursoId: curso.id,
           cursoNombre: curso.nombre,
+          nivel: curso.nivel || "",
           area: curso.area || "General",
           grado: curso.grado || curso.nombre.split(" ").slice(0, 2).join(" "),
           seccion: curso.seccion || (curso.nombre.match(/[A-Z]$/)?.[0] || "A"),
@@ -237,7 +242,7 @@ function EstudiantesPage({
       const planApoyoActual = Array.isArray(payloadPrevio.planApoyo) ? payloadPrevio.planApoyo : [];
       const payload = {
         ...payloadPrevio,
-        tabActiva: panelIaAccion === "informe" ? "Informe IA" : "Intervenciones",
+        tabActiva: panelIaAccion === "informe" ? "Informe a la familia" : "Intervenciones",
         mensajeAccion: `${panelIaAccion === "informe" ? "Informe" : "Intervención"} guardado desde Centro IA el ${fecha}.`,
         ...(panelIaAccion === "informe"
           ? { informeIa: panelIaTexto }
@@ -334,7 +339,7 @@ function EstudiantesPage({
 
     if (cursoExistente) {
       // Agregar al curso existente y persistir en Firestore
-      const nuevoEst = { id: `est-${Date.now()}`, nombre: nombreFinal, promedio: null };
+      const nuevoEst = { id: `est-${Date.now()}`, nombre: nombreFinal, cedula: formatearCedula(formNuevo.cedula), promedio: null };
       const detalle = [...(cursoExistente.estudiantesDetalle || []), nuevoEst];
       onActualizarCurso({
         ...cursoExistente,
@@ -359,7 +364,7 @@ function EstudiantesPage({
         icono: nombreCurso[0]?.toUpperCase() || "C",
         acento: "#2563eb",
         temaActual: "Tema por definir",
-        estudiantesDetalle: [{ id: `est-${Date.now()}`, nombre: nombreFinal, promedio: null }],
+        estudiantesDetalle: [{ id: `est-${Date.now()}`, nombre: nombreFinal, cedula: formatearCedula(formNuevo.cedula), promedio: null }],
         estudiantesFuente: "oficial",
         matriculaOficial: true,
         esAutoGenerado: true,
@@ -375,7 +380,7 @@ function EstudiantesPage({
       setEstudiantesExtra((prev) => [...prev, crearEstudianteExtra(nombreFinal)]);
     }
 
-    setFormNuevo({ nombre: "", cursoId: "", nombreCursoNuevo: "" });
+    setFormNuevo({ nombre: "", cedula: "", cursoId: "", nombreCursoNuevo: "" });
     setModalAgregar(false);
   };
 
@@ -455,14 +460,15 @@ function EstudiantesPage({
         estudiantesFuente: "oficial",
         matriculaOficial: true,
       });
-      guardarEstudiantesEnSubcoleccion(cursoExistente.id, nombres).catch(() => {});
+      // Mismos IDs que en estudiantesDetalle (antes la subcolección creaba otros)
+      Promise.all(nuevosEst.map((est) => guardarEstudianteEnSubcoleccion(cursoExistente.id, est.nombre, est.id))).catch(() => {});
     } else {
       setEstudiantesExtra((prev) => [...prev, ...nombres.map((n) => crearEstudianteExtra(n))]);
     }
 
     setListaTexto("");
     setModoLista(false);
-    setFormNuevo({ nombre: "", cursoId: "", nombreCursoNuevo: "" });
+    setFormNuevo({ nombre: "", cedula: "", cursoId: "", nombreCursoNuevo: "" });
     setModalAgregar(false);
   };
 
@@ -1006,6 +1012,7 @@ function EstudiantesPage({
                   <h3>Datos de contacto</h3>
                   <ul>
                     <li>Fecha de nacimiento: {seleccionado.fechaNacimiento}</li>
+                    <li>Cédula: {seleccionado.cedula || "Pendiente de completar"}</li>
                     <li>Madre / tutor: {seleccionado.tutor}</li>
                     <li>Teléfono: {seleccionado.telefono}</li>
                   </ul>
@@ -1205,6 +1212,19 @@ function EstudiantesPage({
                         if (v) setFormNuevo((p) => ({ ...p, nombre: capitalizarNombre(v) }));
                       }}
                     />
+                  </div>
+                  <div className="ma-field">
+                    <label className="ma-label">Cédula (opcional)</label>
+                    <input
+                      className="ma-input"
+                      inputMode="numeric"
+                      placeholder="Del acta de nacimiento: 000-0000000-0"
+                      value={formNuevo.cedula}
+                      onChange={(e) => setFormNuevo((p) => ({ ...p, cedula: e.target.value }))}
+                    />
+                    {avisoCedula(formNuevo.cedula) && (
+                      <small style={{ color: "#92400e" }}>{avisoCedula(formNuevo.cedula)}</small>
+                    )}
                   </div>
                   <div className="ma-field">
                     <label className="ma-label">Curso</label>

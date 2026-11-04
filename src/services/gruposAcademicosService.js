@@ -1,5 +1,6 @@
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase.js";
+import { idEstudiante } from "../utils/idEstudiante.js";
 
 const GRUPOS_KEY = "docenteos_grupos_academicos_v1";
 
@@ -57,7 +58,7 @@ function estudiantesNormalizados(curso = {}) {
       if (!nombre.trim()) return null;
       return {
         ...estudiante,
-        id: estudiante.id || estudiante.matricula || `${grupoId}-est-${index + 1}`,
+        id: idEstudiante(estudiante, index),
         nombre: nombre.trim(),
         grado: estudiante.grado || grado,
         seccion: estudiante.seccion || seccion,

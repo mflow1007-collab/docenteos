@@ -13,6 +13,7 @@ import {
   seleccionarRelacionParaEvidencia,
   extraerCriteriosEvaluacionCanonicos,
 } from "./curriculumBrainService.js";
+import { NIVELES_RUBRICA_GUIA, DESCRIPTORES_RUBRICA_POR_ACCION } from "../data/descriptoresRubricaGuia2025.js";
 import {
   distribuirTemasEnSemanas,
   obtenerTemaSemana,
@@ -25,6 +26,7 @@ import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion } from "./vistaPreviaPlanMaestroService.js";
 import {
   construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
+  seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases,
 } from "./redaccionFaseService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -717,6 +719,33 @@ const construirEjesContextualizados = (ejes, { area, tema }) => {
   }));
 };
 
+// Punto de partida del grupo (condición inicial de la situación de aprendizaje,
+// Adecuación Curricular Secundaria 2023, pp. 38-39). Va FUERA de las 8 líneas de
+// la situación (Guía 2025, 1.2.2). Solo con datos reales: lo que escribe el
+// docente, el diagnóstico del grupo y las evaluaciones anteriores del curso.
+// Sin ninguno → null y el bloque no se muestra (nada se inventa).
+const MAX_APRENDIZAJES_PUNTO_PARTIDA = 5;
+export const construirPuntoPartida = ({
+  textoDocente = "", debilesDiagnostico = [], debilesEvaluaciones = [],
+} = {}) => {
+  const limpios = (lista) => [...new Set((Array.isArray(lista) ? lista : [])
+    .map((t) => String(t || "").trim().replace(/\.$/, "")).filter(Boolean))];
+  const enumerar = (lista) => {
+    const visibles = lista.slice(0, MAX_APRENDIZAJES_PUNTO_PARTIDA).map((t) => `«${t}»`).join("; ");
+    const resto = lista.length - MAX_APRENDIZAJES_PUNTO_PARTIDA;
+    return resto > 0 ? `${visibles}; y ${resto} más` : visibles;
+  };
+  const diagnostico = limpios(debilesDiagnostico);
+  const diagnosticoSet = new Set(diagnostico);
+  const evaluaciones = limpios(debilesEvaluaciones).filter((t) => !diagnosticoSet.has(t));
+  const lineas = [
+    String(textoDocente || "").trim(),
+    diagnostico.length ? `Diagnóstico del grupo — aprendizajes por reforzar: ${enumerar(diagnostico)}.` : "",
+    evaluaciones.length ? `Evaluaciones anteriores del curso — logro bajo en: ${enumerar(evaluaciones)}.` : "",
+  ].filter(Boolean);
+  return lineas.length ? lineas.join("\n") : null;
+};
+
 // Situación de aprendizaje narrativa al estilo del documento modelo:
 // contexto del centro/comunidad → realidad observada → necesidad auténtica →
 // estrategia y recorrido → producto final progresivo.
@@ -1157,6 +1186,55 @@ const construirModeloCurricularSuperior = ({
   };
 };
 
+// ─── Anexo A con plan maestro: rúbrica de la Guía 2025 (pp. 40-42) ───────────
+// Una fila por indicador elegido en el plan: competencia (código) · indicador
+// recortado (aspectos clave, literal) · criterio oficial de referencia (el de la
+// misma posición en su competencia: comprensión / producción / interacción) ·
+// descriptores por nivel según la acción del indicador · ponderación que suma 100.
+/**
+ * Copia del plan maestro que se guarda en la unidad. Firestore no admite
+ * listas dentro de listas: los aspectos marcados por lista del indicador
+ * (string[][]) se guardan como [{ aspectos: string[] }]. El plan en memoria
+ * que usa la redacción no cambia.
+ */
+export const planMaestroParaGuardar = (plan) => ({
+  ...plan,
+  fases: (plan?.fases || []).map((fase) => ({
+    ...fase,
+    // Idempotente: una copia ya convertida (sin aspectosElegidos) queda igual.
+    indicadores: (fase.indicadores || []).map(({ aspectosElegidos, ...ind }) => (aspectosElegidos ? {
+      ...ind,
+      aspectosPorLista: aspectosElegidos.map((lista) => ({ aspectos: [...lista] })),
+    } : ind)),
+  })),
+});
+
+export const construirRubricaPlan = ({ competenciasDetalle = [], estructuraIndicadores = [] } = {}) => {
+  const accionPorId = new Map((estructuraIndicadores || []).map((ind) => [ind.id, ind.accion]));
+  const filas = (competenciasDetalle || []).flatMap((comp) => (comp.indicadores || [])
+    .map((ind, posicion) => ({ ind, posicion }))
+    .filter(({ ind }) => typeof ind === "object" && ind?.recorte)
+    .map(({ ind, posicion }) => {
+      const accion = accionPorId.get(ind.codigo);
+      const descriptores = DESCRIPTORES_RUBRICA_POR_ACCION[accion];
+      if (!descriptores) {
+        throw new Error(`Rúbrica: el indicador ${ind.codigo} no tiene acción (responde / produce / interactúa) en los indicadores estructurados.`);
+      }
+      return {
+        competencia: comp.competenciaFundamental || "",
+        competenciaCodigo: comp.codigo || "",
+        indicadorCodigo: ind.codigo,
+        indicador: ind.recorte,
+        criterioReferencia: (comp.criterios || [])[posicion] || "",
+        accion,
+        niveles: NIVELES_RUBRICA_GUIA.map((nivel) => ({ ...nivel, descriptor: descriptores[nivel.clave] })),
+      };
+    }));
+  const base = filas.length ? Math.floor(100 / filas.length) : 0;
+  const resto = 100 - base * filas.length;
+  return filas.map((fila, i) => ({ ...fila, ponderacion: base + (i < resto ? 1 : 0) }));
+};
+
 // ─── Anexos A-L (parametrizados según el documento modelo) ───────────────────
 
 export const construirAnexosUnidad = ({
@@ -1167,7 +1245,7 @@ export const construirAnexosUnidad = ({
   // producto (organizador del Anexo I, regla 4.7). Vacías → como antes.
   ampliacion = [], secciones = [],
   // Etapa 6: fases del plan maestro (entrega y secciones que avanza cada una)
-  // para la columna "Fase(s) y estado" del Anexo I. Vacías → como antes.
+  // para la columna "Estados de la sección" del Anexo I. Vacías → como antes.
   fasesPlan = [],
 }) => {
   const idioma = ES_IDIOMA(area);
@@ -1382,25 +1460,40 @@ export const construirAnexosUnidad = ({
   // Glosario: primero el vocabulario oficial de la malla; después, hasta 16,
   // la ampliación de DocenteOS (vocabulario y expresiones), marcada como tal
   // para no presentarla como contenido oficial (regla 4.6).
+  // Dos bloques (César, 2026-11-03): primero el vocabulario clave del proyecto
+  // (ampliación de DocenteOS, sin repetir singular y plural); después, los
+  // términos del currículo, con lo trabajado en las clases primero.
   const limpiarTermino = (t) => String(t || "").replace(/_/g, "").replace(/[.;:]+$/, "").replace(/\s+/g, " ").trim();
-  const glosarioMalla = (vocabulario || []).slice(0, 16).map((termino) => ({
-    termino: String(termino),
-    traduccion: "",
-    origen: "malla",
-  }));
-  const vistosGlosario = new Set(glosarioMalla.map((g) => limpiarTermino(g.termino).toLowerCase()));
-  const glosarioAmpliacion = (Array.isArray(ampliacion) ? ampliacion : [])
-    .filter((a) => a?.tipo === "vocabulario" || a?.tipo === "expresion")
-    .flatMap((a) => (a.tipo === "vocabulario" ? String(a.texto || "").split(/\s*[,/]\s*/) : [a.texto]))
+  const MAX_GLOSARIO = 16;
+  const claveTermino = (t) => limpiarTermino(String(t || "").replace(/^\s*vocabulario\s*:\s*/i, "")).toLowerCase();
+  const usosMalla = new Map();
+  fases.flatMap((f) => f?.dias || []).forEach((d) => (Array.isArray(d?.semillaUsada) ? d.semillaUsada : [])
+    .forEach((s) => usosMalla.set(claveTermino(s), (usosMalla.get(claveTermino(s)) || 0) + 1)));
+  const vocabularioMalla = [...new Set((vocabulario || []).map(String))];
+  const usadosMalla = vocabularioMalla.filter((t) => usosMalla.has(claveTermino(t)))
+    .sort((a, b) => usosMalla.get(claveTermino(b)) - usosMalla.get(claveTermino(a)));
+  const restoMalla = vocabularioMalla.filter((t) => !usadosMalla.includes(t));
+  const glosarioMalla = [...usadosMalla, ...restoMalla].slice(0, MAX_GLOSARIO)
+    .map((termino) => ({ termino, traduccion: "", origen: "malla" }));
+  // «ingredient» e «ingredients» cuentan como un solo término.
+  const claveSingular = (t) => claveTermino(t).replace(/(?<=[a-z]{3})s$/, "");
+  const vistosGlosario = new Set(vocabularioMalla.map(claveSingular));
+  const ampliacionGlosario = Array.isArray(ampliacion) ? ampliacion : [];
+  const glosarioProyecto = [
+    ...ampliacionGlosario.filter((a) => a?.tipo === "vocabulario").flatMap((a) => String(a.texto || "").split(/\s*[,/]\s*/)),
+    ...ampliacionGlosario.filter((a) => a?.tipo === "expresion").map((a) => a.texto),
+  ]
     .map(limpiarTermino)
     .filter((t) => {
-      const clave = t.toLowerCase();
-      if (!t || vistosGlosario.has(clave)) return false;
+      const clave = claveSingular(t);
+      // Una explicación larga de la IA no es un término de glosario.
+      if (!t || t.split(" ").length > 8 || vistosGlosario.has(clave)) return false;
       vistosGlosario.add(clave);
       return true;
     })
+    .slice(0, MAX_GLOSARIO)
     .map((termino) => ({ termino, traduccion: "", origen: "DocenteOS" }));
-  const glosario = [...glosarioMalla, ...glosarioAmpliacion].slice(0, 16);
+  const glosario = [...glosarioProyecto, ...glosarioMalla];
 
   const sentenceStarters = idioma ? [
     { funcion: "Describir / Informar", starter: "This is... / It has... / There is / There are..." },
@@ -1447,27 +1540,41 @@ export const construirAnexosUnidad = ({
 
   // Anexo I: con secciones del producto (plan maestro), el estudiante construye
   // la guía por SECCIONES, no por fases (regla 4.7); cada fila recoge las
-  // piezas que la unidad deja en esa sección.
+  // piezas que la unidad deja en esa sección, agrupadas por su estado
+  // (borrador → versión mejorada → versión final) para que se lean como etapas
+  // de una misma pieza y no como piezas repetidas (auditoría 2026-11-02).
+  const mayusculaInicial = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
   const piezasDeSeccion = (seccion) => (fases || [])
     .flatMap((fase) => fase.dias || [])
     .map((d) => String(d.aporteProducto || "").trim())
     .filter((a) => a && a.toLowerCase().includes(`«${seccion.toLowerCase()}»`))
-    .map((a) => a.replace(/^Secci[oó]n\s*«[^»]*»\s*(\([^)]*\))?\s*:\s*/i, "").replace(/\.$/, ""));
+    .map((a) => {
+      const m = a.match(/^Secci[oó]n\s*«[^»]*»\s*(?:\(([^)]*)\))?\s*:\s*/i);
+      return {
+        estado: mayusculaInicial(String(m?.[1] || "").trim()),
+        pieza: (m ? a.slice(m[0].length) : a).replace(/\.$/, ""),
+      };
+    });
+  const piezasPorEstado = (piezas) => {
+    const grupos = new Map();
+    piezas.forEach(({ estado, pieza }) => grupos.set(estado, [...(grupos.get(estado) || []), pieza]));
+    return [...grupos].map(([estado, lista]) => `${estado ? `${estado}: ` : ""}${lista.join("; ")}`).join(" · ");
+  };
   const organizadorProducto = (Array.isArray(secciones) && secciones.length)
     ? [
         { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).`, ...(fasesPlan.length ? { fases: "" } : {}) },
         ...secciones.map((seccion) => {
           const piezas = piezasDeSeccion(seccion);
-          const fasesSeccion = (fasesPlan || [])
-            .map((f, i) => ((f.entrega?.secciones || []).includes(seccion)
-              ? `F${i + 1} ${String(f.entrega?.estado || "").toLowerCase()}`
-              : ""))
-            .filter(Boolean);
+          // Estados por los que pasa la sección, en palabras y sin códigos de fase.
+          const estadosSeccion = [...new Set((fasesPlan || [])
+            .filter((f) => (f.entrega?.secciones || []).includes(seccion))
+            .map((f) => mayusculaInicial(String(f.entrega?.estado || "").trim().toLowerCase()))
+            .filter(Boolean))];
           return {
             seccion,
-            ...(fasesPlan.length ? { fases: fasesSeccion.join(" · ") } : {}),
+            ...(fasesPlan.length ? { fases: estadosSeccion.join(" → "), evidencia: piezas[piezas.length - 1]?.pieza || "" } : {}),
             incluye: piezas.length
-              ? `${piezas.join("; ")}.`
+              ? `${piezasPorEstado(piezas)}.`
               : "Lo que el grupo acordó para esta sección en el plan del producto.",
           };
         }),
@@ -1846,7 +1953,7 @@ const derivarRecursos = (actividades, area, _faseNum) => {
   if (tiene(/video|clip|film|audiovisual/)) {
     tec.add("Proyector"); tec.add("Video / clip audiovisual"); tec.add("Parlantes");
   }
-  if (tiene(/audio|podcast|grabaci[oó]n|comprens[ioó]n auditiva/) && !tiene(/video/)) {
+  if (tiene(/audio|podcast|grabaci[oó]n|grabadora|comprens[ioó]n auditiva/) && !tiene(/video/)) {
     tec.add("Grabación de audio"); tec.add("Parlantes");
   }
   if (tiene(/presentaci[oó]n digital|diapositiv|canva|powerpoin/)) {
@@ -1855,8 +1962,11 @@ const derivarRecursos = (actividades, area, _faseNum) => {
   if (tiene(/internet|plataforma|liveworksheet|kahoot|digital/)) {
     tec.add("Computadora o tableta"); tec.add("Acceso a internet");
   }
-  // "proyecto" no significa que exista un proyector.
-  if (tiene(/\bproyector\b|\bproyectan\b|\bproyecci[oó]n\b/) && tec.size === 0) {
+  if (tiene(/computadora|ordenador|laptop|tableta/)) tec.add("Computadora o tableta");
+  if (tiene(/celular|dispositivos? m[oó]vil|tel[eé]fono/)) tec.add("Teléfono o dispositivo móvil");
+  // "proyecto" no significa que exista un proyector. Si se nombra, va siempre
+  // (antes solo si no había otro tecnológico y se perdía junto a «digital»).
+  if (tiene(/\bproyector(es)?\b|\bproyectan\b|\bproyecci[oó]n\b/)) {
     tec.add("Proyector");
   }
 
@@ -2239,6 +2349,50 @@ const _justificaciones = {
   muyAlta: (tema) =>
     `El tema "${tema}" integra lectura, escritura, producción oral, investigación, pensamiento crítico, vocabulario especializado y presentación de productos complejos. Requiere una unidad extensa para garantizar el dominio real de las competencias sin sacrificar la calidad de los aprendizajes.`,
 };
+
+// R11 antes de generar (decisión de César, 2026-11-02): el producto del docente
+// se revisaba al FINAL, con todas las llamadas ya pagadas, y una lista de
+// formatos que se quede corta tiraba la unidad entera. Ahora se revisa antes
+// (formulario y arranque de la generación) y, como el docente ya lo aprobó,
+// se AVISA en vez de detener.
+const MOTIVOS_PRODUCTO_DOCENTE = [
+  [/sin formato auténtico/, "DocenteOS no reconoce el formato del producto (por ejemplo: guía, folleto, afiche, podcast, revista, presentación)"],
+  [/sin audiencia/, "no queda claro a quién va dirigido (por ejemplo: estudiantes, familias, comunidad, visitantes)"],
+  [/sin propósito/, "falta el propósito del producto («para …»)"],
+  [/estructurado incompleto/, "le falta una parte (formato, propósito, audiencia o socialización)"],
+  [/genérico o excesivo/, "el producto es demasiado genérico o demasiado largo"],
+  [/desconectado del tema/, "el producto no parece relacionado con el tema de la unidad"],
+  [/falta producto final/, "falta el producto final"],
+];
+
+export const motivoProductoFinal = (producto = "", tema = "") => {
+  try {
+    validarProductoFinalAutentico(producto, tema);
+    return "";
+  } catch (err) {
+    const msg = String(err?.message || "");
+    const motivo = MOTIVOS_PRODUCTO_DOCENTE.find(([re]) => re.test(msg));
+    return motivo ? motivo[1] : msg.replace(/^R11:\s*/, "");
+  }
+};
+
+// El mismo texto de producto que armará generarUnidadAprendizaje con los datos del formulario.
+export const productoFinalDeDatos = ({
+  titulo = "", area = "", asignatura = "", temasSeleccionados = [],
+  productoFinalTexto = "", productoFinalFormato = "", productoFinalProposito = "",
+  productoFinalAudiencia = "", productoFinalSocializacion = "",
+} = {}) => formatearProductoFinal(construirProductoEstructurado(
+  temasSeleccionados.length ? temasSeleccionados : [titulo],
+  {
+    area: resolverClave(asignatura, area, ESTRATEGIAS_POR_AREA),
+    asignatura: asignatura || area,
+    nombre: productoFinalTexto,
+    formato: productoFinalFormato,
+    proposito: productoFinalProposito,
+    audiencia: productoFinalAudiencia,
+    socializacion: productoFinalSocializacion,
+  },
+));
 
 export const analizarComplejidad = ({ area = "", grado = "", nivel = "", titulo = "", productoFinal = "" }) => {
   const tema = titulo.trim();
@@ -2848,6 +3002,7 @@ export const validarCoherenciaProducto = ({
   indicadoresPorFase = [],
   asignaturasVinculadas = [],
   textoSituacion = "",
+  seccionesProducto = [],
 } = {}) => {
   const avisos = [];
 
@@ -2952,9 +3107,13 @@ export const validarCoherenciaProducto = ({
   if (!aportes.length) return avisos;
 
   // Vocabulario del producto + tema central: contra esto medimos pertinencia.
+  // Con plan maestro cada pieza se nombra por su SECCIÓN (regla 4.7): sin los
+  // nombres de las secciones, «Our Local Food» contaba como ajena al producto
+  // (prueba «Alimentación», 2026-11-03: falsa alarma en 5 de 9 piezas).
   const tokensProducto = new Set([
     ...tokensTrazaAula(temaCentral),
     ...tokensTrazaAula(producto),
+    ...(Array.isArray(seccionesProducto) ? seccionesProducto : []).flatMap((sec) => tokensTrazaAula(sec)),
   ]);
 
   // Palabras de "relleno" que delatan derivas típicas hacia temas paralelos
@@ -3113,7 +3272,7 @@ const _construirContenidosPorRuta = ({ mallaPayload, curricularDoc, rutaCurricul
 // competenciaId (v1.2: payload.indicadoresLogro[] con ind.competenciaId).
 // Exportada pura para tests.
 
-export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFundEf = []) => {
+export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFundEf = [], criteriosRaiz = []) => {
   // Tolerante a AMBAS formas: objeto {id, descripcion|texto} y string plano
   // ("Responde de forma adecuada...") — corpus antiguos guardan strings
   const aIndicador = (ind) => {
@@ -3179,6 +3338,19 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
   // Detecta si los códigos son del tipo "IL-N" (registro), que deben renumerarse
   // corridos, vs. códigos oficiales únicos de otra naturaleza que se respetan.
   const esCodigoRegistroIL = (cod) => /^il[-\s]?\d+$/i.test(String(cod || "").trim());
+  // Criterios de evaluación (paso 7 de la unidad, Adecuación p. 39): texto
+  // literal de la malla. Primero los de cada competencia; si ninguna los trae,
+  // la lista raíz se reparte en bloques solo si la división es exacta (misma
+  // regla que los indicadores). Si no cuadra, quedan vacíos: no se inventan.
+  const aTextoCriterio = (c) => String(typeof c === "string" ? c : c?.texto || c?.descripcion || "").trim();
+  const criteriosDe = (comp) => (Array.isArray(comp?.criteriosEvaluacion) ? comp.criteriosEvaluacion : [])
+    .map(aTextoCriterio).filter(Boolean);
+  const raiz = (Array.isArray(criteriosRaiz) ? criteriosRaiz : []).map(aTextoCriterio).filter(Boolean);
+  const hayCriteriosPorComp = compsValidas.some((comp) => criteriosDe(comp).length);
+  const bloqueCriterios = !hayCriteriosPorComp && compsValidas.length && raiz.length
+    && raiz.length % compsValidas.length === 0
+    ? raiz.length / compsValidas.length
+    : 0;
   return compsValidas.map((comp, i) => {
     const anidados = Array.isArray(comp.indicadoresLogro) && comp.indicadoresLogro.length
       ? comp.indicadoresLogro
@@ -3220,6 +3392,9 @@ export const construirCompetenciasDetalle = (allComps = [], allInds = [], compFu
       especifica: comp.especificaGrado || comp.especifica || comp.descripcion || "",
       // El formatter acepta también strings (unidades guardadas antes)
       indicadores,
+      criterios: hayCriteriosPorComp
+        ? criteriosDe(comp)
+        : raiz.slice(i * bloqueCriterios, (i + 1) * bloqueCriterios),
     };
   });
 };
@@ -3293,6 +3468,11 @@ const marcarIndicadoresPlan = (detalle = [], rutaPlanMaestro = null) => {
 // La retroalimentación de la clase anterior vive AQUÍ (posición 2), no en el
 // Cierre. Posición 5 fija del formato oficial.
 
+// «Borrador de X (avance 2 de 2)» es el rótulo interno de la entrega de la fase;
+// la IA lo copiaba en la evidencia y en «Hoy tendrás éxito si…» (prueba
+// «Alimentación», 2026-11-03).
+export const sinRotuloAvance = (texto) => String(texto ?? "").replace(/\s*\(avance \d+ de \d+\)/gi, "").trim();
+
 export const construirInicioCanonico = (clase = {}) => {
   const saludo = String(clase.saludoInicial || "").trim().replace(/^\(+|\)+$/g, "");
   return [
@@ -3340,6 +3520,8 @@ const _generarFasesConIA = async (
   const aportesProductoUsados = new Set();
   let modoContingenciaSinIA = false;
   const advertenciasIA = [];
+  // Desarrollo y Cierre aceptados con aviso (plan maestro): solo los ve el admin.
+  const avisosRedaccionIA = [];
   // A5: fases que la IA no completó y se armaron desde la malla (para marcarlas en la vista).
   const fasesBaseCurricular = [];
   const totalClases = fases.reduce((sum, f) => sum + f.dias.length, 0);
@@ -4550,6 +4732,7 @@ const _generarFasesConIA = async (
       fase: fase.numero,
       motivo: motivoLimpio,
       contingenciaSinIA: modoContingenciaSinIA,
+      cupo: contexto.cupoGeneracion,
     });
     const clasesBase = fase.dias.map((dia, i) => construirClaseBaseCurricular({
       dia,
@@ -4602,6 +4785,7 @@ const _generarFasesConIA = async (
       contextoComunitario: contexto.contextoComunitario || "",
     });
     specFase.rutaCurricular = rutaCurricular;
+    specFase.cupoGeneracion = contexto.cupoGeneracion || null;
     specFase.temaTrabajoSemana = temaTrabajoSemana;
     specFase.temasSemana = temasTrabajoFase;
     specFase.temasActivos = rutaCurricular?.temas || temasFase;
@@ -4614,7 +4798,13 @@ const _generarFasesConIA = async (
       // Contrato de la fase: la IA solo puede usar los indicadores de la fase
       // y no hay secuencia base de plantilla que enriquecer.
       const permitidos = new Set(contratoFase.indicadores.map((ind) => ind.id));
-      specFase.contratoFase = contratoFase;
+      // Estructuras gramaticales de la malla del grado: la ampliación de
+      // DocenteOS no puede traer otras (auditoría 2026-11-02).
+      const gramaticaGrado = [
+        ...(mallaPayload?.contenidosPorTema || []).flatMap((t) => t?.conceptos?.gramatica || t?.conceptos?.["gramática"] || t?.gramatica || []),
+        ...(Array.isArray(mallaPayload?.gramatica) ? mallaPayload.gramatica : []),
+      ];
+      specFase.contratoFase = { ...contratoFase, estructurasGrado: estructurasDeMalla(gramaticaGrado) };
       specFase.situacionTexto = rutaPlanMaestro.situacionTexto;
       specFase.temaTrabajoSemana = "";
       specFase.indicadoresTrabajo = (allInds || []).filter((ind) => permitidos.has(ind.id || ind.codigoOficial));
@@ -4684,6 +4874,8 @@ const _generarFasesConIA = async (
             memoriaAcumulada, progressWrapper,
           );
         } catch (err) {
+          // Etapa E: sin cupo válido no se genera (error visible, sin plantilla)
+          if (err?.cupoInvalido) throw err;
           const motivo = err?.message || String(err || "");
           const creditos = esErrorCreditosAgotados(err);
           if (!creditos && intento < INTENTOS_POR_FASE) {
@@ -4691,13 +4883,18 @@ const _generarFasesConIA = async (
             onProgress?.(`🔁 Fase ${fase.numero} (${fase.nombre}): el validador rechazó un lote; DocenteOS lo reintenta con la corrección.`);
             continue;
           }
-          await logFaseRedaccionFallida({ fase: fase.numero, nombre: fase.nombre, motivo, creditosAgotados: creditos });
-          throw new Error(
+          await logFaseRedaccionFallida({ fase: fase.numero, nombre: fase.nombre, motivo, creditosAgotados: creditos, cupo: contexto.cupoGeneracion });
+          const errorFase = new Error(
             `La IA no pudo redactar la fase ${fase.numero} «${fase.nombre}» (${intento} intento${intento > 1 ? "s" : ""}). ` +
             `DocenteOS no la rellena con plantilla. Las fases ya redactadas quedan guardadas en este navegador: vuelve a generar para reintentar solo lo que falta. ` +
             `Detalle: ${motivo.slice(0, 300)}`,
             { cause: err },
           );
+          // La reanudación automática (reanudacionGeneracion.js) solo reintenta
+          // fallos que pueden ser pasajeros; con créditos agotados no sirve.
+          errorFase.reanudable = !creditos;
+          errorFase.faseFallida = fase.numero;
+          throw errorFase;
         }
       }
     } else if (modoContingenciaSinIA) {
@@ -4717,6 +4914,7 @@ const _generarFasesConIA = async (
           memoriaAcumulada, progressWrapper,
         );
       } catch (err) {
+        if (err?.cupoInvalido) throw err;
         if (esErrorCreditosAgotados(err)) modoContingenciaSinIA = true;
         console.warn(`[UnidadIA] Fase ${fase.numero} semana ${semanaGeneracion}: usando base curricular por fallo IA.`, err);
         onProgress?.(
@@ -4739,6 +4937,11 @@ const _generarFasesConIA = async (
       if (!dia) {
         throw new Error(`R3: clase IA ${i + 1} de la semana ${fase.numero} sin día calendario correspondiente`);
       }
+      // Los motivos nombran la clase por su posición en el lote; aquí se
+      // nombra por su número en la unidad.
+      (Array.isArray(aiClase.avisosRedaccion) ? aiClase.avisosRedaccion : []).forEach((motivo) => {
+        avisosRedaccionIA.push(`Clase ${dia.numeroGlobal || i + 1}: ${String(motivo).replace(/\bclase \d+\s*(—\s*)?/i, "")}`);
+      });
       const anclaSecuencia = specFase.secuenciaBase?.[i] || null;
 
       // Título e intención pedagógica: SOLO del contrato validado de la IA
@@ -4778,7 +4981,7 @@ const _generarFasesConIA = async (
         const textos = (v) => (Array.isArray(v) ? v.map((x) => String(x || "").trim()).filter(Boolean) : []);
         fase.tituloSemana = fase.nombre;
         dia.tituloSemana = fase.nombre;
-        dia.seccionesProducto = textos(aiClase.seccionesProducto);
+        dia.seccionesProducto = seccionesDeClase(aiClase.seccionesProducto, contratoFase.secciones);
         dia.semillaUsada = textos(aiClase.semillaUsada);
         dia.ampliacion = (Array.isArray(aiClase.ampliacion) ? aiClase.ampliacion : [])
           .map((a) => ({
@@ -4849,7 +5052,7 @@ const _generarFasesConIA = async (
         // Clave de comparación laxa (sin acentos/signos/mayúsculas) para detectar
         // cuándo un "producto" repite textualmente un "desempeño".
         const _clave = (t) => String(t).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-        const _desempeno = (aiMom.evidencias?.desempeno || []).map((e) => String(e).trim()).filter(Boolean);
+        const _desempeno = (aiMom.evidencias?.desempeno || []).map(sinRotuloAvance).filter(Boolean);
         const _clavesDesempeno = new Set(_desempeno.map(_clave));
         // Producto = SOLO entregables tangibles: se eliminan los ítems que
         // repiten un desempeño (p. ej. "Participación en la discusión" colada
@@ -4858,9 +5061,9 @@ const _generarFasesConIA = async (
         // render para que el de-dup afecte TAMBIÉN al texto del PDF, no solo la
         // trazabilidad interna.
         const evidenciasPorTipo = {
-          conocimientos: (aiMom.evidencias?.conocimientos || []).map((e) => String(e).trim()).filter(Boolean),
+          conocimientos: (aiMom.evidencias?.conocimientos || []).map(sinRotuloAvance).filter(Boolean),
           desempeno: _desempeno,
-          producto: (aiMom.evidencias?.producto || []).map((e) => String(e).trim()).filter(Boolean)
+          producto: (aiMom.evidencias?.producto || []).map(sinRotuloAvance).filter(Boolean)
             .filter((e) => !_clavesDesempeno.has(_clave(e))),
         };
         // R4 — 2º EJE de las evidencias: la FUNCIÓN evaluativa (de proceso / de
@@ -4874,13 +5077,15 @@ const _generarFasesConIA = async (
         // existente (resolverEvaluacionMomento: diagnóstica→formativa→sumativa).
         // Se imprime como etiqueta sutil DENTRO de la misma celda, igual que las
         // etiquetas de naturaleza: NO añade columnas ni toca la plantilla.
+        // «final» va donde está la valoración SUMATIVA del producto (el
+        // Desarrollo de la clase de valoración, TABLA_EVALUACION). Antes iba en
+        // el Cierre de toda la última fase, que es formativo (prueba
+        // «Alimentación», 2026-11-03, aprobado por César).
         const esCierre = mi === 2;
-        const esFaseFinal = fase.numero === fases.length;
-        const funcionEvidencia = esInicio
+        const esValoracionFinal = !esInicio && !esCierre && orig.evaluacion?.tipo === "Sumativa";
+        const funcionEvidencia = esInicio || esCierre
           ? "de proceso"
-          : esCierre
-            ? (esFaseFinal ? "final" : "de proceso")
-            : "de componente";
+          : esValoracionFinal ? "final" : "de componente";
         // Render desagregado DENTRO de la celda Evidencias existente
         // (contenido, no columnas nuevas): **Conocimientos:** / **Desempeño:**
         // / **Producto:** con numeración — como el documento modelo. Usa las
@@ -4965,7 +5170,9 @@ const _generarFasesConIA = async (
           humanos: "Docente y estudiantes",
           didacticos: aiMom.recursos.map((r) => String(r).trim()).filter(Boolean).join(", "),
           // Tecnológicos: derivación determinística desde las actividades reales
-          tecnologicos: derivarRecursos(orig.actividades, area, fase.numero).tecnologicos,
+          // y los recursos didácticos de la IA (si piden proyector u ordenadores,
+          // los tecnológicos no pueden decir «No requerido»).
+          tecnologicos: derivarRecursos([...orig.actividades, ...aiMom.recursos.map(String)], area, fase.numero).tecnologicos,
         };
       });
 
@@ -4979,9 +5186,11 @@ const _generarFasesConIA = async (
       const evidenciasClase = [
         ...evDesempenoProducto(aiClase.momentos[1]?.evidencias).slice(0, 3),
         ...evDesempenoProducto(aiClase.momentos[2]?.evidencias).slice(0, 1),
-      ].map((e) => String(e).trim()).filter(Boolean);
-      if (evidenciasClase.length) {
-        dia.criteriosExito = evidenciasClase.map((e) => `☐ ${e.replace(/\.$/, "")}.`);
+      ].map(sinRotuloAvance).filter(Boolean);
+      // Sin repetir: Desarrollo y Cierre a veces traen la misma evidencia.
+      const criteriosUnicos = [...new Map(evidenciasClase.map((e) => [_normTexto(e).replace(/\.$/, ""), e])).values()];
+      if (criteriosUnicos.length) {
+        dia.criteriosExito = criteriosUnicos.map((e) => `☐ ${e.replace(/\.$/, "")}.`);
       }
 
       // R3: contrato — todos los campos del render deben estar presentes post-merge
@@ -5046,7 +5255,7 @@ const _generarFasesConIA = async (
     globalOffset += numClases;
   }
 
-  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA, fasesBaseCurricular, combinacionesCreadas };
+  return { fases, productoFinalNombre: productoFinalNombreActual || "", advertenciasIA, avisosRedaccionIA, fasesBaseCurricular, combinacionesCreadas };
 };
 
 // ─── Exportación principal ────────────────────────────────────────────────────
@@ -5070,9 +5279,16 @@ export const generarUnidadAprendizaje = async (datos) => {
     temasSeleccionados = [],
     indicadoresTrabajadosAntes = [],
     indicadoresDebiles = [],
+    // Punto de partida del grupo: texto opcional del docente y las dos fuentes
+    // de indicadores débiles por separado (indicadoresDebiles las mezcla).
+    puntoPartidaTexto = "",
+    indicadoresDebilesDiagnostico = [],
+    indicadoresDebilesEvaluaciones = [],
     // Rótulo del documento: "Unidad de Aprendizaje" o "Secuencia Didáctica"
     // (mismo esquema MINERD; solo cambia la etiqueta)
     tipoPlanificacion = "Unidad de Aprendizaje",
+    // Etapa E: { planId, clave } del cupo reservado; viaja a cada lote del gateway
+    cupoGeneracion = null,
     onProgress = null,
   } = datos;
 
@@ -5178,7 +5394,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   // Candado temprano de asociación: si la tabla curricular va a quedar sin
   // indicadores, DETENER AQUÍ con diagnóstico completo — antes de gastar una
   // sola llamada de IA (el validador final quedaría como última defensa).
-  const detalleTemprano = construirCompetenciasDetalle(allComps, allInds, compFundEf);
+  const detalleTemprano = construirCompetenciasDetalle(allComps, allInds, compFundEf, mallaPayload.criteriosEvaluacion);
   if (detalleTemprano.length && !detalleTemprano.some((c) => c.indicadores.length)) {
     const conVinculo = allInds.filter((i) => String(i?.competenciaId || i?.competencia || "").trim()).length;
     const anidados = allComps.filter((c) => (c?.indicadoresLogro || c?.indicadores || []).length).length;
@@ -5242,6 +5458,7 @@ export const generarUnidadAprendizaje = async (datos) => {
       estructura: prepPlanMaestro.estructura,
       contratos: prepPlanMaestro.plan.fases.map((_, indice) => construirContratoFase({
         plan: prepPlanMaestro.plan, indice, estructura: prepPlanMaestro.estructura,
+        audiencia: datos.planMaestro?.situacion?.audiencia || "",
       })),
     };
   } else {
@@ -5314,6 +5531,28 @@ export const generarUnidadAprendizaje = async (datos) => {
     console.warn(`[Unidad] ${avisoTrazabilidad}`);
     onProgress?.(avisoTrazabilidad);
     advertencias.push(avisoTrazabilidad);
+  } else if (!detalleTemprano.some((comp) => comp.criterios?.length)) {
+    // Hay criterios, pero ni por competencia ni en un número que se reparta
+    // exacto: la columna de criterios de la tabla curricular saldrá vacía.
+    const avisoCriterios =
+      `⚠️ La malla de ${claveContenido} — ${grado} trae ${criteriosMalla.length} criterios de evaluación, ` +
+      `pero no se pueden asociar a sus competencias. La columna "Criterios de evaluación" saldrá vacía. ` +
+      `Para corregirlo, recarga la malla con los criterios dentro de cada competencia.`;
+    console.warn(`[Unidad] ${avisoCriterios}`);
+    onProgress?.(avisoCriterios);
+    advertencias.push(avisoCriterios);
+  }
+
+  // R11 — el producto del docente se revisa ANTES de pagar la generación; si no
+  // pasa, se avisa (ya lo aprobó) en lugar de tirar la unidad al final.
+  const motivoProductoDocente = productoFinalTexto ? motivoProductoFinal(producto, titulo) : "";
+  if (motivoProductoDocente) {
+    const avisoProducto =
+      `⚠️ Producto final: ${motivoProductoDocente}. La unidad se generó con el producto ` +
+      `tal como lo escribiste; revísalo si quieres ajustarlo.`;
+    console.warn(`[Unidad] ${avisoProducto}`);
+    onProgress?.(avisoProducto);
+    advertencias.push(avisoProducto);
   }
 
   const modeloCurricularSuperior = construirModeloCurricularSuperior({
@@ -5420,7 +5659,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     ? estrategiaSel.fases
     : null;
 
-  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], fasesBaseCurricular = [], combinacionesCreadas = [] } = await _generarFasesConIA(
+  const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], avisosRedaccionIA = [], fasesBaseCurricular = [], combinacionesCreadas = [] } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
     {
       grado, nivel,
@@ -5437,6 +5676,7 @@ export const generarUnidadAprendizaje = async (datos) => {
       indicadoresTrabajadosAntes,
       // Fase 9 — logro real bajo el umbral: marcado (REFORZAR) en el prompt
       indicadoresDebiles,
+      cupoGeneracion,
     },
     mallaContenidos,
     mallaPayload, allInds, allComps, durMinEf, grado,
@@ -5448,7 +5688,9 @@ export const generarUnidadAprendizaje = async (datos) => {
   // 3A — producto final NOMBRADO: sustituye el rótulo genérico en todo el
   // documento (datos generales, situación, nota institucional y anexos)
   const productoNombrado = String(productoFinalNombre || "").trim() || producto;
-  validarProductoFinalAutentico(productoNombrado, titulo);
+  // El producto del docente ya se revisó antes de generar (aviso, no bloqueo);
+  // solo el que propuso la IA puede detener aquí.
+  if (!productoFinalTexto) validarProductoFinalAutentico(productoNombrado, titulo);
   const productoFinalDetalle = productoFinalNombre && productoFinalNombre !== producto
     ? {
         ...construirProductoEstructurado(temasProducto, {
@@ -5521,6 +5763,17 @@ export const generarUnidadAprendizaje = async (datos) => {
     ejesTematicos: ejesFinal,
     situacionAprendizaje: situacionFinal,
     ambienteAprendizaje: ambiente,
+    puntoPartida: construirPuntoPartida({
+      textoDocente: puntoPartidaTexto,
+      debilesDiagnostico: indicadoresDebilesDiagnostico,
+      // Las evaluaciones devuelven CÓDIGOS (IL-n): se muestran con su texto.
+      debilesEvaluaciones: (Array.isArray(indicadoresDebilesEvaluaciones) ? indicadoresDebilesEvaluaciones : [])
+        .map((codigo) => {
+          const ind = competenciasDetalleEnriquecidas.flatMap((c) => c.indicadores || [])
+            .find((i) => typeof i === "object" && normalizarCodigoIndicador(i.codigo) === normalizarCodigoIndicador(codigo));
+          return ind?.descripcion ? `${ind.codigo} — ${ind.descripcion}` : codigo;
+        }),
+    }),
     modeloCurricularSuperior,
     competencias: (() => {
       // ÚNICA FUENTE: malla oficial en curricularContent (ya garantizada arriba).
@@ -5590,10 +5843,10 @@ export const generarUnidadAprendizaje = async (datos) => {
     // DocenteOS, separada del contenido oficial (regla 4.6).
     ...(rutaPlanMaestro ? {
       planMaestro: {
-        ...rutaPlanMaestro.plan,
+        ...planMaestroParaGuardar(rutaPlanMaestro.plan),
         situacion: datos.planMaestro?.situacion || null,
       },
-      ampliacionDocenteOS: recogerAmpliacion(fasesSemanalesGeneradas),
+      ampliacionDocenteOS: ampliacionUsadaEnClases(recogerAmpliacion(fasesSemanalesGeneradas), fasesSemanalesGeneradas),
     } : {}),
   };
 
@@ -5667,6 +5920,13 @@ export const generarUnidadAprendizaje = async (datos) => {
       .map((momento) => momento.recursos?.tecnologicos || "")
       .filter(Boolean),
   });
+  if (rutaPlanMaestro) {
+    // Con plan maestro el Anexo A sigue la plantilla de la Guía 2025.
+    unidadResult.anexos.rubricaPlan = construirRubricaPlan({
+      competenciasDetalle: competenciasDetalleEnriquecidas,
+      estructuraIndicadores: rutaPlanMaestro.estructura?.indicadores || [],
+    });
+  }
 
   // Control de pertinencia del producto final (determinista, no bloqueante):
   // alerta si la secuencia deriva hacia un tema paralelo, si el producto no
@@ -5680,6 +5940,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     ...validarCoherenciaProducto({
       producto: productoNombrado,
       temaCentral: temaMallaStr || titulo,
+      seccionesProducto: unidadResult.planMaestro?.secciones || [],
       aportesProducto,
       numSemanas,
       corpusDocumento,
@@ -5707,9 +5968,21 @@ export const generarUnidadAprendizaje = async (datos) => {
       throw new Error(`Validación del plan maestro: ${global.errores.join("; ")}.`);
     }
     if (global.avisos.length) {
-      unidadResult.advertencias = [
-        ...(unidadResult.advertencias || []),
+      // Ajustes de la generación (regla 4.4) que el docente no puede aplicar:
+      // van aparte y solo los ve el administrador (decisión de César, 2026-11-03).
+      unidadResult.avisosRedaccion = [
         `⚠️ Redacción de las actividades (regla 4.4, ${global.avisos.length}): ${global.avisos.join("; ")}.`,
+      ];
+    }
+    // Lo flexible del Desarrollo y del Cierre que la IA no cumplió: se aceptó
+    // sin reintento pagado y se avisa al admin (decisión de César, 2026-11-03).
+    // Con tope, para no inflar el documento guardado (límite de 1 MiB).
+    if (avisosRedaccionIA.length) {
+      const MAX_AVISOS_LOTE = 40;
+      const resto = avisosRedaccionIA.length - MAX_AVISOS_LOTE;
+      unidadResult.avisosRedaccion = [
+        ...(unidadResult.avisosRedaccion || []),
+        `⚠️ Desarrollo y Cierre aceptados con aviso (${avisosRedaccionIA.length}): ${avisosRedaccionIA.slice(0, MAX_AVISOS_LOTE).join("; ")}${resto > 0 ? `; y ${resto} más` : ""}.`,
       ];
     }
   }
@@ -6273,6 +6546,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
   <div class="section-head">SITUACIÓN DE APRENDIZAJE</div>
   <div class="texto-seccion">${escHtml(unidad.situacionAprendizaje)}</div>
+  ${unidad.puntoPartida ? `
+  <div class="section-head">PUNTO DE PARTIDA DEL GRUPO</div>
+  <div class="texto-seccion">${String(unidad.puntoPartida).split("\n").map((linea) => `<p style="margin-bottom:6pt">${escHtml(linea)}</p>`).join("")}</div>` : ""}
   <div class="section-head">AMBIENTE DE APRENDIZAJE</div>
   <div class="texto-seccion">${escHtml(unidad.ambienteAprendizaje)}</div>
   ${unidad.notaInstitucional ? `
@@ -6337,9 +6613,22 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           : '';
         return `${abrir}${cod}${escHtml(ind?.descripcion || '')}${cerrar}`;
       };
+      // Criterios de evaluación (paso 7): tercera columna solo si la unidad los
+      // trae; en negrita los de las competencias que trabaja la unidad.
+      const hayCriterios = detalle.some((c) => Array.isArray(c.criterios) && c.criterios.length);
+      const anchoComp = hayCriterios ? '26%' : '34%';
+      const competenciaElegida = (c) => (typeof c.elegidaPlan === 'boolean'
+        ? c.elegidaPlan
+        : (c.indicadores || []).some((ind) => ind?.aplicaTemaActual));
+      const celdaCriterios = (c) => (!hayCriterios ? '' : `
+          <td style="width:30%;vertical-align:top;padding:6px 8px">
+            ${c.criterios?.length
+              ? `<ul style="margin:0 0 0 16px;padding:0${competenciaElegida(c) ? ';font-weight:700' : ''}">${c.criterios.map((cr) => `<li style="margin-bottom:3pt">${escHtml(cr)}</li>`).join('')}</ul>`
+              : '<em>Sin criterios en la malla para esta competencia.</em>'}
+          </td>`);
       const filas = detalle.map((c) => `
         <tr>
-          <td style="width:34%;vertical-align:top;padding:6px 8px;background:#f8fafc">
+          <td style="width:${anchoComp};vertical-align:top;padding:6px 8px;background:#f8fafc">
             <strong>${escHtml(c.competenciaFundamental || 'Competencia')}</strong>
             ${c.codigo ? `<br><strong style="font-size:10.5pt;color:#1e3a8a">${escHtml(c.codigo)}</strong>` : ''}
             ${c.especifica ? `<br><em style="font-size:11pt">${escHtml(c.especifica)}</em>` : ''}
@@ -6349,10 +6638,10 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
             ${c.indicadores?.length
               ? `<ul style="margin:0 0 0 16px;padding:0">${c.indicadores.map((ind) => `<li style="margin-bottom:3pt">${indicadorHtml(ind)}</li>`).join('')}</ul>`
               : '<em>Sin indicadores en la malla para esta competencia.</em>'}
-          </td>
+          </td>${celdaCriterios(c)}
         </tr>`).join('');
       return `${nivelMCERL}${leyendaIndicadores}<table class="datos-table" style="margin-bottom:12px">
-        <tr><td class="lbl" style="width:34%;text-align:center">Competencias</td><td class="lbl" style="text-align:center">Indicadores de Logro</td></tr>
+        <tr><td class="lbl" style="width:${anchoComp};text-align:center">Competencias</td><td class="lbl" style="text-align:center">Indicadores de Logro</td>${hayCriterios ? '<td class="lbl" style="width:30%;text-align:center">Criterios de evaluación</td>' : ''}</tr>
         ${filas}
       </table>`;
     }
@@ -6510,6 +6799,17 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <p class="nota">Instrumentos de evaluación y apoyos para el aprendizaje de la unidad ${m.titulo}.</p>
 
   <h3>ANEXO A — Rúbrica analítica del producto final</h3>
+  ${(ax.rubricaPlan || []).length ? `
+  <p class="nota">Plantilla de la Guía de planificación integral 2025: niveles de la taxonomía socioformativa con su porcentaje. La ponderación de los indicadores suma 100.</p>
+  <table class="rubrica">
+      <tr><th>Competencia</th><th>Indicador o criterio de evaluación</th>${NIVELES_RUBRICA_GUIA.map((n) => `<th>${n.nombre} — ${n.porcentaje} %</th>`).join("")}<th>Ponderación</th></tr>
+      ${ax.rubricaPlan.map((r) => `<tr><td>
+        <strong>${escHtml(r.competencia)}</strong>${r.competenciaCodigo ? `<br><small>${escHtml(r.competenciaCodigo)}</small>` : ""}
+      </td><td>
+        <strong>${escHtml(r.indicadorCodigo)}</strong> — ${escHtml(r.indicador)}
+        ${r.criterioReferencia ? `<br><small><strong>Criterio de referencia:</strong> ${escHtml(r.criterioReferencia)}</small>` : ""}
+      </td>${r.niveles.map((n) => `<td>${escHtml(n.descriptor)}</td>`).join("")}<td>${r.ponderacion}</td></tr>`).join("")}
+    </table>` : `
   ${(ax.indicadoresRubrica || []).length
     ? `<p><strong>Indicadores priorizados vinculados:</strong> ${ax.indicadoresRubrica.join(", ")}</p>`
     : ""}
@@ -6523,7 +6823,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         ${r.evidencia ? `<br><small><strong>Evidencia:</strong> ${r.evidencia}</small>` : ""}
         ${r.piezaProducto ? `<br><small><strong>Pieza:</strong> ${r.piezaProducto}</small>` : ""}
       </td><td>${r.n4}</td><td>${r.n3}</td><td>${r.n2}</td><td>${r.n1}</td></tr>`).join("")}
-    </table>
+    </table>`}
 
     <h3>ANEXO B — Lista de cotejo para la producción oral</h3>
     <table class="rubrica">
@@ -6562,18 +6862,26 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       ${(ax.escalaValoracion || []).map((i) => `<tr><td>${textoItemInstrumento(i)}${trazaInstrumentoHtml(i)}</td><td></td><td></td><td></td></tr>`).join("")}
     </table>
 
-    ${ax.glosario?.length ? `
-    <h3>ANEXO F — Glosario de la unidad</h3>
-    <p class="nota">La columna Español se completa con los estudiantes durante la unidad.${ax.glosario.some((g) => g.origen === "DocenteOS") ? " Los términos marcados con (DocenteOS) son ampliación de DocenteOS para el producto, no contenido oficial de la malla." : ""}</p>
-    <table class="rubrica">
+    ${ax.glosario?.length ? (() => {
+      const tablaGlosario = (lista) => `<table class="rubrica">
       <tr><th>Término</th><th>Español</th><th>Término</th><th>Español</th></tr>
-      ${Array.from({ length: Math.ceil(ax.glosario.length / 2) }, (_, i) => {
-        const a = ax.glosario[i * 2];
-        const b = ax.glosario[i * 2 + 1];
-        const termino = (g) => (g?.termino ? `${g.termino}${g.origen === "DocenteOS" ? ' <small style="color:#64748b">(DocenteOS)</small>' : ""}` : "");
-        return `<tr><td>${termino(a)}</td><td>${a?.traduccion || ""}</td><td>${termino(b)}</td><td>${b?.traduccion || ""}</td></tr>`;
+      ${Array.from({ length: Math.ceil(lista.length / 2) }, (_, i) => {
+        const a = lista[i * 2];
+        const b = lista[i * 2 + 1];
+        return `<tr><td>${a?.termino || ""}</td><td>${a?.traduccion || ""}</td><td>${b?.termino || ""}</td><td>${b?.traduccion || ""}</td></tr>`;
       }).join("")}
-    </table>` : ""}
+    </table>`;
+      const proyecto = ax.glosario.filter((g) => g.origen === "DocenteOS");
+      const curriculo = ax.glosario.filter((g) => g.origen !== "DocenteOS");
+      return `
+    <h3>ANEXO F — Glosario de la unidad</h3>
+    <p class="nota">La columna Español se completa con los estudiantes durante la unidad.</p>
+    ${proyecto.length ? `<h4>Vocabulario clave del proyecto</h4>
+    <p class="nota">Ampliación de DocenteOS para el producto; no es contenido oficial de la malla.</p>
+    ${tablaGlosario(proyecto)}
+    ${curriculo.length ? `<h4>Otros términos del currículo asociados</h4>
+    ${tablaGlosario(curriculo)}` : ""}` : tablaGlosario(curriculo)}`;
+    })() : ""}
 
     <h3>ANEXO G — Frases de apoyo (Sentence starters)</h3>
     <table class="rubrica">
@@ -6590,9 +6898,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <h3>ANEXO I — Organizador gráfico del producto final</h3>
     <table class="rubrica">
       ${(ax.organizadorProducto || []).some((o) => o.fases !== undefined)
-        ? `<tr><td colspan="4" style="font-size:9pt;color:#475569">Fases: ${(unidad.planMaestro?.fases || []).map((f, i) => `F${i + 1} ${escHtml(f.nombre)}`).join(" · ")}</td></tr>
-      <tr><th style="width:20%">Sección</th><th style="width:26%">Fase(s) y estado</th><th style="width:30%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
-      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.fases || ""}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`
+        ? `<tr><th style="width:16%">Sección</th><th style="width:16%">Estados de la sección</th><th style="width:20%">Evidencia principal</th><th style="width:28%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
+      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.fases || ""}</td><td>${o.evidencia || ""}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`
         : `<tr><th style="width:28%">Sección</th><th style="width:42%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
       ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`}
     </table>

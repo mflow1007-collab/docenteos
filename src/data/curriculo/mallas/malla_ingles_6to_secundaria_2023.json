@@ -63,17 +63,17 @@
       "indicadoresLogro": [
         {
           "id": "ING-6-I04",
-          "descripcion": "Utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
+          "descripcion": "Utiliza el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
           "competenciaId": "ING-6-C02"
         },
         {
           "id": "ING-6-I05",
-          "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
+          "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico-verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
           "competenciaId": "ING-6-C02"
         },
         {
           "id": "ING-6-I06",
-          "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
+          "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico-verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
           "competenciaId": "ING-6-C02"
         }
       ],
@@ -216,7 +216,7 @@
         },
         {
           "id": "ING-6-I21",
-          "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas 173",
+          "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas",
           "competenciaId": "ING-6-C07"
         }
       ],
@@ -245,17 +245,17 @@
     },
     {
       "id": "ING-6-I04",
-      "descripcion": "Utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
+      "descripcion": "Utiliza el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I05",
-      "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
+      "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico-verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I06",
-      "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
+      "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico-verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
       "competenciaId": "ING-6-C02"
     },
     {
@@ -330,7 +330,7 @@
     },
     {
       "id": "ING-6-I21",
-      "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas 173",
+      "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas",
       "competenciaId": "ING-6-C07"
     }
   ],
@@ -352,17 +352,17 @@
     },
     {
       "id": "ING-6-I04",
-      "descripcion": "Utilizando el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
+      "descripcion": "Utiliza el pensamiento lógico-verbal para responder de forma adecuada a preguntas e indicaciones, a partir del mensaje general y detalles específicos de textos orales y escritos sencillos, pero con extensión considerable, demostrando la capacidad para analizar de forma efectiva la información, razones y puntos de vista presentados.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I05",
-      "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
+      "descripcion": "Produce textos escritos y discursos orales, utilizando elementos lógico-verbales básicos de forma efectiva y creativa para presentar información y contrastar puntos de vista, elementos, razonamientos e ideas en temas culturales de su interés.",
       "competenciaId": "ING-6-C02"
     },
     {
       "id": "ING-6-I06",
-      "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
+      "descripcion": "Interactúa de forma oral o escrita, utilizando los elementos lógico-verbales necesarios para estructurar, presentar y mantener el intercambio de forma creativa, compartiendo ideas, experiencias, razonamientos de forma detallada en aspectos de la vida diaria en temas culturales que sean de su interés.",
       "competenciaId": "ING-6-C02"
     },
     {
@@ -437,7 +437,7 @@
     },
     {
       "id": "ING-6-I21",
-      "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas 173",
+      "descripcion": "Interactúa de forma cortés, honesta y respetuosa al tratar informaciones, detalles de costumbres y experiencias pasadas, justificando puntos de vista propios y de otras personas",
       "competenciaId": "ING-6-C07"
     }
   ],

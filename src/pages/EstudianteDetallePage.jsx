@@ -1,19 +1,68 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { AIService } from "../services/ai/AIService.js";
-import { buildAIContext } from "../services/ai/ContextBuilder.js";
+import { conFundamento } from "../services/fundamentoDoctrinalService.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
-import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
+import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante, obtenerInstrumentosFirestore, obtenerRegistroAspectos, obtenerRegistroNotas, obtenerRegistroCalificaciones } from "../firebase.js";
+import { obtenerCompetenciasMallaCurso } from "../services/mallaCursoService.js";
 import { obtenerEvidenciasPorEstudiante } from "../services/evidenciasService.js";
-import { obtenerAvanceEstudiante } from "../services/avanceCurricularService.js";
+import { obtenerAvanceEstudiante, obtenerResultadosEstudiante } from "../services/avanceCurricularService.js";
+import { obtenerActividadesPorCurso } from "../services/actividadesService.js";
+import { obtenerAsistenciaCurso } from "../services/asistenciaService.js";
+import { construirLineaDeTiempo, senalesNecesitaApoyo } from "../services/seguimientoEstudiante.js";
+import { construirInformeFamilia, textoInformeFamilia, textoWhatsApp, htmlDocumento } from "../services/informesSeguimiento.js";
+import { evidenciasVigentes, fechaLocalISO } from "../services/hiloPedagogico.js";
+import { actividadesDeEstudiante, ETIQUETAS_ENTREGA } from "../services/actividadesPlan.js";
+import { RegistroAnecdoticoPanel } from "../components/RegistroAnecdotico.jsx";
+import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
+import { avisoCedula, depurarDatosLegado, formatearCedula } from "../utils/idEstudiante.js";
 
 const EVALUACIONES_BASE_DETALLE = [];
 
+// F6: la pestaña «Informe IA» pasa a ser el informe a la familia (nombre viejo aceptado)
+const TAB_INFORME = "Informe a la familia";
+const tabValida = (tab) => (tab === "Informe IA" ? TAB_INFORME : tab);
+
 const PLAN_APOYO_BASE_DETALLE = [];
 
-function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "Resumen", onTabChange = () => {} }) {
-  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Evidencias", "Asistencia", "Intervenciones", "Informe IA"];
-  const [tabActiva, setTabActiva] = useState(initialTab);
+// Cédula opcional (acta de nacimiento): nunca bloquea; solo avisa si no tiene 11 dígitos.
+function CedulaEditable({ estudiante, onGuardar }) {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(estudiante?.cedula || "");
+  const [error, setError] = useState("");
+  const guardar = () => {
+    try {
+      onGuardar(estudiante, formatearCedula(valor));
+      setEditando(false);
+      setError("");
+    } catch (err) {
+      setError(err?.message || "No se pudo guardar la cédula.");
+    }
+  };
+  if (!editando) {
+    return (
+      <>
+        Cédula: {estudiante?.cedula || "Pendiente de completar"}{" "}
+        {onGuardar && <button type="button" onClick={() => { setValor(estudiante?.cedula || ""); setEditando(true); }}>Editar</button>}
+        {error && <small role="alert" style={{ color: "#b91c1c", display: "block" }}>{error}</small>}
+      </>
+    );
+  }
+  return (
+    <>
+      Cédula:{" "}
+      <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="numeric" placeholder="000-0000000-0" aria-label="Cédula del estudiante" />{" "}
+      <button type="button" onClick={guardar}>Guardar</button>{" "}
+      <button type="button" onClick={() => { setEditando(false); setError(""); }}>Cancelar</button>
+      {avisoCedula(valor) && <small style={{ color: "#92400e", display: "block" }}>{avisoCedula(valor)}</small>}
+      {error && <small role="alert" style={{ color: "#b91c1c", display: "block" }}>{error}</small>}
+    </>
+  );
+}
+
+function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "Resumen", onTabChange = () => {}, onGuardarCedula = null }) {
+  const tabs = ["Resumen", "Rendimiento", "Evaluaciones", "Actividades", "Evidencias", "Registro anecdótico", "Asistencia", "Intervenciones", TAB_INFORME];
+  const [tabActiva, setTabActiva] = useState(tabValida(initialTab));
   const [periodoActual, setPeriodoActual] = useState(2);
   const [estadoPlan, setEstadoPlan] = useState("Pendiente de iniciar");
   const [ultimoEnvio, setUltimoEnvio] = useState(null);
@@ -46,15 +95,74 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       .catch(() => {});
   }, [estudiante?.cursoId, estudiante?.id]);
 
+  // F3 — actividades del plan con la entrega de este estudiante (lazy)
+  const [actividadesEst, setActividadesEst] = useState(null); // null = aún no cargado
+  const [errorActividades, setErrorActividades] = useState("");
+  useEffect(() => {
+    if (tabActiva !== "Actividades" || actividadesEst !== null) return;
+    if (!estudiante?.id || !estudiante?.cursoId) { setActividadesEst([]); return; }
+    obtenerActividadesPorCurso(estudiante.cursoId)
+      .then((lista) => setActividadesEst(actividadesDeEstudiante(lista, [estudiante.id, ...(estudiante.idsLegado || [])])))
+      .catch((e) => { setErrorActividades(`No se pudieron leer las actividades: ${e.message}`); setActividadesEst([]); });
+  }, [tabActiva, actividadesEst, estudiante?.id, estudiante?.cursoId]);
+
   // Cargar el banco de evidencias al abrir la pestaña (lazy)
   useEffect(() => {
     if (tabActiva !== "Evidencias" || bancoEvidencias !== null) return;
     const estId = estudiante?.id;
     if (!estId) { setBancoEvidencias([]); return; }
-    obtenerEvidenciasPorEstudiante(estId, { cursoId: estudiante?.cursoId || "" })
-      .then((datos) => setBancoEvidencias(datos))
+    obtenerEvidenciasPorEstudiante(estId, { cursoId: estudiante?.cursoId || "", idsLegado: estudiante?.idsLegado || [] })
+      // El registro anecdótico se muestra aparte, en su propia pestaña
+      .then((datos) => setBancoEvidencias(depurarDatosLegado({ evidencias: datos }, estudiante?.legadoAmbiguo).evidencias.filter((e) => !esRegistroAnecdotico(e))))
       .catch(() => setBancoEvidencias([]));
   }, [tabActiva, bancoEvidencias, estudiante?.id, estudiante?.cursoId]);
+
+  // F5 — línea de tiempo + «Necesita apoyo»: se leen al abrir la ficha (la
+  // alerta va arriba). Cada fuente que falla queda en `errores`, nunca callada.
+  const [seguimiento, setSeguimiento] = useState(null); // null = cargando
+  // Clave estable: un array nuevo en cada render del padre no relee Firestore
+  const idsLegadoClave = (estudiante?.idsLegado || []).join("|");
+  const legadoAmbiguo = estudiante?.legadoAmbiguo || null;
+  const legadoAmbiguoClave = JSON.stringify(legadoAmbiguo);
+  useEffect(() => {
+    const estId = estudiante?.id;
+    const cursoId = estudiante?.cursoId;
+    if (!estId || !cursoId) { setSeguimiento({ datos: {}, errores: { curso: true } }); return; }
+    let vigente = true;
+    setSeguimiento(null);
+    const idsLegado = idsLegadoClave ? idsLegadoClave.split("|") : [];
+    const fuentes = {
+      actividades: obtenerActividadesPorCurso(cursoId),
+      resultados: obtenerResultadosEstudiante(estId, { cursoId, idsLegado }),
+      evidencias: obtenerEvidenciasPorEstudiante(estId, { cursoId, idsLegado }),
+      asistencia: obtenerAsistenciaCurso(cursoId, { estricto: true }),
+    };
+    Promise.allSettled(Object.values(fuentes)).then((res) => {
+      if (!vigente) return;
+      const datos = {}, errores = {};
+      Object.keys(fuentes).forEach((clave, i) => {
+        if (res[i].status === "fulfilled") datos[clave] = res[i].value || [];
+        else { datos[clave] = []; errores[clave] = res[i].reason?.message || "error de lectura"; }
+      });
+      // F7: «est-1» de Ana no es de Carlos (se decide por el nombre guardado)
+      const propios = depurarDatosLegado(datos, legadoAmbiguo);
+      // F7: sin evidencias retiradas, de notas quitadas ni copias del puente legacy
+      setSeguimiento({ datos: { ...propios, evidencias: evidenciasVigentes(propios.evidencias, errores.resultados ? null : propios.resultados) }, errores });
+    });
+    return () => { vigente = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- legadoAmbiguo va por su clave estable
+  }, [estudiante?.id, estudiante?.cursoId, idsLegadoClave, legadoAmbiguoClave]);
+
+  const { lineaDeTiempo, alertaApoyo } = useMemo(() => {
+    if (!seguimiento) return { lineaDeTiempo: null, alertaApoyo: null };
+    const base = { ...seguimiento.datos, ids: [estudiante?.id, ...idsLegadoClave.split("|")], hoy: fechaLocalISO() };
+    return {
+      lineaDeTiempo: construirLineaDeTiempo(base),
+      alertaApoyo: seguimiento.errores.curso
+        ? { necesitaApoyo: false, motivos: [], sinComprobar: ["entregas", "indicadores", "asistencia"] }
+        : senalesNecesitaApoyo({ ...base, errores: seguimiento.errores }),
+    };
+  }, [seguimiento, estudiante?.id, idsLegadoClave]);
 
   // Fase 9.4 — avance curricular del estudiante (sus resultados por indicador),
   // lazy al abrir Rendimiento. null = cargando; {porIndicador: []} = sin datos.
@@ -105,7 +213,11 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   ];
   const periodoSeleccionado = periodosEstudiante[periodoActual] || periodosEstudiante[2];
 
-  const informeIaBase = "El estudiante presenta una combinacion de fortalezas en Ciencias y oportunidades de mejora en Matematica. Se recomienda andamiaje por objetivos semanales y acompanamiento familiar continuo.";
+  // F6: antes había aquí un texto fijo inventado («fortalezas en Ciencias…»);
+  // si quedó guardado en el estado de la ficha, se descarta al cargar.
+  const informeIaBase = "";
+  const TEXTO_INVENTADO_VIEJO = "El estudiante presenta una combinacion de fortalezas en Ciencias";
+  const informeGuardado = (t) => (typeof t === "string" && !t.startsWith(TEXTO_INVENTADO_VIEJO) ? t : informeIaBase);
   // Usar evaluaciones del expediente Firestore si existen, si no el estado local vacío
   const evaluacionesExpediente = expediente?.evaluaciones ?? [];
   const evidenciasExpediente = useMemo(() => expediente?.evidencias ?? [], [expediente?.evidencias]);
@@ -124,6 +236,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   const [planApoyo, setPlanApoyo] = useState(PLAN_APOYO_BASE_DETALLE);
   const [informeIa, setInformeIa] = useState(informeIaBase);
   const [informeIaGenerando, setInformeIaGenerando] = useState(false);
+  const [informeIaAprobado, setInformeIaAprobado] = useState(null); // fecha de aprobación del docente
   const informeIaRef = useRef(null);
 
   const totalCirc = 276;
@@ -148,13 +261,14 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         const remoto = await obtenerEstadoDetalleEstudiante(detalleId);
         const remotoData = remoto?.data && typeof remoto.data === "object" ? remoto.data : null;
         if (remotoData) {
-          setTabActiva(remotoData.tabActiva || "Resumen");
+          setTabActiva(tabValida(remotoData.tabActiva) || "Resumen");
           setEstadoPlan(remotoData.estadoPlan || "Pendiente de iniciar");
           setUltimoEnvio(remotoData.ultimoEnvio || null);
           setMensajeAccion(remotoData.mensajeAccion || "");
           setEvaluaciones(Array.isArray(remotoData.evaluaciones) ? remotoData.evaluaciones : EVALUACIONES_BASE_DETALLE);
           setPlanApoyo(Array.isArray(remotoData.planApoyo) ? remotoData.planApoyo : PLAN_APOYO_BASE_DETALLE);
-          setInformeIa(remotoData.informeIa || informeIaBase);
+          setInformeIa(informeGuardado(remotoData.informeIa));
+          setInformeIaAprobado(remotoData.informeIaAprobado || null);
           setStorageListo(true);
           return;
         }
@@ -168,17 +282,19 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
           setEvaluaciones(EVALUACIONES_BASE_DETALLE);
           setPlanApoyo(PLAN_APOYO_BASE_DETALLE);
           setInformeIa(informeIaBase);
+          setInformeIaAprobado(null);
           setStorageListo(true);
           return;
         }
         const parsed = JSON.parse(raw);
-        setTabActiva(parsed.tabActiva || "Resumen");
+        setTabActiva(tabValida(parsed.tabActiva) || "Resumen");
         setEstadoPlan(parsed.estadoPlan || "Pendiente de iniciar");
         setUltimoEnvio(parsed.ultimoEnvio || null);
         setMensajeAccion(parsed.mensajeAccion || "");
         setEvaluaciones(Array.isArray(parsed.evaluaciones) ? parsed.evaluaciones : EVALUACIONES_BASE_DETALLE);
         setPlanApoyo(Array.isArray(parsed.planApoyo) ? parsed.planApoyo : PLAN_APOYO_BASE_DETALLE);
-        setInformeIa(parsed.informeIa || informeIaBase);
+        setInformeIa(informeGuardado(parsed.informeIa));
+        setInformeIaAprobado(parsed.informeIaAprobado || null);
         setStorageListo(true);
       } catch {
         setTabActiva("Resumen");
@@ -188,6 +304,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         setEvaluaciones(EVALUACIONES_BASE_DETALLE);
         setPlanApoyo(PLAN_APOYO_BASE_DETALLE);
         setInformeIa(informeIaBase);
+        setInformeIaAprobado(null);
         setStorageListo(true);
       }
     };
@@ -197,7 +314,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   }, [storageKey, detalleId]);
 
   useEffect(() => {
-    setTabActiva(initialTab || "Resumen");
+    setTabActiva(tabValida(initialTab) || "Resumen");
   }, [initialTab]);
 
   useEffect(() => {
@@ -215,63 +332,125 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       evaluaciones,
       planApoyo,
       informeIa,
+      informeIaAprobado,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(payload));
     guardarEstadoDetalleEstudiante({ estudianteId: detalleId, payload }).catch(() => {
       // Fallback local ya aplicado.
     });
-  }, [storageKey, detalleId, storageListo, tabActiva, estadoPlan, ultimoEnvio, mensajeAccion, evaluaciones, planApoyo, informeIa]);
+  }, [storageKey, detalleId, storageListo, tabActiva, estadoPlan, ultimoEnvio, mensajeAccion, evaluaciones, planApoyo, informeIa, informeIaAprobado]);
 
-  const manejarGenerarInformeIA = async () => {
-    setInformeIa("");
-    setInformeIaGenerando(true);
-    setTabActiva("Informe IA");
-
-    const areaActiva = areas[0]?.area || "";
-
-    let ctx;
-    try {
-      ctx = await buildAIContext("sugerir_apoyo", {
-        area:  areaActiva,
-        grado: curso || "",
-        estudiantesEnRiesgo: [{
-          nombre,
-          cf:          promedio,
-          asistencia,
-          observacion: `Estado: ${estado}. Plan de apoyo: ${planApoyo.slice(0, 2).join("; ")}`,
-          competenciasDebiles: evaluaciones
-            .filter((ev) => parseInt(ev.calificacion) < 70)
-            .slice(0, 3)
-            .map((ev) => ev.area),
-        }],
-        promedioGrupo: promedio,
+  // F6 — Informe a la familia: plantilla con los datos registrados (sin
+  // créditos). Lee las dos notas del Registro con los mismos servicios que la
+  // página Registro; el resto (actividades, resultados, asistencia) ya lo leyó
+  // F5. Una fuente que falla sale como «sin comprobar».
+  const [registroInforme, setRegistroInforme] = useState(null); // null = sin cargar
+  const [anotacionesElegidas, setAnotacionesElegidas] = useState([]); // ids
+  useEffect(() => {
+    if (tabActiva !== TAB_INFORME || registroInforme !== null) return;
+    const cursoId = estudiante?.cursoId;
+    if (!cursoId) { setRegistroInforme({ datos: {}, errores: { registro: "sin curso", calificaciones: "sin curso" } }); return; }
+    Promise.allSettled([
+      Promise.all([obtenerRegistroAspectos(cursoId), obtenerRegistroNotas(cursoId)]).then(([a, n]) => {
+        if (a.success === false || n.success === false) throw new Error("No se pudo leer el Registro por indicador");
+        return { aspectos: a.data || [], notas: n.data || [] };
+      }),
+      obtenerRegistroCalificaciones(cursoId).then((r) => r?.data || null),
+      // F7: malla del curso + instrumentos para calcular la C.F. desde los indicadores
+      obtenerCompetenciasMallaCurso({ nombre: estudiante?.cursoNombre, grado: estudiante?.grado, nivel: estudiante?.nivel, area: estudiante?.area }),
+      obtenerInstrumentosFirestore().then((r) => {
+        if (r?.success === false) throw new Error("No se pudieron leer los instrumentos");
+        return (r?.data || []).filter((ins) => String(ins.cursoId || ins.vinculacion?.cursoId || "") === String(cursoId));
+      }),
+    ]).then(([reg, cal, malla, ins]) => {
+      setRegistroInforme({
+        datos: {
+          ...(reg.status === "fulfilled" ? reg.value : {}),
+          registroCalificaciones: cal.status === "fulfilled" ? cal.value : null,
+          competencias: malla.status === "fulfilled" ? malla.value.competencias : [],
+          instrumentos: ins.status === "fulfilled" ? ins.value : [],
+          nivel: estudiante?.nivel || "Secundaria",
+        },
+        errores: {
+          ...(reg.status === "rejected" ? { registro: reg.reason?.message || "error de lectura" } : {}),
+          ...(cal.status === "rejected" ? { calificaciones: cal.reason?.message || "error de lectura" } : {}),
+          ...(ins.status === "rejected" ? { instrumentos: ins.reason?.message || "error de lectura" } : {}),
+          ...(malla.status === "rejected" ? { malla: malla.reason?.message || "error de lectura" } : {}),
+        },
       });
-    } catch {
-      setInformeIa("Error al construir el contexto IA.");
-      setInformeIaGenerando(false);
-      return;
-    }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- el resto del estudiante cambia junto con cursoId
+  }, [tabActiva, registroInforme, estudiante?.cursoId]);
 
+  const anotacionesAnecdoticas = useMemo(
+    () => (seguimiento?.datos?.evidencias || []).filter(esRegistroAnecdotico),
+    [seguimiento],
+  );
+
+  const informeFamilia = useMemo(() => {
+    if (!seguimiento || !registroInforme) return null;
+    return construirInformeFamilia({
+      estudiante: { id: estudiante?.id, nombre },
+      cursoNombre: curso === "—" ? "" : curso,
+      ...seguimiento.datos,
+      ...registroInforme.datos,
+      anotacionesElegidas: anotacionesAnecdoticas.filter((a) => anotacionesElegidas.includes(a.id || a.evidenciaId)),
+      ids: [estudiante?.id, ...idsLegadoClave.split("|")],
+      hoy: fechaLocalISO(),
+      errores: { ...seguimiento.errores, ...registroInforme.errores },
+    });
+  }, [seguimiento, registroInforme, anotacionesAnecdoticas, anotacionesElegidas, estudiante?.id, nombre, curso, idsLegadoClave]);
+  const textoPlantilla = informeFamilia ? textoInformeFamilia(informeFamilia) : "";
+
+  const imprimirInforme = () => {
+    // El PDF lleva la redacción con IA solo si el docente la aprobó
+    const texto = informeIa && informeIaAprobado ? informeIa : textoPlantilla;
+    const win = window.open("", "_blank");
+    if (!win) { setMensajeAccion("Permite ventanas emergentes para imprimir el informe."); return; }
+    win.document.write(htmlDocumento(`Informe para la familia · ${nombre}`, texto));
+    win.document.close();
+  };
+
+  const copiarWhatsApp = async () => {
+    if (!informeFamilia) return;
+    try {
+      await navigator.clipboard.writeText(textoWhatsApp(informeFamilia));
+      setMensajeAccion("Texto copiado. Pégalo en WhatsApp y decide a quién enviarlo.");
+    } catch {
+      setMensajeAccion("No se pudo copiar al portapapeles. Selecciona el texto del informe y cópialo a mano.");
+    }
+  };
+
+  // «Redactar con IA»: gasta créditos SOLO al pulsarlo y usa SOLO la plantilla
+  // (datos registrados). El texto queda como borrador hasta que el docente lo aprueba.
+  const manejarGenerarInformeIA = async () => {
+    if (!textoPlantilla) return;
+    setInformeIa("");
+    setInformeIaAprobado(null);
+    setInformeIaGenerando(true);
+    setTabActiva(TAB_INFORME);
+
+    const system = await conFundamento("Eres un docente dominicano que escribe a la familia de un estudiante. Usa SOLO los datos del informe que se te da: no inventes logros, notas, fechas ni hechos. Lenguaje claro, cálido y breve, en español. Mantén los avisos que traiga el informe (notas que no coinciden, datos sin comprobar). Usa títulos con «## » y viñetas con «- ».", estudiante?.nivel || "");
     AIService.generate({
       module:    "registro-apoyo",
-      prompt:    ctx.prompt,
-      system:    ctx.system,
-      maxTokens: 2000,
+      system,
+      prompt:    `Redacta este informe para la familia, sin añadir datos:\n\n${textoPlantilla}`,
+      maxTokens: 1200,
       onChunk: (chunk) => {
         setInformeIa((prev) => prev + chunk);
         setTimeout(() => informeIaRef.current?.scrollTo({ top: informeIaRef.current.scrollHeight, behavior: "smooth" }), 50);
       },
       onFinish: () => {
         setInformeIaGenerando(false);
-        setMensajeAccion("Informe IA generado en la pestaña Informe IA.");
+        setMensajeAccion("Borrador redactado con IA: revísalo y apruébalo antes de usarlo.");
         EventTracker.track(LEARNING_EVENTS.INFORME_ESTUDIANTE_GENERADO, {
           agentId: AGENT_IDS.GENERADOR_REPORTES,
-          area:    areaActiva,
           grado:   curso || "",
         });
       },
       onError: (err) => {
-        setInformeIa(`Error al generar el informe: ${err}`);
+        setInformeIa("");
+        setMensajeAccion(`Error al redactar con IA: ${err}`);
         setInformeIaGenerando(false);
       },
     });
@@ -331,11 +510,35 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
   const manejarEnviarReporte = () => {
     const envio = new Date().toLocaleString("es-DO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
     setUltimoEnvio(envio);
-    setMensajeAccion(`Reporte enviado a familia (${tutor}) el ${envio}.`);
+    // DocenteOS no envía nada (decisión 7): solo anota que el docente lo entregó
+    setMensajeAccion(`Informe marcado como entregado a la familia (${tutor}) el ${envio}.`);
   };
 
   const contenidoTab = {
     "Resumen": (
+      <>
+      <div className="detalle-tab-lista" style={{ marginBottom: 16 }}>
+        <h4>Línea de tiempo</h4>
+        {lineaDeTiempo === null ? (
+          <p className="detalle-sin-datos">Cargando seguimiento…</p>
+        ) : (
+          <>
+            {seguimiento.errores.curso && <p role="alert" style={{ color: "#b91c1c", fontWeight: 700 }}>⚠️ El estudiante no tiene curso: no se puede leer su seguimiento.</p>}
+            {Object.entries(seguimiento.errores).filter(([k]) => k !== "curso").map(([k, msg]) => (
+              <p key={k} role="alert" style={{ color: "#b91c1c", fontWeight: 700 }}>⚠️ No se pudo leer {k}: {msg}</p>
+            ))}
+            {lineaDeTiempo.length === 0
+              ? <p className="detalle-sin-datos">Sin entregas, notas, evidencias, ausencias ni anotaciones todavía.</p>
+              : lineaDeTiempo.map((e) => (
+                  <p key={e.id}>
+                    {{ actividad: "📝", evidencia: "📎", asistencia: "📅", anecdotico: "🗒️" }[e.tipo]}{" "}
+                    {e.fecha || "sin fecha"} · <strong>{e.titulo}</strong>{e.detalle ? ` · ${e.detalle}` : ""}
+                    {e.enlace && <> · <a href={e.enlace} target="_blank" rel="noreferrer">enlace</a></>}
+                  </p>
+                ))}
+          </>
+        )}
+      </div>
       <div className="detalle-tab-panel-grid">
         <article>
           <h4>Panorama actual</h4>
@@ -349,6 +552,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
           <p>Incrementar el promedio a {Math.min(100, promedio + 6)}% y mantener asistencia por encima de 92%.</p>
         </article>
       </div>
+      </>
     ),
     "Rendimiento": (() => {
       // Fase 9.4 — avance real por indicador oficial (antes: texto de relleno)
@@ -393,9 +597,36 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         }
       </div>
     ),
+    "Actividades": (() => {
+      if (actividadesEst === null) {
+        return <div className="detalle-tab-lista"><p className="detalle-sin-datos">Cargando actividades…</p></div>;
+      }
+      const pendientes = actividadesEst.filter((a) => a.estado === "pendiente" || a.estado === "no_entrego");
+      return (
+        <div className="detalle-tab-lista">
+          {errorActividades && <p role="alert" style={{ color: "#b91c1c", fontWeight: 700 }}>⚠️ {errorActividades}</p>}
+          {actividadesEst.length === 0 ? (
+            <p className="detalle-sin-datos">Sin actividades del plan para este estudiante. Se crean en Modo Aula desde el plan maestro de la unidad.</p>
+          ) : (
+            <>
+              <p><strong>{pendientes.length} pendiente{pendientes.length === 1 ? "" : "s"}</strong> de {actividadesEst.length} actividad{actividadesEst.length === 1 ? "" : "es"} (sin entregar o «No entregó»).</p>
+              {actividadesEst.map((a) => (
+                <p key={a.actividadId} style={a.estado === "pendiente" || a.estado === "no_entrego" ? { fontWeight: 600 } : undefined}>
+                  {a.estado === "entrego" ? "🟢" : a.estado === "excusa" ? "🟡" : a.estado === "no_entrego" ? "🔴" : "⚪"}{" "}
+                  {a.fecha || "sin fecha"} · Fase {a.faseNumero} · {a.faseNombre} · <strong>{ETIQUETAS_ENTREGA[a.estado]}</strong>
+                  {a.enlace && <> · <a href={a.enlace} target="_blank" rel="noreferrer">evidencia</a></>}
+                </p>
+              ))}
+            </>
+          )}
+        </div>
+      );
+    })(),
     "Evidencias": (() => {
       // Banco completo del hilo pedagógico; el expediente queda como respaldo
-      const banco = (bancoEvidencias?.length ? bancoEvidencias : evidenciasExpediente) || [];
+      // F7: sin retiradas, sin la de una nota quitada y sin la copia del puente legacy
+      const vigentes = bancoEvidencias?.length ? evidenciasVigentes(bancoEvidencias, seguimiento?.datos?.resultados || null) : null;
+      const banco = (bancoEvidencias?.length ? vigentes : evidenciasExpediente) || [];
       const periodos = [...new Set(banco.map((e) => e.periodo || e.periodoId).filter(Boolean))];
       const tipos = [...new Set(banco.map((e) => e.tipo).filter(Boolean))];
       const indicadores = [...new Set(banco.flatMap((e) => e.indicadorIds || e.indicadores || []))].filter(Boolean);
@@ -435,9 +666,13 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
               <p key={evidencia.id || evidencia.evidenciaId}>
                 {new Date(evidencia.fecha || evidencia.creadoEn || "2026-01-01").toLocaleDateString("es-DO")} ·
                 {" "}{evidencia.actividad || evidencia.titulo || evidencia.instrumento || "Evidencia"} ·
-                {" "}{evidencia.calificacion?.obtenida ?? evidencia.calificacionAsociada ?? evidencia.calificacion ?? "—"}/{evidencia.calificacion?.valorMaximo ?? evidencia.puntajeMaximo ?? "—"}
+                {/* La entrega de una actividad no es nota (decisión 3) */}
+                {evidencia.tipo === "entrega_actividad"
+                  ? ` ${ETIQUETAS_ENTREGA[evidencia.metadata?.estadoEntrega] || "Entrega"}`
+                  : <>{" "}{evidencia.calificacion?.obtenida ?? evidencia.calificacionAsociada ?? evidencia.calificacion ?? "—"}/{evidencia.calificacion?.valorMaximo ?? evidencia.puntajeMaximo ?? "—"}</>}
                 {evidencia.nivelLogro ? ` · ${evidencia.nivelLogro}` : ""}
                 {evidencia.indicadorId ? ` · ${evidencia.indicadorId}` : ""}
+                {evidencia.enlace && <> · <a href={evidencia.enlace} target="_blank" rel="noreferrer">abrir enlace</a></>}
               </p>
             ))
           )}
@@ -452,6 +687,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         </div>
       );
     })(),
+    "Registro anecdótico": <RegistroAnecdoticoPanel estudiante={estudiante} />,
     "Asistencia": (
       <div className="detalle-tab-lista">
         {sinAsistencia && !expediente
@@ -476,24 +712,73 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         }
       </div>
     ),
-    "Informe IA": (
+    [TAB_INFORME]: (
       <div className="detalle-tab-lista">
-        {informeIaGenerando && (
-          <p style={{ color: "#7c3aed", fontSize: "0.85rem", marginBottom: 8 }}>⏳ Generando informe con IA...</p>
+        {!informeFamilia ? (
+          <p className="detalle-sin-datos">Cargando los datos registrados…</p>
+        ) : (
+          <>
+            <p style={{ fontSize: "0.8rem", color: "#64748b", margin: "0 0 8px" }}>
+              Plantilla llenada con los datos registrados (sin créditos). Revísala antes de usarla: DocenteOS no envía nada.
+            </p>
+            {informeFamilia.sinComprobar.length > 0 && (
+              <p role="alert" style={{ color: "#b91c1c", fontWeight: 700 }}>⚠️ Sin comprobar (no se pudo leer): {informeFamilia.sinComprobar.join(", ")}.</p>
+            )}
+            {anotacionesAnecdoticas.length > 0 && (
+              <fieldset style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", margin: "0 0 10px" }}>
+                <legend style={{ fontSize: "0.8rem", fontWeight: 700 }}>Anotaciones del registro anecdótico que se comparten</legend>
+                {anotacionesAnecdoticas.map((a) => {
+                  const id = a.id || a.evidenciaId;
+                  return (
+                    <label key={id} style={{ display: "block", fontSize: "0.82rem" }}>
+                      <input
+                        type="checkbox"
+                        checked={anotacionesElegidas.includes(id)}
+                        onChange={(e) => setAnotacionesElegidas((prev) => (e.target.checked ? [...prev, id] : prev.filter((x) => x !== id)))}
+                      />{" "}
+                      {a.fecha}: {a.hecho || a.texto}
+                    </label>
+                  );
+                })}
+              </fieldset>
+            )}
+            {[{ titulo: "Plantilla con los datos", texto: textoPlantilla }, ...(informeIa || informeIaGenerando ? [{ titulo: informeIaAprobado ? `Redacción con IA · aprobada el ${informeIaAprobado}` : "Redacción con IA · BORRADOR sin aprobar", texto: informeIa, ia: true }] : [])].map((bloque) => (
+              <div key={bloque.titulo} ref={bloque.ia ? informeIaRef : null} style={{ maxHeight: 420, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 12px", marginBottom: 10 }}>
+                <p style={{ fontSize: "0.75rem", fontWeight: 800, color: bloque.ia && !informeIaAprobado ? "#b45309" : "#475569", margin: 0 }}>{bloque.titulo}</p>
+                {bloque.texto.split("\n").map((line, i) => {
+                  if (line.startsWith("## ")) return <h4 key={i} style={{ color: "#4f46e5", margin: "14px 0 4px", fontSize: "0.92rem", fontWeight: 800, borderBottom: "2px solid #e0e7ff", paddingBottom: 3 }}>{line.slice(3)}</h4>;
+                  if (line.startsWith("- ")) return <li key={i} style={{ marginLeft: 14, marginBottom: 2, fontSize: "0.85rem" }}>{line.slice(2)}</li>;
+                  if (line.trim() === "") return <br key={i} />;
+                  return <p key={i} style={{ margin: "3px 0", fontSize: "0.85rem" }}>{line}</p>;
+                })}
+                {bloque.ia && informeIaGenerando && <span style={{ color: "#7c3aed", fontWeight: 900, animation: "plan-ia-blink 0.8s step-end infinite" }}>▋</span>}
+              </div>
+            ))}
+            {informeIa && !informeIaGenerando && (
+              <textarea
+                aria-label="Editar la redacción con IA"
+                rows={8}
+                value={informeIa}
+                onChange={(e) => { setInformeIa(e.target.value); setInformeIaAprobado(null); }}
+                style={{ width: "100%", fontSize: "0.85rem", marginBottom: 8 }}
+              />
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <button type="button" onClick={imprimirInforme}>🖨 Imprimir / PDF{informeIa && informeIaAprobado ? " (redacción aprobada)" : ""}</button>
+              <button type="button" onClick={copiarWhatsApp}>📋 Copiar para WhatsApp</button>
+              <button type="button" className="secundario" onClick={manejarGenerarInformeIA} disabled={informeIaGenerando}>
+                {informeIaGenerando ? "⏳ Redactando…" : "✨ Redactar con IA (gasta créditos)"}
+              </button>
+              {informeIa && !informeIaGenerando && !informeIaAprobado && (
+                <button type="button" onClick={() => setInformeIaAprobado(new Date().toLocaleDateString("es-DO"))}>✅ Aprobar redacción</button>
+              )}
+              {informeIa && !informeIaGenerando && (
+                <button type="button" className="secundario" onClick={() => { setInformeIa(""); setInformeIaAprobado(null); }}>Descartar redacción</button>
+              )}
+            </div>
+          </>
         )}
-        {!informeIa && !informeIaGenerando && (
-          <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Haz clic en "Generar Informe Individual IA" para crear un análisis completo con IA.</p>
-        )}
-        <div ref={informeIaRef} style={{ maxHeight: 420, overflowY: "auto" }}>
-          {informeIa.split("\n").map((line, i) => {
-            if (line.startsWith("## ")) return <h4 key={i} style={{ color: "#4f46e5", margin: "14px 0 4px", fontSize: "0.92rem", fontWeight: 800, borderBottom: "2px solid #e0e7ff", paddingBottom: 3 }}>{line.slice(3)}</h4>;
-            if (line.startsWith("- ")) return <li key={i} style={{ marginLeft: 14, marginBottom: 2, fontSize: "0.85rem" }}>{line.slice(2)}</li>;
-            if (line.trim() === "") return <br key={i} />;
-            return <p key={i} style={{ margin: "3px 0", fontSize: "0.85rem" }}>{line}</p>;
-          })}
-          {informeIaGenerando && <span style={{ color: "#7c3aed", fontWeight: 900, animation: "plan-ia-blink 0.8s step-end infinite" }}>▋</span>}
-        </div>
-        {ultimoEnvio && <p style={{ marginTop: 12, fontSize: "0.8rem", color: "#64748b" }}>Ultimo envio familiar: {ultimoEnvio}</p>}
+        {ultimoEnvio && <p style={{ marginTop: 12, fontSize: "0.8rem", color: "#64748b" }}>Entregado a la familia: {ultimoEnvio}</p>}
       </div>
     ),
   };
@@ -508,6 +793,21 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         <p>Seguimiento academico individual</p>
       </section>
 
+      {/* F5 — «Necesita apoyo» (decisión 5): solo avisa, con su motivo */}
+      {alertaApoyo && (alertaApoyo.necesitaApoyo || alertaApoyo.sinComprobar.length > 0) && (
+        <section role="alert" className="detalle-card" style={{ borderLeft: `4px solid ${alertaApoyo.necesitaApoyo ? "#dc2626" : "#d97706"}`, marginBottom: 16 }}>
+          {alertaApoyo.necesitaApoyo && (
+            <>
+              <h3 style={{ color: "#b91c1c", margin: "0 0 6px" }}>Necesita apoyo</h3>
+              {alertaApoyo.motivos.map((m) => <p key={m.senal} style={{ margin: "2px 0" }}>• {m.texto}</p>)}
+            </>
+          )}
+          {alertaApoyo.sinComprobar.length > 0 && (
+            <p style={{ color: "#92400e", margin: "6px 0 0" }}>⚠️ Sin comprobar ({alertaApoyo.sinComprobar.join(", ")}): no se pudieron leer los datos.</p>
+          )}
+        </section>
+      )}
+
       <section className="detalle-main-grid">
         <article className="detalle-card detalle-identidad">
           <div className="detalle-avatar-grande">{(nombre.split(" ")[0][0] || "J") + (nombre.split(" ")[1]?.[0] || "P")}</div>
@@ -518,6 +818,7 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
               <li>Curso: {curso}</li>
               <li>Edad: {edad} anos</li>
               <li>Fecha de nacimiento: {fechaNacimiento}</li>
+              <li><CedulaEditable estudiante={estudiante} onGuardar={onGuardarCedula} /></li>
               <li>Madre / Tutor: {tutor}</li>
               <li>Telefono: {telefono}</li>
             </ul>
@@ -682,10 +983,9 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
         <button
           type="button"
           className="secundario"
-          onClick={manejarGenerarInformeIA}
-          disabled={informeIaGenerando}
+          onClick={() => setTabActiva(TAB_INFORME)}
         >
-          {informeIaGenerando ? "⏳ Generando..." : "Ver informe IA completo"}
+          Ver informe a la familia
         </button>
       </section>
 
@@ -771,10 +1071,10 @@ function EstudianteDetallePage({ estudiante, onVolver = () => {}, initialTab = "
       )}
 
       <section className="detalle-acciones-principales">
-        <button type="button" onClick={manejarGenerarInformeIA}>Generar Informe Individual IA</button>
+        <button type="button" onClick={() => setTabActiva(TAB_INFORME)}>Informe a la familia</button>
         <button type="button" onClick={manejarCrearPlanApoyo}>Crear Plan de Apoyo</button>
         <button type="button" onClick={abrirModalRegistroEvaluacion}>Registrar Evaluacion</button>
-        <button type="button" onClick={manejarEnviarReporte}>Enviar Reporte a Familia</button>
+        <button type="button" onClick={manejarEnviarReporte}>Marcar como entregado a la familia</button>
       </section>
     </div>
   );

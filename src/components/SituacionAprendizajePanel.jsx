@@ -99,7 +99,9 @@ export default function SituacionAprendizajePanel({ datos, onChange, pm, temas }
         <p className="pd-hint" style={{ margin: "0 0 4px" }}>DocenteOS propone (simulada; puedes adaptarla):</p>
       ) : (
         <p className="pd-hint" style={{ margin: "0 0 4px" }}>
-          Todavía no hay situaciones propuestas para este tema: escribe la tuya con los cinco elementos.
+          {s?.borrador
+            ? "Todavía no hay situaciones propuestas para este tema: DocenteOS preparó un borrador (abajo) que puedes usar tal cual o adaptar."
+            : "Todavía no hay situaciones propuestas para este tema: escribe la tuya con los cinco elementos."}
         </p>
       )}
       {propuestas.map((p) => (
@@ -122,6 +124,11 @@ export default function SituacionAprendizajePanel({ datos, onChange, pm, temas }
 
       {s && (
         <div style={caja}>
+          {s.borrador && (
+            <p style={{ fontSize: 13, margin: "0 0 8px", color: "#92400e" }} role="note">
+              Borrador sugerido por DocenteOS con el título de la unidad. Si quieres, cámbialo por algo real de tu grupo.
+            </p>
+          )}
           <div className="pd-field">
             <label>¿Real o simulada?</label>
             <select value={s.origen} onChange={campo("origen")}>

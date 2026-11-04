@@ -63,7 +63,7 @@
       "indicadoresLogro": [
         {
           "id": "FRA-6-I04",
-          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de Primer Ciclo forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+          "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
           "competenciaId": "FRA-6-C02"
         },
         {
@@ -218,7 +218,7 @@
         },
         {
           "id": "FRA-6-I21",
-          "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación. 208",
+          "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación.",
           "competenciaId": "FRA-6-C07"
         }
       ],
@@ -247,7 +247,7 @@
     },
     {
       "id": "FRA-6-I04",
-      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de Primer Ciclo forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
       "competenciaId": "FRA-6-C02"
     },
     {
@@ -332,7 +332,7 @@
     },
     {
       "id": "FRA-6-I21",
-      "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación. 208",
+      "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación.",
       "competenciaId": "FRA-6-C07"
     }
   ],
@@ -354,7 +354,7 @@
     },
     {
       "id": "FRA-6-I04",
-      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de Primer Ciclo forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
+      "descripcion": "Responde de forma adecuada a preguntas e indicaciones, a partir de textos orales y escritos breves y sencillos comprendiendo de forma reflexiva y creativa la secuencia y relación lógica de los elementos donde se procura servicio de transporte, se informa sobre viajes, se relata experiencias, se interactúa en restaurantes y se da y se pide opiniones.",
       "competenciaId": "FRA-6-C02"
     },
     {
@@ -439,7 +439,7 @@
     },
     {
       "id": "FRA-6-I21",
-      "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación. 208",
+      "descripcion": "Interactúa con cortesía, respeto y asertividad al referirse a sí mismo y a otras personas en distintas situaciones de comunicación.",
       "competenciaId": "FRA-6-C07"
     }
   ],
@@ -825,7 +825,7 @@
           "Alimentación."
         ],
         "vocabulario": [
-          "Eventos: festival, carnaval, match de baseball, concert, exposi- tion… Reservar, ordenar y pagar en un restaurante",
+          "Reservar, ordenar y pagar en un restaurante",
           "Restaurante: menu, addition, entrée, plat principal, dessert…",
           "Menú: salade, steak, frites, poulet, riz, tarte, thé, lait, eau, jus… Co- midas: petit déjeuner, déjeuner, dîner…",
           "Utensilios : carafe, verre, assiette, fourchette, couteau, cuillère…",
@@ -1339,7 +1339,7 @@
         ],
         "vocabulario": [
           "Dar y obtener información sobre viajes",
-          "Eventos: festival, carnaval, match de baseball, concert, exposi- tion… Reservar, ordenar y pagar en un restaurante",
+          "Eventos: festival, carnaval, match de baseball, concert, exposi- tion…",
           "Lugares : pays, ville, plage, montagne, monument, musée…",
           "Transporte: bus, avion, train, bateau, vélo, voiture…",
           "Tecnologías : ordinateur, souris, page web, courriel, connexion wifi…",
@@ -1894,7 +1894,8 @@
         "Opinar: Je pense que…, Je crois que…, À mon avis…, Selon moi…",
         "Dar una opinión positiva: J’aime beaucoup…, J’adore…, C’est gé- nial ! C’est merveilleux ! Je suis d’accord…",
         "Dar una opinión negativa : Je déteste…, Ça n’a aucun intérêt. C’est ennuyant ! Je ne suis pas d’accord…",
-        "Eventos: festival, carnaval, match de baseball, concert, exposi- tion… Reservar, ordenar y pagar en un restaurante",
+        "Eventos: festival, carnaval, match de baseball, concert, exposi- tion…",
+        "Reservar, ordenar y pagar en un restaurante",
         "Restaurante: menu, addition, entrée, plat principal, dessert…",
         "Menú: salade, steak, frites, poulet, riz, tarte, thé, lait, eau, jus… Co- midas: petit déjeuner, déjeuner, dîner…",
         "Utensilios : carafe, verre, assiette, fourchette, couteau, cuillère…",

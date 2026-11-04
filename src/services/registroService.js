@@ -210,11 +210,12 @@ export const actualizarRegistroDesdeResultadoInstrumento = async (resultado, { i
       instrumentos,
       resultados: resultadosEstudiante,
     });
-    if (consolidado.valorCalculadoPuntos === null) continue;
-
     const notaId = crearNotaId(resultado.estudianteId, aspectoId);
     const previoSnap = await getDoc(refNota(cursoId, notaId));
     const previo = previoSnap.exists() ? previoSnap.data() : null;
+    // Sin nada evaluado: no inventar nota. Si había un cálculo automático
+    // (p. ej. actividad excluida, F4), se vacía; el ajuste manual se conserva.
+    if (consolidado.valorCalculadoPuntos === null && previo?.origen !== "instrumento") continue;
 
     // Regla 12 sobre la forma registro { valorCalculado, valorFinal, ajusteManual }
     const registroPrevio = previo ? {
@@ -229,6 +230,7 @@ export const actualizarRegistroDesdeResultadoInstrumento = async (resultado, { i
       esParcial: consolidado.esParcial,
       origenResultados: consolidado.origenResultados,
     }, ahora);
+    const valorVigente = recalculado.ajusteManual ? recalculado.valorFinal : recalculado.valorCalculado;
 
     const nota = {
       ...(previo || {}),
@@ -242,9 +244,9 @@ export const actualizarRegistroDesdeResultadoInstrumento = async (resultado, { i
       indicadorId: aspecto.indicadorId || "",
       puntajeMaximo: consolidado.puntajeMaximo,
       valorCalculado: recalculado.valorCalculado,
-      valorObtenido: recalculado.ajusteManual ? recalculado.valorFinal : recalculado.valorCalculado,
-      porcentaje: consolidado.puntajeMaximo > 0
-        ? Math.round(((recalculado.ajusteManual ? recalculado.valorFinal : recalculado.valorCalculado) / consolidado.puntajeMaximo) * 100)
+      valorObtenido: valorVigente ?? "",
+      porcentaje: consolidado.puntajeMaximo > 0 && valorVigente !== null && valorVigente !== undefined
+        ? Math.round((valorVigente / consolidado.puntajeMaximo) * 100)
         : null,
       esParcial: consolidado.esParcial,
       pendientes: consolidado.pendientes,

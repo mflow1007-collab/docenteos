@@ -14,7 +14,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "../src/services/unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../src/data/indicadoresIngles2doEstructurados.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../src/data/estrategiasFasesGuia2025.js";
-import { ROLES_FASES_POR_ESTRATEGIA, ROL_POR_ACCION, ROLES_FASE, ENTREGA_POR_ROL } from "../src/data/rolesFasesEstrategias.js";
+import { ROLES_FASES_POR_ESTRATEGIA, ROL_POR_ACCION, ROLES_FASE, ENTREGA_POR_ROL, TIPOS_TRABAJO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA } from "../src/data/rolesFasesEstrategias.js";
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -69,6 +69,19 @@ check("los papeles nunca retroceden en ninguna estrategia", () => {
   }
 });
 
+// Etapa S1 (docs/DISENO_SECUENCIA_POR_FASES.md): tipo de trabajo por fase de Inserción.
+check("Inserción: las 9 fases con su tipo de trabajo, uno distinto por fase", () => {
+  const fases = ESTRATEGIAS_FASES_GUIA_2025.find((e) => e.clave === "insercion_entorno").fases;
+  const tipos = TIPO_TRABAJO_FASES_POR_ESTRATEGIA.insercion_entorno;
+  igual(tipos.length, fases.length, "tipos vs fases");
+  tipos.forEach((t) => assert(TIPOS_TRABAJO.includes(t), `tipo desconocido ${t}`));
+  igual(tipos, TIPOS_TRABAJO, "uno por fase, en el orden de la Guía");
+  fases.forEach((f, i) => console.log(`      ${i + 1}. ${f} → ${tipos[i]}`));
+});
+check("tipos de trabajo solo en estrategias de la Guía", () => {
+  Object.keys(TIPO_TRABAJO_FASES_POR_ESTRATEGIA).forEach((clave) => assert(ROLES_FASES_POR_ESTRATEGIA[clave], `${clave} no tiene papeles`));
+});
+
 console.log("Plan maestro — Inglés 2do, ABProyecto, 4 semanas × 4 días × 1 hora:");
 const p = plan();
 check("las 7 fases literales de la Guía, en orden", () => {
@@ -106,6 +119,20 @@ check("una entrega del mismo producto por fase", () => {
   p.fases.forEach((f) => assert(f.entrega.texto.includes(base.producto), `fase ${f.numero}: ${f.entrega.texto}`));
   igual(p.fases.map((f) => f.entrega.estado), ["Acuerdo y plan", "Acuerdo y plan", "Insumos recopilados", "Borrador", "Versión final", "Versión revisada", "Presentación"], "estados");
   igual(p.fases[0].entrega.texto, `Acuerdo y plan de ${base.producto} (avance 1 de 2)`, "avance numerado");
+});
+check("avance parcial: la entrega nombra sus secciones, no el producto entero (2026-11-03)", () => {
+  const S = ["Our Local Food", "Interviews with Owners", "Bilingual Menus", "Healthy Choices", "Ordering Food"];
+  const q = plan({ estrategia: "insercion_entorno", horario: { semanas: 3, diasClase: ["Lunes", "Martes", "Miércoles"], horasPorDia: 1 }, secciones: S });
+  const parciales = q.fases.filter((f) => f.entrega.secciones.length && f.entrega.secciones.length < S.length);
+  assert(parciales.length > 0, "el plan de prueba no tiene avances parciales");
+  parciales.forEach((f) => {
+    assert(!f.entrega.texto.includes(base.producto), `fase ${f.numero} nombra el producto entero: ${f.entrega.texto}`);
+    f.entrega.secciones.forEach((sec) => assert(f.entrega.texto.includes(sec), `fase ${f.numero} no nombra ${sec}: ${f.entrega.texto}`));
+  });
+  q.fases.filter((f) => f.entrega.secciones.length === S.length)
+    .forEach((f) => assert(f.entrega.texto.includes(base.producto), `fase ${f.numero} con todas: ${f.entrega.texto}`));
+  const final = parciales.find((f) => /^Versión final de Our Local Food/.test(f.entrega.texto));
+  assert(final, `sin «Versión final de Our Local Food»: ${parciales.map((f) => f.entrega.texto).join(" | ")}`);
 });
 check("contenidos solo en conocimiento, modelado y aplicación", () => {
   p.fases.forEach((f) => {

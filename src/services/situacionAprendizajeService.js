@@ -192,6 +192,84 @@ export const situacionDesdeSemilla = (semilla, { centro = "" } = {}) => ({
   rasgos: { ...semilla.rasgos },
 });
 
+// ── Borrador automático (modo rápido) ──────────────────────────────────────
+// Sin situación propuesta para el tema, DocenteOS arma un BORRADOR con el
+// título, el grado y el centro para que el docente pueda generar sin llenar
+// nada; lo ve marcado como borrador y lo ajusta si quiere. Sin IA. No es texto
+// oficial (banco pedagógico de DocenteOS) y nunca dice «no saben el idioma».
+
+const RASGOS_POR_DEFECTO = { naturaleza: "necesidad", contexto: "escuela", alcance: "resuelve", llegada: "actuar" };
+
+const idiomaDe = (asignatura = "") => {
+  const a = limpio(asignatura).toLowerCase();
+  if (a.startsWith("ingl")) return "inglés";
+  if (a.startsWith("franc")) return "francés";
+  return "";
+};
+
+/** Nombre de producto sugerido a partir del título (el docente lo cambia si quiere). */
+export const productoSugerido = ({ titulo = "", asignatura = "" } = {}) => {
+  const t = sinPuntoFinal(titulo);
+  if (!t) return "";
+  const idioma = idiomaDe(asignatura);
+  if (idioma === "inglés") return `${t} Booklet`;
+  if (idioma === "francés") return `Livret « ${t} »`;
+  return `Guía «${t}»`;
+};
+
+const mayuscula = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+
+/**
+ * Secciones sugeridas (sin IA). En idiomas, cada parte del título pasa a ser
+ * una sección propia («My Hobbies», «My Weekend Activities») y se suman las
+ * funciones que la malla trabaja: experiencias (pasado) y planes (futuro).
+ * Auditoría 2026-11-02: con solo «Hobbies · Weekend activities» cada semana
+ * construía poco visible. Fuera de idiomas: las partes del título o
+ * presentación · tema · cierre. El docente las cambia en la vista previa.
+ */
+// Con posesivo o artículo propio («My family», «La famille») la parte queda tal cual.
+const POSESIVO_RE = /^(my|our|the|mi|mis|ma|mon|mes|nuestro|nuestra|nuestros|nuestras|notre|nos|le|la|les|l')(\s|\b)/i;
+const FUNCIONES_SECCION = {
+  inglés: { mio: (p) => `My ${p}`, inicio: "Introduction", extra: ["Past Experiences", "Future Plans"] },
+  francés: { mio: (p) => `Mes ${p.toLowerCase()}`, inicio: "Introduction", extra: ["Mes expériences", "Mes projets"] },
+};
+export const seccionesSugeridas = ({ titulo = "", asignatura = "" } = {}) => {
+  const t = sinPuntoFinal(titulo);
+  const partes = t.split(/\s*,\s*|\s+(?:and|y|et|&)\s+/i).map(limpio).filter(Boolean).map(mayuscula);
+  const distintas = new Set(partes.map((p) => p.toLowerCase())).size === partes.length;
+  const funciones = FUNCIONES_SECCION[idiomaDe(asignatura)];
+  if (funciones) {
+    const propias = (partes.length >= 2 && distintas ? partes.slice(0, 3) : [mayuscula(t) || "Main Ideas"])
+      .map((p) => (POSESIVO_RE.test(p) ? p : funciones.mio(p)));
+    return [...(propias.length === 1 ? [funciones.inicio] : []), ...propias, ...funciones.extra];
+  }
+  if (partes.length >= 2 && distintas) return partes;
+  return ["Presentación", mayuscula(t) || "Ideas principales", "Mensaje final"];
+};
+
+/** Situación de borrador por elementos (Guía 1.2.2) para el tema de la unidad. */
+export const borradorSituacion = ({ titulo = "", grado = "", centro = "", asignatura = "" } = {}) => {
+  const t = sinPuntoFinal(titulo);
+  const idioma = idiomaDe(asignatura);
+  const { centro: lugar } = lugaresDelCentro(centro);
+  return {
+    ...situacionVacia(),
+    origen: "simulada",
+    borrador: true,
+    // Corto a propósito: el título sale también en el producto y la situación
+    // compuesta no puede pasar de 800 caracteres.
+    contexto: `En ${lugar}, los estudiantes${grado ? ` de ${limpio(grado)}` : ""} trabajan el tema «${t}».`,
+    problema: idioma
+      ? `Necesitan contarlo en ${idioma} a personas que no hablan español y todavía no tienen un material para hacerlo.`
+      : "Necesitan explicarlo a otras personas del centro y todavía no tienen un material claro para hacerlo.",
+    productoDescripcion: idioma ? "un material bilingüe sobre el tema" : "un material sobre el tema",
+    audiencia: "los compañeros de otras secciones y los visitantes del centro",
+    puntoDeLlegada: "Así valoran lo que aprenden y lo comparten con respeto y responsabilidad hacia los demás.",
+    competenciasLlegada: ["desarrollo_personal"],
+    rasgos: { ...RASGOS_POR_DEFECTO },
+  };
+};
+
 // ── Texto y validación ─────────────────────────────────────────────────────
 
 /** Los cinco elementos de la Guía 1.2.2, con la estrategia `estrategia`. */
@@ -312,15 +390,20 @@ export const alinearSiNoHay = (pm) => (pm.situacion && !pm.situacion.estrategiaA
 
 export const usarSemilla = (pm, semilla, { centro = "" } = {}) => alinearSiNoHay({
   ...pm, situacion: situacionDesdeSemilla(semilla, { centro }), secciones: [...semilla.secciones],
+  propositosSecciones: { ...(semilla.propositos || {}) },
+  piezasSecciones: { ...(semilla.piezas || {}) },
+  tiposTrabajoSecciones: { ...(semilla.tiposTrabajo || {}) },
+  partenDeSecciones: Object.fromEntries(Object.entries(semilla.partenDe || {}).map(([s, de]) => [s, [...de]])),
 });
 
-export const escribirSituacionPropia = (pm) => alinearSiNoHay({ ...pm, situacion: situacionVacia(), secciones: [] });
+export const escribirSituacionPropia = (pm) => alinearSiNoHay({ ...pm, situacion: situacionVacia(), secciones: [], propositosSecciones: {}, piezasSecciones: {}, tiposTrabajoSecciones: {}, partenDeSecciones: {} });
 
 export const aceptarRealineacion = (pm) => ({
   ...pm, situacion: { ...pm.situacion, estrategiaAlineada: pm.estrategia, rolPropio: "" },
 });
 
-export const fijarCampoSituacion = (pm, campo, valor) => ({ ...pm, situacion: { ...pm.situacion, [campo]: valor } });
+// Lo que el docente escribe deja de ser borrador de DocenteOS.
+export const fijarCampoSituacion = (pm, campo, valor) => ({ ...pm, situacion: { ...pm.situacion, [campo]: valor, borrador: false } });
 
 export const fijarRasgo = (pm, criterio, valor) => ({
   ...pm, situacion: { ...pm.situacion, rasgos: { ...pm.situacion.rasgos, [criterio]: valor } },

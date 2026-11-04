@@ -9766,6 +9766,8 @@
 
 /* Campo badge (campos faltantes en formulario UA) */
 .pd-campos-faltantes { margin-top: 10px; padding: 10px 14px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; }
+.pd-link-btn { background: none; border: 0; padding: 0; color: #c2410c; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.pd-link-btn:focus-visible { outline: 2px solid #c2410c; outline-offset: 2px; border-radius: 2px; }
 .pd-campo-badge {
   background: #ea580c;
   color: #fff;
