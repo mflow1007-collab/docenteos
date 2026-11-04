@@ -26,5 +26,5 @@ App de planificación docente alineada al currículo MINERD. React + Firebase (F
 
 ## Antes de dar algo por terminado
 - Ejecuta las pruebas y muéstrame el resultado: `npm test`
-- Si tocaste generación o mallas, comprueba con la malla de Inglés 2do: 21 criterios de evaluación (42 es el total de 1ro + 2do), sin aumento de filas "Requiere revisión docente" y documento por debajo de 1 MiB.
+- Si tocaste generación o mallas, comprueba con la malla de Inglés 2do: 21 criterios de evaluación (antes salían 42 porque cada criterio se contaba dos veces: con y sin competencia), sin aumento de filas "Requiere revisión docente" y documento por debajo de 1 MiB.
 - No hagas commit ni deploy sin preguntarme.

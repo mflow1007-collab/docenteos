@@ -201,7 +201,11 @@ export const extraerCriteriosEvaluacionCanonicos = (payload = {}, contexto = {})
       });
     }
   });
-  return [...unicos.values()];
+  // Un criterio, un código: el mismo texto llega sin competencia (lista general de la
+  // malla) y con ella (dentro de la competencia); queda el que declara su competencia.
+  const lista = [...unicos.values()];
+  const conCompetencia = new Set(lista.filter((c) => c.competenciaFundamental).map((c) => c.textoNormalizado));
+  return lista.filter((c) => c.competenciaFundamental || !conCompetencia.has(c.textoNormalizado));
 };
 
 export const inventariarCriteriosCurriculares = (documentos = []) =>

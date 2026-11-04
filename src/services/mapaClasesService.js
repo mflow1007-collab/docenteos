@@ -24,6 +24,8 @@ import {
 export const CLASES_MINIMAS = 3;
 // Más contenidos no caben con sentido en una clase: lo demás queda sin marcar en la tabla.
 export const TOPE_CONTENIDOS_POR_CLASE = 6;
+// Una clase nunca muestra menos indicadores de los que evalúa (César, 2026-11-04).
+export const TOPE_INDICADORES_POR_CLASE = 3;
 const ORDEN_TIPOS = ["visitar", "socializar", "describir", "analizar", "orientar", "proponer", "aplicar"];
 const error = (msg) => new Error(`Mapa de clases: ${msg}`);
 const ACCION_DE = { C: "responde", P: "produce", I: "interactua" };
@@ -111,7 +113,10 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe }) => {
   // Cerrar la unidad en orden aunque la Guía ponga Evaluación antes de Socialización:
   // comprender los comentarios de la audiencia va con o después de presentar.
   const presentar = items.find((it) => it.t.clave === "presentar");
-  items.filter((it) => it.t.clave === "evaluar_comentarios").forEach((it) => { it.fase = Math.max(it.fase, presentar.fase); });
+  const comentarios = items.find((it) => it.t.clave === "evaluar_comentarios");
+  comentarios.fase = Math.max(comentarios.fase, presentar.fase);
+  // La autoevaluación va después de la sumativa, aunque comparta clase (César, 2026-11-04).
+  items.filter((it) => it.t.clave === "evaluar_proceso").forEach((it) => { it.fase = Math.max(it.fase, comentarios.fase); });
   return items.sort((a, b) => a.fase - b.fase || a.bloque - b.bloque || a.orden1 - b.orden1 || a.orden2 - b.orden2);
 };
 
@@ -304,15 +309,25 @@ const ubicarIndicadores = (filas, indicadores) => {
         const lista = porAccion[accion];
         if (!lista?.length) return;
         const id = lista[(siguiente[accion] = (siguiente[accion] ?? -1) + 1) % lista.length];
+        if (!fila.indicadores.includes(id) && fila.indicadores.length >= TOPE_INDICADORES_POR_CLASE) return;
         if (!t.indicadores.includes(id)) t.indicadores.push(id);
         if (!fila.indicadores.includes(id)) fila.indicadores.push(id);
       });
     });
   });
+  // Clase sumativa (V6): primero los indicadores de la acción de sus tareas sumativas, hasta
+  // el tope. Lo que no quepa queda fuera de las sumativas y fallosQueDetienen lo reporta.
+  filas.filter((f) => f.tareas.some((t) => t.sumativa)).forEach((fila) => {
+    const sumativos = fila.tareas.filter((t) => t.sumativa).flatMap((t) => [].concat(t.demuestra).filter(Boolean)
+      .flatMap((letra) => (porAccion[ACCION_DE[letra]] || []).map((id) => ({ t, id }))));
+    fila.indicadores = [...new Set([...sumativos.map((s) => s.id), ...fila.indicadores])].slice(0, TOPE_INDICADORES_POR_CLASE);
+    fila.tareas.forEach((t) => { t.indicadores = t.indicadores.filter((id) => fila.indicadores.includes(id)); });
+    sumativos.filter((s) => fila.indicadores.includes(s.id) && !s.t.indicadores.includes(s.id)).forEach((s) => s.t.indicadores.push(s.id));
+  });
   // Más indicadores que tareas de su acción: comparten tarea, en rotación.
   Object.entries(porAccion).forEach(([accion, lista]) => {
     const letra = Object.keys(ACCION_DE).find((l) => ACCION_DE[l] === accion);
-    const destinos = filas.filter((f) => f.tareas.some((t) => [].concat(t.demuestra).includes(letra)));
+    const destinos = filas.filter((f) => f.indicadores.length < TOPE_INDICADORES_POR_CLASE && f.tareas.some((t) => [].concat(t.demuestra).includes(letra)));
     lista.filter((id) => !filas.some((f) => f.indicadores.includes(id))).forEach((id, i) => {
       if (!destinos.length) return;
       const fila = [...destinos].sort((a, b) => a.indicadores.length - b.indicadores.length)[0] || destinos[i % destinos.length];
@@ -402,8 +417,11 @@ export const evaluacionDeFila = (fila) => {
   const conFormativa = sumativa && fila.tareas.some((t) => !t.sumativa);
   const tipo = claves.includes("acordar") ? "Diagnóstica" : sumativa
     ? (conFormativa ? "Sumativa solo en lo marcado; formativa en lo demás" : "Sumativa") : "Formativa";
-  const agente = [...new Set(["Heteroevaluación", ...claves.map((c) => AGENTE_TAREA[c]).filter(Boolean)])]
-    .filter((a, _, l) => l.length === 1 || a !== "Heteroevaluación" || sumativa).join(" y ");
+  // La actividad sumativa es solo heteroevaluación; los demás agentes son de la parte formativa.
+  const otrosAgentes = [...new Set(fila.tareas.filter((t) => !t.sumativa).map((t) => AGENTE_TAREA[t.clave]).filter(Boolean))];
+  const agente = sumativa
+    ? `Heteroevaluación${otrosAgentes.length ? ` (sumativa); ${otrosAgentes.join(" y ").toLowerCase()} (formativa)` : ""}`
+    : otrosAgentes.join(" y ") || "Heteroevaluación";
   const pares = [...new Set(fila.tareas.filter((t) => t.demuestra !== null).map((t) => t.evidencia))].map((e) => TECNICA_EVIDENCIA[e]);
   const lista = pares.length ? pares : [TECNICA_EVIDENCIA.desempeno];
   let instrumento = [...new Set(lista.map((p) => p[1]))].join(" y ");
@@ -434,7 +452,7 @@ export const didacticosDeFila = (fila) => {
 };
 
 /** La clase 1 no tiene clase anterior: la posición de retroalimentación mira hacia adelante. */
-export const INICIO_PRIMERA_CLASE = "Comentan qué esperan aprender en este proyecto. (What would you like to learn in this project?)";
+export const INICIO_PRIMERA_CLASE = "Recuperación de experiencias: comentan qué han vivido o visto sobre este tema. (What do you know about this topic?)";
 
 /** La firma que promete la tarea la escribe el código, en la actividad de esa tarea. */
 export const conFirmas = (actividades, tareasMapa = []) => {
@@ -719,8 +737,12 @@ export const hojaDeRuta = (filas = [], clasesActuales = []) => filas.map((f) => 
   return `${marca}C${f.clase} ${secciones}: ${f.tareas.map((t) => t.nombre).join(" + ")} → entrega: ${f.entregas.join("; ")}`;
 });
 
-/** Reglas de calidad del diseño. Devuelve la lista de incumplimientos (vacía = cumple). */
-export const verificarMapa = (mapa) => {
+/**
+ * Fallos del mapa que detienen la generación antes de llamar a la IA (César, 2026-11-04):
+ * indicador sin lugar en las clases sumativas (V6) y entrega o dato sin origen.
+ * V6 cuenta solo los indicadores que cada clase muestra.
+ */
+export const fallosQueDetienen = (mapa) => {
   const fallos = [];
   // Inventario: ningún dato sin origen en una clase anterior o en la misma.
   const recogidoEn = {};
@@ -732,6 +754,23 @@ export const verificarMapa = (mapa) => {
       else if (recogidoEn[d] > f.clase && mapa.modo !== "breve") fallos.push(`«${t.secciones[0]}» necesita «${d}» en la clase ${f.clase}, antes de recogerlo en la ${recogidoEn[d]}`);
     });
   }));
+  const reales = mapa.filas.filter((f) => !f.flexible);
+  const tareas = reales.flatMap((f) => f.tareas.map((t) => ({ ...t, clase: f.clase })));
+  tareas.forEach((t) => {
+    t.recibe.forEach((r) => { if (r.clase !== null && r.clase > t.clase) fallos.push(`clase ${t.clase} recibe de una clase posterior (${r.clase})`); });
+    if (!t.recibe.length) fallos.push(`clase ${t.clase}: «${t.nombre}» no tiene origen`);
+  });
+  const muestra = (f) => f.indicadores.slice(0, TOPE_INDICADORES_POR_CLASE);
+  reales.filter((f) => f.indicadores.length > TOPE_INDICADORES_POR_CLASE).forEach((f) => fallos.push(`la clase ${f.clase} evalúa ${f.indicadores.length} indicadores y solo muestra ${TOPE_INDICADORES_POR_CLASE}`));
+  const sumativos = new Set(reales.flatMap((f) => f.tareas.filter((t) => t.sumativa).flatMap((t) => t.indicadores.filter((id) => muestra(f).includes(id)))));
+  const sinLugar = mapa.indicadores.filter((id) => !sumativos.has(id));
+  if (sinLugar.length) fallos.push(`los indicadores ${sinLugar.join(", ")} no caben en las clases sumativas de la unidad: cada clase evalúa como máximo ${TOPE_INDICADORES_POR_CLASE}, y comprender va en una tarea sumativa, producir e interactuar en otra. Elige menos indicadores`);
+  return [...new Set(fallos)];
+};
+
+/** Reglas de calidad del diseño. Devuelve la lista de incumplimientos (vacía = cumple). */
+export const verificarMapa = (mapa) => {
+  const fallos = fallosQueDetienen(mapa);
   const reales = mapa.filas.filter((f) => !f.flexible);
   const tareas = reales.flatMap((f) => f.tareas.map((t) => ({ ...t, clase: f.clase })));
   if (mapa.filas.length !== mapa.total) fallos.push(`hay ${mapa.filas.length} filas para ${mapa.total} clases`);
@@ -747,8 +786,6 @@ export const verificarMapa = (mapa) => {
     const k = `${t.clave}|${t.secciones.join()}`;
     if (vistas.has(k)) fallos.push(`se repite sin avance: ${t.nombre} (${t.secciones.join(", ")})`);
     vistas.add(k);
-    t.recibe.forEach((r) => { if (r.clase !== null && r.clase > t.clase) fallos.push(`clase ${t.clase} recibe de una clase posterior (${r.clase})`); });
-    if (!t.recibe.length) fallos.push(`clase ${t.clase}: «${t.nombre}» no tiene origen`);
   });
   mapa.indicadores.forEach((id) => { if (!reales.some((f) => f.indicadores.includes(id))) fallos.push(`el indicador ${id} no tiene tarea`); });
   const puestos = new Set(reales.flatMap((f) => f.contenidos.map((c) => `${c.categoria}:${c.texto}`)));

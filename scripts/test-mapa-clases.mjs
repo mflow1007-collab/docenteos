@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { armarMapaClases, verificarMapa, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
+import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
@@ -18,6 +18,7 @@ import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, con
 import { hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
+import { extraerCriteriosEvaluacionCanonicos } from "../src/services/curriculumBrainService.js";
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -126,11 +127,14 @@ check("los minutos del Desarrollo siguen la duración de la clase", () => {
   igual([45, 60, 90].map(minutosDesarrollo), [30, 35, 65], "minutos");
   assert(verificarMapa(armarMapaClases({ ...entrada("Alimentación", 3, ...HORARIOS["3x1"]), duracionMin: 90 })).length === 0, "90 min no cumple");
 });
-check("todos los indicadores de todas las competencias tienen tarea", () => {
+check("con los 21 indicadores, ninguna clase pasa del tope y el mapa lo detiene con un mensaje claro", () => {
   const todos = { competenciasElegidas: competencias.map((c) => c.id), indicadoresElegidos: estructura.indicadores.map((i) => i.id) };
   const m = mapaDe("Alimentación", 6, HORARIOS["3x1"], { planMaestro: todos });
-  igual(verificarMapa(m), [], "reglas");
   igual(m.indicadores.length, 21, "21 indicadores");
+  assert(m.filas.every((f) => f.indicadores.length <= TOPE_INDICADORES_POR_CLASE), "una clase pasa del tope");
+  const fallos = fallosQueDetienen(m);
+  igual(fallos.length, 1, "un solo fallo");
+  assert(/no caben en las clases sumativas.*Elige menos/.test(fallos[0]), fallos[0]);
 });
 check("las siete estrategias cumplen las reglas a 6 semanas", () => {
   ["proyectos", "problemas", "indagacion_dialogica", "insercion_entorno", "estudio_caso", "conocimientos_previos", "expositiva"].forEach((estrategia) => {
@@ -318,6 +322,49 @@ check("evaluación: el tipo, el agente y el instrumento salen de la fila", () =>
   assert(/^Sumativa solo/.test(evaluacionDeFila(ref.filas[17]).tipo), "la 18 solo califica lo marcado");
   assert(/Coevaluación/.test(evaluacionDeFila(ref.filas[9]).agente), "comentar es coevaluación");
 });
+check("la actividad sumativa es solo heteroevaluación; los otros agentes son de lo formativo", () => {
+  igual(evaluacionDeFila(ref.filas[16]).agente, "Heteroevaluación", "clase 17");
+  igual(evaluacionDeFila(ref.filas[17]).agente, "Heteroevaluación (sumativa); autoevaluación y coevaluación (formativa)", "clase 18");
+});
+check("la autoevaluación va después de la sumativa, en todas las estrategias y duraciones", () => {
+  ["proyectos", "problemas", "indagacion_dialogica", "insercion_entorno", "estudio_caso", "conocimientos_previos", "expositiva"].forEach((estrategia) => {
+    [2, 4, 6].forEach((semanas) => {
+      const tareas = mapaDe("Escuela y educación", semanas, HORARIOS["3x1"], { planMaestro: { estrategia } }).filas.flatMap((f) => f.tareas.map((t) => t.clave));
+      assert(tareas.indexOf("evaluar_proceso") > tareas.lastIndexOf("presentar") && tareas.indexOf("evaluar_proceso") > tareas.indexOf("evaluar_comentarios"), `${estrategia}, ${semanas} sem: ${tareas.join(" ")}`);
+    });
+  });
+});
+check("V6: la cobertura se reparte entre las clases sumativas, como la referencia", () => {
+  igual(fallosQueDetienen(ref), [], "referencia");
+  igual([...ref.filas[16].indicadores].sort(), ["ING-2-I02", "ING-2-I03"], "clase 17");
+  igual(ref.filas[17].indicadores, ["ING-2-I01"], "clase 18");
+  const sinSumativa = { ...ref, filas: ref.filas.map((f) => ({ ...f, tareas: f.tareas.map((t) => ({ ...t, sumativa: false })) })) };
+  assert(fallosQueDetienen(sinSumativa).some((m) => /no caben en las clases sumativas/.test(m)), "debía detenerse");
+});
+check("V6 cuenta solo lo que la clase muestra", () => {
+  const f17 = ref.filas[16];
+  const conOculto = { ...ref, filas: ref.filas.map((f) => (f === f17 ? { ...f, indicadores: ["A", "B", "C", ...f.indicadores] } : f)) };
+  const fallos = fallosQueDetienen(conOculto);
+  assert(fallos.some((m) => /clase 17 evalúa 5 indicadores y solo muestra 3/.test(m)), "debía avisar del recorte");
+  assert(fallos.some((m) => /ING-2-I02.*no caben/.test(m)), "lo que no se muestra no cuenta");
+});
+check("indicadores que caben: dos de comprender en una clase y dos de producir e interactuar en otra", () => {
+  const cuatro = ["responde", "responde", "produce", "interactua"].map((accion, i, l) => estructura.indicadores.filter((x) => x.accion === accion)[l.slice(0, i).filter((a) => a === accion).length].id);
+  const m = mapaDe("Alimentación", 6, HORARIOS["3x1"], { planMaestro: { competenciasElegidas: competencias.map((c) => c.id), indicadoresElegidos: cuatro } });
+  igual(fallosQueDetienen(m), [], "cabe");
+  const sumativas = m.filas.filter((f) => f.tareas.some((t) => t.sumativa));
+  igual(new Set(sumativas.flatMap((f) => f.indicadores)).size, 4, "cubre los cuatro");
+});
+check("un criterio, un código: Inglés 2do da 21 criterios y conserva el código con competencia", () => {
+  const c = extraerCriteriosEvaluacionCanonicos(malla, { nivel: "Secundaria", grado: "2do Secundaria", area: "Inglés" });
+  igual(c.length, 21, "criterios");
+  assert(c.every((x) => x.competenciaFundamental), "sin competencia");
+  assert(c.some((x) => x.id === "CR-INGLES-2DO-S-9MMWK4"), "cambió el código que ya usan los anexos");
+});
+check("entrega sin origen: el mapa se detiene antes de llamar a la IA", () => {
+  const sinOrigen = { ...ref, filas: ref.filas.map((f) => (f.clase === 5 ? { ...f, tareas: f.tareas.map((t) => ({ ...t, recibe: [] })) } : f)) };
+  assert(fallosQueDetienen(sinOrigen).some((m) => /clase 5: .*no tiene origen/.test(m)), "debía detenerse");
+});
 check("el invitado entra en los recursos humanos cuando la clase lo usa", () => {
   const a = ALCANCE_POR_SEMILLA["ing2-alimentacion-menu"].conInvitado;
   assert(/dueño invitado/.test(humanosDeFila(ref.filas[3], a)), "clase 4");
@@ -447,7 +494,7 @@ check("la firma prometida queda en la actividad de su tarea, una sola vez", () =
   igual(conFirmas(["Redactan."], [{ clave: "comentar" }]), ["Redactan."], "tarea sin firma");
 });
 check("el Inicio de la clase 1 no mira a una clase anterior y conserva la voz", () => {
-  assert(/^Comentan\b/.test(INICIO_PRIMERA_CLASE) && !/anterior|ultima|última|retroaliment/i.test(INICIO_PRIMERA_CLASE), INICIO_PRIMERA_CLASE);
+  assert(/^Recuperación de experiencias\b/.test(INICIO_PRIMERA_CLASE) && !/anterior|ultima|última|retroaliment/i.test(INICIO_PRIMERA_CLASE), INICIO_PRIMERA_CLASE);
 });
 check("los anexos H e I usan el nombre del producto, sin su descripción", () => {
   const largo = "Our School Survival Guide — una guía bilingüe de la escuela, dirigida a los estudiantes.";

@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { armarMapaClases, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { armarMapaClases, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -5549,6 +5549,9 @@ export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas
   if (!debeUsarMapaClases({ datos, asignatura })) return null;
   const { entrada } = armarEntradaPlanMaestro({ datos: { ...datos, numSemanas, diasClase, horasPorDia }, mallaPayload });
   const mapa = armarMapaClases({ ...entrada, duracionMin, modalidadVisita: datos.planMaestro?.modalidadVisita || "" });
+  // Fallo del mapa: se detiene aquí, sin pagar ninguna llamada a la IA.
+  const fallos = fallosQueDetienen(mapa);
+  if (fallos.length) throw new Error(`Mapa de clases: la unidad no se puede armar: ${fallos.join("; ")}.`);
   const r = planDesdeMapa(entrada, mapa);
   if (!r) return { avisos: [`ℹ️ La estrategia tiene fases con partes: esta unidad no usa el mapa de clases.`] };
   return { ...r, mapa, avisos: mapa.avisos, modalidad: mapa.filas.find((f) => f.modalidad)?.modalidad || "" };
