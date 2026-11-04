@@ -143,7 +143,7 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "Interviews with Owners": "entrevistas transcritas (preguntas y respuestas de cada dueño)",
       "Bilingual Menus": "el menú bilingüe de cada comedor (plato, descripción, precio)",
       "Healthy Choices": "etiquetas «Healthy pick» junto a los platos del menú, cada una con su razón y la alternativa más sana",
-      "Ordering Food": "un diálogo de pedido modelo (cliente–dueño), listo para practicar",
+      "Ordering Food": "una guía rápida para pedir: expresiones de cortesía, frases para ordenar, preguntas frecuentes y un diálogo modelo",
     },
     tiposTrabajo: {
       "Our Local Food": "describir",

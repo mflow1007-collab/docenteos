@@ -219,5 +219,21 @@ check("el prompt de fase lleva el hilo y sube de versión (no reutiliza lotes de
   assert(/hiloPartenDe\(\{ contrato: c, memoria, startDia, count \}\)/.test(txt), "buildFasePrompt arma el hilo");
 });
 
+// Aplicación ante la audiencia real (César, 2026-11-03): solo la fase de tipo
+// «aplicar» de Inserción recibe la audiencia de la situación.
+check("«Alimentación»: solo la fase de aplicación lleva la audiencia real", () => {
+  const plan = planDe("Alimentación", 3);
+  const audiencia = "los dueños de los comedores y los visitantes";
+  const conAudiencia = plan.fases.map((_, i) => construirContratoFase({ plan, indice: i, estructura, audiencia }).audienciaReal);
+  igual(conAudiencia, ["", "", "", "", "", "", "", audiencia, ""], "fase 8 «Aplicación de los conocimientos»");
+  igual(construirContratoFase({ plan, indice: 7, estructura }).audienciaReal, "", "sin audiencia, nada");
+  igual(plan.fases.map((_, i) => construirContratoFase({ plan, indice: i, estructura, audiencia }).audienciaRegistro),
+    ["", "", "", "", "", "", "", "", audiencia], "registro de comentarios en la fase 9");
+  const proyectos = planDe("Alimentación", 3, { estrategia: "proyectos", situacion: { ...prellenar({ ...base, titulo: "Alimentación", temasSeleccionados: ["Alimentación"] }).planMaestro.situacion, estrategiaAlineada: "proyectos" } });
+  assert(proyectos.fases.every((_, i) => !construirContratoFase({ plan: proyectos, indice: i, estructura, audiencia }).audienciaReal), "estrategia sin mapa de tipos: nada");
+  const txt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/c\.audienciaReal \? `APLICACIÓN ANTE LA AUDIENCIA REAL/.test(txt), "buildFasePrompt nombra la audiencia");
+});
+
 console.log(`\nModo rápido del plan maestro: ${pasos} pasos, ${fallos} fallos`);
 if (fallos) process.exit(1);

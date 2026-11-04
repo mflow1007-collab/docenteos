@@ -2048,6 +2048,7 @@ check("Anexo I con plan: estados de cada sección en palabras, sin leyenda ni c�
   u.anexos = construirAnexosUnidad({ ...base, fasesPlan });
   const html = formatearUnidadHTML(u, "");
   if (!html.includes("Estados de la sección")) throw new Error("el Anexo I no muestra la columna de estados");
+  if (!html.includes("Evidencia principal")) throw new Error("el Anexo I no muestra la columna de evidencia");
   if (/Fases: F1|Fase\(s\) y estado/.test(html)) throw new Error("el Anexo I sigue mostrando fases");
 });
 

@@ -23,7 +23,8 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { ROLES_CON_CONTENIDO } from "../data/rolesFasesEstrategias.js";
+import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA } from "../data/rolesFasesEstrategias.js";
+import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { recomponerIndicador } from "../data/indicadoresIngles2doEstructurados.js";
 
 // Propósito de cada papel de fase. Interpretación de DocenteOS (no es texto
@@ -291,9 +292,18 @@ export const segmentarIndicador = (ind, aspectosElegidos = []) => {
  * Contrato de la fase `indice` del plan.
  * Las fases sin indicadores propios retoman los de la unidad.
  */
-export const construirContratoFase = ({ plan, indice, estructura }) => {
+export const construirContratoFase = ({ plan, indice, estructura, audiencia = "" }) => {
   const fase = plan?.fases?.[indice];
   if (!fase) throw error(`el plan maestro no tiene la fase ${indice + 1}.`);
+  // Fase de tipo «aplicar» (hoy solo Inserción): el grupo lo hace ante la
+  // audiencia real de la situación (César, 2026-11-03). Sin audiencia, nada.
+  const mapaTipos = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[plan.estrategia?.clave];
+  const fasesLiterales = ESTRATEGIAS_FASES_GUIA_2025.find((e) => e.clave === plan.estrategia?.clave)?.fases || [];
+  const esDeTipo = (tipo) => Boolean(mapaTipos) && (fase.fasesGuia || []).some((n) => mapaTipos[fasesLiterales.indexOf(n)] === tipo);
+  const audienciaLimpia = String(audiencia || "").trim();
+  const audienciaReal = esDeTipo("aplicar") ? audienciaLimpia : "";
+  // Fase de tipo «evaluar»: se pide el registro de comentarios de esa audiencia.
+  const audienciaRegistro = esDeTipo("evaluar") ? audienciaLimpia : "";
   const porId = new Map((estructura?.indicadores || []).map((ind) => [ind.id, ind]));
   const aIndicador = (ind, retoma) => {
     const base = porId.get(ind.id);
@@ -350,6 +360,8 @@ export const construirContratoFase = ({ plan, indice, estructura }) => {
     mallaUnidad: conContenido ? mallaUnidad : [],
     trabajado: conContenido ? [] : [...new Set(trabajado)],
     esApertura: (fase.roles || []).every((r) => r === "apertura"),
+    audienciaReal,
+    audienciaRegistro,
   };
 };
 
@@ -471,6 +483,26 @@ export const indicadoresPermitidosFase = (contrato) => contrato.indicadores.map(
 
 const semillaPlana = (contrato) => CATEGORIAS_SEMILLA.flatMap((cat) => contrato.semilla[cat]);
 
+// Audiencia real (César, 2026-11-03): raíces de sus palabras («los dueños de los
+// comedores» → dueno, comedor), para reconocerla en singular o plural.
+const PALABRAS_VACIAS_AUDIENCIA = new Set(["otras", "otros", "todos", "todas"]);
+const raicesAudiencia = (audiencia) => normalizar(audiencia).split(" ")
+  .filter((p) => p.length >= 5 && !PALABRAS_VACIAS_AUDIENCIA.has(p))
+  .map((p) => p.slice(0, Math.max(5, p.length - 2)));
+// Lo simulado no cuenta: un juego de roles «con un dueño» sigue siendo en el aula.
+const ACTIVIDAD_SIMULADA_RE = /role play|juego de roles|simul|represent|como clientes/;
+/** ¿La actividad se hace ante la audiencia real (no solo la menciona)? */
+export const actividadAnteAudiencia = (actividad, audiencia) => {
+  const texto = normalizar(actividad);
+  if (ACTIVIDAD_SIMULADA_RE.test(texto)) return false;
+  return raicesAudiencia(audiencia).some((raiz) => new RegExp(
+    `\\b(?:(?:a|al|ante|con|para)|(?:retroalimentacion|comentarios|opinion|opiniones|sugerencias) de)\\s+(?:(?:los|las|el|la|un|una|unos|unas|sus|cada|algun|algunos|algunas)\\s+)?(?:[a-z]+\\s+)?${raiz}`,
+  ).test(texto));
+};
+const textosActividades = (clase) => (clase?.momentos || [])
+  .filter((m) => m?.nombre === "Desarrollo" || m?.nombre === "Cierre")
+  .flatMap((m) => m.actividades || []);
+
 /**
  * Valida un lote de clases contra el contrato de su fase. `startDia` es la
  * posición de la primera clase del lote dentro de la fase (1 = primera).
@@ -551,6 +583,25 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
     }
     if (startDia + idx === contrato.sesiones && !String(clase?.entregaFase || "").trim()) {
       throw new Error(`${etiqueta} es la última de la fase y no declara "entregaFase" (${contrato.entrega.texto}).`);
+    }
+  }
+  // Al cerrar la fase: la de aplicación ocurre ante la audiencia real (rechaza)
+  // y la de evaluación deja el registro de sus comentarios (avisa).
+  if (startDia + count - 1 >= contrato.sesiones) {
+    const clasesLote = (data?.clases || []).slice(0, count);
+    if (contrato.audienciaReal
+      && !clasesLote.some((c) => textosActividades(c).some((a) => actividadAnteAudiencia(a, contrato.audienciaReal)))) {
+      throw new Error(`Contrato: la fase de aplicación no ocurre ante su audiencia real (${contrato.audienciaReal}): una actividad del Desarrollo o del Cierre, que no sea simulada, presenta o entrega la pieza a esa audiencia ("Presentan (en equipos) … a un dueño invitado").`);
+    }
+    if (contrato.audienciaRegistro) {
+      const raices = raicesAudiencia(contrato.audienciaRegistro);
+      const registrada = clasesLote.some((c) => (c?.momentos || []).some((m) => {
+        const evidencias = normalizar(JSON.stringify(m?.evidencias || {}));
+        return /comentarios|retroalimentacion|opiniones/.test(evidencias) && raices.some((r) => evidencias.includes(r));
+      }));
+      if (!registrada && motivos44.length) {
+        motivos44[motivos44.length - 1].push(`clase ${count} — ninguna evidencia registra los comentarios de la audiencia real (${contrato.audienciaRegistro})`);
+      }
     }
   }
   return motivos44;
