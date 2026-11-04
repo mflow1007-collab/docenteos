@@ -528,8 +528,27 @@ export function validarVozActividad(texto) {
   return { ok: true };
 }
 
+// Ortografía de los verbos que la IA repite mal (corridas reales, 2026-10 a 11).
+// Lista cerrada: nunca adivina. Sin tilde: en cualquier parte del texto, porque
+// esas formas no existen. Mal conjugados: solo como primera palabra, porque «para
+// que reciban» es correcto dentro de una oración.
+const VERBOS_SIN_TILDE = {
+  evaluan: 'evalúan', coevaluan: 'coevalúan', autoevaluan: 'autoevalúan', actuan: 'actúan', continuan: 'continúan',
+};
+const VERBOS_MAL_CONJUGADOS = { reciban: 'Reciben', revisen: 'Revisan', archiven: 'Archivan', archivian: 'Archivan' };
+const RE_VERBOS_SIN_TILDE = new RegExp(`\\b(${Object.keys(VERBOS_SIN_TILDE).join('|')})\\b`, 'gi');
+const RE_VERBOS_MAL_CONJUGADOS = new RegExp(`^(${Object.keys(VERBOS_MAL_CONJUGADOS).join('|')})\\b`, 'i');
+export function corregirOrtografiaVerbos(texto) {
+  return String(texto ?? '')
+    .replace(RE_VERBOS_SIN_TILDE, (m) => {
+      const bien = VERBOS_SIN_TILDE[m.toLowerCase()];
+      return m[0] === m[0].toUpperCase() ? bien[0].toUpperCase() + bien.slice(1) : bien;
+    })
+    .replace(RE_VERBOS_MAL_CONJUGADOS, (m) => VERBOS_MAL_CONJUGADOS[m.toLowerCase()]);
+}
+
 export function normalizarVozActividadMINERD(texto) {
-  const original = String(texto || '').trim();
+  const original = corregirOrtografiaVerbos(String(texto || '').trim());
   if (!original) return original;
   if (validarVozActividad(original).ok) return original;
 
@@ -1198,6 +1217,47 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       }
     }
 
+    // Piezas del Inicio canónico (el merge las coloca en posiciones fijas)
+    for (const campo of ['saludoInicial', 'retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
+      if (!textoNoVacio(clase[campo])) {
+        throw new Error(`R1: clase ${idx + 1} sin ${campo} (contrato del Inicio canónico)`);
+      }
+    }
+    // Voz obligatoria en las piezas redactadas como actividad
+    for (const campo of ['retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
+      const voz = validarVozActividad(clase[campo]);
+      if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} ${campo} — ${voz.motivo}`);
+    }
+
+    let totalMin = 0;
+    for (const m of clase.momentos) {
+      const esInicio = m.nombre === 'Inicio';
+      if (!esInicio && !listaNoVacia(m.actividades)) {
+        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin actividades`);
+      }
+      if (!esInicio) {
+        const minActividades = m.nombre === 'Desarrollo' ? 4 : 3;
+        if ((m.actividades || []).filter((x) => String(x || '').trim()).length < minActividades) {
+          avisarOFallar(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
+        }
+        for (const act of m.actividades) {
+          const voz = validarVozActividad(act);
+          if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} "${m.nombre}" — ${voz.motivo}`);
+        }
+      }
+      validarEvidenciasMomento(m.evidencias, m.nombre, `clase ${idx + 1} momento "${m.nombre}"`);
+      if (!listaNoVacia(m.metacognicion)) {
+        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin metacognicion`);
+      }
+      if (!listaNoVacia(m.recursos)) {
+        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin recursos`);
+      }
+      const esp = tiempos[m.nombre];
+      if (esp !== undefined) { m.tiempo = `${esp} min`; totalMin += esp; }
+      else totalMin += parseInt(m.tiempo) || 0;
+    }
+    if (totalMin !== durMin) throw new Error(`R7: clase ${idx + 1} suma ${totalMin} min ≠ ${durMin} min`);
+
     if (esApropiacion) {
       // Apropiación: no exigimos actividadCLT ni foco gramatical. Saltamos el
       // resto de checks de técnica de la clase.
@@ -1296,47 +1356,6 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
         }
       }
     }
-
-    // Piezas del Inicio canónico (el merge las coloca en posiciones fijas)
-    for (const campo of ['saludoInicial', 'retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
-      if (!textoNoVacio(clase[campo])) {
-        throw new Error(`R1: clase ${idx + 1} sin ${campo} (contrato del Inicio canónico)`);
-      }
-    }
-    // Voz obligatoria en las piezas redactadas como actividad
-    for (const campo of ['retroalimentacionPrevia', 'saberesPrevios', 'actividadEnganche']) {
-      const voz = validarVozActividad(clase[campo]);
-      if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} ${campo} — ${voz.motivo}`);
-    }
-
-    let totalMin = 0;
-    for (const m of clase.momentos) {
-      const esInicio = m.nombre === 'Inicio';
-      if (!esInicio && !listaNoVacia(m.actividades)) {
-        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin actividades`);
-      }
-      if (!esInicio) {
-        const minActividades = m.nombre === 'Desarrollo' ? 4 : 3;
-        if ((m.actividades || []).filter((x) => String(x || '').trim()).length < minActividades) {
-          avisarOFallar(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
-        }
-        for (const act of m.actividades) {
-          const voz = validarVozActividad(act);
-          if (!voz.ok) throw new Error(`Voz: clase ${idx + 1} "${m.nombre}" — ${voz.motivo}`);
-        }
-      }
-      validarEvidenciasMomento(m.evidencias, m.nombre, `clase ${idx + 1} momento "${m.nombre}"`);
-      if (!listaNoVacia(m.metacognicion)) {
-        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin metacognicion`);
-      }
-      if (!listaNoVacia(m.recursos)) {
-        throw new Error(`R1: clase ${idx + 1} momento "${m.nombre}" sin recursos`);
-      }
-      const esp = tiempos[m.nombre];
-      if (esp !== undefined) { m.tiempo = `${esp} min`; totalMin += esp; }
-      else totalMin += parseInt(m.tiempo) || 0;
-    }
-    if (totalMin !== durMin) throw new Error(`R7: clase ${idx + 1} suma ${totalMin} min ≠ ${durMin} min`);
   }
 
   // Etapa 5 — contrato de la fase (semilla 4.6, secciones 4.7, entrega). La

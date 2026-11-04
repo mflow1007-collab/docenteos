@@ -19,6 +19,8 @@
  * TIPOS_TRABAJO, rolesFasesEstrategias.js) y `partenDe` = de qué secciones de
  * la misma semilla se alimenta, siempre de fase igual o anterior (Etapa S2 de
  * docs/DISENO_SECUENCIA_POR_FASES.md, aprobada por César el 2026-11-03).
+ * `terminos` = vocabulario clave del proyecto por sección para el Anexo F
+ * (aprobado por César, 2026-11-04); no llega al prompt.
  * Lugar (regla de César, 2026-10-29): `{centro}` = el centro donde el docente
  * imparte docencia (dato del formulario); `{comunidad}` solo cuando la
  * situación ocurre fuera del centro (rasgos.contexto = "comunidad").
@@ -56,6 +58,14 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "Asking for Help": "una tarjeta de bolsillo con frases para pedir ayuda y a quién acudir",
       "School Success Tips": "un póster «Top tips» con los consejos",
       "Final Recommendation": "un párrafo de cierre del grupo para el recién llegado",
+    },
+    terminos: {
+      "Welcome": ["welcome", "visitor", "new student"],
+      "Important Places": ["library", "principal's office", "cafeteria"],
+      "School Directions": ["turn left", "turn right", "next to"],
+      "Asking for Help": ["help", "Excuse me"],
+      "School Success Tips": ["schedule", "rule", "homework"],
+      "Final Recommendation": ["recommend", "advice"],
     },
     tiposTrabajo: {
       "Welcome": "socializar",
@@ -102,6 +112,13 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "Our Healthy Schedule": "el horario semanal equilibrado",
       "Tips for Families": "un folleto de consejos para las familias",
     },
+    terminos: {
+      "Our Daily Routines": ["wake up", "get dressed", "chores"],
+      "What We Found": ["survey", "results", "hours of sleep"],
+      "Problems and Causes": ["late", "tired", "because"],
+      "Our Healthy Schedule": ["schedule", "rest", "free time"],
+      "Tips for Families": ["tip", "support", "family"],
+    },
     tiposTrabajo: {
       "Our Daily Routines": "describir",
       "What We Found": "analizar",
@@ -140,10 +157,17 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
     },
     piezas: {
       "Our Local Food": "fichas de los platos típicos (nombre, ingredientes principales, dibujo o foto)",
-      "Interviews with Owners": "entrevistas transcritas (preguntas y respuestas de cada dueño)",
+      "Interviews with Owners": "entrevistas transcritas (preguntas y respuestas de los dueños, reales o simuladas)",
       "Bilingual Menus": "el menú bilingüe de cada comedor (plato, descripción, precio)",
       "Healthy Choices": "etiquetas «Healthy pick» junto a los platos del menú, cada una con su razón y la alternativa más sana",
       "Ordering Food": "una guía rápida para pedir: expresiones de cortesía, frases para ordenar, preguntas frecuentes y un diálogo modelo",
+    },
+    terminos: {
+      "Our Local Food": ["dish", "ingredients", "traditional"],
+      "Interviews with Owners": ["owner", "customer", "business"],
+      "Bilingual Menus": ["menu", "price", "drink"],
+      "Healthy Choices": ["healthy", "fresh", "fried"],
+      "Ordering Food": ["order", "bill", "Can I have…?"],
     },
     tiposTrabajo: {
       "Our Local Food": "describir",

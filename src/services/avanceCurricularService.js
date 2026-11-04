@@ -16,6 +16,7 @@ import { getAuth } from "firebase/auth";
 import { db } from "../firebase.js";
 import {
   normalizarTexto,
+  nivelDeclarado,
   agregarResultadosPorIndicador,
   indicadoresDebilesDeAvance,
 } from "./hiloPedagogico.js";
@@ -66,15 +67,21 @@ const _cursoCoincide = (curso = {}, grado = "", asignatura = "") => {
   return !ca || ca.includes(a) || a.includes(ca);
 };
 
-const cursoIdsDe = async (grado = "", asignatura = "") => {
+const cursoIdsDe = async (grado = "", asignatura = "", nivel = "", onAviso = null) => {
   const u = uid();
   if (!db || !u) return [];
   try {
     const snap = await getDocs(collection(db, "usuarios", u, "cursos"));
-    return snap.docs
+    const coinciden = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((c) => _cursoCoincide(c, grado, asignatura))
-      .map((c) => String(c.id));
+      .filter((c) => _cursoCoincide(c, grado, asignatura));
+    if (!nivel) return coinciden.map((c) => String(c.id));
+    // El nivel manda («1ro» de Primaria no es «1ro» de Secundaria) y no se deduce:
+    // un curso que no lo declara no se usa, y el administrador lo ve.
+    const buscado = nivelDeclarado({ nivel });
+    const sinNivel = coinciden.filter((c) => !nivelDeclarado(c));
+    if (sinNivel.length) onAviso?.(`Evaluaciones: ${sinNivel.length} curso(s) de ${grado} · ${asignatura} sin nivel declarado; no se usan.`);
+    return coinciden.filter((c) => nivelDeclarado(c) === buscado).map((c) => String(c.id));
   } catch {
     return [];
   }
@@ -139,12 +146,14 @@ export const obtenerResultadosCurso = async (cursoId) =>
 /**
  * Códigos de indicador DÉBILES para el grado+asignatura (todos sus cursos).
  * La siguiente unidad los marca (REFORZAR). Nunca lanza: sin datos → [].
+ * Con `nivel`, solo los cursos que declaran ese nivel; `onAviso` recibe lo que
+ * el administrador debe ver.
  */
 export const obtenerIndicadoresDebiles = async (
-  grado = "", asignatura = "", { umbral = 70, minEvaluaciones = 1 } = {},
+  grado = "", asignatura = "", { umbral = 70, minEvaluaciones = 1, nivel = "", onAviso = null } = {},
 ) => {
   try {
-    const ids = new Set(await cursoIdsDe(grado, asignatura));
+    const ids = new Set(await cursoIdsDe(grado, asignatura, nivel, onAviso));
     if (!ids.size) return [];
     const resultados = (await leerResultados()).filter((r) => ids.has(String(r.cursoId || "")));
     const avance = agregarResultadosPorIndicador(resultados);

@@ -2,6 +2,7 @@
  * Servicio: Generador de Unidad de Aprendizaje — formato MINERD
  */
 
+import { mezclarIndicadoresDebiles, resolverDebilesContraMalla } from "./diagnosticoIntegrationService.js";
 import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { getActividades } from "./bancoPedagogicoService.js";
 import { combinarActividad } from "./combinadorActividadesService.js";
@@ -1244,6 +1245,8 @@ export const construirAnexosUnidad = ({
   // Etapa 5: ampliación de DocenteOS (glosario, marcada) y secciones del
   // producto (organizador del Anexo I, regla 4.7). Vacías → como antes.
   ampliacion = [], secciones = [],
+  // Vocabulario clave del proyecto (semilla): sección → términos, para el Anexo F.
+  terminosSecciones = {},
   // Etapa 6: fases del plan maestro (entrega y secciones que avanza cada una)
   // para la columna "Estados de la sección" del Anexo I. Vacías → como antes.
   fasesPlan = [],
@@ -1475,11 +1478,14 @@ export const construirAnexosUnidad = ({
   const restoMalla = vocabularioMalla.filter((t) => !usadosMalla.includes(t));
   const glosarioMalla = [...usadosMalla, ...restoMalla].slice(0, MAX_GLOSARIO)
     .map((termino) => ({ termino, traduccion: "", origen: "malla" }));
-  // «ingredient» e «ingredients» cuentan como un solo término.
-  const claveSingular = (t) => claveTermino(t).replace(/(?<=[a-z]{3})s$/, "");
+  // «ingredient» e «ingredients», «dish» y «dishes» cuentan como un solo término.
+  const claveSingular = (t) => claveTermino(t).replace(/(?<=(?:sh|ch|ss|x))es$/, "").replace(/(?<=[a-z]{3})s$/, "");
   const vistosGlosario = new Set(vocabularioMalla.map(claveSingular));
   const ampliacionGlosario = Array.isArray(ampliacion) ? ampliacion : [];
+  // Primero los términos clave de la semilla, siempre los mismos; después, lo que
+  // la IA declaró como ampliación.
   const glosarioProyecto = [
+    ...(Array.isArray(secciones) ? secciones : []).flatMap((s) => terminosSecciones?.[s] || []),
     ...ampliacionGlosario.filter((a) => a?.tipo === "vocabulario").flatMap((a) => String(a.texto || "").split(/\s*[,/]\s*/)),
     ...ampliacionGlosario.filter((a) => a?.tipo === "expresion").map((a) => a.texto),
   ]
@@ -5278,12 +5284,13 @@ export const generarUnidadAprendizaje = async (datos) => {
     competenciasFundamentalesSeleccionadas = [],
     temasSeleccionados = [],
     indicadoresTrabajadosAntes = [],
-    indicadoresDebiles = [],
     // Punto de partida del grupo: texto opcional del docente y las dos fuentes
-    // de indicadores débiles por separado (indicadoresDebiles las mezcla).
+    // de indicadores débiles: diagnóstico [{codigo, descripcion}] y evaluaciones
+    // (códigos). avisosDatosGrupo = lo que falte, solo para el administrador.
     puntoPartidaTexto = "",
     indicadoresDebilesDiagnostico = [],
     indicadoresDebilesEvaluaciones = [],
+    avisosDatosGrupo = [],
     // Rótulo del documento: "Unidad de Aprendizaje" o "Secuencia Didáctica"
     // (mismo esquema MINERD; solo cambia la etiqueta)
     tipoPlanificacion = "Unidad de Aprendizaje",
@@ -5659,6 +5666,8 @@ export const generarUnidadAprendizaje = async (datos) => {
     ? estrategiaSel.fases
     : null;
 
+  // Diagnóstico del grupo: el prompt solo recibe códigos que existen en esta malla.
+  const debilesDiagnostico = resolverDebilesContraMalla(indicadoresDebilesDiagnostico, allInds);
   const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], avisosRedaccionIA = [], fasesBaseCurricular = [], combinacionesCreadas = [] } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
     {
@@ -5674,8 +5683,9 @@ export const generarUnidadAprendizaje = async (datos) => {
       // Indicadores de unidades anteriores: alimentan el marcado ~~tachado~~
       // del prompt y la lista de permitidos del validador (R1)
       indicadoresTrabajadosAntes,
-      // Fase 9 — logro real bajo el umbral: marcado (REFORZAR) en el prompt
-      indicadoresDebiles,
+      // Fase 9 — logro real bajo el umbral: marcado (REFORZAR) en el prompt.
+      // Solo códigos de esta malla; el diagnóstico primero.
+      indicadoresDebiles: mezclarIndicadoresDebiles(debilesDiagnostico.codigos, indicadoresDebilesEvaluaciones),
       cupoGeneracion,
     },
     mallaContenidos,
@@ -5721,6 +5731,18 @@ export const generarUnidadAprendizaje = async (datos) => {
     indicadoresActuales,
     indicadoresPrevios,
   ), rutaPlanMaestro);
+  const indicadoresDetalle = competenciasDetalleEnriquecidas.flatMap((c) => c.indicadores || [])
+    .filter((i) => typeof i === "object");
+  const codigosDiagnosticoNorm = new Set(debilesDiagnostico.codigos.map(normalizarCodigoIndicador));
+  const codigosEvaluacionSinTexto = [];
+  const debilesEvaluacionesConTexto = (Array.isArray(indicadoresDebilesEvaluaciones) ? indicadoresDebilesEvaluaciones : [])
+    .filter((codigo) => !codigosDiagnosticoNorm.has(normalizarCodigoIndicador(codigo)))
+    .map((codigo) => {
+      const ind = indicadoresDetalle.find((i) => normalizarCodigoIndicador(i.codigo) === normalizarCodigoIndicador(codigo));
+      if (!ind?.descripcion) codigosEvaluacionSinTexto.push(codigo);
+      return ind?.descripcion ? `${ind.codigo} — ${ind.descripcion}` : "";
+    })
+    .filter(Boolean);
   const especificacionCurricularUnidad = buildEspecificacionCurricular({
     mallaPayload, titulo: rutaCurricular.temas.join(" · ") || titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
   });
@@ -5765,14 +5787,10 @@ export const generarUnidadAprendizaje = async (datos) => {
     ambienteAprendizaje: ambiente,
     puntoPartida: construirPuntoPartida({
       textoDocente: puntoPartidaTexto,
-      debilesDiagnostico: indicadoresDebilesDiagnostico,
-      // Las evaluaciones devuelven CÓDIGOS (IL-n): se muestran con su texto.
-      debilesEvaluaciones: (Array.isArray(indicadoresDebilesEvaluaciones) ? indicadoresDebilesEvaluaciones : [])
-        .map((codigo) => {
-          const ind = competenciasDetalleEnriquecidas.flatMap((c) => c.indicadores || [])
-            .find((i) => typeof i === "object" && normalizarCodigoIndicador(i.codigo) === normalizarCodigoIndicador(codigo));
-          return ind?.descripcion ? `${ind.codigo} — ${ind.descripcion}` : codigo;
-        }),
+      debilesDiagnostico: debilesDiagnostico.descripciones,
+      // Las evaluaciones devuelven CÓDIGOS (IL-n): se muestran con su texto. Un
+      // código sin texto en la malla no se le enseña al docente (lo ve el admin).
+      debilesEvaluaciones: debilesEvaluacionesConTexto,
     }),
     modeloCurricularSuperior,
     competencias: (() => {
@@ -5912,6 +5930,7 @@ export const generarUnidadAprendizaje = async (datos) => {
     relacionesCriterioIndicador:
       especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesCriterioIndicador || [],
     ampliacion: unidadResult.ampliacionDocenteOS || [],
+    terminosSecciones: unidadResult.planMaestro?.terminosSecciones || {},
     secciones: unidadResult.planMaestro?.secciones || [],
     fasesPlan: unidadResult.planMaestro?.fases || [],
     recursosTecnologicos: (unidadResult.fasesSemanales || [])
@@ -5985,6 +6004,15 @@ export const generarUnidadAprendizaje = async (datos) => {
         `⚠️ Desarrollo y Cierre aceptados con aviso (${avisosRedaccionIA.length}): ${avisosRedaccionIA.slice(0, MAX_AVISOS_LOTE).join("; ")}${resto > 0 ? `; y ${resto} más` : ""}.`,
       ];
     }
+  }
+
+  // Datos del grupo que faltan o no encajan: solo los ve el administrador.
+  const avisosGrupo = [
+    ...(Array.isArray(avisosDatosGrupo) ? avisosDatosGrupo : []),
+    ...(codigosEvaluacionSinTexto.length ? [`Evaluaciones: códigos fuera de esta malla, omitidos del Punto de partida: ${codigosEvaluacionSinTexto.join(", ")}.`] : []),
+  ].filter(Boolean);
+  if (avisosGrupo.length) {
+    unidadResult.avisosRedaccion = [...(unidadResult.avisosRedaccion || []), ...avisosGrupo.map((a) => `⚠️ ${a}`)];
   }
 
   // R1 FINAL sobre el DOCUMENTO RENDERIZADO completo (no solo el JSON de la

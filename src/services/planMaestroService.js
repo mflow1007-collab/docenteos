@@ -329,6 +329,7 @@ const repartirContenidos = (contenidosPorTema, numFasesContenido) => {
  * @param {string[]} [entrada.secciones] - secciones del producto (regla 4.7); sin ellas, las entregas no nombran secciones.
  * @param {Object<string,string>} [entrada.propositosSecciones] - sección → qué contiene (Etapa 1A); solo se guardan las de secciones presentes.
  * @param {Object<string,string>} [entrada.piezasSecciones] - sección → pieza visible que deja en el producto; igual que los propósitos.
+ * @param {Object<string,string[]>} [entrada.terminosSecciones] - sección → vocabulario clave para el Anexo F; no entra al contrato ni al prompt.
  * @param {Object<string,string>} [entrada.tiposTrabajoSecciones] - sección → tipo de trabajo (Etapa S2); solo tipos de TIPOS_TRABAJO y secciones presentes. Si todas tienen tipo y la estrategia tiene mapa, reparte las secciones por fase (Etapa S3).
  * @param {Object<string,string[]>} [entrada.partenDeSecciones] - sección → secciones de las que parte; solo secciones presentes.
  * @param {{unir?:number[][], subdividir?:Object<number,number>, sesionesPorFase?:number[]}} [entrada.ajustes]
@@ -346,6 +347,7 @@ export const construirPlanMaestro = ({
   secciones = [],
   propositosSecciones = {},
   piezasSecciones = {},
+  terminosSecciones = {},
   tiposTrabajoSecciones = {},
   partenDeSecciones = {},
   ajustes = {},
@@ -415,6 +417,9 @@ export const construirPlanMaestro = ({
       .map((s) => [s, String(propositosSecciones?.[s] || "").trim()]).filter(([, t]) => t)),
     piezasSecciones: Object.fromEntries(seccionesLimpias
       .map((s) => [s, String(piezasSecciones?.[s] || "").trim()]).filter(([, t]) => t)),
+    terminosSecciones: Object.fromEntries(seccionesLimpias
+      .map((s) => [s, (Array.isArray(terminosSecciones?.[s]) ? terminosSecciones[s] : []).map((t) => String(t || "").trim()).filter(Boolean)])
+      .filter(([, t]) => t.length)),
     tiposTrabajoSecciones: Object.fromEntries(seccionesLimpias
       .map((s) => [s, tiposTrabajoSecciones?.[s]]).filter(([, t]) => TIPOS_TRABAJO.includes(t))),
     partenDeSecciones: Object.fromEntries(seccionesLimpias

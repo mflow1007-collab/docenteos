@@ -9,7 +9,7 @@ import { auth, consultarCupoGrado, reservarCupoGrado, consultarTemaEnHistorial, 
 import { esUsuarioDocenteOS } from "../utils/permisos.js";
 import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
 import { obtenerIndicadoresDebiles } from "../services/avanceCurricularService.js";
-import { indicadoresDebilesPorGradoAsignatura, mezclarIndicadoresDebiles } from "../services/diagnosticoIntegrationService.js";
+import { datosDiagnosticoParaGenerar } from "../services/diagnosticoIntegrationService.js";
 import { applyAuditAction } from "../services/auditAcciones.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
@@ -142,16 +142,22 @@ export function useUnidadAprendizaje() {
       } catch { /* sin historial, se genera sin tachados */ }
       // Indicadores (REFORZAR): el DIAGNÓSTICO de inicio de año (punto de partida,
       // nivel real del grupo) + Fase 9 (logro bajo el umbral en evaluaciones del
-      // curso). Se mezclan sin duplicar, priorizando el diagnóstico. Nunca bloquea.
-      let indicadoresDebiles = [];
-      // Las dos fuentes también van por separado para el punto de partida del grupo.
+      // curso). El generador las mezcla al comprobar los códigos contra la malla.
+      // Nunca bloquea; lo que falte lo ve el administrador en avisosDatosGrupo.
+      const avisosDatosGrupo = [];
       let debilesDiag = [];
       let debilesEval = [];
+      const { nivel, grado, asignatura } = unidadDatos;
       try {
-        debilesEval = await obtenerIndicadoresDebiles(unidadDatos.grado, unidadDatos.asignatura);
-        debilesDiag = indicadoresDebilesPorGradoAsignatura(unidadDatos.grado, unidadDatos.asignatura);
-        indicadoresDebiles = mezclarIndicadoresDebiles(debilesDiag, debilesEval);
-      } catch { /* sin avance ni diagnóstico, se genera sin refuerzos */ }
+        debilesEval = await obtenerIndicadoresDebiles(grado, asignatura, {
+          nivel, onAviso: (aviso) => avisosDatosGrupo.push(aviso),
+        });
+        const diagnostico = await datosDiagnosticoParaGenerar({ nivel, grado, asignatura });
+        debilesDiag = diagnostico.debiles;
+        avisosDatosGrupo.push(...diagnostico.avisos);
+      } catch (error) {
+        avisosDatosGrupo.push(`Datos del grupo: no se pudieron leer (${error?.message || "error"}).`);
+      }
 
       startGenerationJob({
         id: UNIDAD_JOB_ID,
@@ -163,9 +169,9 @@ export function useUnidadAprendizaje() {
         run: ({ setProgress }) => conReanudacion(() => generarUnidadAprendizaje({
           ...unidadDatos,
           indicadoresTrabajadosAntes,
-          indicadoresDebiles,
           indicadoresDebilesDiagnostico: debilesDiag,
           indicadoresDebilesEvaluaciones: debilesEval,
+          avisosDatosGrupo,
           // Rótulo del documento según el tipo elegido en la página
           // ("Unidad de Aprendizaje" o "Secuencia Didáctica"); mismo esquema
           tipoPlanificacion: depsRef.current.tipoPlanificacion || "Unidad de Aprendizaje",

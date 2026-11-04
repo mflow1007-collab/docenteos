@@ -15,7 +15,7 @@
  */
 
 import { formatearUnidadHTML, validarUnidadRenderizada, construirInicioCanonico, construirCompetenciasDetalle, resolverTemaEnriquecido, _extraerContenidosMallaCorpus, construirSituacionNarrativa, validarFechaInicioHorario, resolverEvaluacionMomento, construirAnexosUnidad, construirPuntoPartida, construirRubricaPlan, detectarContextoAplicado, asegurarAporteProductoUnico, estructurarActividadesVivas, distribuirTiempoActividades, motivoProductoFinal, productoFinalDeDatos, sinRotuloAvance } from "../src/services/unidadAprendizajeService.js";
-import { validarVozActividad, normalizarVozActividadMINERD, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
+import { validarVozActividad, normalizarVozActividadMINERD, corregirOrtografiaVerbos, normalizarVozBatch, nombreCortoEstructura, validarProductoFinalAutentico } from "../src/services/phaseAService.js";
 import { seleccionarMallaParaUnidad, temasOficialesDeMalla, localizarPlaceholdersProhibidos, hasActiveMallaSource } from "../src/services/bancoConocimientoService.js";
 import {
   coincideContextoTemaTrabajado,
@@ -1084,6 +1084,30 @@ check("validarVozActividad rechaza los arranques prohibidos", () => {
   ];
   for (const a of prohibidas) {
     if (validarVozActividad(a).ok) throw new Error(`aceptó una prohibida: "${a.slice(0, 40)}"`);
+  }
+});
+
+check("ortografía: tildes en cualquier parte; mal conjugados solo como primera palabra", () => {
+  const casos = [
+    ["Evaluan (en parejas) el menú y coevaluan el póster.", "Evalúan (en parejas) el menú y coevalúan el póster."],
+    ["Autoevaluan su trabajo.", "Autoevalúan su trabajo."],
+    ["Actuan el diálogo y continuan la lista.", "Actúan el diálogo y continúan la lista."],
+    ["Reciban retroalimentación del grupo.", "Reciben retroalimentación del grupo."],
+    ["Revisen el borrador.", "Revisan el borrador."],
+    ["Archivian la ficha.", "Archivan la ficha."],
+    // Dentro de la oración el subjuntivo es correcto y no se toca.
+    ["Presentan el menú para que los dueños reciban la guía.", "Presentan el menú para que los dueños reciban la guía."],
+    // Texto en otro idioma o sin esas formas: igual.
+    ["Practican: Can you evaluate it?", "Practican: Can you evaluate it?"],
+  ];
+  for (const [entrada, esperado] of casos) {
+    const salida = corregirOrtografiaVerbos(entrada);
+    if (salida !== esperado) throw new Error(`"${entrada}" → "${salida}"`);
+    if (normalizarVozActividadMINERD(entrada) !== esperado) throw new Error(`voz: "${entrada}"`);
+  }
+  const lote = normalizarVozBatch({ clases: [{ saberesPrevios: "Evaluan lo que saben.", momentos: [{ nombre: "Cierre", actividades: ["Evaluan el menú."] }] }] });
+  if (lote.clases[0].saberesPrevios !== "Evalúan lo que saben." || lote.clases[0].momentos[0].actividades[0] !== "Evalúan el menú.") {
+    throw new Error("el lote no pasó por la corrección");
   }
 });
 
