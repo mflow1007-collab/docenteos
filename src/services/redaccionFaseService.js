@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA } from "../data/rolesFasesEstrategias.js";
+import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { recomponerIndicador } from "../data/indicadoresIngles2doEstructurados.js";
 
@@ -292,7 +292,7 @@ export const segmentarIndicador = (ind, aspectosElegidos = []) => {
  * Contrato de la fase `indice` del plan.
  * Las fases sin indicadores propios retoman los de la unidad.
  */
-export const construirContratoFase = ({ plan, indice, estructura, audiencia = "" }) => {
+export const construirContratoFase = ({ plan, indice, estructura, audiencia = "", modalidadVisita = "" }) => {
   const fase = plan?.fases?.[indice];
   if (!fase) throw error(`el plan maestro no tiene la fase ${indice + 1}.`);
   // Fase de tipo «aplicar» (hoy solo Inserción): el grupo lo hace ante la
@@ -304,6 +304,9 @@ export const construirContratoFase = ({ plan, indice, estructura, audiencia = ""
   const audienciaReal = esDeTipo("aplicar") ? audienciaLimpia : "";
   // Fase de tipo «evaluar»: se pide el registro de comentarios de esa audiencia.
   const audienciaRegistro = esDeTipo("evaluar") ? audienciaLimpia : "";
+  const visita = esDeTipo("visitar")
+    ? MODALIDADES_VISITA.find((m) => m.clave === (modalidadVisita || MODALIDAD_VISITA_POR_DEFECTO))
+    : null;
   // Fase de tipo «analizar»: las secciones de «proponer» arrancan aquí su
   // borrador como secundarias; alguna actividad debe trabajarlas (César, 2026-11-04).
   const seccionesQueArrancan = esDeTipo("analizar")
@@ -368,6 +371,7 @@ export const construirContratoFase = ({ plan, indice, estructura, audiencia = ""
     audienciaReal,
     audienciaRegistro,
     seccionesQueArrancan,
+    ...(visita ? { modalidadVisita: visita.clave, instruccionVisita: visita.instruccion } : {}),
   };
 };
 
@@ -510,6 +514,17 @@ export const actividadAnteAudiencia = (actividad, audiencia) => {
     `\\b(?:(?:a|al|ante|con|para)|(?:retroalimentacion|comentarios|opinion|opiniones|sugerencias) de)\\s+(?:(?:los|las|el|la|un|una|unos|unas|sus|cada|algun|algunos|algunas)\\s+)?(?:[a-z]+\\s+)?${raiz}`,
   ).test(texto));
 };
+/** ¿Las entrevistas de estas clases siguen la modalidad de la visita? "" si cumplen. */
+export const motivoModalidadVisita = (clases = [], modalidad = "") => {
+  const visita = MODALIDADES_VISITA.find((m) => m.clave === modalidad);
+  if (!visita) return "";
+  const entrevistas = clases.flatMap((c) => textosActividades(c)).filter((a) => /^entrevistan\b/i.test(String(a).trim()));
+  const incumple = visita.sinEntrevistaEnClase
+    ? entrevistas.length > 0
+    : entrevistas.length > 0 && !entrevistas.some((a) => visita.reLoHace.test(normalizar(a)));
+  return incumple ? `la actividad de entrevista no sigue la modalidad de la visita («${visita.nombre}»)` : "";
+};
+
 const textosActividades = (clase) => (clase?.momentos || [])
   .filter((m) => m?.nombre === "Desarrollo" || m?.nombre === "Cierre")
   .flatMap((m) => m.actividades || []);
@@ -609,6 +624,9 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       && !clasesLote.some((c) => textosActividades(c).some((a) => actividadAnteAudiencia(a, contrato.audienciaReal)))) {
       throw new Error(`Contrato: la fase de aplicación no ocurre ante su audiencia real (${contrato.audienciaReal}): una actividad del Desarrollo o del Cierre, que no sea simulada, presenta o entrega la pieza a esa audiencia ("Presentan (en equipos) … a un dueño invitado").`);
     }
+    // La modalidad de la visita se avisa: lo que no cumple es Desarrollo flexible.
+    const motivoVisita = motivoModalidadVisita(clasesLote, contrato.modalidadVisita);
+    if (motivoVisita && motivos44.length) motivos44[motivos44.length - 1].push(`clase ${count} — ${motivoVisita}`);
     if (contrato.audienciaRegistro) {
       const raices = raicesAudiencia(contrato.audienciaRegistro);
       const registrada = clasesLote.some((c) => (c?.momentos || []).some((m) => {

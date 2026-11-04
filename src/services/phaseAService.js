@@ -1024,6 +1024,34 @@ const textosUnicos = (items = []) => {
   return out;
 };
 
+// R14 — una adecuación tiene que poder salvar la barrera que nombra: audio para
+// quien no oye bien o imágenes para quien no ve bien no dan acceso. Se mira por
+// oración: otra frase de la misma adecuación puede hablar de otra barrera.
+const BARRERAS_ACCESO = [
+  {
+    barrera: /\b(auditiv|sord|hipoacus|problemas? de audicion|dificultad(es)? para oir)/,
+    soloCanal: /\b(grabaci|audio|escucha|podcast|parlante)/,
+    daAcceso: /\b(transcri|escrit|impres|visual|imagen|subtitul|senas|lectura labial|texto|pictogram|tarjeta)/,
+    solucion: 'transcripciones, instrucciones escritas o apoyos visuales',
+  },
+  {
+    barrera: /\b(discapacidad visual|baja vision|ceguera|ciego|dificultad(es)? visual(es)?|dificultad(es)? para ver)/,
+    soloCanal: /\b(imagen|lamina|cartel|visual|pizarra|proyector|video)/,
+    daAcceso: /\b(audio|voz alta|grabaci|ampliad|braille|tactil|relieve|oral|letra grande)/,
+    solucion: 'audio, lectura en voz alta o material ampliado',
+  },
+];
+export const motivoAdecuacionBarrera = (texto = '') => {
+  const oraciones = String(texto).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/(?<=[.;])\s+/);
+  for (const oracion of oraciones) {
+    const b = BARRERAS_ACCESO.find((x) => x.barrera.test(oracion));
+    if (b && b.soloCanal.test(oracion) && !b.daAcceso.test(oracion)) {
+      return `R14: la adecuación "${oracion.slice(0, 80)}" usa un canal que no salva esa barrera; usa ${b.solucion}`;
+    }
+  }
+  return '';
+};
+
 export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
   const memoria = Array.isArray(opts.memoria) ? opts.memoria : [];
   const indicadoresPermitidos = new Set(
@@ -1054,6 +1082,8 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
     if (!String(ad?.[k] || '').trim()) {
       throw new Error(`R14: falta adaptacionesSemana.${k} (adecuaciones NEAE ligadas al foco de la semana)`);
     }
+    const motivoBarrera = motivoAdecuacionBarrera(ad[k]);
+    if (motivoBarrera) throw new Error(motivoBarrera);
   }
   if (!String(data?.observacionesSemana || '').trim()) {
     throw new Error('R14: falta observacionesSemana (qué observar/registrar esta semana según su foco)');
@@ -1702,7 +1732,8 @@ ${reglaInicio}
 // contrato (redaccionFaseService.js). Aprobado por César el 2026-10-29.
 // v5 (Etapa S4): línea «HILO DE LA UNIDAD» con las piezas de las que parte cada clase.
 // v6: la clase que avanza todas las secciones nombra el producto entero en su aporte.
-const PROMPT_FASE_VERSION = 9;
+// v10: cómo ocurre la visita (modalidad del plan) y adecuaciones según la barrera.
+const PROMPT_FASE_VERSION = 10;
 function buildFasePrompt(spec, semanaNum, startDia, count, durMin, numSemanas, memoria) {
   const c = spec.contratoFase;
   const tInicio     = durMin <= 50 ? 10 : 15;
@@ -1779,7 +1810,7 @@ ${spec.contextoComunitario ? `CONTEXTO COMUNITARIO REAL (palabras del docente; n
 CONTRATO DE LA FASE ${c.numero} DE ${c.total}: «${c.nombre}» (fase literal de la Guía: ${c.fasesGuia.join(' + ')}). Sesiones de la fase: ${c.sesiones}; aquí redactas ${rango}.
 PROPÓSITO: ${c.proposito}
 ENTREGA DE LA FASE: ${String(c.entrega.texto).replace(/\s*\(avance \d+ de \d+\)/gi, '')}.
-${c.audienciaReal ? `APLICACIÓN ANTE LA AUDIENCIA REAL: en esta fase el grupo presenta o entrega lo que avanza a su audiencia real (${c.audienciaReal}), aunque sea de forma simbólica (un invitado de la comunidad en el aula, la entrega de la pieza o la retroalimentación de un visitante). Al menos una actividad del Desarrollo o del Cierre lo hace y deja evidencia, nombrando a quién: "Presentan (en equipos) la pieza a un dueño invitado…". Un juego de roles o una simulación NO cuenta; el validador rechaza la fase si falta.\n` : ''}${c.seccionesQueArrancan?.length ? `PRIMER BORRADOR DE ${c.seccionesQueArrancan.map((s) => `«${s}»`).join(', ')}: esta fase lo deja. Al menos una actividad del Desarrollo o del Cierre lo trabaja y nombra la sección: "Seleccionan (en equipos) una primera versión para «${c.seccionesQueArrancan[0]}»…"; el validador rechaza la fase si falta.\n` : ''}${c.audienciaRegistro ? `REGISTRO DE LA COMUNIDAD: una evidencia de producto de esta fase es el registro de comentarios de su audiencia real (${c.audienciaRegistro}).\n` : ''}${seccionesTx}
+${c.audienciaReal ? `APLICACIÓN ANTE LA AUDIENCIA REAL: en esta fase el grupo presenta o entrega lo que avanza a su audiencia real (${c.audienciaReal}), aunque sea de forma simbólica (un invitado de la comunidad en el aula, la entrega de la pieza o la retroalimentación de un visitante). Al menos una actividad del Desarrollo o del Cierre lo hace y deja evidencia, nombrando a quién: "Presentan (en equipos) la pieza a un dueño invitado…". Un juego de roles o una simulación NO cuenta; el validador rechaza la fase si falta.\n` : ''}${c.instruccionVisita ? `CÓMO OCURRE LA VISITA (lo decidió el docente): ${c.instruccionVisita}\n` : ''}${c.seccionesQueArrancan?.length ? `PRIMER BORRADOR DE ${c.seccionesQueArrancan.map((s) => `«${s}»`).join(', ')}: esta fase lo deja. Al menos una actividad del Desarrollo o del Cierre lo trabaja y nombra la sección: "Seleccionan (en equipos) una primera versión para «${c.seccionesQueArrancan[0]}»…"; el validador rechaza la fase si falta.\n` : ''}${c.audienciaRegistro ? `REGISTRO DE LA COMUNIDAD: una evidencia de producto de esta fase es el registro de comentarios de su audiencia real (${c.audienciaRegistro}).\n` : ''}${seccionesTx}
 INDICADORES DE ESTA FASE (copia de 1 a 3 CÓDIGOS EXACTOS en "indicadoresTrabajados"; las actividades y evidencias deben permitir comprobarlos):
 ${indText}
 ${semillaTx}
@@ -1806,7 +1837,7 @@ REGLAS:
 9. "actividadCLT": {"nombre": técnica concreta (${tecnicasEjem}), "mecanica": 1-2 líneas}; una actividad del Desarrollo la nombra dentro de su paréntesis ("<Verbo> (en parejas, <nombre de la técnica>) …"). No repitas técnicas ya usadas; cada clase de este lote usa una técnica distinta.${tecnicasBloque.length ? ` PROHIBIDAS en este bloque (ya usadas en él): ${tecnicasBloque.join(' · ')}.` : ''}${c.esApertura ? ' En esta fase de apertura la técnica es de presentación, diagnóstico o acuerdo (no de práctica de estructuras).' : ''}
 10. ${entregaTx}
 11. ${spec.esIdioma ? `"textoModelo": {"tipo":"dialogo|texto","titulo":"...","lineas":["..."]} breve en ${idioma}, para la sección que se avanza.` : 'Sin "textoModelo".'}
-12. El lote incluye "adaptacionesSemana" {"acceso","metodologicas","evaluacion"} y "observacionesSemana", ligadas al trabajo de ESTA fase (nunca genéricas).
+12. El lote incluye "adaptacionesSemana" {"acceso","metodologicas","evaluacion"} y "observacionesSemana", ligadas al trabajo de ESTA fase (nunca genéricas). Cada adecuación responde a una barrera concreta, conserva el aprendizaje evaluado y dice cómo da acceso a él: para una dificultad auditiva, transcripciones, instrucciones escritas y apoyos visuales (una grabación sola no la resuelve); para una dificultad visual, audio, lectura en voz alta o material ampliado.
 
 {"outputSchemaVersion":"1.3","semana":${semanaNum},"adaptacionesSemana":{"acceso":"...","metodologicas":"...","evaluacion":"..."},"observacionesSemana":"...","clases":[{"dia":${startDia},"tituloSemana":"${c.nombre.replace(/"/g, "'")}","titulo":"...","focoLinguistico":"...","estrategiasDia":"... • ...","intencionPedagogica":"Desde el inicio hasta el final de la clase, los estudiantes...","indicadoresTrabajados":["${c.indicadores[0]?.id || '...'}"],"seccionesProducto":["..."],"semillaUsada":["..."],"ampliacion":[{"texto":"...","tipo":"vocabulario","seccion":"..."}],"entregaFase":"","actividadCLT":{"nombre":"...","mecanica":"..."},"aporteProducto":"Sección «...» (...): ...",${spec.esIdioma ? '"textoModelo":{"tipo":"dialogo","titulo":"...","lineas":["A: ...","B: ..."]},' : ''}"saludoInicial":"...","retroalimentacionPrevia":"Retroalimentación de... (...?)","saberesPrevios":"Recuperación de saberes previos sobre...","actividadEnganche":"Observan...","momentos":[{"nombre":"Inicio","tiempo":"${tInicio} min","evidencias":{"conocimientos":["..."],"desempeno":[],"producto":[]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Desarrollo","tiempo":"${tDesarrollo} min","actividades":[{"accion":"Verbo (organización, técnica) ...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":["..."],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]},{"nombre":"Cierre","tiempo":"${tCierre} min","actividades":[{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."},{"accion":"...","producto":"...","destino":"..."}],"evidencias":{"conocimientos":[],"desempeno":[],"producto":["..."]},"metacognicion":["...","..."],"recursos":["...","..."]}]}]}`;
 }

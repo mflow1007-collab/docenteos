@@ -141,5 +141,31 @@ export const TIPO_TRABAJO_FASES_POR_ESTRATEGIA = {
   ],
 };
 
+// Cómo ocurre la fase «visitar» (decisión de César, 2026-11-04): lo declara el
+// plan para que la clase no prometa una salida que no cabe en su tiempo. El
+// `reLoHace` reconoce la actividad que lo cumple; `sinEntrevistaEnClase`: en clase
+// solo se prepara y se procesa.
+export const MODALIDADES_VISITA = [
+  {
+    clave: "invitado",
+    nombre: "Invitado al aula",
+    instruccion: "un invitado viene al aula en una cita acordada antes, y la entrevista o la recogida de datos ocurre con él en clase. Una actividad del Desarrollo lo nombra (\"Entrevistan (en parejas) al invitado…\") y ninguna sale del centro.",
+    reLoHace: /invitad/,
+  },
+  {
+    clave: "simulada",
+    nombre: "Entrevista simulada en clase",
+    instruccion: "la entrevista es simulada: unos compañeros asumen el papel con un guion. Una actividad lo dice (\"Entrevistan (en parejas, simulación) a un compañero que hace de…\") y no se presenta como real.",
+    reLoHace: /simula|hace de|hacen de|papel de|rol de/,
+  },
+  {
+    clave: "entre_sesiones",
+    nombre: "Visita real entre sesiones",
+    instruccion: "la visita real, ya coordinada, ocurre fuera del horario, entre una sesión y otra. En clase solo se prepara (cita, roles, preguntas, permiso) y se procesa lo recogido: ninguna actividad entrevista o visita durante la clase.",
+    sinEntrevistaEnClase: true,
+  },
+];
+export const MODALIDAD_VISITA_POR_DEFECTO = "invitado";
+
 // Papeles de la fase n (1 = primera impresa) de una estrategia, siempre como lista.
 export const rolesDeFaseGuia = (roles, n) => [].concat(roles[n - 1]);

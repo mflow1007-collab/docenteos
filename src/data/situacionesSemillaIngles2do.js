@@ -19,6 +19,8 @@
  * TIPOS_TRABAJO, rolesFasesEstrategias.js) y `partenDe` = de qué secciones de
  * la misma semilla se alimenta, siempre de fase igual o anterior (Etapa S2 de
  * docs/DISENO_SECUENCIA_POR_FASES.md, aprobada por César el 2026-11-03).
+ * `audienciaDetalle` = audiencia principal y secundarias con su función
+ * (`producto.audiencia` sigue siendo la frase completa; César, 2026-11-04).
  * `terminos` = vocabulario clave del proyecto por sección para el Anexo F
  * (aprobado por César, 2026-11-04); no llega al prompt.
  * Lugar (regla de César, 2026-10-29): `{centro}` = el centro donde el docente
@@ -38,6 +40,10 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       nombre: "Our School Survival Guide",
       descripcion: "una guía bilingüe de la escuela",
       audiencia: "los estudiantes de nuevo ingreso y los visitantes",
+      audienciaDetalle: {
+        principal: "los estudiantes de nuevo ingreso",
+        secundarias: [{ quien: "los visitantes", funcion: "consultan la guía para orientarse" }],
+      },
     },
     puntoDeLlegada: "Así fortalecen la empatía y el sentido de pertenencia, y asumen la responsabilidad de acoger y orientar a los demás.",
     competenciasLlegada: ["etica_ciudadana", "desarrollo_personal"],
@@ -93,6 +99,10 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       nombre: "Our Healthy Routines Plan",
       descripcion: "un plan de rutinas y horarios para el curso",
       audiencia: "las familias y el consejo de curso",
+      audienciaDetalle: {
+        principal: "las familias",
+        secundarias: [{ quien: "el consejo de curso", funcion: "da seguimiento al plan" }],
+      },
     },
     puntoDeLlegada: "Así aprenden a cuidar su descanso y su tiempo, y a tomar decisiones responsables sobre su bienestar.",
     competenciasLlegada: ["desarrollo_personal", "ambiental_salud"],
@@ -143,6 +153,10 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       nombre: "Our Community Food Guide",
       descripcion: "menús bilingües y recomendaciones para los comedores del barrio",
       audiencia: "los dueños de los comedores y los visitantes",
+      audienciaDetalle: {
+        principal: "los dueños de los comedores",
+        secundarias: [{ quien: "los visitantes", funcion: "consultan los menús para saber qué piden" }],
+      },
     },
     puntoDeLlegada: "Así valoran la comida de su comunidad, promueven una alimentación sana y se comprometen con el progreso de su entorno.",
     competenciasLlegada: ["etica_ciudadana", "ambiental_salud"],

@@ -2080,22 +2080,29 @@ check("con plan: indicador completo con aspectos resaltados, competencia no eleg
   validarUnidadRenderizada(u, h);
 });
 
-check("Anexo I con plan: estados de cada sección en palabras, sin leyenda ni códigos de fase; sin plan, como antes", () => {
-  const base = { area: "Inglés", tema: "Escuela", producto: "Guía", fases: [], secciones: ["Welcome", "Important Places"] };
+check("Anexo I con plan: solo estados con pieza real y proceso desde las actividades; sin plan, como antes", () => {
+  const dia = (aporteProducto, actividad) => ({ aporteProducto, momentos: [{ nombre: "Desarrollo", actividades: [actividad] }] });
+  const base = { area: "Inglés", tema: "Escuela", producto: "Guía", fases: [{ dias: [
+    dia("Sección «Welcome» (borrador): carta", "Redactan (en parejas) una carta de bienvenida."),
+    dia("Sección «Welcome» (versión final): carta revisada", "Corrigen (en grupos) la carta."),
+  ] }], secciones: ["Welcome", "Important Places"] };
   const fasesPlan = [
     { nombre: "Visión compartida", entrega: { estado: "Acuerdo y plan", secciones: ["Welcome", "Important Places"] } },
     { nombre: "Aplicación", entrega: { estado: "Versión final", secciones: ["Welcome"] } },
   ];
   const { organizadorProducto } = construirAnexosUnidad({ ...base, fasesPlan });
-  if (organizadorProducto[1].fases !== "Acuerdo y plan → Versión final") {
+  if (organizadorProducto[1].fases !== "Borrador → Versión final") {
     throw new Error(`estados de Welcome: ${organizadorProducto[1].fases}`);
   }
-  if (organizadorProducto[2].fases !== "Acuerdo y plan") throw new Error("estados de Important Places");
+  if (organizadorProducto[1].operaciones.join(" → ") !== "Redactan una carta → Corrigen la carta") {
+    throw new Error(`proceso de Welcome: ${organizadorProducto[1].operaciones}`);
+  }
+  if (organizadorProducto[2].fases !== "" || organizadorProducto[2].operaciones.length) throw new Error("Important Places no tiene piezas ni actividades");
   if ("fases" in construirAnexosUnidad(base).organizadorProducto[1]) throw new Error("sin plan no debe haber columna de estados");
   const u = structuredClone(unidadFixture);
   u.anexos = construirAnexosUnidad({ ...base, fasesPlan });
   const html = formatearUnidadHTML(u, "");
-  if (!html.includes("Estados de la sección")) throw new Error("el Anexo I no muestra la columna de estados");
+  if (!html.includes("Proceso de la sección")) throw new Error("el Anexo I no muestra la columna de proceso");
   if (!html.includes("Evidencia principal")) throw new Error("el Anexo I no muestra la columna de evidencia");
   if (/Fases: F1|Fase\(s\) y estado/.test(html)) throw new Error("el Anexo I sigue mostrando fases");
 });

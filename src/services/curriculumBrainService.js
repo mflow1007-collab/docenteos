@@ -253,16 +253,54 @@ const familiasDeTexto = (texto = "") => FAMILIAS_ACCION
  * Propone relaciones DERIVADAS entre criterios e indicadores. Nunca las marca
  * como oficiales salvo que el documento declare el mismo competenciaId.
  */
+// Tríada oficial de idiomas: cada competencia trae 3 indicadores y 3 criterios en
+// el mismo orden (comprender, producir, interactuar). El par sale de esa posición
+// en la malla y no del parecido de palabras, que unía «Producción…» con «Interactúa…».
+export const DIMENSIONES_TRIADA = ["comprension", "produccion", "interaccion"];
+export const triadaOficial = ({ criterios = [], indicadores = [] } = {}) => {
+  const porCompetencia = (lista, clave) => {
+    const grupos = new Map();
+    lista.forEach((item) => {
+      const id = limpiar(item?.[clave]);
+      if (id) grupos.set(id, [...(grupos.get(id) || []), item]);
+    });
+    return grupos;
+  };
+  const criteriosPorComp = porCompetencia(criterios, "competenciaIdDeclarada");
+  const triada = new Map();
+  porCompetencia(indicadores, "competenciaId").forEach((inds, compId) => {
+    const crits = criteriosPorComp.get(compId) || [];
+    if (inds.length !== DIMENSIONES_TRIADA.length || crits.length !== DIMENSIONES_TRIADA.length) return;
+    inds.forEach((ind, i) => triada.set(ind.id, { criterio: crits[i], dimension: DIMENSIONES_TRIADA[i] }));
+  });
+  return triada;
+};
+
 export const relacionarCriteriosConIndicadores = ({
   criterios = [],
   indicadores = [],
   competencias = [],
+  triada = null,
 } = {}) => {
   const comps = (competencias || []).map(normalizarCompetencia);
   const compPorId = new Map(comps.map((comp) => [comp.id, comp]));
   const criteriosCanonicos = (criterios || []).filter((c) => c?.textoOficial);
 
   return (indicadores || []).map(normalizarIndicador).filter((ind) => ind.id || ind.descripcion).map((indicador) => {
+    const parOficial = triada?.get(indicador.id);
+    if (parOficial) {
+      return {
+        indicadorId: indicador.id,
+        indicadorDescripcion: indicador.descripcion,
+        criterioId: parOficial.criterio.id,
+        criterioTexto: parOficial.criterio.textoOficial,
+        tipoRelacion: "posicion_en_triada_oficial",
+        confianza: "alta",
+        puntaje: 0,
+        dimension: parOficial.dimension,
+        justificacion: "La malla oficial lista indicadores y criterios de la competencia en el mismo orden.",
+      };
+    }
     const tokensIndicador = new Set(tokensRelacion(indicador.descripcion));
     const familiasIndicador = familiasDeTexto(indicador.descripcion);
     const compIndicador = compPorId.get(indicador.competenciaId);
@@ -330,15 +368,21 @@ export const relacionarCriteriosConIndicadores = ({
   });
 };
 
+// `dimension`: lo que la tarea exige demostrar. Si hay relaciones de esa
+// dimensión, se elige entre ellas (el parecido de palabras solo desempata):
+// marcar imágenes al escuchar nunca evidencia una producción.
 export const seleccionarRelacionParaEvidencia = ({
   texto = "",
   relaciones = [],
   umbral = 4,
+  dimension = "",
 } = {}) => {
   const tokensTexto = new Set(tokensRelacion(texto));
   const familiasTexto = familiasDeTexto(texto);
-  const candidatos = (Array.isArray(relaciones) ? relaciones : [])
-    .filter((relacion) => relacion?.criterioId && relacion?.indicadorId)
+  const validas = (Array.isArray(relaciones) ? relaciones : [])
+    .filter((relacion) => relacion?.criterioId && relacion?.indicadorId);
+  const deLaDimension = dimension ? validas.filter((relacion) => relacion.dimension === dimension) : [];
+  const candidatos = (deLaDimension.length ? deLaDimension : validas)
     .map((relacion) => {
       const referente = [
         relacion.criterioTexto,
@@ -357,7 +401,8 @@ export const seleccionarRelacionParaEvidencia = ({
     })
     .sort((a, b) => b.puntajeEvidencia - a.puntajeEvidencia);
   const mejor = candidatos[0] || null;
-  if (!mejor || mejor.puntajeEvidencia < umbral) return null;
+  if (!mejor) return null;
+  if (!deLaDimension.length && mejor.puntajeEvidencia < umbral) return null;
   return mejor;
 };
 
@@ -405,10 +450,23 @@ export const construirArquitecturaUnidadMINERD = ({
     nivel, ciclo, grado, area, asignatura,
   });
   const criteriosEvaluacion = criteriosEvaluacionDetalle.map((criterio) => criterio.textoOficial);
+  const claveArea = String(`${area} ${asignatura}`).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const triada = /ingles|frances|lenguas extranjeras/.test(claveArea)
+    ? triadaOficial({ criterios: criteriosEvaluacionDetalle, indicadores: indicadoresTotales })
+    : null;
   const relacionesCriterioIndicador = relacionarCriteriosConIndicadores({
     criterios: criteriosEvaluacionDetalle,
     indicadores: indicadoresActuales,
     competencias: competenciasNormalizadas,
+    triada,
+  });
+  // Las de toda la malla: indicadoresTrabajo es la selección automática del
+  // motor anterior, y el docente puede haber elegido otros indicadores en el plan.
+  const relacionesMalla = relacionarCriteriosConIndicadores({
+    criterios: criteriosEvaluacionDetalle,
+    indicadores: indicadoresTotales,
+    competencias: competenciasNormalizadas,
+    triada,
   });
 
   return {
@@ -474,6 +532,7 @@ export const construirArquitecturaUnidadMINERD = ({
       criteriosDetalle: criteriosEvaluacionDetalle,
       coberturaCriterios: criteriosEvaluacionDetalle.length ? "presente" : "ausente",
       relacionesCriterioIndicador,
+      relacionesMalla,
       momentos: ["diagnostica", "formativa", "sumativa"],
       agentes: ["autoevaluacion", "coevaluacion", "heteroevaluacion"],
       evidenciasPreferentes: perfilArea.evidencias,
