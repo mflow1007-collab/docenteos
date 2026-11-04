@@ -188,7 +188,7 @@ const repartoBreve = (items, total, capacidad) => {
     return Math.max(0, ...Object.values(porSeccion));
   };
   const bloques = [
-    { tareas: unidad("acordar"), peso: 15 },
+    { tareas: unidad("acordar"), peso: 30 },
     { tareas: bloqueDe("C"), peso: pesoBloque(bloqueDe("C")), paralelo: true },
     { tareas: bloqueDe("P"), peso: pesoBloque(bloqueDe("P")), paralelo: true },
     { tareas: bloqueDe("M"), peso: pesoBloque(bloqueDe("M")), paralelo: true },
@@ -425,6 +425,32 @@ export const humanosDeFila = (fila, alcance = null) => {
   return "Docente y estudiantes";
 };
 
+/** Recursos didácticos de una clase: los de sus tareas, sin añadir equipos que la fila no prevé. */
+export const didacticosDeFila = (fila) => {
+  const vistos = new Map();
+  fila.tareas.flatMap((t) => String(t.recursos?.didacticos || "").split(",")).map((r) => r.trim()).filter(Boolean)
+    .forEach((r) => { if (!vistos.has(r.toLowerCase())) vistos.set(r.toLowerCase(), r); });
+  return [...vistos.values()].join(", ");
+};
+
+/** La clase 1 no tiene clase anterior: la posición de retroalimentación mira hacia adelante. */
+export const INICIO_PRIMERA_CLASE = "Comentan qué esperan aprender en este proyecto. (What would you like to learn in this project?)";
+
+/** La firma que promete la tarea la escribe el código, en la actividad de esa tarea. */
+export const conFirmas = (actividades, tareasMapa = []) => {
+  const lista = [...actividades];
+  tareasMapa.forEach((t, i) => {
+    const { firma, senal } = DETALLE_TAREA[t.clave] || {};
+    if (!firma || !lista.length) return;
+    const texto = (a) => normal(typeof a === "string" ? a : Object.values(a || {}).join(" "));
+    const porSenal = lista.findIndex((a) => new RegExp(senal).test(texto(a)));
+    const donde = lista.length === tareasMapa.length ? i : (porSenal >= 0 ? porSenal : lista.length - 1);
+    if (/\bfirm/.test(texto(lista[donde])) || typeof lista[donde] !== "string") return;
+    lista[donde] = `${lista[donde].trim()} ${firma}`;
+  });
+  return lista;
+};
+
 /**
  * Ficha de la unidad: una sola decisión de modalidad y alcance, que leen la situación,
  * el producto y el ambiente (César, 2026-11-04). Devuelve los datos con la situación ya
@@ -466,12 +492,15 @@ const estadoDeTarea = (t) => {
   return "insumos recopilados";
 };
 
+// Los anexos nombran el producto; su descripción ya está en la situación.
+const nombreCorto = (producto) => String(producto || "").split(/\s+[—–]\s+/)[0].trim();
+
 /** Anexo I desde el mapa: cada sección con su propio proceso, estados y evidencia. */
 export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, propositos = {} } = {}) => {
   const filas = mapa.filas.filter((f) => !f.flexible);
   const COMPARTIDAS = ["acordar", "comentar", "glosario", "integrar", "presentar", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
   return [
-    { seccion: "Título", incluye: `Mi nombre y el título del producto (${producto}).`, fases: "" },
+    { seccion: "Título", incluye: `Mi nombre y el título del producto (${nombreCorto(producto)}).`, fases: "" },
     ...mapa.secciones.map((seccion) => {
       const suyas = filas.flatMap((f) => f.tareas.filter((t) => t.secciones.includes(seccion) && !COMPARTIDAS.includes(t.clave)).map((t) => ({ ...t, clase: f.clase })));
       const estados = [...new Set(suyas.map(estadoDeTarea))];
@@ -493,7 +522,7 @@ export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, proposi
 
 /** Anexo H desde el mapa: una fila por clase. */
 export const checklistDesdeMapa = (mapa, producto = "") => mapa.filas.filter((f) => !f.flexible)
-  .map((f) => ({ paso: `Clase ${f.clase}. ${aporteDeFila(f, producto, mapa.secciones)}`, semana: `Semana ${f.semana}` }));
+  .map((f) => ({ paso: `Clase ${f.clase}. ${aporteDeFila(f, nombreCorto(producto), mapa.secciones)}`, semana: `Semana ${f.semana}` }));
 
 // Ajustes para el plan maestro: las fases que comparten clase se unen; el resto
 // recibe tantas sesiones como filas. Null si la estrategia tiene fases con partes.
@@ -678,6 +707,17 @@ export const planDesdeMapa = (entrada, mapa) => {
   if (desde !== mapa.filas.length) throw error(`las fases del plan suman ${desde} clases y el mapa tiene ${mapa.filas.length}.`);
   return { plan, filasPorFase };
 };
+
+/**
+ * Hoja de ruta: la unidad completa en una línea por clase, para que cada lote sepa
+ * qué viene antes y después (César, 2026-11-04). La clase actual se marca con ►.
+ */
+export const hojaDeRuta = (filas = [], clasesActuales = []) => filas.map((f) => {
+  const marca = clasesActuales.includes(f.clase) ? "► " : "";
+  if (f.flexible) return `${marca}C${f.clase} clase flexible del docente`;
+  const secciones = f.secciones.length > 2 ? "todo el producto" : f.secciones.join(" · ");
+  return `${marca}C${f.clase} ${secciones}: ${f.tareas.map((t) => t.nombre).join(" + ")} → entrega: ${f.entregas.join("; ")}`;
+});
 
 /** Reglas de calidad del diseño. Devuelve la lista de incumplimientos (vacía = cumple). */
 export const verificarMapa = (mapa) => {

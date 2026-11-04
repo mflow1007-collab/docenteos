@@ -11,6 +11,7 @@
  * PROHIBIDO: fallback a templates JS.
  */
 
+import { hojaDeRuta } from './mapaClasesService.js';
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
 import { db }                                   from '../firebase.js';
@@ -26,7 +27,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
-import { aplicarFilasMapa, validarLoteContrato, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
+import { hechosDeClase, libretaDeHechos, aplicarFilasMapa, validarLoteContrato, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -1835,12 +1836,18 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
       `- Recursos disponibles: ${recursos.join('; ')}`,
     ].join('\n');
   };
-  const mapaTx = filasLote ? `MAPA DE ESTAS CLASES. DocenteOS ya decidió cada clase; tú solo redactas.
+  const clasesLote = (filasLote || []).map((f) => f.clase);
+  const hojaTx = filasLote ? hojaDeRuta(c.filasUnidad || filasLote, clasesLote).join('\n') : '';
+  const libretaTx = filasLote ? libretaDeHechos(memoria || []) : '';
+  const mapaTx = filasLote ? `LA UNIDAD COMPLETA. Tú redactas solo lo marcado con ►; lo demás ya tiene su clase y no se adelanta.
+${hojaTx}
+${libretaTx ? `\n${libretaTx}\n` : ''}
+MAPA DE ESTAS CLASES. DocenteOS ya decidió cada clase; tú solo redactas.
 
 ${filasLote.map(filaTx).join('\n\n')}
 
 REGLAS DEL MAPA:
-1. Redacta cada tarea como 1 o 2 actividades del Desarrollo, en el orden dado y dentro de sus minutos. No añadas tareas ni repitas una tarea de otra clase.
+1. Redacta cada tarea como 1 o 2 actividades del Desarrollo, en el orden dado y dentro de sus minutos; si la clase tiene una sola tarea, son 2 actividades. No añadas tareas ni repitas una tarea de otra clase.
 2. Parte de lo que la clase recibe. Todo dato del producto (precios, horarios, ingredientes, cantidades, calorías) sale de ahí. Si un dato falta, escribe «falta dato»; nunca lo inventes.
 3. Cada contenido listado aparece escrito en una actividad o en "textoModelo", con un ejemplo en inglés. En "contenidosEnClase" copia, para cada uno, un fragmento SIN CAMBIOS ni puntos suspensivos de ese texto: [{"contenido":"<el de la lista, completo>","frase":"<fragmento literal>"}].
 4. Mantén la modalidad indicada en toda la clase. Si es un rol, dilo.
@@ -1865,7 +1872,7 @@ ${c.audienciaReal ? `APLICACIÓN ANTE LA AUDIENCIA REAL: en esta fase el grupo p
 ${filasLote ? 'INDICADORES DE ESTA FASE (el sistema los asigna por clase; las actividades y evidencias deben permitir comprobar el de cada una):' : 'INDICADORES DE ESTA FASE (copia de 1 a 3 CÓDIGOS EXACTOS en "indicadoresTrabajados"; las actividades y evidencias deben permitir comprobarlos):'}
 ${indText}
 ${filasLote ? mapaTx : semillaTx}
-${formatearMemoria(memoria)}
+${filasLote ? '' : formatearMemoria(memoria)}
 SALIDA: JSON puro con "clases" = EXACTAMENTE ${count} clase(s) (días ${startDia}-${endDia} de la fase).
 
 REGLAS:
@@ -2239,6 +2246,7 @@ function agregarClasesAMemoria(clases = [], semanaNum, memoriaAcumulada) {
       actividadCLT: c.actividadCLT?.nombre || '',
       mecanicaCLT: c.actividadCLT?.mecanica || '',
       aporteProducto: c.aporteProducto || '',
+      hechos: hechosDeClase(c),
     });
   });
 }

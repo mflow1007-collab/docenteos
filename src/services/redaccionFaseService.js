@@ -24,7 +24,7 @@
  */
 
 import { aporteDeFila } from "./mapaClasesService.js";
-import { MARCAS_DATO } from "../data/tareasPorTipoTrabajo.js";
+import { MARCAS_DATO, INVENTARIO_POR_SECCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { recomponerIndicador } from "../data/indicadoresIngles2doEstructurados.js";
@@ -294,7 +294,7 @@ export const segmentarIndicador = (ind, aspectosElegidos = []) => {
  * Contrato de la fase `indice` del plan.
  * Las fases sin indicadores propios retoman los de la unidad.
  */
-export const construirContratoFase = ({ plan, indice, estructura, audiencia = "", modalidadVisita = "", filasMapa = null }) => {
+export const construirContratoFase = ({ plan, indice, estructura, audiencia = "", modalidadVisita = "", filasMapa = null, filasUnidad = null }) => {
   const fase = plan?.fases?.[indice];
   if (!fase) throw error(`el plan maestro no tiene la fase ${indice + 1}.`);
   // Fase de tipo «aplicar» (hoy solo Inserción): el grupo lo hace ante la
@@ -361,7 +361,7 @@ export const construirContratoFase = ({ plan, indice, estructura, audiencia = ""
       ? filasMapa.map((f) => (f.flexible ? [...(plan.secciones || [])] : [...f.secciones]))
       : repartirSeccionesClases(fase.entrega.secciones, fase.sesiones),
     seccionPrincipalPorClase: filasMapa ? filasMapa.map(() => "") : seccionesPrincipalesUnidad(plan)[indice],
-    ...(filasMapa ? { mapaClases: filasMapa } : {}),
+    ...(filasMapa ? { mapaClases: filasMapa, filasUnidad: filasUnidad || filasMapa } : {}),
     secciones: [...(plan.secciones || [])],
     propositosSecciones: { ...(plan.propositosSecciones || {}) },
     piezasSecciones: { ...(plan.piezasSecciones || {}) },
@@ -611,6 +611,99 @@ export const datosSinRecoger = (clase, fila) => {
   return (fila.datosRecoge || []).filter((d) => MARCAS_DATO[d] && !new RegExp(MARCAS_DATO[d]).test(texto));
 };
 
+/**
+ * Lo que sí rechaza el lote porque rompe la cadena de la unidad (César, 2026-11-04):
+ * diagnóstico sin aplicar, presentación sin probar el producto, comentarios sin
+ * leer y datos que nadie recogió. El resto de la fidelidad solo avisa.
+ */
+export const obligacionIncumplida = (clase, fila) => {
+  if (!fila || fila.flexible) return "";
+  const actividades = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
+  const normales = actividades.map(normalizar);
+  const texto = normales.join(" ");
+  const claves = fila.tareas.map((t) => t.clave);
+  if (claves.includes("acordar") && !(/\bescuch/.test(texto) && /\bescrib/.test(texto))) {
+    return "el diagnóstico no se aplica: una actividad escucha y marca, y otra escribe dos oraciones.";
+  }
+  if (claves.includes("presentar")) {
+    const prueba = fila.secciones.map((s) => INVENTARIO_POR_SECCION[s]?.pruebaConAudiencia).find(Boolean);
+    if (prueba && !new RegExp(prueba).test(texto)) return "la presentación no pone a prueba el producto con la audiencia: una actividad hace pedidos reales con el menú.";
+  }
+  if (claves.includes("evaluar_comentarios") && !normales.some((a) => /^(leen|responden|analizan|identifican)\b/.test(a) && /comentari/.test(a))) {
+    return "nadie lee los comentarios de la audiencia: una actividad empieza por leerlos y responder por escrito qué piden cambiar.";
+  }
+  if (fila.secciones.some((s) => INVENTARIO_POR_SECCION[s])) {
+    const dato = actividades.find((a) => /\b(calorias?|proteinas?|porcentaje|vegetarian[oa]?s?|vegan[oa]?s?)\b/.test(normalizar(a)));
+    if (dato) return `usa un dato que ninguna clase recogió: "${dato.slice(0, 80)}". Quítalo o escribe «falta dato».`;
+  }
+  return "";
+};
+
+const TOPE_LIBRETA = 14;
+
+/**
+ * Lo concreto que dejó una clase aceptada, para las siguientes: frases en inglés y su
+ * estructura. Sin cifras: los datos reales los dice la fuente, no un texto modelo.
+ */
+export const hechosDeClase = (clase) => {
+  const actividades = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
+  const enCursiva = actividades.flatMap((a) => [...String(a).matchAll(/_([^_]{3,70})_/g)].map((m) => m[1].trim()));
+  const modelo = (clase?.textoModelo?.lineas || []).map((l) => String(l).trim());
+  const frases = [...new Set([...enCursiva, ...modelo])].filter((f) => f && !/\d/.test(f)).slice(0, 5);
+  return { frases, estructura: String(clase?.focoLinguistico || "").trim().slice(0, 90) };
+};
+
+/** Libreta: lo ya decidido en la unidad, para no contradecirlo ni inventarlo de nuevo. */
+export const libretaDeHechos = (memoria = []) => {
+  const lineas = memoria.filter((m) => m?.hechos && (m.hechos.frases?.length || m.hechos.estructura)).slice(-TOPE_LIBRETA)
+    .map((m) => `- ${m.aporteProducto ? `${String(m.aporteProducto).slice(0, 80)} — ` : ""}${m.hechos.estructura}${m.hechos.frases?.length ? ` · frases: ${m.hechos.frases.join(" / ")}` : ""}`);
+  return lineas.length
+    ? `LO QUE YA SE DECIDIÓ EN LA UNIDAD. Úsalo tal cual; no lo contradigas ni lo inventes de nuevo. Los precios y datos reales los da la fuente de la clase, no estos ejemplos.\n${lineas.join("\n")}`
+    : "";
+};
+
+// Tareas de otra clase que no deben adelantarse (por el verbo que abre la actividad).
+const TAREAS_RECONOCIBLES = [
+  { clave: "visitar_entrevistar", verbo: /^entrevistan\b/ },
+  { clave: "presentar", verbo: /^presentan\b/ },
+  { clave: "integrar", verbo: /^(reunen|integran|compilan)\b/ },
+  { clave: "evaluar_proceso", verbo: /^(autoevaluan|coevaluan)\b/ },
+];
+
+/**
+ * Revisión de la unidad entera contra el mapa: lo que un lote aislado no puede ver.
+ * Solo informa al administrador; no regenera nada.
+ */
+export const revisarUnidadConMapa = (dias = [], filas = []) => {
+  const avisos = [];
+  const palabras = (t) => normalizar(t).split(" ").filter((p) => p.length > 4);
+  const vistas = new Map();
+  dias.forEach((dia, i) => {
+    const fila = filas[i];
+    if (!fila || fila.flexible) return;
+    const actividades = ((dia?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
+    const texto = normalizar(actividades.join(" "));
+    // ¿Usa lo que recibe?
+    fila.recibe.filter((r) => r.clase).forEach((r) => {
+      const claves = palabras(String(r.texto).split(":")[0]);
+      if (claves.length && !claves.some((p) => texto.includes(p.slice(0, 5)))) avisos.push(`clase ${fila.clase}: no se ve que use «${r.texto}» de la clase ${r.clase}`);
+    });
+    // ¿Hace la tarea de otra clase?
+    TAREAS_RECONOCIBLES.forEach(({ clave, verbo }) => {
+      const suya = fila.tareas.some((t) => t.clave === clave);
+      const existe = filas.some((f) => f.tareas.some((t) => t.clave === clave));
+      if (!suya && existe && actividades.some((a) => verbo.test(normalizar(a)))) avisos.push(`clase ${fila.clase}: adelanta o repite «${clave}», que el mapa pone en otra clase`);
+    });
+    // ¿Repite una actividad casi igual?
+    actividades.forEach((a) => {
+      const clave = normalizar(a).split(" ").slice(0, 12).join(" ");
+      if (vistas.has(clave) && vistas.get(clave) !== fila.clase) avisos.push(`clase ${fila.clase}: repite una actividad de la clase ${vistas.get(clave)}`);
+      else vistas.set(clave, fila.clase);
+    });
+  });
+  return [...new Set(avisos)];
+};
+
 /** Dónde se aleja la clase de su fila: lo ve el administrador, no el docente. */
 export const motivosFidelidad = (clase, fila) => {
   const motivos = [];
@@ -700,6 +793,8 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       if (sinUsar.length) motivos44[idx].push(`clase ${idx + 1} — no se ven estos contenidos del mapa: ${sinUsar.join(" · ")}`);
       const grabacion = grabacionProhibida(clase);
       if (grabacion) throw new Error(`${etiqueta} — nadie graba con celulares de estudiantes: "${grabacion.slice(0, 90)}". Quita la grabación; lo oral se observa o se anota.`);
+      const incumplida = obligacionIncumplida(clase, filaMapa);
+      if (incumplida) throw new Error(`${etiqueta} — ${incumplida}`);
       const sinDatos = datosSinRecoger(clase, filaMapa);
       if (sinDatos.length) throw new Error(`${etiqueta} — esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
       motivosFidelidad(clase, filaMapa).forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));

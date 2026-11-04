@@ -25,11 +25,11 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { armarMapaClases, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { armarMapaClases, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
-  construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
+  revisarUnidadConMapa, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
   seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases, VERBOS_IDIOMA, VERBOS_GESTION,
 } from "./redaccionFaseService.js";
 
@@ -5261,7 +5261,7 @@ const _generarFasesConIA = async (
           // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
           // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
           const alcance = ALCANCE_POR_SEMILLA[contexto.planMaestro?.semillaId]?.conInvitado || null;
-          dia.fijoDelMapa = { evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance) };
+          dia.fijoDelMapa = { evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
         }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
@@ -5777,6 +5777,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         audiencia: datos.planMaestro?.situacion?.audiencia || "",
         modalidadVisita: conMapa?.modalidad || datos.planMaestro?.modalidadVisita || "",
         filasMapa: conMapa?.filasPorFase[indice] || null,
+        filasUnidad: conMapa?.mapa?.filas || null,
       })),
     };
   } else {
@@ -6204,7 +6205,11 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       const desarrollo = (d.momentos || []).find((m) => m?.nombre === "Desarrollo");
       if (d.fijoDelMapa && desarrollo) {
         desarrollo.evaluacion = { ...desarrollo.evaluacion, ...d.fijoDelMapa.evaluacion };
-        desarrollo.recursos = { ...desarrollo.recursos, humanos: d.fijoDelMapa.humanos, tecnologicos: "No requerido para esta actividad" };
+        desarrollo.recursos = { ...desarrollo.recursos, humanos: d.fijoDelMapa.humanos, didacticos: d.fijoDelMapa.didacticos, tecnologicos: "No requerido para esta actividad" };
+        desarrollo.actividades = conFirmas(desarrollo.actividades || [], d.tareasMapa);
+        const inicio = (d.momentos || []).find((m) => m?.nombre === "Inicio");
+        // Se sustituye y no se quita: el Inicio tiene 5 posiciones fijas.
+        if (d.fijoDelMapa.primeraClase && /^retroalimentaci[oó]n/i.test(String(inicio?.actividades?.[1] || ""))) inicio.actividades[1] = INICIO_PRIMERA_CLASE;
         delete d.fijoDelMapa;
       }
       if (!desarrollo?.actividades?.length) return;
@@ -6345,6 +6350,18 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       unidadResult.avisosRedaccion = [
         `⚠️ Redacción de las actividades (regla 4.4, ${global.avisos.length}): ${global.avisos.join("; ")}.`,
       ];
+    }
+    // Mapa de clases: lo que solo se ve mirando la unidad entera. Va al administrador.
+    if (rutaPlanMaestro?.mapa) {
+      const revision = revisarUnidadConMapa(
+        (unidadResult.fasesSemanales || []).flatMap((f) => f.dias || []), rutaPlanMaestro.mapa.filas,
+      );
+      if (revision.length) {
+        unidadResult.avisosRedaccion = [
+          ...(unidadResult.avisosRedaccion || []),
+          `⚠️ Revisión de la unidad contra el mapa (${revision.length}): ${revision.slice(0, 30).join("; ")}.`,
+        ];
+      }
     }
     // Lo flexible del Desarrollo y del Cierre que la IA no cumplió: se aceptó
     // sin reintento pagado y se avisa al admin (decisión de César, 2026-11-03).

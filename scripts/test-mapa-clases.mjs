@@ -13,8 +13,9 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
-import { datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
+import { didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
+import { hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
 
@@ -188,7 +189,7 @@ check("ningún mapa pasa del tope de contenidos ni deja una clase con más de 3 
 console.log("\n[Mapa de clases — conexión con la generación, sin IA]");
 const eRef = entrada("Alimentación", 6, ...HORARIOS["3x1"]);
 const { plan: planRef, filasPorFase } = planDesdeMapa(eRef, ref);
-const contratoDe = (i) => construirContratoFase({ plan: planRef, indice: i, estructura, audiencia: "el dueño del comedor", modalidadVisita: "invitado", filasMapa: filasPorFase[i] });
+const contratoDe = (i) => construirContratoFase({ plan: planRef, indice: i, estructura, audiencia: "el dueño del comedor", modalidadVisita: "invitado", filasMapa: filasPorFase[i], filasUnidad: ref.filas });
 const especie = (c) => ({ contratoFase: c, area: "Lenguas Extranjeras", grado: "2do Secundaria", nivel: "Secundaria", esIdioma: true, idiomaNombre: "inglés", asignatura: "Inglés" });
 const promptDe = (i, inicio = 1, n = 1) => buildFasePrompt(especie(contratoDe(i)), i + 1, inicio, n, 45, 6, []);
 
@@ -244,7 +245,8 @@ check("el tipo de evidencia del Desarrollo lo dice la tarea", () => {
   igual(data.clases[0].momentos[0].evidencias, { conocimientos: ["Lista de datos"], desempeno: [], producto: [] }, "conocimiento");
 });
 check("un contenido que no se ve en la clase da aviso, no rechazo", () => {
-  const i = filasPorFase.findIndex((fs) => fs.some((f) => f.contenidos.length));
+  // Desde la fase 4: las anteriores tienen además sus propias obligaciones (diagnóstico, datos).
+  const i = filasPorFase.findIndex((fs, n) => n >= 3 && fs.some((f) => f.contenidos.length));
   const c = contratoDe(i);
   const k = c.mapaClases.findIndex((f) => f.contenidos.length);
   const fila = c.mapaClases[k];
@@ -298,6 +300,16 @@ check("inventario: la entrevista recoge lo que necesitan las piezas, y sin el da
   igual(datosSinRecoger(clase("Redactan el registro."), ref.filas[4]), [], "solo la entrevista rechaza");
   assert(promptDe(2).includes("DEBE preguntar y dejar anotados") && promptDe(2).includes("precios"), "el prompt no lo pide");
 });
+check("lo que rompe la cadena rechaza el lote: diagnóstico, pedidos, comentarios y datos sin recoger", () => {
+  const clase = (...acts) => ({ momentos: [{ nombre: "Desarrollo", actividades: acts }] });
+  assert(/diagnóstico/.test(obligacionIncumplida(clase("Acuerdan (en plenaria) el plan."), ref.filas[0])), "clase 1 sin diagnóstico");
+  igual(obligacionIncumplida(clase("Escuchan (en parejas) oraciones y marcan imágenes.", "Escriben (individual) dos oraciones."), ref.filas[0]), "", "clase 1 con diagnóstico");
+  assert(/pedidos/.test(obligacionIncumplida(clase("Presentan (en equipos) todas las secciones."), ref.filas[16])), "clase 17 sin pedidos");
+  igual(obligacionIncumplida(clase("Presentan (en equipos) todas las secciones.", "Hacen pedidos reales con el menú (_Can I have…?_)."), ref.filas[16]), "", "clase 17 con pedidos");
+  assert(/comentarios/.test(obligacionIncumplida(clase("Corrigen (en grupos) según los comentarios."), ref.filas[17])), "clase 18 sin leer");
+  igual(obligacionIncumplida(clase("Leen (individual) los comentarios y responden qué piden cambiar."), ref.filas[17]), "", "clase 18 con lectura");
+  assert(/ninguna clase recogió/.test(obligacionIncumplida(clase("Clasifican (en grupos) los platos altos en calorías."), ref.filas[6])), "dato sin fuente");
+});
 check("evaluación: el tipo, el agente y el instrumento salen de la fila", () => {
   igual(evaluacionDeFila(ref.filas[0]).tipo, "Diagnóstica", "clase 1");
   igual(evaluacionDeFila(ref.filas[1]).tipo, "Formativa", "clase 2");
@@ -341,6 +353,39 @@ check("Anexo I: cada sección con su proceso, sus estados y su cierre; Anexo H, 
   igual(new Set(mapaSecciones(ref).map((s) => de(s).evidencia)).size, 5, "evidencia propia por sección");
   igual(checklistDesdeMapa(ref, "Guide").length, 18, "Anexo H");
 });
+check("hoja de ruta: cada lote ve toda la unidad y sabe cuál es su clase", () => {
+  const h = hojaDeRuta(ref.filas, [4]);
+  igual(h.length, 18, "una línea por clase");
+  assert(h[3].startsWith("► C4") && !h[4].startsWith("►"), "marca solo la actual");
+  assert(/C17 todo el producto: presentar/.test(h[16]), h[16]);
+  const p = promptDe(2);
+  assert(p.includes("LA UNIDAD COMPLETA") && p.includes("► C4") && p.includes("C17 todo el producto"), "no llega al prompt");
+  assert(p.indexOf("LA UNIDAD COMPLETA") < p.indexOf("MAPA DE ESTAS CLASES"), "orden");
+});
+check("libreta: guarda frases y estructura, sin cifras, y llega a las clases siguientes", () => {
+  const clase = { focoLinguistico: "Preguntar precios: how much", textoModelo: { lineas: ["The salad is 100 pesos.", "How much is the salad?"] }, momentos: [{ nombre: "Desarrollo", actividades: ["Escriben (en grupos) preguntas (_What dishes do you sell?_…)."] }] };
+  const h = hechosDeClase(clase);
+  igual(h.frases, ["What dishes do you sell?", "How much is the salad?"], "frases sin cifras");
+  const memoria = [{ aporteProducto: "Sección «Interviews» (borrador): guion", hechos: h }];
+  assert(/What dishes do you sell/.test(libretaDeHechos(memoria)) && /no lo contradigas/.test(libretaDeHechos(memoria)), "libreta");
+  igual(libretaDeHechos([]), "", "vacía sin memoria");
+  assert(buildFasePrompt(especie(contratoDe(3)), 4, 1, 1, 45, 6, memoria).includes("What dishes do you sell"), "no llega al prompt");
+  igual(libretaDeHechos(Array.from({ length: 30 }, () => ({ hechos: { frases: ["a b c"], estructura: "x" } }))).split("\n").length, 15, "tope");
+});
+check("revisión de la unidad: detecta adelantos, repeticiones y lo que no se usa", () => {
+  const dia = (...acts) => ({ momentos: [{ nombre: "Desarrollo", actividades: acts }] });
+  const dias = ref.filas.map((f) => dia(`Trabajan (en grupos) con ${f.recibe.map((r) => r.texto.split(":")[0]).join(" y ")} en la clase ${f.clase}.`));
+  igual(revisarUnidadConMapa(dias, ref.filas), [], "sin problemas");
+  const adelanta = [...dias];
+  adelanta[15] = dia("Presentan (en grupos) el diálogo a un dueño invitado.", "Reúnen (en grupos) las secciones de Secciones finales, Versión final, Observaciones.");
+  assert(revisarUnidadConMapa(adelanta, ref.filas).some((a) => /clase 16: adelanta o repite «presentar»/.test(a)), "adelanto");
+  const repite = [...dias];
+  repite[2] = dias[1];
+  assert(revisarUnidadConMapa(repite, ref.filas).some((a) => /repite una actividad/.test(a)), "repetición");
+  const noUsa = [...dias];
+  noUsa[7] = dia("Conversan (en grupos) sobre su clase.");
+  assert(revisarUnidadConMapa(noUsa, ref.filas).some((a) => /clase 8: no se ve que use/.test(a)), "no usa lo recibido");
+});
 check("el aporte de la fila nombra lo que la plantilla espera", () => {
   igual(aporteDeFila(ref.filas[0], "Guide", ref.secciones).startsWith("«Guide» (acuerdo y plan)"), true, "unidad");
   igual(aporteDeFila(ref.filas[10], "Guide", ref.secciones).startsWith("Secciones «Interviews with Owners» · «Our Local Food» (versión final)"), true, "dos secciones");
@@ -374,5 +419,43 @@ if (process.argv.includes("--informe")) {
   console.log("\nTema | horario | semanas | clases | modo | ampl. | flex. | min libres | máx. contenidos | máx. tareas | problemas");
   filas.forEach((f) => console.log([f.titulo, f.nombre, f.semanas, f.total, f.modo, f.ampliaciones ?? "", f.flexibles ?? "", f.libres ?? "", f.maxContenidos ?? "", f.maxTareas ?? "", f.problemas.length].join(" | ")));
 }
+
+// Arreglos de la revisión de «Escuela», 4 semanas (2026-11-04).
+const mapaEscuela4 = () => mapaDe("Escuela y educación", 4, HORARIOS["3x1"]);
+check("el diagnóstico tiene su tiempo: la clase 1 solo acuerda y diagnostica, también en 4 semanas", () => {
+  [1, 2, 3, 4, 6, 8].forEach((semanas) => {
+    const mapa = mapaDe("Escuela y educación", semanas, HORARIOS["3x1"]);
+    if (mapa.modo === "breve") return;
+    igual(mapa.filas[0].tareas.map((t) => t.clave), ["acordar"], `${semanas} semanas`);
+    igual(mapa.filas[0].tareas[0].minutos, 30, `${semanas} semanas, minutos`);
+  });
+});
+check("los recursos didácticos son los de la fila, sin repetir y sin equipos", () => {
+  mapaEscuela4().filas.forEach((f) => {
+    const lista = didacticosDeFila(f).split(", ");
+    assert(lista.length && lista[0], `clase ${f.clase} sin recursos`);
+    igual(new Set(lista.map((r) => r.toLowerCase())).size, lista.length, `clase ${f.clase} repite`);
+    assert(!/comput|proyector|internet|celular/i.test(lista.join(" ")), `clase ${f.clase}: ${lista}`);
+  });
+});
+check("la firma prometida queda en la actividad de su tarea, una sola vez", () => {
+  const tareas = [{ clave: "describir_redactar" }, { clave: "orientar_instrucciones" }];
+  const salida = conFirmas(["Elaboran descripciones.", "Redactan indicaciones."], tareas);
+  igual(salida, ["Elaboran descripciones. Cada estudiante firma su pieza.", "Redactan indicaciones."], "por posición");
+  igual(conFirmas(salida, tareas), salida, "no la repite");
+  igual(conFirmas(["Observan un modelo.", "Redactan su pieza.", "Comparten."], [{ clave: "describir_redactar" }])[1], "Redactan su pieza. Cada estudiante firma su pieza.", "por señal");
+  igual(conFirmas(["Redactan."], [{ clave: "comentar" }]), ["Redactan."], "tarea sin firma");
+});
+check("el Inicio de la clase 1 no mira a una clase anterior y conserva la voz", () => {
+  assert(/^Comentan\b/.test(INICIO_PRIMERA_CLASE) && !/anterior|ultima|última|retroaliment/i.test(INICIO_PRIMERA_CLASE), INICIO_PRIMERA_CLASE);
+});
+check("los anexos H e I usan el nombre del producto, sin su descripción", () => {
+  const largo = "Our School Survival Guide — una guía bilingüe de la escuela, dirigida a los estudiantes.";
+  const mapa = mapaEscuela4();
+  const textos = [...checklistCorto(mapa, largo).map((c) => c.paso), organizadorCorto(mapa, { producto: largo })[0].incluye];
+  assert(textos.every((t) => !/una guía bilingüe/.test(t)), "queda la descripción");
+  assert(textos.some((t) => /Our School Survival Guide/.test(t)), "falta el nombre");
+});
+
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);
 if (fallos) process.exit(1);

@@ -78,7 +78,7 @@ export const TAREA_CORREGIR = tarea("corregir", "corregir, probar y verificar da
 
 // Una vez en la unidad, en este orden.
 export const TAREAS_UNIDAD = {
-  acordar: tarea("acordar", "acordar el plan y hacer el diagnóstico", [15, 30], "C", "conocimiento", "oral y escrita", "plenaria y grupos", "Acuerdo y plan; grupos editores; diagnóstico", "recoger", "apertura", "C", "Pieza modelo, hoja de diagnóstico, cartel"),
+  acordar: tarea("acordar", "acordar el plan y hacer el diagnóstico", [30, 30], "C", "conocimiento", "oral y escrita", "plenaria y grupos", "Acuerdo y plan; grupos editores; diagnóstico", "recoger", "apertura", "C", "Pieza modelo, hoja de diagnóstico, cartel"),
   glosario: tarea("glosario", "glosario", [15, 15], "P", "producto", "escrita", "grupos", "Glosario de la guía", "aplicar", "aplicacion", "M", "Piezas de las secciones", { ampliacion: true }),
   integrar: tarea("integrar", "reunir las secciones y revisar el conjunto", [9, 18], "P", "producto", "escrita", "grupos editores", "Producto completo", "aplicar", "aplicacion", "M", "Todas las secciones"),
   presentar: tarea("presentar", "presentar a la audiencia", [15, 30], ["P", "I"], "desempeno", "oral", "grupos editores ante la audiencia", "Presentación y comentarios de la audiencia", "aplicar", "socializacion", "M", "Producto completo, tarjetas de comentarios", { llegaAudiencia: true, sumativa: true }),
@@ -96,14 +96,14 @@ export const TIPO_APROBADO_POR_SECCION = { "School Directions": "orientar" };
 export const DETALLE_TAREA = {
   acordar: { hace: "Presentan la situación, acuerdan producto, audiencia, grupos y rúbrica, y aplican el diagnóstico: escuchan oraciones y marcan imágenes, leen un menú o texto breve, escriben dos oraciones y responden una pregunta en parejas. No se redactan preguntas ni piezas.", senal: "acuerd|diagn|plan" },
   visitar_modelo: { hace: "Escuchan o leen una entrevista modelo e identifican qué pregunta da cada dato. Aún no escriben el guion ni entrevistan.", senal: "identific|modelo", soloComprender: true },
-  visitar_guion: { hace: "Escriben el guion con una pregunta firmada por cada estudiante y fijan los turnos. No entrevistan todavía.", senal: "guion|pregunta" },
+  visitar_guion: { hace: "Escriben el guion con una pregunta firmada por cada estudiante y fijan los turnos. No entrevistan todavía.", senal: "guion|pregunta", firma: "Cada estudiante firma su pregunta." },
   visitar_entrevistar: { hace: "Entrevistan según la modalidad, por turnos, con una pregunta por estudiante; todos anotan en la tabla común y al final comprueban que no falte ningún dato.", senal: "entrevist" },
   visitar_registrar: { hace: "Redactan desde las notas de la tabla un registro de la entrevista. Se llama registro, no transcripción: nadie grabó.", senal: "regist|redact" },
   visitar_segunda: { hace: "Hacen una segunda ronda de preguntas solo sobre los datos que faltan en la tabla.", senal: "entrevist|pregunt" },
   describir_modelo: { hace: "Analizan una pieza modelo y anotan cómo se hace. Es apoyo breve.", senal: "analiz|observ|identific|modelo" },
-  describir_redactar: { hace: "Cada estudiante redacta y firma su pieza con los datos recibidos.", senal: "redact|escrib|elabor" },
+  describir_redactar: { hace: "Cada estudiante redacta y firma su pieza con los datos recibidos.", senal: "redact|escrib|elabor", firma: "Cada estudiante firma su pieza." },
   analizar_ordenar: { hace: "Ordenan los datos recibidos y analizan un modelo para decidir el formato. Aún no redactan la pieza.", senal: "orden|clasific|organiz", soloComprender: true },
-  analizar_borrador: { hace: "Redactan el borrador con los datos ordenados, cada estudiante firma una entrada, y comprueban cada dato contra su fuente.", senal: "borrador|redact|escrib" },
+  analizar_borrador: { hace: "Redactan el borrador con los datos ordenados, cada estudiante firma una entrada, y comprueban cada dato contra su fuente.", senal: "borrador|redact|escrib", firma: "Cada estudiante firma su entrada." },
   analizar_verificar: { hace: "Verifican con otra fuente solo los datos dudosos.", senal: "verific|comprob" },
   proponer_comparar: { hace: "Leen un texto breve y comparan en una tabla con lo que ya tienen. Aún no escriben la pieza.", senal: "compar", soloComprender: true },
   proponer_elegir: { hace: "Discuten qué proponer y justifican su elección con la tabla.", senal: "elig|justific|discut|debat|propon" },
@@ -126,7 +126,7 @@ export const DETALLE_TAREA = {
   integrar: { hace: "Reúnen todas las secciones en un solo producto y revisan que los datos coincidan. No se reescribe ni se presenta a nadie todavía.", senal: "reun|integr|compil|junt|ensambl|un[ei]n?\\b" },
   presentar: { hace: "Presentan TODAS las secciones del producto a la audiencia y lo ponen a prueba con ella (si es un menú y una guía para pedir, hacen pedidos reales con el menú). Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos.", senal: "present" },
   audiencia_secundaria: { hace: "Prueban el producto con la audiencia secundaria y recogen sus comentarios.", senal: "present|prueb|muestr" },
-  evaluar_comentarios: { hace: "Leen los comentarios de la audiencia, responden por escrito qué piden cambiar y corrigen el producto completo, que queda listo para entregar a la audiencia. Las respuestas son la evidencia de comprensión.", senal: "comentari" },
+  evaluar_comentarios: { hace: "Leen los comentarios de la audiencia, responden por escrito qué piden cambiar y corrigen el producto completo, que queda listo para entregar a la audiencia. Las respuestas son la evidencia de comprensión.", senal: "comentari", firma: "Cada estudiante firma sus respuestas." },
   evaluar_proceso: { hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
 };
 
@@ -139,7 +139,7 @@ export const INVENTARIO_POR_SECCION = {
   "Our Local Food": { necesita: ["platos", "ingredientes"] },
   "Bilingual Menus": { necesita: ["platos", "precios"] },
   "Healthy Choices": { necesita: ["platos", "ingredientes"] },
-  "Ordering Food": { necesita: ["platos", "precios"] },
+  "Ordering Food": { necesita: ["platos", "precios"], pruebaConAudiencia: "pedid|pedir|orden|order|can i have|i ll have|i'll have" },
   // Escuela y educación
   "Important Places": { recoge: ["lugares", "función del lugar", "personas"] },
   "School Directions": { necesita: ["lugares"], recoge: ["rutas"] },
