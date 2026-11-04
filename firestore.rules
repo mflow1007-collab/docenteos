@@ -315,6 +315,12 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ── Secuencias oficiales MINERD (guías por nivel/grado/área) ─────
+    // Solo administradores: el texto íntegro no se expone a los docentes.
+    match /secuenciasOficiales/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     // ── Fuentes oficiales MINERD ───────────────────────────────────────────────
     match /fuentesOficiales/{docId} {
       allow read: if isAuth();

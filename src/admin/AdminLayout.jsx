@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 
-const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','banco-conocimiento','monitor-fuentes','banco-pedagogico','gateway-ia','potente-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-guias','banco-docente','asistente-personal','uso-ia','costos-ia','agentes','topics','insights']
+const SECCIONES_VALIDAS = ['home','usuarios','centros','curriculo','banco-conocimiento','monitor-fuentes','banco-pedagogico','gateway-ia','potente-ia','prompts','historial-ia','auditoria','seguridad','firebase','configuracion','suscripciones','entrenamiento-ia','estadisticas','banco-aprendizaje','banco-guias','secuencias-oficiales','banco-docente','asistente-personal','uso-ia','costos-ia','agentes','topics','insights']
 import AdminSidebar from './AdminSidebar.jsx'
 import AdminTopbar from './AdminTopbar.jsx'
 import AdminHome from './pages/AdminHome.jsx'
@@ -25,6 +25,7 @@ import AdminBancoPedagogico from './pages/AdminBancoPedagogico.jsx'
 import AdminEstadisticas from './pages/AdminEstadisticas.jsx'
 import AdminBancoAprendizaje from './pages/AdminBancoAprendizaje.jsx'
 import AdminBancoGuias from './pages/AdminBancoGuias.jsx'
+import AdminSecuenciasOficiales from './pages/AdminSecuenciasOficiales.jsx'
 import AdminBancoDocente from './pages/AdminBancoDocente.jsx'
 import AdminAsistentePersonal from './pages/AdminAsistentePersonal.jsx'
 import AdminUsoIA from './pages/AdminUsoIA.jsx'
@@ -77,6 +78,7 @@ export default function AdminLayout({ paginaInicial = 'home' }) {
           {pagina === 'estadisticas'     && <AdminEstadisticas     />}
           {pagina === 'banco-aprendizaje'  && <AdminBancoAprendizaje  />}
           {pagina === 'banco-guias'        && <AdminBancoGuias        />}
+          {pagina === 'secuencias-oficiales' && <AdminSecuenciasOficiales />}
           {pagina === 'banco-docente'     && <AdminBancoDocente     />}
           {pagina === 'asistente-personal' && <AdminAsistentePersonal />}
           {pagina === 'uso-ia'            && <AdminUsoIA            />}

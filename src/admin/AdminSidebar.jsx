@@ -25,6 +25,7 @@ const MENU = [
       { id: 'prompts',             icon: '✨', label: 'Banco IA (Prompts)' },
       { id: 'banco-aprendizaje',   icon: '🧠', label: 'Banco de Aprendizaje' },
       { id: 'banco-guias',         icon: '📖', label: 'Banco de Guías' },
+      { id: 'secuencias-oficiales', icon: '🏛️', label: 'Secuencias Oficiales MINERD' },
       { id: 'banco-docente',       icon: '👨‍🏫', label: 'Banco Docente' },
       { id: 'asistente-personal',  icon: '🤖', label: 'Asistente Personal' },
       { id: 'estadisticas',        icon: '📊', label: 'Estadísticas' },
