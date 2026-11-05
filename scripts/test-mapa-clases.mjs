@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
@@ -641,9 +641,22 @@ check("secuencias: la fila trae los datos de la unidad y solo un hueco para la I
     f.secuencia.forEach((x) => assert(!/\{(producto|tema|audiencia|invitado|datos)\}/.test(x.texto) && !/\ba el\b|\bde el\b/.test(x.texto), x.texto));
   });
   assert(m.filas[3].secuencia.some((x) => /una pregunta por estudiante|su propia pregunta/.test(x.texto) && /al dueño invitado/.test(x.texto)), "entrevista");
-  assert(m.filas[16].secuencia.some((x) => /pedido/.test(x.texto) && /visitantes/.test(x.texto)), "pedidos con la audiencia");
+  assert(m.filas[16].secuencia.some((x) => /pedido/.test(x.texto) && /audiencia|visitantes/.test(x.texto)), "pedidos con la audiencia");
   assert(m.filas[17].secuencia.some((x) => /^Corrigen/.test(x.texto)) && !m.filas[17].secuencia.some((x) => /para presentaci/.test(x.texto)), "corrige y entrega");
   igual(pasosConFrases([{ texto: "Hacen algo ({frases}), y sigue." }, { texto: "Otro ({frases})." }], [{ paso: 1, frases: "_Can I have…?_" }, { paso: 2, frases: "" }]), ["Hacen algo (_Can I have…?_), y sigue.", "Otro."], "huecos");
+});
+check("la audiencia se nombra completa una vez por clase", () => {
+  const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]);
+  ponerSecuencias(m, { producto: "G", tema: "T", audiencia: "el dueño invitado y los visitantes", invitado: "el dueño invitado", semilla: "x" });
+  const t = m.filas[16].secuencia.map((x) => x.texto).join(" ");
+  igual((t.match(/el dueño invitado y los visitantes|al dueño invitado y los visitantes/g) || []).length, 1, t);
+  assert(/la audiencia/.test(t), t);
+});
+check("títulos: concordancia con guía y modelo sin «simulada»", () => {
+  const d = conTitulosCorregidos({ titulo: "Revisión de Nuestro Guía", textoModelo: { titulo: "Entrevista Simulada con un Dueño" }, momentos: [{ actividades: ["Reúnan (en parejas) todo."] }] });
+  igual(d.titulo, "Revisión de Nuestra Guía", "título");
+  igual(d.textoModelo.titulo, "Entrevista modelo con un Dueño", "modelo");
+  igual(d.momentos[0].actividades[0], "Reúnen (en parejas) todo.", "voz");
 });
 check("secuencias: la versión varía por unidad, y sin invitado la entrevista sigue con la IA", () => {
   const una = (semilla) => { const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]); ponerSecuencias(m, { producto: "G", tema: "T", semilla }); return m.filas[3].secuencia[0].texto; };

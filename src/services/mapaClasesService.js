@@ -490,6 +490,17 @@ export const sinEquipos = (momentos = [], didacticosFila = "") => {
 const OBSERVADO = { grabada: "observada y anotada", grabado: "observado y anotado", grabadas: "observadas y anotadas", grabados: "observados y anotados" };
 const sinGrabadoEn = (t) => t.replace(/(?<![\p{L}])(?<!\b(?:sin|no) )(?<!\bsin ser )(grabad[oa]s?)(?![\p{L}])/giu, (g) => OBSERVADO[g.toLowerCase()]);
 
+/** Títulos de la clase: concordancia con «guía» y un texto modelo no se llama «simulado». */
+export const conTitulosCorregidos = (dia = {}) => {
+  const guia = (t) => String(t).replace(/\b([Nn])uestro (gu[ií]a)/gi, (_, n, g) => `${n}uestra ${g}`);
+  if (dia.titulo) dia.titulo = guia(dia.titulo);
+  if (dia.textoModelo?.titulo) dia.textoModelo.titulo = guia(dia.textoModelo.titulo).replace(/\b[Ee]ntrevista simulada\b/gi, "Entrevista modelo");
+  (dia.momentos || []).forEach((m) => {
+    if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map((a) => (typeof a === "string" ? a.replace(/^Reúnan\b/, "Reúnen") : a));
+  });
+  return dia;
+};
+
 /** Nadie graba (César, 2026-11-04): lo «grabado» que dejó la IA pasa a observado y anotado. */
 export const sinGrabado = (momentos = []) => {
   momentos.forEach((m) => {
@@ -567,13 +578,19 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = ""
     const pasos = versiones[(semillaVersion(semilla) + fila.clase) % versiones.length];
     const minutos = minutosDePasos(pasos, fila.tareas);
     const datos = enLista(fila.datosRecoge || []) || "lo que falta";
+    // La audiencia se nombra completa una vez por clase; después, «la audiencia».
+    let audienciaDicha = false;
     fila.secuencia = pasos.map((x, i) => ({
       tarea: x.t,
       minutos: minutos[i],
       texto: conContraccion(x.texto
         .replaceAll("{producto}", nombreCorto(producto))
         .replaceAll("{tema}", tema)
-        .replaceAll("{audiencia}", audiencia || "la audiencia")
+        .replace(/\{audiencia\}/g, () => {
+          if (audienciaDicha || !audiencia) return "la audiencia";
+          audienciaDicha = true;
+          return audiencia;
+        })
         .replaceAll("{invitado}", invitado || "la persona invitada")
         .replaceAll("{datos}", datos)),
     }));

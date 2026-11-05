@@ -1022,7 +1022,8 @@ export const validarUnidadPlanMaestro = (unidad) => {
     const ref = `clase ${dia.numeroGlobal || dia.numero}`;
     const desarrollo = (dia.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || [];
     const cortas = desarrollo.filter((a) => palabrasActividad(a) < MIN_PALABRAS_DESARROLLO).length;
-    if (cortas) avisos.push(`${ref}: ${cortas} actividad(es) del Desarrollo con menos de ${MIN_PALABRAS_DESARROLLO} palabras; la síntesis lleva 25-35`);
+    // Con mapa de clases, el Desarrollo son pasos cortos a propósito (César, 2026-11-05).
+    if (cortas && !dia.tareasMapa?.length) avisos.push(`${ref}: ${cortas} actividad(es) del Desarrollo con menos de ${MIN_PALABRAS_DESARROLLO} palabras; la síntesis lleva 25-35`);
     (dia.momentos || []).flatMap((m) => m.actividades || []).forEach((a) => {
       const cursivas = String(a).match(/(^|[^\w])_(?!\s)[^_]+?_(?!\w)/g) || [];
       if (cursivas.length > 2) avisos.push(`${ref}: una actividad cita ${cursivas.length} expresiones; van 1 o 2 en cursiva con puntos suspensivos`);
