@@ -616,7 +616,9 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = ""
 /** Los pasos del banco con lo que puso la IA en {frases}. Sin frase, el hueco desaparece. */
 export const pasosConFrases = (secuencia = [], respuesta = []) => secuencia.map((paso, i) => {
   const r = respuesta[i];
-  const frases = String((typeof r === "string" ? r : r?.frases) || "").trim().replace(/^\(|\)$/g, "").slice(0, 120);
+  // Solo lo que está en cursiva: a veces la IA repite el paso entero en el hueco.
+  const crudo = String((typeof r === "string" ? r : r?.frases) || "");
+  const frases = (crudo.match(/_[^_]{2,80}_/g) || []).slice(0, 2).join(", ");
   return frases ? paso.texto.replace("{frases}", frases) : paso.texto.replace(/\s*\(\{frases\}\)/, "");
 });
 

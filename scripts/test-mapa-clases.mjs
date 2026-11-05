@@ -645,6 +645,8 @@ check("secuencias: la fila trae los datos de la unidad y solo un hueco para la I
   assert(m.filas[16].secuencia.some((x) => /pedido/.test(x.texto) && /audiencia|visitantes/.test(x.texto)), "pedidos con la audiencia");
   assert(m.filas[17].secuencia.some((x) => /^Corrigen/.test(x.texto)) && !m.filas[17].secuencia.some((x) => /para presentaci/.test(x.texto)), "corrige y entrega");
   igual(pasosConFrases([{ texto: "Hacen algo ({frases}), y sigue." }, { texto: "Otro ({frases})." }], [{ paso: 1, frases: "_Can I have…?_" }, { paso: 2, frases: "" }]), ["Hacen algo (_Can I have…?_), y sigue.", "Otro."], "huecos");
+  igual(pasosConFrases([{ texto: "Escuchan cinco oraciones ({frases}) y marcan." }], [{ frases: "Escuchan al docente leer oraciones (_The library is open._; _The gym is big._)" }]), ["Escuchan cinco oraciones (_The library is open._, _The gym is big._) y marcan."], "el hueco no repite el paso");
+  igual(pasosConFrases([{ texto: "Otro ({frases})." }], [{ frases: "sin cursiva" }]), ["Otro."], "sin cursiva, sin hueco");
 });
 check("la audiencia se nombra completa una vez por clase", () => {
   const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]);
