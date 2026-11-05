@@ -23,6 +23,7 @@ import { validarVozActividad } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
 import { extraerCriteriosEvaluacionCanonicos } from "../src/services/curriculumBrainService.js";
 
+const normalizaTexto = (t) => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
 const assert = (c, m) => { if (!c) throw new Error(m); };
@@ -188,7 +189,7 @@ check("ningún mapa pasa del tope de contenidos ni deja una clase con más de 3 
       assert(f.indicadores.length >= 1 && f.indicadores.length <= 3, `${titulo} ${semanas} clase ${f.clase}: ${f.indicadores.length} indicadores`);
     });
   }
-  igual(ref.contenidosSinLugar, [], "la referencia no recorta");
+  assert(ref.contenidosSinLugar.every((x) => /ordinales|lugares|interaccion|interacción|fechas|indiferencia|why don|condicional/i.test(x)), `la referencia no recorta lo que tiene uso: ${ref.contenidosSinLugar}`);
   assert(mapaDe("Alimentación", 1, HORARIOS["3x1"]).contenidosSinLugar.length > 0, "a 1 semana debe recortar");
   assert(mapaDe("Alimentación", 1, HORARIOS["3x1"]).avisos.some((a) => /sin marcar/.test(a)), "no lo declara");
 });
@@ -677,6 +678,18 @@ check("secuencias: el código escribe los pasos antes de unir frases y pasan el 
   assert(/_I eat rice…_/.test(a[2]), a[2]);
   igual(data.clases[0].minutosSecuencia.reduce((s, x) => s + x, 0), 30, "minutos");
   validarLoteContrato(aplicarFilasMapa(data, c, 1), c, 1, 1, { esIdioma: true });
+});
+check("cada contenido va a la tarea que lo usa; lo que no encaja queda sin lugar", () => {
+  const donde = (t) => ref.filas.filter((f) => f.contenidos.some((c) => normalizaTexto(c.texto).startsWith(t))).map((f) => f.tareas.map((x) => x.clave).join("+"));
+  assert(donde("voz pasiva").some((x) => /describir_redactar|analizar_borrador/.test(x)), `pasiva: ${donde("voz pasiva")}`);
+  assert(donde("cortesia").some((x) => /visitar_entrevistar/.test(x)), `cortesía: ${donde("cortesia")}`);
+  assert(donde("will para").some((x) => /aplicar/.test(x)), `will: ${donde("will para")}`);
+  assert(donde("should para").some((x) => /proponer/.test(x)), `should: ${donde("should para")}`);
+  ["numeros ordinales", "lugares", "formas de interaccion", "fechas"].forEach((t) => {
+    igual(donde(t), [], t);
+    assert(ref.contenidosSinLugar.some((x) => normalizaTexto(x.slice(x.indexOf(":") + 1)).startsWith(t)), `${t} sin declarar`);
+  });
+  assert(ref.filas.every((f) => f.contenidos.length <= TOPE_CONTENIDOS_POR_CLASE), "tope");
 });
 check("el diagnóstico se reconoce por sus partes, aunque lleven organización", () => {
   igual(minutosConDiagnostico(["Socializan (en plenaria) la importancia.", "Escuchan (en grupos) oraciones y marcan imágenes.", "Leen (en pares) un menú y escriben dos oraciones.", "Responden (en parejas) a una pregunta."], 30), [10, 8, 6, 6], "clase 1 real");

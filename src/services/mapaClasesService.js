@@ -19,7 +19,7 @@ import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from 
 import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
-  INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA,
+  INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS,
 } from "../data/tareasPorTipoTrabajo.js";
 
 export const CLASES_MINIMAS = 3;
@@ -277,6 +277,19 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
   const utiles = filas.filter((f) => !f.flexible);
   const candidatas = (fn) => { const l = utiles.filter(fn); return l.length ? l : utiles; };
   const sinLugar = [];
+  // Lo que tiene un uso conocido va a la tarea que lo necesita; si esa tarea no está, queda
+  // sin lugar. Hasta 4 por clase, 6 si tiene dos tareas, para que se pueda enseñar.
+  const porUso = (cat, texto) => {
+    const regla = USO_DE_CONTENIDOS.find(([re]) => re.test(normal(texto).trim()));
+    if (!regla) return false;
+    for (const clave of regla[1]) {
+      const fila = utiles.find((f) => f.contenidos.length < (f.tareas.length > 1 ? TOPE_CONTENIDOS_POR_CLASE : 4) && f.tareas.some((t) => t.clave === clave));
+      if (fila) { fila.contenidos.push({ categoria: cat, texto }); return true; }
+    }
+    sinLugar.push(`${cat}:${texto}`);
+    return true;
+  };
+  CATEGORIAS.forEach((cat) => { items[cat] = items[cat].filter((t) => !porUso(cat, t)); });
   // Prioridad = el orden en que se llama: funciones, su gramática, vocabulario, expresiones.
   const poner = (fila, cat, texto) => {
     const destino = fila.contenidos.length < TOPE_CONTENIDOS_POR_CLASE ? fila : utiles.find((f) => f.contenidos.length < TOPE_CONTENIDOS_POR_CLASE);

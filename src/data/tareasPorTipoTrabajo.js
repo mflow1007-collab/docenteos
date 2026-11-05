@@ -168,6 +168,34 @@ export const MARCAS_DATO = {
   rutas: "ruta|turn|left|right|next to|recorrido", "horas de sueño": "sueno|sleep|horas", "llegadas tarde": "tarde|late",
 };
 
+// Dónde tiene uso cada contenido de la malla (César, 2026-11-05): la tarea que lo necesita,
+// por orden de preferencia. Lista vacía o sin esas tareas en el mapa: queda sin lugar, no
+// se fuerza. Banco pedagógico; se reconoce por el texto de la malla, nunca se copia a ella.
+// Lo que no aparece aquí sigue el reparto general.
+export const USO_DE_CONTENIDOS = [
+  [/voz pasiva/, ["describir_redactar", "analizar_borrador"]],
+  [/how much|how many/, ["visitar_guion", "aplicar_escribir"]],
+  [/presente simple de los verbos be, have, want/, ["visitar_guion", "aplicar_modelo"]],
+  [/^will para/, ["aplicar_escribir", "aplicar_ensayar"]],
+  [/^funcional: comprar/, ["aplicar_modelo", "aplicar_escribir"]],
+  [/^funcional: expresar deseo|want, hope y wish/, ["proponer_elegir", "visitar_guion"]],
+  [/^condicional/, ["proponer_elaborar", "proponer_elegir"]],
+  [/^funcional: pedir y dar consejos|imperativo para dar consejos|^let.s para|^should para|^why don/, ["proponer_elegir", "proponer_elaborar", "socializar_redactar"]],
+  [/^comidas y bebidas/, ["acordar", "describir_redactar"]],
+  [/^numeros cardinales/, ["analizar_borrador", "visitar_entrevistar"]],
+  [/^numeros ordinales/, ["orientar_instrucciones"]],
+  [/^lugares:/, ["orientar_recorrido", "orientar_instrucciones"]],
+  [/^formas de interaccion/, ["socializar_redactar"]],
+  [/^fechas/, []],
+  [/^hora:/, ["visitar_entrevistar", "aplicar_ensayar"]],
+  [/^cortesia|^you.re welcome|^captar la atencion|^pedir que repitan|^mostrar interes/, ["visitar_entrevistar", "probar_audiencia", "orientar_probar"]],
+  [/^interrumpir|^pedir y dar la palabra|^mostrar acuerdo/, ["comentar", "proponer_elegir"]],
+  [/^disculparse/, ["aplicar_ensayar", "probar_audiencia"]],
+  [/^dudar/, ["proponer_elegir", "aplicar_ensayar"]],
+  [/^mostrar indiferencia/, []],
+  [/^deseos/, ["probar_audiencia", "proponer_elegir"]],
+];
+
 // Alcance de la semilla cuando la fuente es un solo dueño invitado (ficha de la unidad).
 export const ALCANCE_POR_SEMILLA = {
   "ing2-alimentacion-menu": {

@@ -108,7 +108,8 @@ export const VERBOS_IDIOMA = {
 };
 // Gestión de la clase (decisión de César, Etapa 7): permitidos, no cuentan para el nivel.
 // Guardan, Archivan y Entregan: decisión de César (2026-11-01, Etapa D).
-export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican", "Guardan", "Archivan", "Entregan"];
+// Ensayan, Reúnen y Discuten: decisión de César (2026-11-05).
+export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican", "Guardan", "Archivan", "Entregan", "Ensayan", "Reúnen", "Discuten"];
 const NIVELES = ["preformal", "receptivo", "resolutivo", "autonomo", "estrategico"];
 // Nivel mínimo esperado por papel de fase (progresión 4.4); su falta solo se avisa.
 export const NIVEL_MINIMO_POR_ROL = {
@@ -705,7 +706,8 @@ export const revisarUnidadConMapa = (dias = [], filas = []) => {
     const actividades = ((dia?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
     const texto = normalizar(actividades.join(" "));
     // ¿Usa lo que recibe?
-    fila.recibe.filter((r) => r.clase).forEach((r) => {
+    // El acuerdo de la clase 1 es el punto de partida general: ninguna clase tiene por qué nombrarlo.
+    fila.recibe.filter((r) => r.clase && !/^acuerdo y plan/i.test(r.texto)).forEach((r) => {
       const claves = palabras(String(r.texto).split(":")[0]);
       if (claves.length && !claves.some((p) => texto.includes(p.slice(0, 5)))) avisos.push(`clase ${fila.clase}: no se ve que use «${r.texto}» de la clase ${r.clase}`);
     });
@@ -901,8 +903,9 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
     if (motivoVisita && motivos44.length) motivos44[motivos44.length - 1].push(`clase ${count} — ${motivoVisita}`);
     if (contrato.audienciaRegistro) {
       const raices = raicesAudiencia(contrato.audienciaRegistro);
+      // Mira evidencias y actividades: «Leen las tarjetas con los comentarios del dueño» cuenta.
       const registrada = clasesLote.some((c) => (c?.momentos || []).some((m) => {
-        const evidencias = normalizar(JSON.stringify(m?.evidencias || {}));
+        const evidencias = normalizar(JSON.stringify([m?.evidencias || {}, m?.actividades || []]));
         return /comentarios|retroalimentacion|opiniones/.test(evidencias) && raices.some((r) => evidencias.includes(r));
       }));
       if (!registrada && motivos44.length) {
