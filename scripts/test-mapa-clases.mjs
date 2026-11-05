@@ -287,6 +287,12 @@ check("redacción con mapa: primero pide el reintento; después se entrega con a
   const motivos = validarLoteContrato(lote(), c, 1, 1, { esIdioma: true, redaccionConAviso: true });
   assert(motivos[0].some((m) => /nadie graba/.test(m)), `sin aviso: ${JSON.stringify(motivos)}`);
 });
+check("el reintento de redacción se recuerda entre vueltas de la misma unidad", () => {
+  const fuente = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/const REDACCION_YA_REINTENTADA = new Set\(\)/.test(fuente), "fuera de la función");
+  assert(/redaccionConAviso: REDACCION_YA_REINTENTADA\.has\(claveRedaccion\)/.test(fuente) && /esRedaccionMapa\) REDACCION_YA_REINTENTADA\.add\(claveRedaccion\)/.test(fuente), "sin conectar");
+  assert(/claveRedaccion = `\$\{spec\.cupoGeneracion\?\.planId/.test(fuente), "la clave distingue la unidad");
+});
 check("si la clase se aleja de su fila, avisa al administrador sin rechazar", () => {
   const fila = ref.filas[15]; // corregir + reunir las secciones
   const clase = (acts) => ({ momentos: [{ nombre: "Desarrollo", actividades: acts }] });

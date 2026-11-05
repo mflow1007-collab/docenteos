@@ -1054,6 +1054,9 @@ export const motivoAdecuacionBarrera = (texto = '') => {
   return '';
 };
 
+// Lotes del mapa de clases que ya gastaron su reintento de redacción.
+const REDACCION_YA_REINTENTADA = new Set();
+
 export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
   const memoria = Array.isArray(opts.memoria) ? opts.memoria : [];
   const indicadoresPermitidos = new Set(
@@ -1921,7 +1924,8 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   let lastTruncationError = null;
   let attemptsUsed = 0;
   // Mapa de clases: tras un reintento, lo que falle de redacción se entrega con aviso.
-  let reintentoRedaccionUsado = false;
+  // Se recuerda entre vueltas: con un solo proveedor, el reintento puede no caber en esta.
+  const claveRedaccion = `${spec.cupoGeneracion?.planId || ''}|${spec.contratoFase?.numero || ''}|${startDia}-${count}`;
 
   // El primer lote de la unidad propone el nombre propio del producto final;
   // una vez fijado en la spec, todos los lotes siguientes lo reciben.
@@ -2076,7 +2080,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       ].filter(Boolean);
       validateBatch(result.data, durMin, count, focoGram, {
         memoria,
-        redaccionConAviso: reintentoRedaccionUsado,
+        redaccionConAviso: REDACCION_YA_REINTENTADA.has(claveRedaccion),
         exigirNombreProducto: pedirNombreProducto,
         // Nombre del producto para subordinar aportes-fantasma (FASE 5 · Frente 1).
         // En lotes posteriores la IA ya no lo propone, viene fijado en spec.
@@ -2189,7 +2193,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       }
       if (estructuralIncompleto || sinServicio) descartarProveedor(failedProvider);
       else anotarFallo(failedProvider);
-      if (err?.esRedaccionMapa) reintentoRedaccionUsado = true;
+      if (err?.esRedaccionMapa) REDACCION_YA_REINTENTADA.add(claveRedaccion);
       // Etapa 5: el siguiente intento recibe el motivo del rechazo del validador.
       if (spec.contratoFase && !estructuralIncompleto && !sinServicio) {
         prefix = `UN INTENTO ANTERIOR DE ESTE LOTE FUE RECHAZADO POR EL VALIDADOR: «${msg.slice(0, 400)}». Corrige exactamente eso y respeta el contrato de la fase.\n\n`;
