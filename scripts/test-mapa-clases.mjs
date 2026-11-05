@@ -15,7 +15,7 @@ import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
-import { hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
+import { motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
 import { extraerCriteriosEvaluacionCanonicos } from "../src/services/curriculumBrainService.js";
@@ -328,7 +328,7 @@ check("evaluación: el tipo, el agente y el instrumento salen de la fila", () =>
   igual(evaluacionDeFila(ref.filas[1]).tipo, "Formativa", "clase 2");
   igual(evaluacionDeFila(ref.filas[16]).tipo, "Sumativa", "clase 17");
   assert(/Rúbrica/.test(evaluacionDeFila(ref.filas[16]).instrumento) && /Anexo B/.test(evaluacionDeFila(ref.filas[16]).instrumento), "instrumentos de la 17");
-  assert(/^Sumativa solo/.test(evaluacionDeFila(ref.filas[17]).tipo), "la 18 solo califica lo marcado");
+  igual(evaluacionDeFila(ref.filas[17]).tipo, "Sumativa: se califican las respuestas individuales. Formativa: la corrección, la autoevaluación, la coevaluación y la reflexión", "la 18 dice qué se califica");
   assert(/Coevaluación/.test(evaluacionDeFila(ref.filas[9]).agente), "comentar es coevaluación");
 });
 check("la actividad sumativa es solo heteroevaluación; los otros agentes son de lo formativo", () => {
@@ -374,6 +374,29 @@ check("entrega sin origen: el mapa se detiene antes de llamar a la IA", () => {
   const sinOrigen = { ...ref, filas: ref.filas.map((f) => (f.clase === 5 ? { ...f, tareas: f.tareas.map((t) => ({ ...t, recibe: [] })) } : f)) };
   assert(fallosQueDetienen(sinOrigen).some((m) => /clase 5: .*no tiene origen/.test(m)), "debía detenerse");
 });
+check("con invitado, el Anexo I habla de un comedor y una entrevista real, sin tocar lo del docente", () => {
+  const base = { numSemanas: 6, diasClase: ["l", "m", "x"], horasPorDia: 1 };
+  const pm = { estrategia: "insercion_entorno", modalidadVisita: "invitado", situacion: { semillaId: "ing2-alimentacion-menu", audiencia: "los dueños", audienciaDetalle: { de: "los dueños" } }, piezasSecciones: { "Bilingual Menus": "el menú bilingüe de cada comedor", "Our Local Food": "fichas" } };
+  const r = conFichaDeUnidad({ ...base, planMaestro: pm }).planMaestro.piezasSecciones;
+  assert(/comedor participante/.test(r["Bilingual Menus"]) && !/simulad/.test(r["Interviews with Owners"]), JSON.stringify(r));
+  igual(r["Our Local Food"], "fichas", "lo demás no cambia");
+  const propia = { ...pm, situacion: { ...pm.situacion, audiencia: "mi audiencia", audienciaDetalle: { de: "otra" } } };
+  igual(conFichaDeUnidad({ ...base, planMaestro: propia }).planMaestro.piezasSecciones, pm.piezasSecciones, "audiencia del docente");
+});
+check("texto de la clase: «falta dato» en el modelo, dólares y equipos avisan; RD$ y la tabla no", () => {
+  const motivos = (lineas, acts = [], ampliacion = []) => motivosTextoClase({ textoModelo: { lineas }, momentos: [{ nombre: "Inicio", actividades: acts }], ampliacion });
+  assert(motivos(["B: The rice costs $falta dato."]).length === 2, "falta dato y $");
+  assert(/pesos/.test(motivos(["It costs 8 dollars."])[0]), "dólares");
+  assert(/pesos/.test(motivos([], [], [{ texto: "spicy, cost, dollar" }])[0]), "dólar en la ampliación");
+  assert(/equipo/.test(motivos([], ["Retroalimentación de las entrevistas grabadas."])[0]), "grabadas");
+  igual(motivos(["It costs RD$250."], ["Anotan los datos en la tabla."]), [], "sin aviso");
+});
+check("el prompt pide un ejemplo ficticio en pesos en el texto modelo", () => {
+  const c = contratoDe(1);
+  const fuente = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/"textoModelo" es un ejemplo ficticio/.test(fuente) && /pesos dominicanos \(RD\$\), nunca en dólares/.test(fuente), "regla 2");
+  assert(c.mapaClases, "contrato con mapa");
+});
 check("el invitado entra en los recursos humanos cuando la clase lo usa", () => {
   const a = ALCANCE_POR_SEMILLA["ing2-alimentacion-menu"].conInvitado;
   assert(/dueño invitado/.test(humanosDeFila(ref.filas[3], a)), "clase 4");
@@ -408,6 +431,11 @@ check("Anexo I: cada sección con su proceso, sus estados y su cierre; Anexo H, 
   assert(!de("Our Local Food").operaciones.some((x) => /entrevistar|registrar/.test(x)), "mezcla secciones");
   igual(new Set(mapaSecciones(ref).map((s) => de(s).evidencia)).size, 5, "evidencia propia por sección");
   igual(checklistDesdeMapa(ref, "Guide").length, 18, "Anexo H");
+  igual(de("Bilingual Menus").evidencia, "Menú bilingüe", "la evidencia se nombra por lo que es");
+  assert(!o.some((x) => /^Pieza /.test(x.evidencia || "")), "evidencia genérica");
+  const h = checklistDesdeMapa(ref, "Guide");
+  igual(h[0].recibe, "Situación de aprendizaje", "la clase 1 recibe la situación");
+  assert(/\(C2\)/.test(h[2].recibe), `el Anexo H declara lo que recibe: ${h[2].recibe}`);
 });
 check("hoja de ruta: cada lote ve toda la unidad y sabe cuál es su clase", () => {
   const h = hojaDeRuta(ref.filas, [4]);

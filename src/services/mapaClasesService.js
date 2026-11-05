@@ -414,9 +414,12 @@ export const evaluacionDeFila = (fila) => {
   if (fila.flexible) return { tipo: "Formativa", agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Registro anecdótico (Anexo C)" };
   const claves = fila.tareas.map((t) => t.clave);
   const sumativa = fila.tareas.some((t) => t.sumativa);
-  const conFormativa = sumativa && fila.tareas.some((t) => !t.sumativa);
+  // Qué se califica y qué no, con el nombre de cada parte de la clase (sale de sus tareas).
+  const califica = fila.tareas.filter((t) => t.sumativa).map((t) => DETALLE_TAREA[t.clave]?.califica || t.nombre);
+  const formativo = fila.tareas.flatMap((t) => DETALLE_TAREA[t.clave]?.formativo || (t.sumativa ? [] : [t.nombre]));
+  const enFrase = (l) => l.join(", ").replace(/, ([^,]*)$/, " y $1");
   const tipo = claves.includes("acordar") ? "Diagnóstica" : sumativa
-    ? (conFormativa ? "Sumativa solo en lo marcado; formativa en lo demás" : "Sumativa") : "Formativa";
+    ? (formativo.length ? `Sumativa: se ${califica.length > 1 ? "califican" : (/^las /.test(califica[0]) ? "califican" : "califica")} ${enFrase(califica)}. Formativa: ${enFrase(formativo)}` : "Sumativa") : "Formativa";
   // La actividad sumativa es solo heteroevaluación; los demás agentes son de la parte formativa.
   const otrosAgentes = [...new Set(fila.tareas.filter((t) => !t.sumativa).map((t) => AGENTE_TAREA[t.clave]).filter(Boolean))];
   const agente = sumativa
@@ -495,7 +498,10 @@ export const conFichaDeUnidad = (datos) => {
       audienciaDetalle: { ...alcance.audienciaDetalle, de: alcance.audiencia },
     } : {}),
   };
-  return { ...datos, planMaestro: { ...pm, modalidadVisita: modalidad, situacion } };
+  const piezasSecciones = alcance?.piezasSecciones && !audienciaDelDocente && modalidad !== "simulada"
+    ? { ...pm.piezasSecciones, ...alcance.piezasSecciones }
+    : pm.piezasSecciones;
+  return { ...datos, planMaestro: { ...pm, modalidadVisita: modalidad, situacion, ...(piezasSecciones ? { piezasSecciones } : {}) } };
 };
 
 /** Ambiente: solo lo que las tareas usan; ninguna clase depende de tecnología. */
@@ -531,7 +537,7 @@ export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, proposi
         seccion,
         fases: estados.map((e) => e.charAt(0).toUpperCase() + e.slice(1)).join(" → "),
         operaciones,
-        evidencia: String(produce?.entrega || "").replace(/\s*\(borrador\)/i, ""),
+        evidencia: INVENTARIO_POR_SECCION[seccion]?.evidencia || String(produce?.entrega || "").replace(/\s*\(borrador\)/i, ""),
         incluye: piezas[seccion] || propositos[seccion] || `Lo trabajado en la sección «${seccion}».`,
       };
     }),
@@ -540,7 +546,11 @@ export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, proposi
 
 /** Anexo H desde el mapa: una fila por clase. */
 export const checklistDesdeMapa = (mapa, producto = "") => mapa.filas.filter((f) => !f.flexible)
-  .map((f) => ({ paso: `Clase ${f.clase}. ${aporteDeFila(f, nombreCorto(producto), mapa.secciones)}`, semana: `Semana ${f.semana}` }));
+  .map((f) => ({
+    paso: `Clase ${f.clase}. ${aporteDeFila(f, nombreCorto(producto), mapa.secciones)}`,
+    semana: `Semana ${f.semana}`,
+    recibe: f.recibe.map((r) => `${r.texto}${r.clase ? ` (C${r.clase})` : ""}`).join("; "),
+  }));
 
 // Ajustes para el plan maestro: las fases que comparten clase se unen; el resto
 // recibe tantas sesiones como filas. Null si la estrategia tiene fases con partes.

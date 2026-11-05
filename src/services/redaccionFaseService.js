@@ -704,6 +704,24 @@ export const revisarUnidadConMapa = (dias = [], filas = []) => {
   return [...new Set(avisos)];
 };
 
+/** Texto de la clase que no debe llegar al docente: el administrador lo ve como aviso. */
+export const motivosTextoClase = (clase) => {
+  const motivos = [];
+  const modelo = (clase?.textoModelo?.lineas || []).map(String);
+  const conFaltaDato = modelo.find((l) => /falta dato/i.test(l));
+  if (conFaltaDato) motivos.push(`el texto modelo dice «falta dato»: "${conFaltaDato.slice(0, 70)}"`);
+  const textos = [
+    ...modelo,
+    ...(clase?.momentos || []).flatMap((m) => m?.actividades || []).map(textoComoCadena),
+    ...(Array.isArray(clase?.ampliacion) ? clase.ampliacion : []).map((a) => String(a?.texto || "")),
+  ];
+  const moneda = textos.find((t) => /(?<!RD)\$|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t));
+  if (moneda) motivos.push(`precio fuera de pesos dominicanos: "${moneda.slice(0, 70)}"`);
+  const equipo = textos.find((t) => /\b(videos?|proyector(es)?|parlantes?|bocinas?|grabad[oa]s?|digital(es)?)\b/i.test(t));
+  if (equipo) motivos.push(`nombra un equipo que el mapa no prevé: "${equipo.slice(0, 70)}"`);
+  return motivos;
+};
+
 /** Dónde se aleja la clase de su fila: lo ve el administrador, no el docente. */
 export const motivosFidelidad = (clase, fila) => {
   const motivos = [];
@@ -803,7 +821,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       if (incumplida) fallaRedaccion(idx, incumplida);
       const sinDatos = datosSinRecoger(clase, filaMapa);
       if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
-      motivosFidelidad(clase, filaMapa).forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
+      [...motivosFidelidad(clase, filaMapa), ...motivosTextoClase(clase)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
       if (!contrato.conContenido && ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
       revisarAmpliacionYFoco();
     } else if (!contrato.conContenido) {

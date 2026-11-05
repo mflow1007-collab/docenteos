@@ -124,10 +124,10 @@ export const DETALLE_TAREA = {
   corregir: { hace: "El grupo editor corrige con los comentarios, verifica los datos contra su fuente y pasa a limpio.", senal: "corrig|verific|mejor" },
   glosario: { hace: "Reúnen el vocabulario clave de la guía con su traducción.", senal: "glosario|vocabulario" },
   integrar: { hace: "Reúnen todas las secciones en un solo producto y revisan que los datos coincidan. No se reescribe ni se presenta a nadie todavía.", senal: "reun|integr|compil|junt|ensambl|un[ei]n?\\b" },
-  presentar: { hace: "Presentan TODAS las secciones del producto a la audiencia y lo ponen a prueba con ella (si es un menú y una guía para pedir, hacen pedidos reales con el menú). Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos.", senal: "present" },
+  presentar: { califica: "la presentación", hace: "Presentan TODAS las secciones del producto a la audiencia y lo ponen a prueba con ella (si es un menú y una guía para pedir, hacen pedidos reales con el menú). Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos.", senal: "present" },
   audiencia_secundaria: { hace: "Prueban el producto con la audiencia secundaria y recogen sus comentarios.", senal: "present|prueb|muestr" },
-  evaluar_comentarios: { hace: "Leen los comentarios de la audiencia, responden por escrito qué piden cambiar y corrigen el producto completo, que queda listo para entregar a la audiencia. Las respuestas son la evidencia de comprensión.", senal: "comentari", firma: "Cada estudiante firma sus respuestas." },
-  evaluar_proceso: { hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
+  evaluar_comentarios: { califica: "las respuestas individuales", formativo: ["la corrección"], hace: "Leen los comentarios de la audiencia, responden por escrito qué piden cambiar y corrigen el producto completo, que queda listo para entregar a la audiencia. Las respuestas son la evidencia de comprensión.", senal: "comentari", firma: "Cada estudiante firma sus respuestas." },
+  evaluar_proceso: { formativo: ["la autoevaluación", "la coevaluación", "la reflexión"], hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
 };
 
 // Inventario de datos (César, 2026-11-04): lo que cada sección necesita y lo que recoge,
@@ -135,24 +135,24 @@ export const DETALLE_TAREA = {
 // fuera de esta lista (temas sin semilla) no se comprueban.
 export const INVENTARIO_POR_SECCION = {
   // Alimentación
-  "Interviews with Owners": { recoge: ["platos", "ingredientes", "precios", "horario", "clientes"] },
-  "Our Local Food": { necesita: ["platos", "ingredientes"] },
-  "Bilingual Menus": { necesita: ["platos", "precios"] },
-  "Healthy Choices": { necesita: ["platos", "ingredientes"] },
-  "Ordering Food": { necesita: ["platos", "precios"], pruebaConAudiencia: "pedid|pedir|orden|order|can i have|i ll have|i'll have" },
+  "Interviews with Owners": { evidencia: "Registro escrito de la entrevista", recoge: ["platos", "ingredientes", "precios", "horario", "clientes"] },
+  "Our Local Food": { evidencia: "Fichas de platos", necesita: ["platos", "ingredientes"] },
+  "Bilingual Menus": { evidencia: "Menú bilingüe", necesita: ["platos", "precios"] },
+  "Healthy Choices": { evidencia: "Etiquetas «Healthy pick»", necesita: ["platos", "ingredientes"] },
+  "Ordering Food": { evidencia: "Guía para pedir", necesita: ["platos", "precios"], pruebaConAudiencia: "pedid|pedir|orden|order|can i have|i ll have|i'll have" },
   // Escuela y educación
-  "Important Places": { recoge: ["lugares", "función del lugar", "personas"] },
-  "School Directions": { necesita: ["lugares"], recoge: ["rutas"] },
-  "Asking for Help": { necesita: ["lugares", "personas"] },
-  "School Success Tips": { necesita: ["lugares"] },
-  "Welcome": { necesita: ["lugares"] },
-  "Final Recommendation": {},
+  "Important Places": { evidencia: "Fichas de lugares", recoge: ["lugares", "función del lugar", "personas"] },
+  "School Directions": { evidencia: "Plano con rutas e indicaciones", necesita: ["lugares"], recoge: ["rutas"] },
+  "Asking for Help": { evidencia: "Tarjeta de bolsillo", necesita: ["lugares", "personas"] },
+  "School Success Tips": { evidencia: "Póster «Top tips»", necesita: ["lugares"] },
+  "Welcome": { evidencia: "Carta de bienvenida", necesita: ["lugares"] },
+  "Final Recommendation": { evidencia: "Párrafo de cierre" },
   // Actividades de la vida diaria
-  "Our Daily Routines": { recoge: ["horario"] },
-  "What We Found": { necesita: ["horario"], recoge: ["horas de sueño", "llegadas tarde"] },
-  "Problems and Causes": { necesita: ["horas de sueño", "llegadas tarde"] },
-  "Our Healthy Schedule": { necesita: ["horario"] },
-  "Tips for Families": { necesita: ["horario"] },
+  "Our Daily Routines": { evidencia: "Línea de tiempo del día", recoge: ["horario"] },
+  "What We Found": { evidencia: "Gráfico de resultados", necesita: ["horario"], recoge: ["horas de sueño", "llegadas tarde"] },
+  "Problems and Causes": { evidencia: "Tabla problema → causa", necesita: ["horas de sueño", "llegadas tarde"] },
+  "Our Healthy Schedule": { evidencia: "Horario semanal", necesita: ["horario"] },
+  "Tips for Families": { evidencia: "Folleto de consejos", necesita: ["horario"] },
 };
 // Cómo se reconoce cada dato en el texto de la clase (sin tildes).
 export const MARCAS_DATO = {
@@ -172,6 +172,11 @@ export const ALCANCE_POR_SEMILLA = {
       audienciaDetalle: {
         principal: "el dueño del comedor participante",
         secundarias: [{ quien: "los visitantes", funcion: "consultan el menú para saber qué piden" }],
+      },
+      // Lo que la semilla dice para varios comedores o una entrevista que pudiera ser simulada.
+      piezasSecciones: {
+        "Interviews with Owners": "la entrevista al dueño invitado (preguntas y respuestas anotadas)",
+        "Bilingual Menus": "el menú bilingüe del comedor participante (plato, descripción, precio)",
       },
       invitado: "dueño invitado",
       visitante: "otro docente que hace de visitante",

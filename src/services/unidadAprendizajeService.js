@@ -7302,8 +7302,11 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
     <h3>ANEXO H — Checklist de progreso del producto final</h3>
     <table class="rubrica">
-      <tr><th>Paso del producto final</th><th style="width:20%">Semana</th><th style="width:8%">✔</th></tr>
-      ${(ax.checklistProducto || []).map((c) => `<tr><td>${c.paso}</td><td>${c.semana}</td><td></td></tr>`).join("")}
+      ${(ax.checklistProducto || []).some((c) => c.recibe)
+        ? `<tr><th>Paso del producto final (lo que entrega)</th><th style="width:32%">Recibe</th><th style="width:12%">Semana</th><th style="width:6%">✔</th></tr>
+      ${(ax.checklistProducto || []).map((c) => `<tr><td>${c.paso}</td><td>${escHtml(c.recibe || "")}</td><td>${c.semana}</td><td></td></tr>`).join("")}`
+        : `<tr><th>Paso del producto final</th><th style="width:20%">Semana</th><th style="width:8%">✔</th></tr>
+      ${(ax.checklistProducto || []).map((c) => `<tr><td>${c.paso}</td><td>${c.semana}</td><td></td></tr>`).join("")}`}
     </table>
 
     <h3>ANEXO I — Organizador gráfico del producto final</h3>
