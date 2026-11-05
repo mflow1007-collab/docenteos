@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases } from "./mapaClasesService.js";
 import { MARCAS_DATO, INVENTARIO_POR_SECCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -171,6 +171,8 @@ export const motivosRedaccionClase = (clase, etiqueta, opciones = {}) => {
   const motivos = [];
   for (const m of clase?.momentos || []) {
     if (m?.nombre !== "Desarrollo" && m?.nombre !== "Cierre") continue;
+    // Los pasos del banco los aprobó César: no pasan por la lista de verbos.
+    if (m.nombre === "Desarrollo" && clase?.secuenciaAplicada) continue;
     (m.actividades || []).forEach((act, k) => {
       const motivo = motivoRedaccionActividad(act, opciones);
       if (motivo) motivos.push(`${etiqueta} — ${m.nombre}, actividad ${k + 1}: ${motivo}`);
@@ -536,6 +538,23 @@ const textosActividades = (clase) => (clase?.momentos || [])
   .flatMap((m) => m.actividades || []);
 
 /**
+ * Clase con secuencia del banco: los pasos los escribe el código, con las frases de la IA.
+ * Va antes de normalizar la voz, que une los objetos de actividad en una frase.
+ */
+export const aplicarSecuencias = (data, contrato, startDia = 1) => {
+  (contrato?.mapaClases ? data?.clases || [] : []).forEach((clase, i) => {
+    const fila = contrato.mapaClases[startDia + i - 1];
+    const desarrollo = fila?.secuencia && (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo");
+    if (!desarrollo || clase.secuenciaAplicada) return;
+    desarrollo.actividades = pasosConFrases(fila.secuencia, Array.isArray(desarrollo.actividades) ? desarrollo.actividades : []);
+    clase.tareaIdsDesarrollo = fila.secuencia.map((x) => `T${x.tarea + 1}`);
+    clase.minutosSecuencia = fila.secuencia.map((x) => x.minutos);
+    clase.secuenciaAplicada = true;
+  });
+  return data;
+};
+
+/**
  * Mapa de clases: lo fijo de cada clase lo pone el código, no la IA (secciones,
  * indicadores, aporte al producto y entrega de la fase).
  */
@@ -708,7 +727,7 @@ export const revisarUnidadConMapa = (dias = [], filas = []) => {
 
 /** Correspondencia entre las actividades del Desarrollo y las tareas de la fila. Solo avisa. */
 export const motivosTareaId = (clase, fila) => {
-  if (!fila || fila.flexible || !fila.tareas?.length) return [];
+  if (!fila || fila.flexible || !fila.tareas?.length || fila.secuencia) return [];
   const ids = Array.isArray(clase?.tareaIdsDesarrollo) ? clase.tareaIdsDesarrollo : [];
   const actividades = (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || [];
   if (!ids.length || ids.length !== actividades.length || ids.some((id) => !id)) return ["alguna actividad del Desarrollo no trae \"tareaId\""];
@@ -719,7 +738,6 @@ export const motivosTareaId = (clase, fila) => {
   const cuenta = (id) => ids.filter((x) => x === id).length;
   validos.forEach((id, k) => {
     if (!cuenta(id)) motivos.push(`la tarea «${fila.tareas[k].nombre}» no tiene actividad`);
-    if (cuenta(id) > 2) motivos.push(`la tarea «${fila.tareas[k].nombre}» tiene ${cuenta(id)} actividades y son 1 o 2`);
   });
   return motivos;
 };

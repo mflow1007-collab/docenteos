@@ -27,7 +27,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
-import { hechosDeClase, libretaDeHechos, aplicarFilasMapa, validarLoteContrato, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
+import { hechosDeClase, libretaDeHechos, aplicarSecuencias, aplicarFilasMapa, validarLoteContrato, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -1829,8 +1829,9 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
     const recursos = [...new Set(f.tareas.flatMap((t) => [t.recursos.humanos, t.recursos.didacticos]))];
     return [
       `${cabeza} — Sección: ${f.secciones.join(' · ')}`,
-      '- Tareas del Desarrollo, en este orden:',
-      ...f.tareas.map((t, k) => `   · [T${k + 1}] ${t.paralelo ? `[${t.secciones[0]}] ` : ''}${t.nombre} (${t.minutos} min): ${t.instruccion}`),
+      ...(f.secuencia
+        ? ['- El Desarrollo de esta clase YA ESTÁ ESCRITO por DocenteOS; no lo reescribas ni añadas pasos:', ...f.secuencia.map((x, k) => `   ${k + 1}. ${x.texto}`), '- Tú solo escribes lo que va en {frases}: 1 o 2 ejemplos en inglés de los contenidos listados, en cursiva con puntos suspensivos (_How much is…?_). Si un paso no tiene {frases}, va vacío.']
+        : ['- Tareas del Desarrollo, en este orden:', ...f.tareas.map((t, k) => `   · [T${k + 1}] ${t.paralelo ? `[${t.secciones[0]}] ` : ''}${t.nombre} (${t.minutos} min): ${t.instruccion}`)]),
       ...(f.tareas.some((t) => t.paralelo) ? ['- Trabajo por grupos a la vez: cada grupo hace solo las tareas de su sección.'] : []),
       `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,
       `- Recibe: ${f.recibe.length ? f.recibe.map((r) => `${r.texto}${r.clase ? ` (clase ${r.clase})` : ''}`).join('; ') : 'la situación de aprendizaje'}`,
@@ -1854,8 +1855,10 @@ MAPA DE ESTAS CLASES. DocenteOS ya decidió cada clase; tú solo redactas.
 ${filasLote.map(filaTx).join('\n\n')}
 
 REGLAS DEL MAPA:
-1. Redacta cada tarea como 1 o 2 actividades del Desarrollo, en el orden dado y dentro de sus minutos; si la clase tiene una sola tarea, son 2 actividades. Cada actividad lleva en "tareaId" el código de su tarea ("T1", "T2"…), sin inventar otros. No añadas tareas ni repitas una tarea de otra clase.
-   Ejemplo de actividad del Desarrollo: {"tareaId":"T1","accion":"…","producto":"…","destino":"…"}
+${filasLote.every((f) => f.secuencia)
+    ? `1. En "actividades" del Desarrollo devuelve un objeto por paso, en orden: {"paso":1,"frases":"_…_"}. No escribas el paso: DocenteOS ya lo tiene. El punto 3 solo aplica aquí al Cierre.`
+    : `1. El Desarrollo es una secuencia de ENTRE 4 Y 5 pasos cortos, repartidos entre las tareas en el orden dado y dentro de sus minutos; divide cada tarea en pasos reales y no añadas tareas ni repitas una tarea de otra clase. Muestra al docente trabajando dentro de la frase («mientras el docente marca la lista…»), sin que sea el sujeto. Cada paso lleva en "tareaId" el código de su tarea ("T1", "T2"…), sin inventar otros; "producto" y "destino" van solo en el último paso de cada tarea, los demás los dejan vacíos.
+   Ejemplo de paso del Desarrollo: {"tareaId":"T1","accion":"…","producto":"","destino":""}`}
 2. Parte de lo que la clase recibe. Todo dato del producto (precios, horarios, ingredientes, cantidades, calorías) sale de ahí; si falta, en el producto va «falta dato» y nunca lo inventes. "textoModelo" es un ejemplo ficticio: usa un comedor modelo con datos de ejemplo y nunca escribas «falta dato» en él. Todo precio, también en "ampliacion", va en pesos dominicanos (RD$), nunca en dólares.
 3. Cada contenido listado aparece escrito en una actividad o en "textoModelo", con un ejemplo en inglés. En "contenidosEnClase" copia, para cada uno, un fragmento SIN CAMBIOS ni puntos suspensivos de ese texto: [{"contenido":"<el de la lista, completo>","frase":"<fragmento literal>"}].
 4. Mantén la modalidad indicada en toda la clase. Si es un rol, dilo.
@@ -1864,7 +1867,7 @@ REGLAS DEL MAPA:
 7. "focoLinguistico": lo que la sección necesita comunicar, con la función y la estructura o expresiones (ej. "Dar indicaciones: imperativo (_turn left_…)"); nunca una etiqueta de la malla. La estructura sale solo de los contenidos listados; no traigas otra gramática.
 ${c.conContenido ? `8. AMPLIACIÓN DE DOCENTEOS: puedes añadir en "ampliacion" vocabulario concreto del tema para la sección que se avanza, con {"texto","tipo","seccion"}.` : '8. "ampliacion" va vacía ([]): esta fase no introduce contenido nuevo.'}
 ` : '';
-  const desarrolloMapaTx = filasLote ? 'Desarrollo: ENTRE 2 Y 5 actividades, las que pidan las tareas del mapa; la gramática nunca se enseña como regla suelta.' : desarrolloTx;
+  const desarrolloMapaTx = filasLote ? 'Desarrollo: ENTRE 4 Y 5 pasos, los del punto 1 del mapa; la gramática nunca se enseña como regla suelta.' : desarrolloTx;
   const cierreTx = filasLote
     ? `Cierre: 2 actividades con la misma redacción (punto 3), en sus 5 minutos: compartir o revisar lo producido → reflexión sobre UN aspecto concreto. Al menos una empieza con un verbo Autónomo o Estratégico (${verbosCierre}…).`
     : `Cierre: 3 actividades con la misma redacción (punto 3), por su función y sin fórmulas fijas: compartir lo producido → retroalimentación, coevaluación o autoevaluación sobre UN aspecto concreto → mejora de la pieza y dónde se archiva en su sección. Al menos una empieza con un verbo Autónomo o Estratégico (${verbosCierre}…).`;
@@ -1910,7 +1913,9 @@ REGLAS:
   // Con mapa de clases no se pide técnica de catálogo (forzarla daba etiquetas sin sentido).
   return prompt.replace(
     /("nombre":"Desarrollo","tiempo":"[^"]*","actividades":)\[[^\]]*\]/,
-    '$1[{"tareaId":"T1","accion":"Verbo (organización, técnica) ...","producto":"...","destino":"..."},{"tareaId":"T…","accion":"...","producto":"...","destino":"..."}]',
+    filasLote.every((f) => f.secuencia)
+      ? `$1[${filasLote[0].secuencia.map((_, k) => `{"paso":${k + 1},"frases":"..."}`).join(',')}]`
+      : '$1[{"tareaId":"T1","accion":"Verbo (organización, técnica) ...","producto":"","destino":""},{"tareaId":"T1","accion":"...","producto":"...","destino":"..."},{"tareaId":"T…","accion":"...","producto":"","destino":""},{"tareaId":"T…","accion":"...","producto":"...","destino":"..."}]',
   ).replace(/\n9\. "actividadCLT":[^\n]*/, '\n9. "actividadCLT": déjala vacía ({"nombre":"","mecanica":""}) y no nombres técnicas de catálogo: la tarea de la fila ya dice qué se hace. El paréntesis de cada actividad lleva solo la organización.');
 }
 
@@ -2079,6 +2084,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         continue;
       }
 
+      aplicarSecuencias(result.data, spec.contratoFase, startDia);
       normalizarVozBatch(result.data);
       const indicadoresPermitidos = [
         ...(spec.indicadoresTrabajo?.length ? spec.indicadoresTrabajo : spec.indicadores || [])

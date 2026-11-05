@@ -14,6 +14,7 @@
  */
 
 import { construirPlanMaestro } from "./planMaestroService.js";
+import { SECUENCIAS_POR_TAREAS } from "../data/secuenciasTareas.js";
 import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR,
@@ -532,6 +533,60 @@ export const conFirmas = (actividades, tareasMapa = [], tareaIds = []) => {
   });
   return lista;
 };
+
+const semillaVersion = (t) => [...String(t)].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
+const enLista = (l) => l.join(", ").replace(/, ([^,]*)$/, " y $1");
+const conContraccion = (t) => t.replace(/\b([Aa]) el\b/g, "$1l").replace(/\b([Dd])e el\b/g, "$1el");
+
+/** Reparte los minutos de cada tarea entre sus pasos, respetando el peso de cada uno. */
+const minutosDePasos = (pasos, tareas) => {
+  const minutos = pasos.map(() => 0);
+  tareas.forEach((tarea, k) => {
+    const suyos = pasos.map((x, i) => ({ x, i })).filter(({ x }) => x.t === k);
+    const peso = suyos.reduce((s, { x }) => s + x.m, 0);
+    let usados = 0;
+    suyos.forEach(({ x, i }, n) => {
+      const valor = n === suyos.length - 1 ? tarea.minutos - usados : Math.round((x.m * tarea.minutos) / peso);
+      minutos[i] = valor;
+      usados += valor;
+    });
+  });
+  return minutos;
+};
+
+/**
+ * Pone en cada fila su secuencia del banco, si la tiene: los pasos ya vienen con los datos
+ * de la unidad y un solo hueco para la IA ({frases}). La versión varía por unidad y clase,
+ * nunca en una entrevista que no sea con invitado. Sin secuencia, la clase sigue con la IA.
+ */
+export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = "", invitado = "", semilla = "" } = {}) => {
+  mapa.filas.forEach((fila) => {
+    const versiones = SECUENCIAS_POR_TAREAS[fila.tareas.map((t) => t.clave).join("+")];
+    if (!versiones || fila.tareas.some((t) => t.paralelo)) return;
+    if (fila.tareas.some((t) => t.clave === "visitar_entrevistar") && fila.modalidad !== "invitado") return;
+    const pasos = versiones[(semillaVersion(semilla) + fila.clase) % versiones.length];
+    const minutos = minutosDePasos(pasos, fila.tareas);
+    const datos = enLista(fila.datosRecoge || []) || "lo que falta";
+    fila.secuencia = pasos.map((x, i) => ({
+      tarea: x.t,
+      minutos: minutos[i],
+      texto: conContraccion(x.texto
+        .replaceAll("{producto}", nombreCorto(producto))
+        .replaceAll("{tema}", tema)
+        .replaceAll("{audiencia}", audiencia || "la audiencia")
+        .replaceAll("{invitado}", invitado || "la persona invitada")
+        .replaceAll("{datos}", datos)),
+    }));
+  });
+  return mapa;
+};
+
+/** Los pasos del banco con lo que puso la IA en {frases}. Sin frase, el hueco desaparece. */
+export const pasosConFrases = (secuencia = [], respuesta = []) => secuencia.map((paso, i) => {
+  const r = respuesta[i];
+  const frases = String((typeof r === "string" ? r : r?.frases) || "").trim().replace(/^\(|\)$/g, "").slice(0, 120);
+  return frases ? paso.texto.replace("{frases}", frases) : paso.texto.replace(/\s*\(\{frases\}\)/, "");
+});
 
 /**
  * Minutos de cada actividad según su tarea: los de la tarea, repartidos entre sus

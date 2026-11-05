@@ -431,6 +431,8 @@ function buildNormalizedStream(providerResponse, provider, model) {
         }
 
         if (usageIn || usageOut) {
+          // Solo en local: en producción el costo ya queda en aiLogs.
+          if (process.env.NODE_ENV !== "production") console.info(`[AI Gateway] uso ${usageIn} ${usageOut}`);
           send({ usage: { in: usageIn, out: usageOut, exact: true } });
         }
         send({ meta: { provider, model, stopReason } });

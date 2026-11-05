@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
@@ -16,8 +16,10 @@ import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
-import { motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
+import { aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
+import { SECUENCIAS_POR_TAREAS } from "../src/data/secuenciasTareas.js";
+import { validarVozActividad } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
 import { extraerCriteriosEvaluacionCanonicos } from "../src/services/curriculumBrainService.js";
 
@@ -212,9 +214,9 @@ check("sin mapa, el prompt de siempre: ni rastro del bloque nuevo", () => {
 });
 check("con mapa, el prompt lleva la fila de la clase y deja lo fijo al sistema", () => {
   const p = promptDe(2);
-  ["MAPA DE ESTAS CLASES", "Clase 4 (Semana 2)", "entrevistar (30 min)", "Tabla común con respuestas y datos", "ING-2-I03", "un invitado viene al aula", "«falta dato»", "contenidosEnClase", "ENTRE 2 Y 5 actividades", "Cierre: 2 actividades"]
+  ["MAPA DE ESTAS CLASES", "Clase 4 (Semana 2)", "entrevistar (30 min)", "Tabla común con respuestas y datos", "ING-2-I03", "un invitado viene al aula", "«falta dato»", "contenidosEnClase", "ENTRE 4 Y 5 pasos", "Cierre: 2 actividades"]
     .forEach((t) => assert(p.includes(t), `falta: ${t}`));
-  ["copia la lista EXACTA", "cada clase trabaja AL MENOS UNO", "Cierre: 3 actividades", "ENTRE 4 Y 5"].forEach((t) => assert(!p.includes(t), `sobra: ${t}`));
+  ["copia la lista EXACTA", "cada clase trabaja AL MENOS UNO", "Cierre: 3 actividades", ].forEach((t) => assert(!p.includes(t), `sobra: ${t}`));
 });
 check("el reparto del mapa cuadra con las fases del plan y sus entregas", () => {
   igual(planRef.fases.map((f) => f.sesiones), [1, 2, 1, 2, 3, 2, 2, 4, 1], "sesiones");
@@ -594,7 +596,7 @@ check("tareaId: lo que no encaja solo avisa", () => {
   igual(motivosTareaId(clase(["T1", "T2"]), fila), [], "cumple");
   assert(/no trae/.test(motivosTareaId(clase([], 2), fila)[0]), "sin códigos");
   assert(motivosTareaId(clase(["T1", "T9"]), fila).some((m) => /T9/.test(m)), "inventado");
-  assert(motivosTareaId(clase(["T1", "T2", "T2", "T2"]), fila).some((m) => /3 actividades/.test(m)), "relleno");
+  igual(motivosTareaId(clase(["T1", "T1", "T2", "T2", "T2"]), fila), [], "varios pasos por tarea no es relleno");
 });
 check("la prueba con la audiencia es tarea propia solo si el producto la pide", () => {
   const f17 = ref.filas[16];
@@ -607,14 +609,61 @@ check("la prueba con la audiencia es tarea propia solo si el producto la pide", 
   const escuela = mapaDe("Escuela y educación", 6, HORARIOS["3x1"]).filas.flatMap((f) => f.tareas.map((t) => t.clave));
   assert(escuela.includes("presentar") && !escuela.includes("probar_audiencia"), "Escuela no la lleva");
 });
-check("tareaId: el esquema del prompt muestra el código y dos actividades, no cuatro", () => {
-  const p = promptDe(0);
+check("tareaId: el esquema del prompt muestra el código y cuatro pasos", () => {
+  const p = promptDe(1);
   const des = String(p).match(/"nombre":"Desarrollo"[^\]]*\]/)?.[0] || "";
-  assert(/"tareaId":"T1"/.test(des) && (des.match(/"accion"/g) || []).length === 2, des.slice(0, 300) || String(p).slice(0, 200));
+  assert(/"tareaId":"T1"/.test(des) && (des.match(/"accion"/g) || []).length === 4, des.slice(0, 300) || String(p).slice(0, 200));
 });
 check("tareaId: el prompt nombra las tareas y pide el código", () => {
   const fuente = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
-  assert(/\[T\$\{k \+ 1\}\]/.test(fuente) && /Cada actividad lleva en "tareaId" el código de su tarea/.test(fuente) && /\{"tareaId":"T1","accion":"…","producto":"…","destino":"…"\}/.test(fuente), "prompt");
+  assert(/\[T\$\{k \+ 1\}\]/.test(fuente) && /Cada paso lleva en "tareaId" el código de su tarea/.test(fuente) && /\{"tareaId":"T1","accion":"…","producto":"","destino":""\}/.test(fuente), "prompt");
+});
+check("banco de secuencias: 4 o 5 pasos, voz correcta y minutos de referencia que suman 30", () => {
+  Object.entries(SECUENCIAS_POR_TAREAS).forEach(([clave, versiones]) => {
+    assert(versiones.length >= 2, `${clave}: versiones`);
+    versiones.forEach((pasos, v) => {
+      assert(pasos.length >= 4 && pasos.length <= 5, `${clave} v${v}: ${pasos.length} pasos`);
+      igual(pasos.reduce((s, x) => s + x.m, 0), 30, `${clave} v${v}: minutos`);
+      pasos.forEach((x) => {
+        const voz = validarVozActividad(x.texto.replaceAll(/\{[a-z]+\}/g, "algo"));
+        assert(voz.ok, `${clave} v${v}: ${voz.motivo} — ${x.texto}`);
+      });
+    });
+  });
+});
+check("secuencias: la fila trae los datos de la unidad y solo un hueco para la IA", () => {
+  const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]);
+  ponerSecuencias(m, { producto: "Our Guide — una guía", tema: "Alimentación", audiencia: "el dueño invitado y los visitantes", invitado: "el dueño invitado", semilla: "x" });
+  igual(m.filas.filter((f) => f.secuencia).map((f) => f.clase), [1, 4, 17, 18], "clases con secuencia");
+  m.filas.filter((f) => f.secuencia).forEach((f) => {
+    igual(f.secuencia.reduce((s, x) => s + x.minutos, 0), 30, `C${f.clase} minutos`);
+    f.tareas.forEach((t, k) => igual(f.secuencia.filter((x) => x.tarea === k).reduce((s, x) => s + x.minutos, 0), t.minutos, `C${f.clase} T${k + 1}`));
+    f.secuencia.forEach((x) => assert(!/\{(producto|tema|audiencia|invitado|datos)\}/.test(x.texto) && !/\ba el\b|\bde el\b/.test(x.texto), x.texto));
+  });
+  assert(m.filas[3].secuencia.some((x) => /una pregunta por estudiante|su propia pregunta/.test(x.texto) && /al dueño invitado/.test(x.texto)), "entrevista");
+  assert(m.filas[16].secuencia.some((x) => /pedido/.test(x.texto) && /visitantes/.test(x.texto)), "pedidos con la audiencia");
+  assert(m.filas[17].secuencia.some((x) => /^Corrigen/.test(x.texto)) && !m.filas[17].secuencia.some((x) => /para presentaci/.test(x.texto)), "corrige y entrega");
+  igual(pasosConFrases([{ texto: "Hacen algo ({frases}), y sigue." }, { texto: "Otro ({frases})." }], [{ paso: 1, frases: "_Can I have…?_" }, { paso: 2, frases: "" }]), ["Hacen algo (_Can I have…?_), y sigue.", "Otro."], "huecos");
+});
+check("secuencias: la versión varía por unidad, y sin invitado la entrevista sigue con la IA", () => {
+  const una = (semilla) => { const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]); ponerSecuencias(m, { producto: "G", tema: "T", semilla }); return m.filas[3].secuencia[0].texto; };
+  assert(["a", "b", "c", "d", "e"].map(una).some((t, _, l) => t !== l[0]), "siempre la misma versión");
+  const m = mapaDe("Alimentación", 6, HORARIOS["3x1"], { mapa: { modalidadVisita: "entre_sesiones" } });
+  ponerSecuencias(m, { producto: "G", tema: "T", semilla: "x" });
+  assert(!m.filas[3].secuencia, "no debe usar secuencia sin invitado");
+});
+check("secuencias: el código escribe los pasos antes de unir frases y pasan el contrato", () => {
+  const c = contratoDe(0);
+  ponerSecuencias({ filas: c.mapaClases }, { producto: "Our Guide", tema: "Alimentación", semilla: "x" });
+  const data = { clases: [claseFalsa(c.mapaClases[0], { momentos: [{ nombre: "Desarrollo", actividades: [{ paso: 1, frases: "" }, { paso: 2, frases: "" }, { paso: 3, frases: "_I eat rice…_" }] }] })] };
+  aplicarSecuencias(data, c, 1);
+  normalizarVozBatch(data);
+  const a = data.clases[0].momentos[0].actividades;
+  igual(a.length, c.mapaClases[0].secuencia.length, "todos los pasos");
+  assert(a.every((x) => typeof x === "string" && x.length > 20 && !/\{frases\}/.test(x)), JSON.stringify(a).slice(0, 200));
+  assert(/_I eat rice…_/.test(a[2]), a[2]);
+  igual(data.clases[0].minutosSecuencia.reduce((s, x) => s + x, 0), 30, "minutos");
+  validarLoteContrato(aplicarFilasMapa(data, c, 1), c, 1, 1, { esIdioma: true });
 });
 check("el diagnóstico se reconoce por sus partes, aunque lleven organización", () => {
   igual(minutosConDiagnostico(["Socializan (en plenaria) la importancia.", "Escuchan (en grupos) oraciones y marcan imágenes.", "Leen (en pares) un menú y escriben dos oraciones.", "Responden (en parejas) a una pregunta."], 30), [10, 8, 6, 6], "clase 1 real");
