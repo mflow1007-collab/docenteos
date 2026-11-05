@@ -8,6 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
+import { sinEquipos, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
@@ -539,6 +540,31 @@ check("los anexos H e I usan el nombre del producto, sin su descripción", () =>
   const textos = [...checklistCorto(mapa, largo).map((c) => c.paso), organizadorCorto(mapa, { producto: largo })[0].incluye];
   assert(textos.every((t) => !/una guía bilingüe/.test(t)), "queda la descripción");
   assert(textos.some((t) => /Our School Survival Guide/.test(t)), "falta el nombre");
+});
+
+check("Inicio y Cierre quedan sin equipos que el mapa no prevé", () => {
+  const momentos = [
+    { nombre: "Inicio", actividades: ["Responden.", "Retroalimentación.", "Recuperación.", "Observan un breve video sobre consejos.", "Escuchan."], recursos: { didacticos: "Video sobre consejos, Tarjetas", tecnologicos: "Proyector, Parlantes" } },
+    { nombre: "Desarrollo", actividades: ["Ven un video."], recursos: { didacticos: "Video", tecnologicos: "Proyector" } },
+    { nombre: "Cierre", actividades: ["Comparten en plenaria.", "Graban un audio."], recursos: { didacticos: "Grabadora de audio", tecnologicos: "Grabación de audio" } },
+  ];
+  const restantes = sinEquipos(momentos, "Tarjetas de la fila");
+  igual(momentos[0].actividades[3], ENGANCHE_SIN_EQUIPOS, "enganche sustituido");
+  igual(momentos[0].actividades.length, 5, "posiciones del Inicio");
+  igual(momentos[0].recursos, { didacticos: "Tarjetas", tecnologicos: "No requerido para esta actividad" }, "recursos del Inicio");
+  igual(momentos[2].recursos.didacticos, "Tarjetas de la fila", "sin recursos, los de la fila");
+  igual(momentos[1].recursos.tecnologicos, "Proyector", "el Desarrollo no se toca aquí");
+  assert(restantes.length === 1 && /^Cierre: Graban/.test(restantes[0]), `aviso: ${restantes}`);
+});
+check("el diagnóstico ocupa dos tercios de la clase y los minutos suman el total", () => {
+  igual(minutosConDiagnostico(["Socializan el plan.", "Definen los grupos.", "Aplican el diagnóstico: escuchan y escriben."], 30), [5, 5, 20], "30 min");
+  igual(minutosConDiagnostico(["Aplican el diagnóstico.", "Definen los grupos."], 35), [23, 12], "35 min");
+  igual(minutosConDiagnostico(["Definen los grupos."], 30), null, "sin diagnóstico");
+  igual(minutosConDiagnostico(["Aplican el diagnóstico."], 30), null, "solo diagnóstico");
+});
+check("al reintentar una fase, la memoria vuelve a como estaba antes de la fase", () => {
+  const fuente = readFileSync(new URL("../src/services/unidadAprendizajeService.js", import.meta.url), "utf8");
+  assert(/const memoriaAntesDeFase = memoriaAcumulada\.length;\s+for \(let intento = 1; !weekPlan; intento\+\+\) \{[\s\S]{0,260}memoriaAcumulada\.length = memoriaAntesDeFase;\s+try \{\s+weekPlan = await generateWeekPlan/.test(fuente), "falta restaurar la memoria");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);

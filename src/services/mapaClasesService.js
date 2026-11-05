@@ -457,6 +457,45 @@ export const didacticosDeFila = (fila) => {
 /** La clase 1 no tiene clase anterior: la posición de retroalimentación mira hacia adelante. */
 export const INICIO_PRIMERA_CLASE = "Recuperación de experiencias: comentan qué han vivido o visto sobre este tema. (What do you know about this topic?)";
 
+// Equipos que el mapa no prevé: no se sabe si el centro los tiene.
+const EQUIPO = /\b(videos?|clips?|proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
+export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con la clase y dicen qué les llama la atención.";
+
+/**
+ * Inicio y Cierre sin equipos: quita los que la IA puso en sus recursos y sustituye la
+ * actividad de enganche que los usa (el Inicio tiene 5 posiciones fijas). Lo que quede
+ * en otra actividad se devuelve para avisar al administrador.
+ */
+export const sinEquipos = (momentos = [], didacticosFila = "") => {
+  const restantes = [];
+  momentos.filter((m) => m?.nombre !== "Desarrollo").forEach((m) => {
+    const lista = String(m.recursos?.didacticos || "").split(",").map((r) => r.trim()).filter(Boolean);
+    const limpios = lista.filter((r) => !EQUIPO.test(normal(r)));
+    m.recursos = { ...m.recursos, didacticos: limpios.join(", ") || didacticosFila, tecnologicos: "No requerido para esta actividad" };
+    (m.actividades || []).forEach((a, i) => {
+      if (typeof a !== "string" || !EQUIPO.test(normal(a))) return;
+      if (m.nombre === "Inicio" && i === 3) m.actividades[i] = ENGANCHE_SIN_EQUIPOS;
+      else restantes.push(`${m.nombre}: ${a.slice(0, 70)}`);
+    });
+  });
+  return restantes;
+};
+
+// El diagnóstico tiene cuatro partes: ocupa dos tercios del tiempo (criterio de DocenteOS, sin medir).
+const DIAGNOSTICO = /diagnostic|\bescuchan oraciones\b/;
+
+/** Minutos de la clase que solo acuerda y diagnostica. Null si no se distingue el diagnóstico. */
+export const minutosConDiagnostico = (actividades = [], total = 0) => {
+  const esDiagnostico = actividades.map((a) => DIAGNOSTICO.test(normal(typeof a === "string" ? a : Object.values(a || {}).join(" "))));
+  const cuantos = esDiagnostico.filter(Boolean).length;
+  const otras = actividades.length - cuantos;
+  if (!cuantos || !otras) return null;
+  const paraDiagnostico = Math.round((total * 2) / 3);
+  const minutos = esDiagnostico.map((d) => Math.floor(d ? paraDiagnostico / cuantos : (total - paraDiagnostico) / otras));
+  minutos[esDiagnostico.indexOf(true)] += total - minutos.reduce((s, m) => s + m, 0);
+  return minutos;
+};
+
 /** La firma que promete la tarea la escribe el código, en la actividad de esa tarea. */
 export const conFirmas = (actividades, tareasMapa = []) => {
   const lista = [...actividades];

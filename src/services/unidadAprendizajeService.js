@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { armarMapaClases, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { armarMapaClases, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, sinEquipos, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -5130,7 +5130,11 @@ const _generarFasesConIA = async (
       // Si la fase no sale, se detiene con error visible y registro en aiLogs:
       // nunca base curricular ni plantilla en esta ruta.
       const INTENTOS_POR_FASE = 2;
+      const memoriaAntesDeFase = memoriaAcumulada.length;
       for (let intento = 1; !weekPlan; intento++) {
+        // Al reintentar, las clases del intento fallido se recuperan de caché: si siguieran
+        // en la memoria, cada una se compararía consigo misma y parecería repetida.
+        memoriaAcumulada.length = memoriaAntesDeFase;
         try {
           weekPlan = await generateWeekPlan(
             specFase, semanaGeneracion, durMin, numClases, fases.length,
@@ -6213,12 +6217,15 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         const inicio = (d.momentos || []).find((m) => m?.nombre === "Inicio");
         // Se sustituye y no se quita: el Inicio tiene 5 posiciones fijas.
         if (d.fijoDelMapa.primeraClase && /^retroalimentaci[oó]n/i.test(String(inicio?.actividades?.[1] || ""))) inicio.actividades[1] = INICIO_PRIMERA_CLASE;
+        sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosTiempo.push(`clase ${i + 1}: usa un equipo que el mapa no prevé (${m})`));
         delete d.fijoDelMapa;
       }
       if (!desarrollo?.actividades?.length) return;
       const total = Number.parseInt(String(desarrollo.tiempo || ""), 10) || 0;
       // Con mapa y una actividad por tarea, los minutos son los de la fila.
-      const delMapa = d.tareasMapa?.length === desarrollo.actividades.length ? d.tareasMapa.map((t) => t.minutos) : null;
+      const soloAcuerdo = d.tareasMapa?.length === 1 && d.tareasMapa[0].clave === "acordar";
+      const delMapa = (soloAcuerdo && minutosConDiagnostico(desarrollo.actividades, total))
+        || (d.tareasMapa?.length === desarrollo.actividades.length ? d.tareasMapa.map((t) => t.minutos) : null);
       if (delMapa) delMapa[delMapa.length - 1] += total - delMapa.reduce((s, m) => s + m, 0);
       const { minutos, necesarios } = delMapa
         ? { minutos: delMapa, necesarios: 0 }
