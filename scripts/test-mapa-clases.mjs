@@ -676,6 +676,13 @@ check("Escuela: audiencia de 6.º, sin «la persona invitada», aunque no sea In
   assert(!/persona invitada/.test(humanosDeFila(fila, null)), humanosDeFila(fila, null));
   assert(/6\.º/.test(humanosDeFila(fila, ALCANCE_POR_SEMILLA["ing2-escuela-guia"].conInvitado)), "humanos");
 });
+check("la situación de Escuela con su audiencia cabe en el máximo de 800 caracteres", () => {
+  const base = { grado: "2do Secundaria", asignatura: "Inglés", centro: "Centro Hector Francisco Lopez - Hato Nuevo", numSemanas: 4, diasClase: ["l", "m", "x"], horasPorDia: 1, titulo: "Escuela y educación" };
+  const d = conFichaDeUnidad({ ...base, ...prellenarPlanMaestro({ datos: base, indicadores: estructura.indicadores, competencias }) });
+const texto = componerSituacion({ situacion: d.planMaestro.situacion, producto: d.productoFinalTexto, estrategia: d.planMaestro.estrategia });
+  assert(/6\.º de primaria/.test(texto), texto.slice(0, 200));
+  assert(texto.length <= 800, `${texto.length} caracteres`);
+});
 check("frases por paso: el hueco toma las expresiones de la malla y, si no hay, una pista", () => {
   const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]);
   ponerSecuencias(m, { producto: "G", tema: "T", invitado: "el dueño invitado", semilla: "x" });

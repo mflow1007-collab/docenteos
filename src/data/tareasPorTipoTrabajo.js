@@ -211,8 +211,8 @@ export const ALCANCE_POR_SEMILLA = {
   // Decisión de César (2026-11-05): 6.º de primaria, real; visitante solo en rol y declarado.
   "ing2-escuela-guia": {
     conInvitado: {
-      productoDescripcion: "una guía bilingüe de la escuela para los estudiantes de 6.º de primaria que llegarán el próximo año",
-      audiencia: "los estudiantes de 6.º de primaria y un docente que hace de visitante",
+      productoDescripcion: "una guía bilingüe de la escuela",
+      audiencia: "los estudiantes de 6.º de primaria y un visitante",
       audienciaDetalle: {
         principal: "los estudiantes de 6.º de primaria",
         secundarias: [{ quien: "un docente que hace de visitante", funcion: "consulta la guía para orientarse" }],
