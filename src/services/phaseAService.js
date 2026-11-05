@@ -1837,7 +1837,7 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
       `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,
       `- Recibe: ${f.recibe.length ? f.recibe.map((r) => `${r.texto}${r.clase ? ` (clase ${r.clase})` : ''}`).join('; ') : 'la situación de aprendizaje'}`,
       `- Entrega: ${f.entregas.join('; ')}`,
-      ...(f.secciones.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes('lugares')) ? ['- Los lugares del centro salen de la tabla común de lugares. No inventes lugares (cafeteria, gym, art room, second floor…): en "textoModelo" usa los genéricos (the office, the classroom) o los de esa tabla.'] : []),
+      ...(f.secciones.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes('lugares')) ? ['- Los lugares del centro salen de la tabla común del recorrido. No inventes lugares, pisos ni instalaciones (cafeteria, gym, art room, second floor…). "textoModelo" habla de un centro ficticio llamado Model School. En las actividades y en "ampliacion" usa solo términos genéricos (the office, the classroom) o «los lugares de la tabla común».'] : []),
       ...(f.datosRecoge?.length ? [`- Datos que esta clase DEBE preguntar y dejar anotados, porque las piezas siguientes los necesitan: ${f.datosRecoge.join(', ')}. Nómbralos en una actividad o en el texto modelo.`] : []),
       `- Indicador que demuestra: ${f.indicadores.slice(0, 3).map((id) => `[${id}] ${textoInd(id)}`).join(' | ')}${f.indicadorRetomado ? ' (se retoma)' : ''}`,
       `- Evidencia: ${f.tareas.map((t) => `${EVIDENCIA_TX[t.evidencia]}, ${t.condicion}${t.individual ? ', individual' : ''}${t.sumativa ? ', sumativa' : ''}`).join('; ')}`,

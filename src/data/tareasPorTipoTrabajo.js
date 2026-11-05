@@ -206,12 +206,18 @@ export const USO_DE_CONTENIDOS = [
   [/^deseos/, ["probar_audiencia", "proponer_elegir"]],
 ];
 
+// Lugares que no se dan por hechos si no hay ficha del centro.
+export const LUGARES_NO_DECLARADOS = /\b(cafeterias?|cafeteria|gym|gymnasium|art room|second floor|auditorium|library|biblioteca|gimnasio|auditorio)\b/i;
+
 // Alcance de la semilla cuando la fuente es un solo dueño invitado (ficha de la unidad).
 export const ALCANCE_POR_SEMILLA = {
   // Decisión de César (2026-11-05): 6.º de primaria, real; visitante solo en rol y declarado.
   "ing2-escuela-guia": {
     conInvitado: {
       productoDescripcion: "una guía bilingüe de la escuela",
+      contextoCambio: [/^Cada año, (.*) recibe a estudiantes de nuevo ingreso y a visitantes, algunos de ellos de habla inglesa\.?$/, "El próximo año, $1 recibirá a los estudiantes que hoy cursan 6.º de primaria, y también a visitantes, algunos de habla inglesa."],
+      problema: "Cuando lleguen, muchos pueden perderse: no sabrán dónde queda cada lugar ni a quién pedir ayuda, y el centro no tiene ninguna orientación en inglés.",
+      propositosSecciones: { "Important Places": "qué lugares tiene el centro y qué se hace en cada uno, según la tabla común del recorrido" },
       audiencia: "los estudiantes de 6.º de primaria y un visitante",
       audienciaDetalle: {
         principal: "los estudiantes de 6.º de primaria",

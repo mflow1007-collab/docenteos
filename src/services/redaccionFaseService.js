@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares } from "./mapaClasesService.js";
 import { MARCAS_DATO, INVENTARIO_POR_SECCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -547,7 +547,7 @@ export const aplicarSecuencias = (data, contrato, startDia = 1) => {
     const fila = contrato.mapaClases[startDia + i - 1];
     const desarrollo = fila?.secuencia && (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo");
     if (!desarrollo || clase.secuenciaAplicada) return;
-    desarrollo.actividades = pasosConFrases(fila.secuencia, Array.isArray(desarrollo.actividades) ? desarrollo.actividades : []);
+    desarrollo.actividades = pasosConFrases(fila.secuencia, Array.isArray(desarrollo.actividades) ? desarrollo.actividades : [], { sinLugares: necesitaLugares(fila) });
     clase.tareaIdsDesarrollo = fila.secuencia.map((x) => `T${x.tarea + 1}`);
     clase.minutosSecuencia = fila.secuencia.map((x) => x.minutos);
     clase.secuenciaAplicada = true;
@@ -758,7 +758,7 @@ export const motivosTextoClase = (clase, fila = null) => {
   const moneda = textos.find((t) => /(?<!RD)\$|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t));
   if (moneda) motivos.push(`precio fuera de pesos dominicanos: "${moneda.slice(0, 70)}"`);
   if (fila?.secciones?.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) {
-    const lugar = textos.find((t) => /\b(cafeteria|gym|gymnasium|art room|second floor|auditorium)\b/i.test(t));
+    const lugar = textos.filter((t) => !modelo.includes(t)).find((t) => /\b(cafeteria|gym|gymnasium|art room|second floor|auditorium|library|biblioteca)\b/i.test(t));
     if (lugar) motivos.push(`nombra un lugar que no consta en la tabla común: "${lugar.slice(0, 70)}"`);
   }
   const equipo = textos.find((t) => /\b(videos?|proyector(es)?|parlantes?|bocinas?|grabad[oa]s?|digital(es)?)\b/i.test(t));

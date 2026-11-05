@@ -19,7 +19,7 @@ import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from 
 import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
-  INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION,
+  INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION, LUGARES_NO_DECLARADOS,
 } from "../data/tareasPorTipoTrabajo.js";
 
 export const CLASES_MINIMAS = 3;
@@ -489,14 +489,16 @@ export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con
  */
 export const sinEquipos = (momentos = [], didacticosFila = "") => {
   const restantes = [];
+  // El video también se nombra en las evidencias y en las preguntas, en cualquier momento.
+  const sinVideo = (t) => (typeof t === "string" ? t.replace(/\b(the|a) video\b/gi, "the example").replace(/\b(el|un) video\b/gi, "el ejemplo") : t);
+  momentos.forEach((m) => {
+    if (Array.isArray(m?.metacognicion)) m.metacognicion = m.metacognicion.map(sinVideo);
+    Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map(sinVideo); });
+  });
   momentos.filter((m) => m?.nombre !== "Desarrollo").forEach((m) => {
     const lista = String(m.recursos?.didacticos || "").split(",").map((r) => r.trim()).filter(Boolean);
     const limpios = lista.filter((r) => !EQUIPO.test(normal(r)));
     m.recursos = { ...m.recursos, didacticos: limpios.join(", ") || didacticosFila, tecnologicos: "No requerido para esta actividad" };
-    // El video también se nombra en las evidencias y en las preguntas del momento.
-    const sinVideo = (t) => (typeof t === "string" ? t.replace(/\bin the video\b/gi, "in the example").replace(/\b(el|un) video\b/gi, "el ejemplo") : t);
-    if (Array.isArray(m.metacognicion)) m.metacognicion = m.metacognicion.map(sinVideo);
-    Object.entries(m.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map(sinVideo); });
     (m.actividades || []).forEach((a, i) => {
       if (typeof a !== "string" || !EQUIPO.test(normal(a))) return;
       if (m.nombre === "Inicio" && i === 3) m.actividades[i] = ENGANCHE_SIN_EQUIPOS;
@@ -509,11 +511,20 @@ export const sinEquipos = (momentos = [], didacticosFila = "") => {
 const OBSERVADO = { grabada: "observada y anotada", grabado: "observado y anotado", grabadas: "observadas y anotadas", grabados: "observados y anotados" };
 const sinGrabadoEn = (t) => t.replace(/(?<![\p{L}])(?<!\b(?:sin|no) )(?<!\bsin ser )(grabad[oa]s?)(?![\p{L}])/giu, (g) => OBSERVADO[g.toLowerCase()]);
 
+/** ¿Esta fila trabaja una sección que necesita lugares del centro? */
+export const necesitaLugares = (fila) => (fila?.secciones || []).some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"));
+/** La ampliación no propone lugares: salen de la tabla común del recorrido. */
+export const ampliacionSinLugares = (ampliacion = []) => ampliacion.filter((a) => !LUGARES_NO_DECLARADOS.test(String(a?.texto || "")));
+
 /** Títulos de la clase: concordancia con «guía» y un texto modelo no se llama «simulado». */
-export const conTitulosCorregidos = (dia = {}) => {
+export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false } = {}) => {
   const guia = (t) => String(t).replace(/\b([Nn])uestro (gu[ií]a)/gi, (_, n, g) => `${n}uestra ${g}`);
   if (dia.titulo) dia.titulo = guia(dia.titulo);
   if (dia.textoModelo?.titulo) dia.textoModelo.titulo = guia(dia.textoModelo.titulo).replace(/\b[Ee]ntrevista simulada\b/gi, "Entrevista modelo");
+  // Sin ficha, el modelo declara que su centro es ficticio.
+  if (modeloFicticio && dia.textoModelo?.lineas?.length && !/model school/i.test(dia.textoModelo.titulo || "")) {
+    dia.textoModelo.titulo = `Model School${dia.textoModelo.titulo ? ` — ${dia.textoModelo.titulo}` : ""}`;
+  }
   (dia.momentos || []).forEach((m) => {
     if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map((a) => (typeof a === "string" ? a.replace(/^Reúnan\b/, "Reúnen") : a));
   });
@@ -625,11 +636,11 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = ""
 };
 
 /** Los pasos del banco con lo que puso la IA en {frases}. Sin frase, el hueco desaparece. */
-export const pasosConFrases = (secuencia = [], respuesta = []) => secuencia.map((paso, i) => {
+export const pasosConFrases = (secuencia = [], respuesta = [], { sinLugares = false } = {}) => secuencia.map((paso, i) => {
   const r = respuesta[i];
   // Solo lo que está en cursiva: a veces la IA repite el paso entero en el hueco.
   const crudo = String((typeof r === "string" ? r : r?.frases) || "");
-  const frases = (crudo.match(/_[^_]{2,80}_/g) || []).slice(0, 2).join(", ");
+  const frases = (crudo.match(/_[^_]{2,80}_/g) || []).filter((f) => !sinLugares || !LUGARES_NO_DECLARADOS.test(f)).slice(0, 2).join(", ");
   return frases ? paso.texto.replace("{frases}", frases) : paso.texto.replace(/\s*\(\{frases\}\)/, "");
 });
 
@@ -664,7 +675,14 @@ export const conFichaDeUnidad = (datos) => {
   if (pm.estrategia !== "insercion_entorno") {
     // Otras estrategias no tienen visita, pero la audiencia sigue siendo la decidida.
     if (!alcancePropio?.sinModalidad || s.audienciaDetalle?.de !== s.audiencia) return datos;
-    return { ...datos, planMaestro: { ...pm, situacion: { ...s, productoDescripcion: alcancePropio.productoDescripcion, audiencia: alcancePropio.audiencia, audienciaDetalle: { ...alcancePropio.audienciaDetalle, de: alcancePropio.audiencia } } } };
+    const [patron, nuevo] = alcancePropio.contextoCambio || [];
+    return { ...datos, planMaestro: { ...pm,
+      propositosSecciones: { ...pm.propositosSecciones, ...alcancePropio.propositosSecciones },
+      situacion: { ...s,
+        contexto: patron ? String(s.contexto || "").replace(patron, nuevo) : s.contexto,
+        problema: alcancePropio.problema || s.problema,
+        productoDescripcion: alcancePropio.productoDescripcion, audiencia: alcancePropio.audiencia,
+        audienciaDetalle: { ...alcancePropio.audienciaDetalle, de: alcancePropio.audiencia } } } };
   }
   // Mismos valores por defecto que el generador: el formulario puede no enviarlos.
   const total = Number(datos.numSemanas || 4) * (datos.diasClase?.length || 3) * Number(datos.horasPorDia || 1);
