@@ -523,6 +523,8 @@ async function collectNormalizedProviderText(providerResponse, provider) {
     }
   }
 
+  // Solo en local: en producción el costo ya queda en aiLogs.
+  if ((usageIn || usageOut) && process.env.NODE_ENV !== "production") console.info(`[AI Gateway] uso ${usageIn} ${usageOut}`);
   return {
     text,
     usage: usageIn || usageOut ? { in: usageIn, out: usageOut, exact: true } : null,
