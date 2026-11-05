@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
@@ -682,6 +682,14 @@ check("la situación de Escuela con su audiencia cabe en el máximo de 800 carac
 const texto = componerSituacion({ situacion: d.planMaestro.situacion, producto: d.productoFinalTexto, estrategia: d.planMaestro.estrategia });
   assert(/6\.º de primaria/.test(texto) && !/nuevo ingreso|cafeter/i.test(texto), texto.slice(0, 300));
   assert(texto.length <= 800, `${texto.length} caracteres`);
+});
+check("el Inicio de C1 conserva sus funciones orientadas a presentar la unidad", () => {
+  const i = inicioPresentacion(["Saludo."], { producto: "Our Guide — una guía", tema: "Alimentación", secciones: ["A", "B"] });
+  igual(i.length, 5, "posiciones");
+  igual(i[0], "Saludo.", "saludo");
+  assert(/^Recuperación de experiencias/.test(i[1]) && /^Recuperación de saberes previos/.test(i[2]) && /Our Guide/.test(i[3]) && !/una guía/.test(i[3]) && /A, B/.test(i[3]), JSON.stringify(i));
+  assert(/^Escuchan la intención pedagógica/.test(i[4]) && /conocer la unidad/.test(i[4]), i[4]);
+  i.slice(1).forEach((a) => assert(validarVozActividad(a).ok, a));
 });
 check("frases por paso: el hueco toma las expresiones de la malla y, si no hay, una pista", () => {
   const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]);

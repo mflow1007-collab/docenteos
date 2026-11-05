@@ -38,6 +38,8 @@ Cada invariante tiene su prueba en `scripts/test-invariantes.mjs` y se comprueba
 - I-07 La organización y la condición de las tareas críticas las escribe el código («por turnos, una pregunta por estudiante»).
 - I-08 Los recursos tecnológicos se limitan a lo que declara el ambiente, también en la metacognición.
 
+- I-14 La clase 1 presenta la unidad: qué se va a trabajar, cómo se hará y cómo se evaluará. Lo escribe el código.
+
 ### Contexto (datos)
 - I-09 Moneda de la ficha (RD$); nunca dólares.
 - I-10 Los textos modelo dan datos de ejemplo; «falta dato» solo en el producto.

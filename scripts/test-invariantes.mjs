@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
-  fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE,
+  fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
 } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { ALCANCE_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS } from "../src/data/tareasPorTipoTrabajo.js";
@@ -126,6 +126,15 @@ const invariantesMapa = {
     (u.reales.flatMap((f) => f.secuencia || [])).forEach((x) => { if (/persona invitada/.test(x.texto)) problemas.push("secuencia con «la persona invitada»"); });
     return [...new Set(problemas)].join("; ");
   },
+  "I-14": (u) => {
+    const inicio = inicioPresentacion(["Responden al saludo."], { producto: "P — descripción", tema: u.titulo, secciones: u.mapa.secciones });
+    if (inicio.length !== 5) return "el Inicio de C1 no conserva sus 5 posiciones";
+    if (!/^Escuchan la intención pedagógica/.test(inicio[4]) || !/conocer la unidad/.test(inicio[4])) return "la intención no presenta la unidad";
+    const texto = (u.reales[0].secuencia || []).map((x) => x.texto).join(" ");
+    const falta = [[/qu[eé] problema/, "qué se trabaja"], [/qu[eé] har[aá]n en cada etapa/, "cómo se hará"], [/c[oó]mo se evaluar[aá]/, "cómo se evalúa"]].filter(([re]) => !re.test(texto)).map(([, n]) => n);
+    if (falta.length) return `falta en el Desarrollo: ${falta.join(", ")}`;
+    return /inicioPresentacion\(inicio\.actividades/.test(fuenteGenerador) ? "" : "el generador no lo aplica";
+  },
   "I-13": (u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma));
     if (!prometidas.length) return "ninguna tarea promete firma";
@@ -160,6 +169,10 @@ const invariantesJson = {
     return [...lista, ...sinDeclarar].slice(0, 5).join(" | ");
   },
   "I-12": (g) => (JSON.stringify(g.dias).includes("persona invitada") ? "aparece «la persona invitada»" : ""),
+  "I-14": (g) => {
+    const de = (n) => ((g.dias[0]?.momentos || []).find((m) => m.nombre === n)?.actividades || []).join(" ");
+    return /conocer la unidad/.test(de("Inicio")) && /qué problema/.test(de("Desarrollo")) && /en cada etapa/.test(de("Desarrollo")) && /cómo se evaluará/.test(de("Desarrollo")) ? "" : "C1 no presenta la unidad";
+  },
   "I-13": (g, u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma)).map((f) => f.clase);
     const faltan = prometidas.filter((c) => !JSON.stringify((g.dias[c - 1]?.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).match(/firm/i));

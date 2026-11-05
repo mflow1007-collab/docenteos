@@ -19,15 +19,15 @@ const pe = (m, texto, pista = "", usa = null) => p(m, texto, pista, usa, true);
 export const SECUENCIAS_POR_TAREA = {
   acordar: [
     [
-      pe(5, "Acuerdan (en plenaria) qué hará {producto}, para quién y cómo se evaluará, mientras el docente lo anota en un cartel."),
-      pe(5, "Forman (en grupos editores) un grupo por sección, y cada estudiante anota de cuál responde: lista de grupos; se guarda en la carpeta del producto."),
+      pe(5, "Conocen (en plenaria) la unidad: el docente explica qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa."),
+      pe(5, "Acuerdan (en plenaria) cómo se evaluará con la rúbrica y forman un grupo editor por sección: cartel del acuerdo y lista de grupos; se guardan en la carpeta del producto."),
       pe(7, "Escuchan (individual, dos veces, leídas por el docente) cinco oraciones ({frases}) y marcan en la hoja la imagen que corresponde.", "oraciones sencillas del tema"),
       pe(7, "Leen (en parejas) un texto breve sobre {tema} y responden qué dice, mientras el docente circula y observa."),
       pe(6, "Escriben (individual) dos oraciones sobre {tema} y responden en voz alta una pregunta a su pareja ({frases}): hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
     ],
     [
-      pe(6, "Conversan (en plenaria) con el docente sobre lo que hará {producto} y a quién le servirá, y acuerdan cómo se evaluará."),
-      pe(4, "Eligen (en grupos editores) la sección de cada grupo: lista de grupos en el cartel."),
+      pe(6, "Conversan (en plenaria) con el docente sobre qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa."),
+      pe(4, "Revisan (en plenaria) la rúbrica, acuerdan cómo se evaluará y eligen la sección de cada grupo editor: cartel del acuerdo y lista de grupos."),
       pe(6, "Escuchan (individual) al docente leer cinco oraciones ({frases}) y marcan la imagen de cada una.", "oraciones sencillas del tema"),
       pe(7, "Leen (en parejas) un texto breve sobre {tema} y subrayan lo que entienden, mientras el docente anota quién necesita apoyo."),
       pe(7, "Escriben (individual) dos oraciones y luego se hacen una pregunta en parejas ({frases}), y el docente escucha a varias: hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),

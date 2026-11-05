@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -6230,7 +6230,13 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         if (!d.minutosSecuencia?.length) desarrollo.actividades = conFirmas(desarrollo.actividades || [], d.tareasMapa, d.tareaIdsDesarrollo);
         const inicio = (d.momentos || []).find((m) => m?.nombre === "Inicio");
         // Se sustituye y no se quita: el Inicio tiene 5 posiciones fijas.
-        if (d.fijoDelMapa.primeraClase && /^retroalimentaci[oó]n/i.test(String(inicio?.actividades?.[1] || ""))) inicio.actividades[1] = INICIO_PRIMERA_CLASE;
+        if (d.fijoDelMapa.primeraClase && inicio) {
+          inicio.actividades = inicioPresentacion(inicio.actividades || [], {
+            producto: rutaPlanMaestro.plan?.producto,
+            tema: titulo,
+            secciones: rutaPlanMaestro.mapa?.secciones || [],
+          });
+        }
         sinGrabado(d.momentos);
         conTitulosCorregidos(d, { modeloFicticio: d.fijoDelMapa.modeloFicticio });
         sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosTiempo.push(`clase ${i + 1}: usa un equipo que el mapa no prevé (${m})`));

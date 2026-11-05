@@ -558,6 +558,21 @@ export const minutosConDiagnostico = (actividades = [], total = 0) => {
   return minutos;
 };
 
+/**
+ * Inicio de la clase 1: las mismas 5 posiciones de siempre, orientadas a presentar la
+ * unidad (César, 2026-11-05). La presentación continúa en el Desarrollo. Lo escribe el código.
+ */
+export const inicioPresentacion = (inicio = [], { producto = "", tema = "", secciones = [] } = {}) => {
+  const nombre = nombreCorto(producto) || "el producto";
+  return [
+    inicio[0],
+    INICIO_PRIMERA_CLASE,
+    `Recuperación de saberes previos: comentan qué saben de ${tema || "este tema"} y si han usado algo parecido a ${nombre}.`,
+    `Observan cómo será ${nombre}${secciones.length ? ` y sus secciones (${secciones.join(", ")})` : ""}, y dicen para qué creen que servirá.`,
+    "Escuchan la intención pedagógica y el propósito de la clase: conocer la unidad, acordar cómo trabajarán y cómo se evaluará, y hacer el diagnóstico.",
+  ];
+};
+
 /** La firma que promete la tarea la escribe el código, en la actividad de esa tarea. */
 export const conFirmas = (actividades, tareasMapa = [], tareaIds = []) => {
   const lista = [...actividades];
