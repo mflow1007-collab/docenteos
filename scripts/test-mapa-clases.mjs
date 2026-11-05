@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { sinEquipos, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { sinEquipos, sinGrabado, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
@@ -567,6 +567,16 @@ check("el diagnóstico ocupa dos tercios de la clase y los minutos suman el tota
   igual(minutosConDiagnostico(["Aplican el diagnóstico.", "Definen los grupos."], 35), [23, 12], "35 min");
   igual(minutosConDiagnostico(["Definen los grupos."], 30), null, "sin diagnóstico");
   igual(minutosConDiagnostico(["Aplican el diagnóstico."], 30), null, "solo diagnóstico");
+});
+check("el diagnóstico se reconoce por sus partes, aunque lleven organización", () => {
+  igual(minutosConDiagnostico(["Socializan (en plenaria) la importancia.", "Escuchan (en grupos) oraciones y marcan imágenes.", "Leen (en pares) un menú y escriben dos oraciones.", "Responden (en parejas) a una pregunta."], 30), [10, 8, 6, 6], "clase 1 real");
+});
+check("lo «grabado» pasa a observado y anotado, sin tocar la negación ni otras palabras", () => {
+  const m = [{ nombre: "Desarrollo", actividades: ["Ejecutan pedidos: interacción oral, grabada para revisión; lo guardan.", "Retroalimentación de las entrevistas grabadas.", "Hablan, sin grabado alguno.", "Usan un grabador."], actividadesDetalle: [{ texto: "Oral, grabada." }], evidencias: { desempeno: ["Diálogo grabado"] } }];
+  sinGrabado(m);
+  igual(m[0].actividadesDetalle[0].texto, "Oral, observada y anotada.", "detalle");
+  igual(m[0].actividades, ["Ejecutan pedidos: interacción oral, observada y anotada para revisión; lo guardan.", "Retroalimentación de las entrevistas observadas y anotadas.", "Hablan, sin grabado alguno.", "Usan un grabador."], "actividades");
+  igual(m[0].evidencias.desempeno, ["Diálogo observado y anotado"], "evidencias");
 });
 check("al reintentar una fase, la memoria vuelve a como estaba antes de la fase", () => {
   const fuente = readFileSync(new URL("../src/services/unidadAprendizajeService.js", import.meta.url), "utf8");

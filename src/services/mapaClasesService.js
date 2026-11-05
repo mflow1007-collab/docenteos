@@ -481,12 +481,27 @@ export const sinEquipos = (momentos = [], didacticosFila = "") => {
   return restantes;
 };
 
+const OBSERVADO = { grabada: "observada y anotada", grabado: "observado y anotado", grabadas: "observadas y anotadas", grabados: "observados y anotados" };
+const sinGrabadoEn = (t) => t.replace(/(?<![\p{L}])(?<!\b(?:sin|no) )(?<!\bsin ser )(grabad[oa]s?)(?![\p{L}])/giu, (g) => OBSERVADO[g.toLowerCase()]);
+
+/** Nadie graba (César, 2026-11-04): lo «grabado» que dejó la IA pasa a observado y anotado. */
+export const sinGrabado = (momentos = []) => {
+  momentos.forEach((m) => {
+    if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map((a) => (typeof a === "string" ? sinGrabadoEn(a) : a));
+    (m?.actividadesDetalle || []).forEach((d) => { if (typeof d?.texto === "string") d.texto = sinGrabadoEn(d.texto); });
+    Object.entries(m?.evidencias || {}).forEach(([k, l]) => {
+      if (Array.isArray(l)) m.evidencias[k] = l.map((e) => (typeof e === "string" ? sinGrabadoEn(e) : e));
+    });
+  });
+};
+
 // El diagnóstico tiene cuatro partes: ocupa dos tercios del tiempo (criterio de DocenteOS, sin medir).
-const DIAGNOSTICO = /diagnostic|\bescuchan oraciones\b/;
+// Se reconoce por sus partes (Anexo J), sin contar la organización entre paréntesis.
+const DIAGNOSTICO = /diagnostic|^(escuchan|leen|escriben|responden)\b/;
 
 /** Minutos de la clase que solo acuerda y diagnostica. Null si no se distingue el diagnóstico. */
 export const minutosConDiagnostico = (actividades = [], total = 0) => {
-  const esDiagnostico = actividades.map((a) => DIAGNOSTICO.test(normal(typeof a === "string" ? a : Object.values(a || {}).join(" "))));
+  const esDiagnostico = actividades.map((a) => DIAGNOSTICO.test(normal(typeof a === "string" ? a : Object.values(a || {}).join(" ")).replace(/\([^)]*\)/g, " ").trim()));
   const cuantos = esDiagnostico.filter(Boolean).length;
   const otras = actividades.length - cuantos;
   if (!cuantos || !otras) return null;
