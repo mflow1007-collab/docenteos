@@ -277,6 +277,15 @@ check("nadie graba ni usa celulares: el lote se rechaza", () => {
   try { validarLoteContrato(aplicarFilasMapa({ clases: [claseFalsa(c.mapaClases[0], { momentos: [{ nombre: "Desarrollo", actividades: ["Entrevistan (en grupos) y lo graban."] }] })] }, c, 1), c, 1, 1, { esIdioma: true }); } catch (e) { msg = e.message; }
   assert(/nadie graba/.test(msg), `mensaje: ${msg}`);
 });
+check("redacción con mapa: primero pide el reintento; después se entrega con aviso", () => {
+  const c = contratoDe(2);
+  const lote = () => aplicarFilasMapa({ clases: [claseFalsa(c.mapaClases[0], { momentos: [{ nombre: "Desarrollo", actividades: ["Entrevistan (en grupos) y lo graban."] }] })] }, c, 1);
+  let err = null;
+  try { validarLoteContrato(lote(), c, 1, 1, { esIdioma: true }); } catch (e) { err = e; }
+  assert(err?.esRedaccionMapa === true, `sin marca de redacción: ${err?.message}`);
+  const motivos = validarLoteContrato(lote(), c, 1, 1, { esIdioma: true, redaccionConAviso: true });
+  assert(motivos[0].some((m) => /nadie graba/.test(m)), `sin aviso: ${JSON.stringify(motivos)}`);
+});
 check("si la clase se aleja de su fila, avisa al administrador sin rechazar", () => {
   const fila = ref.filas[15]; // corregir + reunir las secciones
   const clase = (acts) => ({ momentos: [{ nombre: "Desarrollo", actividades: acts }] });

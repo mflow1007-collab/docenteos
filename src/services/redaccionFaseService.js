@@ -728,11 +728,17 @@ export const motivosFidelidad = (clase, fila) => {
  * La redacción 4.4 del Desarrollo y del Cierre es flexible (decisión de César,
  * 2026-11-03): no rechaza; devuelve sus motivos por clase (índice del lote)
  * para avisar al administrador.
+ * Con mapa de clases (César, 2026-11-04), un fallo de redacción se reintenta una vez
+ * (`esRedaccionMapa` en el error) y, con `opciones.redaccionConAviso`, se entrega con aviso.
  */
 export const validarLoteContrato = (data, contrato, count, startDia = 1, opciones = {}) => {
   const semilla = semillaPlana(contrato);
   const secciones = contrato.secciones;
   const motivos44 = [];
+  const fallaRedaccion = (idx, mensaje) => {
+    if (opciones.redaccionConAviso) { motivos44[idx]?.push(`clase ${idx + 1} — ${mensaje}`); return; }
+    throw Object.assign(new Error(`Contrato: clase ${idx + 1} — ${mensaje}`), { esRedaccionMapa: true });
+  };
   for (let idx = 0; idx < count; idx += 1) {
     const clase = data?.clases?.[idx];
     const etiqueta = `Contrato: clase ${idx + 1}`;
@@ -792,11 +798,11 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       const sinUsar = contenidosSinUsar(clase, filaMapa);
       if (sinUsar.length) motivos44[idx].push(`clase ${idx + 1} — no se ven estos contenidos del mapa: ${sinUsar.join(" · ")}`);
       const grabacion = grabacionProhibida(clase);
-      if (grabacion) throw new Error(`${etiqueta} — nadie graba con celulares de estudiantes: "${grabacion.slice(0, 90)}". Quita la grabación; lo oral se observa o se anota.`);
+      if (grabacion) fallaRedaccion(idx, `nadie graba con celulares de estudiantes: "${grabacion.slice(0, 90)}". Quita la grabación; lo oral se observa o se anota.`);
       const incumplida = obligacionIncumplida(clase, filaMapa);
-      if (incumplida) throw new Error(`${etiqueta} — ${incumplida}`);
+      if (incumplida) fallaRedaccion(idx, incumplida);
       const sinDatos = datosSinRecoger(clase, filaMapa);
-      if (sinDatos.length) throw new Error(`${etiqueta} — esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
+      if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
       motivosFidelidad(clase, filaMapa).forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
       if (!contrato.conContenido && ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
       revisarAmpliacionYFoco();
@@ -830,7 +836,9 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
     }
     if (contrato.audienciaReal
       && !clasesLote.some((c) => textosActividades(c).some((a) => actividadAnteAudiencia(a, contrato.audienciaReal)))) {
-      throw new Error(`Contrato: la fase de aplicación no ocurre ante su audiencia real (${contrato.audienciaReal}): una actividad del Desarrollo o del Cierre, que no sea simulada, presenta o entrega la pieza a esa audiencia ("Presentan (en equipos) … a un dueño invitado").`);
+      const mensaje = `la fase de aplicación no ocurre ante su audiencia real (${contrato.audienciaReal}): una actividad del Desarrollo o del Cierre, que no sea simulada, presenta o entrega la pieza a esa audiencia ("Presentan (en equipos) … a un dueño invitado").`;
+      if (contrato.mapaClases) fallaRedaccion(count - 1, mensaje);
+      else throw new Error(`Contrato: ${mensaje}`);
     }
     // La modalidad de la visita se avisa: lo que no cumple es Desarrollo flexible.
     const motivoVisita = motivoModalidadVisita(clasesLote, contrato.modalidadVisita);

@@ -1415,7 +1415,7 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
   // Etapa 5 — contrato de la fase (semilla 4.6, secciones 4.7, entrega). La
   // redacción 4.4 vuelve como avisos por clase.
   if (opts.contratoFase) {
-    validarLoteContrato(data, opts.contratoFase, count, opts.startDia || 1, { esIdioma: Boolean(opts.esIdioma) })
+    validarLoteContrato(data, opts.contratoFase, count, opts.startDia || 1, { esIdioma: Boolean(opts.esIdioma), redaccionConAviso: Boolean(opts.redaccionConAviso) })
       .forEach((motivos, idx) => data.clases[idx].avisosRedaccion.push(...motivos));
   }
 
@@ -1920,6 +1920,8 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   let lastRaw      = '';
   let lastTruncationError = null;
   let attemptsUsed = 0;
+  // Mapa de clases: tras un reintento, lo que falle de redacción se entrega con aviso.
+  let reintentoRedaccionUsado = false;
 
   // El primer lote de la unidad propone el nombre propio del producto final;
   // una vez fijado en la spec, todos los lotes siguientes lo reciben.
@@ -2074,6 +2076,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       ].filter(Boolean);
       validateBatch(result.data, durMin, count, focoGram, {
         memoria,
+        redaccionConAviso: reintentoRedaccionUsado,
         exigirNombreProducto: pedirNombreProducto,
         // Nombre del producto para subordinar aportes-fantasma (FASE 5 · Frente 1).
         // En lotes posteriores la IA ya no lo propone, viene fijado en spec.
@@ -2186,6 +2189,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
       }
       if (estructuralIncompleto || sinServicio) descartarProveedor(failedProvider);
       else anotarFallo(failedProvider);
+      if (err?.esRedaccionMapa) reintentoRedaccionUsado = true;
       // Etapa 5: el siguiente intento recibe el motivo del rechazo del validador.
       if (spec.contratoFase && !estructuralIncompleto && !sinServicio) {
         prefix = `UN INTENTO ANTERIOR DE ESTE LOTE FUE RECHAZADO POR EL VALIDADOR: «${msg.slice(0, 400)}». Corrige exactamente eso y respeta el contrato de la fase.\n\n`;
@@ -2342,7 +2346,8 @@ function esBatchCacheValido(data, durMin, count, focoGram, opts) {
   const contrato = opts?.contratoFase;
   const startDia = Number(data.clases[0]?.dia) || 1;
   const optsEf = contrato
-    ? { ...opts, startDia, diasApropiacion: new Set(contrato.esApertura ? Array.from({ length: count }, (_, i) => startDia + i) : []) }
+    // Con mapa, un lote guardado pudo aceptarse con aviso: no se descarta al leerlo.
+    ? { ...opts, startDia, redaccionConAviso: Boolean(contrato.mapaClases), diasApropiacion: new Set(contrato.esApertura ? Array.from({ length: count }, (_, i) => startDia + i) : []) }
     : opts;
   try {
     validateBatch(data, durMin, count, focoGram, optsEf);
