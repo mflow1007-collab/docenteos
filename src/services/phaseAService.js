@@ -1830,7 +1830,7 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
     return [
       `${cabeza} — Sección: ${f.secciones.join(' · ')}`,
       ...(f.secuencia
-        ? ['- El Desarrollo de esta clase YA ESTÁ ESCRITO por DocenteOS; no lo reescribas ni añadas pasos:', ...f.secuencia.map((x, k) => `   ${k + 1}. ${x.texto}`), '- Tú solo escribes lo que va en {frases}: 1 o 2 ejemplos en inglés de los contenidos listados, en cursiva con puntos suspensivos (_How much is…?_). Si un paso no tiene {frases}, va vacío.']
+        ? ['- El Desarrollo de esta clase YA ESTÁ ESCRITO por DocenteOS; no lo reescribas ni añadas pasos:', ...f.secuencia.map((x, k) => `   ${k + 1}. ${x.pista ? x.texto.replace('{frases}', `{frases: ${x.pista}}`) : x.texto}`), '- Tú solo escribes lo que va en {frases}: 1 o 2 ejemplos en inglés, en cursiva con puntos suspensivos, tomados de lo que indica cada hueco. Si indica expresiones de la malla, úsalas tal cual o con un ejemplo breve del tema. Si un paso no tiene {frases}, va vacío.']
         : ['- Tareas del Desarrollo, en este orden:', ...f.tareas.map((t, k) => `   · [T${k + 1}] ${t.paralelo ? `[${t.secciones[0]}] ` : ''}${t.nombre} (${t.minutos} min): ${t.instruccion}`)]),
       ...(f.tareas.some((t) => t.paralelo) ? ['- Trabajo por grupos a la vez: cada grupo hace solo las tareas de su sección.'] : []),
       `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,

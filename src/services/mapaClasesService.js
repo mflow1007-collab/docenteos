@@ -593,9 +593,11 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = ""
     const datos = enLista(fila.datosRecoge || []) || "lo que falta";
     // La audiencia se nombra completa una vez por clase; después, «la audiencia».
     let audienciaDicha = false;
+    const expresiones = fila.contenidos.map((c) => c.texto);
     fila.secuencia = pasos.map((x, i) => ({
       tarea: x.t,
       minutos: minutos[i],
+      pista: (x.usa && expresiones.filter((t) => x.usa.test(normal(t))).slice(0, 2).join(" · ")) || x.pista,
       texto: conContraccion(x.texto
         .replaceAll("{producto}", nombreCorto(producto))
         .replaceAll("{tema}", tema)

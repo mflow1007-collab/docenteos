@@ -659,6 +659,15 @@ check("títulos: concordancia con guía y modelo sin «simulada»", () => {
   igual(d.textoModelo.titulo, "Entrevista modelo con un Dueño", "modelo");
   igual(d.momentos[0].actividades[0], "Reúnen (en parejas) todo.", "voz");
 });
+check("frases por paso: el hueco toma las expresiones de la malla y, si no hay, una pista", () => {
+  const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]);
+  ponerSecuencias(m, { producto: "G", tema: "T", invitado: "el dueño invitado", semilla: "x" });
+  const c4 = m.filas[3].secuencia;
+  assert(c4.some((x) => /cortes|welcome|Pardon/i.test(x.pista)), JSON.stringify(c4.map((x) => x.pista)));
+  assert(c4.every((x) => !/\{frases\}/.test(x.texto) || x.pista), "hueco sin pista");
+  assert(m.filas[16].secuencia.some((x) => /plato/.test(x.pista)), "pedidos");
+  assert(/tomados de lo que indica cada hueco/.test(readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8")), "regla");
+});
 check("secuencias: la versión varía por unidad, y sin invitado la entrevista sigue con la IA", () => {
   const una = (semilla) => { const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]); ponerSecuencias(m, { producto: "G", tema: "T", semilla }); return m.filas[3].secuencia[0].texto; };
   assert(["a", "b", "c", "d", "e"].map(una).some((t, _, l) => t !== l[0]), "siempre la misma versión");

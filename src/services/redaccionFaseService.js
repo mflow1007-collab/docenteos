@@ -861,6 +861,13 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       if (incumplida) fallaRedaccion(idx, incumplida);
       const sinDatos = datosSinRecoger(clase, filaMapa);
       if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
+      // Estructura del día fuera de la malla: solo se avisa, y solo si se reconoce.
+      const estructuraDia = estructuraGramatical(clase?.focoLinguistico);
+      if (contrato.estructurasGrado?.length && estructuraDia && !contrato.estructurasGrado.includes(estructuraDia)) motivos44[idx].push(`clase ${idx + 1} — la estructura del día (${estructuraDia}) no está en la malla del grado`);
+      if (contrato.estructurasGrado?.length && !contrato.estructurasGrado.includes("comparativo")) {
+        const conThan = [clase?.focoLinguistico, ...(clase?.textoModelo?.lineas || []), ...textosActividades(clase).map(textoComoCadena)].find((t) => /\bthan\b/i.test(String(t || "")));
+        if (conThan) motivos44[idx].push(`clase ${idx + 1} — usa un comparativo fuera de la malla del grado: "${String(conThan).slice(0, 70)}"`);
+      }
       [...motivosFidelidad(clase, filaMapa), ...motivosTextoClase(clase), ...motivosTareaId(clase, filaMapa)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
       if (!contrato.conContenido && ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
       revisarAmpliacionYFoco();
