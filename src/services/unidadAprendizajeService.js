@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { armarMapaClases, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, sinEquipos, sinGrabado, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { armarMapaClases, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, minutosPorTarea, sinEquipos, sinGrabado, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -5262,6 +5262,7 @@ const _generarFasesConIA = async (
         const filaMapa = contratoFase.mapaClases?.[i];
         if (filaMapa) {
           dia.tareasMapa = filaMapa.tareas.map((t) => ({ clave: t.clave, minutos: t.minutos }));
+          dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
           // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
           // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
           const alcance = ALCANCE_POR_SEMILLA[contexto.planMaestro?.semillaId]?.conInvitado || null;
@@ -6213,7 +6214,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       if (d.fijoDelMapa && desarrollo) {
         desarrollo.evaluacion = { ...desarrollo.evaluacion, ...d.fijoDelMapa.evaluacion };
         desarrollo.recursos = { ...desarrollo.recursos, humanos: d.fijoDelMapa.humanos, didacticos: d.fijoDelMapa.didacticos, tecnologicos: "No requerido para esta actividad" };
-        desarrollo.actividades = conFirmas(desarrollo.actividades || [], d.tareasMapa);
+        desarrollo.actividades = conFirmas(desarrollo.actividades || [], d.tareasMapa, d.tareaIdsDesarrollo);
         const inicio = (d.momentos || []).find((m) => m?.nombre === "Inicio");
         // Se sustituye y no se quita: el Inicio tiene 5 posiciones fijas.
         if (d.fijoDelMapa.primeraClase && /^retroalimentaci[oó]n/i.test(String(inicio?.actividades?.[1] || ""))) inicio.actividades[1] = INICIO_PRIMERA_CLASE;
@@ -6225,8 +6226,11 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       const total = Number.parseInt(String(desarrollo.tiempo || ""), 10) || 0;
       // Con mapa y una actividad por tarea, los minutos son los de la fila.
       const soloAcuerdo = d.tareasMapa?.length === 1 && d.tareasMapa[0].clave === "acordar";
+      const tareaIds = d.tareaIdsDesarrollo?.length === desarrollo.actividades.length ? d.tareaIdsDesarrollo : [];
       const delMapa = (soloAcuerdo && minutosConDiagnostico(desarrollo.actividades, total))
+        || (d.tareasMapa?.length ? minutosPorTarea(d.tareasMapa, tareaIds) : null)
         || (d.tareasMapa?.length === desarrollo.actividades.length ? d.tareasMapa.map((t) => t.minutos) : null);
+      delete d.tareaIdsDesarrollo;
       if (delMapa) delMapa[delMapa.length - 1] += total - delMapa.reduce((s, m) => s + m, 0);
       const { minutos, necesarios } = delMapa
         ? { minutos: delMapa, necesarios: 0 }

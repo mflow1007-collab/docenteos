@@ -512,18 +512,38 @@ export const minutosConDiagnostico = (actividades = [], total = 0) => {
 };
 
 /** La firma que promete la tarea la escribe el código, en la actividad de esa tarea. */
-export const conFirmas = (actividades, tareasMapa = []) => {
+export const conFirmas = (actividades, tareasMapa = [], tareaIds = []) => {
   const lista = [...actividades];
   tareasMapa.forEach((t, i) => {
     const { firma, senal } = DETALLE_TAREA[t.clave] || {};
     if (!firma || !lista.length) return;
     const texto = (a) => normal(typeof a === "string" ? a : Object.values(a || {}).join(" "));
     const porSenal = lista.findIndex((a) => new RegExp(senal).test(texto(a)));
-    const donde = lista.length === tareasMapa.length ? i : (porSenal >= 0 ? porSenal : lista.length - 1);
+    // Con tareaId, la última actividad de esa tarea; sin él, como antes.
+    const porTarea = tareaIds.length === lista.length ? tareaIds.lastIndexOf(`T${i + 1}`) : -1;
+    const donde = porTarea >= 0 ? porTarea : (lista.length === tareasMapa.length ? i : (porSenal >= 0 ? porSenal : lista.length - 1));
     if (/\bfirm/.test(texto(lista[donde])) || typeof lista[donde] !== "string") return;
     lista[donde] = `${lista[donde].trim()} ${firma}`;
   });
   return lista;
+};
+
+/**
+ * Minutos de cada actividad según su tarea: los de la tarea, repartidos entre sus
+ * actividades. Null si algún código falta o no existe, o si una tarea no tiene actividad.
+ */
+export const minutosPorTarea = (tareasMapa = [], tareaIds = []) => {
+  if (!tareasMapa.length || !tareaIds.length) return null;
+  const indice = tareaIds.map((id) => Number(String(id).match(/^T(\d+)$/)?.[1]) - 1);
+  if (indice.some((k) => !tareasMapa[k])) return null;
+  if (tareasMapa.some((_, k) => !indice.includes(k))) return null;
+  const vistas = {};
+  return indice.map((k) => {
+    const total = indice.filter((x) => x === k).length;
+    const orden = (vistas[k] = (vistas[k] ?? -1) + 1);
+    const base = Math.floor(tareasMapa[k].minutos / total);
+    return base + (orden < tareasMapa[k].minutos - base * total ? 1 : 0);
+  });
 };
 
 /**

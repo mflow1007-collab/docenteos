@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { sinEquipos, sinGrabado, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
@@ -16,8 +16,8 @@ import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
-import { motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
-import { buildFasePrompt } from "../src/services/phaseAService.js";
+import { motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
+import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
 import { extraerCriteriosEvaluacionCanonicos } from "../src/services/curriculumBrainService.js";
 
@@ -567,6 +567,38 @@ check("el diagnóstico ocupa dos tercios de la clase y los minutos suman el tota
   igual(minutosConDiagnostico(["Aplican el diagnóstico.", "Definen los grupos."], 35), [23, 12], "35 min");
   igual(minutosConDiagnostico(["Definen los grupos."], 30), null, "sin diagnóstico");
   igual(minutosConDiagnostico(["Aplican el diagnóstico."], 30), null, "solo diagnóstico");
+});
+check("tareaId: los minutos de cada actividad son los de su tarea", () => {
+  const tareas = [{ clave: "a", minutos: 8 }, { clave: "b", minutos: 22 }];
+  igual(minutosPorTarea(tareas, ["T1", "T2", "T2"]), [8, 11, 11], "dos actividades en T2");
+  igual(minutosPorTarea([{ clave: "a", minutos: 31 }], ["T1", "T1"]), [16, 15], "el resto va al inicio");
+  igual(minutosPorTarea(tareas, ["T1", "T1"]), null, "tarea sin actividad");
+  igual(minutosPorTarea(tareas, ["T1", "T3"]), null, "código inventado");
+  igual(minutosPorTarea(tareas, ["T1", ""]), null, "código vacío");
+  igual(minutosPorTarea(tareas, []), null, "sin códigos");
+});
+check("tareaId: la firma va en la tarea que la promete; sin códigos, como antes", () => {
+  const con = conFirmas(["Analizan.", "Redactan.", "Revisan."], [{ clave: "describir_modelo" }, { clave: "describir_redactar" }], ["T1", "T2", "T2"]);
+  assert(!/firma/.test(con[1]) && /firma su pieza/.test(con[2]), JSON.stringify(con));
+  assert(/firma su pieza/.test(conFirmas(["Observan.", "Redactan su pieza."], [{ clave: "describir_redactar" }])[1]), "sin códigos");
+});
+check("tareaId: sale de la respuesta antes de unir la frase y no entra al texto", () => {
+  const data = { clases: [{ momentos: [{ nombre: "Desarrollo", actividades: [{ tareaId: "T1", accion: "Escriben (en parejas) el guion", producto: "un guion", destino: "lo guardan" }, { tareaId: "T1", accion: "Definen (en grupos) turnos", producto: "una lista", destino: "la pegan" }] }] }] };
+  normalizarVozBatch(data);
+  igual(data.clases[0].tareaIdsDesarrollo, ["T1", "T1"], "códigos");
+  assert(data.clases[0].momentos[0].actividades.every((a) => typeof a === "string" && !/T1/.test(a)), "se coló en el texto");
+});
+check("tareaId: lo que no encaja solo avisa", () => {
+  const fila = ref.filas[5];
+  const clase = (ids, n = ids.length) => ({ tareaIdsDesarrollo: ids, momentos: [{ nombre: "Desarrollo", actividades: Array(n).fill("x") }] });
+  igual(motivosTareaId(clase(["T1", "T2"]), fila), [], "cumple");
+  assert(/no trae/.test(motivosTareaId(clase([], 2), fila)[0]), "sin códigos");
+  assert(motivosTareaId(clase(["T1", "T9"]), fila).some((m) => /T9/.test(m)), "inventado");
+  assert(motivosTareaId(clase(["T1", "T2", "T2", "T2"]), fila).some((m) => /3 actividades/.test(m)), "relleno");
+});
+check("tareaId: el prompt nombra las tareas y pide el código", () => {
+  const fuente = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
+  assert(/\[T\$\{k \+ 1\}\]/.test(fuente) && /Cada actividad lleva en "tareaId" el código de su tarea/.test(fuente) && /\{"tareaId":"T1","accion":"…","producto":"…","destino":"…"\}/.test(fuente), "prompt");
 });
 check("el diagnóstico se reconoce por sus partes, aunque lleven organización", () => {
   igual(minutosConDiagnostico(["Socializan (en plenaria) la importancia.", "Escuchan (en grupos) oraciones y marcan imágenes.", "Leen (en pares) un menú y escriben dos oraciones.", "Responden (en parejas) a una pregunta."], 30), [10, 8, 6, 6], "clase 1 real");

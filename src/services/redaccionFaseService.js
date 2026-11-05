@@ -554,7 +554,9 @@ export const aplicarFilasMapa = (data, contrato, startDia = 1) => {
       const textos = [...(e.conocimientos || []), ...(e.desempeno || []), ...(e.producto || [])].slice(0, 3);
       const nuevas = { conocimientos: [], desempeno: [], producto: [] };
       textos.forEach((texto, k) => {
-        const tipo = fila.tareas[Math.min(k, fila.tareas.length - 1)].evidencia;
+        // Con tareaId, el tipo es el de la tarea de esa actividad; sin él, por posición.
+        const deActividad = fila.tareas[Number(String(clase.tareaIdsDesarrollo?.[k] || "").slice(1)) - 1];
+        const tipo = (deActividad || fila.tareas[Math.min(k, fila.tareas.length - 1)]).evidencia;
         nuevas[tipo === "conocimiento" ? "conocimientos" : tipo].push(texto);
       });
       desarrollo.evidencias = nuevas;
@@ -704,6 +706,24 @@ export const revisarUnidadConMapa = (dias = [], filas = []) => {
   return [...new Set(avisos)];
 };
 
+/** Correspondencia entre las actividades del Desarrollo y las tareas de la fila. Solo avisa. */
+export const motivosTareaId = (clase, fila) => {
+  if (!fila || fila.flexible || !fila.tareas?.length) return [];
+  const ids = Array.isArray(clase?.tareaIdsDesarrollo) ? clase.tareaIdsDesarrollo : [];
+  const actividades = (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || [];
+  if (!ids.length || ids.length !== actividades.length || ids.some((id) => !id)) return ["alguna actividad del Desarrollo no trae \"tareaId\""];
+  const validos = fila.tareas.map((_, k) => `T${k + 1}`);
+  const motivos = [];
+  const ajeno = ids.find((id) => !validos.includes(id));
+  if (ajeno) motivos.push(`usa un "tareaId" que no existe en la fila: ${ajeno}`);
+  const cuenta = (id) => ids.filter((x) => x === id).length;
+  validos.forEach((id, k) => {
+    if (!cuenta(id)) motivos.push(`la tarea «${fila.tareas[k].nombre}» no tiene actividad`);
+    if (cuenta(id) > 2) motivos.push(`la tarea «${fila.tareas[k].nombre}» tiene ${cuenta(id)} actividades y son 1 o 2`);
+  });
+  return motivos;
+};
+
 /** Texto de la clase que no debe llegar al docente: el administrador lo ve como aviso. */
 export const motivosTextoClase = (clase) => {
   const motivos = [];
@@ -821,7 +841,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       if (incumplida) fallaRedaccion(idx, incumplida);
       const sinDatos = datosSinRecoger(clase, filaMapa);
       if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
-      [...motivosFidelidad(clase, filaMapa), ...motivosTextoClase(clase)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
+      [...motivosFidelidad(clase, filaMapa), ...motivosTextoClase(clase), ...motivosTareaId(clase, filaMapa)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
       if (!contrato.conContenido && ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
       revisarAmpliacionYFoco();
     } else if (!contrato.conContenido) {

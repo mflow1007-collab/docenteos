@@ -679,6 +679,10 @@ export function normalizarVozBatch(data) {
     const seccion = Array.isArray(clase?.seccionesProducto) ? String(clase.seccionesProducto[0] || '') : '';
     for (const momento of (clase?.momentos || [])) {
       if (Array.isArray(momento.actividades)) {
+        // Mapa de clases: la frase pierde el campo, así que la tarea de cada actividad se guarda aparte.
+        if (momento.nombre === 'Desarrollo' && momento.actividades.some((a) => a?.tareaId)) {
+          clase.tareaIdsDesarrollo = momento.actividades.map((a) => String(a?.tareaId || '').trim());
+        }
         momento.actividades = momento.actividades
           .map((a) => componerActividad(a, seccion))
           .map(normalizarVozActividadMINERD);
@@ -1826,7 +1830,7 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
     return [
       `${cabeza} — Sección: ${f.secciones.join(' · ')}`,
       '- Tareas del Desarrollo, en este orden:',
-      ...f.tareas.map((t) => `   · ${t.paralelo ? `[${t.secciones[0]}] ` : ''}${t.nombre} (${t.minutos} min): ${t.instruccion}`),
+      ...f.tareas.map((t, k) => `   · [T${k + 1}] ${t.paralelo ? `[${t.secciones[0]}] ` : ''}${t.nombre} (${t.minutos} min): ${t.instruccion}`),
       ...(f.tareas.some((t) => t.paralelo) ? ['- Trabajo por grupos a la vez: cada grupo hace solo las tareas de su sección.'] : []),
       `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,
       `- Recibe: ${f.recibe.length ? f.recibe.map((r) => `${r.texto}${r.clase ? ` (clase ${r.clase})` : ''}`).join('; ') : 'la situación de aprendizaje'}`,
@@ -1850,7 +1854,8 @@ MAPA DE ESTAS CLASES. DocenteOS ya decidió cada clase; tú solo redactas.
 ${filasLote.map(filaTx).join('\n\n')}
 
 REGLAS DEL MAPA:
-1. Redacta cada tarea como 1 o 2 actividades del Desarrollo, en el orden dado y dentro de sus minutos; si la clase tiene una sola tarea, son 2 actividades. No añadas tareas ni repitas una tarea de otra clase.
+1. Redacta cada tarea como 1 o 2 actividades del Desarrollo, en el orden dado y dentro de sus minutos; si la clase tiene una sola tarea, son 2 actividades. Cada actividad lleva en "tareaId" el código de su tarea ("T1", "T2"…), sin inventar otros. No añadas tareas ni repitas una tarea de otra clase.
+   Ejemplo de actividad del Desarrollo: {"tareaId":"T1","accion":"…","producto":"…","destino":"…"}
 2. Parte de lo que la clase recibe. Todo dato del producto (precios, horarios, ingredientes, cantidades, calorías) sale de ahí; si falta, en el producto va «falta dato» y nunca lo inventes. "textoModelo" es un ejemplo ficticio: usa un comedor modelo con datos de ejemplo y nunca escribas «falta dato» en él. Todo precio, también en "ampliacion", va en pesos dominicanos (RD$), nunca en dólares.
 3. Cada contenido listado aparece escrito en una actividad o en "textoModelo", con un ejemplo en inglés. En "contenidosEnClase" copia, para cada uno, un fragmento SIN CAMBIOS ni puntos suspensivos de ese texto: [{"contenido":"<el de la lista, completo>","frase":"<fragmento literal>"}].
 4. Mantén la modalidad indicada en toda la clase. Si es un rol, dilo.
