@@ -5566,7 +5566,8 @@ export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas
     producto: r.plan.producto,
     tema: datos.titulo || "",
     audiencia: situacion.audiencia || "",
-    invitado: invitado ? `el ${invitado}` : "",
+    invitado: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.invitadoConArticulo || invitado || "",
+    entrega: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.entrega || "",
     semilla: [datos.titulo, datos.centro, datos.grado, datos.seccion].join("|"),
   });
   return { ...r, mapa, avisos: mapa.avisos, modalidad: mapa.filas.find((f) => f.modalidad)?.modalidad || "" };

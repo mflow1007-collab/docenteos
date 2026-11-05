@@ -12,6 +12,7 @@
  */
 
 import { hojaDeRuta } from './mapaClasesService.js';
+import { INVENTARIO_POR_SECCION } from '../data/tareasPorTipoTrabajo.js';
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
 import { db }                                   from '../firebase.js';
@@ -1836,6 +1837,7 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
       `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,
       `- Recibe: ${f.recibe.length ? f.recibe.map((r) => `${r.texto}${r.clase ? ` (clase ${r.clase})` : ''}`).join('; ') : 'la situación de aprendizaje'}`,
       `- Entrega: ${f.entregas.join('; ')}`,
+      ...(f.secciones.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes('lugares')) ? ['- Los lugares del centro salen de la tabla común de lugares. No inventes lugares (cafeteria, gym, art room, second floor…): en "textoModelo" usa los genéricos (the office, the classroom) o los de esa tabla.'] : []),
       ...(f.datosRecoge?.length ? [`- Datos que esta clase DEBE preguntar y dejar anotados, porque las piezas siguientes los necesitan: ${f.datosRecoge.join(', ')}. Nómbralos en una actividad o en el texto modelo.`] : []),
       `- Indicador que demuestra: ${f.indicadores.slice(0, 3).map((id) => `[${id}] ${textoInd(id)}`).join(' | ')}${f.indicadorRetomado ? ' (se retoma)' : ''}`,
       `- Evidencia: ${f.tareas.map((t) => `${EVIDENCIA_TX[t.evidencia]}, ${t.condicion}${t.individual ? ', individual' : ''}${t.sumativa ? ', sumativa' : ''}`).join('; ')}`,

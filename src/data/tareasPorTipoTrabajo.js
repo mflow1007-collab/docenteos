@@ -70,6 +70,12 @@ export const TAREAS_POR_TIPO = {
   ],
 };
 
+// Cómo se usa cada producto con su audiencia. Lo que no aparece usa la prueba general.
+export const PRUEBA_POR_SECCION = {
+  "Ordering Food": { tipo: "pedido", hace: "Hacen pedidos reales con el menú a la audiencia y luego recogen sus comentarios en tarjetas." },
+  "School Directions": { tipo: "guia", hace: "En parejas guían a la audiencia usando la guía, de un lugar a otro, y luego recogen sus comentarios en tarjetas." },
+};
+
 // Reunidas: comentar por estaciones y corregir abarcan varias secciones a la vez.
 export const SECCIONES_POR_COMENTAR = 3;
 export const SECCIONES_POR_CORREGIR = 3;
@@ -78,17 +84,20 @@ export const TAREA_CORREGIR = tarea("corregir", "corregir, probar y verificar da
 
 // Una vez en la unidad, en este orden.
 export const TAREAS_UNIDAD = {
+  // Sin ficha del centro, los lugares salen de aquí (César, 2026-11-05).
+  recorrerLugares: tarea("recorrer_lugares", "recorrer el centro y anotar sus lugares", [10, 15], "C", "conocimiento", "oral y escrita", "grupos", "Tabla común de lugares", "recoger", "conocimiento", "C", "Tabla común en cartulina, cuaderno", { hace: "Recorren el centro en grupos y anotan en la tabla común cada lugar que existe de verdad: nombre, para qué sirve y quién lo atiende. Esa tabla es la fuente de la guía." }),
   acordar: tarea("acordar", "acordar el plan y hacer el diagnóstico", [30, 30], "C", "conocimiento", "oral y escrita", "plenaria y grupos", "Acuerdo y plan; grupos editores; diagnóstico", "recoger", "apertura", "C", "Pieza modelo, hoja de diagnóstico, cartel"),
   glosario: tarea("glosario", "glosario", [15, 15], "P", "producto", "escrita", "grupos", "Glosario de la guía", "aplicar", "aplicacion", "M", "Piezas de las secciones", { ampliacion: true }),
   integrar: tarea("integrar", "reunir las secciones y revisar el conjunto", [9, 18], "P", "producto", "escrita", "grupos editores", "Producto completo", "aplicar", "aplicacion", "M", "Todas las secciones"),
   presentar: tarea("presentar", "presentar a la audiencia", [15, 30], ["P", "I"], "desempeno", "oral", "grupos editores ante la audiencia", "Presentación y comentarios de la audiencia", "aplicar", "socializacion", "M", "Producto completo, tarjetas de comentarios", { llegaAudiencia: true, sumativa: true }),
   // Cuando el producto se prueba con la audiencia (p. ej. pedidos con un menú), presentar y
   // probar son dos tareas con sus minutos: pedirlo dentro de una sola no siempre se cumplía.
-  presentarSecciones: tarea("presentar", "presentar a la audiencia", [8, 15], "P", "desempeno", "oral", "grupos editores ante la audiencia", "Presentación a la audiencia", "aplicar", "socializacion", "M", "Producto completo", { llegaAudiencia: true, sumativa: true, hace: "Presentan TODAS las secciones del producto a la audiencia, nombrándola. Aquí no se corrige y no hay comentarios previos." }),
-  probarConAudiencia: tarea("probar_audiencia", "probar el producto con la audiencia", [7, 15], "I", "desempeno", "oral", "parejas o grupos con la audiencia", "Prueba con la audiencia y comentarios en tarjetas", "aplicar", "socializacion", "M", "Producto completo, tarjetas de comentarios", { sumativa: true }),
+  presentarSecciones: tarea("presentar", "presentar a la audiencia", [8, 15], "P", "desempeno", "oral", "grupos editores ante la audiencia", "Presentación a la audiencia", "aplicar", "socializacion", "M", "Producto completo", { claseAparte: true, llegaAudiencia: true, sumativa: true, hace: "Presentan TODAS las secciones del producto a la audiencia, nombrándola. Aquí no se corrige y no hay comentarios previos." }),
+  probarConAudiencia: tarea("probar_audiencia", "probar el producto con la audiencia", [7, 15], "I", "desempeno", "oral", "parejas o grupos con la audiencia", "Prueba con la audiencia y comentarios en tarjetas", "aplicar", "socializacion", "M", "Producto completo, tarjetas de comentarios", { claseAparte: true, sumativa: true }),
   audienciaSecundaria: tarea("audiencia_secundaria", "audiencia secundaria", [15, 15], "I", "desempeno", "oral", "parejas", "Comentarios de la audiencia secundaria", "aplicar", "socializacion", "M", "Producto completo", { ampliacion: true }),
   evaluarProceso: tarea("evaluar_proceso", "autoevaluación, coevaluación y reflexión individual", [8, 15], null, "desempeno", "escrita", "parejas e individual", "Autoevaluación, coevaluación y reflexión individual", "evaluar", "evaluacion", "M", "Fichas de autoevaluación y coevaluación", { individual: true }),
-  evaluarComentarios: tarea("evaluar_comentarios", "comprender los comentarios y corregir", [9, 15], "C", "conocimiento", "escrita", "individual y grupos editores", "Respuestas firmadas y versión revisada", "evaluar", "evaluacion", "M", "Tarjetas de comentarios, producto", { individual: true, sumativa: true }),
+  evaluarComentarios: tarea("evaluar_comentarios", "comprender los comentarios", [5, 9], "C", "conocimiento", "escrita", "individual", "Respuestas firmadas", "evaluar", "evaluacion", "M", "Tarjetas de comentarios", { individual: true, sumativa: true }),
+  corregirFinal: tarea("corregir_final", "corregir el producto", [4, 6], null, "producto", "escrita", "grupos editores", "Versión revisada del producto", "evaluar", "evaluacion", "M", "Tarjetas de comentarios, producto"),
 };
 
 // Sección cuyo tipo aprobado aún no está en la semilla: cambiarla en la semilla
@@ -131,7 +140,8 @@ export const DETALLE_TAREA = {
   presentar: { califica: "la presentación", hace: "Presentan TODAS las secciones del producto a la audiencia y lo ponen a prueba con ella (si es un menú y una guía para pedir, hacen pedidos reales con el menú). Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos.", senal: "present" },
   probar_audiencia: { califica: "la prueba con la audiencia", hace: "Ponen a prueba el producto con la audiencia: si es un menú y una guía para pedir, hacen pedidos reales con el menú. Luego recogen sus comentarios en tarjetas.", senal: "pedid|pedir|orden|order|prueb" },
   audiencia_secundaria: { hace: "Prueban el producto con la audiencia secundaria y recogen sus comentarios.", senal: "present|prueb|muestr" },
-  evaluar_comentarios: { califica: "las respuestas individuales", formativo: ["la corrección"], hace: "Leen los comentarios de la audiencia, responden por escrito qué piden cambiar y corrigen el producto completo, que queda listo para entregar a la audiencia. Las respuestas son la evidencia de comprensión.", senal: "comentari", firma: "Cada estudiante firma sus respuestas." },
+  evaluar_comentarios: { califica: "las respuestas individuales", hace: "Leen los comentarios de la audiencia y cada estudiante responde por escrito qué piden cambiar y por qué. Las respuestas son la evidencia de comprensión.", senal: "comentari", firma: "Cada estudiante firma sus respuestas." },
+  corregir_final: { formativo: ["la corrección"], hace: "Corrigen el producto completo con lo que pidió la audiencia. Queda listo para entregar; no se vuelve a presentar.", senal: "corrig" },
   evaluar_proceso: { formativo: ["la autoevaluación", "la coevaluación", "la reflexión"], hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
 };
 
@@ -147,7 +157,7 @@ export const INVENTARIO_POR_SECCION = {
   "Ordering Food": { evidencia: "Guía para pedir", necesita: ["platos", "precios"], pruebaConAudiencia: "pedid|pedir|orden|order|can i have|i ll have|i'll have" },
   // Escuela y educación
   "Important Places": { evidencia: "Fichas de lugares", recoge: ["lugares", "función del lugar", "personas"] },
-  "School Directions": { evidencia: "Plano con rutas e indicaciones", necesita: ["lugares"], recoge: ["rutas"] },
+  "School Directions": { evidencia: "Plano con rutas e indicaciones", necesita: ["lugares"], recoge: ["rutas"], pruebaConAudiencia: "gui|acompa|indic|camino" },
   "Asking for Help": { evidencia: "Tarjeta de bolsillo", necesita: ["lugares", "personas"] },
   "School Success Tips": { evidencia: "Póster «Top tips»", necesita: ["lugares"] },
   "Welcome": { evidencia: "Carta de bienvenida", necesita: ["lugares"] },
@@ -198,6 +208,21 @@ export const USO_DE_CONTENIDOS = [
 
 // Alcance de la semilla cuando la fuente es un solo dueño invitado (ficha de la unidad).
 export const ALCANCE_POR_SEMILLA = {
+  // Decisión de César (2026-11-05): 6.º de primaria, real; visitante solo en rol y declarado.
+  "ing2-escuela-guia": {
+    conInvitado: {
+      productoDescripcion: "una guía bilingüe de la escuela para los estudiantes de 6.º de primaria que llegarán el próximo año",
+      audiencia: "los estudiantes de 6.º de primaria y un docente que hace de visitante",
+      audienciaDetalle: {
+        principal: "los estudiantes de 6.º de primaria",
+        secundarias: [{ quien: "un docente que hace de visitante", funcion: "consulta la guía para orientarse" }],
+      },
+      invitado: "estudiantes de 6.º de primaria",
+      visitante: "otro docente que hace de visitante",
+      entrega: ", con una copia a la dirección",
+      sinModalidad: true,
+    },
+  },
   "ing2-alimentacion-menu": {
     conInvitado: {
       productoDescripcion: "el menú bilingüe y las recomendaciones del comedor participante",
@@ -212,6 +237,7 @@ export const ALCANCE_POR_SEMILLA = {
         "Bilingual Menus": "el menú bilingüe del comedor participante (plato, descripción, precio)",
       },
       invitado: "dueño invitado",
+      invitadoConArticulo: "el dueño invitado",
       visitante: "otro docente que hace de visitante",
     },
   },

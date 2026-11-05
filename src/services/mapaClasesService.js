@@ -14,12 +14,12 @@
  */
 
 import { construirPlanMaestro } from "./planMaestroService.js";
-import { SECUENCIAS_POR_TAREAS } from "../data/secuenciasTareas.js";
+import { SECUENCIAS_POR_TAREA } from "../data/secuenciasTareas.js";
 import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
-  INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS,
+  INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION,
 } from "../data/tareasPorTipoTrabajo.js";
 
 export const CLASES_MINIMAS = 3;
@@ -97,15 +97,15 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe }) => {
   push(u.acordar, [...orden], 0, 0, 0);
   push(u.glosario, [...orden], 3, 0, 0);
   push(u.integrar, [...orden], 3, 1, 0);
-  if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.pruebaConAudiencia)) {
-    push(u.presentarSecciones, [...orden], 3, 2, 0);
-    push(u.probarConAudiencia, [...orden], 3, 2, 1);
-  } else {
-    push(u.presentar, [...orden], 3, 2, 0);
-  }
+  if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) push(u.recorrerLugares, [...orden], 0, 1, 0);
+  // Presentar y usar el producto con la audiencia son siempre dos tareas: la de usarlo cubre interactuar.
+  const prueba = orden.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean);
+  push(u.presentarSecciones, [...orden], 3, 2, 0);
+  push({ ...u.probarConAudiencia, tipoPrueba: prueba?.tipo || "general", hace: prueba?.hace || "Usan el producto con la audiencia para lo que fue hecho y luego recogen sus comentarios en tarjetas." }, [...orden], 3, 2, 1);
   push(u.audienciaSecundaria, [...orden], 3, 3, 0);
   push(u.evaluarComentarios, [...orden], 3, 4, 0);
-  push(u.evaluarProceso, [...orden], 3, 5, 0);
+  push(u.corregirFinal, [...orden], 3, 5, 0);
+  push(u.evaluarProceso, [...orden], 3, 6, 0);
 
   // Fase de cada tarea, contando por papel para repartir entre fases iguales.
   const porRol = {};
@@ -122,7 +122,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe }) => {
   const comentarios = items.find((it) => it.t.clave === "evaluar_comentarios");
   comentarios.fase = Math.max(comentarios.fase, presentar.fase);
   // La autoevaluación va después de la sumativa, aunque comparta clase (César, 2026-11-04).
-  items.filter((it) => it.t.clave === "evaluar_proceso").forEach((it) => { it.fase = Math.max(it.fase, comentarios.fase); });
+  items.filter((it) => ["corregir_final", "evaluar_proceso"].includes(it.t.clave)).forEach((it) => { it.fase = Math.max(it.fase, comentarios.fase); });
   return items.sort((a, b) => a.fase - b.fase || a.bloque - b.bloque || a.orden1 - b.orden1 || a.orden2 - b.orden2);
 };
 
@@ -136,7 +136,9 @@ const empacar = (lista, capacidad, cruzar) => {
   lista.forEach((it) => {
     const actual = clases[clases.length - 1];
     const usado = actual ? actual.reduce((s, x) => s + x.minutos, 0) : 0;
-    if (actual && usado + it.minutos <= capacidad && (cruzar || actual[actual.length - 1].fase === it.fase)) actual.push(it);
+    // Presentar y usar el producto ocupan su propia clase: la sumativa no se mezcla con otras tareas.
+    const aparte = actual && Boolean(actual[actual.length - 1].t.claseAparte) !== Boolean(it.t.claseAparte);
+    if (actual && !aparte && usado + it.minutos <= capacidad && (cruzar || actual[actual.length - 1].fase === it.fase)) actual.push(it);
     else clases.push([it]);
   });
   return clases;
@@ -205,7 +207,7 @@ const repartoBreve = (items, total, capacidad) => {
     { tareas: bloqueDe("M"), peso: pesoBloque(bloqueDe("M")), paralelo: true },
     { tareas: unidad("integrar"), peso: 9 },
     { tareas: [...unidad("presentar"), ...unidad("probar_audiencia")], peso: 15 },
-    { tareas: [...unidad("evaluar_comentarios"), ...unidad("evaluar_proceso")], peso: 17 },
+    { tareas: [...unidad("evaluar_comentarios"), ...unidad("corregir_final"), ...unidad("evaluar_proceso")], peso: 17 },
   ];
   const pesoTotal = bloques.reduce((s, b) => s + b.peso, 0);
   for (let e = (total * capacidad) / pesoTotal; e > 0.1; e -= 0.02) {
@@ -391,7 +393,7 @@ const encadenar = (filas, partenDe) => {
       t.recibe = recibe.filter((r, i, l) => l.findIndex((x) => x.texto === r.texto && x.clase === r.clase) === i);
       const entrega = { texto: t.secciones.length === 1 ? `${t.entrega}: ${t.secciones[0]}` : t.entrega, clase: fila.clase };
       if (t.clave === "acordar") acuerdo = entrega;
-      else if (["integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso", "glosario"].includes(t.clave)) producto = entrega;
+      else if (["integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso", "glosario"].includes(t.clave)) producto = entrega;
       else t.secciones.forEach((s) => { ultima[s] = entrega; });
     });
     fila.recibe = fila.tareas.flatMap((t) => t.recibe).filter((r) => r.clase !== fila.clase)
@@ -457,11 +459,11 @@ export const evaluacionDeFila = (fila) => {
 /** Recursos humanos de una clase: el invitado cuenta si la tarea lo requiere. */
 export const humanosDeFila = (fila, alcance = null) => {
   const claves = fila.tareas.map((t) => t.clave);
-  const invitado = alcance?.invitado || "la persona invitada";
-  if (claves.includes("presentar")) {
-    return `Docente, estudiantes, ${invitado}${alcance?.visitante ? ` y ${alcance.visitante}` : ""}`;
+  if (claves.includes("presentar") || claves.includes("probar_audiencia")) {
+    if (!alcance?.invitado) return "Docente, estudiantes y la audiencia";
+    return `Docente, estudiantes, ${alcance.invitado}${alcance.visitante ? ` y ${alcance.visitante}` : ""}`;
   }
-  if (claves.includes("visitar_entrevistar") && fila.modalidad === "invitado") return `Docente, estudiantes y ${invitado}`;
+  if (claves.includes("visitar_entrevistar") && fila.modalidad === "invitado") return `Docente, estudiantes y ${alcance?.invitado || "la persona entrevistada"}`;
   return "Docente y estudiantes";
 };
 
@@ -491,6 +493,10 @@ export const sinEquipos = (momentos = [], didacticosFila = "") => {
     const lista = String(m.recursos?.didacticos || "").split(",").map((r) => r.trim()).filter(Boolean);
     const limpios = lista.filter((r) => !EQUIPO.test(normal(r)));
     m.recursos = { ...m.recursos, didacticos: limpios.join(", ") || didacticosFila, tecnologicos: "No requerido para esta actividad" };
+    // El video también se nombra en las evidencias y en las preguntas del momento.
+    const sinVideo = (t) => (typeof t === "string" ? t.replace(/\bin the video\b/gi, "in the example").replace(/\b(el|un) video\b/gi, "el ejemplo") : t);
+    if (Array.isArray(m.metacognicion)) m.metacognicion = m.metacognicion.map(sinVideo);
+    Object.entries(m.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map(sinVideo); });
     (m.actividades || []).forEach((a, i) => {
       if (typeof a !== "string" || !EQUIPO.test(normal(a))) return;
       if (m.nombre === "Inicio" && i === 3) m.actividades[i] = ENGANCHE_SIN_EQUIPOS;
@@ -579,21 +585,25 @@ const minutosDePasos = (pasos, tareas) => {
 };
 
 /**
- * Pone en cada fila su secuencia del banco, si la tiene: los pasos ya vienen con los datos
- * de la unidad y un solo hueco para la IA ({frases}). La versión varía por unidad y clase,
- * nunca en una entrevista que no sea con invitado. Sin secuencia, la clase sigue con la IA.
+ * Pone en cada fila su secuencia del banco, si todas sus tareas la tienen: una tarea sola
+ * da todos sus pasos; varias, los esenciales de cada una. La versión varía por unidad y
+ * clase. Sin secuencia, o si la entrevista no es con invitado, la clase sigue con la IA.
  */
-export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = "", invitado = "", semilla = "" } = {}) => {
+export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = "", invitado = "", entrega = "", semilla = "" } = {}) => {
+  const claveBanco = (t) => (t.clave === "probar_audiencia" ? `probar_audiencia:${t.tipoPrueba || "general"}` : t.clave);
   mapa.filas.forEach((fila) => {
-    const versiones = SECUENCIAS_POR_TAREAS[fila.tareas.map((t) => t.clave).join("+")];
-    if (!versiones || fila.tareas.some((t) => t.paralelo)) return;
+    if (!fila.tareas.length || fila.tareas.some((t) => t.paralelo || !SECUENCIAS_POR_TAREA[claveBanco(t)])) return;
     if (fila.tareas.some((t) => t.clave === "visitar_entrevistar") && fila.modalidad !== "invitado") return;
-    const pasos = versiones[(semillaVersion(semilla) + fila.clase) % versiones.length];
+    const pasos = fila.tareas.flatMap((t, k) => {
+      const versiones = SECUENCIAS_POR_TAREA[claveBanco(t)];
+      const version = versiones[(semillaVersion(semilla) + fila.clase) % versiones.length];
+      return (fila.tareas.length > 1 ? version.filter((x) => x.e) : version).map((x) => ({ ...x, t: k }));
+    });
     const minutos = minutosDePasos(pasos, fila.tareas);
     const datos = enLista(fila.datosRecoge || []) || "lo que falta";
+    const expresiones = fila.contenidos.map((c) => c.texto);
     // La audiencia se nombra completa una vez por clase; después, «la audiencia».
     let audienciaDicha = false;
-    const expresiones = fila.contenidos.map((c) => c.texto);
     fila.secuencia = pasos.map((x, i) => ({
       tarea: x.t,
       minutos: minutos[i],
@@ -606,7 +616,8 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = ""
           audienciaDicha = true;
           return audiencia;
         })
-        .replaceAll("{invitado}", invitado || "la persona invitada")
+        .replaceAll("{invitado}", invitado || "la persona entrevistada")
+        .replaceAll("{entrega}", entrega)
         .replaceAll("{datos}", datos)),
     }));
   });
@@ -648,7 +659,13 @@ export const minutosPorTarea = (tareasMapa = [], tareaIds = []) => {
 export const conFichaDeUnidad = (datos) => {
   const pm = datos.planMaestro || {};
   const s = pm.situacion;
-  if (!s || pm.estrategia !== "insercion_entorno") return datos;
+  if (!s) return datos;
+  const alcancePropio = ALCANCE_POR_SEMILLA[s.semillaId]?.conInvitado;
+  if (pm.estrategia !== "insercion_entorno") {
+    // Otras estrategias no tienen visita, pero la audiencia sigue siendo la decidida.
+    if (!alcancePropio?.sinModalidad || s.audienciaDetalle?.de !== s.audiencia) return datos;
+    return { ...datos, planMaestro: { ...pm, situacion: { ...s, productoDescripcion: alcancePropio.productoDescripcion, audiencia: alcancePropio.audiencia, audienciaDetalle: { ...alcancePropio.audienciaDetalle, de: alcancePropio.audiencia } } } };
+  }
   // Mismos valores por defecto que el generador: el formulario puede no enviarlos.
   const total = Number(datos.numSemanas || 4) * (datos.diasClase?.length || 3) * Number(datos.horasPorDia || 1);
   const modalidad = total <= CLASES_MINIMAS ? "simulada" : (pm.modalidadVisita || MODALIDAD_VISITA_POR_DEFECTO);
@@ -690,7 +707,7 @@ const nombreCorto = (producto) => String(producto || "").split(/\s+[—–]\s+/)
 /** Anexo I desde el mapa: cada sección con su propio proceso, estados y evidencia. */
 export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, propositos = {} } = {}) => {
   const filas = mapa.filas.filter((f) => !f.flexible);
-  const COMPARTIDAS = ["acordar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
+  const COMPARTIDAS = ["acordar", "recorrer_lugares", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
   return [
     { seccion: "Título", incluye: `Mi nombre y el título del producto (${nombreCorto(producto)}).`, fases: "" },
     ...mapa.secciones.map((seccion) => {
@@ -783,7 +800,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   const faseInfo = (i) => ({ numero: plan.fases[i].numero, nombre: plan.fases[i].nombre });
   const filas = clases.map((tareas, c) => {
     const lista = tareas.map(({ t, secciones, minutos, fase, paralelo }) => ({
-      clave: t.clave, nombre: t.nombre, secciones: [...secciones], minutos, fase, paralelo: Boolean(paralelo),
+      clave: t.clave, tipoPrueba: t.tipoPrueba || "", nombre: t.nombre, secciones: [...secciones], minutos, fase, paralelo: Boolean(paralelo),
       demuestra: t.demuestra, evidencia: t.evidencia, condicion: t.condicion, organizacion: t.organizacion,
       entrega: t.entrega, individual: Boolean(t.individual), sumativa: Boolean(t.sumativa), cierraSeccion: Boolean(t.cierraSeccion),
       llegaAudiencia: Boolean(t.llegaAudiencia), ampliacion: Boolean(t.ampliacion), recursos: t.recursos,
@@ -805,6 +822,17 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
       modalidad: lista.find((t) => t.modalidad)?.modalidad || null,
     };
   });
+
+  // Una clase que cruza fases cuenta en la de su tarea más larga: si se unieran, 4 semanas
+  // dejarían una sola fase con la mitad de la unidad (revisión de Escuela, 2026-11-05).
+  if (modo === "ajustado_entre_fases") {
+    let previa = 0;
+    filas.forEach((f) => {
+      const larga = f.tareas.reduce((a, b) => (b.minutos > a.minutos ? b : a), f.tareas[0]);
+      previa = Math.max(previa, larga.fase);
+      f.fases = [faseInfo(previa)];
+    });
+  }
 
   // Versión breve: los grupos avanzan a la vez, así que las fases se reparten en
   // orden y por igual entre las clases (fases contiguas comparten clase).

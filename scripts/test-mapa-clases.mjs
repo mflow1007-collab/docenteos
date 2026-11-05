@@ -18,7 +18,7 @@ import { didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa a
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
-import { SECUENCIAS_POR_TAREAS } from "../src/data/secuenciasTareas.js";
+import { SECUENCIAS_POR_TAREA } from "../src/data/secuenciasTareas.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
 import { extraerCriteriosEvaluacionCanonicos } from "../src/services/curriculumBrainService.js";
@@ -67,7 +67,7 @@ const REFERENCIA = [
   [8, [O], ["aplicar_ensayar", "aplicar_anotar"], ["ING-2-I03"]],
   [8, TODAS, ["aplicar_corregir", "integrar"], ["ING-2-I02"]],
   [8, TODAS, ["presentar", "probar_audiencia"], ["ING-2-I02", "ING-2-I03"]],
-  [9, TODAS, ["evaluar_comentarios", "evaluar_proceso"], ["ING-2-I01"]],
+  [9, TODAS, ["evaluar_comentarios", "corregir_final", "evaluar_proceso"], ["ING-2-I01"]],
 ];
 check("Alimentación a 6 semanas: 18 clases y modo normal, sin ampliaciones ni clases flexibles", () => {
   igual(ref.filas.length, 18, "filas");
@@ -327,7 +327,7 @@ check("lo que rompe la cadena rechaza el lote: diagnóstico, pedidos, comentario
   const clase = (...acts) => ({ momentos: [{ nombre: "Desarrollo", actividades: acts }] });
   assert(/diagnóstico/.test(obligacionIncumplida(clase("Acuerdan (en plenaria) el plan."), ref.filas[0])), "clase 1 sin diagnóstico");
   igual(obligacionIncumplida(clase("Escuchan (en parejas) oraciones y marcan imágenes.", "Escriben (individual) dos oraciones."), ref.filas[0]), "", "clase 1 con diagnóstico");
-  assert(/pedidos/.test(obligacionIncumplida(clase("Presentan (en equipos) todas las secciones."), ref.filas[16])), "clase 17 sin pedidos");
+  assert(/no usa el producto/.test(obligacionIncumplida(clase("Presentan (en equipos) todas las secciones."), ref.filas[16])), "clase 17 sin pedidos");
   igual(obligacionIncumplida(clase("Presentan (en equipos) todas las secciones.", "Hacen pedidos reales con el menú (_Can I have…?_)."), ref.filas[16]), "", "clase 17 con pedidos");
   assert(/comentarios/.test(obligacionIncumplida(clase("Corrigen (en grupos) según los comentarios."), ref.filas[17])), "clase 18 sin leer");
   igual(obligacionIncumplida(clase("Leen (individual) los comentarios y responden qué piden cambiar."), ref.filas[17]), "", "clase 18 con lectura");
@@ -599,7 +599,7 @@ check("tareaId: lo que no encaja solo avisa", () => {
   assert(motivosTareaId(clase(["T1", "T9"]), fila).some((m) => /T9/.test(m)), "inventado");
   igual(motivosTareaId(clase(["T1", "T1", "T2", "T2", "T2"]), fila), [], "varios pasos por tarea no es relleno");
 });
-check("la prueba con la audiencia es tarea propia solo si el producto la pide", () => {
+check("presentar y usar el producto son dos tareas, y su clase no mezcla otras", () => {
   const f17 = ref.filas[16];
   igual(f17.tareas.map((t) => [t.clave, t.minutos, t.sumativa]), [["presentar", 15, true], ["probar_audiencia", 15, true]], "Alimentación");
   igual(f17.tareas[0].indicadores, ["ING-2-I02"], "presentar demuestra producir");
@@ -607,8 +607,13 @@ check("la prueba con la audiencia es tarea propia solo si el producto la pide", 
   assert(/pedidos reales/.test(f17.tareas[1].instruccion) && !/pedidos/.test(f17.tareas[0].instruccion), "cada una con lo suyo");
   igual(evaluacionDeFila(f17).tipo, "Sumativa", "tipo");
   igual(fallosQueDetienen(ref), [], "V6");
-  const escuela = mapaDe("Escuela y educación", 6, HORARIOS["3x1"]).filas.flatMap((f) => f.tareas.map((t) => t.clave));
-  assert(escuela.includes("presentar") && !escuela.includes("probar_audiencia"), "Escuela no la lleva");
+  const escuela = mapaDe("Escuela y educación", 4, HORARIOS["3x1"]);
+  const fila = escuela.filas.find((f) => f.tareas.some((t) => t.clave === "presentar"));
+  igual(fila.tareas.map((t) => t.clave), ["presentar", "probar_audiencia"], "la sumativa de Escuela va sola");
+  igual(fila.tareas[1].tipoPrueba, "guia", "en Escuela, guiar");
+  assert(fila.tareas[1].indicadores.includes("ING-2-I03") || fila.indicadores.includes("ING-2-I03"), "I03 en la sumativa");
+  assert(escuela.filas.some((f) => f.tareas.some((t) => t.clave === "recorrer_lugares")), "sin ficha, hay recorrido");
+  assert(new Set(escuela.filas.flatMap((f) => f.fases.map((x) => x.numero))).size >= 5, `fases de Escuela: ${JSON.stringify(escuela.ajustesPlan)}`);
 });
 check("tareaId: el esquema del prompt muestra el código y cuatro pasos", () => {
   const p = promptDe(1);
@@ -619,12 +624,12 @@ check("tareaId: el prompt nombra las tareas y pide el código", () => {
   const fuente = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
   assert(/\[T\$\{k \+ 1\}\]/.test(fuente) && /Cada paso lleva en "tareaId" el código de su tarea/.test(fuente) && /\{"tareaId":"T1","accion":"…","producto":"","destino":""\}/.test(fuente), "prompt");
 });
-check("banco de secuencias: 4 o 5 pasos, voz correcta y minutos de referencia que suman 30", () => {
-  Object.entries(SECUENCIAS_POR_TAREAS).forEach(([clave, versiones]) => {
+check("banco de secuencias: cada tarea da 4 o 5 pasos sola, tiene esenciales y voz correcta", () => {
+  Object.entries(SECUENCIAS_POR_TAREA).forEach(([clave, versiones]) => {
     assert(versiones.length >= 2, `${clave}: versiones`);
     versiones.forEach((pasos, v) => {
       assert(pasos.length >= 4 && pasos.length <= 5, `${clave} v${v}: ${pasos.length} pasos`);
-      igual(pasos.reduce((s, x) => s + x.m, 0), 30, `${clave} v${v}: minutos`);
+      assert(pasos.some((x) => x.e), `${clave} v${v}: sin esenciales`);
       pasos.forEach((x) => {
         const voz = validarVozActividad(x.texto.replaceAll(/\{[a-z]+\}/g, "algo"));
         assert(voz.ok, `${clave} v${v}: ${voz.motivo} — ${x.texto}`);
@@ -636,6 +641,7 @@ check("secuencias: la fila trae los datos de la unidad y solo un hueco para la I
   const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]);
   ponerSecuencias(m, { producto: "Our Guide — una guía", tema: "Alimentación", audiencia: "el dueño invitado y los visitantes", invitado: "el dueño invitado", semilla: "x" });
   igual(m.filas.filter((f) => f.secuencia).map((f) => f.clase), [1, 4, 17, 18], "clases con secuencia");
+  m.filas.filter((f) => f.secuencia).forEach((f) => assert(f.secuencia.length >= 4 && f.secuencia.length <= 5, `C${f.clase}: ${f.secuencia.length} pasos`));
   m.filas.filter((f) => f.secuencia).forEach((f) => {
     igual(f.secuencia.reduce((s, x) => s + x.minutos, 0), 30, `C${f.clase} minutos`);
     f.tareas.forEach((t, k) => igual(f.secuencia.filter((x) => x.tarea === k).reduce((s, x) => s + x.minutos, 0), t.minutos, `C${f.clase} T${k + 1}`));
@@ -660,6 +666,15 @@ check("títulos: concordancia con guía y modelo sin «simulada»", () => {
   igual(d.titulo, "Revisión de Nuestra Guía", "título");
   igual(d.textoModelo.titulo, "Entrevista modelo con un Dueño", "modelo");
   igual(d.momentos[0].actividades[0], "Reúnen (en parejas) todo.", "voz");
+});
+check("Escuela: audiencia de 6.º, sin «la persona invitada», aunque no sea Inserción", () => {
+  const pm = { estrategia: "proyectos", situacion: { semillaId: "ing2-escuela-guia", audiencia: "nuevo ingreso", audienciaDetalle: { de: "nuevo ingreso" } } };
+  assert(/6\.º de primaria/.test(conFichaDeUnidad({ planMaestro: pm }).planMaestro.situacion.audiencia), "audiencia");
+  const delDocente = { ...pm, situacion: { ...pm.situacion, audiencia: "mi audiencia" } };
+  igual(conFichaDeUnidad({ planMaestro: delDocente }).planMaestro.situacion.audiencia, "mi audiencia", "manda el docente");
+  const fila = ref.filas[16];
+  assert(!/persona invitada/.test(humanosDeFila(fila, null)), humanosDeFila(fila, null));
+  assert(/6\.º/.test(humanosDeFila(fila, ALCANCE_POR_SEMILLA["ing2-escuela-guia"].conInvitado)), "humanos");
 });
 check("frases por paso: el hueco toma las expresiones de la malla y, si no hay, una pista", () => {
   const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]);

@@ -647,9 +647,9 @@ export const obligacionIncumplida = (clase, fila) => {
   if (claves.includes("acordar") && !(/\bescuch/.test(texto) && /\bescrib/.test(texto))) {
     return "el diagnóstico no se aplica: una actividad escucha y marca, y otra escribe dos oraciones.";
   }
-  if (claves.includes("presentar")) {
+  if (claves.includes("probar_audiencia")) {
     const prueba = fila.secciones.map((s) => INVENTARIO_POR_SECCION[s]?.pruebaConAudiencia).find(Boolean);
-    if (prueba && !new RegExp(prueba).test(texto)) return "la presentación no pone a prueba el producto con la audiencia: una actividad hace pedidos reales con el menú.";
+    if (prueba && !new RegExp(prueba).test(texto)) return "la clase no usa el producto con la audiencia: una actividad lo pone a prueba con ella.";
   }
   if (claves.includes("evaluar_comentarios") && !normales.some((a) => /^(leen|responden|analizan|identifican)\b/.test(a) && /comentari/.test(a))) {
     return "nadie lee los comentarios de la audiencia: una actividad empieza por leerlos y responder por escrito qué piden cambiar.";
@@ -745,7 +745,7 @@ export const motivosTareaId = (clase, fila) => {
 };
 
 /** Texto de la clase que no debe llegar al docente: el administrador lo ve como aviso. */
-export const motivosTextoClase = (clase) => {
+export const motivosTextoClase = (clase, fila = null) => {
   const motivos = [];
   const modelo = (clase?.textoModelo?.lineas || []).map(String);
   const conFaltaDato = modelo.find((l) => /falta dato/i.test(l));
@@ -757,6 +757,10 @@ export const motivosTextoClase = (clase) => {
   ];
   const moneda = textos.find((t) => /(?<!RD)\$|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t));
   if (moneda) motivos.push(`precio fuera de pesos dominicanos: "${moneda.slice(0, 70)}"`);
+  if (fila?.secciones?.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) {
+    const lugar = textos.find((t) => /\b(cafeteria|gym|gymnasium|art room|second floor|auditorium)\b/i.test(t));
+    if (lugar) motivos.push(`nombra un lugar que no consta en la tabla común: "${lugar.slice(0, 70)}"`);
+  }
   const equipo = textos.find((t) => /\b(videos?|proyector(es)?|parlantes?|bocinas?|grabad[oa]s?|digital(es)?)\b/i.test(t));
   if (equipo) motivos.push(`nombra un equipo que el mapa no prevé: "${equipo.slice(0, 70)}"`);
   return motivos;
@@ -868,7 +872,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
         const conThan = [clase?.focoLinguistico, ...(clase?.textoModelo?.lineas || []), ...textosActividades(clase).map(textoComoCadena)].find((t) => /\bthan\b/i.test(String(t || "")));
         if (conThan) motivos44[idx].push(`clase ${idx + 1} — usa un comparativo fuera de la malla del grado: "${String(conThan).slice(0, 70)}"`);
       }
-      [...motivosFidelidad(clase, filaMapa), ...motivosTextoClase(clase), ...motivosTareaId(clase, filaMapa)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
+      [...motivosFidelidad(clase, filaMapa), ...motivosTextoClase(clase, filaMapa), ...motivosTareaId(clase, filaMapa)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
       if (!contrato.conContenido && ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
       revisarAmpliacionYFoco();
     } else if (!contrato.conContenido) {
