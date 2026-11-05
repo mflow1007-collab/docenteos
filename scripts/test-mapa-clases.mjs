@@ -63,7 +63,7 @@ const REFERENCIA = [
   [8, [O], ["aplicar_modelo", "aplicar_escribir"], ["ING-2-I01", "ING-2-I02"]],
   [8, [O], ["aplicar_ensayar", "aplicar_anotar"], ["ING-2-I03"]],
   [8, TODAS, ["aplicar_corregir", "integrar"], ["ING-2-I02"]],
-  [8, TODAS, ["presentar"], ["ING-2-I02", "ING-2-I03"]],
+  [8, TODAS, ["presentar", "probar_audiencia"], ["ING-2-I02", "ING-2-I03"]],
   [9, TODAS, ["evaluar_comentarios", "evaluar_proceso"], ["ING-2-I01"]],
 ];
 check("Alimentación a 6 semanas: 18 clases y modo normal, sin ampliaciones ni clases flexibles", () => {
@@ -595,6 +595,22 @@ check("tareaId: lo que no encaja solo avisa", () => {
   assert(/no trae/.test(motivosTareaId(clase([], 2), fila)[0]), "sin códigos");
   assert(motivosTareaId(clase(["T1", "T9"]), fila).some((m) => /T9/.test(m)), "inventado");
   assert(motivosTareaId(clase(["T1", "T2", "T2", "T2"]), fila).some((m) => /3 actividades/.test(m)), "relleno");
+});
+check("la prueba con la audiencia es tarea propia solo si el producto la pide", () => {
+  const f17 = ref.filas[16];
+  igual(f17.tareas.map((t) => [t.clave, t.minutos, t.sumativa]), [["presentar", 15, true], ["probar_audiencia", 15, true]], "Alimentación");
+  igual(f17.tareas[0].indicadores, ["ING-2-I02"], "presentar demuestra producir");
+  igual(f17.tareas[1].indicadores, ["ING-2-I03"], "probar demuestra interactuar");
+  assert(/pedidos reales/.test(f17.tareas[1].instruccion) && !/pedidos/.test(f17.tareas[0].instruccion), "cada una con lo suyo");
+  igual(evaluacionDeFila(f17).tipo, "Sumativa", "tipo");
+  igual(fallosQueDetienen(ref), [], "V6");
+  const escuela = mapaDe("Escuela y educación", 6, HORARIOS["3x1"]).filas.flatMap((f) => f.tareas.map((t) => t.clave));
+  assert(escuela.includes("presentar") && !escuela.includes("probar_audiencia"), "Escuela no la lleva");
+});
+check("tareaId: el esquema del prompt muestra el código y dos actividades, no cuatro", () => {
+  const p = promptDe(0);
+  const des = String(p).match(/"nombre":"Desarrollo"[^\]]*\]/)?.[0] || "";
+  assert(/"tareaId":"T1"/.test(des) && (des.match(/"accion"/g) || []).length === 2, des.slice(0, 300) || String(p).slice(0, 200));
 });
 check("tareaId: el prompt nombra las tareas y pide el código", () => {
   const fuente = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");

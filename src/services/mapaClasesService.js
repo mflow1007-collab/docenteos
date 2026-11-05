@@ -96,7 +96,12 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe }) => {
   push(u.acordar, [...orden], 0, 0, 0);
   push(u.glosario, [...orden], 3, 0, 0);
   push(u.integrar, [...orden], 3, 1, 0);
-  push(u.presentar, [...orden], 3, 2, 0);
+  if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.pruebaConAudiencia)) {
+    push(u.presentarSecciones, [...orden], 3, 2, 0);
+    push(u.probarConAudiencia, [...orden], 3, 2, 1);
+  } else {
+    push(u.presentar, [...orden], 3, 2, 0);
+  }
   push(u.audienciaSecundaria, [...orden], 3, 3, 0);
   push(u.evaluarComentarios, [...orden], 3, 4, 0);
   push(u.evaluarProceso, [...orden], 3, 5, 0);
@@ -198,7 +203,7 @@ const repartoBreve = (items, total, capacidad) => {
     { tareas: bloqueDe("P"), peso: pesoBloque(bloqueDe("P")), paralelo: true },
     { tareas: bloqueDe("M"), peso: pesoBloque(bloqueDe("M")), paralelo: true },
     { tareas: unidad("integrar"), peso: 9 },
-    { tareas: unidad("presentar"), peso: 15 },
+    { tareas: [...unidad("presentar"), ...unidad("probar_audiencia")], peso: 15 },
     { tareas: [...unidad("evaluar_comentarios"), ...unidad("evaluar_proceso")], peso: 17 },
   ];
   const pesoTotal = bloques.reduce((s, b) => s + b.peso, 0);
@@ -359,7 +364,7 @@ const encadenar = (filas, partenDe) => {
       const recibe = [];
       if (t.clave === "acordar") recibe.push({ texto: "Situación de aprendizaje", clase: null });
       else if (t.clave === "integrar") t.secciones.forEach((s) => { if (ultima[s]) recibe.push(ref(ultima[s])); });
-      else if (t.clave === "presentar" || t.clave === "audiencia_secundaria" || t.clave === "glosario" || t.clave.startsWith("evaluar")) {
+      else if (t.clave === "presentar" || t.clave === "probar_audiencia" || t.clave === "audiencia_secundaria" || t.clave === "glosario" || t.clave.startsWith("evaluar")) {
         const previo = producto || t.secciones.map((s) => ultima[s]).find(Boolean);
         if (previo) recibe.push(ref(previo));
       } else {
@@ -372,7 +377,7 @@ const encadenar = (filas, partenDe) => {
       t.recibe = recibe.filter((r, i, l) => l.findIndex((x) => x.texto === r.texto && x.clase === r.clase) === i);
       const entrega = { texto: t.secciones.length === 1 ? `${t.entrega}: ${t.secciones[0]}` : t.entrega, clase: fila.clase };
       if (t.clave === "acordar") acuerdo = entrega;
-      else if (["integrar", "presentar", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso", "glosario"].includes(t.clave)) producto = entrega;
+      else if (["integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso", "glosario"].includes(t.clave)) producto = entrega;
       else t.secciones.forEach((s) => { ultima[s] = entrega; });
     });
     fila.recibe = fila.tareas.flatMap((t) => t.recibe).filter((r) => r.clase !== fila.clase)
@@ -596,7 +601,7 @@ const nombreCorto = (producto) => String(producto || "").split(/\s+[—–]\s+/)
 /** Anexo I desde el mapa: cada sección con su propio proceso, estados y evidencia. */
 export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, propositos = {} } = {}) => {
   const filas = mapa.filas.filter((f) => !f.flexible);
-  const COMPARTIDAS = ["acordar", "comentar", "glosario", "integrar", "presentar", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
+  const COMPARTIDAS = ["acordar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
   return [
     { seccion: "Título", incluye: `Mi nombre y el título del producto (${nombreCorto(producto)}).`, fases: "" },
     ...mapa.secciones.map((seccion) => {
@@ -694,7 +699,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
       entrega: t.entrega, individual: Boolean(t.individual), sumativa: Boolean(t.sumativa), cierraSeccion: Boolean(t.cierraSeccion),
       llegaAudiencia: Boolean(t.llegaAudiencia), ampliacion: Boolean(t.ampliacion), recursos: t.recursos,
       modalidad: t.usaModalidad ? modalidad : null, recibe: [], indicadores: [],
-      instruccion: DETALLE_TAREA[t.clave]?.hace || "", senal: DETALLE_TAREA[t.clave]?.senal || "",
+      instruccion: t.hace || DETALLE_TAREA[t.clave]?.hace || "", senal: DETALLE_TAREA[t.clave]?.senal || "",
       soloComprender: Boolean(DETALLE_TAREA[t.clave]?.soloComprender),
     }));
     const usados = lista.some((t) => t.paralelo)
