@@ -1121,7 +1121,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
 
   // Proyectos: la clase 1 lleva «Visión compartida» (acuerdo y diagnóstico de idioma) y «Análisis de saberes previos»
   // (mapa mental del problema, en el Inicio que escribe el código), cada actividad con su fase. Fusión aprobada por
-  // César el 2026-11-06 (Referente por proyecto 2022, p. 32; Referente 2025, p. 30). Interpretación DocenteOS.
+  // César el 2026-11-06 (Referente por proyecto 2022, p. 30: la fila «Visión compartida y análisis de saberes previos» es una sola, y las actividades pueden durar una o más sesiones; p. 32: mapa mental). Interpretación DocenteOS.
   if (clave === "proyectos") {
     const saberes = plan.fases.findIndex((f) => /^Análisis de saberes previos/.test(f.nombre));
     if (saberes >= 0 && filas[0] && !filas[0].flexible && !filas.some((f) => f.fases.some((x) => x.numero === saberes + 1))) {
