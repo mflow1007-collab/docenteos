@@ -7,7 +7,7 @@
  * docente visible. Si la clase tiene una sola tarea, salen todos; si comparte clase,
  * solo los esenciales (`e`). Solo el último paso de cada tarea lleva producto y destino.
  * `m` = peso en minutos dentro de la tarea.
- * Huecos: {invitado}, {audiencia}, {producto}, {tema}, {asunto}, {datos}, {entrega} los pone el código;
+ * Huecos: {invitado}, {audiencia}, {producto}, {tema}, {asunto}, {fuente}, {datos}, {entrega} los pone el código;
  * {frases} los pone la IA. `pista` dice qué necesita ese hueco; `usa` reconoce, entre los
  * contenidos de la fila, las expresiones de la malla que le sirven.
  *
@@ -136,13 +136,13 @@ export const SECUENCIAS_POR_TAREA = {
   ],
   indagar_contrastar: [
     [
-      p(3, "Leen (en parejas) la fuente impresa que trae el docente sobre {asunto} y subrayan el dato principal."),
+      p(3, "Leen (en parejas) {fuente}, impresa por el docente, y subrayan el dato principal."),
       pe(4, "Comprueban (en grupos) si la fuente es fiable: quién la escribió, de cuándo es y para quién."),
       pe(5, "Comparan (en grupos) sus resultados con la fuente (_The source says…, but our group…_)."),
       pe(3, "Anotan (en grupos) qué coincide y qué no: tabla de contraste; queda en la carpeta."),
     ],
     [
-      p(3, "Escuchan (en plenaria) la fuente que lee el docente sobre {asunto} y anotan el dato principal."),
+      p(3, "Escuchan (en plenaria) {fuente}, leída por el docente, y anotan el dato principal."),
       pe(4, "Verifican (en grupos) si la fuente es fiable: quién la escribió, de cuándo es y a quién se dirige."),
       pe(5, "Contrastan (en grupos) esa fuente con su tabla de resultados (_The source says…, but our group…_)."),
       pe(3, "Registran (en grupos) qué coincide y qué no: tabla de contraste; queda en la carpeta."),

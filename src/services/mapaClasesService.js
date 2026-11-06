@@ -649,6 +649,14 @@ export const conGuiaEnFemenino = (t) => String(t)
 const PALABRAS_FRECUENTES = ["nuestro", "nuestra", "nuestros", "nuestras", "clase", "unidad", "sección", "secciones", "entrevista", "presentación", "corrección", "redacción", "revisión", "comunidad", "comunitario", "comunitaria", "estudiantes", "planificación"];
 const faltaUnaLetra = (corta, larga) => larga.length === corta.length + 1 && [...larga].some((_, i) => larga.slice(0, i) + larga.slice(i + 1) === corta);
 /** Corrige la errata de una letra de menos en esas palabras («nuesros» → «nuestros»). */
+const sinTilde = (p) => p.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const TILDES = new Map(["diálogo", "diálogos", "sección", "presentación", "corrección", "redacción", "revisión", "planificación", "información", "evaluación", "análisis", "también", "además", "organización", "retroalimentación", "creación"].map((p) => [sinTilde(p), p]));
+/** Tilde mal puesta o que falta en palabras frecuentes («Dialógo» → «Diálogo»). No es un diccionario. */
+export const conTildesCorregidas = (t = "") => String(t).replace(/\p{L}{4,}/gu, (palabra) => {
+  const correcta = TILDES.get(sinTilde(palabra));
+  if (!correcta || palabra.toLowerCase() === correcta) return palabra;
+  return palabra[0] === palabra[0].toUpperCase() ? correcta[0].toUpperCase() + correcta.slice(1) : correcta;
+});
 export const conErratasCorregidas = (t = "") => String(t).replace(/\p{L}{4,}/gu, (palabra) => {
   const baja = palabra.toLowerCase();
   const correcta = PALABRAS_FRECUENTES.find((p) => faltaUnaLetra(baja, p));
@@ -690,9 +698,16 @@ export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreM
     return nuevo;
   });
   if (concordancias) corregidos.push(`concordancia de «guía» (${concordancias} texto${concordancias > 1 ? "s" : ""})`);
+  let tildes = 0;
+  mapearTextos(dia, (t) => {
+    const nuevo = conTildesCorregidas(t);
+    if (nuevo !== t) tildes += 1;
+    return nuevo;
+  });
+  if (tildes) corregidos.push(`tildes (${tildes} texto${tildes > 1 ? "s" : ""})`);
   if (dia.titulo) dia.titulo = conErratasCorregidas(dia.titulo);
   if (dia.intencionPedagogica) dia.intencionPedagogica = conErratasCorregidas(dia.intencionPedagogica);
-  if (dia.textoModelo?.titulo) dia.textoModelo.titulo = guia(dia.textoModelo.titulo).replace(/\b[Ee]ntrevista simulada\b/gi, "Entrevista modelo");
+  if (dia.textoModelo?.titulo) dia.textoModelo.titulo = conTildesCorregidas(guia(dia.textoModelo.titulo)).replace(/\b[Ee]ntrevista simulada\b/gi, "Entrevista modelo");
   // Sin ficha, el modelo declara que su centro es ficticio.
   if (modeloFicticio && dia.textoModelo?.lineas?.length && !/model school/i.test(dia.textoModelo.titulo || "")) {
     dia.textoModelo.titulo = `Model School${dia.textoModelo.titulo ? ` — ${dia.textoModelo.titulo}` : ""}`;
@@ -801,7 +816,12 @@ const minutosDePasos = (pasos, tareas) => {
  * da todos sus pasos; varias, los esenciales de cada una. La versión varía por unidad y
  * clase. Sin secuencia, o si la entrevista no es con invitado, la clase sigue con la IA.
  */
-export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", audiencia = "", invitado = "", entrega = "", semilla = "" } = {}) => {
+export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", fuente = "", audiencia = "", invitado = "", entrega = "", semilla = "" } = {}) => {
+  // La fuente que se contrasta se nombra en los pasos y en los recursos de su clase.
+  const nombreFuente = fuente || `una fuente sobre ${asunto || tema}`;
+  mapa.filas.forEach((fila) => fila.tareas.filter((t) => t.clave === "indagar_contrastar").forEach((t) => {
+    t.recursos = { ...t.recursos, didacticos: String(t.recursos?.didacticos || "").replace("Fuente impresa que trae el docente", `Fuente impresa: ${nombreFuente}`) };
+  }));
   const claveBanco = (t) => (t.clave === "probar_audiencia" ? `probar_audiencia:${t.tipoPrueba || "general"}` : t.clave);
   mapa.filas.forEach((fila) => {
     if (!fila.tareas.length || fila.tareas.some((t) => t.paralelo || !SECUENCIAS_POR_TAREA[claveBanco(t)])) return;
@@ -824,6 +844,7 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", a
         .replaceAll("{producto}", nombreCorto(producto))
         .replaceAll("{tema}", tema)
         .replaceAll("{asunto}", asunto || tema)
+        .replaceAll("{fuente}", nombreFuente)
         .replace(/\{audiencia\}/g, () => {
           if (audienciaDicha || !audiencia) return "la audiencia";
           audienciaDicha = true;
@@ -1087,6 +1108,15 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   // Fases sin tarea: se unen a la clase de la fase siguiente con tarea (o a la última).
   plan.fases.forEach((_, i) => {
     if (filas.some((f) => f.fases.some((x) => x.numero === i + 1))) return;
+    // Cada fase lleva al menos una tarea propia (César, 2026-11-06): sin cambiar el orden de las
+    // clases, toma la última de la fase anterior o la primera de la siguiente, si le sobra una.
+    const deFase = (n) => filas.filter((f) => f.fases.length === 1 && f.fases[0].numero === n);
+    const antes = deFase(i);
+    const despues = deFase(i + 2);
+    // Una clase flexible no cuenta como tarea propia, y detrás de ella la fase retrocedería.
+    const prestada = breve ? null : (antes.length > 1 && !antes[antes.length - 1].flexible ? antes[antes.length - 1]
+      : (despues.length > 1 && !despues[0].flexible ? despues[0] : null));
+    if (prestada) { prestada.fases = [faseInfo(i)]; return; }
     const destino = filas.find((f) => f.fases.some((x) => x.numero > i + 1)) || filas[filas.length - 1];
     destino.fases = [...destino.fases, faseInfo(i)].sort((a, b) => a.numero - b.numero);
     avisos.push(`La fase «${plan.fases[i].nombre}» no tiene tarea propia y se une a la clase ${destino.clase}.`);

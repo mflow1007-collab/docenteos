@@ -258,6 +258,9 @@ export const NOMBRE_MODELO_GENERAL = "Caso modelo";
 export const ASUNTO_LECTURA_GENERAL = "el problema de la situación de aprendizaje";
 export const RETROALIMENTACION_SEGUNDA_CLASE = "Retroalimentación del acuerdo de la clase anterior: recuerdan qué van a hacer y cómo se evaluará. (What did we agree to do?)";
 
+// Qué fuente contrasta la indagación: la nombra el código y la trae el docente, impresa.
+export const FUENTE_POR_SEMILLA = { "ing2-rutinas-plan": "la recomendación oficial de horas de sueño para adolescentes" };
+
 // De qué trata la lectura y las oraciones del diagnóstico de la clase 1: la situación, no el
 // nombre del tema (César, 2026-11-06). Sin semilla, se queda el tema.
 export const ASUNTO_LECTURA_POR_SEMILLA = {

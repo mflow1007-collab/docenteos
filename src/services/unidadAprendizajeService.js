@@ -26,7 +26,7 @@ import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } fro
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
 import { conReemplazos, focoDeFila, minutosInicioPresentacion, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
-import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
+import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
   revisarUnidadConMapa, motivosClaseFinal, contenidosNoVistosEnUnidad, avisosParaAdministrador, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
@@ -5568,6 +5568,7 @@ export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas
     producto: r.plan.producto,
     tema: datos.titulo || "",
     asunto: ASUNTO_LECTURA_POR_SEMILLA[situacion.semillaId] || ASUNTO_LECTURA_GENERAL,
+    fuente: FUENTE_POR_SEMILLA[situacion.semillaId] || "",
     audiencia: situacion.audiencia || "",
     invitado: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.invitadoConArticulo || invitado || "",
     entrega: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.entrega || "",
@@ -6211,6 +6212,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   // calculan por actividad; lo que no cabe se avisa, nunca se estira la clase.
   const avisosTiempo = [];
   const avisosClaseFinal = [];
+  const titulosVistos = new Set();
   if (rutaPlanMaestro) {
     // Con mapa de clases, cada clase ya trae sus indicadores: este ajuste los pisaba.
     if (!rutaPlanMaestro.contratos?.some((c) => c.mapaClases)) ajustarIndicadoresPorActividad(fasesSemanalesGeneradas, {
@@ -6259,6 +6261,17 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           [...new Set(quitados)].forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: se quitó un lugar que no consta en la tabla común: «${t}»`));
         }
         sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: usa un equipo que el mapa no prevé: «${m}»`));
+        // Dos clases no se llaman igual: la repetida toma el nombre de su tarea.
+        const claveTitulo = String(d.titulo || "").trim().toLowerCase();
+        if (claveTitulo && titulosVistos.has(claveTitulo)) {
+          const anterior = d.titulo;
+          const propio = d.fijoDelMapa.tituloTarea;
+          if (propio && !titulosVistos.has(propio.toLowerCase())) {
+            d.titulo = propio;
+            avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título repetido «${anterior}»`);
+          } else avisosClaseFinal.push(`clase ${i + 1}: título repetido: «${anterior}»`);
+        }
+        titulosVistos.add(String(d.titulo || "").trim().toLowerCase());
         motivosClaseFinal(d).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: ${m}`));
         delete d.fijoDelMapa;
       }
@@ -6692,6 +6705,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       thead tr { break-inside: avoid; page-break-inside: avoid; }
       tbody tr { break-inside: auto; page-break-inside: auto; }
       .dia-table { break-inside: auto; page-break-inside: auto; margin-bottom: 6px; }
+      /* Un momento partido entre páginas encimaba sus últimas líneas sobre el siguiente (Rutinas g9, C2). */
+      .dia-table tbody tr { break-inside: avoid; page-break-inside: avoid; }
       .semana-band { break-after: avoid; page-break-after: avoid; }
       /* La intención es un bloque corto: que NO se parta ella misma, pero SÍ
          pueda separarse de la tabla del día. Con break-after:avoid quedaba
