@@ -143,6 +143,17 @@ const invariantesMapa = {
     const mal = u.reales.filter((f) => f.tareas[0]?.clave === "presentar" && !/sección/.test(focoDeFila(f)) && !f.contenidos.some((c) => c.categoria === "gramatica")).map((f) => `C${f.clase}`);
     return mal.length ? `no corresponde a la tarea: ${mal.join(", ")}` : "";
   },
+  "I-18": (u) => {
+    const nombre = String(u.datos.planMaestro?.situacion?.productoNombre || u.datos.productoFinalTexto || "").split(/\s+[—–]\s+/)[0];
+    if (!nombre) return "sin producto central";
+    if (/\s(y|e|and)\s|[,+]/.test(nombre)) return `más de un producto: ${nombre}`;
+    return u.mapa.secciones.length ? "" : "sin secciones";
+  },
+  "Fases": (u) => {
+    const sinTarea = u.mapa.fases.filter((n) => n !== undefined && !u.reales.some((f) => f.tareas.some((t) => t.fase === n - 1)) && !(u.reales[0]?.mapaMental && u.reales[0].fases.some((x) => x.numero === n)));
+    const nombres = u.mapa.fases.length && u.reales.flatMap((f) => f.fases).length;
+    return sinTarea.length && nombres ? `fases sin su tarea: ${sinTarea.join(", ")}` : "";
+  },
   "I-13": (u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma));
     if (!prometidas.length) return "ninguna tarea promete firma";

@@ -28,7 +28,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
-import { hechosDeClase, libretaDeHechos, aplicarSecuencias, aplicarFilasMapa, validarLoteContrato, pendientesDeClase, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
+import { hechosDeClase, libretaDeHechos, aplicarSecuencias, aplicarFilasMapa, validarLoteContrato, pendientesDeClase, tareasSinActividad, actividadDeTarea, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -2148,6 +2148,21 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
           } catch (errorOriginal) {
             console.warn(`[FaseA] ${contextoLog}: el original no pasa otra regla; queda el segundo intento.`, errorOriginal?.message);
           }
+        }
+      }
+
+      // Lo que la IA no hizo ni al segundo intento lo escribe el código (César, 2026-11-06: se pasa al código).
+      if (filaMapa && opcionesValidacion.redaccionConAviso) {
+        const clase = result.data.clases[0];
+        const faltan = tareasSinActividad(clase, filaMapa);
+        const desarrollo = (clase.momentos || []).find((m) => m?.nombre === 'Desarrollo');
+        if (faltan.length && desarrollo) {
+          faltan.forEach((t) => {
+            desarrollo.actividades.push(actividadDeTarea(t));
+            if (Array.isArray(clase.tareaIdsDesarrollo)) clase.tareaIdsDesarrollo.push(`T${filaMapa.tareas.indexOf(t) + 1}`);
+          });
+          clase.avisosRedaccion = clase.avisosRedaccion.filter((m) => !/falta la tarea/.test(m));
+          clase.avisosRedaccion.push(`clase 1 — ℹ código: se añadió la actividad que faltaba: ${faltan.map((t) => `«${t.nombre}»`).join(", ")}`);
         }
       }
 

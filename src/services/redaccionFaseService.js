@@ -704,6 +704,12 @@ export const tareasSinActividad = (clase, fila) => {
     });
   });
 };
+/** Actividad mínima de una tarea que la IA no escribió, con su sección y su entrega. */
+export const actividadDeTarea = (t) => {
+  const seccion = t.secciones?.length === 1 ? ` Sección «${t.secciones[0]}»` : "";
+  const hace = String(t.instruccion || `Trabajan en ${t.nombre}.`).replace(/\s+Aún no [^.]*\./, "").replace(/\s+Es apoyo breve\./, "");
+  return `${hace}${seccion ? `${seccion}:` : ""} ${String(t.entrega || "").toLowerCase()}; queda en la carpeta.`.replace(/\s+/g, " ").trim();
+};
 const tareaConSeccion = (t) => `«${t.nombre}»${t.secciones.length === 1 ? ` de «${t.secciones[0]}»` : ""}`;
 const entregaDeTarea = (t, seccion) => (t.secciones.length === 1 && seccion ? `${t.entrega}: ${seccion}` : t.entrega);
 
@@ -881,7 +887,8 @@ export const motivosTextoClase = (clase) => {
     ...(clase?.momentos || []).flatMap((m) => m?.actividades || []).map(textoComoCadena),
     ...(Array.isArray(clase?.ampliacion) ? clase.ampliacion : []).map((a) => String(a?.texto || "")),
   ];
-  const moneda = textos.find((t) => /(?<!RD)\$|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t));
+  // «$RD200» es pesos con el formato cambiado: lo corrige el código.
+  const moneda = textos.find((t) => /(?<!RD)\$(?!\s?RD)|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t));
   if (moneda) motivos.push(`precio fuera de pesos dominicanos: "${citaTexto(moneda, /\$|d[oó]lar|dollar/i)}"`);
   const equipo = textos.find((t) => /\b(videos?|proyector(es)?|parlantes?|bocinas?|grabad[oa]s?|digital(es)?)\b/i.test(t));
   if (equipo) motivos.push(`nombra un equipo que el mapa no prevé: "${citaTexto(equipo, /videos?|proyector|parlante|bocina|grabad|digital/i)}"`);
@@ -1025,7 +1032,8 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
     if (filaMapa) {
       // Los contenidos se revisan al final, sobre la unidad entera (contenidosNoVistosEnUnidad).
       const grabacion = grabacionProhibida(clase);
-      if (grabacion) fallaRedaccion(idx, `nadie graba con celulares de estudiantes: "${citaTexto(grabacion, /grab|celular|m[oó]vil/i)}". Quita la grabación; lo oral se observa o se anota.`);
+      // «grabado» como participio lo corrige el código al terminar (sinGrabado): no se paga un reintento ni se avisa.
+      if (grabacion && /\bgrab(a|an|ar|acion|aciones)\b|\b(celular|celulares|movil|moviles)\b/.test(normalizar(grabacion))) fallaRedaccion(idx, `nadie graba con celulares de estudiantes: "${citaTexto(grabacion, /grab|celular|m[oó]vil/i)}". Quita la grabación; lo oral se observa o se anota.`);
       const incumplida = obligacionIncumplida(clase, filaMapa);
       if (incumplida) fallaRedaccion(idx, incumplida);
       // Falta una tarea: se regenera esta clase una vez, con la instrucción concreta.
@@ -1248,7 +1256,8 @@ export const validarUnidadPlanMaestro = (unidad) => {
     if (cortas && !dia.tareasMapa?.length) avisos.push(`${ref}: ${cortas} actividad(es) del Desarrollo con menos de ${MIN_PALABRAS_DESARROLLO} palabras; la síntesis lleva 25-35`);
     (dia.momentos || []).flatMap((m) => m.actividades || []).forEach((a) => {
       const cursivas = String(a).match(/(^|[^\w])_(?!\s)[^_]+?_(?!\w)/g) || [];
-      if (cursivas.length > 2) avisos.push(`${ref}: una actividad cita ${cursivas.length} expresiones; van 1 o 2 en cursiva con puntos suspensivos`);
+      // Con mapa los pasos del banco traen hasta 3 frases fijas.
+      if (cursivas.length > (dia.tareasMapa?.length ? 3 : 2)) avisos.push(`${ref}: una actividad cita ${cursivas.length} expresiones; van 1 o 2 en cursiva con puntos suspensivos`);
     });
   }));
   return { errores, avisos };

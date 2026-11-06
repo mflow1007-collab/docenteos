@@ -4,10 +4,10 @@
  * Sin IA: node scripts/test-avisos-unidad.mjs
  */
 import { readFileSync } from "node:fs";
-import { armarMapaClases, didacticosDeFila, conFichaDeUnidad, conTildesCorregidas, conTitulosCorregidos, focoDeFila, necesitaLugares, pasosConFrases, ponerSecuencias, sinLugaresEnClase } from "../src/services/mapaClasesService.js";
+import { armarMapaClases, conGuiaEnTextos, fasesDeActividades, didacticosDeFila, conFichaDeUnidad, conTildesCorregidas, conTitulosCorregidos, focoDeFila, necesitaLugares, pasosConFrases, ponerSecuencias, sinLugaresEnClase } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import {
-  avisosParaAdministrador, conOrganizacionEnParentesis, contenidosFaltantesEnClase, contenidosNoVistosEnUnidad, datosSinRecoger, pendientesDeClase, instruccionTareaFaltante, motivoRedaccionActividad, motivosClaseFinal, motivosFidelidad, motivosRedaccionClase,
+  actividadDeTarea, avisosParaAdministrador, conOrganizacionEnParentesis, contenidosFaltantesEnClase, contenidosNoVistosEnUnidad, datosSinRecoger, pendientesDeClase, instruccionTareaFaltante, motivoRedaccionActividad, motivosClaseFinal, motivosFidelidad, motivosRedaccionClase,
   motivosTareaId, motivosTextoClase, obligacionIncumplida, revisarUnidadConMapa, tareasSinActividad,
 } from "../src/services/redaccionFaseService.js";
 import { ASUNTO_LECTURA_POR_SEMILLA, FUENTE_POR_SEMILLA, LUGARES_NO_DECLARADOS } from "../src/data/tareasPorTipoTrabajo.js";
@@ -195,7 +195,7 @@ check("tercera unidad: Indagación valida sus fuentes, con datos anónimos y gra
   const { entrada } = armarEntradaPlanMaestro({ datos, mallaPayload: malla });
   const m = armarMapaClases(entrada);
   ponerSecuencias(m, { producto: "Plan", tema: "Rutinas", asunto: ASUNTO_LECTURA_POR_SEMILLA["ing2-rutinas-plan"], fuente: FUENTE_POR_SEMILLA["ing2-rutinas-plan"], audiencia: "las familias", semilla: "x" });
-  assert(m.ajustesPlan.unir.length === 0, `fases fusionadas: ${JSON.stringify(m.ajustesPlan.unir)}`);
+  assert(m.filas.some((f) => f.tareas.some((t) => t.clave === "analizar_ordenar" && t.instruccion.includes("tabla de frecuencia") && t.fase === 2)), "la fase 3 organiza y prioriza");
   [1, 2, 3, 4, 5, 6].forEach((n) => assert(m.filas.some((f) => f.fases.some((x) => x.numero === n)), `la fase ${n} no tiene clase`));
   const fuenteEnPasos = (f) => f.secuencia.some((x) => /recomendación oficial de horas de sueño/.test(x.texto));
   assert(fuenteEnPasos(m.filas.find((f) => f.tareas.some((t) => t.clave === "indagar_contrastar"))), "la fuente no se nombra");
@@ -214,6 +214,10 @@ check("tercera unidad: Indagación valida sus fuentes, con datos anónimos y gra
   assert(!m.filas.some((f) => /comprar/i.test(focoDeFila(f, m.filas))), m.filas.map((f) => focoDeFila(f, m.filas)).join(" | "));
   assert(m.modo !== "breve", `modo ${m.modo}`);
   assert(/actividades cotidianas/i.test(focoDeFila(con("indagar_aplicar"), m.filas)), focoDeFila(con("indagar_aplicar"), m.filas));
+  const compartida = { tareas: [{ faseNombre: "Fase A" }, { faseNombre: "Fase B" }], fases: [{ nombre: "Fase A" }] };
+  const etiquetas = fasesDeActividades(compartida, ["T1", "T2", "T2"]);
+  assert(etiquetas.Desarrollo.join() === "Fase A,Fase B,Fase B", etiquetas.Desarrollo.join());
+  assert(fasesDeActividades({ tareas: [{ faseNombre: "Fase A" }], fases: [{ nombre: "Fase A" }] }, ["T1"]) === null, "una sola fase no se etiqueta");
   assert(/datos de compañeros/.test(motivosClaseFinal(desarrollo("Organizan los datos de sueño en una lista de nombres."))[0]), "control de privacidad");
   assert(!motivosClaseFinal(desarrollo("Cuentan las respuestas de la encuesta, sin anotar nombres.")).length, "sin falso");
 });
@@ -234,6 +238,24 @@ check("cada fase con su clase en las tres estrategias, y tildes corregidas", () 
   const dia = conTitulosCorregidos({ titulo: "x", textoModelo: { titulo: "Familia modelo — Dialógo", lineas: ["A"] }, momentos: [] });
   assert(/Diálogo/.test(dia.textoModelo.titulo), dia.textoModelo.titulo);
   assert(/\.dia-table tbody tr \{ break-inside: avoid/.test(readFileSync(new URL("../src/services/unidadAprendizajeService.js", import.meta.url), "utf8")), "impresión");
+});
+check("Problemas: la revisión formativa antes de la sumativa, y los cursos de acción como contenido", () => {
+  const base = { grado: "2do Secundaria", asignatura: "Inglés", centro: "C", numSemanas: 7, diasClase: ["l", "m", "x"], horasPorDia: 1, titulo: "Actividades de la vida diaria" };
+  const datos = conFichaDeUnidad({ ...base, ...prellenarPlanMaestro({ datos: base, indicadores: estructura.indicadores, competencias }) });
+  const { entrada } = armarEntradaPlanMaestro({ datos, mallaPayload: malla });
+  const m = armarMapaClases(entrada);
+  const pos = (c) => m.filas.findIndex((f) => f.tareas.some((t) => t.clave === c));
+  assert(pos("revision_docente") >= 0 && pos("revision_docente") < pos("presentar") && pos("presentar") <= pos("evaluar_comentarios"), `${pos("revision_docente")} ${pos("presentar")} ${pos("evaluar_comentarios")}`);
+  assert(m.filas.some((f) => f.tareas.some((t) => t.clave === "proponer_elegir" && /cursos de acción/.test(t.instruccion))), "cursos de acción");
+});
+check("arreglos de g11 y g12: moneda, grabado, tarea faltante, título y Anexo K", () => {
+  const dia = conTitulosCorregidos({ textoModelo: { titulo: "Modelo", lineas: ["B: The soup is $RD200, right?"] }, momentos: [] });
+  assert(dia.textoModelo.lineas[0] === "B: The soup is RD$200, right?", dia.textoModelo.lineas[0]);
+  assert(!motivosTextoClase({ textoModelo: { lineas: ["The soup is $RD200."] }, momentos: [] }).length, "$RD no es otra moneda");
+  const t = { nombre: "elaborar", instruccion: "Elaboran la pieza con lo elegido.", secciones: ["Final Recommendation"], entrega: "Pieza propuesta (borrador)" };
+  assert(/Final Recommendation/.test(actividadDeTarea(t)) && /^Elaboran/.test(actividadDeTarea(t)), actividadDeTarea(t));
+  const anexos = conGuiaEnTextos({ k: [{ texto: "el seguimiento del guía" }] });
+  assert(anexos.k[0].texto === "el seguimiento de la guía", anexos.k[0].texto);
 });
 check("concordancia de «guía» en todo el texto, como corrección automática", () => {
   const corregidos = [];

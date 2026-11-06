@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { conReemplazos, focoDeFila, minutosInicioPresentacion, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -5265,11 +5265,12 @@ const _generarFasesConIA = async (
           dia.focoLinguistico = focoDeFila(filaMapa, contratoFase.filasUnidad || []) || dia.focoLinguistico;
           dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
           dia.minutosSecuencia = Array.isArray(aiClase.minutosSecuencia) ? aiClase.minutosSecuencia : null;
+          dia.fasesPorActividad = fasesDeActividades(filaMapa, dia.tareaIdsDesarrollo);
           // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
           // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
           const alcance = ALCANCE_POR_SEMILLA[contexto.planMaestro?.semillaId]?.conInvitado || null;
           if (necesitaLugares(filaMapa)) dia.ampliacion = ampliacionSinLugares(dia.ampliacion);
-          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[contexto.planMaestro?.semillaId] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: filaMapa.tareas[0]?.nombre ? filaMapa.tareas[0].nombre.charAt(0).toUpperCase() + filaMapa.tareas[0].nombre.slice(1) : "", modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1, mapaMental: Boolean(filaMapa.mapaMental) };
+          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[contexto.planMaestro?.semillaId] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: filaMapa.tareas[0]?.nombre ? `${filaMapa.tareas[0].nombre.charAt(0).toUpperCase()}${filaMapa.tareas[0].nombre.slice(1)}${filaMapa.tareas[0].secciones?.length === 1 ? `: ${filaMapa.tareas[0].secciones[0]}` : ""}` : "", modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1, mapaMental: Boolean(filaMapa.mapaMental) };
         }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
@@ -6442,6 +6443,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     ...(seccionesSinFinal(unidadResult.anexos?.organizadorProducto).length ? [`Secciones sin pieza final: ${seccionesSinFinal(unidadResult.anexos.organizadorProducto).join(", ")}.`] : []),
     ...(codigosEvaluacionSinTexto.length ? [`Evaluaciones: códigos fuera de esta malla, omitidos del Punto de partida: ${codigosEvaluacionSinTexto.join(", ")}.`] : []),
   ].filter(Boolean);
+  // La concordancia de «guía» también en los anexos (Anexo K de Escuela).
+  if (rutaPlanMaestro?.mapa && unidadResult.anexos) conGuiaEnTextos(unidadResult.anexos);
   // El panel del administrador: una línea por aviso, en orden y con tope de tamaño.
   const avisosPanel = avisosParaAdministrador([...(unidadResult.avisosRedaccion || []), ...avisosGrupo]);
   if (avisosPanel.length) unidadResult.avisosRedaccion = avisosPanel;
@@ -6665,6 +6668,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     .modelo-table ul { margin: 0 0 0 16px; padding: 0; }
     .modelo-table li { margin-bottom: 2pt; }
     .modelo-subhead { background: #dbeafe; color: #1e3a8a; font-weight: bold; padding: 4px 8px; border: 1px solid #93c5fd; font-size: 11pt; }
+    .act-fase { font-size: 9pt; color: #1e3a5f; border: 1px solid #93c5fd; border-radius: 3px; padding: 0 3px; }
     .fase-band { background: #1e3a5f; color: white; padding: 6px 10px; font-weight: bold; font-size: 11pt; margin-top: 18px; }
     .est-band { background: #2563eb; color: white; padding: 4px 10px; font-size: 10pt; }
     .semana-band { background: #3b82f6; color: white; padding: 5px 10px; font-weight: bold; font-size: 11pt; margin-top: 12px; }
@@ -6795,7 +6799,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
             negritaPrimeraPalabra(escHtml(a))
               .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
           );
-          return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span> ${html}</p>`;
+          const faseDeActividad = mom.nombre === "Desarrollo" ? dia.fasesPorActividad?.Desarrollo?.[i] : (mom.nombre === "Inicio" ? dia.fasesPorActividad?.Inicio?.[i] : "");
+          return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span>${faseDeActividad ? ` <span class="act-fase">${escHtml(faseDeActividad)}</span>` : ""} ${html}</p>`;
         }).join("");
         const evalHtml = `<strong>Tipo:</strong> ${escHtml(mom.evaluacion?.tipo)}.<br><strong>Agente:</strong> ${escHtml(mom.evaluacion?.agente)}.<br><strong>Técnica:</strong> ${escHtml(mom.evaluacion?.tecnica)}.<br><strong>Instrumento:</strong> ${escHtml(mom.evaluacion?.instrumento)}.`;
         const recursos = mom.recursos || {};
@@ -7003,7 +7008,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <tr><td class="lbl">Título de la Unidad</td><td colspan="3"><strong>${m.titulo}</strong></td></tr>
     <tr><td class="lbl">Duración</td><td>${m.duracion}</td><td class="lbl">Fecha inicio</td><td>${m.fechaInicio}</td></tr>
     <tr><td class="lbl">Horario</td><td colspan="3">${m.horario || ""}</td></tr>
-    <tr><td class="lbl">Asignaturas vinculadas</td><td colspan="3">${(m.asignaturasVinculadas || []).join(", ") || "N/A"}</td></tr>
+    <tr><td class="lbl">Asignaturas vinculadas</td><td colspan="3">${(m.asignaturasVinculadas || []).join(", ") || "Sin articulación"}</td></tr>
     <tr><td class="lbl">Producto final</td><td colspan="3">${m.productoFinal}</td></tr>
   </table>
 

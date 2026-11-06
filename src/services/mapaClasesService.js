@@ -81,15 +81,31 @@ const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) },
 
 // Lista completa de tareas de la unidad, sin minutos ni clases.
 const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia }) => {
-  // La indagación ordena sus datos con la encuesta y la tabla de contraste: «ordenar con un modelo» sobraría.
-  const tareasOmitidas = estrategia === "indagacion_dialogica" ? [...omitidas, "analizar_ordenar"] : omitidas;
+  const tareasOmitidas = omitidas;
+  const indagacion = estrategia === "indagacion_dialogica";
+  const faseDe = (re) => fases.findIndex((f) => re.test(f.nombre));
+  // Decisiones de César (2026-11-06). Indagación: la fase 3 organiza y prioriza lo ya validado (Referente 2025, p. 18).
+  // Problemas: los cursos de acción se evalúan como contenido, en «Reestructuración», no se califican (Adecuación, p. 24).
+  let ordenarIndagacion = false;
+  const ajustePorEstrategia = (t) => {
+    if (indagacion && t.clave === "analizar_ordenar") return { ...t, faseGuia: faseDe(/^Análisis y organización/), hace: "Organizan y priorizan los datos validados en una tabla de frecuencia o una matriz por categoría, y deciden qué problemas atenderá el plan. Aún no redactan la pieza." };
+    if (estrategia === "problemas" && t.clave === "proponer_elegir") return { ...t, faseGuia: faseDe(/^Reestructuración/), hace: "Evalúan los cursos de acción posibles (ventajas, desventajas y viabilidad) y justifican cuál eligen con la tabla." };
+    return t;
+  };
   const orden = ordenarSecciones(secciones, tipos, partenDe);
   const items = [];
   const push = (t, seccionesT, bloque, orden1, orden2, faseForzada) => items.push({
     t, secciones: seccionesT, bloque, orden1, orden2, faseForzada, fase: null,
   });
   orden.forEach((seccion, s) => {
-    TAREAS_POR_TIPO[tipos[seccion]].filter((t) => !tareasOmitidas.includes(t.clave)).forEach((t, p) => push(t, [seccion], 1, s, p));
+    TAREAS_POR_TIPO[tipos[seccion]].filter((t) => !tareasOmitidas.includes(t.clave)).forEach((t, p) => {
+      // En Indagación se organizan los datos una vez, para todas las secciones que los usan.
+      if (indagacion && t.clave === "analizar_ordenar") {
+        if (ordenarIndagacion) return;
+        ordenarIndagacion = true;
+      }
+      push(ajustePorEstrategia(t), [seccion], 1, s, p);
+    });
   });
   const comentables = orden.filter((s) => !["aplicar", "proponer"].includes(tipos[s]));
   trozos(comentables, SECCIONES_POR_COMENTAR).forEach((grupo, g) => push(TAREA_COMENTAR, grupo, 2, 0, g));
@@ -102,6 +118,8 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   const enEvaluacion = proyectos && fases.findIndex((f) => f.nombre === "Evaluación") >= 0 ? { faseGuia: fases.findIndex((f) => f.nombre === "Evaluación") } : {};
   // Una sola revisión para todas las secciones: el docente pasa por cada grupo editor, sección por sección.
   if (proyectos) push({ ...TAREA_REVISION_DOCENTE, ...enEvaluacion }, corregibles, 2, 0.9, 0);
+  // Problemas no tiene fase de evaluación: va en «Puesta en común», revisión formativa → sumativa → respuesta (decisión B).
+  if (estrategia === "problemas") push({ ...TAREA_REVISION_DOCENTE, faseGuia: faseDe(/^Puesta en común/) }, corregibles, 3, 1.5, 0);
   // Proyectos: tras la revisión del docente, un solo ciclo de mejora para todas las secciones.
   if (proyectos) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, corregibles, 2, 1, 0);
   else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g));
@@ -572,6 +590,15 @@ export const citaTexto = (texto, re = null, ancho = 90) => {
 
 // Aplica `fn` a todos los textos de la clase, salvo el modelo en inglés y lo fijo del mapa.
 const CLAVES_SIN_TEXTO_DE_CLASE = new Set(["textoModelo", "tareasMapa", "fijoDelMapa", "ampliacion"]);
+/** Concordancia con «guía» en textos fuera de las clases, como los anexos. */
+export const conGuiaEnTextos = (nodo) => {
+  Object.entries(nodo || {}).forEach(([k, v]) => {
+    if (typeof v === "string") nodo[k] = conGuiaEnFemenino(v);
+    else if (v && typeof v === "object") conGuiaEnTextos(v);
+  });
+  return nodo;
+};
+
 const mapearTextos = (nodo, fn) => {
   Object.entries(nodo || {}).forEach(([k, v]) => {
     if (CLAVES_SIN_TEXTO_DE_CLASE.has(k)) return;
@@ -640,6 +667,16 @@ export const focoDeFila = (fila = {}, filas = []) => {
   // Sin el ejemplo de la malla: suele ser de otro tema («a pair of boots» en un menú).
   const nombres = gramatica.map((t) => t.split(":")[0].replace(/\s+(para|en contexto)\b.*$/, "").replace(/\s*\/\s*/g, " / ").trim().toLowerCase());
   return `${funcion}: ${nombres.join(", ")}`;
+};
+
+/** Fases de cada actividad, solo si la clase lleva más de una: su nombre, no su número (César, 2026-11-06). */
+export const fasesDeActividades = (fila = {}, tareaIds = []) => {
+  const nombres = [...new Set([...(fila.tareas || []).map((t) => t.faseNombre), ...(fila.fases || []).map((f) => f.nombre)])].filter(Boolean);
+  if (nombres.length < 2) return null;
+  const desarrollo = tareaIds.map((id) => fila.tareas?.[Number(String(id).slice(1)) - 1]?.faseNombre || "");
+  // El mapa mental del Inicio de la clase 1 es la tarea de «Análisis de saberes previos».
+  const saberes = fila.mapaMental ? (fila.fases || []).map((f) => f.nombre).find((n) => /saberes previos/i.test(n)) : "";
+  return { nombres, Desarrollo: desarrollo, Inicio: saberes ? { 2: saberes } : {} };
 };
 
 /** Concordancia con «guía» cuando es el producto, no una persona. */
@@ -733,6 +770,10 @@ export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreM
   (dia.momentos || []).forEach((m) => {
     if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map((a) => (typeof a === "string" ? a.replace(/^Reúnan\b/, "Reúnen") : a));
   });
+  // «$RD200» o «RD 200» es pesos con el formato cambiado.
+  const conMoneda = (t) => String(t).replace(/\$\s?RD\s?(?=\d)|\bRD\s?\$\s(?=\d)/g, "RD$");
+  if (Array.isArray(dia.textoModelo?.lineas)) dia.textoModelo.lineas = dia.textoModelo.lineas.map(conMoneda);
+  mapearTextos(dia, conMoneda);
   return dia;
 };
 
@@ -1061,7 +1102,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   const faseInfo = (i) => ({ numero: plan.fases[i].numero, nombre: plan.fases[i].nombre });
   const filas = clases.map((tareas, c) => {
     const lista = tareas.map(({ t, secciones, minutos, fase, paralelo }) => ({
-      clave: t.clave, tipoPrueba: t.tipoPrueba || "", nombre: t.nombre, secciones: [...secciones], minutos, fase, paralelo: Boolean(paralelo),
+      clave: t.clave, tipoPrueba: t.tipoPrueba || "", nombre: t.nombre, secciones: [...secciones], minutos, fase, faseNombre: plan.fases[fase]?.nombre || "", paralelo: Boolean(paralelo),
       demuestra: t.demuestra, evidencia: t.evidencia, condicion: t.condicion, organizacion: t.organizacion,
       entrega: t.entrega, individual: Boolean(t.individual), sumativa: Boolean(t.sumativa), cierraSeccion: Boolean(t.cierraSeccion),
       llegaAudiencia: Boolean(t.llegaAudiencia), ampliacion: Boolean(t.ampliacion), recursos: t.recursos,
@@ -1133,15 +1174,12 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   // Fases sin tarea: se unen a la clase de la fase siguiente con tarea (o a la última).
   plan.fases.forEach((_, i) => {
     if (filas.some((f) => f.fases.some((x) => x.numero === i + 1))) return;
-    // Cada fase lleva al menos una tarea propia (César, 2026-11-06): sin cambiar el orden de las
-    // clases, toma la última de la fase anterior o la primera de la siguiente, si le sobra una.
-    const deFase = (n) => filas.filter((f) => f.fases.length === 1 && f.fases[0].numero === n);
-    const antes = deFase(i);
-    const despues = deFase(i + 2);
-    // Una clase flexible no cuenta como tarea propia, y detrás de ella la fase retrocedería.
-    const prestada = breve ? null : (antes.length > 1 && !antes[antes.length - 1].flexible ? antes[antes.length - 1]
-      : (despues.length > 1 && !despues[0].flexible ? despues[0] : null));
-    if (prestada) { prestada.fases = [faseInfo(i)]; return; }
+    // Una clase puede llevar varias fases (César, 2026-11-06): la fase sin clase propia va con la que hace su tarea.
+    const conSuTarea = filas.find((f) => f.tareas.some((t) => t.fase === i));
+    if (conSuTarea && !breve) {
+      conSuTarea.fases = [...conSuTarea.fases, faseInfo(i)].sort((a, b) => a.numero - b.numero);
+      return;
+    }
     const destino = filas.find((f) => f.fases.some((x) => x.numero > i + 1)) || filas[filas.length - 1];
     destino.fases = [...destino.fases, faseInfo(i)].sort((a, b) => a.numero - b.numero);
     avisos.push(`La fase «${plan.fases[i].nombre}» no tiene tarea propia y se une a la clase ${destino.clase}.`);
@@ -1195,6 +1233,8 @@ export const aporteDeFila = (fila, producto, secciones = []) => {
 export const planDesdeMapa = (entrada, mapa) => {
   if (!mapa.ajustesPlan) return null;
   const plan = construirPlanMaestro({ ...entrada, ajustes: mapa.ajustesPlan });
+  // Las fases que comparten clase se muestran por separado, no con un nombre fusionado (César, 2026-11-06).
+  plan.fases.forEach((f) => { if ((f.fasesGuia || []).length > 1 && !f.parte) f.nombre = f.fasesGuia.map((n) => n.replace(/\.$/, "")).join(" → "); });
   const porId = new Map(plan.fases.flatMap((f) => f.indicadores).map((ind) => [ind.id, ind]));
   let desde = 0;
   const filasPorFase = plan.fases.map((fase) => {

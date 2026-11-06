@@ -50,6 +50,10 @@ Cada invariante tiene su prueba en `scripts/test-invariantes.mjs` y se comprueba
   - La estructura del día, la tabla de Ampliación y las actividades que alimentan el producto solo usan lugares de la tabla común del recorrido o términos genéricos.
 - I-12 La audiencia sale de la configuración de la unidad (en Escuela, por defecto 6.º de primaria, real), también en la situación de aprendizaje; nunca «la persona invitada».
 
+### Fases
+Una clase puede contener dos o más fases (César, 2026-11-06). Cada fase conserva su tarea característica dentro de esa clase, aunque sea breve: no se pierde ninguna tarea por compartir clase. Cada actividad indica su fase y el encabezado las muestra por separado («Fase A → Fase B»), no con un nombre fusionado.
+- I-18 Cada unidad tiene un único producto central, y sus secciones son partes de él.
+
 ### Texto final
 - I-16 Todo texto modelo se declara ejemplo en su título («Model School», «Comedor modelo»). Lo escribe el código.
 - I-17 Ninguna actividad queda con un hueco vacío («(...)», «()», «{frases}»).
