@@ -29,7 +29,7 @@ import { conReemplazos, focoDeFila, minutosInicioPresentacion, sinLugaresEnClase
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
-  revisarUnidadConMapa, contenidosNoVistosEnUnidad, avisosParaAdministrador, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
+  revisarUnidadConMapa, motivosClaseFinal, contenidosNoVistosEnUnidad, avisosParaAdministrador, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
   seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases, VERBOS_IDIOMA, VERBOS_GESTION,
 } from "./redaccionFaseService.js";
 
@@ -6254,6 +6254,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           [...new Set(quitados)].forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: se quitó un lugar que no consta en la tabla común: «${t}»`));
         }
         sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: usa un equipo que el mapa no prevé: «${m}»`));
+        motivosClaseFinal(d).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: ${m}`));
         delete d.fijoDelMapa;
       }
       if (!desarrollo?.actividades?.length) return;

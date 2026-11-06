@@ -634,6 +634,8 @@ export const conErratasCorregidas = (t = "") => String(t).replace(/\p{L}{4,}/gu,
 });
 
 /** Título en inglés: sin palabras del español y con palabras del inglés. */
+/** Portugués: la IA a veces cambia de idioma. Letras que el español no usa. */
+export const textoEnPortugues = (t = "") => /[ãõçÃÕÇ]|\b(escolh|saud[aá]ve|voc[eê]\b|n[aã]o\b)/i.test(t);
 export const tituloEnIngles = (t = "") => !/\b(de|del|la|las|el|los|y|con|para|en|un|una|al)\b/i.test(t) && /\b(and|the|of|with|for|to|our)\b|\b[a-z]+ing\b/i.test(t);
 
 /** Correcciones de una unidad (por ejemplo, el plural cuando la fuente es una sola persona). */
@@ -653,7 +655,10 @@ export const conReemplazos = (dia = {}, reemplazos = []) => {
 /** Títulos de la clase: concordancia con «guía» y un texto modelo no se llama «simulado». */
 export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreModelo = "", tituloTarea = "", corregidos = [] } = {}) => {
   const guia = conGuiaEnFemenino;
-  if (dia.titulo && tituloTarea && tituloEnIngles(dia.titulo)) dia.titulo = tituloTarea;
+  if (dia.titulo && tituloTarea && (tituloEnIngles(dia.titulo) || textoEnPortugues(dia.titulo))) {
+    if (textoEnPortugues(dia.titulo)) corregidos.push(`título fuera de español: «${citaTexto(dia.titulo, null, 60)}»`);
+    dia.titulo = tituloTarea;
+  }
   // Todo el texto de la clase: las evidencias y su trazabilidad repetían «del guía».
   let concordancias = 0;
   mapearTextos(dia, (t) => {
@@ -820,7 +825,7 @@ export const pasosConFrases = (secuencia = [], respuesta = [], { sinLugares = fa
   const r = respuesta[i];
   // Solo lo que está en cursiva: a veces la IA repite el paso entero en el hueco.
   const crudo = String((typeof r === "string" ? r : r?.frases) || "");
-  const frases = (crudo.match(/_[^_]{2,80}_/g) || []).filter((f) => (!sinLugares || !LUGARES_NO_DECLARADOS.test(f)) && !esNombreDelProducto(f, nombres)).slice(0, 2).join(", ");
+  const frases = (crudo.match(/_[^_]{2,80}_/g) || []).filter((f) => /\p{L}{2}/u.test(f) && (!sinLugares || !LUGARES_NO_DECLARADOS.test(f)) && !esNombreDelProducto(f, nombres)).slice(0, 2).join(", ");
   return frases ? paso.texto.replace("{frases}", frases) : paso.texto.replace(/\s*\(\{frases\}\)/, "");
 });
 

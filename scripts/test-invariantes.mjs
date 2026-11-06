@@ -176,6 +176,8 @@ const invariantesJson = {
     const sinDeclarar = g.dias.flatMap((d, i) => (d.textoModelo?.lineas?.length && !/model school/i.test(d.textoModelo.titulo || "") ? [`C${i + 1} modelo sin declarar`] : []));
     return [...lista, ...sinDeclarar].slice(0, 5).join(" | ");
   },
+  "I-16": (g) => g.dias.flatMap((d, i) => (d.textoModelo?.lineas?.length && !/\bmodel/i.test(d.textoModelo.titulo || "") ? [`C${i + 1}: ${d.textoModelo.titulo || "sin título"}`] : [])).slice(0, 4).join(" | "),
+  "I-17": (g) => g.textos.filter((x) => /\(\s*[_\s.…]*\s*\)|\{[a-z]+\}/.test(x.t)).map((x) => `C${x.c}: ${x.t.slice(0, 60)}`).slice(0, 4).join(" | "),
   "I-12": (g) => (JSON.stringify(g.dias).includes("persona invitada") ? "aparece «la persona invitada»" : ""),
   "I-14": (g) => {
     const de = (n) => ((g.dias[0]?.momentos || []).find((m) => m.nombre === n)?.actividades || []).join(" ");

@@ -38,7 +38,7 @@ export const SECUENCIAS_POR_TAREA = {
       p(4, "Repasan (en grupos) su turno y la pregunta que firmó cada estudiante, mientras el docente recuerda cómo pedir la palabra (_Excuse me…_, _May I ask…?_)."),
       p(4, "Escuchan (en plenaria) a {invitado} presentarse y anotan en la tabla común lo que ya dice."),
       pe(12, "Entrevistan (por turnos, una pregunta por estudiante) a {invitado} sobre {datos} ({frases}), mientras el docente marca la lista de cotejo.", "preguntar por esos datos"),
-      p(6, "Preguntan (por turnos) lo que falta y reaccionan a lo que oyen ({frases}), y el docente ayuda a quien se traba.", "reaccionar con cortesía", /you.re welcome|pedir que repitan|interes/),
+      p(6, "Preguntan (por turnos) lo que falta y reaccionan a lo que oyen (_Really?_, _That’s great!_, _I see_), y el docente ayuda a quien se traba."),
       pe(4, "Comprueban (en grupos, con {invitado}) que no falte ningún dato y piden aclarar lo que no entendieron: tabla común completa; queda en la carpeta de la sección."),
     ],
     [

@@ -23,8 +23,8 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto } from "./mapaClasesService.js";
-import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA } from "../data/tareasPorTipoTrabajo.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles } from "./mapaClasesService.js";
+import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA, FRASES_POR_FUNCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { recomponerIndicador } from "../data/indicadoresIngles2doEstructurados.js";
@@ -664,14 +664,15 @@ const contenidoSeVe = (contenido, texto) => {
  */
 export const contenidosNoVistosEnUnidad = (dias = [], filas = []) => {
   const texto = dias.map(textoCompletoDeClase).join(" ");
-  return filas.flatMap((fila) => (fila?.contenidos || [])
+  return filas.filter((fila) => !fila?.secuencia).flatMap((fila) => (fila?.contenidos || [])
     .filter((c) => c.porFuncion && !/^funcional:/i.test(c.texto) && !contenidoSeVe(c.texto, texto))
     .map((c) => `clase ${fila.clase}: el contenido «${citaTexto(c.texto)}» no se ve en ninguna clase`));
 };
 
 /** Contenidos que el mapa puso en esta clase por su función y no aparecen en ella. */
 export const contenidosFaltantesEnClase = (clase, fila) => {
-  if (!fila || fila.flexible) return [];
+  // Los pasos del banco ya traen sus frases: no hay paso libre donde colocarlo sin forzarlo.
+  if (!fila || fila.flexible || fila.secuencia || clase?.secuenciaAplicada) return [];
   const texto = textoCompletoDeClase(clase);
   return (fila.contenidos || []).filter((c) => c.porFuncion && !/^funcional:/i.test(c.texto) && !contenidoSeVe(c.texto, texto)).map((c) => c.texto);
 };
@@ -887,6 +888,34 @@ export const motivosTextoClase = (clase) => {
   return motivos;
 };
 
+/**
+ * Controles sobre la clase ya terminada, después de lo que corrige el código (César, 2026-11-06):
+ * texto modelo sin declarar, hueco vacío en una actividad y frase que no sirve a la función del paso.
+ */
+export const motivosClaseFinal = (clase, { estructurasGrado = null } = {}) => {
+  const motivos = [];
+  [["título", clase?.titulo], ["intención pedagógica", clase?.intencionPedagogica]].forEach(([nombre, t]) => {
+    if (t && (textoEnPortugues(t) || (nombre === "título" && tituloEnIngles(t)))) motivos.push(`${nombre} fuera de español: «${citaTexto(t, null, 60)}»`);
+  });
+  // Comprobación inversa: nada de lo que dice la estructura del día queda fuera de la malla.
+  const foco = String(clase?.focoLinguistico || "");
+  const estructura = estructuraGramatical(foco);
+  if (/\bthan\b/i.test(foco) || (estructurasGrado?.length && estructura && !estructurasGrado.includes(estructura))) motivos.push(`estructura del día fuera de la malla: «${citaTexto(foco, /\bthan\b/i, 70)}»`);
+  const modelo = clase?.textoModelo;
+  if (modelo?.lineas?.length && !/\bmodel/i.test(modelo.titulo || "")) motivos.push(`texto modelo sin declarar: «${citaTexto(modelo.titulo || "sin título", null, 60)}»`);
+  const desarrollo = (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || [];
+  (clase?.momentos || []).flatMap((m) => m?.actividades || []).map(textoComoCadena).forEach((a) => {
+    if (/\(\s*[_\s.…]*\s*\)|\{[a-z]+\}/.test(a)) motivos.push(`hueco vacío en una actividad: «${citaTexto(a, /\(\s*[_\s.…]*\s*\)|\{[a-z]+\}/)}»`);
+  });
+  desarrollo.map(textoComoCadena).forEach((a) => {
+    const paso = normalizar(a);
+    const citas = (a.match(/_[^_]{2,80}_/g) || []).map(normalizar);
+    const regla = FRASES_POR_FUNCION.find(([re]) => re.test(paso));
+    if (regla && citas.length && !citas.some((c) => regla[1].test(c))) motivos.push(`una frase no corresponde a la función del paso: «${citaTexto(a, /_[^_]{2,80}_/)}»`);
+  });
+  return [...new Set(motivos)];
+};
+
 /** Dónde se aleja la clase de su fila: lo ve el administrador, no el docente. */
 export const motivosFidelidad = (clase, fila) => {
   const motivos = [];
@@ -924,8 +953,9 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
     const etiqueta = `Contrato: clase ${idx + 1}`;
     // Con mapa, el paréntesis de la organización lo pone el código antes de revisar la clase.
     const organizaciones = [];
-    if (contrato.mapaClases && !clase?.secuenciaAplicada) {
-      (clase?.momentos || []).filter((m) => m?.nombre === "Desarrollo" || m?.nombre === "Cierre").forEach((m) => {
+    if (contrato.mapaClases) {
+      // El Desarrollo del banco ya viene bien; el Cierre siempre lo escribe la IA.
+      (clase?.momentos || []).filter((m) => (m?.nombre === "Desarrollo" && !clase?.secuenciaAplicada) || m?.nombre === "Cierre").forEach((m) => {
         if (!Array.isArray(m.actividades)) return;
         m.actividades = m.actividades.map((a) => {
           const nueva = conOrganizacionEnParentesis(a);
@@ -1004,14 +1034,12 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       }
       const sinDatos = datosSinRecoger(clase, filaMapa);
       if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
-      // Estructura del día fuera de la malla: solo se avisa, y solo si se reconoce.
-      const estructuraDia = estructuraGramatical(clase?.focoLinguistico);
-      if (contrato.estructurasGrado?.length && estructuraDia && !contrato.estructurasGrado.includes(estructuraDia)) motivos44[idx].push(`clase ${idx + 1} — la estructura del día (${estructuraDia}) no está en la malla del grado`);
+      // La estructura del día la escribe el código (focoDeFila): se revisa al final, en motivosClaseFinal.
       if (contrato.estructurasGrado?.length && !contrato.estructurasGrado.includes("comparativo")) {
-        const conThan = [clase?.focoLinguistico, ...(clase?.textoModelo?.lineas || []), ...textosActividades(clase).map(textoComoCadena)].find((t) => /\bthan\b/i.test(String(t || "")));
+        const conThan = [...(clase?.textoModelo?.lineas || []), ...textosActividades(clase).map(textoComoCadena)].find((t) => /\bthan\b/i.test(String(t || "")));
         if (conThan) motivos44[idx].push(`clase ${idx + 1} — usa un comparativo fuera de la malla del grado: "${String(conThan).slice(0, 70)}"`);
       }
-      [...motivosFidelidad(clase, filaMapa).filter((m) => !/^no se ve la tarea/.test(m)), ...motivosTextoClase(clase), ...motivosTareaId(clase, filaMapa)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
+      [...motivosFidelidad(clase, filaMapa).filter((m) => !/^no se ve la tarea/.test(m)), ...motivosTextoClase(clase).filter((m) => !/nombra un equipo.*grabad/i.test(m)), ...motivosTareaId(clase, filaMapa)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
       if (!contrato.conContenido && ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
       revisarAmpliacionYFoco();
     } else if (!contrato.conContenido) {
@@ -1069,7 +1097,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
 // Panel del administrador: de qué tipo es cada aviso, de quién es y qué se hizo con él.
 const GRUPOS_AVISO = ["Rompe la cadena", "Contenido", "Estilo"];
 const AVISOS_CADENA = /falta la tarea|no se ve que use|adelanta o repite|diagn[oó]stico no se aplica|no usa el producto|nadie lee|debe recoger estos datos|audiencia real|no sigue la modalidad|usa un dato|sin pieza final/i;
-const AVISOS_CONTENIDO = /contenido|nombra un lugar|precio|falta dato|nombra un equipo|usa un equipo|estructura del d[ií]a|comparativo|repite una actividad|nadie graba|selecci[oó]n curricular|evidencias por planificar|evaluaciones:/i;
+const AVISOS_CONTENIDO = /contenido|fuera de español|estructura del d[ií]a fuera|texto modelo sin declarar|hueco vac[ií]o|no corresponde a la funci[oó]n|nombra un lugar|precio|falta dato|nombra un equipo|usa un equipo|estructura del d[ií]a|comparativo|repite una actividad|nadie graba|selecci[oó]n curricular|evidencias por planificar|evaluaciones:/i;
 const AVISOS_DOCENTE = /^(evaluaciones:|selecci[oó]n curricular)/i;
 const AVISOS_CONFIGURACION = /^diagn[oó]stico: sin dato/i;
 const AVISOS_CODIGO = /^(tiempo:|evidencias por planificar|secciones sin pieza final)|necesita unos \d+ min/i;

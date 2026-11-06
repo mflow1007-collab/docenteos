@@ -4,10 +4,10 @@
  * Sin IA: node scripts/test-avisos-unidad.mjs
  */
 import { readFileSync } from "node:fs";
-import { armarMapaClases, conFichaDeUnidad, conTitulosCorregidos, necesitaLugares, pasosConFrases, ponerSecuencias, sinLugaresEnClase } from "../src/services/mapaClasesService.js";
+import { armarMapaClases, conFichaDeUnidad, conTitulosCorregidos, focoDeFila, necesitaLugares, pasosConFrases, ponerSecuencias, sinLugaresEnClase } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import {
-  avisosParaAdministrador, conOrganizacionEnParentesis, contenidosFaltantesEnClase, contenidosNoVistosEnUnidad, datosSinRecoger, pendientesDeClase, instruccionTareaFaltante, motivoRedaccionActividad, motivosFidelidad, motivosRedaccionClase,
+  avisosParaAdministrador, conOrganizacionEnParentesis, contenidosFaltantesEnClase, contenidosNoVistosEnUnidad, datosSinRecoger, pendientesDeClase, instruccionTareaFaltante, motivoRedaccionActividad, motivosClaseFinal, motivosFidelidad, motivosRedaccionClase,
   motivosTareaId, motivosTextoClase, obligacionIncumplida, revisarUnidadConMapa, tareasSinActividad,
 } from "../src/services/redaccionFaseService.js";
 import { ASUNTO_LECTURA_POR_SEMILLA, LUGARES_NO_DECLARADOS } from "../src/data/tareasPorTipoTrabajo.js";
@@ -44,6 +44,7 @@ const avisosDeUnidad = (dias, filas) => [
       ...motivosTextoClase(dia), ...datosSinRecoger(dia, fila), obligacionIncumplida(dia, fila),
       ...motivosRedaccionClase(dia, "c", { esIdioma: true, conMapa: true }),
       ...(necesitaLugares(fila) ? sinLugaresEnClase(structuredClone(dia)) : []),
+      ...motivosClaseFinal(conTitulosCorregidos(structuredClone(dia), { nombreModelo: "Comedor modelo", tituloTarea: "Título de la tarea" })),
     ].filter(Boolean).map((m) => `C${i + 1} ${m}`);
   }),
   ...revisarUnidadConMapa(dias, filas), ...contenidosNoVistosEnUnidad(dias, filas),
@@ -148,6 +149,34 @@ check("revisión de Alimentación: presentar al grupo y datos recibidos no son f
   const i = alimentacion.filas.findIndex((f) => f.tareas.some((t) => t.clave === "analizar_ordenar"));
   dias[i] = desarrollo("Ordenan (en grupos) los datos recibidos del comedor.");
   assert(!revisarUnidadConMapa(dias, alimentacion.filas).some((a) => new RegExp(`clase ${i + 1}: no se ve`).test(a)), "datos recibidos");
+});
+check("controles del panel: modelo sin declarar, hueco vacío y frase fuera de su función", () => {
+  const modelo = (titulo) => ({ textoModelo: { titulo, lineas: ["A: Hi."] }, momentos: [] });
+  assert(/sin declarar/.test(motivosClaseFinal(modelo("Ordering at a Restaurant"))[0]), "sin declarar");
+  ["Comedor modelo — Ordering", "Model School — Asking"].forEach((t) => assert(!motivosClaseFinal(modelo(t)).length, t));
+  assert(/hueco vacío/.test(motivosClaseFinal(desarrollo("Muestran las secciones, explicando para qué sirve cada una (_..._)."))[0]), "(...)");
+  assert(/hueco vacío/.test(motivosClaseFinal(desarrollo("Comentan algo ({frases})."))[0]), "{frases}");
+  assert(/no corresponde/.test(motivosClaseFinal(desarrollo("Usan el menú y aclaran lo que no entiendan (_I hope so!_)."))[0]), "aclarar");
+  assert(/no corresponde/.test(motivosClaseFinal(desarrollo("Preguntan y reaccionan a lo que oyen (_You’re welcome…_)."))[0]), "reaccionar");
+  assert(!motivosClaseFinal(desarrollo("Usan el menú y aclaran lo que no entiendan (_I’ll have…_, _Pardon?_).", "Preguntan y reaccionan a lo que oyen (_Really?_, _That’s great!_).", "Anotan en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_).")).length, "frases correctas");
+  assert(!/\(/.test(pasosConFrases([{ texto: "Muestran las secciones ({frases})." }], [{ frases: "_..._" }])[0]), "el hueco desaparece");
+});
+check("idioma y malla: título en portugués, intención y estructura fuera de la malla", () => {
+  const corregidos = [];
+  const dia = conTitulosCorregidos({ titulo: "Escolhendo Opções Saudáveis", momentos: [] }, { tituloTarea: "Elegir y justificar", corregidos });
+  assert(dia.titulo === "Elegir y justificar" && corregidos.some((c) => /fuera de español/.test(c)), JSON.stringify(dia));
+  assert(/intención pedagógica fuera de español/.test(motivosClaseFinal({ intencionPedagogica: "Os alunos escolhem opções.", momentos: [] })[0]), "intención");
+  assert(/fuera de la malla/.test(motivosClaseFinal({ focoLinguistico: "Comparar: is more expensive than", momentos: [] })[0]), "than");
+  assert(!motivosClaseFinal({ titulo: "Corregimos la guía para pedir", intencionPedagogica: "Los estudiantes corrigen.", focoLinguistico: "Pedir: presente simple", momentos: [] }).length, "español");
+});
+check("«Mostrar interés» no se fuerza y la clase del banco no pide regenerar por contenidos", () => {
+  [alimentacion, escuela].forEach((m) => m.filas.filter((f) => f.tareas.some((t) => t.clave === "presentar")).forEach((f) => {
+    assert(!f.contenidos.some((c) => /^Mostrar inter/.test(c.texto)), `C${f.clase}`);
+    assert(!/Mostrar inter|Deseos/i.test(focoDeFila(f)), `foco C${f.clase}: ${focoDeFila(f)}`);
+  }));
+  const fila = { clase: 11, tareas: [], secuencia: [{}], contenidos: [{ texto: "Disculparse: I’m sorry", porFuncion: true }] };
+  assert(!contenidosFaltantesEnClase(desarrollo("Saludan."), fila).length, "banco");
+  assert(!contenidosNoVistosEnUnidad([desarrollo("Saludan.")], [fila]).length, "banco en la unidad");
 });
 check("concordancia de «guía» en todo el texto, como corrección automática", () => {
   const corregidos = [];

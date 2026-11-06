@@ -189,7 +189,7 @@ check("ningún mapa pasa del tope de contenidos ni deja una clase con más de 3 
       assert(f.indicadores.length >= 1 && f.indicadores.length <= 3, `${titulo} ${semanas} clase ${f.clase}: ${f.indicadores.length} indicadores`);
     });
   }
-  assert(ref.contenidosSinLugar.every((x) => /ordinales|lugares|interaccion|interacción|fechas|indiferencia|why don|condicional/i.test(x)), `la referencia no recorta lo que tiene uso: ${ref.contenidosSinLugar}`);
+  assert(ref.contenidosSinLugar.every((x) => /ordinales|lugares|interaccion|interacción|fechas|indiferencia|why don|condicional|mostrar inter/i.test(x)), `la referencia no recorta lo que tiene uso: ${ref.contenidosSinLugar}`);
   assert(mapaDe("Alimentación", 1, HORARIOS["3x1"]).contenidosSinLugar.length > 0, "a 1 semana debe recortar");
   assert(mapaDe("Alimentación", 1, HORARIOS["3x1"]).avisos.some((a) => /sin marcar/.test(a)), "no lo declara");
 });

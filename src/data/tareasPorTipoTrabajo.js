@@ -200,7 +200,9 @@ export const USO_DE_CONTENIDOS = [
   [/^fechas/, []],
   // Tercer dato: sin esa tarea en la unidad no hay cita que fijar y la hora queda sin lugar (Escuela).
   [/^hora:/, ["visitar_entrevistar", "aplicar_ensayar"], "visitar_entrevistar"],
-  [/^cortesia|^you.re welcome|^captar la atencion|^pedir que repitan|^mostrar interes/, ["visitar_entrevistar", "probar_audiencia", "orientar_probar"]],
+  [/^cortesia|^you.re welcome|^captar la atencion|^pedir que repitan/, ["visitar_entrevistar", "probar_audiencia", "orientar_probar"]],
+  // Mostrar interés se forzaba en la presentación (revisión de la g5, 2026-11-06): no tiene paso allí.
+  [/^mostrar interes/, ["visitar_entrevistar", "orientar_probar"]],
   [/^interrumpir|^pedir y dar la palabra|^mostrar acuerdo/, ["comentar", "proponer_elegir"]],
   [/^disculparse/, ["aplicar_ensayar", "probar_audiencia"]],
   [/^dudar/, ["proponer_elegir", "aplicar_ensayar"]],
@@ -229,6 +231,14 @@ export const MARCAS_CONTENIDO = [
   [/^captar la atencion/, "\\bexcuse me\\b"],
   [/^should para/, "\\bshould\\b"],
   [/^will para/, "\\b(will|i ll|we ll)\\b"],
+];
+
+// Qué frases le corresponden a un paso según su función: por el paso, las que valen.
+// Basta una de las citadas; sin citas no se juzga (sin tildes, como el texto normalizado).
+export const FRASES_POR_FUNCION = [
+  [/\baclar/, /pardon|repeat|sorry|mean|understand|could you/],
+  [/\breaccion/, /really|great|i see|good for you|what happened|wow/],
+  [/comentarios de la audiencia|en tarjetas/, /like|wish|maybe|could|think|prefer|need|should/],
 ];
 
 // De qué trata la lectura y las oraciones del diagnóstico de la clase 1: la situación, no el

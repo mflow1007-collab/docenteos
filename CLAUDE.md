@@ -50,6 +50,10 @@ Cada invariante tiene su prueba en `scripts/test-invariantes.mjs` y se comprueba
   - La estructura del día, la tabla de Ampliación y las actividades que alimentan el producto solo usan lugares de la tabla común del recorrido o términos genéricos.
 - I-12 La audiencia sale de la configuración de la unidad (en Escuela, por defecto 6.º de primaria, real), también en la situación de aprendizaje; nunca «la persona invitada».
 
+### Texto final
+- I-16 Todo texto modelo se declara ejemplo en su título («Model School», «Comedor modelo»). Lo escribe el código.
+- I-17 Ninguna actividad queda con un hueco vacío («(...)», «()», «{frases}»).
+
 ### Evidencia
 - I-13 Hay piezas individuales firmadas en las clases que el Anexo I marca como firmadas.
 
