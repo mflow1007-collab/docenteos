@@ -20,7 +20,7 @@ import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
   INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION, LUGARES_NO_DECLARADOS,
-  PREGUNTA_SITUACION_POR_SEMILLA, PREGUNTA_SITUACION_GENERAL,
+  PREGUNTA_SITUACION_POR_SEMILLA, PREGUNTA_SITUACION_GENERAL, ESTRUCTURA_POR_TAREA,
 } from "../data/tareasPorTipoTrabajo.js";
 
 export const CLASES_MINIMAS = 3;
@@ -80,14 +80,14 @@ const buscarFase = (fases, tiposFase, t, k, cuantas) => {
 const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) }, (_, i) => lista.slice(i * n, (i + 1) * n));
 
 // Lista completa de tareas de la unidad, sin minutos ni clases.
-const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe }) => {
+const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas = [] }) => {
   const orden = ordenarSecciones(secciones, tipos, partenDe);
   const items = [];
   const push = (t, seccionesT, bloque, orden1, orden2, faseForzada) => items.push({
     t, secciones: seccionesT, bloque, orden1, orden2, faseForzada, fase: null,
   });
   orden.forEach((seccion, s) => {
-    TAREAS_POR_TIPO[tipos[seccion]].forEach((t, p) => push(t, [seccion], 1, s, p));
+    TAREAS_POR_TIPO[tipos[seccion]].filter((t) => !tareasOmitidas.includes(t.clave)).forEach((t, p) => push(t, [seccion], 1, s, p));
   });
   const comentables = orden.filter((s) => !["aplicar", "proponer"].includes(tipos[s]));
   trozos(comentables, SECCIONES_POR_COMENTAR).forEach((grupo, g) => push(TAREA_COMENTAR, grupo, 2, 0, g));
@@ -553,6 +553,30 @@ export const sinLugaresEnClase = (dia = {}) => {
   return [...new Set(restantes)];
 };
 
+const conMayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/**
+ * Estructura del día: la escribe el código, para que corresponda a la tarea de la clase.
+ * Función de la fila y su gramática; sin gramática, la frase fija de la tarea principal.
+ */
+export const focoDeFila = (fila = {}) => {
+  // Si la clase reúne el producto, esa es su tarea principal.
+  const clave = (fila.tareas || []).find((t) => t.clave === "integrar")?.clave || fila.tareas?.[0]?.clave || "";
+  const fija = ESTRUCTURA_POR_TAREA[clave] || ESTRUCTURA_POR_TAREA[clave.split("_")[0]] || null;
+  const textos = (cat) => (fila.contenidos || []).filter((c) => c.categoria === cat).map((c) => c.texto);
+  const funciones = textos("funcionales").map((t) => t.replace(/^Funcional:\s*/i, "").trim());
+  const gramatica = textos("gramatica");
+  const delTexto = gramatica.map((t) => t.split(":")[0].match(/\bpara (.+)$/)?.[1]).find(Boolean);
+  const funcion = funciones.slice(0, 2).join("; ") || (delTexto ? conMayuscula(delTexto.trim()) : fija?.[0] || "");
+  if (!gramatica.length) {
+    if (!fija) return funcion;
+    return `${funcion || fija[0]}${fija[1].startsWith("(") ? " " : ": "}${fija[1]}`;
+  }
+  // Sin el ejemplo de la malla: suele ser de otro tema («a pair of boots» en un menú).
+  const nombres = gramatica.map((t) => t.split(":")[0].replace(/\s+(para|en contexto)\b.*$/, "").replace(/\s*\/\s*/g, " / ").trim().toLowerCase());
+  return `${funcion}: ${nombres.join(", ")}`;
+};
+
 /** Concordancia con «guía» cuando es el producto, no una persona. */
 export const conGuiaEnFemenino = (t) => String(t)
   .replace(/\b([Nn])uestro ([Gg]u[ií]a)\b/g, "$1uestra $2")
@@ -562,14 +586,48 @@ export const conGuiaEnFemenino = (t) => String(t)
   .replace(/\bEl ([Gg]u[ií]a)\b(?! tur)/g, "La $1")
   .replace(/\bel ([Gg]u[ií]a)\b(?! tur)/g, "la $1");
 
+// Palabras frecuentes en títulos e intenciones; no es un corrector completo, que pediría un diccionario.
+const PALABRAS_FRECUENTES = ["nuestro", "nuestra", "nuestros", "nuestras", "clase", "unidad", "sección", "secciones", "entrevista", "presentación", "corrección", "redacción", "revisión", "comunidad", "comunitario", "comunitaria", "estudiantes", "planificación"];
+const faltaUnaLetra = (corta, larga) => larga.length === corta.length + 1 && [...larga].some((_, i) => larga.slice(0, i) + larga.slice(i + 1) === corta);
+/** Corrige la errata de una letra de menos en esas palabras («nuesros» → «nuestros»). */
+export const conErratasCorregidas = (t = "") => String(t).replace(/\p{L}{4,}/gu, (palabra) => {
+  const baja = palabra.toLowerCase();
+  const correcta = PALABRAS_FRECUENTES.find((p) => faltaUnaLetra(baja, p));
+  if (!correcta || PALABRAS_FRECUENTES.includes(baja)) return palabra;
+  return palabra[0] === palabra[0].toUpperCase() ? correcta[0].toUpperCase() + correcta.slice(1) : correcta;
+});
+
+/** Título en inglés: sin palabras del español y con palabras del inglés. */
+export const tituloEnIngles = (t = "") => !/\b(de|del|la|las|el|los|y|con|para|en|un|una|al)\b/i.test(t) && /\b(and|the|of|with|for|to|our)\b|\b[a-z]+ing\b/i.test(t);
+
+/** Correcciones de una unidad (por ejemplo, el plural cuando la fuente es una sola persona). */
+export const conReemplazos = (dia = {}, reemplazos = []) => {
+  const aplicar = (t) => (typeof t === "string" ? reemplazos.reduce((s, [re, nuevo]) => s.replace(re, nuevo), t) : t);
+  if (dia.titulo) dia.titulo = aplicar(dia.titulo);
+  if (dia.textoModelo?.titulo) dia.textoModelo.titulo = aplicar(dia.textoModelo.titulo);
+  if (Array.isArray(dia.textoModelo?.lineas)) dia.textoModelo.lineas = dia.textoModelo.lineas.map(aplicar);
+  (dia.momentos || []).forEach((m) => {
+    if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map(aplicar);
+    if (Array.isArray(m?.metacognicion)) m.metacognicion = m.metacognicion.map(aplicar);
+    Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map(aplicar); });
+  });
+  return dia;
+};
+
 /** Títulos de la clase: concordancia con «guía» y un texto modelo no se llama «simulado». */
-export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false } = {}) => {
+export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreModelo = "", tituloTarea = "" } = {}) => {
   const guia = conGuiaEnFemenino;
-  if (dia.titulo) dia.titulo = guia(dia.titulo);
+  if (dia.titulo && tituloTarea && tituloEnIngles(dia.titulo)) dia.titulo = tituloTarea;
+  if (dia.titulo) dia.titulo = conErratasCorregidas(guia(dia.titulo));
+  if (dia.intencionPedagogica) dia.intencionPedagogica = conErratasCorregidas(dia.intencionPedagogica);
   if (dia.textoModelo?.titulo) dia.textoModelo.titulo = guia(dia.textoModelo.titulo).replace(/\b[Ee]ntrevista simulada\b/gi, "Entrevista modelo");
   // Sin ficha, el modelo declara que su centro es ficticio.
   if (modeloFicticio && dia.textoModelo?.lineas?.length && !/model school/i.test(dia.textoModelo.titulo || "")) {
     dia.textoModelo.titulo = `Model School${dia.textoModelo.titulo ? ` — ${dia.textoModelo.titulo}` : ""}`;
+  }
+  // Fuera de esos casos, el modelo también se declara ejemplo: la clase aún no tiene los datos reales.
+  if (!modeloFicticio && nombreModelo && dia.textoModelo?.lineas?.length && !/\bmodelo?\b/i.test(dia.textoModelo.titulo || "")) {
+    dia.textoModelo.titulo = `${nombreModelo}${dia.textoModelo.titulo ? ` — ${dia.textoModelo.titulo}` : ""}`;
   }
   (dia.momentos || []).forEach((m) => {
     if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map((a) => (typeof a === "string" ? guia(a).replace(/^Reúnan\b/, "Reúnen") : a));
@@ -866,7 +924,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   const clave = plan.estrategia.clave;
   const tiposFase = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[clave] || null;
   const { tipos, supuestas } = tiposDeSecciones(plan.secciones, entrada.tiposTrabajoSecciones || {});
-  const items = listarTareas({ fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones });
+  const items = listarTareas({ fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [] });
   const capacidad = minutosDesarrollo(duracionMin);
   const avisos = [];
   if (supuestas.length) avisos.push(`Tipo de trabajo supuesto por la posición de la sección: ${supuestas.join(", ")}. El docente puede cambiarlo.`);

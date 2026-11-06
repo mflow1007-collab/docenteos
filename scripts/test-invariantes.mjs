@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
-  fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
+  focoDeFila, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
 } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { ALCANCE_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS } from "../src/data/tareasPorTipoTrabajo.js";
@@ -136,6 +136,13 @@ const invariantesMapa = {
     if (falta.length) return `falta en el Desarrollo: ${falta.join(", ")}`;
     return /inicioPresentacion\(inicio\.actividades/.test(fuenteGenerador) ? "" : "el generador no lo aplica";
   },
+  "I-15": (u) => {
+    if (!/dia\.focoLinguistico = focoDeFila\(filaMapa\)/.test(fuenteGenerador)) return "el generador no la aplica";
+    const vacias = u.reales.filter((f) => !focoDeFila(f)).map((f) => `C${f.clase}`);
+    if (vacias.length) return `sin estructura: ${vacias.join(", ")}`;
+    const mal = u.reales.filter((f) => f.tareas[0]?.clave === "presentar" && !/sección/.test(focoDeFila(f)) && !f.contenidos.some((c) => c.categoria === "gramatica")).map((f) => `C${f.clase}`);
+    return mal.length ? `no corresponde a la tarea: ${mal.join(", ")}` : "";
+  },
   "I-13": (u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma));
     if (!prometidas.length) return "ninguna tarea promete firma";
@@ -196,8 +203,9 @@ const leerGeneracion = (ruta) => {
 
 const argumento = (nombre) => { const i = process.argv.indexOf(nombre); return i >= 0 ? process.argv[i + 1] : ""; };
 const unidades = [
-  { u: unidad("Alimentación", 6), json: argumento("--alimentacion") },
-  { u: unidad("Escuela y educación", 4), json: argumento("--escuela") },
+  { u: unidad("Alimentación", 6), json: argumento("--alimentacion") || new URL("./fixtures/unidades/alimentacion-6-semanas-v7.json", import.meta.url).pathname },
+  // Unidades de referencia: sin argumento, se revisan estas.
+  { u: unidad("Escuela y educación", 4), json: argumento("--escuela") || new URL("./fixtures/unidades/escuela-4-semanas-v4.json", import.meta.url).pathname },
 ];
 
 let fallos = 0;

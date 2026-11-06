@@ -35,7 +35,7 @@ export const SECUENCIAS_POR_TAREA = {
   ],
   visitar_entrevistar: [
     [
-      p(4, "Repasan (en grupos) su turno y la pregunta que firmó cada estudiante, mientras el docente recuerda cómo pedir la palabra ({frases}).", "pedir la palabra", /captar|interrumpir|cortesia/),
+      p(4, "Repasan (en grupos) su turno y la pregunta que firmó cada estudiante, mientras el docente recuerda cómo pedir la palabra (_Excuse me…_, _May I ask…?_)."),
       p(4, "Escuchan (en plenaria) a {invitado} presentarse y anotan en la tabla común lo que ya dice."),
       pe(12, "Entrevistan (por turnos, una pregunta por estudiante) a {invitado} sobre {datos} ({frases}), mientras el docente marca la lista de cotejo.", "preguntar por esos datos"),
       p(6, "Preguntan (por turnos) lo que falta y reaccionan a lo que oyen ({frases}), y el docente ayuda a quien se traba.", "reaccionar con cortesía", /you.re welcome|pedir que repitan|interes/),
@@ -67,15 +67,15 @@ export const SECUENCIAS_POR_TAREA = {
   "probar_audiencia:pedido": [
     [
       p(3, "Eligen (en parejas) qué plato pedirán y repasan cómo pedirlo ({frases}).", "pedir un plato"),
-      pe(9, "Hacen (en parejas, por turnos) pedidos reales con el menú a {audiencia} ({frases}), y el docente marca la lista de cotejo de cada estudiante.", "pedir un plato y aclarar dudas"),
+      pe(9, "Hacen (en parejas, por turnos) pedidos reales con el menú a {audiencia} (_I’ll have…, please_, _Pardon? Could you repeat that?_), y el docente marca la lista de cotejo de cada estudiante."),
       p(2, "Cambian (en parejas) de papel y piden otro plato, mientras el docente sigue observando."),
-      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le sirvió ({frases}): tarjetas en la carpeta del producto.", "comentar y pedir mejoras", /deseos|hora/),
+      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
     ],
     [
       p(3, "Ubican (en parejas) en el menú lo que van a pedir, y el docente aclara dudas."),
-      pe(10, "Usan (en parejas) el menú para hacerle un pedido a {audiencia} y aclarar lo que no entiendan ({frases}), y el docente observa a cada pareja con la lista de cotejo.", "pedir un plato y aclarar dudas"),
+      pe(10, "Usan (en parejas) el menú para hacerle un pedido a {audiencia} y aclarar lo que no entiendan (_I’ll have…, please_, _Pardon? Could you repeat that?_), y el docente observa a cada pareja con la lista de cotejo."),
       p(2, "Repiten (en parejas) el pedido con otro plato de la guía ({frases}).", "pedir un plato"),
-      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia ({frases}): tarjetas en la carpeta del producto.", "comentar y pedir mejoras", /deseos|hora/),
+      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
     ],
   ],
   "probar_audiencia:guia": [
@@ -83,13 +83,13 @@ export const SECUENCIAS_POR_TAREA = {
       p(3, "Eligen (en parejas) el lugar al que van a llevar a su invitado y repasan cómo indicar el camino ({frases}).", "indicar un lugar"),
       pe(9, "Guían (en parejas) a {audiencia} usando {producto}, de un lugar a otro ({frases}), y el docente marca la lista de cotejo de cada pareja.", "indicar el camino y ofrecer ayuda"),
       p(2, "Cambian (en parejas) de papel con otro lugar, mientras el docente sigue observando."),
-      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia no entendió y lo que le sirvió ({frases}): tarjetas en la carpeta del producto.", "comentar y pedir mejoras"),
+      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia no entendió y lo que le sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
     ],
     [
       p(3, "Ubican (en parejas) en {producto} el lugar que van a mostrar, y el docente aclara dudas."),
       pe(10, "Acompañan (en parejas) a {audiencia} por el centro con {producto} en la mano e indican el camino ({frases}), y el docente observa a cada pareja con la lista de cotejo.", "indicar el camino y ofrecer ayuda"),
       p(2, "Responden (en parejas) lo que pregunte la audiencia en el recorrido ({frases}).", "ofrecer ayuda"),
-      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia ({frases}): tarjetas en la carpeta del producto.", "comentar y pedir mejoras"),
+      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
     ],
   ],
   "probar_audiencia:general": [
@@ -97,13 +97,13 @@ export const SECUENCIAS_POR_TAREA = {
       p(3, "Eligen (en parejas) la parte de {producto} que van a usar con la audiencia."),
       pe(9, "Usan (en parejas) {producto} con {audiencia} para lo que fue hecho ({frases}), y el docente marca la lista de cotejo de cada pareja.", "preguntar y responder sobre el producto"),
       p(2, "Cambian (en parejas) de papel, mientras el docente sigue observando."),
-      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le sirvió ({frases}): tarjetas en la carpeta del producto.", "comentar y pedir mejoras"),
+      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
     ],
     [
       p(3, "Repasan (en parejas) qué van a mostrar y cómo lo van a decir ({frases}).", "explicar el producto"),
-      pe(10, "Prueban (en parejas) {producto} con {audiencia} y aclaran lo que no entiendan ({frases}), y el docente observa a cada pareja con la lista de cotejo.", "preguntar y aclarar"),
+      pe(10, "Prueban (en parejas) {producto} con {audiencia} y aclaran lo que no entiendan (_Pardon?_, _Could you repeat that?_), y el docente observa a cada pareja con la lista de cotejo."),
       p(2, "Preguntan (en parejas) a la audiencia qué le sirvió más."),
-      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia ({frases}): tarjetas en la carpeta del producto.", "comentar y pedir mejoras"),
+      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
     ],
   ],
   evaluar_comentarios: [

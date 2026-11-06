@@ -40,6 +40,8 @@ Cada invariante tiene su prueba en `scripts/test-invariantes.mjs` y se comprueba
 
 - I-14 La clase 1 presenta la unidad: escuchan la situación de aprendizaje, leída por el docente o un compañero, dan ejemplos del problema, y se explica qué se va a trabajar, cómo se hará y cómo se evaluará. Lo escribe el código.
 
+- I-15 La estructura del día la escribe el código desde la fila del mapa y corresponde a la tarea principal de la clase.
+
 ### Contexto (datos)
 - I-09 Moneda de la ficha (RD$); nunca dólares.
 - I-10 Los textos modelo dan datos de ejemplo; «falta dato» solo en el producto.
