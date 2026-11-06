@@ -137,7 +137,7 @@ const invariantesMapa = {
     return /inicioPresentacion\(inicio\.actividades/.test(fuenteGenerador) ? "" : "el generador no lo aplica";
   },
   "I-15": (u) => {
-    if (!/dia\.focoLinguistico = focoDeFila\(filaMapa\)/.test(fuenteGenerador)) return "el generador no la aplica";
+    if (!/dia\.focoLinguistico = focoDeFila\(filaMapa/.test(fuenteGenerador)) return "el generador no la aplica";
     const vacias = u.reales.filter((f) => !focoDeFila(f)).map((f) => `C${f.clase}`);
     if (vacias.length) return `sin estructura: ${vacias.join(", ")}`;
     const mal = u.reales.filter((f) => f.tareas[0]?.clave === "presentar" && !/sección/.test(focoDeFila(f)) && !f.contenidos.some((c) => c.categoria === "gramatica")).map((f) => `C${f.clase}`);
@@ -205,9 +205,9 @@ const leerGeneracion = (ruta) => {
 
 const argumento = (nombre) => { const i = process.argv.indexOf(nombre); return i >= 0 ? process.argv[i + 1] : ""; };
 const unidades = [
-  { u: unidad("Alimentación", 6), json: argumento("--alimentacion") || new URL("./fixtures/unidades/alimentacion-6-semanas-v7.json", import.meta.url).pathname },
+  { u: unidad("Alimentación", 6), json: argumento("--alimentacion") || new URL("./fixtures/unidades/alimentacion-6-semanas-g7.json", import.meta.url).pathname },
   // Unidades de referencia: sin argumento, se revisan estas.
-  { u: unidad("Escuela y educación", 4), json: argumento("--escuela") || new URL("./fixtures/unidades/escuela-4-semanas-v4.json", import.meta.url).pathname },
+  { u: unidad("Escuela y educación", 4), json: argumento("--escuela") || new URL("./fixtures/unidades/escuela-4-semanas-g6.json", import.meta.url).pathname },
 ];
 
 let fallos = 0;

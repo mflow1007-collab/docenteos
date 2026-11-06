@@ -287,7 +287,6 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
   const porUso = (cat, texto) => {
     const regla = USO_DE_CONTENIDOS.find(([re]) => re.test(normal(texto).trim()));
     if (!regla) return false;
-    if (regla[2] && !utiles.some((f) => f.tareas.some((t) => t.clave === regla[2]))) { sinLugar.push(`${cat}:${texto}`); return true; }
     for (const clave of regla[1]) {
       const fila = utiles.find((f) => f.contenidos.length < (f.tareas.length > 1 ? TOPE_CONTENIDOS_POR_CLASE : 4)
         && (cat !== "gramatica" || f.contenidos.filter((c) => c.categoria === "gramatica").length < TOPE_GRAMATICA_POR_CLASE)
@@ -595,7 +594,16 @@ const conMayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1);
  * Estructura del día: la escribe el código, para que corresponda a la tarea de la clase.
  * Función de la fila y su gramática; sin gramática, la frase fija de la tarea principal.
  */
-export const focoDeFila = (fila = {}) => {
+export const focoDeFila = (fila = {}, filas = []) => {
+  // Aplicar sin contenido propio: nombra la estructura de la clase anterior de la misma
+  // sección, no una etiqueta genérica (revisión de g6 y g7, 2026-11-06).
+  const primera = fila.tareas?.[0]?.clave || "";
+  if (/^aplicar_/.test(primera) && primera !== "aplicar_corregir" && !(fila.contenidos || []).some((c) => ["gramatica", "funcionales"].includes(c.categoria))) {
+    const previa = [...filas].reverse().find((f) => f.clase < fila.clase && !f.flexible
+      && f.tareas?.some((t) => /^aplicar_/.test(t.clave) && t.secciones?.some((s) => fila.tareas[0].secciones?.includes(s)))
+      && (f.contenidos || []).some((c) => ["gramatica", "funcionales"].includes(c.categoria)));
+    if (previa) return focoDeFila(previa);
+  }
   // Si la clase reúne el producto, esa es su tarea principal.
   const clave = (fila.tareas || []).find((t) => t.clave === "integrar")?.clave || fila.tareas?.[0]?.clave || "";
   const fija = ESTRUCTURA_POR_TAREA[clave] || ESTRUCTURA_POR_TAREA[clave.split("_")[0]] || null;
@@ -620,7 +628,9 @@ export const conGuiaEnFemenino = (t) => String(t)
   .replace(/\bdel ([Gg]u[ií]a)\b(?! tur)/g, "de la $1")
   .replace(/\bal ([Gg]u[ií]a)\b(?! tur)/g, "a la $1")
   .replace(/\bEl ([Gg]u[ií]a)\b(?! tur)/g, "La $1")
-  .replace(/\bel ([Gg]u[ií]a)\b(?! tur)/g, "la $1");
+  .replace(/\bel ([Gg]u[ií]a)\b(?! tur)/g, "la $1")
+  // Lleva «la guía»: el adjetivo también concuerda. Lista cerrada: «guía modelo» o «guía como» no cambian.
+  .replace(/\b([Ll]a|[Nn]uestra|[Ee]sta|[Uu]na) ([Gg]u[ií]a) (alimentari|complet|nuev|corregid|revisad|terminad|escrit|propuest|impres|comunitari|bilingüe|práctic|rápid|sencill|clar|list)o\b/g, "$1 $2 $3a");
 
 // Palabras frecuentes en títulos e intenciones; no es un corrector completo, que pediría un diccionario.
 const PALABRAS_FRECUENTES = ["nuestro", "nuestra", "nuestros", "nuestras", "clase", "unidad", "sección", "secciones", "entrevista", "presentación", "corrección", "redacción", "revisión", "comunidad", "comunitario", "comunitaria", "estudiantes", "planificación"];
@@ -636,7 +646,7 @@ export const conErratasCorregidas = (t = "") => String(t).replace(/\p{L}{4,}/gu,
 /** Título en inglés: sin palabras del español y con palabras del inglés. */
 /** Portugués: la IA a veces cambia de idioma. Letras que el español no usa. */
 export const textoEnPortugues = (t = "") => /[ãõçÃÕÇ]|\b(escolh|saud[aá]ve|voc[eê]\b|n[aã]o\b)/i.test(t);
-export const tituloEnIngles = (t = "") => !/\b(de|del|la|las|el|los|y|con|para|en|un|una|al)\b/i.test(t) && /\b(and|the|of|with|for|to|our)\b|\b[a-z]+ing\b/i.test(t);
+export const tituloEnIngles = (t = "") => !/\b(de|del|la|las|el|los|y|con|para|en|un|una|al|por|sobre|nuestro|nuestra|nuestros|nuestras)\b/i.test(t) && /\b(and|the|of|with|for|to|our|choices?|made|easy|better|healthy|healthier|tips|how|why|what|new|good|best)\b|\b[a-z]+ing\b/i.test(t);
 
 /** Correcciones de una unidad (por ejemplo, el plural cuando la fuente es una sola persona). */
 export const conReemplazos = (dia = {}, reemplazos = []) => {

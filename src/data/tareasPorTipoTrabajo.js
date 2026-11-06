@@ -198,11 +198,11 @@ export const USO_DE_CONTENIDOS = [
   [/^lugares:/, ["orientar_recorrido", "orientar_instrucciones"]],
   [/^formas de interaccion|^asignaturas|^educacion:/, []],
   [/^fechas/, []],
-  // Tercer dato: sin esa tarea en la unidad no hay cita que fijar y la hora queda sin lugar (Escuela).
-  [/^hora:/, ["visitar_entrevistar", "aplicar_ensayar"], "visitar_entrevistar"],
+  // Solo la entrevista fija una cita; en un ensayo se forzaba («at noon»): si no cabe, queda sin lugar.
+  [/^hora:/, ["visitar_entrevistar"]],
   [/^cortesia|^you.re welcome|^captar la atencion|^pedir que repitan/, ["visitar_entrevistar", "probar_audiencia", "orientar_probar"]],
-  // Mostrar interés se forzaba en la presentación (revisión de la g5, 2026-11-06): no tiene paso allí.
-  [/^mostrar interes/, ["visitar_entrevistar", "orientar_probar"]],
+  // Mostrar interés se forzaba en la presentación y en la prueba (revisiones de g5 y g6): solo la entrevista tiene de qué reaccionar.
+  [/^mostrar interes/, ["visitar_entrevistar"]],
   [/^interrumpir|^pedir y dar la palabra|^mostrar acuerdo/, ["comentar", "proponer_elegir"]],
   [/^disculparse/, ["aplicar_ensayar", "probar_audiencia"]],
   [/^dudar/, ["proponer_elegir", "aplicar_ensayar"]],

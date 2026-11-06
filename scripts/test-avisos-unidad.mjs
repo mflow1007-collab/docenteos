@@ -125,9 +125,9 @@ check("corrección dirigida también por contenido; lo que no encaja no la pide"
   assert(!contenidosFaltantesEnClase(desarrollo("Dicen _I apologize_."), fila).length, "se ve");
   assert(/Disculparse/.test(pendientesDeClase(desarrollo("Saludan."), fila)[0]), "pendientes");
 });
-check("«Hora» queda sin lugar en Escuela, que no tiene entrevista, y sigue en Alimentación", () => {
+check("«Hora» solo va a la entrevista: Escuela no tiene y queda sin lugar", () => {
   assert(escuela.contenidosSinLugar.some((x) => /:Hora:/.test(x)), "Escuela: sin lugar");
-  assert(alimentacion.filas.some((f) => f.contenidos.some((x) => /^Hora:/.test(x.texto))), "Alimentación: conserva su lugar");
+  alimentacion.filas.filter((f) => f.contenidos.some((x) => /^Hora:/.test(x.texto))).forEach((f) => assert(f.tareas.some((t) => t.clave === "visitar_entrevistar"), `C${f.clase}`));
 });
 check("el nombre del producto o de una sección no rellena las frases de un paso", () => {
   const paso = [{ texto: "Muestran las secciones explicando para qué sirve cada una ({frases})." }];
@@ -177,6 +177,16 @@ check("«Mostrar interés» no se fuerza y la clase del banco no pide regenerar 
   const fila = { clase: 11, tareas: [], secuencia: [{}], contenidos: [{ texto: "Disculparse: I’m sorry", porFuncion: true }] };
   assert(!contenidosFaltantesEnClase(desarrollo("Saludan."), fila).length, "banco");
   assert(!contenidosNoVistosEnUnidad([desarrollo("Saludan.")], [fila]).length, "banco en la unidad");
+});
+check("revisión de g6 y g7: título en inglés, adjetivo de «guía» y estructura real al aplicar", () => {
+  const corregidos = [];
+  const dia = conTitulosCorregidos({ titulo: "Healthier Choices Made Easy", focoLinguistico: "x", momentos: [{ actividades: ["Reflexionan sobre nuestra guía alimentario."] }] }, { tituloTarea: "Elegir y justificar", corregidos });
+  assert(dia.titulo === "Elegir y justificar", dia.titulo);
+  assert(/nuestra guía alimentaria/.test(dia.momentos[0].actividades[0]), dia.momentos[0].actividades[0]);
+  assert(/la guía modelo/.test(conTitulosCorregidos({ momentos: [{ actividades: ["Leen la guía modelo."] }] }).momentos[0].actividades[0]), "modelo no cambia");
+  const filas = (m) => m.filas.filter((f) => f.tareas[0]?.clave.startsWith("aplicar_") && f.tareas[0].clave !== "aplicar_corregir");
+  [alimentacion, escuela].forEach((m) => filas(m).forEach((f) => assert(!/Usar el modelo en una situación/.test(focoDeFila(f, m.filas)), `C${f.clase}: ${focoDeFila(f, m.filas)}`)));
+  assert(focoDeFila({ tareas: [{ clave: "aplicar_ensayar", secciones: ["S"] }], contenidos: [] }, []).startsWith("Usar el modelo"), "sin clase anterior");
 });
 check("concordancia de «guía» en todo el texto, como corrección automática", () => {
   const corregidos = [];

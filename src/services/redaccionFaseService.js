@@ -678,7 +678,7 @@ export const contenidosFaltantesEnClase = (clase, fila) => {
 };
 
 /** Instrucción para regenerar la clase cuando le falta un contenido (César, 2026-11-06). */
-export const instruccionContenidosFaltantes = (contenidos) => `Faltan estos contenidos que el mapa asigna a esta clase: ${contenidos.map((c) => `«${citaTexto(c, null, 50)}»`).join(", ")}. Úsalos en una actividad o en el texto modelo, con una frase de ejemplo. Conserva las demás actividades.`;
+export const instruccionContenidosFaltantes = (contenidos) => `Faltan estos contenidos que el mapa asigna a esta clase: ${contenidos.map((c) => `«${citaTexto(c, null, 50)}»`).join(", ")}. Usa cada uno, con una frase de ejemplo, solo en un paso donde cumpla su función; si no encaja, no lo pongas. Conserva las demás actividades.`;
 
 const nombraSeccion = (actividad, seccion) => actividad.includes(normalizar(seccion))
   || (INVENTARIO_POR_SECCION[seccion]?.nombres ? new RegExp(INVENTARIO_POR_SECCION[seccion].nombres).test(actividad) : false);
@@ -895,7 +895,7 @@ export const motivosTextoClase = (clase) => {
 export const motivosClaseFinal = (clase, { estructurasGrado = null } = {}) => {
   const motivos = [];
   [["título", clase?.titulo], ["intención pedagógica", clase?.intencionPedagogica]].forEach(([nombre, t]) => {
-    if (t && (textoEnPortugues(t) || (nombre === "título" && tituloEnIngles(t)))) motivos.push(`${nombre} fuera de español: «${citaTexto(t, null, 60)}»`);
+    if (t && (textoEnPortugues(t) || tituloEnIngles(t))) motivos.push(`${nombre} fuera de español: «${citaTexto(t, null, 60)}»`);
   });
   // Comprobación inversa: nada de lo que dice la estructura del día queda fuera de la malla.
   const foco = String(clase?.focoLinguistico || "");

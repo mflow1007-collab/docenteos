@@ -5262,7 +5262,7 @@ const _generarFasesConIA = async (
         const filaMapa = contratoFase.mapaClases?.[i];
         if (filaMapa) {
           dia.tareasMapa = filaMapa.tareas.map((t) => ({ clave: t.clave, minutos: t.minutos }));
-          dia.focoLinguistico = focoDeFila(filaMapa) || dia.focoLinguistico;
+          dia.focoLinguistico = focoDeFila(filaMapa, contratoFase.filasUnidad || []) || dia.focoLinguistico;
           dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
           dia.minutosSecuencia = Array.isArray(aiClase.minutosSecuencia) ? aiClase.minutosSecuencia : null;
           // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
