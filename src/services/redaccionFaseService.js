@@ -23,8 +23,8 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares } from "./mapaClasesService.js";
-import { MARCAS_DATO, INVENTARIO_POR_SECCION } from "../data/tareasPorTipoTrabajo.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto } from "./mapaClasesService.js";
+import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { recomponerIndicador } from "../data/indicadoresIngles2doEstructurados.js";
@@ -109,7 +109,10 @@ export const VERBOS_IDIOMA = {
 // Gestión de la clase (decisión de César, Etapa 7): permitidos, no cuentan para el nivel.
 // Guardan, Archivan y Entregan: decisión de César (2026-11-01, Etapa D).
 // Ensayan, Reúnen y Discuten: decisión de César (2026-11-05).
-export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican", "Guardan", "Archivan", "Entregan", "Ensayan", "Reúnen", "Discuten"];
+// Recorren…Clasifican y Acuerdan…Recogen: decisión de César (2026-11-06), verbos de su unidad a mano.
+export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican", "Guardan", "Archivan", "Entregan", "Ensayan", "Reúnen", "Discuten",
+  "Recorren", "Firman", "Justifican", "Prueban", "Anotan", "Clasifican",
+  "Acuerdan", "Forman", "Completan", "Añaden", "Agradecen", "Ilustran", "Ordenan", "Repasan", "Recogen"];
 const NIVELES = ["preformal", "receptivo", "resolutivo", "autonomo", "estrategico"];
 // Nivel mínimo esperado por papel de fase (progresión 4.4); su falta solo se avisa.
 export const NIVEL_MINIMO_POR_ROL = {
@@ -144,14 +147,38 @@ export const motivoRedaccionActividad = (texto, { esIdioma = false } = {}) => {
   const permitido = NIVEL_DE_VERBO.has(clave) || VERBOS_GESTION_CLAVE.has(clave)
     || (esIdioma && VERBOS_IDIOMA_CLAVE.has(clave));
   if (!permitido) return `«${verbo}» no está en la lista de verbos (taxonomía del Referente${esIdioma ? ", verbos de idioma" : ""} o gestión de la clase)`;
-  const parentesis = t.match(/^\S+\s*\(([^)]*)\)/);
-  const resto = parentesis ? t.slice(parentesis[0].length) : t.slice(verbo.length);
+  // «Preguntan y responden (en parejas)»: dos verbos seguidos comparten el paréntesis.
+  const parentesis = t.match(/^\S+(?:\s+y\s+\S+)?\s*\(([^)]*)\)/);
+  // Solo la acción: tras los dos puntos van el producto y su destino («…; se comparten en grupo»).
+  const resto = (parentesis ? t.slice(parentesis[0].length) : t.slice(verbo.length)).split(":")[0];
   // Decisión de César (2026-11-02): si el paréntesis ya nombra la organización,
   // la actividad puede cambiar de agrupación después («Comparten (en parejas)
   // … y luego en plenaria»). Era el rechazo pagado más frecuente.
   const organizacionEnParentesis = Boolean(parentesis) && ORGANIZACION_RE.test(parentesis[1]);
-  if (!organizacionEnParentesis && ORGANIZACION_RE.test(resto)) return `la organización («${resto.match(ORGANIZACION_RE)[0]}») va entre paréntesis justo después del verbo: "${verbo} (en parejas) …"`;
+  if (!organizacionEnParentesis && ORGANIZACION_RE.test(resto)) {
+    const organizacion = resto.match(ORGANIZACION_RE)[0];
+    return `la organización («${organizacion}») va entre paréntesis justo después del verbo: "${verbo} (${organizacion}) …"`;
+  }
   return "";
+};
+
+/**
+ * La organización que quedó fuera del paréntesis la pone el código tras el verbo, como la
+ * concordancia (César, 2026-11-06). Devuelve el texto, sin cambios si ya cumple.
+ */
+export const conOrganizacionEnParentesis = (texto) => {
+  if (typeof texto !== "string" || !/^la organización/.test(motivoRedaccionActividad(texto, { esIdioma: true }))) return texto;
+  const verbo = primeraPalabra(texto);
+  const cola = texto.trim().slice(verbo.length);
+  const previo = cola.match(/^\s*\(([^)]*)\)/);
+  const resto = previo ? cola.slice(previo[0].length) : cola;
+  const dos = resto.indexOf(":");
+  const accion = dos >= 0 ? resto.slice(0, dos) : resto;
+  const organizacion = accion.match(ORGANIZACION_RE)?.[0];
+  if (!organizacion) return texto;
+  const sinOrganizacion = accion.replace(ORGANIZACION_RE, "").replace(/\s*\(\s*\)/g, "").replace(/\s+([,.;])/g, "$1").replace(/\s{2,}/g, " ").replace(/\s+$/, "");
+  const parentesis = previo ? `${organizacion}, ${previo[1]}` : organizacion;
+  return `${verbo} (${parentesis})${sinOrganizacion}${dos >= 0 ? resto.slice(dos) : ""}`;
 };
 
 /** Palabras de una actividad; la síntesis (25-35) solo se avisa (decisión de César, Etapa 7). */
@@ -178,7 +205,8 @@ export const motivosRedaccionClase = (clase, etiqueta, opciones = {}) => {
       const motivo = motivoRedaccionActividad(act, opciones);
       if (motivo) motivos.push(`${etiqueta} — ${m.nombre}, actividad ${k + 1}: ${motivo}`);
     });
-    if (m.nombre === "Cierre" && !(m.actividades || []).some((a) => ["autonomo", "estrategico"].includes(nivelVerbo(a)))) {
+    // Con mapa de clases el Cierre no se mide por nivel (César, 2026-11-06).
+    if (m.nombre === "Cierre" && !opciones.conMapa && !(m.actividades || []).some((a) => ["autonomo", "estrategico"].includes(nivelVerbo(a)))) {
       motivos.push(`${etiqueta} — el Cierre necesita al menos un verbo Autónomo o Estratégico (Coevalúan, Retroalimentan, Mejoran, Reflexionan…)`);
     }
   }
@@ -547,7 +575,7 @@ export const aplicarSecuencias = (data, contrato, startDia = 1) => {
     const fila = contrato.mapaClases[startDia + i - 1];
     const desarrollo = fila?.secuencia && (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo");
     if (!desarrollo || clase.secuenciaAplicada) return;
-    desarrollo.actividades = pasosConFrases(fila.secuencia, Array.isArray(desarrollo.actividades) ? desarrollo.actividades : [], { sinLugares: necesitaLugares(fila) });
+    desarrollo.actividades = pasosConFrases(fila.secuencia, Array.isArray(desarrollo.actividades) ? desarrollo.actividades : [], { sinLugares: necesitaLugares(fila), nombres: [contrato.producto, ...(contrato.secciones || [])].filter(Boolean) });
     clase.tareaIdsDesarrollo = fila.secuencia.map((x) => `T${x.tarea + 1}`);
     clase.minutosSecuencia = fila.secuencia.map((x) => x.minutos);
     clase.secuenciaAplicada = true;
@@ -615,6 +643,84 @@ export const contenidosSinUsar = (clase, fila) => {
 
 const textoComoCadena = (a) => (typeof a === "string" ? a : Object.values(a || {}).join(" "));
 
+// Todo lo que la clase pone en boca de alguien: los tres momentos y el texto modelo.
+const textoCompletoDeClase = (clase) => normalizar([
+  ...(clase?.momentos || []).flatMap((m) => m?.actividades || []).map(textoComoCadena),
+  ...(clase?.textoModelo?.lineas || []),
+  clase?.saberesPrevios, clase?.actividadEnganche, clase?.retroalimentacionPrevia,
+].join(" "));
+
+// ¿Se ve el contenido? Por un ejemplo de la malla, por su nombre o por su estructura.
+const contenidoSeVe = (contenido, texto) => {
+  if (marcasDeContenido(contenido).some((m) => texto.includes(m))) return true;
+  const marca = MARCAS_CONTENIDO.find(([re]) => re.test(normalizar(contenido)))?.[1];
+  return Boolean(marca) && new RegExp(marca).test(texto);
+};
+
+/**
+ * Contenidos que el mapa puso por su función y no aparecen en ninguna clase de la unidad.
+ * Lo que el reparto general puso sin función, y los «Funcional:», que se ven por su
+ * gramática y sus expresiones, no se reclaman; lo que quedó sin lugar tampoco.
+ */
+export const contenidosNoVistosEnUnidad = (dias = [], filas = []) => {
+  const texto = dias.map(textoCompletoDeClase).join(" ");
+  return filas.flatMap((fila) => (fila?.contenidos || [])
+    .filter((c) => c.porFuncion && !/^funcional:/i.test(c.texto) && !contenidoSeVe(c.texto, texto))
+    .map((c) => `clase ${fila.clase}: el contenido «${citaTexto(c.texto)}» no se ve en ninguna clase`));
+};
+
+/** Contenidos que el mapa puso en esta clase por su función y no aparecen en ella. */
+export const contenidosFaltantesEnClase = (clase, fila) => {
+  if (!fila || fila.flexible) return [];
+  const texto = textoCompletoDeClase(clase);
+  return (fila.contenidos || []).filter((c) => c.porFuncion && !/^funcional:/i.test(c.texto) && !contenidoSeVe(c.texto, texto)).map((c) => c.texto);
+};
+
+/** Instrucción para regenerar la clase cuando le falta un contenido (César, 2026-11-06). */
+export const instruccionContenidosFaltantes = (contenidos) => `Faltan estos contenidos que el mapa asigna a esta clase: ${contenidos.map((c) => `«${citaTexto(c, null, 50)}»`).join(", ")}. Úsalos en una actividad o en el texto modelo, con una frase de ejemplo. Conserva las demás actividades.`;
+
+const nombraSeccion = (actividad, seccion) => actividad.includes(normalizar(seccion))
+  || (INVENTARIO_POR_SECCION[seccion]?.nombres ? new RegExp(INVENTARIO_POR_SECCION[seccion].nombres).test(actividad) : false);
+const NOMBRA_TODAS = /\b(cada seccion|las secciones|sus secciones|ambas secciones|cada pieza|las piezas)\b/;
+
+/**
+ * Tareas de la fila sin actividad que las haga, por acción y objeto, no por palabra literal.
+ * La acción es la señal de la tarea (con sus sinónimos por tipo). El objeto: si la misma tarea
+ * produce una pieza por sección, la actividad nombra esa sección.
+ * Una clase escrita por el banco ya trae sus tareas.
+ */
+export const tareasSinActividad = (clase, fila) => {
+  if (!fila || fila.flexible || clase?.secuenciaAplicada) return [];
+  const actividades = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map((a) => normalizar(textoComoCadena(a)));
+  const repetida = (t) => fila.tareas.filter((x) => x.clave === t.clave).length > 1;
+  return fila.tareas.filter((t) => {
+    if (!t.senal || t.paralelo || DETALLE_TAREA[t.clave]?.noSeReclama) return false;
+    const accion = new RegExp(t.senal);
+    const pideSeccion = repetida(t) && [].concat(t.demuestra).includes("P");
+    return !actividades.some((a) => {
+      if (!accion.test(a)) return false;
+      return !pideSeccion || NOMBRA_TODAS.test(a) || t.secciones.some((s) => nombraSeccion(a, s));
+    });
+  });
+};
+const tareaConSeccion = (t) => `«${t.nombre}»${t.secciones.length === 1 ? ` de «${t.secciones[0]}»` : ""}`;
+const entregaDeTarea = (t, seccion) => (t.secciones.length === 1 && seccion ? `${t.entrega}: ${seccion}` : t.entrega);
+
+/** Lo que justifica regenerar la clase una vez: tareas sin actividad y contenidos sin usar. */
+export const pendientesDeClase = (clase, fila) => [
+  ...tareasSinActividad(clase, fila).map((t) => `«${t.nombre}»`),
+  ...contenidosFaltantesEnClase(clase, fila).map((c) => `«${citaTexto(c, null, 50)}»`),
+];
+
+/** Instrucción para regenerar la clase donde nace la tarea (aprobada por César, 2026-11-06). */
+export const instruccionTareaFaltante = (faltan, filasUnidad = [], clase = 0) => faltan.map((t) => {
+  const seccion = t.secciones.length === 1 ? t.secciones[0] : "";
+  const verbo = [].concat(t.demuestra).includes("P") ? "Redactan" : primeraPalabra(t.instruccion);
+  const ejemplo = [].concat(t.demuestra).includes("P") ? "el borrador" : "…";
+  const necesitan = filasUnidad.filter((f) => f.tareas?.some((x) => x.recibe?.some((r) => r.clase === clase && r.texto === entregaDeTarea(t, seccion)))).map((f) => `C${f.clase}`);
+  return `falta la tarea ${tareaConSeccion(t)} (entrega: ${t.entrega})${necesitan.length ? `, que necesita${necesitan.length > 1 ? "n" : ""} ${necesitan.join(" y ")}` : ""}. Añade una actividad del Desarrollo que la haga y nombre esa sección: "${verbo} (en grupos) ${ejemplo}${seccion ? ` de «${seccion}»` : ""}…". Conserva las demás actividades.`;
+}).join(" ");
+
 /** Actividad que hace grabar a los estudiantes o usa sus celulares (decisión de César, 2026-11-04). */
 export const grabacionProhibida = (clase) => textosActividades(clase).map(textoComoCadena)
   .find((a) => {
@@ -626,10 +732,9 @@ export const grabacionProhibida = (clase) => textosActividades(clase).map(textoC
 /** Datos del inventario que la clase debía recoger y no se ven. Solo la entrevista y su guion rechazan. */
 export const datosSinRecoger = (clase, fila) => {
   if (!fila?.tareas?.some((t) => ["visitar_guion", "visitar_entrevistar"].includes(t.clave))) return [];
-  const texto = normalizar([
-    ...textosActividades(clase).map(textoComoCadena),
-    ...(clase?.textoModelo?.lineas || []),
-  ].join(" "));
+  const texto = textoCompletoDeClase(clase);
+  // El guion puede trabajar sobre la lista de datos de la clase anterior, sin nombrarlos uno a uno.
+  if (fila.tareas.some((t) => t.clave === "visitar_guion") && /\b(lista de datos|cada dato|que dato)\b/.test(texto)) return [];
   return (fila.datosRecoge || []).filter((d) => MARCAS_DATO[d] && !new RegExp(MARCAS_DATO[d]).test(texto));
 };
 
@@ -687,8 +792,10 @@ export const libretaDeHechos = (memoria = []) => {
 // Tareas de otra clase que no deben adelantarse (por el verbo que abre la actividad).
 const TAREAS_RECONOCIBLES = [
   { clave: "visitar_entrevistar", verbo: /^entrevistan\b/ },
-  { clave: "presentar", verbo: /^presentan\b/ },
-  { clave: "integrar", verbo: /^(reunen|integran|compilan)\b/ },
+  // Presentar a los compañeros no es la presentación a la audiencia.
+  { clave: "presentar", verbo: /^presentan\b/, salvo: /\b(en plenaria|al resto del grupo|al grupo|a otro grupo|a otros grupos)\b/ },
+  // «Reúnen» es también la tarea de reunir lo hecho de una sección: si la clase la tiene, no adelanta nada.
+  { clave: "integrar", verbo: /^(reunen|integran|compilan)\b/, salvoTarea: "socializar_reunir" },
   { clave: "evaluar_proceso", verbo: /^(autoevaluan|coevaluan)\b/ },
 ];
 
@@ -705,17 +812,34 @@ export const revisarUnidadConMapa = (dias = [], filas = []) => {
     if (!fila || fila.flexible) return;
     const actividades = ((dia?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
     const texto = normalizar(actividades.join(" "));
-    // ¿Usa lo que recibe?
+    // ¿Usa lo que recibe? Basta una de las entradas de cada tarea, en cualquier momento de la clase.
     // El acuerdo de la clase 1 es el punto de partida general: ninguna clase tiene por qué nombrarlo.
-    fila.recibe.filter((r) => r.clase && !/^acuerdo y plan/i.test(r.texto)).forEach((r) => {
-      const claves = palabras(String(r.texto).split(":")[0]);
-      if (claves.length && !claves.some((p) => texto.includes(p.slice(0, 5)))) avisos.push(`clase ${fila.clase}: no se ve que use «${r.texto}» de la clase ${r.clase}`);
+    // Si lo que debía recibir no se hizo, el aviso es de la clase donde nace, no de esta.
+    const textoClase = textoCompletoDeClase(dia);
+    const seVe = (r) => {
+      const [nombre, seccion] = String(r.texto).split(": ");
+      const claves = palabras(nombre);
+      return !claves.length || claves.some((p) => textoClase.includes(p.slice(0, 5)))
+        || (seccion && nombraSeccion(textoClase, seccion))
+        || (fila.secciones.length > 1 && NOMBRA_TODAS.test(textoClase));
+    };
+    const noNacio = (r) => {
+      const origen = filas[r.clase - 1];
+      return origen && tareasSinActividad(dias[r.clase - 1], origen)
+        .some((t) => t.secciones.some((s) => entregaDeTarea(t, s) === r.texto) || t.entrega === r.texto);
+    };
+    fila.tareas.forEach((t) => {
+      // Ordenar datos trabaja con la tabla común y los datos recibidos, donde ya están las piezas anteriores.
+      if (/^analizar/.test(t.clave) && /\b(tabla comun|datos recibidos)\b/.test(textoClase)) return;
+      const entradas = (t.recibe || []).filter((r) => r.clase && r.clase !== fila.clase && !/^acuerdo y plan/i.test(r.texto) && !noNacio(r));
+      if (entradas.length && !entradas.some(seVe)) avisos.push(`clase ${fila.clase}: no se ve que use «${entradas[0].texto}» de la clase ${entradas[0].clase}`);
     });
     // ¿Hace la tarea de otra clase?
-    TAREAS_RECONOCIBLES.forEach(({ clave, verbo }) => {
+    TAREAS_RECONOCIBLES.forEach(({ clave, verbo, salvo, salvoTarea }) => {
+      if (salvoTarea && fila.tareas.some((t) => t.clave === salvoTarea)) return;
       const suya = fila.tareas.some((t) => t.clave === clave);
       const existe = filas.some((f) => f.tareas.some((t) => t.clave === clave));
-      if (!suya && existe && actividades.some((a) => verbo.test(normalizar(a)))) avisos.push(`clase ${fila.clase}: adelanta o repite «${clave}», que el mapa pone en otra clase`);
+      if (!suya && existe && actividades.some((a) => verbo.test(normalizar(a)) && !(salvo && salvo.test(normalizar(a))))) avisos.push(`clase ${fila.clase}: adelanta o repite «${clave}», que el mapa pone en otra clase`);
     });
     // ¿Repite una actividad casi igual?
     actividades.forEach((a) => {
@@ -732,20 +856,22 @@ export const motivosTareaId = (clase, fila) => {
   if (!fila || fila.flexible || !fila.tareas?.length || fila.secuencia) return [];
   const ids = Array.isArray(clase?.tareaIdsDesarrollo) ? clase.tareaIdsDesarrollo : [];
   const actividades = (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || [];
-  if (!ids.length || ids.length !== actividades.length || ids.some((id) => !id)) return ["alguna actividad del Desarrollo no trae \"tareaId\""];
+  if (!ids.length || ids.length !== actividades.length || ids.some((id) => !id)) return ["fallo de correspondencia: alguna actividad del Desarrollo no trae \"tareaId\""];
   const validos = fila.tareas.map((_, k) => `T${k + 1}`);
   const motivos = [];
   const ajeno = ids.find((id) => !validos.includes(id));
   if (ajeno) motivos.push(`usa un "tareaId" que no existe en la fila: ${ajeno}`);
   const cuenta = (id) => ids.filter((x) => x === id).length;
+  // Una tarea sin su ID puede estar hecha con otro: «no tiene actividad» solo lo dice tareasSinActividad.
+  const ausentes = tareasSinActividad(clase, fila);
   validos.forEach((id, k) => {
-    if (!cuenta(id)) motivos.push(`la tarea «${fila.tareas[k].nombre}» no tiene actividad`);
+    if (!cuenta(id) && !ausentes.includes(fila.tareas[k])) motivos.push(`fallo de correspondencia: ninguna actividad lleva el ID ${id} de la tarea ${tareaConSeccion(fila.tareas[k])}, aunque se ve hecha`);
   });
   return motivos;
 };
 
 /** Texto de la clase que no debe llegar al docente: el administrador lo ve como aviso. */
-export const motivosTextoClase = (clase, fila = null) => {
+export const motivosTextoClase = (clase) => {
   const motivos = [];
   const modelo = (clase?.textoModelo?.lineas || []).map(String);
   const conFaltaDato = modelo.find((l) => /falta dato/i.test(l));
@@ -756,13 +882,9 @@ export const motivosTextoClase = (clase, fila = null) => {
     ...(Array.isArray(clase?.ampliacion) ? clase.ampliacion : []).map((a) => String(a?.texto || "")),
   ];
   const moneda = textos.find((t) => /(?<!RD)\$|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t));
-  if (moneda) motivos.push(`precio fuera de pesos dominicanos: "${moneda.slice(0, 70)}"`);
-  if (fila?.secciones?.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) {
-    const lugar = textos.filter((t) => !modelo.includes(t)).find((t) => /\b(cafeteria|gym|gymnasium|art room|second floor|auditorium|library|biblioteca)\b/i.test(t));
-    if (lugar) motivos.push(`nombra un lugar que no consta en la tabla común: "${lugar.slice(0, 70)}"`);
-  }
+  if (moneda) motivos.push(`precio fuera de pesos dominicanos: "${citaTexto(moneda, /\$|d[oó]lar|dollar/i)}"`);
   const equipo = textos.find((t) => /\b(videos?|proyector(es)?|parlantes?|bocinas?|grabad[oa]s?|digital(es)?)\b/i.test(t));
-  if (equipo) motivos.push(`nombra un equipo que el mapa no prevé: "${equipo.slice(0, 70)}"`);
+  if (equipo) motivos.push(`nombra un equipo que el mapa no prevé: "${citaTexto(equipo, /videos?|proyector|parlante|bocina|grabad|digital/i)}"`);
   return motivos;
 };
 
@@ -771,10 +893,7 @@ export const motivosFidelidad = (clase, fila) => {
   const motivos = [];
   if (!fila || fila.flexible) return motivos;
   const actividades = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
-  const texto = normalizar(actividades.join(" "));
-  fila.tareas.forEach((t) => {
-    if (t.senal && !t.paralelo && !new RegExp(t.senal).test(texto)) motivos.push(`no se ve la tarea «${t.nombre}» que pide el mapa`);
-  });
+  tareasSinActividad(clase, fila).forEach((t) => motivos.push(`no se ve la tarea «${t.nombre}» que pide el mapa`));
   if (fila.tareas.every((t) => t.soloComprender) && actividades.some((a) => /^(escriben|redactan|elaboran)\b/.test(normalizar(a)))) {
     motivos.push("escribe una pieza en una clase de comprender, adelantando otra tarea");
   }
@@ -804,7 +923,19 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
   for (let idx = 0; idx < count; idx += 1) {
     const clase = data?.clases?.[idx];
     const etiqueta = `Contrato: clase ${idx + 1}`;
-    motivos44.push(motivosRedaccionClase(clase, `clase ${idx + 1}`, opciones));
+    // Con mapa, el paréntesis de la organización lo pone el código antes de revisar la clase.
+    const organizaciones = [];
+    if (contrato.mapaClases && !clase?.secuenciaAplicada) {
+      (clase?.momentos || []).filter((m) => m?.nombre === "Desarrollo" || m?.nombre === "Cierre").forEach((m) => {
+        if (!Array.isArray(m.actividades)) return;
+        m.actividades = m.actividades.map((a) => {
+          const nueva = conOrganizacionEnParentesis(a);
+          if (nueva !== a) organizaciones.push(`clase ${idx + 1} — ℹ código: organización entre paréntesis: «${citaTexto(nueva, null, 50)}»`);
+          return nueva;
+        });
+      });
+    }
+    motivos44.push([...motivosRedaccionClase(clase, `clase ${idx + 1}`, { ...opciones, conMapa: Boolean(contrato.mapaClases) }), ...organizaciones]);
     const suyas = seccionesDeClase(clase?.seccionesProducto, secciones);
     if (secciones.length) {
       if (!suyas.length) throw new Error(`${etiqueta} sin "seccionesProducto" (la sección del producto que avanza).`);
@@ -857,12 +988,21 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       }
     };
     if (filaMapa) {
-      const sinUsar = contenidosSinUsar(clase, filaMapa);
-      if (sinUsar.length) motivos44[idx].push(`clase ${idx + 1} — no se ven estos contenidos del mapa: ${sinUsar.join(" · ")}`);
+      // Los contenidos se revisan al final, sobre la unidad entera (contenidosNoVistosEnUnidad).
       const grabacion = grabacionProhibida(clase);
-      if (grabacion) fallaRedaccion(idx, `nadie graba con celulares de estudiantes: "${grabacion.slice(0, 90)}". Quita la grabación; lo oral se observa o se anota.`);
+      if (grabacion) fallaRedaccion(idx, `nadie graba con celulares de estudiantes: "${citaTexto(grabacion, /grab|celular|m[oó]vil/i)}". Quita la grabación; lo oral se observa o se anota.`);
       const incumplida = obligacionIncumplida(clase, filaMapa);
       if (incumplida) fallaRedaccion(idx, incumplida);
+      // Falta una tarea: se regenera esta clase una vez, con la instrucción concreta.
+      // Lo mismo si falta un contenido; si sigue faltando, lo reclama la revisión de la unidad.
+      const faltan = tareasSinActividad(clase, filaMapa);
+      const sinContenido = opciones.redaccionConAviso ? [] : contenidosFaltantesEnClase(clase, filaMapa);
+      if (faltan.length || sinContenido.length) {
+        fallaRedaccion(idx, [
+          ...(faltan.length ? [instruccionTareaFaltante(faltan, contrato.filasUnidad, filaMapa.clase)] : []),
+          ...(sinContenido.length ? [instruccionContenidosFaltantes(sinContenido)] : []),
+        ].join(" "));
+      }
       const sinDatos = datosSinRecoger(clase, filaMapa);
       if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
       // Estructura del día fuera de la malla: solo se avisa, y solo si se reconoce.
@@ -872,7 +1012,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
         const conThan = [clase?.focoLinguistico, ...(clase?.textoModelo?.lineas || []), ...textosActividades(clase).map(textoComoCadena)].find((t) => /\bthan\b/i.test(String(t || "")));
         if (conThan) motivos44[idx].push(`clase ${idx + 1} — usa un comparativo fuera de la malla del grado: "${String(conThan).slice(0, 70)}"`);
       }
-      [...motivosFidelidad(clase, filaMapa), ...motivosTextoClase(clase, filaMapa), ...motivosTareaId(clase, filaMapa)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
+      [...motivosFidelidad(clase, filaMapa).filter((m) => !/^no se ve la tarea/.test(m)), ...motivosTextoClase(clase), ...motivosTareaId(clase, filaMapa)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
       if (!contrato.conContenido && ampliacion.length) throw new Error(`${etiqueta} — esta fase no introduce contenido nuevo: "ampliacion" debe ir vacía.`);
       revisarAmpliacionYFoco();
     } else if (!contrato.conContenido) {
@@ -917,7 +1057,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       // Mira evidencias y actividades: «Leen las tarjetas con los comentarios del dueño» cuenta.
       const registrada = clasesLote.some((c) => (c?.momentos || []).some((m) => {
         const evidencias = normalizar(JSON.stringify([m?.evidencias || {}, m?.actividades || []]));
-        return /comentarios|retroalimentacion|opiniones/.test(evidencias) && raices.some((r) => evidencias.includes(r));
+        return /comentarios|retroalimentacion|opiniones/.test(evidencias) && (evidencias.includes("audiencia") || raices.some((r) => evidencias.includes(r)));
       }));
       if (!registrada && motivos44.length) {
         motivos44[motivos44.length - 1].push(`clase ${count} — ninguna evidencia registra los comentarios de la audiencia real (${contrato.audienciaRegistro})`);
@@ -925,6 +1065,41 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
     }
   }
   return motivos44;
+};
+
+// Panel del administrador: de qué tipo es cada aviso, de quién es y qué se hizo con él.
+const GRUPOS_AVISO = ["Rompe la cadena", "Contenido", "Estilo"];
+const AVISOS_CADENA = /falta la tarea|no se ve que use|adelanta o repite|diagn[oó]stico no se aplica|no usa el producto|nadie lee|debe recoger estos datos|audiencia real|no sigue la modalidad|usa un dato|sin pieza final/i;
+const AVISOS_CONTENIDO = /contenido|nombra un lugar|precio|falta dato|nombra un equipo|usa un equipo|estructura del d[ií]a|comparativo|repite una actividad|nadie graba|selecci[oó]n curricular|evidencias por planificar|evaluaciones:/i;
+const AVISOS_DOCENTE = /^(evaluaciones:|selecci[oó]n curricular)/i;
+const AVISOS_CONFIGURACION = /^diagn[oó]stico: sin dato/i;
+const AVISOS_CODIGO = /^(tiempo:|evidencias por planificar|secciones sin pieza final)|necesita unos \d+ min/i;
+const MAX_AVISOS_PANEL = 60;
+
+/**
+ * Cada aviso en una línea, ordenados: rompe la cadena, contenido, estilo; las correcciones
+ * automáticas (ℹ) al final. `crudos` son textos «Clase N: …»; «ℹ código:» e «ℹ regeneración:»
+ * marcan lo que ya se corrigió. Con tope, para no inflar el documento (límite de 1 MiB).
+ */
+export const avisosParaAdministrador = (crudos = []) => {
+  const lineas = [...new Set(crudos.map((c) => String(c ?? "").replace(/^⚠️\s*/, "").trim()).filter(Boolean))].map((texto) => {
+    const clase = texto.match(/^clase (\d+)\s*(?:—|:)\s*/i);
+    const cuerpo = clase ? texto.slice(clase[0].length) : texto;
+    // Un ID de tarea que falta no cambia la clase: el código reparte los minutos sin él.
+    const corregido = cuerpo.match(/^ℹ (c[oó]digo|regeneraci[oó]n):\s*/) || (/^fallo de correspondencia|se quit[oó] de las observaciones/.test(cuerpo) ? ["", "código"] : null);
+    // La instrucción de la regeneración no le sirve al administrador: solo qué falta.
+    const mensaje = (corregido ? cuerpo.slice(corregido[0].length) : cuerpo).replace(/\. Añade una actividad.*$/, "");
+    const grupo = AVISOS_CADENA.test(mensaje) ? 0 : (AVISOS_CONTENIDO.test(mensaje) ? 1 : 2);
+    const dueno = AVISOS_CONFIGURACION.test(mensaje) ? "configuración" : AVISOS_DOCENTE.test(mensaje) ? "docente" : (/^fallo de correspondencia/.test(mensaje) || !(corregido || AVISOS_CODIGO.test(mensaje)) ? "IA" : "código");
+    const accion = corregido ? (/^c/.test(corregido[1]) ? "Corregido por código" : "Corregido por regeneración") : "Pendiente";
+    return {
+      orden: corregido ? 3 : grupo,
+      linea: `${corregido ? "ℹ️" : "⚠️"} [${GRUPOS_AVISO[grupo]}] ${clase ? `C${clase[1]} · ` : ""}${mensaje.slice(0, 280)} · Dueño: ${dueno} · ${accion}`,
+    };
+  });
+  const ordenadas = lineas.map((l, i) => ({ ...l, i })).sort((a, b) => a.orden - b.orden || a.i - b.i).map((l) => l.linea);
+  const resto = ordenadas.length - MAX_AVISOS_PANEL;
+  return resto > 0 ? [...ordenadas.slice(0, MAX_AVISOS_PANEL), `y ${resto} avisos más`] : ordenadas;
 };
 
 /** Validación de la fase completa: cada fase deja su entrega y avanza sus secciones. */

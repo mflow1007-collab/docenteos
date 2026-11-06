@@ -28,7 +28,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
-import { hechosDeClase, libretaDeHechos, aplicarSecuencias, aplicarFilasMapa, validarLoteContrato, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
+import { hechosDeClase, libretaDeHechos, aplicarSecuencias, aplicarFilasMapa, validarLoteContrato, pendientesDeClase, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -1941,6 +1941,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
   // Mapa de clases: tras un reintento, lo que falle de redacción se entrega con aviso.
   // Se recuerda entre vueltas: con un solo proveedor, el reintento puede no caber en esta.
   const claveRedaccion = `${spec.cupoGeneracion?.planId || ''}|${spec.contratoFase?.numero || ''}|${startDia}-${count}`;
+  let primerIntentoMapa = null;
 
   // El primer lote de la unidad propone el nombre propio del producto final;
   // una vez fijado en la spec, todos los lotes siguientes lo reciben.
@@ -2086,6 +2087,8 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         continue;
       }
 
+      // Lo que devolvió la IA antes de tocarlo, por si la corrección dirigida no mejora nada.
+      const crudaIA = spec.contratoFase?.mapaClases ? structuredClone(result.data) : null;
       aplicarSecuencias(result.data, spec.contratoFase, startDia);
       normalizarVozBatch(result.data);
       const indicadoresPermitidos = [
@@ -2094,7 +2097,7 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         ...(spec.indicadoresTrabajadosAntes || []).map(normalizarCodigo),
         ...(spec.indicadoresDebiles || []).map(normalizarCodigo),
       ].filter(Boolean);
-      validateBatch(result.data, durMin, count, focoGram, {
+      const opcionesValidacion = {
         memoria,
         redaccionConAviso: REDACCION_YA_REINTENTADA.has(claveRedaccion),
         exigirNombreProducto: pedirNombreProducto,
@@ -2122,7 +2125,30 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         contratoFase: spec.contratoFase || null,
         esIdioma: spec.esIdioma,
         startDia,
-      });
+      };
+      // Corrección dirigida (César, 2026-11-06): si al primer intento le falta una tarea o un
+      // contenido, se recuerda; si el segundo no resuelve nada, queda el original y el aviso va al administrador.
+      const filaMapa = spec.contratoFase?.mapaClases?.[startDia - 1];
+      const faltanAhora = filaMapa ? pendientesDeClase(result.data.clases?.[0], filaMapa) : [];
+      if (faltanAhora.length && !opcionesValidacion.redaccionConAviso) primerIntentoMapa = { data: crudaIA, faltaban: faltanAhora };
+      validateBatch(result.data, durMin, count, focoGram, opcionesValidacion);
+      if (opcionesValidacion.redaccionConAviso && primerIntentoMapa) {
+        const { data: original, faltaban } = primerIntentoMapa;
+        primerIntentoMapa = null;
+        const resueltos = faltaban.filter((f) => !faltanAhora.includes(f));
+        if (faltanAhora.length < faltaban.length) {
+          result.data.clases[0].avisosRedaccion.push(`clase 1 — ℹ regeneración: se rehízo la clase porque faltaba ${resueltos.join(", ")}`);
+        } else {
+          try {
+            aplicarSecuencias(original, spec.contratoFase, startDia);
+            normalizarVozBatch(original);
+            validateBatch(original, durMin, count, focoGram, opcionesValidacion);
+            result.data = original;
+          } catch (errorOriginal) {
+            console.warn(`[FaseA] ${contextoLog}: el original no pasa otra regla; queda el segundo intento.`, errorOriginal?.message);
+          }
+        }
+      }
 
       // 3A — fijar el nombre del producto propuesto por el primer lote
       if (pedirNombreProducto && result.data.productoFinalNombre) {

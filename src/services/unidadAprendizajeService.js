@@ -26,10 +26,10 @@ import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } fro
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
 import { minutosInicioPresentacion, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
-import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
+import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
-  revisarUnidadConMapa, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
+  revisarUnidadConMapa, contenidosNoVistosEnUnidad, avisosParaAdministrador, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
   seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases, VERBOS_IDIOMA, VERBOS_GESTION,
 } from "./redaccionFaseService.js";
 
@@ -5566,6 +5566,7 @@ export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas
   ponerSecuencias(mapa, {
     producto: r.plan.producto,
     tema: datos.titulo || "",
+    asunto: ASUNTO_LECTURA_POR_SEMILLA[situacion.semillaId] || "",
     audiencia: situacion.audiencia || "",
     invitado: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.invitadoConArticulo || invitado || "",
     entrega: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.entrega || "",
@@ -5784,7 +5785,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       datos, mallaPayload, asignatura: datos.asignatura || claveContenido, numSemanas,
       diasClase: diasClaseFinal, horasPorDia: horasPorDiaEf, duracionMin: duracionHoraClase,
     });
-    if (conMapa?.avisos?.length) avisosPlanMaestro.push(...conMapa.avisos);
+    // Un contenido sin lugar no es un fallo: queda sin marcar en la tabla (César, 2026-11-06).
+    if (conMapa?.avisos?.length) avisosPlanMaestro.push(...conMapa.avisos.filter((a) => !/sin marcar/.test(a)));
     const planFinal = conMapa?.plan || prepPlanMaestro.plan;
     rutaPlanMaestro = {
       mapa: conMapa?.mapa || null,
@@ -6207,6 +6209,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   // Viabilidad del tiempo: con plan maestro, los minutos del Desarrollo se
   // calculan por actividad; lo que no cabe se avisa, nunca se estira la clase.
   const avisosTiempo = [];
+  const avisosClaseFinal = [];
   if (rutaPlanMaestro) {
     // Con mapa de clases, cada clase ya trae sus indicadores: este ajuste los pisaba.
     if (!rutaPlanMaestro.contratos?.some((c) => c.mapaClases)) ajustarIndicadoresPorActividad(fasesSemanalesGeneradas, {
@@ -6240,9 +6243,15 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           if (minutosInicio) inicio.minutosActividad = minutosInicio;
         }
         sinGrabado(d.momentos);
-        conTitulosCorregidos(d, { modeloFicticio: d.fijoDelMapa.modeloFicticio });
-        if (d.fijoDelMapa.modeloFicticio) sinLugaresEnClase(d).forEach((t) => avisosTiempo.push(`clase ${i + 1}: nombra un lugar que no consta en la tabla común: ${t}`));
-        sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosTiempo.push(`clase ${i + 1}: usa un equipo que el mapa no prevé (${m})`));
+        const corregidos = [];
+        conTitulosCorregidos(d, { modeloFicticio: d.fijoDelMapa.modeloFicticio, corregidos });
+        corregidos.forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: ${t}`));
+        if (d.fijoDelMapa.modeloFicticio) {
+          const quitados = [];
+          sinLugaresEnClase(d, quitados).forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: nombra un lugar que no consta en la tabla común: «${t}»`));
+          [...new Set(quitados)].forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: se quitó un lugar que no consta en la tabla común: «${t}»`));
+        }
+        sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: usa un equipo que el mapa no prevé: «${m}»`));
         delete d.fijoDelMapa;
       }
       if (!desarrollo?.actividades?.length) return;
@@ -6387,33 +6396,19 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     if (global.avisos.length) {
       // Ajustes de la generación (regla 4.4) que el docente no puede aplicar:
       // van aparte y solo los ve el administrador (decisión de César, 2026-11-03).
-      unidadResult.avisosRedaccion = [
-        `⚠️ Redacción de las actividades (regla 4.4, ${global.avisos.length}): ${global.avisos.join("; ")}.`,
-      ];
+      unidadResult.avisosRedaccion = [...global.avisos];
     }
     // Mapa de clases: lo que solo se ve mirando la unidad entera. Va al administrador.
     if (rutaPlanMaestro?.mapa) {
       const revision = revisarUnidadConMapa(
         (unidadResult.fasesSemanales || []).flatMap((f) => f.dias || []), rutaPlanMaestro.mapa.filas,
       );
-      if (revision.length) {
-        unidadResult.avisosRedaccion = [
-          ...(unidadResult.avisosRedaccion || []),
-          `⚠️ Revisión de la unidad contra el mapa (${revision.length}): ${revision.slice(0, 30).join("; ")}.`,
-        ];
-      }
+      const noVistos = contenidosNoVistosEnUnidad((unidadResult.fasesSemanales || []).flatMap((f) => f.dias || []), rutaPlanMaestro.mapa.filas);
+      unidadResult.avisosRedaccion = [...(unidadResult.avisosRedaccion || []), ...revision, ...noVistos];
     }
     // Lo flexible del Desarrollo y del Cierre que la IA no cumplió: se aceptó
     // sin reintento pagado y se avisa al admin (decisión de César, 2026-11-03).
-    // Con tope, para no inflar el documento guardado (límite de 1 MiB).
-    if (avisosRedaccionIA.length) {
-      const MAX_AVISOS_LOTE = 40;
-      const resto = avisosRedaccionIA.length - MAX_AVISOS_LOTE;
-      unidadResult.avisosRedaccion = [
-        ...(unidadResult.avisosRedaccion || []),
-        `⚠️ Desarrollo y Cierre aceptados con aviso (${avisosRedaccionIA.length}): ${avisosRedaccionIA.slice(0, MAX_AVISOS_LOTE).join("; ")}${resto > 0 ? `; y ${resto} más` : ""}.`,
-      ];
-    }
+    unidadResult.avisosRedaccion = [...(unidadResult.avisosRedaccion || []), ...avisosRedaccionIA, ...avisosClaseFinal];
   }
 
   // Datos del grupo que faltan o no encajan: solo los ve el administrador.
@@ -6425,9 +6420,9 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     ...(seccionesSinFinal(unidadResult.anexos?.organizadorProducto).length ? [`Secciones sin pieza final: ${seccionesSinFinal(unidadResult.anexos.organizadorProducto).join(", ")}.`] : []),
     ...(codigosEvaluacionSinTexto.length ? [`Evaluaciones: códigos fuera de esta malla, omitidos del Punto de partida: ${codigosEvaluacionSinTexto.join(", ")}.`] : []),
   ].filter(Boolean);
-  if (avisosGrupo.length) {
-    unidadResult.avisosRedaccion = [...(unidadResult.avisosRedaccion || []), ...avisosGrupo.map((a) => `⚠️ ${a}`)];
-  }
+  // El panel del administrador: una línea por aviso, en orden y con tope de tamaño.
+  const avisosPanel = avisosParaAdministrador([...(unidadResult.avisosRedaccion || []), ...avisosGrupo]);
+  if (avisosPanel.length) unidadResult.avisosRedaccion = avisosPanel;
 
   // R1 FINAL sobre el DOCUMENTO RENDERIZADO completo (no solo el JSON de la
   // IA): atrapa cualquier placeholder o campo vacío que entre por código

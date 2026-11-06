@@ -287,11 +287,12 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
   const porUso = (cat, texto) => {
     const regla = USO_DE_CONTENIDOS.find(([re]) => re.test(normal(texto).trim()));
     if (!regla) return false;
+    if (regla[2] && !utiles.some((f) => f.tareas.some((t) => t.clave === regla[2]))) { sinLugar.push(`${cat}:${texto}`); return true; }
     for (const clave of regla[1]) {
       const fila = utiles.find((f) => f.contenidos.length < (f.tareas.length > 1 ? TOPE_CONTENIDOS_POR_CLASE : 4)
         && (cat !== "gramatica" || f.contenidos.filter((c) => c.categoria === "gramatica").length < TOPE_GRAMATICA_POR_CLASE)
         && f.tareas.some((t) => t.clave === clave));
-      if (fila) { fila.contenidos.push({ categoria: cat, texto }); return true; }
+      if (fila) { fila.contenidos.push({ categoria: cat, texto, porFuncion: true }); return true; }
     }
     sinLugar.push(`${cat}:${texto}`);
     return true;
@@ -534,21 +535,56 @@ export const sinLugaresEnEjemplos = (texto) => {
   return quedan.length ? quedan.join(" ") : sinParentesis;
 };
 
-/** Aplica la regla a la estructura del día y a lo que la clase hace. Devuelve lo que no pudo limpiar. */
-export const sinLugaresEnClase = (dia = {}) => {
+// Frase entera sobre un lugar, en Inicio, Desarrollo o Cierre: no se puede quitar sin dejar
+// la actividad vacía, así que el lugar pasa a ser genérico (César, 2026-11-06).
+const LUGAR_GLOBAL = new RegExp(LUGARES_NO_DECLARADOS.source, "giu");
+const conLugarGenerico = (texto) => {
+  if (!nombraLugar(texto)) return texto;
+  const nombre = LUGAR_GLOBAL.source;
+  return texto
+    .replace(new RegExp(`\\b(del|de la|de el)\\s+${nombre}`, "giu"), "de un lugar del centro")
+    .replace(new RegExp(`\\b(al|a la|a el)\\s+${nombre}`, "giu"), "a un lugar del centro")
+    .replace(new RegExp(`\\b(el|la|los|las|un|una|su|sus|nuestro|nuestra)\\s+${nombre}`, "giu"), "un lugar del centro")
+    .replace(new RegExp(`\\b(the|a|an|our|your)\\s+${nombre}`, "giu"), "this place")
+    .replace(LUGAR_GLOBAL, "this place");
+};
+
+/** Cita corta de un texto, alrededor de lo que provoca el aviso: cortar por delante escondía la causa. */
+export const citaTexto = (texto, re = null, ancho = 90) => {
+  const t = String(texto ?? "").replace(/\s+/g, " ").trim();
+  if (t.length <= ancho) return t;
+  const i = re ? t.search(re) : 0;
+  const desde = Math.max(0, Math.min(i - Math.floor(ancho / 3), t.length - ancho));
+  return `${desde > 0 ? "…" : ""}${t.slice(desde, desde + ancho).trim()}${desde + ancho < t.length ? "…" : ""}`;
+};
+
+// Aplica `fn` a todos los textos de la clase, salvo el modelo en inglés y lo fijo del mapa.
+const CLAVES_SIN_TEXTO_DE_CLASE = new Set(["textoModelo", "tareasMapa", "fijoDelMapa", "ampliacion"]);
+const mapearTextos = (nodo, fn) => {
+  Object.entries(nodo || {}).forEach(([k, v]) => {
+    if (CLAVES_SIN_TEXTO_DE_CLASE.has(k)) return;
+    if (typeof v === "string") nodo[k] = fn(v);
+    else if (v && typeof v === "object") mapearTextos(v, fn);
+  });
+};
+
+/**
+ * Aplica la regla a todo el texto de la clase. Devuelve lo que no pudo limpiar;
+ * lo que sí limpió va a `corregidos` (el administrador lo ve como corrección automática).
+ */
+export const sinLugaresEnClase = (dia = {}, corregidos = []) => {
   const restantes = [];
   if (dia.focoLinguistico) dia.focoLinguistico = sinLugaresEnEjemplos(dia.focoLinguistico);
-  const limpiar = (lista) => lista.map((t) => {
-    const limpio = sinLugaresEnEjemplos(t);
-    if (nombraLugar(limpio)) restantes.push(String(limpio).slice(0, 70));
+  // Todo el texto de la clase, línea a línea para no aplanar las evidencias con formato.
+  mapearTextos(dia, (t) => t.split("\n").map((linea) => {
+    const limpio = conLugarGenerico(sinLugaresEnEjemplos(linea));
+    if (limpio !== linea) corregidos.push(citaTexto(linea, LUGARES_NO_DECLARADOS));
     return limpio;
-  });
-  if (nombraLugar(dia.focoLinguistico)) restantes.push(String(dia.focoLinguistico).slice(0, 70));
+  }).join("\n"));
+  const revisar = (t) => { if (typeof t === "string" && nombraLugar(t)) restantes.push(citaTexto(t, LUGARES_NO_DECLARADOS)); };
+  revisar(dia.focoLinguistico);
   (dia.momentos || []).forEach((m) => {
-    if (Array.isArray(m?.actividades)) m.actividades = limpiar(m.actividades);
-    if (Array.isArray(m?.metacognicion)) m.metacognicion = limpiar(m.metacognicion);
-    (m?.actividadesDetalle || []).forEach((d) => { if (typeof d?.texto === "string") d.texto = sinLugaresEnEjemplos(d.texto); });
-    Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = limpiar(l); });
+    [...(m?.actividades || []), ...(m?.metacognicion || []), ...Object.values(m?.evidencias || {}).flat()].forEach(revisar);
   });
   return [...new Set(restantes)];
 };
@@ -563,18 +599,23 @@ export const conGuiaEnFemenino = (t) => String(t)
   .replace(/\bel ([Gg]u[ií]a)\b(?! tur)/g, "la $1");
 
 /** Títulos de la clase: concordancia con «guía» y un texto modelo no se llama «simulado». */
-export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false } = {}) => {
+export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, corregidos = [] } = {}) => {
   const guia = conGuiaEnFemenino;
-  if (dia.titulo) dia.titulo = guia(dia.titulo);
+  // Todo el texto de la clase: las evidencias y su trazabilidad repetían «del guía».
+  let concordancias = 0;
+  mapearTextos(dia, (t) => {
+    const nuevo = guia(t);
+    if (nuevo !== t) concordancias += 1;
+    return nuevo;
+  });
+  if (concordancias) corregidos.push(`concordancia de «guía» (${concordancias} texto${concordancias > 1 ? "s" : ""})`);
   if (dia.textoModelo?.titulo) dia.textoModelo.titulo = guia(dia.textoModelo.titulo).replace(/\b[Ee]ntrevista simulada\b/gi, "Entrevista modelo");
   // Sin ficha, el modelo declara que su centro es ficticio.
   if (modeloFicticio && dia.textoModelo?.lineas?.length && !/model school/i.test(dia.textoModelo.titulo || "")) {
     dia.textoModelo.titulo = `Model School${dia.textoModelo.titulo ? ` — ${dia.textoModelo.titulo}` : ""}`;
   }
   (dia.momentos || []).forEach((m) => {
-    if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map((a) => (typeof a === "string" ? guia(a).replace(/^Reúnan\b/, "Reúnen") : a));
-    (m?.actividadesDetalle || []).forEach((d) => { if (typeof d?.texto === "string") d.texto = guia(d.texto); });
-    Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map((t) => (typeof t === "string" ? guia(t) : t)); });
+    if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map((a) => (typeof a === "string" ? a.replace(/^Reúnan\b/, "Reúnen") : a));
   });
   return dia;
 };
@@ -673,7 +714,7 @@ const minutosDePasos = (pasos, tareas) => {
  * da todos sus pasos; varias, los esenciales de cada una. La versión varía por unidad y
  * clase. Sin secuencia, o si la entrevista no es con invitado, la clase sigue con la IA.
  */
-export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = "", invitado = "", entrega = "", semilla = "" } = {}) => {
+export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", audiencia = "", invitado = "", entrega = "", semilla = "" } = {}) => {
   const claveBanco = (t) => (t.clave === "probar_audiencia" ? `probar_audiencia:${t.tipoPrueba || "general"}` : t.clave);
   mapa.filas.forEach((fila) => {
     if (!fila.tareas.length || fila.tareas.some((t) => t.paralelo || !SECUENCIAS_POR_TAREA[claveBanco(t)])) return;
@@ -695,6 +736,7 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = ""
       texto: conContraccion(x.texto
         .replaceAll("{producto}", nombreCorto(producto))
         .replaceAll("{tema}", tema)
+        .replaceAll("{asunto}", asunto || tema)
         .replace(/\{audiencia\}/g, () => {
           if (audienciaDicha || !audiencia) return "la audiencia";
           audienciaDicha = true;
@@ -708,12 +750,18 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", audiencia = ""
   return mapa;
 };
 
+// El nombre del producto o de una sección no es una frase de ejemplo: rellenaba el hueco.
+const esNombreDelProducto = (frase, nombres) => {
+  const limpia = normal(frase).replace(/[^a-z0-9]+/g, " ").trim();
+  return nombres.some((n) => normal(nombreCorto(n)).replace(/[^a-z0-9]+/g, " ").trim() === limpia);
+};
+
 /** Los pasos del banco con lo que puso la IA en {frases}. Sin frase, el hueco desaparece. */
-export const pasosConFrases = (secuencia = [], respuesta = [], { sinLugares = false } = {}) => secuencia.map((paso, i) => {
+export const pasosConFrases = (secuencia = [], respuesta = [], { sinLugares = false, nombres = [] } = {}) => secuencia.map((paso, i) => {
   const r = respuesta[i];
   // Solo lo que está en cursiva: a veces la IA repite el paso entero en el hueco.
   const crudo = String((typeof r === "string" ? r : r?.frases) || "");
-  const frases = (crudo.match(/_[^_]{2,80}_/g) || []).filter((f) => !sinLugares || !LUGARES_NO_DECLARADOS.test(f)).slice(0, 2).join(", ");
+  const frases = (crudo.match(/_[^_]{2,80}_/g) || []).filter((f) => (!sinLugares || !LUGARES_NO_DECLARADOS.test(f)) && !esNombreDelProducto(f, nombres)).slice(0, 2).join(", ");
   return frases ? paso.texto.replace("{frases}", frases) : paso.texto.replace(/\s*\(\{frases\}\)/, "");
 });
 

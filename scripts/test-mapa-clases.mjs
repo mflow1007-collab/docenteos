@@ -16,7 +16,7 @@ import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
-import { aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
+import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
 import { SECUENCIAS_POR_TAREA } from "../src/data/secuenciasTareas.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
@@ -243,7 +243,7 @@ check("lo fijo lo pone el código: secciones, indicadores, aporte y entrega sale
   igual(data.clases[0].seccionesProducto, [I], "sección");
   assert(/«Interviews with Owners» \(insumos recopilados\): Tabla común/.test(data.clases[0].aporteProducto), data.clases[0].aporteProducto);
   assert(data.clases[0].entregaFase, "entrega de la última clase de la fase");
-  igual(validarLoteContrato(data, c, 1, 1, { esIdioma: true }).length, 1, "pasa el contrato");
+  igual(validarLoteContrato(data, c, 1, 1, { esIdioma: true, redaccionConAviso: true }).length, 1, "pasa el contrato");
   validarFaseCompleta(data.clases, c);
 });
 check("el tipo de evidencia del Desarrollo lo dice la tarea", () => {
@@ -252,7 +252,7 @@ check("el tipo de evidencia del Desarrollo lo dice la tarea", () => {
   aplicarFilasMapa(data, c, 1);
   igual(data.clases[0].momentos[0].evidencias, { conocimientos: ["Lista de datos"], desempeno: [], producto: [] }, "conocimiento");
 });
-check("un contenido que no se ve en la clase da aviso, no rechazo", () => {
+check("un contenido del mapa que no se ve en la unidad da aviso, no rechazo", () => {
   // Desde la fase 4: las anteriores tienen además sus propias obligaciones (diagnóstico, datos).
   const i = filasPorFase.findIndex((fs, n) => n >= 3 && fs.some((f) => f.contenidos.length));
   const c = contratoDe(i);
@@ -262,8 +262,12 @@ check("un contenido que no se ve en la clase da aviso, no rechazo", () => {
   igual(contenidosSinUsar(sinNada, fila).length, fila.contenidos.length, "debía faltar todo");
   igual(contenidosSinUsar(claseFalsa(fila), fila), [], "con frase real cumple");
   const clases = Array.from({ length: k + 1 }, (_, n) => (n === k ? sinNada : claseFalsa(c.mapaClases[n])));
-  const motivos = validarLoteContrato(aplicarFilasMapa({ clases }, c, 1), c, k + 1, 1, { esIdioma: true });
-  assert(motivos[k].some((m) => /no se ven estos contenidos/.test(m)), "sin aviso");
+  const motivos = validarLoteContrato(aplicarFilasMapa({ clases }, c, 1), c, k + 1, 1, { esIdioma: true, redaccionConAviso: true });
+  assert(!motivos[k].some((m) => /contenidos/.test(m)), "ya no se avisa por clase");
+  const conFuncion = { clase: 9, contenidos: [{ texto: "Disculparse: I’m sorry; I apologize…", porFuncion: true }, { texto: "Mostrar nada: zzz", porFuncion: false }, { texto: "Funcional: Comprar", porFuncion: true }] };
+  const dia = (t) => ({ momentos: [{ nombre: "Inicio", actividades: [t] }] });
+  assert(/I’m sorry/.test(contenidosNoVistosEnUnidad([dia("Saludan.")], [conFuncion])[0]), "por función y no se ve");
+  igual(contenidosNoVistosEnUnidad([dia("Saludan."), dia("Dicen _I apologize_.")], [conFuncion]), [], "en otra clase cuenta; sin función y funcional no se reclaman");
 });
 check("basta un ejemplo del contenido: no hace falta copiar la línea de la malla", () => {
   const fila = { contenidos: [{ texto: "Comidas y bebidas: bread, salad, juice, milk…" }] };
@@ -477,8 +481,12 @@ check("revisión de la unidad: detecta adelantos, repeticiones y lo que no se us
   repite[2] = dias[1];
   assert(revisarUnidadConMapa(repite, ref.filas).some((a) => /repite una actividad/.test(a)), "repetición");
   const noUsa = [...dias];
+  noUsa[6] = dia("Ordenan (en grupos) sus apuntes.");
   noUsa[7] = dia("Conversan (en grupos) sobre su clase.");
   assert(revisarUnidadConMapa(noUsa, ref.filas).some((a) => /clase 8: no se ve que use/.test(a)), "no usa lo recibido");
+  // Lo que no nació en su clase se avisa allí, no en la que lo necesita.
+  noUsa[6] = dia("Conversan (en grupos) sobre su clase.");
+  assert(!revisarUnidadConMapa(noUsa, ref.filas).some((a) => /clase 8: no se ve que use/.test(a)), "se atribuye al origen");
 });
 check("el aporte de la fila nombra lo que la plantilla espera", () => {
   igual(aporteDeFila(ref.filas[0], "Guide", ref.secciones).startsWith("«Guide» (acuerdo y plan)"), true, "unidad");
@@ -711,7 +719,8 @@ check("I-11: la estructura del día y las actividades no nombran lugares; Model 
   const dia = { focoLinguistico: "Comentar: presente simple (_The library is next to the gym_...).", momentos: [{ nombre: "Desarrollo", actividades: ["Visitan la biblioteca y anotan"], metacognicion: [], evidencias: {} }] };
   const restantes = sinLugaresEnClase(dia);
   assert(!/library|gym/.test(dia.focoLinguistico), dia.focoLinguistico);
-  igual(restantes.length, 1, "lo que no se puede limpiar se avisa");
+  igual(restantes.length, 0, "la frase entera pasa a un lugar genérico");
+  igual(dia.momentos[0].actividades[0], "Visitan un lugar del centro y anotan", "lugar genérico");
 });
 check("«guía» concuerda en femenino en todo el texto de la clase", () => {
   igual(conGuiaEnFemenino("discuten mejoras para el guía y del guía; nuestro guía, El guía"), "discuten mejoras para la guía y de la guía; nuestra guía, La guía", "concordancia");
@@ -760,7 +769,7 @@ check("secuencias: el código escribe los pasos antes de unir frases y pasan el 
   assert(a.every((x) => typeof x === "string" && x.length > 20 && !/\{frases\}/.test(x)), JSON.stringify(a).slice(0, 200));
   assert(/_I eat rice…_/.test(a[2]), a[2]);
   igual(data.clases[0].minutosSecuencia.reduce((s, x) => s + x, 0), 30, "minutos");
-  validarLoteContrato(aplicarFilasMapa(data, c, 1), c, 1, 1, { esIdioma: true });
+  validarLoteContrato(aplicarFilasMapa(data, c, 1), c, 1, 1, { esIdioma: true, redaccionConAviso: true });
 });
 check("cada contenido va a la tarea que lo usa; lo que no encaja queda sin lugar", () => {
   const donde = (t) => ref.filas.filter((f) => f.contenidos.some((c) => normalizaTexto(c.texto).startsWith(t))).map((f) => f.tareas.map((x) => x.clave).join("+"));

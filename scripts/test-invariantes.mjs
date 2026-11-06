@@ -14,7 +14,7 @@ import {
   fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
 } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
-import { ALCANCE_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS } from "../src/data/tareasPorTipoTrabajo.js";
+import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion } from "../src/services/situacionAprendizajeService.js";
 
 const malla = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
@@ -32,7 +32,7 @@ const unidad = (titulo, numSemanas) => {
   const mapa = armarMapaClases(entrada);
   const s = datos.planMaestro.situacion;
   const alcance = ALCANCE_POR_SEMILLA[s.semillaId]?.conInvitado || null;
-  ponerSecuencias(mapa, { producto: entrada.producto || s.productoDescripcion, tema: titulo, audiencia: s.audiencia, invitado: alcance?.invitadoConArticulo || alcance?.invitado || "", entrega: alcance?.entrega || "", semilla: titulo });
+  ponerSecuencias(mapa, { producto: entrada.producto || s.productoDescripcion, tema: titulo, asunto: ASUNTO_LECTURA_POR_SEMILLA[s.semillaId] || "", audiencia: s.audiencia, invitado: alcance?.invitadoConArticulo || alcance?.invitado || "", entrega: alcance?.entrega || "", semilla: titulo });
   return { titulo, datos, mapa, alcance, reales: mapa.filas.filter((f) => !f.flexible) };
 };
 

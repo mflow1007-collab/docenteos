@@ -7,7 +7,7 @@
  * docente visible. Si la clase tiene una sola tarea, salen todos; si comparte clase,
  * solo los esenciales (`e`). Solo el último paso de cada tarea lleva producto y destino.
  * `m` = peso en minutos dentro de la tarea.
- * Huecos: {invitado}, {audiencia}, {producto}, {tema}, {datos}, {entrega} los pone el código;
+ * Huecos: {invitado}, {audiencia}, {producto}, {tema}, {asunto}, {datos}, {entrega} los pone el código;
  * {frases} los pone la IA. `pista` dice qué necesita ese hueco; `usa` reconoce, entre los
  * contenidos de la fila, las expresiones de la malla que le sirven.
  *
@@ -22,14 +22,14 @@ export const SECUENCIAS_POR_TAREA = {
       pe(5, "Conocen (en plenaria) la unidad: el docente explica qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa."),
       pe(5, "Acuerdan (en plenaria) cómo se evaluará con la rúbrica y forman un grupo editor por sección: cartel del acuerdo y lista de grupos; se guardan en la carpeta del producto."),
       pe(7, "Escuchan (individual, dos veces, leídas por el docente) cinco oraciones ({frases}) y marcan en la hoja la imagen que corresponde.", "oraciones sencillas del tema"),
-      pe(7, "Leen (en parejas) un texto breve sobre {tema} y responden qué dice, mientras el docente circula y observa."),
-      pe(6, "Escriben (individual) dos oraciones sobre {tema} y responden en voz alta una pregunta a su pareja ({frases}): hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
+      pe(7, "Leen (en parejas) un texto breve sobre {asunto} y responden qué dice, mientras el docente circula y observa."),
+      pe(6, "Escriben (individual) dos oraciones sobre {asunto} y responden en voz alta una pregunta a su pareja ({frases}): hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
     ],
     [
       pe(6, "Conversan (en plenaria) con el docente sobre qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa."),
       pe(4, "Revisan (en plenaria) la rúbrica, acuerdan cómo se evaluará y eligen la sección de cada grupo editor: cartel del acuerdo y lista de grupos."),
       pe(6, "Escuchan (individual) al docente leer cinco oraciones ({frases}) y marcan la imagen de cada una.", "oraciones sencillas del tema"),
-      pe(7, "Leen (en parejas) un texto breve sobre {tema} y subrayan lo que entienden, mientras el docente anota quién necesita apoyo."),
+      pe(7, "Leen (en parejas) un texto breve sobre {asunto} y subrayan lo que entienden, mientras el docente anota quién necesita apoyo."),
       pe(7, "Escriben (individual) dos oraciones y luego se hacen una pregunta en parejas ({frases}), y el docente escucha a varias: hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
     ],
   ],

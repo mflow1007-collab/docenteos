@@ -120,14 +120,15 @@ export const DETALLE_TAREA = {
   analizar_verificar: { hace: "Verifican con otra fuente solo los datos dudosos.", senal: "verific|comprob" },
   proponer_comparar: { hace: "Leen un texto breve y comparan en una tabla con lo que ya tienen. Aún no escriben la pieza.", senal: "compar", soloComprender: true },
   proponer_elegir: { hace: "Discuten qué proponer y justifican su elección con la tabla.", senal: "elig|justific|discut|debat|propon" },
-  proponer_elaborar: { hace: "Elaboran la pieza con lo elegido, con su razón y su alternativa.", senal: "elabor|redact|escrib" },
+  proponer_elaborar: { hace: "Elaboran la pieza con lo elegido, con su razón y su alternativa.", senal: "elabor|redact|escrib|borrador" },
   aplicar_modelo: { hace: "Analizan un modelo e identifican sus frases. Es la parte de comprensión de esta tarea.", senal: "modelo|identific|escuch|analiz" },
   aplicar_escribir: { hace: "Escriben la pieza usando lo identificado y las piezas ya hechas.", senal: "escrib|redact" },
   aplicar_ensayar: { hace: "Ensayan con la pieza y el producto reales, en los dos papeles.", senal: "ensay|represent|practic" },
   aplicar_anotar: { hace: "Anotan qué falló y qué cambiar. Aún no corrigen.", senal: "anot|observ|registr|coment" },
   aplicar_segundo: { hace: "Repiten el ensayo probando lo que anotaron.", senal: "ensay|represent|practic" },
   aplicar_corregir: { hace: "Corrigen la pieza con lo anotado en el ensayo y la dejan final.", senal: "corrig|ajust|mejor" },
-  socializar_reunir: { hace: "Reúnen lo que ya tienen de las otras secciones.", senal: "reun|revis|seleccion" },
+  // noSeReclama: la cadena de Welcome ya es coherente sin esta tarea en la clase (revisión de Escuela v4, 2026-11-06).
+  socializar_reunir: { hace: "Reúnen lo que ya tienen de las otras secciones.", senal: "reun|revis|seleccion", noSeReclama: true },
   socializar_redactar: { hace: "Redactan el mensaje con lo reunido.", senal: "redact|escrib" },
   socializar_leer: { hace: "Lo leen a otro grupo y anotan qué no se entendió.", senal: "le[ae]n|compart|present" },
   orientar_recorrido: { hace: "Hacen el recorrido o el mapa con los lugares reales.", senal: "recorr|map|plano" },
@@ -138,7 +139,7 @@ export const DETALLE_TAREA = {
   glosario: { hace: "Reúnen el vocabulario clave de la guía con su traducción.", senal: "glosario|vocabulario" },
   integrar: { hace: "Reúnen todas las secciones en un solo producto y revisan que los datos coincidan. No se reescribe ni se presenta a nadie todavía.", senal: "reun|integr|compil|junt|ensambl|un[ei]n?\\b" },
   presentar: { califica: "la presentación", hace: "Presentan TODAS las secciones del producto a la audiencia y lo ponen a prueba con ella (si es un menú y una guía para pedir, hacen pedidos reales con el menú). Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos.", senal: "present" },
-  probar_audiencia: { califica: "la prueba con la audiencia", hace: "Ponen a prueba el producto con la audiencia: si es un menú y una guía para pedir, hacen pedidos reales con el menú. Luego recogen sus comentarios en tarjetas.", senal: "pedid|pedir|orden|order|prueb" },
+  probar_audiencia: { califica: "la prueba con la audiencia", hace: "Ponen a prueba el producto con la audiencia: si es un menú y una guía para pedir, hacen pedidos reales con el menú. Luego recogen sus comentarios en tarjetas.", senal: "pedid|pedir|orden|order|prueb|usan|acompan|guian|indic|camino" },
   audiencia_secundaria: { hace: "Prueban el producto con la audiencia secundaria y recogen sus comentarios.", senal: "present|prueb|muestr" },
   evaluar_comentarios: { califica: "las respuestas individuales", hace: "Leen los comentarios de la audiencia y cada estudiante responde por escrito qué piden cambiar y por qué. Las respuestas son la evidencia de comprensión.", senal: "comentari", firma: "Cada estudiante firma sus respuestas." },
   corregir_final: { formativo: ["la corrección"], hace: "Corrigen el producto completo con lo que pidió la audiencia. Queda listo para entregar; no se vuelve a presentar.", senal: "corrig" },
@@ -150,24 +151,24 @@ export const DETALLE_TAREA = {
 // fuera de esta lista (temas sin semilla) no se comprueban.
 export const INVENTARIO_POR_SECCION = {
   // Alimentación
-  "Interviews with Owners": { evidencia: "Registro escrito de la entrevista", recoge: ["platos", "ingredientes", "precios", "horario", "clientes"] },
-  "Our Local Food": { evidencia: "Fichas de platos", necesita: ["platos", "ingredientes"] },
-  "Bilingual Menus": { evidencia: "Menú bilingüe", necesita: ["platos", "precios"] },
-  "Healthy Choices": { evidencia: "Etiquetas «Healthy pick»", necesita: ["platos", "ingredientes"] },
-  "Ordering Food": { evidencia: "Guía para pedir", necesita: ["platos", "precios"], pruebaConAudiencia: "pedid|pedir|orden|order|can i have|i ll have|i'll have" },
+  "Interviews with Owners": { evidencia: "Registro escrito de la entrevista", nombres: "entrevista|registro", recoge: ["platos", "ingredientes", "precios", "horario", "clientes"] },
+  "Our Local Food": { evidencia: "Fichas de platos", nombres: "fichas?", necesita: ["platos", "ingredientes"] },
+  "Bilingual Menus": { evidencia: "Menú bilingüe", nombres: "menu", necesita: ["platos", "precios"] },
+  "Healthy Choices": { evidencia: "Etiquetas «Healthy pick»", nombres: "healthy pick|etiquetas|tabla de comparacion", necesita: ["platos", "ingredientes"] },
+  "Ordering Food": { evidencia: "Guía para pedir", nombres: "guia|pedid", necesita: ["platos", "precios"], pruebaConAudiencia: "pedid|pedir|orden|order|can i have|i ll have|i'll have" },
   // Escuela y educación
-  "Important Places": { evidencia: "Fichas de lugares", recoge: ["lugares", "función del lugar", "personas"] },
-  "School Directions": { evidencia: "Plano con rutas e indicaciones", necesita: ["lugares"], recoge: ["rutas"], pruebaConAudiencia: "gui|acompa|indic|camino" },
-  "Asking for Help": { evidencia: "Tarjeta de bolsillo", necesita: ["lugares", "personas"] },
-  "School Success Tips": { evidencia: "Póster «Top tips»", necesita: ["lugares"] },
-  "Welcome": { evidencia: "Carta de bienvenida", necesita: ["lugares"] },
-  "Final Recommendation": { evidencia: "Párrafo de cierre" },
+  "Important Places": { evidencia: "Fichas de lugares", nombres: "fichas? de lugares|lugares importantes|lugar del centro", recoge: ["lugares", "función del lugar", "personas"] },
+  "School Directions": { evidencia: "Plano con rutas e indicaciones", nombres: "plano|rutas?|indicaciones|instrucciones", necesita: ["lugares"], recoge: ["rutas"], pruebaConAudiencia: "gui|acompa|indic|camino" },
+  "Asking for Help": { evidencia: "Tarjeta de bolsillo", nombres: "tarjeta de bolsillo|pedir ayuda", necesita: ["lugares", "personas"] },
+  "School Success Tips": { evidencia: "Póster «Top tips»", nombres: "consejos|top tips|poster", necesita: ["lugares"] },
+  "Welcome": { evidencia: "Carta de bienvenida", nombres: "bienvenida", necesita: ["lugares"] },
+  "Final Recommendation": { evidencia: "Párrafo de cierre", nombres: "recomendacion final|parrafo de cierre" },
   // Actividades de la vida diaria
-  "Our Daily Routines": { evidencia: "Línea de tiempo del día", recoge: ["horario"] },
-  "What We Found": { evidencia: "Gráfico de resultados", necesita: ["horario"], recoge: ["horas de sueño", "llegadas tarde"] },
-  "Problems and Causes": { evidencia: "Tabla problema → causa", necesita: ["horas de sueño", "llegadas tarde"] },
-  "Our Healthy Schedule": { evidencia: "Horario semanal", necesita: ["horario"] },
-  "Tips for Families": { evidencia: "Folleto de consejos", necesita: ["horario"] },
+  "Our Daily Routines": { evidencia: "Línea de tiempo del día", nombres: "linea de tiempo|rutinas?", recoge: ["horario"] },
+  "What We Found": { evidencia: "Gráfico de resultados", nombres: "grafico|resultados", necesita: ["horario"], recoge: ["horas de sueño", "llegadas tarde"] },
+  "Problems and Causes": { evidencia: "Tabla problema → causa", nombres: "problemas?|causas?", necesita: ["horas de sueño", "llegadas tarde"] },
+  "Our Healthy Schedule": { evidencia: "Horario semanal", nombres: "horario", necesita: ["horario"] },
+  "Tips for Families": { evidencia: "Folleto de consejos", nombres: "folleto|consejos", necesita: ["horario"] },
 };
 // Cómo se reconoce cada dato en el texto de la clase (sin tildes).
 export const MARCAS_DATO = {
@@ -195,9 +196,10 @@ export const USO_DE_CONTENIDOS = [
   [/^numeros cardinales/, ["analizar_borrador", "visitar_entrevistar"]],
   [/^numeros ordinales/, ["orientar_instrucciones"]],
   [/^lugares:/, ["orientar_recorrido", "orientar_instrucciones"]],
-  [/^formas de interaccion/, ["socializar_redactar"]],
+  [/^formas de interaccion|^asignaturas|^educacion:/, []],
   [/^fechas/, []],
-  [/^hora:/, ["visitar_entrevistar", "aplicar_ensayar"]],
+  // Tercer dato: sin esa tarea en la unidad no hay cita que fijar y la hora queda sin lugar (Escuela).
+  [/^hora:/, ["visitar_entrevistar", "aplicar_ensayar"], "visitar_entrevistar"],
   [/^cortesia|^you.re welcome|^captar la atencion|^pedir que repitan|^mostrar interes/, ["visitar_entrevistar", "probar_audiencia", "orientar_probar"]],
   [/^interrumpir|^pedir y dar la palabra|^mostrar acuerdo/, ["comentar", "proponer_elegir"]],
   [/^disculparse/, ["aplicar_ensayar", "probar_audiencia"]],
@@ -207,7 +209,31 @@ export const USO_DE_CONTENIDOS = [
 ];
 
 // Lugares que no se dan por hechos si no hay ficha del centro.
-export const LUGARES_NO_DECLARADOS = /\b(cafeterias?|cafeteria|gym|gymnasium|art room|second floor|auditorium|library|biblioteca|gimnasio|auditorio)\b/i;
+export const LUGARES_NO_DECLARADOS = /(?<![\p{L}])(caf[eé]ter[ií]as?|gym|gymnasium|art rooms?|music rooms?|floors?|pisos?|auditorium|auditorio|library|biblioteca|gimnasio|computer labs?|science labs?|laboratorios?|playground|cancha)(?![\p{L}])/iu;
+
+// Cómo se reconoce en el texto un contenido gramatical, aunque la clase use otros ejemplos
+// que los de la malla (unidad a mano de Alimentación, 2026-11-06). Sin tildes y con el
+// apóstrofo como espacio, como queda el texto al normalizarlo.
+export const MARCAS_CONTENIDO = [
+  [/^voz pasiva/, "\\b(is|are|was|were) ([a-z]+ed|made|sold|built|written)\\b"],
+  [/^condicional/, "\\bif (you|i|we|they|he|she|it)\\b"],
+  [/imperativo/, "\\b(don t|try|turn|go|ask|study|eat|drink)\\b"],
+  [/^let.s para/, "\\blet s\\b"],
+  [/^why don/, "\\bwhy (don t|not)\\b"],
+  [/^want hope y wish/, "\\b(want|hope|wish)\\b"],
+  [/^presente simple de los verbos/, "\\b(have|want|need|do you|does)\\b"],
+  [/^how much/, "\\bhow (much|many)\\b"],
+  [/^captar la atencion/, "\\bexcuse me\\b"],
+  [/^should para/, "\\bshould\\b"],
+  [/^will para/, "\\b(will|i ll|we ll)\\b"],
+];
+
+// De qué trata la lectura y las oraciones del diagnóstico de la clase 1: la situación, no el
+// nombre del tema (César, 2026-11-06). Sin semilla, se queda el tema.
+export const ASUNTO_LECTURA_POR_SEMILLA = {
+  "ing2-escuela-guia": "cómo orientarse en un centro nuevo",
+  "ing2-alimentacion-menu": "qué ofrecen los comedores del barrio y cómo se pide",
+};
 
 // Clase 1: pregunta que acompaña la lectura de la situación, para que den ejemplos del problema.
 export const PREGUNTA_SITUACION_POR_SEMILLA = {
