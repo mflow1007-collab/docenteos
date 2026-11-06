@@ -203,6 +203,7 @@ check("tercera unidad: Indagación valida sus fuentes, con datos anónimos y gra
   assert(con("indagar_contrastar").secuencia.some((x) => /fiable/.test(x.texto)), "no valida");
   assert(con("indagar_aplicar").secuencia.some((x) => /sin anotar nombres/.test(x.texto)) && con("indagar_aplicar").secuencia.some((x) => /nunca por nombre/.test(x.texto)), "privacidad");
   assert(con("indagar_aplicar").secuencia.some((x) => /never|sometimes|always/.test(x.texto)), "frecuencia en los pasos");
+  assert(readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8").includes("se presentan agregados"), "el prompt no lleva la regla de privacidad");
   const probar = con("probar_audiencia");
   assert(probar.secuencia.some((x) => /Explican|Muestran/.test(x.texto)) && !probar.secuencia.some((x) => /para lo que fue hecho/.test(x.texto)), "uso concreto");
   assert(!m.filas.some((f) => /comprar/i.test(focoDeFila(f, m.filas))), m.filas.map((f) => focoDeFila(f, m.filas)).join(" | "));
