@@ -794,8 +794,8 @@ const TAREAS_RECONOCIBLES = [
   { clave: "visitar_entrevistar", verbo: /^entrevistan\b/ },
   // Presentar a los compañeros no es la presentación a la audiencia.
   { clave: "presentar", verbo: /^presentan\b/, salvo: /\b(en plenaria|al resto del grupo|al grupo|a otro grupo|a otros grupos)\b/ },
-  // «Reúnen» es también la tarea de reunir lo hecho de una sección: si la clase la tiene, no adelanta nada.
-  { clave: "integrar", verbo: /^(reunen|integran|compilan)\b/, salvoTarea: "socializar_reunir" },
+  // Reunir ideas o datos no es integrar: integrar junta las secciones en el producto.
+  { clave: "integrar", verbo: /^(reunen|integran|compilan)\b/, solo: /\b(secciones|producto|documento|todo)\b/ },
   { clave: "evaluar_proceso", verbo: /^(autoevaluan|coevaluan)\b/ },
 ];
 
@@ -835,11 +835,10 @@ export const revisarUnidadConMapa = (dias = [], filas = []) => {
       if (entradas.length && !entradas.some(seVe)) avisos.push(`clase ${fila.clase}: no se ve que use «${entradas[0].texto}» de la clase ${entradas[0].clase}`);
     });
     // ¿Hace la tarea de otra clase?
-    TAREAS_RECONOCIBLES.forEach(({ clave, verbo, salvo, salvoTarea }) => {
-      if (salvoTarea && fila.tareas.some((t) => t.clave === salvoTarea)) return;
+    TAREAS_RECONOCIBLES.forEach(({ clave, verbo, salvo, solo }) => {
       const suya = fila.tareas.some((t) => t.clave === clave);
       const existe = filas.some((f) => f.tareas.some((t) => t.clave === clave));
-      if (!suya && existe && actividades.some((a) => verbo.test(normalizar(a)) && !(salvo && salvo.test(normalizar(a))))) avisos.push(`clase ${fila.clase}: adelanta o repite «${clave}», que el mapa pone en otra clase`);
+      if (!suya && existe && actividades.some((a) => verbo.test(normalizar(a)) && !(salvo && salvo.test(normalizar(a))) && (!solo || solo.test(normalizar(a))))) avisos.push(`clase ${fila.clase}: adelanta o repite «${clave}», que el mapa pone en otra clase`);
     });
     // ¿Repite una actividad casi igual?
     actividades.forEach((a) => {

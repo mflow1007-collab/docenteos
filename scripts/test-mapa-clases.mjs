@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
@@ -737,6 +737,41 @@ check("gramática: máximo 3 estructuras por clase y consejos en las clases de p
     });
   });
 });
+check("la estructura del día sale de la fila y corresponde a la tarea", () => {
+  const fila = (clave, contenidos = []) => ({ tareas: [{ clave }], contenidos });
+  igual(focoDeFila(fila("presentar")), "Explicar para qué sirve cada sección: presente simple (_This section shows…_)", "presentar");
+  igual(focoDeFila(fila("evaluar_comentarios")), "Responder a los comentarios (_They ask for…_, _We should change…_)", "responder");
+  igual(focoDeFila(fila("corregir_final")), "Corregir y mejorar lo escrito: presente simple", "por tipo");
+  igual(focoDeFila(fila("proponer_elegir", [{ categoria: "gramatica", texto: "Should para pedir y dar consejos y sugerencias: You should drink more. Other." }])), "Pedir y dar consejos y sugerencias: should", "gramática");
+  igual(focoDeFila(fila("aplicar_modelo", [{ categoria: "funcionales", texto: "Funcional: Solicitar y ofrecer ayuda" }])), "Solicitar y ofrecer ayuda (_Could you…?_)", "función sin gramática");
+});
+check("cada función va a una tarea donde se usa; Escuela no pide «reunir» en Welcome", () => {
+  const e = mapaDe("Escuela y educación", 4, HORARIOS["3x1"]);
+  const donde = (t) => e.filas.find((f) => f.contenidos.some((c) => normalizaTexto(c.texto).includes(t)));
+  assert(donde("sostener una conversacion")?.tareas.some((x) => ["visitar_entrevistar", "aplicar_ensayar", "comentar", "probar_audiencia"].includes(x.clave)), `sostener: C${donde("sostener una conversacion")?.clase}`);
+  assert(donde("solicitar y ofrecer ayuda")?.tareas.some((x) => ["aplicar_modelo", "orientar_probar", "probar_audiencia"].includes(x.clave)), `ayuda: C${donde("solicitar y ofrecer ayuda")?.clase}`);
+  assert(!e.filas.some((f) => f.tareas.some((x) => x.clave === "socializar_reunir")), "reunir sigue en Escuela");
+  assert(ref.filas.length === 18, "Alimentación conserva sus clases");
+});
+check("el modelo se declara ejemplo, el título en inglés se cambia y el plural se corrige", () => {
+  const d = conTitulosCorregidos({ titulo: "Exploring and Sharing Findings", textoModelo: { titulo: "Entrevista al dueño", lineas: ["A: Hi"] } }, { nombreModelo: "Comedor modelo", tituloTarea: "Comentar por estaciones" });
+  igual(d.titulo, "Comentar por estaciones", "título");
+  igual(d.textoModelo.titulo, "Comedor modelo — Entrevista al dueño", "modelo");
+  igual(conTitulosCorregidos({ textoModelo: { titulo: "Entrevista modelo", lineas: ["A"] } }, { nombreModelo: "Comedor modelo" }).textoModelo.titulo, "Entrevista modelo", "ya declarado");
+  assert(!tituloEnIngles("Presentación de Our Community Food Guide"), "español con nombre del producto");
+  const alimentacion = ALCANCE_POR_SEMILLA["ing2-alimentacion-menu"].conInvitado.reemplazos;
+  igual(conReemplazos({ titulo: "El guion para los dueños de comedores", momentos: [] }, alimentacion).titulo, "El guion para el dueño del comedor", "plural");
+});
+check("erratas, comedor local y estructura de la clase que reúne el producto", () => {
+  igual(conErratasCorregidas("Presentamos nuesros platos y Nuestos menús"), "Presentamos nuestros platos y Nuestros menús", "errata");
+  igual(conErratasCorregidas("Nuestra unidad y clases"), "Nuestra unidad y clases", "sin errata");
+  const alimentacion = ALCANCE_POR_SEMILLA["ing2-alimentacion-menu"].conInvitado.reemplazos;
+  const dia = conReemplazos({ textoModelo: { titulo: "Ordering Food at a Café", lineas: ["A: Welcome to the local diner.", "B: Un café con leche."] } }, alimentacion);
+  igual(dia.textoModelo.titulo, "Ordering Food at the comedor", "título");
+  igual(dia.textoModelo.lineas.join(" "), "A: Welcome to the comedor. B: Un café con leche.", "líneas");
+  igual(focoDeFila({ tareas: [{ clave: "aplicar_corregir" }, { clave: "integrar" }], contenidos: [] }), "Revisar el conjunto: presente simple (_This section shows…_)", "reúne");
+  igual(focoDeFila({ tareas: [{ clave: "aplicar_corregir" }], contenidos: [] }), "Corregir y mejorar lo escrito: presente simple", "corrige");
+});
 check("el video se quita también con «our video»", () => {
   const m = [{ nombre: "Inicio", actividades: [], metacognicion: ["What do you remember from our video?"] }];
   sinEquipos(m, "Hojas");
@@ -748,7 +783,8 @@ check("frases por paso: el hueco toma las expresiones de la malla y, si no hay, 
   const c4 = m.filas[3].secuencia;
   assert(c4.some((x) => /cortes|welcome|Pardon/i.test(x.pista)), JSON.stringify(c4.map((x) => x.pista)));
   assert(c4.every((x) => !/\{frases\}/.test(x.texto) || x.pista), "hueco sin pista");
-  assert(m.filas[16].secuencia.some((x) => /plato/.test(x.pista)), "pedidos");
+  assert(m.filas[16].secuencia.some((x) => /I’ll have/.test(x.texto) && /Could you repeat that/.test(x.texto)), "pedidos con frases fijas");
+  assert(m.filas[16].secuencia.some((x) => /tarjetas/.test(x.texto) && /I wish/.test(x.texto)), "comentarios con frases fijas");
   assert(/tomados de lo que indica cada hueco/.test(readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8")), "regla");
 });
 check("secuencias: la versión varía por unidad, y sin invitado la entrevista sigue con la IA", () => {

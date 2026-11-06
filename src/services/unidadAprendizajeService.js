@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { minutosInicioPresentacion, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { conReemplazos, focoDeFila, minutosInicioPresentacion, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -5262,13 +5262,14 @@ const _generarFasesConIA = async (
         const filaMapa = contratoFase.mapaClases?.[i];
         if (filaMapa) {
           dia.tareasMapa = filaMapa.tareas.map((t) => ({ clave: t.clave, minutos: t.minutos }));
+          dia.focoLinguistico = focoDeFila(filaMapa) || dia.focoLinguistico;
           dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
           dia.minutosSecuencia = Array.isArray(aiClase.minutosSecuencia) ? aiClase.minutosSecuencia : null;
           // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
           // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
           const alcance = ALCANCE_POR_SEMILLA[contexto.planMaestro?.semillaId]?.conInvitado || null;
           if (necesitaLugares(filaMapa)) dia.ampliacion = ampliacionSinLugares(dia.ampliacion);
-          dia.fijoDelMapa = { modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
+          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || "Texto modelo", reemplazos: alcance?.reemplazos || [], tituloTarea: filaMapa.tareas[0]?.nombre ? filaMapa.tareas[0].nombre.charAt(0).toUpperCase() + filaMapa.tareas[0].nombre.slice(1) : "", modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
         }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
@@ -6244,7 +6245,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         }
         sinGrabado(d.momentos);
         const corregidos = [];
-        conTitulosCorregidos(d, { modeloFicticio: d.fijoDelMapa.modeloFicticio, corregidos });
+        conTitulosCorregidos(d, { modeloFicticio: d.fijoDelMapa.modeloFicticio, nombreModelo: d.fijoDelMapa.nombreModelo, tituloTarea: d.fijoDelMapa.tituloTarea, corregidos });
+        conReemplazos(d, d.fijoDelMapa.reemplazos);
         corregidos.forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: ${t}`));
         if (d.fijoDelMapa.modeloFicticio) {
           const quitados = [];

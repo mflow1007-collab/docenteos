@@ -204,6 +204,9 @@ export const USO_DE_CONTENIDOS = [
   [/^interrumpir|^pedir y dar la palabra|^mostrar acuerdo/, ["comentar", "proponer_elegir"]],
   [/^disculparse/, ["aplicar_ensayar", "probar_audiencia"]],
   [/^dudar/, ["proponer_elegir", "aplicar_ensayar"]],
+  [/^funcional: sostener|para sostener una conversacion/, ["visitar_entrevistar", "aplicar_ensayar", "comentar", "probar_audiencia"]],
+  [/^funcional: intercambiar|actividades cotidianas/, ["acordar", "describir_redactar"]],
+  [/^funcional: solicitar|solicitar (y ofrecer )?ayuda/, ["aplicar_modelo", "orientar_probar", "probar_audiencia"]],
   [/^mostrar indiferencia/, []],
   [/^deseos/, ["probar_audiencia", "proponer_elegir"]],
 ];
@@ -235,6 +238,29 @@ export const ASUNTO_LECTURA_POR_SEMILLA = {
   "ing2-alimentacion-menu": "qué ofrecen los comedores del barrio y cómo se pide",
 };
 
+// Estructura del día cuando la clase no tiene gramática asignada (aprobadas por César, 2026-11-06).
+// Se busca por la clave de la tarea y, si no está, por su tipo (lo que va antes del guion).
+export const ESTRUCTURA_POR_TAREA = {
+  acordar: ["Intercambiar información", "presente simple (_We are…_)"],
+  recorrer: ["Describir lugares y su función", "presente simple (_This is…_, _You can…_)"],
+  visitar_registrar: ["Registrar la información", "presente simple (_He says…_, _It has…_)"],
+  visitar: ["Hacer preguntas y pedir aclaraciones", "(_Excuse me, could you…?_, _Pardon?_)"],
+  describir: ["Describir y organizar datos", "presente simple (_It has…_, _There are…_)"],
+  analizar: ["Describir y organizar datos", "presente simple (_It has…_, _There are…_)"],
+  proponer: ["Proponer y justificar", "(_We think…_, _because…_)"],
+  aplicar_corregir: ["Corregir y mejorar lo escrito", "presente simple"],
+  aplicar: ["Usar el modelo en una situación", "(_Could you…?_)"],
+  socializar: ["Dar un mensaje a un grupo", "presente simple (_We are…_, _This is for…_)"],
+  orientar: ["Dar indicaciones", "imperativo (_go straight_, _turn right_…)"],
+  comentar: ["Comentar un texto", "(_I agree…_, _Sorry to interrupt…_)"],
+  corregir: ["Corregir y mejorar lo escrito", "presente simple"],
+  integrar: ["Revisar el conjunto", "presente simple (_This section shows…_)"],
+  presentar: ["Explicar para qué sirve cada sección", "presente simple (_This section shows…_)"],
+  probar_audiencia: ["Usar el producto con la audiencia", "(_Excuse me, could you…?_)"],
+  evaluar_comentarios: ["Responder a los comentarios", "(_They ask for…_, _We should change…_)"],
+  evaluar_proceso: ["Reflexionar sobre lo aprendido", "(_I learned…_, _Next time I will…_)"],
+};
+
 // Clase 1: pregunta que acompaña la lectura de la situación, para que den ejemplos del problema.
 export const PREGUNTA_SITUACION_POR_SEMILLA = {
   "ing2-alimentacion-menu": "¿Han visto a un visitante que no entiende el menú de un comedor? ¿Qué hizo?",
@@ -261,10 +287,25 @@ export const ALCANCE_POR_SEMILLA = {
       visitante: "otro docente que hace de visitante",
       entrega: ", con una copia a la dirección",
       sinModalidad: true,
+      // La cadena de Welcome ya es coherente sin esta tarea (César, 2026-11-06).
+      tareasOmitidas: ["socializar_reunir"],
     },
   },
   "ing2-alimentacion-menu": {
     conInvitado: {
+      nombreModelo: "Comedor modelo",
+      // La fuente es un solo dueño: el plural que escriba la IA se corrige.
+      reemplazos: [
+        // El modelo ocurre en un comedor local, no en un café o un restaurante.
+        [/\b(at|to|in|from) (a|an|the|our) (local )?(caf[eé]|diner|restaurant)(?!\p{L})/giu, "$1 the comedor"],
+        [/\bde los due[nñ]os de (los )?comedores( locales)?\b/gi, "del dueño del comedor"],
+        [/\ba los due[nñ]os de (los )?comedores( locales)?\b/gi, "al dueño del comedor"],
+        [/\blos due[nñ]os de (los )?comedores( locales)?\b/gi, "el dueño del comedor"],
+        [/\bcon due[nñ]os de comedores\b/gi, "con el dueño del comedor"],
+        [/\bcon due[nñ]os\b/gi, "con el dueño"],
+        [/\ba los due[nñ]os\b/gi, "al dueño"],
+        [/\bde los due[nñ]os\b/gi, "del dueño"],
+      ],
       productoDescripcion: "el menú bilingüe y las recomendaciones del comedor participante",
       audiencia: "el dueño del comedor participante y los visitantes",
       audienciaDetalle: {

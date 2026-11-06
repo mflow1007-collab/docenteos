@@ -15,6 +15,7 @@
  * Verificación: scripts/test-vista-previa-plan-maestro.mjs
  */
 
+import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { construirPlanMaestro } from "./planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "./unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../data/indicadoresIngles2doEstructurados.js";
@@ -129,6 +130,7 @@ export const armarEntradaPlanMaestro = ({ datos = {}, mallaPayload } = {}) => {
     terminosSecciones: pm.terminosSecciones || {},
     tiposTrabajoSecciones: pm.tiposTrabajoSecciones || {},
     partenDeSecciones: pm.partenDeSecciones || {},
+    tareasOmitidas: ALCANCE_POR_SEMILLA[pm.situacion?.semillaId]?.conInvitado?.tareasOmitidas || [],
     ajustes: {
       unir: pm.unir,
       subdividir: pm.subdividir,
