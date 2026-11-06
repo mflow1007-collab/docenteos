@@ -26,7 +26,7 @@ import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } fro
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
 import { conReemplazos, focoDeFila, minutosInicioPresentacion, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
-import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
+import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
   revisarUnidadConMapa, motivosClaseFinal, contenidosNoVistosEnUnidad, avisosParaAdministrador, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
@@ -5269,7 +5269,7 @@ const _generarFasesConIA = async (
           // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
           const alcance = ALCANCE_POR_SEMILLA[contexto.planMaestro?.semillaId]?.conInvitado || null;
           if (necesitaLugares(filaMapa)) dia.ampliacion = ampliacionSinLugares(dia.ampliacion);
-          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || "Texto modelo", reemplazos: alcance?.reemplazos || [], tituloTarea: filaMapa.tareas[0]?.nombre ? filaMapa.tareas[0].nombre.charAt(0).toUpperCase() + filaMapa.tareas[0].nombre.slice(1) : "", modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
+          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[contexto.planMaestro?.semillaId] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: filaMapa.tareas[0]?.nombre ? filaMapa.tareas[0].nombre.charAt(0).toUpperCase() + filaMapa.tareas[0].nombre.slice(1) : "", modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
         }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
@@ -5567,7 +5567,7 @@ export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas
   ponerSecuencias(mapa, {
     producto: r.plan.producto,
     tema: datos.titulo || "",
-    asunto: ASUNTO_LECTURA_POR_SEMILLA[situacion.semillaId] || "",
+    asunto: ASUNTO_LECTURA_POR_SEMILLA[situacion.semillaId] || ASUNTO_LECTURA_GENERAL,
     audiencia: situacion.audiencia || "",
     invitado: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.invitadoConArticulo || invitado || "",
     entrega: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.entrega || "",
@@ -5646,7 +5646,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   };
   const productoDetalleBase = construirProductoEstructurado(temasProducto, { ...camposProducto, nombre: productoFinalTexto });
   const producto = situacionPlan
-    ? `${productoDetalleBase.nombre} — ${productoDetalleBase.formato}, dirigida a ${productoDetalleBase.audiencia}.`.replace(/dirigida a el\b/, "dirigida al")
+    ? `${productoDetalleBase.nombre} — ${productoDetalleBase.formato}, dirigida a ${productoDetalleBase.audiencia}.`.replace(/\ba el\b/g, "al").replace(/^(.* — (?:un|el) .*?, )dirigida\b/, "$1dirigido")
     : formatearProductoFinal(productoDetalleBase);
 
   const ejes = getEjesTematicos(claveContenido);
@@ -6242,6 +6242,11 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           });
           const minutosInicio = minutosInicioPresentacion(Number.parseInt(String(inicio.tiempo || ""), 10) || 0);
           if (minutosInicio) inicio.minutosActividad = minutosInicio;
+        }
+        // La clase 2 retoma el acuerdo: la IA le atribuía a la clase 1 lo que no hizo.
+        if (d.fijoDelMapa.segundaClase && inicio?.actividades?.length > 1) {
+          inicio.actividades[1] = RETROALIMENTACION_SEGUNDA_CLASE;
+          if (inicio.actividadesDetalle?.[1]?.texto) inicio.actividadesDetalle[1].texto = RETROALIMENTACION_SEGUNDA_CLASE;
         }
         sinGrabado(d.momentos);
         const corregidos = [];

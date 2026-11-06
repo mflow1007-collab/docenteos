@@ -157,7 +157,7 @@ const invariantesJson = {
     const inicio = (g.dias[0]?.momentos || []).find((m) => m.nombre === "Inicio")?.actividades || [];
     return inicio.some((a) => /clase anterior|retroalimentaci[oó]n de/i.test(String(a))) ? "C1 mira a una clase anterior" : "";
   },
-  "I-03": (g) => (g.textos.some((x) => /pedid|pedir|gu[ií]an|acompa[nñ]an|prueban|usan \(/i.test(x.t) && !/compa[nñ]er/i.test(x.t)) ? "" : "ninguna actividad usa el producto con la audiencia"),
+  "I-03": (g) => (g.textos.some((x) => /pedid|pedir|gu[ií]an|acompa[nñ]an|prueban|usan \(|explican \(/i.test(x.t) && !/compa[nñ]er/i.test(x.t)) ? "" : "ninguna actividad usa el producto con la audiencia"),
   "I-04": (g, u) => {
     const clase = u.reales.find((f) => f.tareas.some((t) => t.clave === "presentar"))?.clase;
     const e = (g.dias[clase - 1]?.momentos || []).find((x) => x.nombre === "Desarrollo")?.evaluacion;

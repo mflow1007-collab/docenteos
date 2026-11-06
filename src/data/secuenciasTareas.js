@@ -92,10 +92,66 @@ export const SECUENCIAS_POR_TAREA = {
       pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
     ],
   ],
+  "probar_audiencia:explicar": [
+    [
+      p(3, "Eligen (en parejas) la parte de {producto} que van a explicar y a quién."),
+      pe(9, "Explican (en parejas) a {audiencia} una parte concreta de {producto} con un ejemplo y responden sus dudas (_This part shows…_, _Could you repeat that?_), y el docente marca la lista de cotejo de cada pareja."),
+      p(2, "Cambian (en parejas) de papel, mientras el docente sigue observando."),
+      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+    [
+      p(3, "Repasan (en parejas) qué parte de {producto} van a explicar y con qué ejemplo."),
+      pe(10, "Muestran (en parejas) a {audiencia} cómo usar una parte de {producto} y responden sus dudas (_This part shows…_, _Pardon?_), y el docente observa a cada pareja con la lista de cotejo."),
+      p(2, "Preguntan (en parejas) a la audiencia qué parte le serviría en casa."),
+      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+  ],
+  indagar_disenar: [
+    [
+      p(3, "Repasan (en plenaria) qué datos necesita {producto}, mientras el docente muestra una pregunta modelo (_How often do you…?_)."),
+      pe(7, "Redactan (en grupos) una encuesta breve de 4 o 5 preguntas sobre {asunto} (_How often do you…?_, _What time do you…?_), sin espacio para nombres."),
+      p(2, "Prueban (en parejas) las preguntas con otro grupo y cambian las que no se entienden."),
+      pe(3, "Firman (individual) la pregunta que aportó cada uno, no las respuestas: encuesta lista; queda en la carpeta."),
+    ],
+    [
+      p(3, "Conversan (en plenaria) sobre qué hay que preguntar para saber {asunto}, y el docente anota los datos en la pizarra."),
+      pe(7, "Escriben (en grupos) las preguntas de la encuesta, una por dato (_How often do you…?_, _Do you always…?_), sin espacio para nombres."),
+      p(2, "Comparan (en grupos) sus preguntas con las de otro grupo y dejan 4 o 5."),
+      pe(3, "Firman (individual) la pregunta que aportó cada uno, no las respuestas: encuesta lista; queda en la carpeta."),
+    ],
+  ],
+  indagar_aplicar: [
+    [
+      p(2, "Reparten (en parejas) a quién preguntará cada uno, mientras el docente recuerda que las respuestas no llevan nombre."),
+      pe(7, "Aplican (en parejas, por turnos) la encuesta a sus compañeros (_How often do you…?_, _I never…_, _I always…_), sin anotar nombres."),
+      p(2, "Reúnen (en grupos) las hojas de respuestas sin nombre."),
+      pe(4, "Cuentan (en grupos) las respuestas y las resumen en cifras del grupo, nunca por nombre (_8 of 30 students…_): tabla común de resultados; queda en la carpeta."),
+    ],
+    [
+      p(2, "Ensayan (en parejas) cómo hacer las preguntas, mientras el docente aclara que nadie anota nombres."),
+      pe(7, "Preguntan (en parejas, por turnos) a sus compañeros con la encuesta y marcan cada respuesta (_I sometimes…_, _I never…_), sin anotar nombres."),
+      p(2, "Juntan (en grupos) las respuestas de todas las parejas."),
+      pe(4, "Resumen (en grupos) los resultados en cifras del grupo, nunca por nombre (_8 of 30 students…_): tabla común de resultados; queda en la carpeta."),
+    ],
+  ],
+  indagar_contrastar: [
+    [
+      p(3, "Leen (en parejas) la fuente impresa que trae el docente sobre {asunto} y subrayan el dato principal."),
+      pe(4, "Comprueban (en grupos) si la fuente es fiable: quién la escribió, de cuándo es y para quién."),
+      pe(5, "Comparan (en grupos) sus resultados con la fuente (_The source says…, but our group…_)."),
+      pe(3, "Anotan (en grupos) qué coincide y qué no: tabla de contraste; queda en la carpeta."),
+    ],
+    [
+      p(3, "Escuchan (en plenaria) la fuente que lee el docente sobre {asunto} y anotan el dato principal."),
+      pe(4, "Verifican (en grupos) si la fuente es fiable: quién la escribió, de cuándo es y a quién se dirige."),
+      pe(5, "Contrastan (en grupos) esa fuente con su tabla de resultados (_The source says…, but our group…_)."),
+      pe(3, "Registran (en grupos) qué coincide y qué no: tabla de contraste; queda en la carpeta."),
+    ],
+  ],
   "probar_audiencia:general": [
     [
       p(3, "Eligen (en parejas) la parte de {producto} que van a usar con la audiencia."),
-      pe(9, "Usan (en parejas) {producto} con {audiencia} para lo que fue hecho ({frases}), y el docente marca la lista de cotejo de cada pareja.", "preguntar y responder sobre el producto"),
+      pe(9, "Explican (en parejas) a {audiencia} para qué sirve una parte concreta de {producto} y responden sus dudas (_This part shows…_, _Could you repeat that?_), y el docente marca la lista de cotejo de cada pareja."),
       p(2, "Cambian (en parejas) de papel, mientras el docente sigue observando."),
       pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
     ],

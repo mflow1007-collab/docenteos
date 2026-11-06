@@ -901,6 +901,12 @@ export const motivosClaseFinal = (clase, { estructurasGrado = null } = {}) => {
   const foco = String(clase?.focoLinguistico || "");
   const estructura = estructuraGramatical(foco);
   if (/\bthan\b/i.test(foco) || (estructurasGrado?.length && estructura && !estructurasGrado.includes(estructura))) motivos.push(`estructura del día fuera de la malla: «${citaTexto(foco, /\bthan\b/i, 70)}»`);
+  // Datos de compañeros: anónimos y agregados (César, 2026-11-06).
+  (clase?.momentos || []).flatMap((m) => m?.actividades || []).map(textoComoCadena).forEach((a) => {
+    if (/\b(sue[nñ]o|llegadas? tarde|encuesta|resultados)\b/i.test(a) && /\b(por nombre|con (sus|el) nombres?|nombre de cada|lista de (nombres|compa[nñ]eros))\b/i.test(a) && !/\b(sin|nunca por|no llevan?) (anotar )?nombres?\b/i.test(a)) {
+      motivos.push(`datos de compañeros con nombre: «${citaTexto(a, /nombre/i)}»`);
+    }
+  });
   const modelo = clase?.textoModelo;
   if (modelo?.lineas?.length && !/\bmodel/i.test(modelo.titulo || "")) motivos.push(`texto modelo sin declarar: «${citaTexto(modelo.titulo || "sin título", null, 60)}»`);
   const desarrollo = (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || [];
@@ -1097,7 +1103,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
 // Panel del administrador: de qué tipo es cada aviso, de quién es y qué se hizo con él.
 const GRUPOS_AVISO = ["Rompe la cadena", "Contenido", "Estilo"];
 const AVISOS_CADENA = /falta la tarea|no se ve que use|adelanta o repite|diagn[oó]stico no se aplica|no usa el producto|nadie lee|debe recoger estos datos|audiencia real|no sigue la modalidad|usa un dato|sin pieza final/i;
-const AVISOS_CONTENIDO = /contenido|fuera de español|estructura del d[ií]a fuera|texto modelo sin declarar|hueco vac[ií]o|no corresponde a la funci[oó]n|nombra un lugar|precio|falta dato|nombra un equipo|usa un equipo|estructura del d[ií]a|comparativo|repite una actividad|nadie graba|selecci[oó]n curricular|evidencias por planificar|evaluaciones:/i;
+const AVISOS_CONTENIDO = /contenido|datos de compa[nñ]eros|fuera de español|estructura del d[ií]a fuera|texto modelo sin declarar|hueco vac[ií]o|no corresponde a la funci[oó]n|nombra un lugar|precio|falta dato|nombra un equipo|usa un equipo|estructura del d[ií]a|comparativo|repite una actividad|nadie graba|selecci[oó]n curricular|evidencias por planificar|evaluaciones:/i;
 const AVISOS_DOCENTE = /^(evaluaciones:|selecci[oó]n curricular)/i;
 const AVISOS_CONFIGURACION = /^diagn[oó]stico: sin dato/i;
 const AVISOS_CODIGO = /^(tiempo:|evidencias por planificar|secciones sin pieza final)|necesita unos \d+ min/i;

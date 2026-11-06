@@ -188,6 +188,29 @@ check("revisión de g6 y g7: título en inglés, adjetivo de «guía» y estruct
   [alimentacion, escuela].forEach((m) => filas(m).forEach((f) => assert(!/Usar el modelo en una situación/.test(focoDeFila(f, m.filas)), `C${f.clase}: ${focoDeFila(f, m.filas)}`)));
   assert(focoDeFila({ tareas: [{ clave: "aplicar_ensayar", secciones: ["S"] }], contenidos: [] }, []).startsWith("Usar el modelo"), "sin clase anterior");
 });
+check("tercera unidad: Indagación valida sus fuentes, con datos anónimos y gramática de la malla", () => {
+  const base = { grado: "2do Secundaria", asignatura: "Inglés", centro: "C", numSemanas: 4, diasClase: ["l", "m", "x"], horasPorDia: 1, titulo: "Actividades de la vida diaria" };
+  const pre = conFichaDeUnidad({ ...base, ...prellenarPlanMaestro({ datos: base, indicadores: estructura.indicadores, competencias }) });
+  const datos = { ...pre, planMaestro: { ...pre.planMaestro, estrategia: "indagacion_dialogica" } };
+  const { entrada } = armarEntradaPlanMaestro({ datos, mallaPayload: malla });
+  const m = armarMapaClases(entrada);
+  ponerSecuencias(m, { producto: "Plan", tema: "Rutinas", asunto: ASUNTO_LECTURA_POR_SEMILLA["ing2-rutinas-plan"], audiencia: "las familias", semilla: "x" });
+  const con = (c) => m.filas.find((f) => f.tareas.some((t) => t.clave === c));
+  ["indagar_disenar", "indagar_aplicar", "indagar_contrastar"].forEach((c) => {
+    assert(con(c) && con(c).fases.some((x) => x.numero === 2), `${c} fuera de Validación de las fuentes`);
+    assert(con(c).secuencia, `${c} sin secuencia`);
+  });
+  assert(con("indagar_contrastar").secuencia.some((x) => /fiable/.test(x.texto)), "no valida");
+  assert(con("indagar_aplicar").secuencia.some((x) => /sin anotar nombres/.test(x.texto)) && con("indagar_aplicar").secuencia.some((x) => /nunca por nombre/.test(x.texto)), "privacidad");
+  assert(con("indagar_aplicar").secuencia.some((x) => /never|sometimes|always/.test(x.texto)), "frecuencia en los pasos");
+  const probar = con("probar_audiencia");
+  assert(probar.secuencia.some((x) => /Explican|Muestran/.test(x.texto)) && !probar.secuencia.some((x) => /para lo que fue hecho/.test(x.texto)), "uso concreto");
+  assert(!m.filas.some((f) => /comprar/i.test(focoDeFila(f, m.filas))), m.filas.map((f) => focoDeFila(f, m.filas)).join(" | "));
+  assert(m.modo !== "breve", `modo ${m.modo}`);
+  assert(/actividades cotidianas/i.test(focoDeFila(con("indagar_aplicar"), m.filas)), focoDeFila(con("indagar_aplicar"), m.filas));
+  assert(/datos de compañeros/.test(motivosClaseFinal(desarrollo("Organizan los datos de sueño en una lista de nombres."))[0]), "control de privacidad");
+  assert(!motivosClaseFinal(desarrollo("Cuentan las respuestas de la encuesta, sin anotar nombres.")).length, "sin falso");
+});
 check("concordancia de «guía» en todo el texto, como corrección automática", () => {
   const corregidos = [];
   const dia = conTitulosCorregidos({ titulo: "Nuestro guía", focoLinguistico: "Revisar el guía", textoModelo: { lineas: ["el guía"] }, momentos: [{ evidenciasDetalle: { items: [{ texto: "Creación del guía" }] } }] }, { corregidos });

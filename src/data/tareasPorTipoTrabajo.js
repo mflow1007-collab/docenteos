@@ -74,6 +74,7 @@ export const TAREAS_POR_TIPO = {
 export const PRUEBA_POR_SECCION = {
   "Ordering Food": { tipo: "pedido", hace: "Hacen pedidos reales con el menú a la audiencia y luego recogen sus comentarios en tarjetas." },
   "School Directions": { tipo: "guia", hace: "En parejas guían a la audiencia usando la guía, de un lugar a otro, y luego recogen sus comentarios en tarjetas." },
+  "Tips for Families": { tipo: "explicar", hace: "En parejas explican a la audiencia una parte concreta del producto, responden sus dudas y luego recogen sus comentarios en tarjetas." },
 };
 
 // Reunidas: comentar por estaciones y corregir abarcan varias secciones a la vez.
@@ -84,6 +85,10 @@ export const TAREA_CORREGIR = tarea("corregir", "corregir, probar y verificar da
 
 // Una vez en la unidad, en este orden.
 export const TAREAS_UNIDAD = {
+  // Indagación: su fase «Validación de las fuentes» (César, 2026-11-06). faseGuia = posición de esa fase.
+  indagarDisenar: tarea("indagar_disenar", "diseñar la encuesta", [8, 15], "P", "producto", "escrita", "grupos, una pregunta firmada por estudiante", "Encuesta anónima", null, "conocimiento", "C", "Cuaderno, hojas para copiar", { faseGuia: 1, claseAparte: true }),
+  indagarAplicar: tarea("indagar_aplicar", "aplicar la encuesta y resumir", [8, 15], "I", "desempeno", "oral y escrita", "parejas por turnos", "Resultados del grupo en la tabla común", null, "conocimiento", "C", "Encuesta, tabla común", { faseGuia: 1, claseAparte: true }),
+  indagarContrastar: tarea("indagar_contrastar", "contrastar con una fuente", [15, 30], "C", "conocimiento", "escrita", "grupos", "Tabla de contraste con la fuente", null, "conocimiento", "C", "Fuente impresa que trae el docente, tabla común", { faseGuia: 1, claseAparte: true }),
   // Sin ficha del centro, los lugares salen de aquí (César, 2026-11-05).
   recorrerLugares: tarea("recorrer_lugares", "recorrer el centro y anotar sus lugares", [10, 15], "C", "conocimiento", "oral y escrita", "grupos", "Tabla común de lugares", "recoger", "conocimiento", "C", "Tabla común en cartulina, cuaderno", { hace: "Recorren el centro en grupos y anotan en la tabla común cada lugar que existe de verdad: nombre, para qué sirve y quién lo atiende. Esa tabla es la fuente de la guía." }),
   acordar: tarea("acordar", "acordar el plan y hacer el diagnóstico", [30, 30], "C", "conocimiento", "oral y escrita", "plenaria y grupos", "Acuerdo y plan; grupos editores; diagnóstico", "recoger", "apertura", "C", "Pieza modelo, hoja de diagnóstico, cartel"),
@@ -139,9 +144,12 @@ export const DETALLE_TAREA = {
   glosario: { hace: "Reúnen el vocabulario clave de la guía con su traducción.", senal: "glosario|vocabulario" },
   integrar: { hace: "Reúnen todas las secciones en un solo producto y revisan que los datos coincidan. No se reescribe ni se presenta a nadie todavía.", senal: "reun|integr|compil|junt|ensambl|un[ei]n?\\b" },
   presentar: { califica: "la presentación", hace: "Presentan TODAS las secciones del producto a la audiencia y lo ponen a prueba con ella (si es un menú y una guía para pedir, hacen pedidos reales con el menú). Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos.", senal: "present" },
-  probar_audiencia: { califica: "la prueba con la audiencia", hace: "Ponen a prueba el producto con la audiencia: si es un menú y una guía para pedir, hacen pedidos reales con el menú. Luego recogen sus comentarios en tarjetas.", senal: "pedid|pedir|orden|order|prueb|usan|acompan|guian|indic|camino" },
+  probar_audiencia: { califica: "la prueba con la audiencia", hace: "Ponen a prueba el producto con la audiencia: si es un menú y una guía para pedir, hacen pedidos reales con el menú. Luego recogen sus comentarios en tarjetas.", senal: "pedid|pedir|orden|order|prueb|usan|acompan|guian|indic|camino|explic" },
   audiencia_secundaria: { hace: "Prueban el producto con la audiencia secundaria y recogen sus comentarios.", senal: "present|prueb|muestr" },
   evaluar_comentarios: { califica: "las respuestas individuales", hace: "Leen los comentarios de la audiencia y cada estudiante responde por escrito qué piden cambiar y por qué. Las respuestas son la evidencia de comprensión.", senal: "comentari", firma: "Cada estudiante firma sus respuestas." },
+  indagar_disenar: { hace: "Redactan una encuesta breve y anónima con los datos que necesita el producto; cada estudiante firma la pregunta que aporta, no las respuestas.", senal: "encuesta|cuestionario", firma: "Cada estudiante firma la pregunta que aporta." },
+  indagar_aplicar: { hace: "Aplican la encuesta a sus compañeros sin anotar nombres y resumen las respuestas en cifras del grupo.", senal: "encuesta|respuestas|resum" },
+  indagar_contrastar: { hace: "Comprueban si una fuente impresa es fiable y comparan con ella sus resultados.", senal: "fuente" },
   corregir_final: { formativo: ["la corrección"], hace: "Corrigen el producto completo con lo que pidió la audiencia. Queda listo para entregar; no se vuelve a presentar.", senal: "corrig" },
   evaluar_proceso: { formativo: ["la autoevaluación", "la coevaluación", "la reflexión"], hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
 };
@@ -164,9 +172,9 @@ export const INVENTARIO_POR_SECCION = {
   "Welcome": { evidencia: "Carta de bienvenida", nombres: "bienvenida", necesita: ["lugares"] },
   "Final Recommendation": { evidencia: "Párrafo de cierre", nombres: "recomendacion final|parrafo de cierre" },
   // Actividades de la vida diaria
-  "Our Daily Routines": { evidencia: "Línea de tiempo del día", nombres: "linea de tiempo|rutinas?", recoge: ["horario"] },
-  "What We Found": { evidencia: "Gráfico de resultados", nombres: "grafico|resultados", necesita: ["horario"], recoge: ["horas de sueño", "llegadas tarde"] },
-  "Problems and Causes": { evidencia: "Tabla problema → causa", nombres: "problemas?|causas?", necesita: ["horas de sueño", "llegadas tarde"] },
+  "Our Daily Routines": { evidencia: "Línea de tiempo del día", datosPersonales: true, nombres: "linea de tiempo|rutinas?", recoge: ["horario"] },
+  "What We Found": { evidencia: "Gráfico de resultados", datosPersonales: true, nombres: "grafico|resultados", necesita: ["horario"], recoge: ["horas de sueño", "llegadas tarde"] },
+  "Problems and Causes": { evidencia: "Tabla problema → causa", datosPersonales: true, nombres: "problemas?|causas?", necesita: ["horas de sueño", "llegadas tarde"] },
   "Our Healthy Schedule": { evidencia: "Horario semanal", nombres: "horario", necesita: ["horario"] },
   "Tips for Families": { evidencia: "Folleto de consejos", nombres: "folleto|consejos", necesita: ["horario"] },
 };
@@ -185,6 +193,9 @@ export const MARCAS_DATO = {
 // Lo que no aparece aquí sigue el reparto general.
 export const USO_DE_CONTENIDOS = [
   [/voz pasiva/, ["describir_redactar", "analizar_borrador"]],
+  // Rutinas: la frecuencia y el presente de lo cotidiano van donde se recogen y ordenan los datos.
+  [/^frecuencia/, ["indagar_disenar", "indagar_aplicar", "analizar_ordenar", "describir_redactar"]],
+  [/^presente simple para referirse/, ["indagar_aplicar", "analizar_ordenar", "acordar"]],
   [/how much|how many/, ["visitar_guion", "aplicar_escribir"]],
   [/presente simple de los verbos be, have, want/, ["visitar_guion", "aplicar_modelo"]],
   [/^will para/, ["aplicar_escribir", "aplicar_ensayar"]],
@@ -241,16 +252,24 @@ export const FRASES_POR_FUNCION = [
   [/comentarios de la audiencia|en tarjetas/, /like|wish|maybe|could|think|prefer|need|should/],
 ];
 
+// Entidad ficticia que declara cada texto modelo cuando el tema no tiene la suya en su alcance.
+export const NOMBRE_MODELO_POR_SEMILLA = { "ing2-rutinas-plan": "Familia modelo" };
+export const NOMBRE_MODELO_GENERAL = "Caso modelo";
+export const ASUNTO_LECTURA_GENERAL = "el problema de la situación de aprendizaje";
+export const RETROALIMENTACION_SEGUNDA_CLASE = "Retroalimentación del acuerdo de la clase anterior: recuerdan qué van a hacer y cómo se evaluará. (What did we agree to do?)";
+
 // De qué trata la lectura y las oraciones del diagnóstico de la clase 1: la situación, no el
 // nombre del tema (César, 2026-11-06). Sin semilla, se queda el tema.
 export const ASUNTO_LECTURA_POR_SEMILLA = {
   "ing2-escuela-guia": "cómo orientarse en un centro nuevo",
   "ing2-alimentacion-menu": "qué ofrecen los comedores del barrio y cómo se pide",
+  "ing2-rutinas-plan": "cómo organizar el día entre la escuela y la casa",
 };
 
 // Estructura del día cuando la clase no tiene gramática asignada (aprobadas por César, 2026-11-06).
 // Se busca por la clave de la tarea y, si no está, por su tipo (lo que va antes del guion).
 export const ESTRUCTURA_POR_TAREA = {
+  indagar: ["Preguntar por hábitos y resumir datos", "presente simple (_How often do you…?_, _8 of 30 students…_)"],
   acordar: ["Intercambiar información", "presente simple (_We are…_)"],
   recorrer: ["Describir lugares y su función", "presente simple (_This is…_, _You can…_)"],
   visitar_registrar: ["Registrar la información", "presente simple (_He says…_, _It has…_)"],
