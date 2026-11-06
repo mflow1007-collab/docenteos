@@ -147,6 +147,19 @@ check("las siete estrategias cumplen las reglas a 6 semanas", () => {
   });
 });
 
+check("Proyectos: la clase 1 lleva las dos primeras fases y la revisión del docente va antes de corregir y de la sumativa", () => {
+  [["Escuela y educación", 4], ["Alimentación", 6]].forEach(([titulo, semanas]) => {
+    const m = mapaDe(titulo, semanas, HORARIOS["3x1"], { planMaestro: { estrategia: "proyectos" } });
+    assert(m.modo !== "breve" && !m.filas.some((f) => f.flexible), `${titulo}: ${m.modo}`);
+    igual(m.filas[0].fases.map((f) => f.numero), [1, 2], `${titulo}: fases de la clase 1`);
+    const ordenDe = (clave) => m.filas.findIndex((f) => f.tareas.some((t) => t.clave === clave));
+    const rev = ordenDe("revision_docente");
+    assert(rev >= 0 && rev <= ordenDe("corregir") && ordenDe("corregir") < ordenDe("presentar"), `${titulo}: orden de la revisión`);
+    const filaRev = m.filas[rev];
+    assert(!filaRev.tareas.some((t) => t.sumativa) && /Formativa/.test(evaluacionDeFila(filaRev).tipo), `${titulo}: la revisión es formativa`);
+    assert(m.filas.filter((f) => f.fases.some((x) => x.numero === 6)).some((f) => f.tareas.some((t) => ["corregir", "integrar"].includes(t.clave))), `${titulo}: corregir/integrar en Evaluación`);
+  });
+});
 console.log("\n[Mapa de clases — combinaciones]");
 const filas = [];
 for (const titulo of [...SEMILLAS, ...SIN_SEMILLA]) for (const [nombre, h] of Object.entries(HORARIOS)) for (let semanas = 1; semanas <= 8; semanas += 1) {

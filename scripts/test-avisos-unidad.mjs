@@ -219,7 +219,9 @@ check("tercera unidad: Indagación valida sus fuentes, con datos anónimos y gra
 });
 check("cada fase con su clase en las tres estrategias, y tildes corregidas", () => {
   [alimentacion, escuela].forEach((m) => {
-    assert(!m.ajustesPlan.unir.length, `fases fusionadas: ${JSON.stringify(m.ajustesPlan.unir)}`);
+    // Única fusión aprobada (César, 2026-11-06): en Proyectos, la clase 1 lleva Visión compartida y Análisis de saberes previos.
+    const unir = JSON.stringify(m.ajustesPlan.unir);
+    assert(unir === "[]" || (unir === "[[1,2]]" && m.filas[0].fases.map((f) => f.numero).join() === "1,2"), `fases fusionadas: ${unir}`);
     let previa = 0;
     m.filas.forEach((f) => { assert(f.fases[0].numero >= previa, `C${f.clase} retrocede`); previa = f.fases[0].numero; });
   });

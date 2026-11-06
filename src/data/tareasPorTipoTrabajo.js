@@ -83,6 +83,10 @@ export const SECCIONES_POR_CORREGIR = 3;
 export const TAREA_COMENTAR = tarea("comentar", "comentar por estaciones", [15, 30], "I", "desempeno", "oral", "estaciones por grupo", "Comentarios por sección", "socializar", "aplicacion", "M", "Piezas de las secciones, ficha de comentarios");
 export const TAREA_CORREGIR = tarea("corregir", "corregir, probar y verificar datos", [15, 30], "P", "producto", "escrita", "grupo editor de cada sección", "Versión final de las secciones", null, "aplicacion", "M", "Piezas, comentarios, tabla común", { cierraSeccion: true });
 
+// Proyectos, fase «Evaluación» (Referente por proyecto 2022, p. 35): el docente evalúa de forma formativa con la
+// rúbrica, sección por sección, y el grupo mejora hasta el nivel satisfactorio. Actividad aparte y formativa,
+// antes de la sumativa (I-04). Interpretación DocenteOS, aprobada por César el 2026-11-06.
+export const TAREA_REVISION_DOCENTE = tarea("revision_docente", "revisión formativa del docente con la rúbrica", [10, 20], "P", "producto", "escrita", "grupo editor de cada sección", "Sección revisada con la rúbrica y mejoras anotadas", null, "aplicacion", "M", "Piezas de las secciones, rúbrica", { revisionFormativa: true });
 // Una vez en la unidad, en este orden.
 export const TAREAS_UNIDAD = {
   // Indagación: su fase «Validación de las fuentes» (César, 2026-11-06). faseGuia = posición de esa fase.
@@ -150,6 +154,7 @@ export const DETALLE_TAREA = {
   indagar_disenar: { hace: "Redactan una encuesta breve y anónima con los datos que necesita el producto; cada estudiante firma la pregunta que aporta, no las respuestas.", senal: "encuesta|cuestionario", firma: "Cada estudiante firma la pregunta que aporta." },
   indagar_aplicar: { hace: "Aplican la encuesta a sus compañeros sin anotar nombres y resumen las respuestas en cifras del grupo.", senal: "encuesta|respuestas|resum" },
   indagar_contrastar: { hace: "Comprueban si una fuente impresa es fiable y comparan con ella sus resultados.", senal: "fuente" },
+  revision_docente: { hace: "El docente revisa cada sección con la rúbrica y devuelve qué mejorar; el grupo editor anota las mejoras. Es formativa: no se califica ni se corrige aquí el producto completo.", senal: "rúbrica|rubrica|revis|mejor", formativo: ["la revisión del docente con la rúbrica"] },
   corregir_final: { formativo: ["la corrección"], hace: "Corrigen el producto completo con lo que pidió la audiencia. Queda listo para entregar; no se vuelve a presentar.", senal: "corrig" },
   evaluar_proceso: { formativo: ["la autoevaluación", "la coevaluación", "la reflexión"], hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
 };
@@ -285,6 +290,7 @@ export const ESTRUCTURA_POR_TAREA = {
   socializar: ["Dar un mensaje a un grupo", "presente simple (_We are…_, _This is for…_)"],
   orientar: ["Dar indicaciones", "imperativo (_go straight_, _turn right_…)"],
   comentar: ["Comentar un texto", "(_I agree…_, _Sorry to interrupt…_)"],
+  revision: ["Mejorar lo escrito con comentarios", "presente simple (_We need to…_)"],
   corregir: ["Corregir y mejorar lo escrito", "presente simple"],
   integrar: ["Revisar el conjunto", "presente simple (_This section shows…_)"],
   presentar: ["Explicar para qué sirve cada sección", "presente simple (_This section shows…_)"],

@@ -17,7 +17,7 @@ import { construirPlanMaestro } from "./planMaestroService.js";
 import { SECUENCIAS_POR_TAREA } from "../data/secuenciasTareas.js";
 import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import {
-  TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR,
+  TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR, TAREA_REVISION_DOCENTE,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
   INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION, LUGARES_NO_DECLARADOS,
   PREGUNTA_SITUACION_POR_SEMILLA, PREGUNTA_SITUACION_GENERAL, ESTRUCTURA_POR_TAREA,
@@ -96,12 +96,20 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   const corregibles = orden.filter((s) => tipos[s] !== "aplicar");
   const tempranas = corregibles.filter((s) => ["visitar", "describir", "socializar"].includes(tipos[s]));
   const tardias = corregibles.filter((s) => !tempranas.includes(s));
-  trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "socializar" }, grupo, 2, 1, g));
-  trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "proponer" }, grupo, 2, 2, g));
+  // Proyectos: la mejora y la revisión formativa del docente van en la fase «Evaluación» (Referente por proyecto
+  // 2022, p. 35), antes de la sumativa. Interpretación DocenteOS, aprobada por César el 2026-11-06.
+  const proyectos = estrategia === "proyectos";
+  const enEvaluacion = proyectos && fases.findIndex((f) => f.nombre === "Evaluación") >= 0 ? { faseGuia: fases.findIndex((f) => f.nombre === "Evaluación") } : {};
+  // Una sola revisión para todas las secciones: el docente pasa por cada grupo editor, sección por sección.
+  if (proyectos) push({ ...TAREA_REVISION_DOCENTE, ...enEvaluacion }, corregibles, 2, 0.9, 0);
+  // Proyectos: tras la revisión del docente, un solo ciclo de mejora para todas las secciones.
+  if (proyectos) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, corregibles, 2, 1, 0);
+  else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g));
+  if (!proyectos) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g));
   const u = TAREAS_UNIDAD;
   push(u.acordar, [...orden], 0, 0, 0);
   push(u.glosario, [...orden], 3, 0, 0);
-  push(u.integrar, [...orden], 3, 1, 0);
+  push({ ...u.integrar, ...enEvaluacion }, [...orden], 3, 1, 0);
   if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) push(u.recorrerLugares, [...orden], 0, 1, 0);
   // Cada estrategia hace lo suyo: la indagación valida sus fuentes, no solo ordena datos.
   if (estrategia === "indagacion_dialogica") [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push(t, [...orden], 0, 2, k));
@@ -435,7 +443,7 @@ const ponerDatosARecoger = (filas, secciones) => {
 };
 
 // Evaluación de una clase: sale de sus tareas, la IA no la decide.
-const AGENTE_TAREA = { comentar: "Coevaluación", evaluar_proceso: "Autoevaluación y coevaluación", aplicar_ensayar: "Coevaluación" };
+const AGENTE_TAREA = { revision_docente: "Heteroevaluación formativa", comentar: "Coevaluación", evaluar_proceso: "Autoevaluación y coevaluación", aplicar_ensayar: "Coevaluación" };
 const TECNICA_EVIDENCIA = {
   conocimiento: ["Preguntas de comprensión", "Lista de cotejo"],
   desempeno: ["Observación directa", "Lista de cotejo oral (Anexo B)"],
@@ -460,7 +468,7 @@ export const evaluacionDeFila = (fila) => {
   const lista = pares.length ? pares : [TECNICA_EVIDENCIA.desempeno];
   let instrumento = [...new Set(lista.map((p) => p[1]))].join(" y ");
   if (claves.includes("presentar")) instrumento = "Rúbrica analítica (Anexo A) y lista de cotejo oral (Anexo B)";
-  else if (fila.tareas.some((t) => t.cierraSeccion) || claves.includes("integrar")) instrumento = "Rúbrica analítica (Anexo A)";
+  else if (fila.tareas.some((t) => t.cierraSeccion || t.revisionFormativa) || claves.includes("integrar")) instrumento = "Rúbrica analítica (Anexo A)";
   else if (claves.includes("acordar")) instrumento = "Evaluación diagnóstica (Anexo J)";
   else if (claves.includes("evaluar_proceso")) instrumento = "Lista de cotejo; autoevaluación (Anexo E) y coevaluación (Anexo D)";
   return { tipo, agente, tecnica: [...new Set(lista.map((p) => p[0]))].join(" y "), instrumento };
@@ -759,12 +767,12 @@ export const minutosConDiagnostico = (actividades = [], total = 0) => {
  * Inicio de la clase 1: las mismas 5 posiciones de siempre, orientadas a presentar la
  * unidad (César, 2026-11-05). La presentación continúa en el Desarrollo. Lo escribe el código.
  */
-export const inicioPresentacion = (inicio = [], { producto = "", secciones = [], semillaId = "" } = {}) => {
+export const inicioPresentacion = (inicio = [], { producto = "", secciones = [], semillaId = "", mapaMental = false } = {}) => {
   const nombre = nombreCorto(producto) || "el producto";
   return [
     inicio[0],
     INICIO_PRIMERA_CLASE,
-    `Recuperación de saberes previos: escuchan la situación de aprendizaje, leída por el docente o un compañero, y dan ejemplos del problema que conocen. (${PREGUNTA_SITUACION_POR_SEMILLA[semillaId] || PREGUNTA_SITUACION_GENERAL})`,
+    `Recuperación de saberes previos: escuchan la situación de aprendizaje, leída por el docente o un compañero, y dan ejemplos del problema que conocen.${mapaMental ? " Con lo que dicen arman en grupos un mapa mental del problema (qué sé, qué quiero saber)." : ""} (${PREGUNTA_SITUACION_POR_SEMILLA[semillaId] || PREGUNTA_SITUACION_GENERAL})`,
     `Observan cómo será ${nombre}${secciones.length ? ` y sus secciones (${secciones.join(", ")})` : ""}, y dicen para qué creen que servirá.`,
     "Escuchan la intención pedagógica y el propósito de la clase: conocer la unidad, acordar cómo trabajarán y cómo se evaluará, y hacer el diagnóstico.",
   ];
@@ -960,7 +968,7 @@ const nombreCorto = (producto) => String(producto || "").split(/\s+[—–]\s+/)
 /** Anexo I desde el mapa: cada sección con su propio proceso, estados y evidencia. */
 export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, propositos = {} } = {}) => {
   const filas = mapa.filas.filter((f) => !f.flexible);
-  const COMPARTIDAS = ["acordar", "recorrer_lugares", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
+  const COMPARTIDAS = ["acordar", "revision_docente", "recorrer_lugares", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
   return [
     { seccion: "Título", incluye: `Mi nombre y el título del producto (${nombreCorto(producto)}).`, fases: "" },
     ...mapa.secciones.map((seccion) => {
@@ -1109,6 +1117,17 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
     })));
     avisos.push(`${sobran} clase(s) flexible(s) del docente, para refuerzo, ritmos o imprevistos.`);
     filas.forEach((f, i) => { f.clase = i + 1; });
+  }
+
+  // Proyectos: la clase 1 lleva «Visión compartida» (acuerdo y diagnóstico de idioma) y «Análisis de saberes previos»
+  // (mapa mental del problema, en el Inicio que escribe el código), cada actividad con su fase. Fusión aprobada por
+  // César el 2026-11-06 (Referente por proyecto 2022, p. 32; Referente 2025, p. 30). Interpretación DocenteOS.
+  if (clave === "proyectos") {
+    const saberes = plan.fases.findIndex((f) => /^Análisis de saberes previos/.test(f.nombre));
+    if (saberes >= 0 && filas[0] && !filas[0].flexible && !filas.some((f) => f.fases.some((x) => x.numero === saberes + 1))) {
+      filas[0].fases = [...filas[0].fases, faseInfo(saberes)].sort((a, b) => a.numero - b.numero);
+      filas[0].mapaMental = true;
+    }
   }
 
   // Fases sin tarea: se unen a la clase de la fase siguiente con tarea (o a la última).

@@ -33,6 +33,21 @@ export const SECUENCIAS_POR_TAREA = {
       pe(7, "Escriben (individual) dos oraciones y luego se hacen una pregunta en parejas ({frases}), y el docente escucha a varias: hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
     ],
   ],
+  // Proyectos, fase «Evaluación» (Referente por proyecto 2022, p. 35): revisión formativa del docente con la rúbrica. Interpretación DocenteOS, aprobada por César el 2026-11-06.
+  revision_docente: [
+    [
+      p(2, "Entregan (en grupos) su sección al docente y repasan la rúbrica."),
+      pe(4, "Escuchan (en grupos) la revisión del docente con la rúbrica, sección por sección (_Could you explain…?_)."),
+      p(2, "Preguntan (en parejas) lo que no entienden de la revisión."),
+      pe(2, "Anotan (en grupos) las mejoras y quién las hará: sección con mejoras anotadas; queda en la carpeta."),
+    ],
+    [
+      p(2, "Presentan (en grupos) su sección al docente, con la rúbrica a la vista."),
+      pe(4, "Reciben (en grupos) las observaciones del docente según la rúbrica, sección por sección (_Pardon?_)."),
+      p(2, "Comentan (en parejas) qué observación es la más importante."),
+      pe(2, "Escriben (en grupos) la lista de mejoras y quién las hace: sección con mejoras anotadas; queda en la carpeta."),
+    ],
+  ],
   visitar_entrevistar: [
     [
       p(4, "Repasan (en grupos) su turno y la pregunta que firmó cada estudiante, mientras el docente recuerda cómo pedir la palabra (_Excuse me…_, _May I ask…?_)."),

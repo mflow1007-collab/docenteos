@@ -45,7 +45,7 @@ Cada invariante tiene su prueba en `scripts/test-invariantes.mjs` y se comprueba
 ### Contexto (datos)
 - I-09 Moneda de la ficha (RD$); nunca dólares.
 - I-10 Los textos modelo dan datos de ejemplo; «falta dato» solo en el producto.
-- I-11 Si el producto depende de lugares y no hay ficha del centro, no se inventan lugares, pisos ni instalaciones: los lugares salen del recorrido, que va en la primera clase después del acuerdo y el diagnóstico. Excepciones y alcance:
+- I-11 Si el producto depende de lugares y no hay ficha del centro, no se inventan lugares, pisos ni instalaciones: los lugares salen del recorrido, que va en la primera clase después del acuerdo y el diagnóstico (en Proyectos esa clase es de la fase Gestión del conocimiento, porque la clase 1 lleva Visión compartida y Análisis de saberes previos). Excepciones y alcance:
   - Los textos modelo pueden usar un centro ficticio declarado («Model School»), igual que el comedor modelo.
   - La estructura del día, la tabla de Ampliación y las actividades que alimentan el producto solo usan lugares de la tabla común del recorrido o términos genéricos.
 - I-12 La audiencia sale de la configuración de la unidad (en Escuela, por defecto 6.º de primaria, real), también en la situación de aprendizaje; nunca «la persona invitada».
