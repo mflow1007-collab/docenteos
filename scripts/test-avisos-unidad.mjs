@@ -225,6 +225,10 @@ check("cada fase con su clase en las tres estrategias, y tildes corregidas", () 
   });
   assert(conTildesCorregidas("Dialógo sobre la seccion") === "Diálogo sobre la sección", conTildesCorregidas("Dialógo sobre la seccion"));
   assert(conTildesCorregidas("Students read the dialogue.") === "Students read the dialogue.", "inglés");
+  assert(conTildesCorregidas("requiere_revision") === "requiere_revision", "valor interno");
+  const conEstado = conTitulosCorregidos({ momentos: [{ actividades: ["Hacen la revision."], evidenciasDetalle: { trazabilidad: [{ estado: "requiere_revision", confianza: "revision" }] } }] });
+  assert(conEstado.momentos[0].evidenciasDetalle.trazabilidad[0].estado === "requiere_revision" && conEstado.momentos[0].evidenciasDetalle.trazabilidad[0].confianza === "revision", "no toca valores internos");
+  assert(/la revisión/.test(conEstado.momentos[0].actividades[0]), "corrige lo que lee el docente");
   const dia = conTitulosCorregidos({ titulo: "x", textoModelo: { titulo: "Familia modelo — Dialógo", lineas: ["A"] }, momentos: [] });
   assert(/Diálogo/.test(dia.textoModelo.titulo), dia.textoModelo.titulo);
   assert(/\.dia-table tbody tr \{ break-inside: avoid/.test(readFileSync(new URL("../src/services/unidadAprendizajeService.js", import.meta.url), "utf8")), "impresión");

@@ -652,7 +652,7 @@ const faltaUnaLetra = (corta, larga) => larga.length === corta.length + 1 && [..
 const sinTilde = (p) => p.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const TILDES = new Map(["diálogo", "diálogos", "sección", "presentación", "corrección", "redacción", "revisión", "planificación", "información", "evaluación", "análisis", "también", "además", "organización", "retroalimentación", "creación"].map((p) => [sinTilde(p), p]));
 /** Tilde mal puesta o que falta en palabras frecuentes («Dialógo» → «Diálogo»). No es un diccionario. */
-export const conTildesCorregidas = (t = "") => String(t).replace(/\p{L}{4,}/gu, (palabra) => {
+export const conTildesCorregidas = (t = "") => String(t).replace(/(?<![\p{L}\d_-])\p{L}{4,}(?![\p{L}\d_-])/gu, (palabra) => {
   const correcta = TILDES.get(sinTilde(palabra));
   if (!correcta || palabra.toLowerCase() === correcta) return palabra;
   return palabra[0] === palabra[0].toUpperCase() ? correcta[0].toUpperCase() + correcta.slice(1) : correcta;
@@ -698,11 +698,17 @@ export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreM
     return nuevo;
   });
   if (concordancias) corregidos.push(`concordancia de «guía» (${concordancias} texto${concordancias > 1 ? "s" : ""})`);
-  let tildes = 0;
-  mapearTextos(dia, (t) => {
-    const nuevo = conTildesCorregidas(t);
+  // Solo el texto que lee el docente: lo demás puede ser un valor interno («requiere_revision»).
+  const conTildes = (t) => {
+    const nuevo = typeof t === "string" ? conTildesCorregidas(t) : t;
     if (nuevo !== t) tildes += 1;
     return nuevo;
+  };
+  let tildes = 0;
+  ["titulo", "intencionPedagogica", "focoLinguistico"].forEach((k) => { if (dia[k]) dia[k] = conTildes(dia[k]); });
+  (dia.momentos || []).forEach((m) => {
+    ["actividades", "metacognicion"].forEach((k) => { if (Array.isArray(m?.[k])) m[k] = m[k].map(conTildes); });
+    (m?.actividadesDetalle || []).forEach((d) => { if (typeof d?.texto === "string") d.texto = conTildesCorregidas(d.texto); });
   });
   if (tildes) corregidos.push(`tildes (${tildes} texto${tildes > 1 ? "s" : ""})`);
   if (dia.titulo) dia.titulo = conErratasCorregidas(dia.titulo);
