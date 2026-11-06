@@ -38,14 +38,14 @@ Cada invariante tiene su prueba en `scripts/test-invariantes.mjs` y se comprueba
 - I-07 La organización y la condición de las tareas críticas las escribe el código («por turnos, una pregunta por estudiante»).
 - I-08 Los recursos tecnológicos se limitan a lo que declara el ambiente, también en la metacognición.
 
-- I-14 La clase 1 presenta la unidad: qué se va a trabajar, cómo se hará y cómo se evaluará. Lo escribe el código.
+- I-14 La clase 1 presenta la unidad: escuchan la situación de aprendizaje, leída por el docente o un compañero, dan ejemplos del problema, y se explica qué se va a trabajar, cómo se hará y cómo se evaluará. Lo escribe el código.
 
 ### Contexto (datos)
 - I-09 Moneda de la ficha (RD$); nunca dólares.
 - I-10 Los textos modelo dan datos de ejemplo; «falta dato» solo en el producto.
 - I-11 Si el producto depende de lugares y no hay ficha del centro, no se inventan lugares, pisos ni instalaciones: los lugares salen del recorrido, que va en la primera clase después del acuerdo y el diagnóstico. Excepciones y alcance:
   - Los textos modelo pueden usar un centro ficticio declarado («Model School»), igual que el comedor modelo.
-  - La tabla de Ampliación y las actividades que alimentan el producto solo usan lugares de la tabla común del recorrido o términos genéricos.
+  - La estructura del día, la tabla de Ampliación y las actividades que alimentan el producto solo usan lugares de la tabla común del recorrido o términos genéricos.
 - I-12 La audiencia sale de la configuración de la unidad (en Escuela, por defecto 6.º de primaria, real), también en la situación de aprendizaje; nunca «la persona invitada».
 
 ### Evidencia

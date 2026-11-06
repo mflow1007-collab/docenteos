@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { minutosInicioPresentacion, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -6233,12 +6233,15 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         if (d.fijoDelMapa.primeraClase && inicio) {
           inicio.actividades = inicioPresentacion(inicio.actividades || [], {
             producto: rutaPlanMaestro.plan?.producto,
-            tema: titulo,
             secciones: rutaPlanMaestro.mapa?.secciones || [],
+            semillaId: datos.planMaestro?.situacion?.semillaId || "",
           });
+          const minutosInicio = minutosInicioPresentacion(Number.parseInt(String(inicio.tiempo || ""), 10) || 0);
+          if (minutosInicio) inicio.minutosActividad = minutosInicio;
         }
         sinGrabado(d.momentos);
         conTitulosCorregidos(d, { modeloFicticio: d.fijoDelMapa.modeloFicticio });
+        if (d.fijoDelMapa.modeloFicticio) sinLugaresEnClase(d).forEach((t) => avisosTiempo.push(`clase ${i + 1}: nombra un lugar que no consta en la tabla común: ${t}`));
         sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosTiempo.push(`clase ${i + 1}: usa un equipo que el mapa no prevé (${m})`));
         delete d.fijoDelMapa;
       }

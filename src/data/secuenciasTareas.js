@@ -87,7 +87,7 @@ export const SECUENCIAS_POR_TAREA = {
     ],
     [
       p(3, "Ubican (en parejas) en {producto} el lugar que van a mostrar, y el docente aclara dudas."),
-      pe(10, "Acompañan (en parejas) a {audiencia} por el centro con {producto} en la mano y le indican el camino ({frases}), y el docente observa a cada pareja con la lista de cotejo.", "indicar el camino y ofrecer ayuda"),
+      pe(10, "Acompañan (en parejas) a {audiencia} por el centro con {producto} en la mano e indican el camino ({frases}), y el docente observa a cada pareja con la lista de cotejo.", "indicar el camino y ofrecer ayuda"),
       p(2, "Responden (en parejas) lo que pregunte la audiencia en el recorrido ({frases}).", "ofrecer ayuda"),
       pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia ({frases}): tarjetas en la carpeta del producto.", "comentar y pedir mejoras"),
     ],

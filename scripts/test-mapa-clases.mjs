@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
@@ -684,12 +684,54 @@ const texto = componerSituacion({ situacion: d.planMaestro.situacion, producto: 
   assert(texto.length <= 800, `${texto.length} caracteres`);
 });
 check("el Inicio de C1 conserva sus funciones orientadas a presentar la unidad", () => {
-  const i = inicioPresentacion(["Saludo."], { producto: "Our Guide — una guía", tema: "Alimentación", secciones: ["A", "B"] });
+  const i = inicioPresentacion(["Saludo."], { producto: "Our Guide — una guía", secciones: ["A", "B"], semillaId: "ing2-alimentacion-menu" });
   igual(i.length, 5, "posiciones");
   igual(i[0], "Saludo.", "saludo");
   assert(/^Recuperación de experiencias/.test(i[1]) && /^Recuperación de saberes previos/.test(i[2]) && /Our Guide/.test(i[3]) && !/una guía/.test(i[3]) && /A, B/.test(i[3]), JSON.stringify(i));
   assert(/^Escuchan la intención pedagógica/.test(i[4]) && /conocer la unidad/.test(i[4]), i[4]);
   i.slice(1).forEach((a) => assert(validarVozActividad(a).ok, a));
+});
+check("C1: se lee la situación con ejemplos del problema, con pregunta por semilla y 4 minutos", () => {
+  const de = (semillaId) => inicioPresentacion(["Saludo."], { producto: "P", semillaId })[2];
+  assert(/escuchan la situación de aprendizaje, leída por el docente o un compañero/.test(de("ing2-escuela-guia")) && /ejemplos del problema/.test(de("ing2-escuela-guia")), de("ing2-escuela-guia"));
+  assert(/menú de un comedor/.test(de("ing2-alimentacion-menu")), "Alimentación");
+  assert(/primer día/.test(de("ing2-escuela-guia")), "Escuela");
+  assert(/tiempo no les alcanza/.test(de("ing2-rutinas-plan")), "Rutinas");
+  assert(/algo parecido/.test(de("")), "sin semilla");
+  igual(minutosInicioPresentacion(10).join(), "1,2,4,2,1", "10 min");
+  [5, 8, 10, 15].forEach((t) => igual(minutosInicioPresentacion(t).reduce((s, m) => s + m, 0), t, `total ${t}`));
+  igual(minutosInicioPresentacion(4), null, "sin minutos para repartir");
+});
+check("I-11: la estructura del día y las actividades no nombran lugares; Model School sí", () => {
+  igual(sinLugaresEnEjemplos("Revisar y consolidar: presente simple (_The library is next to the cafeteria_…)"), "Revisar y consolidar: presente simple", "estructura");
+  igual(sinLugaresEnEjemplos("Redactan una ficha para describir un lugar del centro (_The library is next to..._)."), "Redactan una ficha para describir un lugar del centro.", "ejemplo");
+  igual(sinLugaresEnEjemplos("Retroalimentación de los lugares importantes del centro. Where is the library located?"), "Retroalimentación de los lugares importantes del centro.", "pregunta");
+  igual(sinLugaresEnEjemplos("Analizan el modelo de Model School: the gym is next to the library."), "Analizan el modelo de Model School: the gym is next to the library.", "ficticio");
+  igual(sinLugaresEnEjemplos("Leen la tabla común y escriben dos frases."), "Leen la tabla común y escriben dos frases.", "sin lugar");
+  const dia = { focoLinguistico: "Comentar: presente simple (_The library is next to the gym_...).", momentos: [{ nombre: "Desarrollo", actividades: ["Visitan la biblioteca y anotan"], metacognicion: [], evidencias: {} }] };
+  const restantes = sinLugaresEnClase(dia);
+  assert(!/library|gym/.test(dia.focoLinguistico), dia.focoLinguistico);
+  igual(restantes.length, 1, "lo que no se puede limpiar se avisa");
+});
+check("«guía» concuerda en femenino en todo el texto de la clase", () => {
+  igual(conGuiaEnFemenino("discuten mejoras para el guía y del guía; nuestro guía, El guía"), "discuten mejoras para la guía y de la guía; nuestra guía, La guía", "concordancia");
+  igual(conGuiaEnFemenino("habla con el guía turístico"), "habla con el guía turístico", "la persona");
+  const dia = conTitulosCorregidos({ titulo: "Nuestro guía", momentos: [{ actividades: ["Evalúan mejoras para el guía."], evidencias: { saber: ["lista para el guía"] } }] });
+  assert(dia.titulo === "Nuestra guía" && /para la guía/.test(dia.momentos[0].actividades[0]) && /para la guía/.test(dia.momentos[0].evidencias.saber[0]), JSON.stringify(dia));
+});
+check("gramática: máximo 3 estructuras por clase y consejos en las clases de proponer", () => {
+  [mapaDe("Escuela y educación", 4, HORARIOS["3x1"]), mapaDe("Alimentación", 6, HORARIOS["3x1"])].forEach((m) => {
+    m.filas.forEach((f) => assert(f.contenidos.filter((c) => c.categoria === "gramatica").length <= TOPE_GRAMATICA_POR_CLASE, `C${f.clase}`));
+    ["condicional", "why don"].forEach((t) => {
+      const fila = m.filas.find((f) => f.contenidos.some((c) => normalizaTexto(c.texto).startsWith(t)));
+      assert(fila?.tareas.some((x) => /^proponer_/.test(x.clave)), `${t}: ${fila?.clase}`);
+    });
+  });
+});
+check("el video se quita también con «our video»", () => {
+  const m = [{ nombre: "Inicio", actividades: [], metacognicion: ["What do you remember from our video?"] }];
+  sinEquipos(m, "Hojas");
+  assert(!/video/.test(m[0].metacognicion[0]), m[0].metacognicion[0]);
 });
 check("frases por paso: el hueco toma las expresiones de la malla y, si no hay, una pista", () => {
   const m = mapaDe("Alimentación", 6, HORARIOS["3x1"]);

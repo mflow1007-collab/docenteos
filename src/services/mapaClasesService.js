@@ -20,11 +20,14 @@ import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
   INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION, LUGARES_NO_DECLARADOS,
+  PREGUNTA_SITUACION_POR_SEMILLA, PREGUNTA_SITUACION_GENERAL,
 } from "../data/tareasPorTipoTrabajo.js";
 
 export const CLASES_MINIMAS = 3;
 // Más contenidos no caben con sentido en una clase: lo demás queda sin marcar en la tabla.
 export const TOPE_CONTENIDOS_POR_CLASE = 6;
+// Más estructuras en una clase no se llegan a enseñar: la IA deja fuera las que sobran.
+export const TOPE_GRAMATICA_POR_CLASE = 3;
 // Una clase nunca muestra menos indicadores de los que evalúa (César, 2026-11-04).
 export const TOPE_INDICADORES_POR_CLASE = 3;
 const ORDEN_TIPOS = ["visitar", "socializar", "describir", "analizar", "orientar", "proponer", "aplicar"];
@@ -285,7 +288,9 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
     const regla = USO_DE_CONTENIDOS.find(([re]) => re.test(normal(texto).trim()));
     if (!regla) return false;
     for (const clave of regla[1]) {
-      const fila = utiles.find((f) => f.contenidos.length < (f.tareas.length > 1 ? TOPE_CONTENIDOS_POR_CLASE : 4) && f.tareas.some((t) => t.clave === clave));
+      const fila = utiles.find((f) => f.contenidos.length < (f.tareas.length > 1 ? TOPE_CONTENIDOS_POR_CLASE : 4)
+        && (cat !== "gramatica" || f.contenidos.filter((c) => c.categoria === "gramatica").length < TOPE_GRAMATICA_POR_CLASE)
+        && f.tareas.some((t) => t.clave === clave));
       if (fila) { fila.contenidos.push({ categoria: cat, texto }); return true; }
     }
     sinLugar.push(`${cat}:${texto}`);
@@ -490,7 +495,7 @@ export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con
 export const sinEquipos = (momentos = [], didacticosFila = "") => {
   const restantes = [];
   // El video también se nombra en las evidencias y en las preguntas, en cualquier momento.
-  const sinVideo = (t) => (typeof t === "string" ? t.replace(/\b(the|a) video\b/gi, "the example").replace(/\b(el|un) video\b/gi, "el ejemplo") : t);
+  const sinVideo = (t) => (typeof t === "string" ? t.replace(/\b(the|a|our|this) video\b/gi, "the example").replace(/\b(el|un|nuestro|este) video\b/gi, "el ejemplo") : t);
   momentos.forEach((m) => {
     if (Array.isArray(m?.metacognicion)) m.metacognicion = m.metacognicion.map(sinVideo);
     Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map(sinVideo); });
@@ -516,9 +521,50 @@ export const necesitaLugares = (fila) => (fila?.secciones || []).some((s) => INV
 /** La ampliación no propone lugares: salen de la tabla común del recorrido. */
 export const ampliacionSinLugares = (ampliacion = []) => ampliacion.filter((a) => !LUGARES_NO_DECLARADOS.test(String(a?.texto || "")));
 
+/**
+ * Sin ficha del centro, ningún ejemplo nombra un lugar concreto. Se quita el ejemplo entre
+ * paréntesis o la frase que lo nombra; si es toda la actividad, se deja y se avisa.
+ * «Model School» es un centro ficticio declarado y puede nombrarlos.
+ */
+const nombraLugar = (t) => LUGARES_NO_DECLARADOS.test(String(t)) && !/model school/i.test(String(t));
+export const sinLugaresEnEjemplos = (texto) => {
+  if (typeof texto !== "string" || !nombraLugar(texto)) return texto;
+  const sinParentesis = texto.replace(/\s*\([^()]*\)/g, (p) => (nombraLugar(p) ? "" : p));
+  const quedan = sinParentesis.split(/(?<=[.?!…])\s+/).filter((f) => !nombraLugar(f));
+  return quedan.length ? quedan.join(" ") : sinParentesis;
+};
+
+/** Aplica la regla a la estructura del día y a lo que la clase hace. Devuelve lo que no pudo limpiar. */
+export const sinLugaresEnClase = (dia = {}) => {
+  const restantes = [];
+  if (dia.focoLinguistico) dia.focoLinguistico = sinLugaresEnEjemplos(dia.focoLinguistico);
+  const limpiar = (lista) => lista.map((t) => {
+    const limpio = sinLugaresEnEjemplos(t);
+    if (nombraLugar(limpio)) restantes.push(String(limpio).slice(0, 70));
+    return limpio;
+  });
+  if (nombraLugar(dia.focoLinguistico)) restantes.push(String(dia.focoLinguistico).slice(0, 70));
+  (dia.momentos || []).forEach((m) => {
+    if (Array.isArray(m?.actividades)) m.actividades = limpiar(m.actividades);
+    if (Array.isArray(m?.metacognicion)) m.metacognicion = limpiar(m.metacognicion);
+    (m?.actividadesDetalle || []).forEach((d) => { if (typeof d?.texto === "string") d.texto = sinLugaresEnEjemplos(d.texto); });
+    Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = limpiar(l); });
+  });
+  return [...new Set(restantes)];
+};
+
+/** Concordancia con «guía» cuando es el producto, no una persona. */
+export const conGuiaEnFemenino = (t) => String(t)
+  .replace(/\b([Nn])uestro ([Gg]u[ií]a)\b/g, "$1uestra $2")
+  .replace(/\b([Ee])ste ([Gg]u[ií]a)\b/g, "$1sta $2")
+  .replace(/\bdel ([Gg]u[ií]a)\b(?! tur)/g, "de la $1")
+  .replace(/\bal ([Gg]u[ií]a)\b(?! tur)/g, "a la $1")
+  .replace(/\bEl ([Gg]u[ií]a)\b(?! tur)/g, "La $1")
+  .replace(/\bel ([Gg]u[ií]a)\b(?! tur)/g, "la $1");
+
 /** Títulos de la clase: concordancia con «guía» y un texto modelo no se llama «simulado». */
 export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false } = {}) => {
-  const guia = (t) => String(t).replace(/\b([Nn])uestro (gu[ií]a)/gi, (_, n, g) => `${n}uestra ${g}`);
+  const guia = conGuiaEnFemenino;
   if (dia.titulo) dia.titulo = guia(dia.titulo);
   if (dia.textoModelo?.titulo) dia.textoModelo.titulo = guia(dia.textoModelo.titulo).replace(/\b[Ee]ntrevista simulada\b/gi, "Entrevista modelo");
   // Sin ficha, el modelo declara que su centro es ficticio.
@@ -526,7 +572,9 @@ export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false } = {}) 
     dia.textoModelo.titulo = `Model School${dia.textoModelo.titulo ? ` — ${dia.textoModelo.titulo}` : ""}`;
   }
   (dia.momentos || []).forEach((m) => {
-    if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map((a) => (typeof a === "string" ? a.replace(/^Reúnan\b/, "Reúnen") : a));
+    if (Array.isArray(m?.actividades)) m.actividades = m.actividades.map((a) => (typeof a === "string" ? guia(a).replace(/^Reúnan\b/, "Reúnen") : a));
+    (m?.actividadesDetalle || []).forEach((d) => { if (typeof d?.texto === "string") d.texto = guia(d.texto); });
+    Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map((t) => (typeof t === "string" ? guia(t) : t)); });
   });
   return dia;
 };
@@ -562,15 +610,25 @@ export const minutosConDiagnostico = (actividades = [], total = 0) => {
  * Inicio de la clase 1: las mismas 5 posiciones de siempre, orientadas a presentar la
  * unidad (César, 2026-11-05). La presentación continúa en el Desarrollo. Lo escribe el código.
  */
-export const inicioPresentacion = (inicio = [], { producto = "", tema = "", secciones = [] } = {}) => {
+export const inicioPresentacion = (inicio = [], { producto = "", secciones = [], semillaId = "" } = {}) => {
   const nombre = nombreCorto(producto) || "el producto";
   return [
     inicio[0],
     INICIO_PRIMERA_CLASE,
-    `Recuperación de saberes previos: comentan qué saben de ${tema || "este tema"} y si han usado algo parecido a ${nombre}.`,
+    `Recuperación de saberes previos: escuchan la situación de aprendizaje, leída por el docente o un compañero, y dan ejemplos del problema que conocen. (${PREGUNTA_SITUACION_POR_SEMILLA[semillaId] || PREGUNTA_SITUACION_GENERAL})`,
     `Observan cómo será ${nombre}${secciones.length ? ` y sus secciones (${secciones.join(", ")})` : ""}, y dicen para qué creen que servirá.`,
     "Escuchan la intención pedagógica y el propósito de la clase: conocer la unidad, acordar cómo trabajarán y cómo se evaluará, y hacer el diagnóstico.",
   ];
+};
+
+/** Minutos del Inicio de la clase 1: la lectura lleva 4 sin aumentar el total del momento. */
+export const minutosInicioPresentacion = (total = 0) => {
+  if (total < 5) return null;
+  const lectura = Math.min(4, Math.max(1, total - 4));
+  const resto = total - lectura;
+  const minutos = [0, 1, 3, 4].reduce((m, i) => ({ ...m, [i]: Math.floor(resto / 4) }), { 2: lectura });
+  [1, 3, 0, 4].slice(0, resto % 4).forEach((i) => { minutos[i] += 1; });
+  return [0, 1, 2, 3, 4].map((i) => minutos[i]);
 };
 
 /** La firma que promete la tarea la escribe el código, en la actividad de esa tarea. */

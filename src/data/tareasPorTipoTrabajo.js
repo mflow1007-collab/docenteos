@@ -189,8 +189,8 @@ export const USO_DE_CONTENIDOS = [
   [/^will para/, ["aplicar_escribir", "aplicar_ensayar"]],
   [/^funcional: comprar/, ["aplicar_modelo", "aplicar_escribir"]],
   [/^funcional: expresar deseo|want, hope y wish/, ["proponer_elegir", "visitar_guion"]],
-  [/^condicional/, ["proponer_elaborar", "proponer_elegir"]],
-  [/^funcional: pedir y dar consejos|imperativo para dar consejos|^let.s para|^should para|^why don/, ["proponer_elegir", "proponer_elaborar", "socializar_redactar"]],
+  [/^condicional/, ["proponer_elaborar", "proponer_elegir", "proponer_comparar"]],
+  [/^funcional: pedir y dar consejos|imperativo para dar consejos|^let.s para|^should para|^why don/, ["proponer_elegir", "proponer_elaborar", "proponer_comparar", "socializar_redactar"]],
   [/^comidas y bebidas/, ["acordar", "describir_redactar"]],
   [/^numeros cardinales/, ["analizar_borrador", "visitar_entrevistar"]],
   [/^numeros ordinales/, ["orientar_instrucciones"]],
@@ -208,6 +208,14 @@ export const USO_DE_CONTENIDOS = [
 
 // Lugares que no se dan por hechos si no hay ficha del centro.
 export const LUGARES_NO_DECLARADOS = /\b(cafeterias?|cafeteria|gym|gymnasium|art room|second floor|auditorium|library|biblioteca|gimnasio|auditorio)\b/i;
+
+// Clase 1: pregunta que acompaña la lectura de la situación, para que den ejemplos del problema.
+export const PREGUNTA_SITUACION_POR_SEMILLA = {
+  "ing2-alimentacion-menu": "¿Han visto a un visitante que no entiende el menú de un comedor? ¿Qué hizo?",
+  "ing2-escuela-guia": "¿Recuerdan su primer día aquí? ¿Qué lugar les costó encontrar?",
+  "ing2-rutinas-plan": "¿Les ha pasado que el tiempo no les alcanza en el día? ¿Qué hacen?",
+};
+export const PREGUNTA_SITUACION_GENERAL = "¿Han vivido algo parecido a lo que cuenta la situación? ¿Qué pasó?";
 
 // Alcance de la semilla cuando la fuente es un solo dueño invitado (ficha de la unidad).
 export const ALCANCE_POR_SEMILLA = {

@@ -127,9 +127,10 @@ const invariantesMapa = {
     return [...new Set(problemas)].join("; ");
   },
   "I-14": (u) => {
-    const inicio = inicioPresentacion(["Responden al saludo."], { producto: "P — descripción", tema: u.titulo, secciones: u.mapa.secciones });
+    const inicio = inicioPresentacion(["Responden al saludo."], { producto: "P — descripción", secciones: u.mapa.secciones });
     if (inicio.length !== 5) return "el Inicio de C1 no conserva sus 5 posiciones";
     if (!/^Escuchan la intención pedagógica/.test(inicio[4]) || !/conocer la unidad/.test(inicio[4])) return "la intención no presenta la unidad";
+    if (!/escuchan la situación de aprendizaje/.test(inicio[2]) || !/ejemplos del problema/.test(inicio[2]) || !/¿/.test(inicio[2])) return "no se lee la situación con ejemplos del problema";
     const texto = (u.reales[0].secuencia || []).map((x) => x.texto).join(" ");
     const falta = [[/qu[eé] problema/, "qué se trabaja"], [/qu[eé] har[aá]n en cada etapa/, "cómo se hará"], [/c[oó]mo se evaluar[aá]/, "cómo se evalúa"]].filter(([re]) => !re.test(texto)).map(([, n]) => n);
     if (falta.length) return `falta en el Desarrollo: ${falta.join(", ")}`;
@@ -171,7 +172,7 @@ const invariantesJson = {
   "I-12": (g) => (JSON.stringify(g.dias).includes("persona invitada") ? "aparece «la persona invitada»" : ""),
   "I-14": (g) => {
     const de = (n) => ((g.dias[0]?.momentos || []).find((m) => m.nombre === n)?.actividades || []).join(" ");
-    return /conocer la unidad/.test(de("Inicio")) && /qué problema/.test(de("Desarrollo")) && /en cada etapa/.test(de("Desarrollo")) && /cómo se evaluará/.test(de("Desarrollo")) ? "" : "C1 no presenta la unidad";
+    return /conocer la unidad/.test(de("Inicio")) && /escuchan la situación de aprendizaje/.test(de("Inicio")) && /ejemplos del problema/.test(de("Inicio")) && /qué problema/.test(de("Desarrollo")) && /en cada etapa/.test(de("Desarrollo")) && /cómo se evaluará/.test(de("Desarrollo")) ? "" : "C1 no presenta la unidad";
   },
   "I-13": (g, u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma)).map((f) => f.clase);
@@ -188,8 +189,8 @@ const leerGeneracion = (ruta) => {
     ...(d.textoModelo?.lineas || []),
     ...(d.ampliacion || []).map((a) => a?.texto || ""),
   ].map((t) => ({ c: i + 1, t })));
-  // Lo que alimenta el producto: actividades y ampliación, no los textos modelo.
-  const producto = dias.flatMap((d, i) => [...(d.momentos || []).flatMap((m) => (m.actividades || []).map(String)), ...(d.ampliacion || []).map((a) => a?.texto || "")].map((t) => ({ c: i + 1, t })));
+  // Lo que alimenta el producto: estructura del día, actividades y ampliación, no los textos modelo.
+  const producto = dias.flatMap((d, i) => [d.focoLinguistico || "", ...(d.momentos || []).flatMap((m) => (m.actividades || []).map(String)), ...(d.ampliacion || []).map((a) => a?.texto || "")].map((t) => ({ c: i + 1, t })));
   return { dias, textos, producto };
 };
 
