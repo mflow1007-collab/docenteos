@@ -154,6 +154,8 @@ check("Proyectos: la clase 1 lleva las dos primeras fases y la revisión del doc
     igual(m.filas[0].fases.map((f) => f.numero), [1, 2], `${titulo}: fases de la clase 1`);
     const ordenDe = (clave) => m.filas.findIndex((f) => f.tareas.some((t) => t.clave === clave));
     const rev = ordenDe("revision_docente");
+    assert(ordenDe("corregir") <= ordenDe("revision_nivel") && ordenDe("revision_nivel") < ordenDe("presentar"), `${titulo}: segunda revisión`);
+    assert(/mapa mental/.test(inicioPresentacion(["x"], { mapaMental: true })[2]) && m.filas[0].mapaMental, `${titulo}: saberes previos en la clase 1`);
     assert(rev >= 0 && rev <= ordenDe("corregir") && ordenDe("corregir") < ordenDe("presentar"), `${titulo}: orden de la revisión`);
     const filaRev = m.filas[rev];
     assert(!filaRev.tareas.some((t) => t.sumativa) && /Formativa/.test(evaluacionDeFila(filaRev).tipo), `${titulo}: la revisión es formativa`);
@@ -722,6 +724,8 @@ check("C1: se lee la situación con ejemplos del problema, con pregunta por semi
   igual(minutosInicioPresentacion(10).join(), "1,2,4,2,1", "10 min");
   [5, 8, 10, 15].forEach((t) => igual(minutosInicioPresentacion(t).reduce((s, m) => s + m, 0), t, `total ${t}`));
   igual(minutosInicioPresentacion(4), null, "sin minutos para repartir");
+  igual(minutosInicioPresentacion(10, { mapaMental: true }).join(), "1,1,6,1,1", "10 min con mapa mental");
+  [8, 10, 15].forEach((t) => igual(minutosInicioPresentacion(t, { mapaMental: true }).reduce((s, m) => s + m, 0), t, `total ${t} con mapa mental`));
 });
 check("I-11: la estructura del día y las actividades no nombran lugares; Model School sí", () => {
   igual(sinLugaresEnEjemplos("Revisar y consolidar: presente simple (_The library is next to the cafeteria_…)"), "Revisar y consolidar: presente simple", "estructura");

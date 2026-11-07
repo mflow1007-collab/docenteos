@@ -37,15 +37,30 @@ export const SECUENCIAS_POR_TAREA = {
   revision_docente: [
     [
       p(2, "Entregan (en grupos) su sección al docente y repasan la rúbrica."),
-      pe(4, "Escuchan (en grupos) la revisión del docente con la rúbrica, sección por sección (_Could you explain…?_)."),
+      pe(4, "Escuchan (en grupos) la revisión del docente con la rúbrica, criterio por criterio, y anotan en qué nivel está cada uno (_Could you explain…?_)."),
       p(2, "Preguntan (en parejas) lo que no entienden de la revisión."),
-      pe(2, "Anotan (en grupos) las mejoras y quién las hará: sección con mejoras anotadas; queda en la carpeta."),
+      pe(2, "Anotan (en grupos) las mejoras y quién las hará hasta llegar al nivel satisfactorio: sección con mejoras anotadas; queda en la carpeta."),
     ],
     [
       p(2, "Presentan (en grupos) su sección al docente, con la rúbrica a la vista."),
-      pe(4, "Reciben (en grupos) las observaciones del docente según la rúbrica, sección por sección (_Pardon?_)."),
+      pe(4, "Reciben (en grupos) las observaciones del docente según la rúbrica, criterio por criterio, con su nivel (_Pardon?_)."),
       p(2, "Comentan (en parejas) qué observación es la más importante."),
-      pe(2, "Escriben (en grupos) la lista de mejoras y quién las hace: sección con mejoras anotadas; queda en la carpeta."),
+      pe(2, "Escriben (en grupos) la lista de mejoras y quién las hace hasta llegar al nivel satisfactorio: sección con mejoras anotadas; queda en la carpeta."),
+    ],
+  ],
+  // Proyectos, fase «Evaluación»: segunda ronda hasta el nivel satisfactorio (Referente por proyecto 2022, p. 35). Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  revision_nivel: [
+    [
+      p(1, "Entregan (en grupos) la sección corregida al docente."),
+      pe(2, "Muestran (en grupos) qué mejoraron y el docente la revisa con la rúbrica (_We changed…_)."),
+      p(1, "Preguntan (en parejas) qué criterio todavía no llega al nivel satisfactorio."),
+      pe(1, "Anotan (en grupos) si llegó al nivel satisfactorio o qué falta: sección aprobada o con una mejora pendiente; queda en la carpeta."),
+    ],
+    [
+      p(1, "Presentan (en grupos) su sección corregida al docente."),
+      pe(2, "Enseñan (en grupos) lo que cambiaron mientras el docente la revisa con la rúbrica (_We improved…_)."),
+      p(1, "Revisan (en parejas) qué criterio falta por mejorar."),
+      pe(1, "Escriben (en grupos) si llegó al nivel satisfactorio o qué mejora falta: sección aprobada o con una mejora pendiente; queda en la carpeta."),
     ],
   ],
   visitar_entrevistar: [

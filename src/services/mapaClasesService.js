@@ -17,7 +17,7 @@ import { construirPlanMaestro } from "./planMaestroService.js";
 import { SECUENCIAS_POR_TAREA } from "../data/secuenciasTareas.js";
 import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import {
-  TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR, TAREA_REVISION_DOCENTE,
+  TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR, TAREA_REVISION_DOCENTE, TAREA_REVISION_NIVEL,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
   INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION, LUGARES_NO_DECLARADOS,
   PREGUNTA_SITUACION_POR_SEMILLA, PREGUNTA_SITUACION_GENERAL, ESTRUCTURA_POR_TAREA,
@@ -124,6 +124,8 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   if (proyectos) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, corregibles, 2, 1, 0);
   else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g));
   if (!proyectos) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g));
+  // Segunda ronda: el docente comprueba que las secciones corregidas llegaron al nivel satisfactorio.
+  if (proyectos) push({ ...TAREA_REVISION_NIVEL, ...enEvaluacion }, corregibles, 2, 3, 0);
   const u = TAREAS_UNIDAD;
   push(u.acordar, [...orden], 0, 0, 0);
   push(u.glosario, [...orden], 3, 0, 0);
@@ -461,7 +463,7 @@ const ponerDatosARecoger = (filas, secciones) => {
 };
 
 // Evaluación de una clase: sale de sus tareas, la IA no la decide.
-const AGENTE_TAREA = { revision_docente: "Heteroevaluación formativa", comentar: "Coevaluación", evaluar_proceso: "Autoevaluación y coevaluación", aplicar_ensayar: "Coevaluación" };
+const AGENTE_TAREA = { revision_docente: "Heteroevaluación formativa", revision_nivel: "Heteroevaluación formativa", comentar: "Coevaluación", evaluar_proceso: "Autoevaluación y coevaluación", aplicar_ensayar: "Coevaluación" };
 const TECNICA_EVIDENCIA = {
   conocimiento: ["Preguntas de comprensión", "Lista de cotejo"],
   desempeno: ["Observación directa", "Lista de cotejo oral (Anexo B)"],
@@ -813,16 +815,17 @@ export const inicioPresentacion = (inicio = [], { producto = "", secciones = [],
   return [
     inicio[0],
     INICIO_PRIMERA_CLASE,
-    `Recuperación de saberes previos: escuchan la situación de aprendizaje, leída por el docente o un compañero, y dan ejemplos del problema que conocen.${mapaMental ? " Con lo que dicen arman en grupos un mapa mental del problema (qué sé, qué quiero saber)." : ""} (${PREGUNTA_SITUACION_POR_SEMILLA[semillaId] || PREGUNTA_SITUACION_GENERAL})`,
+    `Recuperación de saberes previos: escuchan la situación de aprendizaje, leída por el docente o un compañero, y dan ejemplos del problema que conocen.${mapaMental ? " Con lo que dicen arman en grupos un mapa mental del problema (qué sé, qué quiero saber) y escriben dos preguntas que quieren responder." : ""} (${PREGUNTA_SITUACION_POR_SEMILLA[semillaId] || PREGUNTA_SITUACION_GENERAL})`,
     `Observan cómo será ${nombre}${secciones.length ? ` y sus secciones (${secciones.join(", ")})` : ""}, y dicen para qué creen que servirá.`,
     "Escuchan la intención pedagógica y el propósito de la clase: conocer la unidad, acordar cómo trabajarán y cómo se evaluará, y hacer el diagnóstico.",
   ];
 };
 
 /** Minutos del Inicio de la clase 1: la lectura lleva 4 sin aumentar el total del momento. */
-export const minutosInicioPresentacion = (total = 0) => {
+export const minutosInicioPresentacion = (total = 0, { mapaMental = false } = {}) => {
   if (total < 5) return null;
-  const lectura = Math.min(4, Math.max(1, total - 4));
+  // Con el mapa mental de saberes previos la lectura lleva más tiempo (Proyectos, clase 1).
+  const lectura = Math.min(mapaMental && total >= 8 ? 6 : 4, Math.max(1, total - 4));
   const resto = total - lectura;
   const minutos = [0, 1, 3, 4].reduce((m, i) => ({ ...m, [i]: Math.floor(resto / 4) }), { 2: lectura });
   [1, 3, 0, 4].slice(0, resto % 4).forEach((i) => { minutos[i] += 1; });
@@ -1009,7 +1012,7 @@ const nombreCorto = (producto) => String(producto || "").split(/\s+[—–]\s+/)
 /** Anexo I desde el mapa: cada sección con su propio proceso, estados y evidencia. */
 export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, propositos = {} } = {}) => {
   const filas = mapa.filas.filter((f) => !f.flexible);
-  const COMPARTIDAS = ["acordar", "revision_docente", "recorrer_lugares", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
+  const COMPARTIDAS = ["acordar", "revision_docente", "revision_nivel", "recorrer_lugares", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
   return [
     { seccion: "Título", incluye: `Mi nombre y el título del producto (${nombreCorto(producto)}).`, fases: "" },
     ...mapa.secciones.map((seccion) => {

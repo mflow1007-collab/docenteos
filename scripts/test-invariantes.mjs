@@ -150,7 +150,7 @@ const invariantesMapa = {
     return u.mapa.secciones.length ? "" : "sin secciones";
   },
   "Fases": (u) => {
-    const sinTarea = u.mapa.fases.filter((n) => n !== undefined && !u.reales.some((f) => f.tareas.some((t) => t.fase === n - 1)) && !(u.reales[0]?.mapaMental && u.reales[0].fases.some((x) => x.numero === n)));
+    const sinTarea = u.mapa.fases.filter((n) => n !== undefined && !u.reales.some((f) => f.tareas.some((t) => t.fase === n - 1)) && !(u.reales[0]?.mapaMental && /mapa mental/.test(inicioPresentacion(["x"], { mapaMental: true })[2]) && u.reales[0].fases.some((x) => x.numero === n)));
     const nombres = u.mapa.fases.length && u.reales.flatMap((f) => f.fases).length;
     return sinTarea.length && nombres ? `fases sin su tarea: ${sinTarea.join(", ")}` : "";
   },

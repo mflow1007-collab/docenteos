@@ -86,6 +86,7 @@ export const TAREA_CORREGIR = tarea("corregir", "corregir, probar y verificar da
 // Proyectos, fase «Evaluación» (Referente por proyecto 2022, p. 35): el docente evalúa de forma formativa con la
 // rúbrica, sección por sección, y el grupo mejora hasta el nivel satisfactorio. Actividad aparte y formativa,
 // antes de la sumativa (I-04). Interpretación DocenteOS, aprobada por César el 2026-11-06.
+export const TAREA_REVISION_NIVEL = tarea("revision_nivel", "segunda revisión del docente: nivel satisfactorio", [5, 10], "P", "producto", "escrita", "grupo editor de cada sección", "Sección en el nivel satisfactorio o con una mejora pendiente", null, "aplicacion", "M", "Secciones corregidas, rúbrica", { revisionFormativa: true });
 export const TAREA_REVISION_DOCENTE = tarea("revision_docente", "revisión formativa del docente con la rúbrica", [10, 20], "P", "producto", "escrita", "grupo editor de cada sección", "Sección revisada con la rúbrica y mejoras anotadas", null, "aplicacion", "M", "Piezas de las secciones, rúbrica", { revisionFormativa: true });
 // Una vez en la unidad, en este orden.
 export const TAREAS_UNIDAD = {
@@ -154,7 +155,8 @@ export const DETALLE_TAREA = {
   indagar_disenar: { hace: "Redactan una encuesta breve y anónima con los datos que necesita el producto; cada estudiante firma la pregunta que aporta, no las respuestas.", senal: "encuesta|cuestionario", firma: "Cada estudiante firma la pregunta que aporta." },
   indagar_aplicar: { hace: "Aplican la encuesta a sus compañeros sin anotar nombres y resumen las respuestas en cifras del grupo.", senal: "encuesta|respuestas|resum" },
   indagar_contrastar: { hace: "Comprueban si una fuente impresa es fiable y comparan con ella sus resultados.", senal: "fuente" },
-  revision_docente: { hace: "El docente revisa cada sección con la rúbrica y devuelve qué mejorar; el grupo editor anota las mejoras. Es formativa: no se califica ni se corrige aquí el producto completo.", senal: "rúbrica|rubrica|revis|mejor", formativo: ["la revisión del docente con la rúbrica"] },
+  revision_docente: { hace: "El docente revisa cada sección con la rúbrica, criterio por criterio, y devuelve en qué nivel está y qué mejorar; el grupo editor anota las mejoras hasta llegar al nivel satisfactorio. Es formativa: no se califica ni se corrige aquí el producto completo.", senal: "rúbrica|rubrica|revis|mejor", formativo: ["la revisión del docente con la rúbrica"] },
+  revision_nivel: { hace: "Cada grupo muestra al docente su sección corregida; el docente la revisa con la rúbrica y anotan si llegó al nivel satisfactorio o qué mejora falta. Es formativa: no se califica.", senal: "satisfactorio|rúbrica|rubrica|revis", formativo: ["la segunda revisión del docente"] },
   corregir_final: { formativo: ["la corrección"], hace: "Corrigen el producto completo con lo que pidió la audiencia. Queda listo para entregar; no se vuelve a presentar.", senal: "corrig" },
   evaluar_proceso: { formativo: ["la autoevaluación", "la coevaluación", "la reflexión"], hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
 };

@@ -6244,7 +6244,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
             semillaId: datos.planMaestro?.situacion?.semillaId || "",
             mapaMental: Boolean(d.fijoDelMapa.mapaMental),
           });
-          const minutosInicio = minutosInicioPresentacion(Number.parseInt(String(inicio.tiempo || ""), 10) || 0);
+          const minutosInicio = minutosInicioPresentacion(Number.parseInt(String(inicio.tiempo || ""), 10) || 0, { mapaMental: Boolean(d.fijoDelMapa.mapaMental) });
           if (minutosInicio) inicio.minutosActividad = minutosInicio;
         }
         // La clase 2 retoma el acuerdo: la IA le atribuía a la clase 1 lo que no hizo.
