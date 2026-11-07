@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, tituloDeClase, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -200,6 +200,19 @@ check("Problemas: Escuela a 4 semanas cabe en 12 clases sin versión breve y la 
   const ordenDe = (clave) => m.filas.findIndex((f) => f.tareas.some((t) => t.clave === clave));
   assert(ordenDe("revision_docente") >= 0 && ordenDe("revision_docente") <= ordenDe("presentar"), "la revisión no va antes de la sumativa");
   assert(m.filas.every((f) => didacticosDeFila(f)), "una clase sin recursos didácticos");
+});
+check("títulos de clase del código: acción y sección, nunca el nombre interno de la tarea", () => {
+  [["Escuela y educación", 4, "proyectos"], ["Alimentación", 6, "insercion_entorno"], ["Actividades de la vida diaria", 4, "indagacion_dialogica"], ["Escuela y educación", 4, "problemas"]].forEach(([titulo, semanas, estrategia]) => {
+    const m = mapaDe(titulo, semanas, HORARIOS[semanas === 6 ? "3x1" : "3x1"], { planMaestro: { estrategia } });
+    m.filas.filter((f) => !f.flexible && f.tareas.length).forEach((f) => {
+      const t = tituloDeClase(f, "Our Guide — una guía");
+      assert(t && t.toLowerCase() !== f.tareas[0].nombre.toLowerCase() && !t.toLowerCase().startsWith(f.tareas[0].nombre.toLowerCase()), `${estrategia} C${f.clase}: ${t}`);
+    });
+    igual(new Set(m.filas.filter((f) => !f.flexible && f.tareas.length).map((f) => tituloDeClase(f, "P"))).size > 6, true, `${estrategia}: títulos variados`);
+  });
+  const f = { tareas: [{ clave: "corregir", nombre: "corregir, probar y verificar datos", secciones: ["Ordering Food"] }] };
+  igual(tituloDeClase(f, "X"), "Corrigiendo: Ordering Food", "corregir con su sección");
+  igual(tituloDeClase({ tareas: [{ clave: "acordar", nombre: "acordar el plan y hacer el diagnóstico", secciones: ["A"] }] }, "Our Guide — una guía"), "Acordando el plan de Our Guide", "acordar con el producto");
 });
 check("títulos casi iguales: se detectan los de la C1 y C2 de Rutinas, no los distintos ni los idénticos", () => {
   const t = ["Planificando Nuestro Plan de Rutinas Saludables", "Planificando Nuestro Plan de Rutinas Saludables Juntos", "Explorando el entorno escolar", "Planificando Nuestro Plan de Rutinas Saludables"];

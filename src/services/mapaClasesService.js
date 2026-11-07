@@ -732,6 +732,34 @@ export const titulosParecidos = (titulos = [], umbral = 0.7) => {
   return pares;
 };
 
+// Título de la clase cuando la IA no lo devuelve o se repite: lo escribe el código desde la acción y la sección,
+// no con el nombre interno de la tarea. `{p}` = producto; la sección se añade sola si la tarea es de una sección.
+const TITULO_POR_TAREA = {
+  acordar: "Acordando el plan de {p}", saberes_previos: "Lo que sabemos y queremos saber", recorrer_lugares: "Recorriendo el centro",
+  visitar_modelo: "Conociendo una entrevista modelo", visitar_guion: "Escribiendo el guion", visitar_entrevistar: "Entrevistando",
+  visitar_registrar: "Registrando lo que dijeron", visitar_segunda: "Completando los datos que faltan",
+  describir_modelo: "Analizando una pieza modelo", describir_redactar: "Redactando la pieza", analizar_ordenar: "Ordenando los datos",
+  analizar_borrador: "Escribiendo el borrador", analizar_verificar: "Comprobando los datos", proponer_comparar: "Comparando con un texto",
+  proponer_elegir: "Eligiendo y justificando", proponer_elaborar: "Elaborando la pieza", aplicar_modelo: "Analizando un modelo",
+  aplicar_escribir: "Escribiendo", aplicar_ensayar: "Ensayando", aplicar_anotar: "Anotando la mejora", aplicar_segundo: "Ensayando otra vez",
+  aplicar_corregir: "Corrigiendo lo ensayado", socializar_reunir: "Reuniendo lo hecho", socializar_redactar: "Redactando el mensaje",
+  socializar_leer: "Leyendo el mensaje a otro grupo", orientar_recorrido: "Haciendo el recorrido", orientar_instrucciones: "Escribiendo las instrucciones",
+  orientar_probar: "Probando las instrucciones", comentar: "Comentando las piezas", corregir: "Corrigiendo", revision_docente: "Revisando con la rúbrica",
+  revision_nivel: "Comprobando el nivel satisfactorio", indagar_disenar: "Diseñando la encuesta", indagar_aplicar: "Aplicando la encuesta",
+  indagar_contrastar: "Contrastando con una fuente", glosario: "Armando el glosario", integrar: "Reuniendo {p}", presentar: "Presentando {p}",
+  probar_audiencia: "Probando {p} con la audiencia", audiencia_secundaria: "Mostrando {p} a otra audiencia", evaluar_comentarios: "Respondiendo a los comentarios",
+  corregir_final: "Corrigiendo {p}", evaluar_proceso: "Reflexionando sobre lo aprendido",
+};
+const SIN_SECCION = new Set(["acordar", "saberes_previos", "recorrer_lugares", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "corregir_final", "evaluar_proceso", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "revision_docente", "revision_nivel"]);
+export const tituloDeClase = (fila = {}, producto = "") => {
+  const t = fila.tareas?.[0];
+  if (!t) return "";
+  const p = nombreCorto(producto) || "el producto";
+  const base = (TITULO_POR_TAREA[t.clave] || `${t.nombre.charAt(0).toUpperCase()}${t.nombre.slice(1)}`).replace("{p}", p);
+  const secs = t.secciones || [];
+  return !SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3 ? `${base}: ${secs.join(", ")}` : base;
+};
+
 /** Concordancia con «guía» cuando es el producto, no una persona. */
 export const conGuiaEnFemenino = (t) => String(t)
   .replace(/\b([Nn])uestro ([Gg]u[ií]a)\b/g, "$1uestra $2")
