@@ -193,6 +193,14 @@ check("Anexo J: la clase 1 de Proyectos diagnostica las cuatro habilidades y el 
   assert(!sinLectura.diagnostica.some((x) => /Reading/.test(x.habilidad)) && sinLectura.diagnostica.length === 3, "promete lectura sin hacerla");
 });
 
+check("Problemas: Escuela a 4 semanas cabe en 12 clases sin versión breve y la revisión del docente va antes de la sumativa", () => {
+  const m = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  assert(m.modo !== "breve" && !m.filas.some((f) => f.flexible), `modo ${m.modo}`);
+  assert(!m.avisos.some((a) => /no cabe en este tiempo/.test(a)), "tarea descartada");
+  const ordenDe = (clave) => m.filas.findIndex((f) => f.tareas.some((t) => t.clave === clave));
+  assert(ordenDe("revision_docente") >= 0 && ordenDe("revision_docente") <= ordenDe("presentar"), "la revisión no va antes de la sumativa");
+  assert(m.filas.every((f) => didacticosDeFila(f)), "una clase sin recursos didácticos");
+});
 check("títulos casi iguales: se detectan los de la C1 y C2 de Rutinas, no los distintos ni los idénticos", () => {
   const t = ["Planificando Nuestro Plan de Rutinas Saludables", "Planificando Nuestro Plan de Rutinas Saludables Juntos", "Explorando el entorno escolar", "Planificando Nuestro Plan de Rutinas Saludables"];
   igual(titulosParecidos(t), [[1, 2], [2, 4]], "pares");

@@ -121,9 +121,11 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Problemas no tiene fase de evaluación: va en «Puesta en común», revisión formativa → sumativa → respuesta (decisión B).
   if (estrategia === "problemas") push({ ...TAREA_REVISION_DOCENTE, faseGuia: faseDe(/^Puesta en común/) }, corregibles, 3, 1.5, 0);
   // Proyectos: tras la revisión del docente, un solo ciclo de mejora para todas las secciones.
-  if (proyectos) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, corregibles, 2, 1, 0);
+  // Con revisión del docente (Proyectos y Problemas) la mejora es un solo ciclo: Problemas a 4 semanas no cabía en 12 clases.
+  const unCiclo = proyectos || estrategia === "problemas";
+  if (unCiclo) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, corregibles, 2, 1, 0);
   else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g));
-  if (!proyectos) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g));
+  if (!unCiclo) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g));
   // Segunda ronda: el docente comprueba que las secciones corregidas llegaron al nivel satisfactorio.
   if (proyectos) push({ ...TAREA_REVISION_NIVEL, ...enEvaluacion }, corregibles, 2, 3, 0);
   const u = TAREAS_UNIDAD;
