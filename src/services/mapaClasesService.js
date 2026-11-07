@@ -692,12 +692,22 @@ export const diagnosticoDeActividades = (actividades = []) => {
   const hay = (re) => textos.some((t) => re.test(t));
   const habilidades = [
     hay(/escuch\w*[^.]*\b(oraciones|frases)\b|marcan[^.]*\bimagen/i) ? "listening" : "",
-    hay(/pregunta[^.]*\b(pareja|voz alta)\b|\b(pareja|voz alta)\b[^.]*pregunta|responden[^.]*\b(oral|voz alta)/i) ? "speaking" : "",
+    hay(/pregunta[^.]*(\bpareja|voz alta)|(\bpareja|voz alta)[^.]*pregunta|responden[^.]*\b(oral|voz alta)/i) ? "speaking" : "",
     hay(/\bleen\b[^.]*\btexto/i) ? "reading" : "",
     hay(/\bescriben\b[^.]*\boraciones?\b/i) ? "writing" : "",
   ].filter(Boolean);
   const lectura = textos.map((t) => t.match(/\btexto breve sobre (.+?)(?: y | mientras|,|\.|:|$)/i)).find(Boolean);
   return { habilidades, asunto: lectura ? lectura[1].trim() : "" };
+};
+
+/**
+ * Diagnóstico de la clase 1 de una unidad ya redactada (sus fases semanales). Sin mapa de clases, null: el anexo usa su plantilla.
+ * No depende de marcas temporales de la clase (`fijoDelMapa` se borra antes de armar los anexos).
+ */
+export const diagnosticoDeFases = (fases = [], hayMapa = false) => {
+  if (!hayMapa) return null;
+  const dia = (fases || [])[0]?.dias?.[0];
+  return diagnosticoDeActividades((dia?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades);
 };
 
 /** Concordancia con «guía» cuando es el producto, no una persona. */

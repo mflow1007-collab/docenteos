@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -175,6 +175,14 @@ check("Anexo J: la clase 1 de Proyectos diagnostica las cuatro habilidades y el 
     igual(anexo.diagnostica.length, 4, `${titulo}: ítems del Anexo J`);
     assert(!anexo.diagnostica.some((x) => x.tarea.includes(`"${titulo}"`)), `${titulo}: el Anexo J nombra el tema`);
   });
+  // La unidad ya redactada (sin marcas del mapa): el diagnóstico sale de las actividades de la clase 1, y sin mapa no hay.
+  const fasesRedactadas = [{ dias: [{ momentos: [{ nombre: "Inicio", actividades: ["x"] }, { nombre: "Desarrollo", actividades: [
+    "Escuchan (individual) al docente leer cinco oraciones y marcan la imagen de cada una.",
+    "Leen (en parejas) un texto breve sobre cómo orientarse en un centro nuevo y subrayan lo que entienden.",
+    "Escriben (individual) dos oraciones y luego se hacen una pregunta en parejas." ] }] }] }];
+  const dd = diagnosticoDeFases(fasesRedactadas, true);
+  igual(dd.habilidades.sort(), ["listening", "reading", "speaking", "writing"], "diagnóstico de la unidad redactada");
+  assert(/orientarse/.test(dd.asunto) && diagnosticoDeFases(fasesRedactadas, false) === null, "asunto o plantilla sin mapa");
   // Sin lectura en la clase 1, el anexo no la promete.
   const sinLectura = construirAnexosUnidad({ area: "Inglés", tema: "T", producto: "P", diagnosticoClase1: { habilidades: ["listening", "speaking", "writing"], asunto: "" } });
   assert(!sinLectura.diagnostica.some((x) => /Reading/.test(x.habilidad)) && sinLectura.diagnostica.length === 3, "promete lectura sin hacerla");
