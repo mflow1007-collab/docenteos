@@ -580,7 +580,9 @@ const OBSERVADO = { grabada: "observada y anotada", grabado: "observado y anotad
 const sinGrabadoEn = (t) => t.replace(/(?<![\p{L}])(?<!\b(?:sin|no) )(?<!\bsin ser )(grabad[oa]s?)(?![\p{L}])/giu, (g) => OBSERVADO[g.toLowerCase()]);
 
 /** ¿Esta fila trabaja una sección que necesita lugares del centro? */
-export const necesitaLugares = (fila) => (fila?.secciones || []).some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"));
+export const necesitaLugares = (fila) => Boolean(fila?.lugaresDelCentro) || (fila?.secciones || []).some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"));
+/** ¿El tema de la unidad trata de lugares del centro aunque sus secciones no los pidan? (p. ej. una propuesta sobre cómo se orientan los nuevos.) */
+export const TEMA_DE_LUGARES = /\b(se pierden|perdid[oa]s?|orient(?:ar|aci[oó]n|an)|lugares|ubicaci[oó]n|recorrido|nuevo ingreso|llegan nuevos|primeras semanas)\b/i;
 /** La ampliación no propone lugares: salen de la tabla común del recorrido. */
 export const ampliacionSinLugares = (ampliacion = []) => ampliacion.filter((a) => !LUGARES_NO_DECLARADOS.test(String(a?.texto || "")));
 
@@ -631,13 +633,15 @@ export const conGuiaEnTextos = (nodo) => {
   return nodo;
 };
 
-const mapearTextos = (nodo, fn) => {
+const mapearTextos = (nodo, fn, omitir = null) => {
   Object.entries(nodo || {}).forEach(([k, v]) => {
-    if (CLAVES_SIN_TEXTO_DE_CLASE.has(k)) return;
+    if (CLAVES_SIN_TEXTO_DE_CLASE.has(k) || omitir?.has(k)) return;
     if (typeof v === "string") nodo[k] = fn(v);
-    else if (v && typeof v === "object") mapearTextos(v, fn);
+    else if (v && typeof v === "object") mapearTextos(v, fn, omitir);
   });
 };
+// Valores internos que no lee el docente: no se corrigen («confianza: "revision"»).
+const CLAVES_INTERNAS = new Set(["estado", "confianza", "tipo", "id", "clave", "codigo", "criterioId", "indicadorId"]);
 
 /**
  * Aplica la regla a todo el texto de la clase. Devuelve lo que no pudo limpiar;
@@ -810,7 +814,7 @@ const PALABRAS_FRECUENTES = ["nuestro", "nuestra", "nuestros", "nuestras", "clas
 const faltaUnaLetra = (corta, larga) => larga.length === corta.length + 1 && [...larga].some((_, i) => larga.slice(0, i) + larga.slice(i + 1) === corta);
 /** Corrige la errata de una letra de menos en esas palabras («nuesros» → «nuestros»). */
 const sinTilde = (p) => p.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const TILDES = new Map(["diálogo", "diálogos", "sección", "presentación", "corrección", "redacción", "revisión", "planificación", "información", "evaluación", "análisis", "también", "además", "organización", "retroalimentación", "creación"].map((p) => [sinTilde(p), p]));
+const TILDES = new Map(["diálogo", "diálogos", "sección", "presentación", "corrección", "redacción", "revisión", "planificación", "información", "evaluación", "análisis", "también", "además", "organización", "retroalimentación", "creación", "acción", "adecuación", "interacción", "comunicación", "orientación", "construcción", "producción", "comprensión", "expresión", "reflexión", "discusión", "decisión", "versión", "sesión", "atención", "observación", "conclusión", "recomendación", "instrucción", "instrucciones", "ejecución", "situación", "intención", "articulación", "participación", "investigación", "población"].map((p) => [sinTilde(p), p]));
 /** Tilde mal puesta o que falta en palabras frecuentes («Dialógo» → «Diálogo»). No es un diccionario. */
 export const conTildesCorregidas = (t = "") => String(t).replace(/(?<![\p{L}\d_-])\p{L}{4,}(?![\p{L}\d_-])/gu, (palabra) => {
   const correcta = TILDES.get(sinTilde(palabra));
@@ -858,18 +862,13 @@ export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreM
     return nuevo;
   });
   if (concordancias) corregidos.push(`concordancia de «guía» (${concordancias} texto${concordancias > 1 ? "s" : ""})`);
-  // Solo el texto que lee el docente: lo demás puede ser un valor interno («requiere_revision»).
-  const conTildes = (t) => {
-    const nuevo = typeof t === "string" ? conTildesCorregidas(t) : t;
+  // Todo el texto que lee el docente (menos los modelos en inglés): los valores internos («requiere_revision») no se tocan.
+  let tildes = 0;
+  mapearTextos(dia, (t) => {
+    const nuevo = conTildesCorregidas(t);
     if (nuevo !== t) tildes += 1;
     return nuevo;
-  };
-  let tildes = 0;
-  ["titulo", "intencionPedagogica", "focoLinguistico"].forEach((k) => { if (dia[k]) dia[k] = conTildes(dia[k]); });
-  (dia.momentos || []).forEach((m) => {
-    ["actividades", "metacognicion"].forEach((k) => { if (Array.isArray(m?.[k])) m[k] = m[k].map(conTildes); });
-    (m?.actividadesDetalle || []).forEach((d) => { if (typeof d?.texto === "string") d.texto = conTildesCorregidas(d.texto); });
-  });
+  }, CLAVES_INTERNAS);
   if (tildes) corregidos.push(`tildes (${tildes} texto${tildes > 1 ? "s" : ""})`);
   if (dia.titulo) dia.titulo = conErratasCorregidas(dia.titulo);
   if (dia.intencionPedagogica) dia.intencionPedagogica = conErratasCorregidas(dia.intencionPedagogica);
@@ -1226,6 +1225,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   if (breve && total <= 3 && items.some((it) => it.t.usaModalidad)) avisos.push("Con este tiempo no cabe una visita real: la entrevista es simulada y así lo declara el plan.");
 
   const faseInfo = (i) => ({ numero: plan.fases[i].numero, nombre: plan.fases[i].nombre });
+  const lugaresDelCentro = TEMA_DE_LUGARES.test(`${entrada.producto || ""} ${entrada.textoSituacion || ""}`);
   const filas = clases.map((tareas, c) => {
     const lista = tareas.map(({ t, secciones, minutos, fase, paralelo }) => ({
       clave: t.clave, tipoPrueba: t.tipoPrueba || "", estructura: t.estructura || null, nombre: t.nombre, secciones: [...secciones], minutos, fase, faseNombre: plan.fases[fase]?.nombre || "", paralelo: Boolean(paralelo),
@@ -1240,7 +1240,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
       ? [...new Set(lista.map((t) => t.secciones[0]))].reduce((m, s) => Math.max(m, lista.filter((t) => t.secciones[0] === s).reduce((a, t) => a + t.minutos, 0)), 0)
       : lista.reduce((s, t) => s + t.minutos, 0);
     return {
-      clase: c + 1, flexible: false, tareas: lista,
+      clase: c + 1, flexible: false, tareas: lista, lugaresDelCentro,
       secciones: [...new Set(lista.flatMap((t) => t.secciones))],
       fases: [...new Set(lista.map((t) => t.fase))].sort((a, b) => a - b).map(faseInfo),
       minutos: usados, minutosLibres: Math.max(0, capacidad - usados),

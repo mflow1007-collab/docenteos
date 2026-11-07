@@ -8,13 +8,14 @@
  * Cada invariante se mide como dice CLAUDE.md. Un fallo no se ajusta aquí para que pase:
  * se arregla el motor o se le pregunta a César. Código de salida 1 si algo falla.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
   focoDeFila, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
+  diagnosticoDeActividades, conTildesCorregidas,
 } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
-import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS } from "../src/data/tareasPorTipoTrabajo.js";
+import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS, TAREAS_POR_TIPO, TAREAS_UNIDAD } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion } from "../src/services/situacionAprendizajeService.js";
 
 const malla = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
@@ -25,9 +26,13 @@ const fuenteGenerador = readFileSync(new URL("../src/services/unidadAprendizajeS
 const normal = (t) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 const EQUIPOS = /\b(videos?|proyector(es)?|retroproyector(es)?|parlantes?|bocinas?|computadoras?|laptops?|tablets?|celular(es)?|grabador(as|es)?)\b/i;
 
-const unidad = (titulo, numSemanas) => {
+const unidad = (titulo, numSemanas, extra = {}) => {
   const base = { grado: "2do Secundaria", asignatura: "Inglés", centro: "Centro de prueba - Hato Nuevo", numSemanas, diasClase: ["l", "m", "x"], horasPorDia: 1, titulo };
-  const datos = conFichaDeUnidad({ ...base, ...prellenarPlanMaestro({ datos: base, indicadores: estructura.indicadores, competencias }) });
+  const prellenado = { ...base, ...prellenarPlanMaestro({ datos: base, indicadores: estructura.indicadores, competencias }) };
+  // Unidades con otra estrategia, o con un producto propio (una propuesta con sus secciones): se declaran aquí.
+  if (extra.planMaestro) prellenado.planMaestro = { ...prellenado.planMaestro, ...extra.planMaestro };
+  if (extra.productoFinalTexto) prellenado.productoFinalTexto = extra.productoFinalTexto;
+  const datos = conFichaDeUnidad(prellenado);
   const { entrada } = armarEntradaPlanMaestro({ datos, mallaPayload: malla });
   const mapa = armarMapaClases(entrada);
   const s = datos.planMaestro.situacion;
@@ -140,7 +145,18 @@ const invariantesMapa = {
     if (!/dia\.focoLinguistico = focoDeFila\(filaMapa/.test(fuenteGenerador)) return "el generador no la aplica";
     const vacias = u.reales.filter((f) => !focoDeFila(f)).map((f) => `C${f.clase}`);
     if (vacias.length) return `sin estructura: ${vacias.join(", ")}`;
-    const mal = u.reales.filter((f) => f.tareas[0]?.clave === "presentar" && !/sección/.test(focoDeFila(f)) && !f.contenidos.some((c) => c.categoria === "gramatica")).map((f) => `C${f.clase}`);
+    const mal = u.reales.filter((f) => f.tareas[0]?.clave === "presentar" && !/sección|recomendación/.test(focoDeFila(f)) && !f.contenidos.some((c) => c.categoria === "gramatica")).map((f) => `C${f.clase}`);
+    // La etiqueta de función corresponde a la tarea de la clase: la de hábitos es solo de las clases de encuesta de Indagación,
+    // y las que entienden o ordenan un problema no heredan la función de otro tema de la malla.
+    const esIndagacion = u.mapa.estrategia === "indagacion_dialogica";
+    const ajena = u.reales.filter((f) => {
+      const t = f.tareas[0]?.clave || "";
+      const foco = focoDeFila(f, u.reales);
+      if (/hábitos/i.test(foco) && !esIndagacion) return true;
+      if (/^problema_|^analizar_ordenar$/.test(t) && !/problema|causas|datos|organizar/i.test(foco)) return true;
+      return false;
+    }).map((f) => `C${f.clase}`);
+    if (ajena.length) return `estructura de otra unidad o tema: ${ajena.join(", ")}`;
     return mal.length ? `no corresponde a la tarea: ${mal.join(", ")}` : "";
   },
   "I-18": (u) => {
@@ -194,6 +210,28 @@ const invariantesJson = {
     const de = (n) => ((g.dias[0]?.momentos || []).find((m) => m.nombre === n)?.actividades || []).join(" ");
     return /conocer la unidad/.test(de("Inicio")) && /escuchan la situación de aprendizaje/.test(de("Inicio")) && /ejemplos del problema/.test(de("Inicio")) && /qué problema/.test(de("Desarrollo")) && /en cada etapa/.test(de("Desarrollo")) && /cómo se evaluará/.test(de("Desarrollo")) ? "" : "C1 no presenta la unidad";
   },
+  // Los títulos los escribe el código si hace falta: sin el nombre interno de una tarea y sin repetirse.
+  "I-19": (g) => {
+    const internos = new Set([...Object.values(TAREAS_POR_TIPO).flat(), ...Object.values(TAREAS_UNIDAD)].map((t) => String(t.nombre).trim().toLowerCase()));
+    const titulos = g.dias.map((d) => String(d.titulo || "").trim().toLowerCase());
+    const conNombre = titulos.map((t, i) => [i + 1, t]).filter(([, t]) => internos.has(t.split(":")[0].trim())).map(([c]) => `C${c}`);
+    const repetidos = titulos.map((t, i) => [i + 1, t]).filter(([, t], i, l) => t && l.findIndex(([, x]) => x === t) !== i).map(([c]) => `C${c}`);
+    return [conNombre.length ? `nombre de tarea en ${conNombre.join(", ")}` : "", repetidos.length ? `título repetido en ${repetidos.join(", ")}` : ""].filter(Boolean).join("; ");
+  },
+  // El Anexo J no promete lo que la clase 1 no hace ni nombra el tema.
+  "Anexo J": (g, u) => {
+    const j = g.anexos?.diagnostica || [];
+    if (!j.length) return "sin Anexo J";
+    const c1 = (g.dias[0]?.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || [];
+    const hecho = diagnosticoDeActividades(c1);
+    const claves = ["listening", "speaking", "reading", "writing"];
+    const promete = j.map((x) => claves.find((c) => new RegExp(c, "i").test(x.habilidad))).filter(Boolean);
+    const fuera = hecho ? promete.filter((c) => !hecho.habilidades.includes(c)) : [];
+    if (fuera.length) return `promete sin hacerlo en la C1: ${fuera.join(", ")}`;
+    return j.some((x) => String(x.tarea).includes(`"${u.titulo}"`)) ? "nombra el tema" : "";
+  },
+  // Corrector ortográfico: ninguna palabra frecuente sin su tilde en lo que lee el docente.
+  "Ortografía": (g) => g.dias.flatMap((d, i) => [d.titulo, d.focoLinguistico, d.intencionPedagogica, ...(d.momentos || []).flatMap((m) => m.actividades || [])].filter((t) => typeof t === "string" && conTildesCorregidas(t) !== t).map(() => `C${i + 1}`)).filter((c, i, l) => l.indexOf(c) === i).join(", "),
   "I-13": (g, u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma)).map((f) => f.clase);
     const faltan = prometidas.filter((c) => !JSON.stringify((g.dias[c - 1]?.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).match(/firm/i));
@@ -211,14 +249,19 @@ const leerGeneracion = (ruta) => {
   ].map((t) => ({ c: i + 1, t })));
   // Lo que alimenta el producto: estructura del día, actividades y ampliación, no los textos modelo.
   const producto = dias.flatMap((d, i) => [d.focoLinguistico || "", ...(d.momentos || []).flatMap((m) => (m.actividades || []).map(String)), ...(d.ampliacion || []).map((a) => a?.texto || "")].map((t) => ({ c: i + 1, t })));
-  return { dias, textos, producto };
+  return { dias, textos, producto, anexos: u.anexos || {} };
 };
 
 const argumento = (nombre) => { const i = process.argv.indexOf(nombre); return i >= 0 ? process.argv[i + 1] : ""; };
+const fixture = (nombre) => { const ruta = new URL(`./fixtures/unidades/${nombre}`, import.meta.url).pathname; return existsSync(ruta) ? ruta : ""; };
+// Las cuatro unidades de referencia (CLAUDE.md): Alimentación (Inserción, 6 sem.), Escuela (Proyectos, 4 sem.), Rutinas
+// (Indagación, 4 sem.) y una propuesta de Problemas (5 sem.). Sin argumento se revisan sus generaciones fijadas.
+const PROPUESTA = { planMaestro: { estrategia: "problemas", secciones: ["Causes of the Problem", "Our Goals", "Options We Evaluated", "Our Recommendation"] }, productoFinalTexto: "Our Welcome Proposal — una propuesta bilingüe a la dirección con las causas, los objetivos, las alternativas evaluadas y la recomendada" };
 const unidades = [
-  { u: unidad("Alimentación", 6), json: argumento("--alimentacion") || new URL("./fixtures/unidades/alimentacion-6-semanas-g7.json", import.meta.url).pathname },
-  // Unidades de referencia: sin argumento, se revisan estas.
-  { u: unidad("Escuela y educación", 4), json: argumento("--escuela") || new URL("./fixtures/unidades/escuela-4-semanas-g6.json", import.meta.url).pathname },
+  { u: unidad("Alimentación", 6), json: argumento("--alimentacion") || fixture("alimentacion-6-semanas.json") },
+  { u: unidad("Escuela y educación", 4), json: argumento("--escuela") || fixture("escuela-4-semanas.json") },
+  { u: unidad("Actividades de la vida diaria", 4, { planMaestro: { estrategia: "indagacion_dialogica" } }), json: argumento("--rutinas") || fixture("rutinas-4-semanas.json") },
+  { u: unidad("Escuela y educación", 5, PROPUESTA), json: argumento("--problemas") || fixture("problemas-5-semanas.json") },
 ];
 
 let fallos = 0;
@@ -234,7 +277,7 @@ const mostrar = (titulo, tabla, generaciones) => {
     console.log(`${id}  ${celdas.map((c) => c.txt).join(" ")}  ${celdas.map((c) => c.msg).filter(Boolean).join(" // ")}`);
   });
 };
-console.log("Columnas: Alimentación 6 semanas | Escuela 4 semanas");
+console.log("Columnas: Alimentación 6 sem. | Escuela 4 sem. | Rutinas 4 sem. | Problemas 5 sem.");
 mostrar("Sin IA: lo que decide el código", invariantesMapa, null);
 const generaciones = unidades.map(({ json }) => (json ? leerGeneracion(json) : null));
 if (generaciones.some(Boolean)) mostrar("Última generación: lo que escribe la IA", invariantesJson, generaciones);

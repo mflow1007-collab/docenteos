@@ -5573,7 +5573,7 @@ export const debeUsarMapaClases = ({ datos = {}, asignatura = "" } = {}) => {
 export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas, diasClase, horasPorDia, duracionMin }) => {
   if (!debeUsarMapaClases({ datos, asignatura })) return null;
   const { entrada } = armarEntradaPlanMaestro({ datos: { ...datos, numSemanas, diasClase, horasPorDia }, mallaPayload });
-  const mapa = armarMapaClases({ ...entrada, duracionMin, modalidadVisita: datos.planMaestro?.modalidadVisita || "" });
+  const mapa = armarMapaClases({ ...entrada, textoSituacion: JSON.stringify(datos.planMaestro?.situacion || {}), duracionMin, modalidadVisita: datos.planMaestro?.modalidadVisita || "" });
   // Fallo del mapa: se detiene aquí, sin pagar ninguna llamada a la IA.
   const fallos = fallosQueDetienen(mapa);
   if (fallos.length) throw new Error(`Mapa de clases: la unidad no se puede armar: ${fallos.join("; ")}.`);
@@ -6278,7 +6278,14 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           [...new Set(quitados)].forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: se quitó un lugar que no consta en la tabla común: «${t}»`));
         }
         sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: usa un equipo que el mapa no prevé: «${m}»`));
-        // Dos clases no se llaman igual: la repetida toma el nombre de su tarea.
+        // El título nunca es el nombre interno de la tarea («Corregir, probar y verificar datos»): lo escribe el código.
+        const nombreInterno = String(d.tareasMapa?.[0]?.nombre || "").trim().toLowerCase();
+        const tituloActual = String(d.titulo || "").trim().toLowerCase();
+        if (nombreInterno && d.fijoDelMapa.tituloTarea && (tituloActual === nombreInterno || tituloActual.startsWith(`${nombreInterno}:`))) {
+          avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título con el nombre de la tarea «${d.titulo}»`);
+          d.titulo = d.fijoDelMapa.tituloTarea;
+        }
+        // Dos clases no se llaman igual: la repetida toma el nombre de su tarea, y si ese también está, lleva su número.
         const claveTitulo = String(d.titulo || "").trim().toLowerCase();
         if (claveTitulo && titulosVistos.has(claveTitulo)) {
           const anterior = d.titulo;
@@ -6286,6 +6293,9 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           if (propio && !titulosVistos.has(propio.toLowerCase())) {
             d.titulo = propio;
             avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título repetido «${anterior}»`);
+          } else if (propio) {
+            d.titulo = `${propio} (clase ${i + 1})`;
+            avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título repetido «${anterior}», lleva el número de la clase`);
           } else avisosClaseFinal.push(`clase ${i + 1}: título repetido: «${anterior}»`);
         }
         titulosVistos.add(String(d.titulo || "").trim().toLowerCase());
