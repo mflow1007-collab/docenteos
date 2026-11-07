@@ -185,6 +185,9 @@ check("Anexo J: la clase 1 de Proyectos diagnostica las cuatro habilidades y el 
   const dd = diagnosticoDeFases(fasesRedactadas, true);
   igual(dd.habilidades.sort(), ["listening", "reading", "speaking", "writing"], "diagnóstico de la unidad redactada");
   assert(/orientarse/.test(dd.asunto) && diagnosticoDeFases(fasesRedactadas, false) === null, "asunto o plantilla sin mapa");
+  // Un asunto con comas no se corta en la primera.
+  const conComas = diagnosticoDeActividades(["Leen (en parejas) un texto breve sobre cómo organizar el día entre la escuela, la casa y sus responsabilidades y subrayan lo que entienden."]);
+  igual(conComas.asunto, "cómo organizar el día entre la escuela, la casa y sus responsabilidades", "asunto con comas");
   // Sin lectura en la clase 1, el anexo no la promete.
   const sinLectura = construirAnexosUnidad({ area: "Inglés", tema: "T", producto: "P", diagnosticoClase1: { habilidades: ["listening", "speaking", "writing"], asunto: "" } });
   assert(!sinLectura.diagnostica.some((x) => /Reading/.test(x.habilidad)) && sinLectura.diagnostica.length === 3, "promete lectura sin hacerla");

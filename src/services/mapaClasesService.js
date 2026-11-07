@@ -696,7 +696,8 @@ export const diagnosticoDeActividades = (actividades = []) => {
     hay(/\bleen\b[^.]*\btexto/i) ? "reading" : "",
     hay(/\bescriben\b[^.]*\boraciones?\b/i) ? "writing" : "",
   ].filter(Boolean);
-  const lectura = textos.map((t) => t.match(/\btexto breve sobre (.+?)(?: y | mientras|,|\.|:|$)/i)).find(Boolean);
+  // El asunto puede llevar comas («cómo organizar el día entre la escuela, la casa y…»): termina en el verbo que sigue, no en la coma.
+  const lectura = textos.map((t) => t.match(/\btexto breve sobre (.+?)(?: y [a-záéíóúñ]{4,}(?:an|en)\b| mientras|:|\.|$)/i)).find(Boolean);
   const NUMEROS = { una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5 };
   const cuantas = textos.map((t) => t.match(/\bescriben\b[^.]*?\b(una|dos|tres|cuatro|cinco)\s+oraciones?\b/i)).find(Boolean);
   return { habilidades, asunto: lectura ? lectura[1].trim() : "", oracionesEscritura: cuantas ? NUMEROS[cuantas[1].toLowerCase()] : 0 };
