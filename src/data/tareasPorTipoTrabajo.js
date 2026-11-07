@@ -27,6 +27,14 @@ const tarea = (clave, nombre, minutos, demuestra, evidencia, condicion, organiza
 
 // «orientar» se añade aquí y no en TIPOS_TRABAJO: esa lista alimenta la generación
 // actual y cambiarla queda para la etapa que conecte el mapa.
+// «Recoger datos» (encuesta anónima y agregada) se reutiliza en varias estrategias: a quién se pregunta y con qué frases
+// de ejemplo depende de lo que se investiga (hábitos en Indagación; un problema o un caso en las demás).
+export const DATOS_ENCUESTA = {
+  indagacion_dialogica: { poblacion: "sus compañeros", pregunta: "_How often do you…?_", preguntas: "_How often do you…?_, _What time do you…?_", respuestas: "_I sometimes…_, _I never…_", cifras: "_8 of 30 students…_" },
+  problemas: { poblacion: "estudiantes de otro grupo a quienes afecta el problema", pregunta: "_Did you…?_", preguntas: "_Did you…?_, _Where…?_, _Why…?_", respuestas: "_Yes, I did…_, _It happened because…_", cifras: "_6 of 10 students…_" },
+  estudio_caso: { poblacion: "personas que conocen el caso", pregunta: "_What happened…?_", preguntas: "_What happened…?_, _Why…?_, _Who…?_", respuestas: "_I think…_, _Because…_", cifras: "_5 of 8 people…_" },
+};
+
 export const TAREAS_POR_TIPO = {
   visitar: [
     tarea("visitar_modelo", "identificar preguntas con un modelo", [15, 30], "C", "conocimiento", "escrita", "parejas", "Lista de datos por recoger", "preparar_instrumentos", "conocimiento", "C", "Entrevista modelo impresa"),
@@ -161,7 +169,7 @@ export const DETALLE_TAREA = {
   audiencia_secundaria: { hace: "Prueban el producto con la audiencia secundaria y recogen sus comentarios.", senal: "present|prueb|muestr" },
   evaluar_comentarios: { califica: "las respuestas individuales", hace: "Leen los comentarios de la audiencia y cada estudiante responde por escrito qué piden cambiar y por qué. Las respuestas son la evidencia de comprensión.", senal: "comentari", firma: "Cada estudiante firma sus respuestas." },
   indagar_disenar: { hace: "Redactan una encuesta breve y anónima con los datos que necesita el producto; cada estudiante firma la pregunta que aporta, no las respuestas.", senal: "encuesta|cuestionario", firma: "Cada estudiante firma la pregunta que aporta." },
-  indagar_aplicar: { hace: "Aplican la encuesta a sus compañeros sin anotar nombres y resumen las respuestas en cifras del grupo.", senal: "encuesta|respuestas|resum" },
+  indagar_aplicar: { hace: "Aplican la encuesta a la población elegida sin anotar nombres y resumen las respuestas en cifras del grupo.", senal: "encuesta|respuestas|resum" },
   indagar_contrastar: { hace: "Comprueban si una fuente impresa es fiable y comparan con ella sus resultados.", senal: "fuente" },
   revision_docente: { hace: "El docente revisa cada sección con la rúbrica, criterio por criterio, y devuelve en qué nivel está y qué mejorar; el grupo editor anota las mejoras hasta llegar al nivel satisfactorio. Es formativa: no se califica ni se corrige aquí el producto completo.", senal: "rúbrica|rubrica|revis|mejor", formativo: ["la revisión del docente con la rúbrica"] },
   revision_nivel: { hace: "Cada grupo muestra al docente su sección corregida; el docente la revisa con la rúbrica y anotan si llegó al nivel satisfactorio o qué mejora falta. Es formativa: no se califica.", senal: "satisfactorio|rúbrica|rubrica|revis", formativo: ["la segunda revisión del docente"] },

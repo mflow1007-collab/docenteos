@@ -193,6 +193,14 @@ check("Anexo J: la clase 1 de Proyectos diagnostica las cuatro habilidades y el 
   assert(!sinLectura.diagnostica.some((x) => /Reading/.test(x.habilidad)) && sinLectura.diagnostica.length === 3, "promete lectura sin hacerla");
 });
 
+check("Problemas con 15 clases o más: revisión del docente → mejora → nivel satisfactorio → sumativa, en «Puesta en común»", () => {
+  [["Escuela y educación", 5], ["Alimentación", 6]].forEach(([titulo, semanas]) => {
+    const m = mapaDe(titulo, semanas, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+    const ord = (c) => m.filas.findIndex((f) => f.tareas.some((t) => t.clave === c));
+    assert(ord("revision_docente") >= 0 && ord("revision_docente") <= ord("corregir") && ord("corregir") <= ord("revision_nivel") && ord("revision_nivel") < ord("presentar"), `${titulo}: orden de la ronda de mejora`);
+    assert(!m.avisos.some((a) => /no cabe en este tiempo/.test(a)), `${titulo}: tarea descartada`);
+  });
+});
 check("Problemas: Escuela a 4 semanas cabe en 12 clases sin versión breve y la revisión del docente va antes de la sumativa", () => {
   const m = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
   assert(m.modo !== "breve" && !m.filas.some((f) => f.flexible), `modo ${m.modo}`);
@@ -211,6 +219,17 @@ check("Problemas: con 13 clases o más cada fase lleva su tarea (selección, def
   });
   const doce = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
   assert(doce.modo !== "breve" && !doce.filas.some((f) => f.flexible), `12 clases: ${doce.modo}`);
+});
+check("recoger datos se parametriza por estrategia: hábitos en Indagación, el problema o el caso en las demás", () => {
+  const textos = (estrategia, semanas = 5) => {
+    const m = mapaDe("Escuela y educación", semanas, HORARIOS["3x1"], { planMaestro: { estrategia } });
+    ponerSecuencias(m, { producto: "Our Guide — una guía", tema: "Escuela", asunto: "cómo orientarse", audiencia: "los estudiantes de 6.º", semilla: "x", fuente: "una fuente" });
+    return m.filas.filter((f) => f.tareas.some((t) => /^indagar_(disenar|aplicar)$/.test(t.clave))).flatMap((f) => (f.secuencia || []).map((x) => x.texto)).join(" ");
+  };
+  const ind = textos("indagacion_dialogica", 6), prob = textos("problemas"), caso = textos("estudio_caso");
+  assert(/How often do you/.test(ind) && /compañeros/.test(ind), "Indagación pregunta por hábitos a sus compañeros");
+  assert(/Did you…/.test(prob) && /Where…/.test(prob) && /otro grupo a quienes afecta el problema/.test(prob) && !/How often|8 of 30/.test(prob), `Problemas: ${prob.slice(0, 200)}`);
+  assert(/What happened…/.test(caso) && /conocen el caso/.test(caso) && !/How often/.test(caso), "Estudio de caso");
 });
 check("recoger datos se reutiliza en la fase de investigación de Problemas y Estudio de caso, desde 15 clases", () => {
   [["problemas", /^Análisis e investigación/], ["estudio_caso", /^Indagación o estudio/]].forEach(([estrategia, fase]) => {

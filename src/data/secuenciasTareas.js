@@ -211,14 +211,14 @@ export const SECUENCIAS_POR_TAREA = {
   ],
   indagar_disenar: [
     [
-      p(3, "Repasan (en plenaria) qué datos necesita {producto}, mientras el docente muestra una pregunta modelo (_How often do you…?_)."),
-      pe(7, "Redactan (en grupos) una encuesta breve de 4 o 5 preguntas sobre {asunto} (_How often do you…?_, _What time do you…?_), sin espacio para nombres."),
+      p(3, "Repasan (en plenaria) qué datos necesita {producto}, mientras el docente muestra una pregunta modelo ({pregunta})."),
+      pe(7, "Redactan (en grupos) una encuesta breve de 4 o 5 preguntas sobre {asunto} ({preguntas}), sin espacio para nombres."),
       p(2, "Prueban (en parejas) las preguntas con otro grupo y cambian las que no se entienden."),
       pe(3, "Firman (individual) la pregunta que aportó cada uno, no las respuestas: encuesta lista; queda en la carpeta."),
     ],
     [
       p(3, "Conversan (en plenaria) sobre qué hay que preguntar para saber {asunto}, y el docente anota los datos en la pizarra."),
-      pe(7, "Escriben (en grupos) las preguntas de la encuesta, una por dato (_How often do you…?_, _Do you always…?_), sin espacio para nombres."),
+      pe(7, "Escriben (en grupos) las preguntas de la encuesta, una por dato ({preguntas}), sin espacio para nombres."),
       p(2, "Comparan (en grupos) sus preguntas con las de otro grupo y dejan 4 o 5."),
       pe(3, "Firman (individual) la pregunta que aportó cada uno, no las respuestas: encuesta lista; queda en la carpeta."),
     ],
@@ -226,15 +226,15 @@ export const SECUENCIAS_POR_TAREA = {
   indagar_aplicar: [
     [
       p(2, "Reparten (en parejas) a quién preguntará cada uno, mientras el docente recuerda que las respuestas no llevan nombre."),
-      pe(7, "Aplican (en parejas, por turnos) la encuesta a sus compañeros (_How often do you…?_, _I never…_, _I always…_), sin anotar nombres."),
+      pe(7, "Aplican (en parejas, por turnos) la encuesta a {poblacion} ({pregunta}, {respuestas}), sin anotar nombres."),
       p(2, "Reúnen (en grupos) las hojas de respuestas sin nombre."),
-      pe(4, "Cuentan (en grupos) las respuestas y las resumen en cifras del grupo, nunca por nombre (_8 of 30 students…_): tabla común de resultados; queda en la carpeta."),
+      pe(4, "Cuentan (en grupos) las respuestas y las resumen en cifras del grupo, nunca por nombre ({cifras}): tabla común de resultados; queda en la carpeta."),
     ],
     [
       p(2, "Ensayan (en parejas) cómo hacer las preguntas, mientras el docente aclara que nadie anota nombres."),
-      pe(7, "Preguntan (en parejas, por turnos) a sus compañeros con la encuesta y marcan cada respuesta (_I sometimes…_, _I never…_), sin anotar nombres."),
+      pe(7, "Preguntan (en parejas, por turnos) a {poblacion} con la encuesta y marcan cada respuesta ({respuestas}), sin anotar nombres."),
       p(2, "Juntan (en grupos) las respuestas de todas las parejas."),
-      pe(4, "Resumen (en grupos) los resultados en cifras del grupo, nunca por nombre (_8 of 30 students…_): tabla común de resultados; queda en la carpeta."),
+      pe(4, "Resumen (en grupos) los resultados en cifras del grupo, nunca por nombre ({cifras}): tabla común de resultados; queda en la carpeta."),
     ],
   ],
   indagar_contrastar: [

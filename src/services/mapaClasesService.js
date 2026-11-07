@@ -20,7 +20,7 @@ import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR, TAREA_REVISION_DOCENTE, TAREA_REVISION_NIVEL,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
   INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION, LUGARES_NO_DECLARADOS,
-  PREGUNTA_SITUACION_POR_SEMILLA, PREGUNTA_SITUACION_GENERAL, ESTRUCTURA_POR_TAREA,
+  PREGUNTA_SITUACION_POR_SEMILLA, PREGUNTA_SITUACION_GENERAL, ESTRUCTURA_POR_TAREA, DATOS_ENCUESTA,
 } from "../data/tareasPorTipoTrabajo.js";
 
 export const CLASES_MINIMAS = 3;
@@ -126,15 +126,20 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Una sola revisión para todas las secciones: el docente pasa por cada grupo editor, sección por sección.
   if (proyectos) push({ ...TAREA_REVISION_DOCENTE, ...enEvaluacion }, corregibles, 2, 0.9, 0);
   // Problemas no tiene fase de evaluación: va en «Puesta en común», revisión formativa → sumativa → respuesta (decisión B).
-  if (estrategia === "problemas") push({ ...TAREA_REVISION_DOCENTE, faseGuia: faseDe(/^Puesta en común/) }, corregibles, 3, 1.5, 0);
+  // Con 15 clases o más, Problemas lleva la ronda completa en «Puesta en común»: revisión del docente → mejora → comprobar el
+  // nivel satisfactorio → sumativa (Referente por proyecto 2022, p. 35). Con menos, solo la revisión.
+  const puesta = faseDe(/^Puesta en común/);
+  const enPuesta = estrategia === "problemas" && totalClases >= 15 && puesta >= 0 ? { faseGuia: puesta } : {};
+  const rondaCompleta = "faseGuia" in enPuesta;
+  if (estrategia === "problemas") push({ ...TAREA_REVISION_DOCENTE, faseGuia: puesta }, corregibles, rondaCompleta ? 2 : 3, rondaCompleta ? 0.9 : 1.5, 0);
   // Proyectos: tras la revisión del docente, un solo ciclo de mejora para todas las secciones.
   // Con revisión del docente (Proyectos y Problemas) la mejora es un solo ciclo: Problemas a 4 semanas no cabía en 12 clases.
   const unCiclo = proyectos || estrategia === "problemas";
-  if (unCiclo) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, corregibles, 2, 1, 0);
+  if (unCiclo) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion, ...enPuesta }, corregibles, 2, 1, 0);
   else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g));
   if (!unCiclo) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g));
   // Segunda ronda: el docente comprueba que las secciones corregidas llegaron al nivel satisfactorio.
-  if (proyectos) push({ ...TAREA_REVISION_NIVEL, ...enEvaluacion }, corregibles, 2, 3, 0);
+  if (proyectos || rondaCompleta) push({ ...TAREA_REVISION_NIVEL, ...enEvaluacion, ...enPuesta }, corregibles, 2, 3, 0);
   const u = TAREAS_UNIDAD;
   // Proyectos: acuerdo y diagnóstico en 22 minutos, para que «Análisis de saberes previos» tenga su tarea en la clase 1
   // (SQA, Referente por proyecto 2022, p. 32). Interpretación DocenteOS, aprobada por César el 2026-11-07.
@@ -983,6 +988,7 @@ const minutosDePasos = (pasos, tareas) => {
 export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", fuente = "", audiencia = "", invitado = "", entrega = "", semilla = "" } = {}) => {
   // La fuente que se contrasta se nombra en los pasos y en los recursos de su clase.
   const nombreFuente = fuente || `una fuente sobre ${asunto || tema}`;
+  const datosEncuesta = DATOS_ENCUESTA[mapa.estrategia] || DATOS_ENCUESTA.indagacion_dialogica;
   mapa.filas.forEach((fila) => fila.tareas.filter((t) => t.clave === "indagar_contrastar").forEach((t) => {
     t.recursos = { ...t.recursos, didacticos: String(t.recursos?.didacticos || "").replace("Fuente impresa que trae el docente", `Fuente impresa: ${nombreFuente}`) };
   }));
@@ -1009,6 +1015,11 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", f
         .replaceAll("{tema}", tema)
         .replaceAll("{asunto}", asunto || tema)
         .replaceAll("{fuente}", nombreFuente)
+        .replaceAll("{poblacion}", datosEncuesta.poblacion)
+        .replaceAll("{preguntas}", datosEncuesta.preguntas)
+        .replaceAll("{pregunta}", datosEncuesta.pregunta)
+        .replaceAll("{respuestas}", datosEncuesta.respuestas)
+        .replaceAll("{cifras}", datosEncuesta.cifras)
         .replace(/\{audiencia\}/g, () => {
           if (audienciaDicha || !audiencia) return "la audiencia";
           audienciaDicha = true;
