@@ -157,7 +157,10 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   if (estrategia === "indagacion_dialogica") [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push(t, [...orden], 0, 2, k));
   // Presentar y usar el producto con la audiencia son siempre dos tareas: la de usarlo cubre interactuar.
   const prueba = pruebaDelProducto(producto, orden);
-  push(u.presentarSecciones, [...orden], 3, 2, 0);
+  // Una propuesta se presenta completa y se defiende: no «se usa» (Guía 2025, p. 21).
+  push(prueba?.tipo === "defender"
+    ? { ...u.presentarSecciones, tipoPrueba: "defender", hace: "Presentan TODA la propuesta a la audiencia: las causas, los objetivos, las alternativas evaluadas y la recomendación. Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos." }
+    : u.presentarSecciones, [...orden], 3, 2, 0);
   push({ ...u.probarConAudiencia, tipoPrueba: prueba?.tipo || "general", hace: prueba?.hace || "Usan el producto con la audiencia para lo que fue hecho y luego recogen sus comentarios en tarjetas." }, [...orden], 3, 2, 1);
   push(u.audienciaSecundaria, [...orden], 3, 3, 0);
   push(u.evaluarComentarios, [...orden], 3, 4, 0);
@@ -673,7 +676,9 @@ export const focoDeFila = (fila = {}, filas = []) => {
   }
   // Si la clase reúne el producto, esa es su tarea principal.
   const clave = (fila.tareas || []).find((t) => t.clave === "integrar")?.clave || fila.tareas?.[0]?.clave || "";
-  const fija = ESTRUCTURA_POR_TAREA[clave] || ESTRUCTURA_POR_TAREA[clave.split("_")[0]] || null;
+  // Una propuesta se presenta y se defiende: su estructura es justificar la recomendación, no explicar para qué sirve.
+  const defiende = ["presentar", "probar_audiencia"].includes(clave) && (fila.tareas || []).some((t) => t.tipoPrueba === "defender");
+  const fija = defiende ? ["Defender una recomendación", "(_We recommend… because…_)"] : (ESTRUCTURA_POR_TAREA[clave] || ESTRUCTURA_POR_TAREA[clave.split("_")[0]] || null);
   const textos = (cat) => (fila.contenidos || []).filter((c) => c.categoria === cat).map((c) => c.texto);
   // Tareas cuya acción no la sirve la gramática que el reparto le dio a la clase (organizar datos, entender un problema):
   // su estructura es la de la tarea, no la de otro tema de la malla (Rutinas C8, Problemas C5).

@@ -228,6 +228,9 @@ check("la prueba con la audiencia depende del tipo de producto: una propuesta se
   igual(pruebaDelProducto("Our Welcome Proposal — una propuesta bilingüe a la dirección", ["Causes", "Goals"]).tipo, "defender", "propuesta");
   igual(pruebaDelProducto("Our School Survival Guide", ["School Directions"]).tipo, "guia", "guía con su sección");
   igual(pruebaDelProducto("Our Menu", ["Welcome"]), null, "producto sin tipo conocido");
+  // La estructura del día de la presentación de una propuesta justifica la recomendación, no «explica para qué sirve».
+  const fp = (tipo) => ({ clase: 14, tareas: [{ clave: "presentar", tipoPrueba: tipo, secciones: [] }, { clave: "probar_audiencia", tipoPrueba: tipo, secciones: [] }], contenidos: [] });
+  assert(/Defender una recomendación/.test(focoDeFila(fp("defender"), [])) && !/Defender/.test(focoDeFila(fp("guia"), [])), "estructura de la presentación de una propuesta");
   assert(SECUENCIAS_POR_TAREA["probar_audiencia:defender"]?.length >= 2 && SECUENCIAS_POR_TAREA["probar_audiencia:defender"].every((v) => /por qué|recomend|defiend/i.test(v.map((x) => x.texto).join(" "))), "secuencia de defender");
 });
 check("títulos de clase del código: acción y sección, nunca el nombre interno de la tarea", () => {
