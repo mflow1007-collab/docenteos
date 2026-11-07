@@ -80,16 +80,16 @@ const buscarFase = (fases, tiposFase, t, k, cuantas) => {
 const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) }, (_, i) => lista.slice(i * n, (i + 1) * n));
 
 // Lista completa de tareas de la unidad, sin minutos ni clases.
-const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia }) => {
+const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99 }) => {
   const tareasOmitidas = omitidas;
   const indagacion = estrategia === "indagacion_dialogica";
   const faseDe = (re) => fases.findIndex((f) => re.test(f.nombre));
   // Decisiones de César (2026-11-06). Indagación: la fase 3 organiza y prioriza lo ya validado (Referente 2025, p. 18).
   // Problemas: los cursos de acción se evalúan como contenido, en «Reestructuración», no se califican (Adecuación, p. 24).
   let ordenarIndagacion = false;
-  const ajustePorEstrategia = (t) => {
+  const ajustePorEstrategia = (t, seccion = "") => {
     if (indagacion && t.clave === "analizar_ordenar") return { ...t, faseGuia: faseDe(/^Análisis y organización/), hace: "Organizan y priorizan los datos validados en una tabla de frecuencia o una matriz por categoría, y deciden qué problemas atenderá el plan. Aún no redactan la pieza." };
-    if (estrategia === "problemas" && t.clave === "proponer_elegir") return { ...t, faseGuia: faseDe(/^Reestructuración/), hace: "Evalúan los cursos de acción posibles (ventajas, desventajas y viabilidad) y justifican cuál eligen con la tabla." };
+    if (estrategia === "problemas" && t.clave === "proponer_elegir") return { ...t, faseGuia: faseDe(/^Reestructuración/), hace: `Evalúan los cursos de acción posibles${seccion ? ` para «${seccion}»` : ""} (ventajas, desventajas y viabilidad) y justifican cuál eligen con la tabla.` };
     return t;
   };
   const orden = ordenarSecciones(secciones, tipos, partenDe);
@@ -104,7 +104,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
         if (ordenarIndagacion) return;
         ordenarIndagacion = true;
       }
-      push(ajustePorEstrategia(t), [seccion], 1, s, p);
+      push(ajustePorEstrategia(t, seccion), [seccion], 1, s, p);
     });
   });
   const comentables = orden.filter((s) => !["aplicar", "proponer"].includes(tipos[s]));
@@ -133,6 +133,10 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // (SQA, Referente por proyecto 2022, p. 32). Interpretación DocenteOS, aprobada por César el 2026-11-07.
   push(proyectos ? { ...u.acordar, minutos: [22, 22] } : u.acordar, [...orden], 0, 0, 0);
   if (proyectos) push(u.saberesPrevios, [...orden], 0, 1, 0);
+  // Problemas: las fases 1 a 3 (selección, definición y objetivos) cada una con su tarea.
+  // Con 12 clases no caben (la unidad entera ya llena el tiempo): ahí las fases 2 y 3 se unen a la 1 y queda por decidir qué
+  // tarea sale (César). Desde 13 clases, cada fase lleva la suya.
+  if (estrategia === "problemas" && totalClases >= 13) [u.problemaAnalizar, u.problemaDefinir, u.problemaObjetivos].forEach((t, k) => push(t, [...orden], 0, 1 + k, 0));
   push(u.glosario, [...orden], 3, 0, 0);
   push({ ...u.integrar, ...enEvaluacion }, [...orden], 3, 1, 0);
   if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) push(u.recorrerLugares, [...orden], 0, 1, 0);
@@ -735,7 +739,7 @@ export const titulosParecidos = (titulos = [], umbral = 0.7) => {
 // Título de la clase cuando la IA no lo devuelve o se repite: lo escribe el código desde la acción y la sección,
 // no con el nombre interno de la tarea. `{p}` = producto; la sección se añade sola si la tarea es de una sección.
 const TITULO_POR_TAREA = {
-  acordar: "Acordando el plan de {p}", saberes_previos: "Lo que sabemos y queremos saber", recorrer_lugares: "Recorriendo el centro",
+  acordar: "Acordando el plan de {p}", problema_analizar: "Entendiendo el problema y sus causas", problema_definir: "Definiendo el problema", problema_objetivos: "Fijando nuestros objetivos", saberes_previos: "Lo que sabemos y queremos saber", recorrer_lugares: "Recorriendo el centro",
   visitar_modelo: "Conociendo una entrevista modelo", visitar_guion: "Escribiendo el guion", visitar_entrevistar: "Entrevistando",
   visitar_registrar: "Registrando lo que dijeron", visitar_segunda: "Completando los datos que faltan",
   describir_modelo: "Analizando una pieza modelo", describir_redactar: "Redactando la pieza", analizar_ordenar: "Ordenando los datos",
@@ -750,7 +754,7 @@ const TITULO_POR_TAREA = {
   probar_audiencia: "Probando {p} con la audiencia", audiencia_secundaria: "Mostrando {p} a otra audiencia", evaluar_comentarios: "Respondiendo a los comentarios",
   corregir_final: "Corrigiendo {p}", evaluar_proceso: "Reflexionando sobre lo aprendido",
 };
-const SIN_SECCION = new Set(["acordar", "saberes_previos", "recorrer_lugares", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "corregir_final", "evaluar_proceso", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "revision_docente", "revision_nivel"]);
+const SIN_SECCION = new Set(["acordar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos", "recorrer_lugares", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "corregir_final", "evaluar_proceso", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "revision_docente", "revision_nivel"]);
 export const tituloDeClase = (fila = {}, producto = "") => {
   const t = fila.tareas?.[0];
   if (!t) return "";
@@ -1090,7 +1094,7 @@ const nombreCorto = (producto) => String(producto || "").split(/\s+[—–]\s+/)
 /** Anexo I desde el mapa: cada sección con su propio proceso, estados y evidencia. */
 export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, propositos = {} } = {}) => {
   const filas = mapa.filas.filter((f) => !f.flexible);
-  const COMPARTIDAS = ["acordar", "saberes_previos", "revision_docente", "revision_nivel", "recorrer_lugares", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
+  const COMPARTIDAS = ["acordar", "saberes_previos", "problema_analizar", "problema_definir", "problema_objetivos", "revision_docente", "revision_nivel", "recorrer_lugares", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
   return [
     { seccion: "Título", incluye: `Mi nombre y el título del producto (${nombreCorto(producto)}).`, fases: "" },
     ...mapa.secciones.map((seccion) => {
@@ -1158,7 +1162,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   const clave = plan.estrategia.clave;
   const tiposFase = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[clave] || null;
   const { tipos, supuestas } = tiposDeSecciones(plan.secciones, entrada.tiposTrabajoSecciones || {});
-  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [] });
+  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total });
   const capacidad = minutosDesarrollo(duracionMin);
   const avisos = [];
   if (supuestas.length) avisos.push(`Tipo de trabajo supuesto por la posición de la sección: ${supuestas.join(", ")}. El docente puede cambiarlo.`);

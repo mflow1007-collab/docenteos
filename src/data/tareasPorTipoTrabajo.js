@@ -100,6 +100,11 @@ export const TAREAS_UNIDAD = {
   // Proyectos, fase «Análisis de saberes previos» (Referente por proyecto 2022, p. 32): SQA sobre el problema y el
   // producto, distinto del diagnóstico de idioma de la clase 1. Interpretación DocenteOS, aprobada por César el 2026-11-07.
   saberesPrevios: tarea("saberes_previos", "recoger los saberes previos sobre el problema y el producto", [8, 15], "C", "conocimiento", "oral y escrita", "grupos", "Cartel SQA y preguntas para comprobar", null, "apertura", "C", "Cartulina, marcadores, tarjetas", { faseGuia: 1 }),
+  // Problemas, fases 1 a 3 (Adecuación 2023, p. 24: identificar y comprender el problema, delimitarlo, esquematizar los
+  // propósitos del grupo). Cada fase conserva su tarea. Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  problemaAnalizar: tarea("problema_analizar", "identificar el problema y sus causas", [5, 10], "C", "conocimiento", "oral y escrita", "grupos", "Árbol del problema y causa elegida", null, "apertura", "C", "Cartulina, marcadores, tarjetas", { faseGuia: 0 }),
+  problemaDefinir: tarea("problema_definir", "definir el problema en una frase", [5, 10], "P", "producto", "escrita", "grupos", "El problema en una frase y sus elementos", null, "apertura", "C", "Cartulina, tarjetas", { faseGuia: 1 }),
+  problemaObjetivos: tarea("problema_objetivos", "formular los objetivos del grupo", [5, 10], "P", "producto", "escrita", "grupos", "Objetivos del grupo y lo que se investigará", null, "apertura", "C", "Cartulina, hojas", { faseGuia: 2 }),
   glosario: tarea("glosario", "glosario", [15, 15], "P", "producto", "escrita", "grupos", "Glosario de la guía", "aplicar", "aplicacion", "M", "Piezas de las secciones", { ampliacion: true }),
   integrar: tarea("integrar", "reunir las secciones y revisar el conjunto", [9, 18], "P", "producto", "escrita", "grupos editores", "Producto completo", "aplicar", "aplicacion", "M", "Todas las secciones"),
   presentar: tarea("presentar", "presentar a la audiencia", [15, 30], ["P", "I"], "desempeno", "oral", "grupos editores ante la audiencia", "Presentación y comentarios de la audiencia", "aplicar", "socializacion", "M", "Producto completo, tarjetas de comentarios", { llegaAudiencia: true, sumativa: true }),
@@ -161,6 +166,9 @@ export const DETALLE_TAREA = {
   revision_docente: { hace: "El docente revisa cada sección con la rúbrica, criterio por criterio, y devuelve en qué nivel está y qué mejorar; el grupo editor anota las mejoras hasta llegar al nivel satisfactorio. Es formativa: no se califica ni se corrige aquí el producto completo.", senal: "rúbrica|rubrica|revis|mejor", formativo: ["la revisión del docente con la rúbrica"] },
   revision_nivel: { hace: "Cada grupo muestra al docente su sección corregida; el docente la revisa con la rúbrica y anotan si llegó al nivel satisfactorio o qué mejora falta. Es formativa: no se califica.", senal: "satisfactorio|rúbrica|rubrica|revis", formativo: ["la segunda revisión del docente"] },
   saberes_previos: { hace: "Comparten lo que ya saben del problema y del producto en un cartel SQA (qué sabemos, qué queremos saber) y escriben dos preguntas para comprobar. No es el diagnóstico de idioma.", senal: "sqa|saben|queremos saber|pregunt" },
+  problema_analizar: { hace: "Reconocen el problema de la situación, dicen dónde lo han visto y hacen un árbol de causas y efectos; eligen la causa que más importa. No definen todavía el problema ni investigan.", senal: "causa|problema|árbol" },
+  problema_definir: { hace: "Escriben el problema en una frase y señalan sus elementos (quién, dónde, cuándo). Aún no formulan objetivos.", senal: "frase|defin|problema" },
+  problema_objetivos: { hace: "Escriben los objetivos del grupo y qué van a investigar para lograrlos. Aún no investigan.", senal: "objetivo|investig" },
   corregir_final: { formativo: ["la corrección"], hace: "Corrigen el producto completo con lo que pidió la audiencia. Queda listo para entregar; no se vuelve a presentar.", senal: "corrig" },
   evaluar_proceso: { formativo: ["la autoevaluación", "la coevaluación", "la reflexión"], hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
 };
@@ -298,6 +306,7 @@ export const ESTRUCTURA_POR_TAREA = {
   comentar: ["Comentar un texto", "(_I agree…_, _Sorry to interrupt…_)"],
   revision: ["Mejorar lo escrito con comentarios", "presente simple (_We need to…_)"],
   saberes: ["Compartir lo que se sabe", "presente simple (_We know…_, _We want to know…_)"],
+  problema: ["Describir un problema y sus causas", "presente simple (_The problem is…_, _It happens because…_)"],
   corregir: ["Corregir y mejorar lo escrito", "presente simple"],
   integrar: ["Revisar el conjunto", "presente simple (_This section shows…_)"],
   presentar: ["Explicar para qué sirve cada sección", "presente simple (_This section shows…_)"],

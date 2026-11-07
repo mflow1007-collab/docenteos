@@ -78,6 +78,49 @@ export const SECUENCIAS_POR_TAREA = {
       pe(2, "Redactan (en grupos) dos preguntas para comprobarlo: cartel SQA y preguntas; quedan en la carpeta."),
     ],
   ],
+  // Problemas, fases 1 a 3 (Adecuación 2023, p. 24). Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  problema_analizar: [
+    [
+      p(1, "Escuchan (en plenaria) el problema que plantea la situación y dicen dónde lo han visto."),
+      pe(2, "Hacen (en grupos) un árbol del problema: qué pasa y qué lo causa (_The problem is…_, _It happens because…_)."),
+      p(1, "Comparan (en plenaria) los árboles de los grupos."),
+      pe(1, "Eligen (en grupos) la causa que más importa: árbol del problema y causa elegida; quedan en la carpeta."),
+    ],
+    [
+      p(1, "Conversan (en plenaria) sobre el problema de la situación y dónde lo han visto."),
+      pe(2, "Dibujan (en grupos) un árbol con lo que pasa y sus causas (_It happens because…_, _One cause is…_)."),
+      p(1, "Revisan (en parejas) el árbol de otro grupo."),
+      pe(1, "Escogen (en grupos) la causa principal: árbol del problema y causa elegida; quedan en la carpeta."),
+    ],
+  ],
+  problema_definir: [
+    [
+      p(1, "Releen (en grupos) la causa que eligieron y qué pasa por ella."),
+      pe(2, "Escriben (en grupos) el problema en una frase (_Students are late because…_)."),
+      p(1, "Leen (en plenaria) las frases y se quedan con la más clara."),
+      pe(1, "Anotan (en grupos) quién, dónde y cuándo ocurre: el problema en una frase y sus elementos; queda en la carpeta."),
+    ],
+    [
+      p(1, "Revisan (en grupos) el árbol del problema que hicieron."),
+      pe(2, "Redactan (en grupos) una frase que diga cuál es el problema (_The problem is that…_)."),
+      p(1, "Comparan (en plenaria) las frases y eligen una."),
+      pe(1, "Escriben (en grupos) quién, dónde y cuándo ocurre: frase del problema y sus elementos; queda en la carpeta."),
+    ],
+  ],
+  problema_objetivos: [
+    [
+      p(1, "Recuerdan (en plenaria) el problema que definieron."),
+      pe(2, "Escriben (en grupos) dos objetivos: qué quieren lograr y qué necesitan averiguar (_We want to…_, _We need to find out…_)."),
+      p(1, "Comparan (en plenaria) los objetivos de los grupos."),
+      pe(1, "Anotan (en grupos) lo que van a investigar: objetivos del grupo y lo que se investigará; quedan en la carpeta."),
+    ],
+    [
+      p(1, "Repasan (en grupos) la frase del problema."),
+      pe(2, "Formulan (en grupos) dos objetivos para resolverlo (_Our goal is to…_, _We have to ask…_)."),
+      p(1, "Leen (en plenaria) los objetivos y señalan los más claros."),
+      pe(1, "Registran (en grupos) qué van a investigar: objetivos del grupo y lo que se investigará; quedan en la carpeta."),
+    ],
+  ],
   // Proyectos, fase «Evaluación»: segunda ronda hasta el nivel satisfactorio (Referente por proyecto 2022, p. 35). Interpretación DocenteOS, aprobada por César el 2026-11-07.
   revision_nivel: [
     [

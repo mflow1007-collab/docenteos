@@ -201,6 +201,17 @@ check("Problemas: Escuela a 4 semanas cabe en 12 clases sin versión breve y la 
   assert(ordenDe("revision_docente") >= 0 && ordenDe("revision_docente") <= ordenDe("presentar"), "la revisión no va antes de la sumativa");
   assert(m.filas.every((f) => didacticosDeFila(f)), "una clase sin recursos didácticos");
 });
+check("Problemas: con 13 clases o más cada fase lleva su tarea (selección, definición y objetivos incluidas), y con 12 no se pasa a versión breve", () => {
+  [["Alimentación", 6], ["Escuela y educación", 5]].forEach(([titulo, semanas]) => {
+    const m = mapaDe(titulo, semanas, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+    const tareas = m.filas.flatMap((f) => f.tareas);
+    const sin = [1, 2, 3, 4, 5, 6, 7].filter((n) => !tareas.some((t) => t.fase === n - 1));
+    igual(sin, [], `${titulo} ${semanas} sem: fases sin su tarea`);
+    ["problema_analizar", "problema_definir", "problema_objetivos"].forEach((c) => assert(tareas.some((t) => t.clave === c), `${titulo}: falta ${c}`));
+  });
+  const doce = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  assert(doce.modo !== "breve" && !doce.filas.some((f) => f.flexible), `12 clases: ${doce.modo}`);
+});
 check("títulos de clase del código: acción y sección, nunca el nombre interno de la tarea", () => {
   [["Escuela y educación", 4, "proyectos"], ["Alimentación", 6, "insercion_entorno"], ["Actividades de la vida diaria", 4, "indagacion_dialogica"], ["Escuela y educación", 4, "problemas"]].forEach(([titulo, semanas, estrategia]) => {
     const m = mapaDe(titulo, semanas, HORARIOS[semanas === 6 ? "3x1" : "3x1"], { planMaestro: { estrategia } });
