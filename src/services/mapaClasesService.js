@@ -127,7 +127,10 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Segunda ronda: el docente comprueba que las secciones corregidas llegaron al nivel satisfactorio.
   if (proyectos) push({ ...TAREA_REVISION_NIVEL, ...enEvaluacion }, corregibles, 2, 3, 0);
   const u = TAREAS_UNIDAD;
-  push(u.acordar, [...orden], 0, 0, 0);
+  // Proyectos: acuerdo y diagnóstico en 22 minutos, para que «Análisis de saberes previos» tenga su tarea en la clase 1
+  // (SQA, Referente por proyecto 2022, p. 32). Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  push(proyectos ? { ...u.acordar, minutos: [22, 22] } : u.acordar, [...orden], 0, 0, 0);
+  if (proyectos) push(u.saberesPrevios, [...orden], 0, 1, 0);
   push(u.glosario, [...orden], 3, 0, 0);
   push({ ...u.integrar, ...enEvaluacion }, [...orden], 3, 1, 0);
   if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) push(u.recorrerLugares, [...orden], 0, 1, 0);
@@ -676,9 +679,7 @@ export const fasesDeActividades = (fila = {}, tareaIds = []) => {
   const nombres = [...new Set([...(fila.tareas || []).map((t) => t.faseNombre), ...(fila.fases || []).map((f) => f.nombre)])].filter(Boolean);
   if (nombres.length < 2) return null;
   const desarrollo = tareaIds.map((id) => fila.tareas?.[Number(String(id).slice(1)) - 1]?.faseNombre || "");
-  // El mapa mental del Inicio de la clase 1 es la tarea de «Análisis de saberes previos».
-  const saberes = fila.mapaMental ? (fila.fases || []).map((f) => f.nombre).find((n) => /saberes previos/i.test(n)) : "";
-  return { nombres, Desarrollo: desarrollo, Inicio: saberes ? { 2: saberes } : {} };
+  return { nombres, Desarrollo: desarrollo, Inicio: {} };
 };
 
 /** Concordancia con «guía» cuando es el producto, no una persona. */
@@ -810,22 +811,21 @@ export const minutosConDiagnostico = (actividades = [], total = 0) => {
  * Inicio de la clase 1: las mismas 5 posiciones de siempre, orientadas a presentar la
  * unidad (César, 2026-11-05). La presentación continúa en el Desarrollo. Lo escribe el código.
  */
-export const inicioPresentacion = (inicio = [], { producto = "", secciones = [], semillaId = "", mapaMental = false } = {}) => {
+export const inicioPresentacion = (inicio = [], { producto = "", secciones = [], semillaId = "" } = {}) => {
   const nombre = nombreCorto(producto) || "el producto";
   return [
     inicio[0],
     INICIO_PRIMERA_CLASE,
-    `Recuperación de saberes previos: escuchan la situación de aprendizaje, leída por el docente o un compañero, y dan ejemplos del problema que conocen.${mapaMental ? " Con lo que dicen arman en grupos un mapa mental del problema (qué sé, qué quiero saber) y escriben dos preguntas que quieren responder." : ""} (${PREGUNTA_SITUACION_POR_SEMILLA[semillaId] || PREGUNTA_SITUACION_GENERAL})`,
+    `Recuperación de saberes previos: escuchan la situación de aprendizaje, leída por el docente o un compañero, y dan ejemplos del problema que conocen. (${PREGUNTA_SITUACION_POR_SEMILLA[semillaId] || PREGUNTA_SITUACION_GENERAL})`,
     `Observan cómo será ${nombre}${secciones.length ? ` y sus secciones (${secciones.join(", ")})` : ""}, y dicen para qué creen que servirá.`,
     "Escuchan la intención pedagógica y el propósito de la clase: conocer la unidad, acordar cómo trabajarán y cómo se evaluará, y hacer el diagnóstico.",
   ];
 };
 
 /** Minutos del Inicio de la clase 1: la lectura lleva 4 sin aumentar el total del momento. */
-export const minutosInicioPresentacion = (total = 0, { mapaMental = false } = {}) => {
+export const minutosInicioPresentacion = (total = 0) => {
   if (total < 5) return null;
-  // Con el mapa mental de saberes previos la lectura lleva más tiempo (Proyectos, clase 1).
-  const lectura = Math.min(mapaMental && total >= 8 ? 6 : 4, Math.max(1, total - 4));
+  const lectura = Math.min(4, Math.max(1, total - 4));
   const resto = total - lectura;
   const minutos = [0, 1, 3, 4].reduce((m, i) => ({ ...m, [i]: Math.floor(resto / 4) }), { 2: lectura });
   [1, 3, 0, 4].slice(0, resto % 4).forEach((i) => { minutos[i] += 1; });
@@ -880,7 +880,7 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", f
   mapa.filas.forEach((fila) => fila.tareas.filter((t) => t.clave === "indagar_contrastar").forEach((t) => {
     t.recursos = { ...t.recursos, didacticos: String(t.recursos?.didacticos || "").replace("Fuente impresa que trae el docente", `Fuente impresa: ${nombreFuente}`) };
   }));
-  const claveBanco = (t) => (t.clave === "probar_audiencia" ? `probar_audiencia:${t.tipoPrueba || "general"}` : t.clave);
+  const claveBanco = (t) => (t.clave === "probar_audiencia" ? `probar_audiencia:${t.tipoPrueba || "general"}` : (t.clave === "acordar" && mapa.estrategia === "proyectos" ? "acordar:proyectos" : t.clave));
   mapa.filas.forEach((fila) => {
     if (!fila.tareas.length || fila.tareas.some((t) => t.paralelo || !SECUENCIAS_POR_TAREA[claveBanco(t)])) return;
     if (fila.tareas.some((t) => t.clave === "visitar_entrevistar") && fila.modalidad !== "invitado") return;
@@ -1012,7 +1012,7 @@ const nombreCorto = (producto) => String(producto || "").split(/\s+[—–]\s+/)
 /** Anexo I desde el mapa: cada sección con su propio proceso, estados y evidencia. */
 export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, propositos = {} } = {}) => {
   const filas = mapa.filas.filter((f) => !f.flexible);
-  const COMPARTIDAS = ["acordar", "revision_docente", "revision_nivel", "recorrer_lugares", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
+  const COMPARTIDAS = ["acordar", "saberes_previos", "revision_docente", "revision_nivel", "recorrer_lugares", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "comentar", "glosario", "integrar", "presentar", "probar_audiencia", "corregir_final", "audiencia_secundaria", "evaluar_comentarios", "evaluar_proceso"];
   return [
     { seccion: "Título", incluye: `Mi nombre y el título del producto (${nombreCorto(producto)}).`, fases: "" },
     ...mapa.secciones.map((seccion) => {
@@ -1163,17 +1163,6 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
     filas.forEach((f, i) => { f.clase = i + 1; });
   }
 
-  // Proyectos: la clase 1 lleva «Visión compartida» (acuerdo y diagnóstico de idioma) y «Análisis de saberes previos»
-  // (mapa mental del problema, en el Inicio que escribe el código), cada actividad con su fase. Fusión aprobada por
-  // César el 2026-11-06 (Referente por proyecto 2022, p. 30: la fila «Visión compartida y análisis de saberes previos» es una sola, y las actividades pueden durar una o más sesiones; p. 32: mapa mental). Interpretación DocenteOS.
-  if (clave === "proyectos") {
-    const saberes = plan.fases.findIndex((f) => /^Análisis de saberes previos/.test(f.nombre));
-    if (saberes >= 0 && filas[0] && !filas[0].flexible && !filas.some((f) => f.fases.some((x) => x.numero === saberes + 1))) {
-      filas[0].fases = [...filas[0].fases, faseInfo(saberes)].sort((a, b) => a.numero - b.numero);
-      filas[0].mapaMental = true;
-    }
-  }
-
   // Fases sin tarea: se unen a la clase de la fase siguiente con tarea (o a la última).
   plan.fases.forEach((_, i) => {
     if (filas.some((f) => f.fases.some((x) => x.numero === i + 1))) return;
@@ -1187,6 +1176,11 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
     destino.fases = [...destino.fases, faseInfo(i)].sort((a, b) => a.numero - b.numero);
     avisos.push(`La fase «${plan.fases[i].nombre}» no tiene tarea propia y se une a la clase ${destino.clase}.`);
   });
+
+  // Una tarea de la estrategia que no cabe se avisa: nunca se descarta en silencio (César, 2026-11-07).
+  const colocadas = new Set(filas.flatMap((f) => f.tareas.map((t) => t.clave)));
+  [...new Map(items.map((it) => [it.t.clave, it.t])).values()].filter((t) => !colocadas.has(t.clave) && !t.ampliacion)
+    .forEach((t) => avisos.push(`La tarea «${t.nombre}» no cabe en este tiempo y no está en el mapa.`));
 
   filas.forEach((f, i) => { f.semana = Math.ceil((i + 1) / (diasClase.length * horasPorDia)); });
   ponerDatosARecoger(filas, plan.secciones);

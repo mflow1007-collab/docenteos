@@ -151,11 +151,11 @@ check("Proyectos: la clase 1 lleva las dos primeras fases y la revisión del doc
   [["Escuela y educación", 4], ["Alimentación", 6]].forEach(([titulo, semanas]) => {
     const m = mapaDe(titulo, semanas, HORARIOS["3x1"], { planMaestro: { estrategia: "proyectos" } });
     assert(m.modo !== "breve" && !m.filas.some((f) => f.flexible), `${titulo}: ${m.modo}`);
-    igual(m.filas[0].fases.map((f) => f.numero), [1, 2], `${titulo}: fases de la clase 1`);
+    assert(m.filas.some((f) => f.tareas.some((t) => t.clave === "saberes_previos" && t.fase === 1)), `${titulo}: sin tarea en Análisis de saberes previos`);
+    assert(!m.avisos.some((a) => /no cabe en este tiempo/.test(a)), `${titulo}: tarea descartada`);
     const ordenDe = (clave) => m.filas.findIndex((f) => f.tareas.some((t) => t.clave === clave));
     const rev = ordenDe("revision_docente");
     assert(ordenDe("corregir") <= ordenDe("revision_nivel") && ordenDe("revision_nivel") < ordenDe("presentar"), `${titulo}: segunda revisión`);
-    assert(/mapa mental/.test(inicioPresentacion(["x"], { mapaMental: true })[2]) && m.filas[0].mapaMental, `${titulo}: saberes previos en la clase 1`);
     assert(rev >= 0 && rev <= ordenDe("corregir") && ordenDe("corregir") < ordenDe("presentar"), `${titulo}: orden de la revisión`);
     const filaRev = m.filas[rev];
     assert(!filaRev.tareas.some((t) => t.sumativa) && /Formativa/.test(evaluacionDeFila(filaRev).tipo), `${titulo}: la revisión es formativa`);
@@ -543,8 +543,10 @@ check("el diagnóstico tiene su tiempo: la clase 1 solo acuerda y diagnostica, t
   [1, 2, 3, 4, 6, 8].forEach((semanas) => {
     const mapa = mapaDe("Escuela y educación", semanas, HORARIOS["3x1"]);
     if (mapa.modo === "breve") return;
-    igual(mapa.filas[0].tareas.map((t) => t.clave), ["acordar"], `${semanas} semanas`);
-    igual(mapa.filas[0].tareas[0].minutos, 30, `${semanas} semanas, minutos`);
+    // Proyectos (César, 2026-11-07): acuerdo y diagnóstico en 22 minutos y, si cabe en la clase 1, el SQA de saberes previos.
+    const claves = mapa.filas[0].tareas.map((t) => t.clave);
+    assert(claves[0] === "acordar" && claves.every((c) => ["acordar", "saberes_previos"].includes(c)), `${semanas} semanas: ${claves}`);
+    igual(mapa.filas[0].tareas[0].minutos, mapa.estrategia === "proyectos" ? 22 : 30, `${semanas} semanas, minutos`);
   });
 });
 check("los recursos didácticos son los de la fila, sin repetir y sin equipos", () => {
@@ -724,8 +726,6 @@ check("C1: se lee la situación con ejemplos del problema, con pregunta por semi
   igual(minutosInicioPresentacion(10).join(), "1,2,4,2,1", "10 min");
   [5, 8, 10, 15].forEach((t) => igual(minutosInicioPresentacion(t).reduce((s, m) => s + m, 0), t, `total ${t}`));
   igual(minutosInicioPresentacion(4), null, "sin minutos para repartir");
-  igual(minutosInicioPresentacion(10, { mapaMental: true }).join(), "1,1,6,1,1", "10 min con mapa mental");
-  [8, 10, 15].forEach((t) => igual(minutosInicioPresentacion(t, { mapaMental: true }).reduce((s, m) => s + m, 0), t, `total ${t} con mapa mental`));
 });
 check("I-11: la estructura del día y las actividades no nombran lugares; Model School sí", () => {
   igual(sinLugaresEnEjemplos("Revisar y consolidar: presente simple (_The library is next to the cafeteria_…)"), "Revisar y consolidar: presente simple", "estructura");

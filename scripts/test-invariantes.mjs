@@ -109,7 +109,7 @@ const invariantesMapa = {
     const i = u.reales.findIndex((f) => f.tareas.some((t) => t.clave === "recorrer_lugares"));
     const previas = u.reales.slice(0, Math.max(0, i)).flatMap((f) => f.tareas.map((t) => t.clave));
     if (i < 0) problemas.push("no hay recorrido");
-    else if (previas.some((c) => c !== "acordar")) problemas.push(`hay otras tareas antes del recorrido (C${i + 1})`);
+    else if (previas.some((c) => !["acordar", "saberes_previos"].includes(c))) problemas.push(`hay otras tareas antes del recorrido (C${i + 1})`);
     if (!/Model School/.test(fuentePrompt)) problemas.push("el prompt no declara el centro ficticio");
     return problemas.join("; ");
   },
@@ -150,7 +150,7 @@ const invariantesMapa = {
     return u.mapa.secciones.length ? "" : "sin secciones";
   },
   "Fases": (u) => {
-    const sinTarea = u.mapa.fases.filter((n) => n !== undefined && !u.reales.some((f) => f.tareas.some((t) => t.fase === n - 1)) && !(u.reales[0]?.mapaMental && /mapa mental/.test(inicioPresentacion(["x"], { mapaMental: true })[2]) && u.reales[0].fases.some((x) => x.numero === n)));
+    const sinTarea = u.mapa.fases.filter((n) => n !== undefined && !u.reales.some((f) => f.tareas.some((t) => t.fase === n - 1)));
     const nombres = u.mapa.fases.length && u.reales.flatMap((f) => f.fases).length;
     return sinTarea.length && nombres ? `fases sin su tarea: ${sinTarea.join(", ")}` : "";
   },

@@ -5270,7 +5270,7 @@ const _generarFasesConIA = async (
           // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
           const alcance = ALCANCE_POR_SEMILLA[contexto.planMaestro?.semillaId]?.conInvitado || null;
           if (necesitaLugares(filaMapa)) dia.ampliacion = ampliacionSinLugares(dia.ampliacion);
-          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[contexto.planMaestro?.semillaId] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: filaMapa.tareas[0]?.nombre ? `${filaMapa.tareas[0].nombre.charAt(0).toUpperCase()}${filaMapa.tareas[0].nombre.slice(1)}${filaMapa.tareas[0].secciones?.length === 1 ? `: ${filaMapa.tareas[0].secciones[0]}` : ""}` : "", modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1, mapaMental: Boolean(filaMapa.mapaMental) };
+          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[contexto.planMaestro?.semillaId] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: filaMapa.tareas[0]?.nombre ? `${filaMapa.tareas[0].nombre.charAt(0).toUpperCase()}${filaMapa.tareas[0].nombre.slice(1)}${filaMapa.tareas[0].secciones?.length === 1 ? `: ${filaMapa.tareas[0].secciones[0]}` : (["comentar", "corregir"].includes(filaMapa.tareas[0].clave) && filaMapa.tareas[0].secciones?.length > 1 && filaMapa.tareas[0].secciones.length <= 3 ? `: ${filaMapa.tareas[0].secciones.join(", ")}` : "")}` : "", modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
         }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
@@ -6242,9 +6242,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
             producto: rutaPlanMaestro.plan?.producto,
             secciones: rutaPlanMaestro.mapa?.secciones || [],
             semillaId: datos.planMaestro?.situacion?.semillaId || "",
-            mapaMental: Boolean(d.fijoDelMapa.mapaMental),
           });
-          const minutosInicio = minutosInicioPresentacion(Number.parseInt(String(inicio.tiempo || ""), 10) || 0, { mapaMental: Boolean(d.fijoDelMapa.mapaMental) });
+          const minutosInicio = minutosInicioPresentacion(Number.parseInt(String(inicio.tiempo || ""), 10) || 0);
           if (minutosInicio) inicio.minutosActividad = minutosInicio;
         }
         // La clase 2 retoma el acuerdo: la IA le atribuía a la clase 1 lo que no hizo.
