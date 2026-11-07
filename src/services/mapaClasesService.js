@@ -150,7 +150,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // investigación de cada estrategia que investiga (Referente 2025 p. 20 y 23: encuesta, entrevista, fuentes). Con poco tiempo no cabe.
   const FASE_DE_DATOS = { problemas: /^Análisis e investigación/, estudio_caso: /^Indagación o estudio/ };
   if (FASE_DE_DATOS[estrategia] && totalClases >= UMBRAL_RECOGER_DATOS && faseDe(FASE_DE_DATOS[estrategia]) >= 0) {
-    [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]) }, [...orden], 0, 2.5, k));
+    [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]), estructura: DATOS_ENCUESTA[estrategia].estructura }, [...orden], 0, 2.5, k));
   }
   // Con 12 clases no caben (la unidad entera ya llena el tiempo): ahí las fases 2 y 3 se unen a la 1 y queda por decidir qué
   // tarea sale (César). Desde 13 clases, cada fase lleva la suya.
@@ -683,7 +683,8 @@ export const focoDeFila = (fila = {}, filas = []) => {
   const clave = (fila.tareas || []).find((t) => t.clave === "integrar")?.clave || fila.tareas?.[0]?.clave || "";
   // Una propuesta se presenta y se defiende: su estructura es justificar la recomendación, no explicar para qué sirve.
   const defiende = ["presentar", "probar_audiencia"].includes(clave) && (fila.tareas || []).some((t) => t.tipoPrueba === "defender");
-  const fija = defiende ? ["Defender una recomendación", "(_We recommend… because…_)"] : (ESTRUCTURA_POR_TAREA[clave] || ESTRUCTURA_POR_TAREA[clave.split("_")[0]] || null);
+  const estructuraDeTarea = (fila.tareas || []).find((t) => t.clave === clave)?.estructura || null;
+  const fija = defiende ? ["Defender una recomendación", "(_We recommend… because…_)"] : (estructuraDeTarea || ESTRUCTURA_POR_TAREA[clave] || ESTRUCTURA_POR_TAREA[clave.split("_")[0]] || null);
   const textos = (cat) => (fila.contenidos || []).filter((c) => c.categoria === cat).map((c) => c.texto);
   // Tareas cuya acción no la sirve la gramática que el reparto le dio a la clase (organizar datos, entender un problema):
   // su estructura es la de la tarea, no la de otro tema de la malla (Rutinas C8, Problemas C5).
@@ -992,7 +993,12 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", f
   mapa.filas.forEach((fila) => fila.tareas.filter((t) => t.clave === "indagar_contrastar").forEach((t) => {
     t.recursos = { ...t.recursos, didacticos: String(t.recursos?.didacticos || "").replace("Fuente impresa que trae el docente", `Fuente impresa: ${nombreFuente}`) };
   }));
-  const claveBanco = (t) => (t.clave === "probar_audiencia" ? `probar_audiencia:${t.tipoPrueba || "general"}` : (t.clave === "acordar" && mapa.estrategia === "proyectos" ? "acordar:proyectos" : t.clave));
+  const claveBanco = (t) => {
+    if (t.clave === "probar_audiencia") return `probar_audiencia:${t.tipoPrueba || "general"}`;
+    if (t.clave === "presentar" && t.tipoPrueba === "defender") return "presentar:defender";
+    if (t.clave === "acordar" && mapa.estrategia === "proyectos") return "acordar:proyectos";
+    return t.clave;
+  };
   mapa.filas.forEach((fila) => {
     if (!fila.tareas.length || fila.tareas.some((t) => t.paralelo || !SECUENCIAS_POR_TAREA[claveBanco(t)])) return;
     if (fila.tareas.some((t) => t.clave === "visitar_entrevistar") && fila.modalidad !== "invitado") return;
@@ -1222,7 +1228,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   const faseInfo = (i) => ({ numero: plan.fases[i].numero, nombre: plan.fases[i].nombre });
   const filas = clases.map((tareas, c) => {
     const lista = tareas.map(({ t, secciones, minutos, fase, paralelo }) => ({
-      clave: t.clave, tipoPrueba: t.tipoPrueba || "", nombre: t.nombre, secciones: [...secciones], minutos, fase, faseNombre: plan.fases[fase]?.nombre || "", paralelo: Boolean(paralelo),
+      clave: t.clave, tipoPrueba: t.tipoPrueba || "", estructura: t.estructura || null, nombre: t.nombre, secciones: [...secciones], minutos, fase, faseNombre: plan.fases[fase]?.nombre || "", paralelo: Boolean(paralelo),
       demuestra: t.demuestra, evidencia: t.evidencia, condicion: t.condicion, organizacion: t.organizacion,
       entrega: t.entrega, individual: Boolean(t.individual), sumativa: Boolean(t.sumativa), cierraSeccion: Boolean(t.cierraSeccion),
       llegaAudiencia: Boolean(t.llegaAudiencia), ampliacion: Boolean(t.ampliacion), recursos: t.recursos,

@@ -31,8 +31,8 @@ const tarea = (clave, nombre, minutos, demuestra, evidencia, condicion, organiza
 // de ejemplo depende de lo que se investiga (hábitos en Indagación; un problema o un caso en las demás).
 export const DATOS_ENCUESTA = {
   indagacion_dialogica: { poblacion: "sus compañeros", pregunta: "_How often do you…?_", preguntas: "_How often do you…?_, _What time do you…?_", respuestas: "_I sometimes…_, _I never…_", cifras: "_8 of 30 students…_" },
-  problemas: { poblacion: "estudiantes de otro grupo a quienes afecta el problema", pregunta: "_Did you…?_", preguntas: "_Did you…?_, _Where…?_, _Why…?_", respuestas: "_Yes, I did…_, _It happened because…_", cifras: "_6 of 10 students…_" },
-  estudio_caso: { poblacion: "personas que conocen el caso", pregunta: "_What happened…?_", preguntas: "_What happened…?_, _Why…?_, _Who…?_", respuestas: "_I think…_, _Because…_", cifras: "_5 of 8 people…_" },
+  problemas: { poblacion: "estudiantes de otro grupo a quienes afecta el problema", pregunta: "_Did you…?_", preguntas: "_Did you…?_, _Where…?_, _Why…?_", respuestas: "_Yes, I did…_, _It happened because…_", cifras: "_6 of 10 students…_", estructura: ["Preguntar por el problema y resumir datos", "presente simple y pasado (_Did you…?_, _6 of 10 students…_)"] },
+  estudio_caso: { poblacion: "personas que conocen el caso", pregunta: "_What happened…?_", preguntas: "_What happened…?_, _Why…?_, _Who…?_", respuestas: "_I think…_, _Because…_", cifras: "_5 of 8 people…_", estructura: ["Preguntar por el caso y resumir datos", "(_What happened…?_, _5 of 8 people…_)"] },
 };
 
 export const TAREAS_POR_TIPO = {

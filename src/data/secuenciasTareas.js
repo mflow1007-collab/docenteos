@@ -166,6 +166,21 @@ export const SECUENCIAS_POR_TAREA = {
       pe(6, "Responden (en grupos editores) lo que la audiencia pregunte, mientras el docente completa la rúbrica: presentación oral observada."),
     ],
   ],
+  // Presentar una propuesta: se presenta completa y se justifica la recomendación; no se «usa» (Guía 2025, p. 21).
+  "presentar:defender": [
+    [
+      p(4, "Reciben (en plenaria) a {audiencia} y le dicen para qué hicieron {producto}."),
+      pe(8, "Presentan (en grupos editores, cada grupo su sección) {producto} ante la audiencia, mientras el docente observa con la rúbrica."),
+      p(4, "Muestran (en grupos editores) las alternativas que evaluaron, con sus ventajas y desventajas ({frases}).", "justificar una recomendación"),
+      pe(7, "Justifican (en grupos editores) por qué recomiendan esa alternativa y responden lo que la audiencia pregunte ({frases}): presentación oral observada con la rúbrica.", "justificar una recomendación"),
+    ],
+    [
+      p(3, "Saludan (en plenaria) a {audiencia} y recuerdan qué problema investigaron."),
+      pe(9, "Muestran (en grupos editores) una a una las partes de {producto} a la audiencia: las causas, los objetivos, las alternativas y la recomendación ({frases}).", "justificar una recomendación"),
+      p(4, "Señalan (en grupos editores) en {producto} los datos que apoyan la recomendación, y el docente anota lo que observa."),
+      pe(6, "Defienden (en grupos editores) su recomendación y responden lo que la audiencia pregunte, mientras el docente completa la rúbrica: presentación oral observada."),
+    ],
+  ],
   // La prueba depende del producto (PRUEBA_POR_SECCION): siempre es usarlo con la audiencia.
   "probar_audiencia:pedido": [
     [

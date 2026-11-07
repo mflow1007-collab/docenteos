@@ -226,6 +226,12 @@ check("recoger datos se parametriza por estrategia: hábitos en Indagación, el 
     ponerSecuencias(m, { producto: "Our Guide — una guía", tema: "Escuela", asunto: "cómo orientarse", audiencia: "los estudiantes de 6.º", semilla: "x", fuente: "una fuente" });
     return m.filas.filter((f) => f.tareas.some((t) => /^indagar_(disenar|aplicar)$/.test(t.clave))).flatMap((f) => (f.secuencia || []).map((x) => x.texto)).join(" ");
   };
+  // La estructura del día de las clases de encuesta (sin gramática propia) también sigue a la estrategia.
+  const filaEncuesta = (estrategia) => { const m = mapaDe("Escuela y educación", 5, HORARIOS["3x1"], { planMaestro: { estrategia } }); const t = m.filas.flatMap((f) => f.tareas).find((x) => x.clave === "indagar_aplicar"); return { clase: 3, tareas: [t], contenidos: [] }; };
+  assert(/Did you…/.test(focoDeFila(filaEncuesta("problemas"), [])) && !/How often/.test(focoDeFila(filaEncuesta("problemas"), [])), `estructura en Problemas: ${focoDeFila(filaEncuesta("problemas"), [])}`);
+  assert(/What happened/.test(focoDeFila(filaEncuesta("estudio_caso"), [])), "estructura en Estudio de caso");
+  assert(/How often do you/.test(focoDeFila({ clase: 3, tareas: [{ clave: "indagar_aplicar", secciones: [] }], contenidos: [] }, [])), "estructura en Indagación");
+  assert(SECUENCIAS_POR_TAREA["presentar:defender"]?.length >= 2 && !SECUENCIAS_POR_TAREA["presentar:defender"].some((v) => /cómo se usa/.test(v.map((x) => x.texto).join(" "))), "presentar de una propuesta no dice «cómo se usa»");
   const ind = textos("indagacion_dialogica", 6), prob = textos("problemas"), caso = textos("estudio_caso");
   assert(/How often do you/.test(ind) && /compañeros/.test(ind), "Indagación pregunta por hábitos a sus compañeros");
   assert(/Did you…/.test(prob) && /Where…/.test(prob) && /otro grupo a quienes afecta el problema/.test(prob) && !/How often|8 of 30/.test(prob), `Problemas: ${prob.slice(0, 200)}`);
