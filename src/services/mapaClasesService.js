@@ -80,7 +80,14 @@ const buscarFase = (fases, tiposFase, t, k, cuantas) => {
 const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) }, (_, i) => lista.slice(i * n, (i + 1) * n));
 
 // Lista completa de tareas de la unidad, sin minutos ni clases.
-const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99 }) => {
+/**
+ * Cómo se prueba el producto con la audiencia: por sus secciones conocidas o, si es una propuesta, defendiendo la
+ * recomendación (una propuesta no se usa; Guía 2025, p. 21). Null: la prueba general.
+ */
+export const pruebaDelProducto = (producto = "", secciones = []) => secciones.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean)
+  || (/\bpropos(al|uesta)\b/i.test(producto) ? { tipo: "defender", hace: "Defienden ante la audiencia su recomendación: explican por qué recomiendan esa alternativa y responden sus preguntas, y luego recogen sus comentarios en tarjetas." } : null);
+
+const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "" }) => {
   const tareasOmitidas = omitidas;
   const indagacion = estrategia === "indagacion_dialogica";
   const faseDe = (re) => fases.findIndex((f) => re.test(f.nombre));
@@ -134,6 +141,12 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   push(proyectos ? { ...u.acordar, minutos: [22, 22] } : u.acordar, [...orden], 0, 0, 0);
   if (proyectos) push(u.saberesPrevios, [...orden], 0, 1, 0);
   // Problemas: las fases 1 a 3 (selección, definición y objetivos) cada una con su tarea.
+  // «Recoger datos» (diseñar el instrumento, aplicarlo y resumir de forma agregada y anónima) se reutiliza en la fase de
+  // investigación de cada estrategia que investiga (Referente 2025 p. 20 y 23: encuesta, entrevista, fuentes). Con poco tiempo no cabe.
+  const FASE_DE_DATOS = { problemas: /^Análisis e investigación/, estudio_caso: /^Indagación o estudio/ };
+  if (FASE_DE_DATOS[estrategia] && totalClases >= UMBRAL_RECOGER_DATOS && faseDe(FASE_DE_DATOS[estrategia]) >= 0) {
+    [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]) }, [...orden], 0, 2.5, k));
+  }
   // Con 12 clases no caben (la unidad entera ya llena el tiempo): ahí las fases 2 y 3 se unen a la 1 y queda por decidir qué
   // tarea sale (César). Desde 13 clases, cada fase lleva la suya.
   if (estrategia === "problemas" && totalClases >= 13) [u.problemaAnalizar, u.problemaDefinir, u.problemaObjetivos].forEach((t, k) => push(t, [...orden], 0, 1 + k, 0));
@@ -143,7 +156,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Cada estrategia hace lo suyo: la indagación valida sus fuentes, no solo ordena datos.
   if (estrategia === "indagacion_dialogica") [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push(t, [...orden], 0, 2, k));
   // Presentar y usar el producto con la audiencia son siempre dos tareas: la de usarlo cubre interactuar.
-  const prueba = orden.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean);
+  const prueba = pruebaDelProducto(producto, orden);
   push(u.presentarSecciones, [...orden], 3, 2, 0);
   push({ ...u.probarConAudiencia, tipoPrueba: prueba?.tipo || "general", hace: prueba?.hace || "Usan el producto con la audiencia para lo que fue hecho y luego recogen sus comentarios en tarjetas." }, [...orden], 3, 2, 1);
   push(u.audienciaSecundaria, [...orden], 3, 3, 0);
@@ -641,6 +654,9 @@ export const sinLugaresEnClase = (dia = {}, corregidos = []) => {
 
 const conMayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
+const UMBRAL_RECOGER_DATOS = 15;
+const TAREAS_CON_FUNCION_PROPIA = new Set(["analizar_ordenar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos"]);
+
 /**
  * Estructura del día: la escribe el código, para que corresponda a la tarea de la clase.
  * Función de la fila y su gramática; sin gramática, la frase fija de la tarea principal.
@@ -659,8 +675,11 @@ export const focoDeFila = (fila = {}, filas = []) => {
   const clave = (fila.tareas || []).find((t) => t.clave === "integrar")?.clave || fila.tareas?.[0]?.clave || "";
   const fija = ESTRUCTURA_POR_TAREA[clave] || ESTRUCTURA_POR_TAREA[clave.split("_")[0]] || null;
   const textos = (cat) => (fila.contenidos || []).filter((c) => c.categoria === cat).map((c) => c.texto);
-  const funciones = textos("funcionales").map((t) => t.replace(/^Funcional:\s*/i, "").trim());
-  const gramatica = textos("gramatica");
+  // Tareas cuya acción no la sirve la gramática que el reparto le dio a la clase (organizar datos, entender un problema):
+  // su estructura es la de la tarea, no la de otro tema de la malla (Rutinas C8, Problemas C5).
+  const propia = TAREAS_CON_FUNCION_PROPIA.has(clave);
+  const funciones = propia ? [] : textos("funcionales").map((t) => t.replace(/^Funcional:\s*/i, "").trim());
+  const gramatica = propia ? [] : textos("gramatica");
   const delTexto = gramatica.map((t) => t.split(":")[0].match(/\bpara (.+)$/)?.[1]).find(Boolean);
   // «Comprar» solo tiene sentido si la unidad pide: en otro tema, will expresa planes.
   const hayPedido = filas.some((f) => f.secciones?.some((x) => PRUEBA_POR_SECCION[x]?.tipo === "pedido"));
@@ -1162,7 +1181,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   const clave = plan.estrategia.clave;
   const tiposFase = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[clave] || null;
   const { tipos, supuestas } = tiposDeSecciones(plan.secciones, entrada.tiposTrabajoSecciones || {});
-  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total });
+  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto });
   const capacidad = minutosDesarrollo(duracionMin);
   const avisos = [];
   if (supuestas.length) avisos.push(`Tipo de trabajo supuesto por la posición de la sección: ${supuestas.join(", ")}. El docente puede cambiarlo.`);

@@ -251,6 +251,21 @@ export const SECUENCIAS_POR_TAREA = {
       pe(3, "Registran (en grupos) qué coincide y qué no: tabla de contraste; queda en la carpeta."),
     ],
   ],
+  // Producto que es una propuesta: no se usa, se defiende (Guía 2025, p. 21). Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  "probar_audiencia:defender": [
+    [
+      p(3, "Eligen (en parejas) la alternativa que van a defender y las razones que la apoyan."),
+      pe(7, "Explican (en parejas) a {audiencia} por qué recomiendan esa alternativa y responden sus dudas (_We recommend… because…_, _Could you repeat that?_), y el docente marca la lista de cotejo de cada pareja."),
+      p(2, "Cambian (en parejas) de papel, mientras el docente sigue observando."),
+      pe(3, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le convenció (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+    [
+      p(3, "Repasan (en parejas) la recomendación y sus razones."),
+      pe(7, "Defienden (en parejas) ante {audiencia} su recomendación y contestan sus preguntas (_We suggest… because…_, _Pardon?_), mientras el docente observa a cada pareja con la lista de cotejo."),
+      p(2, "Intercambian (en parejas) los papeles y repiten la defensa."),
+      pe(3, "Anotan (en plenaria) en tarjetas lo que la audiencia propone cambiar y lo que le convenció: tarjetas en la carpeta del producto."),
+    ],
+  ],
   "probar_audiencia:general": [
     [
       p(3, "Eligen (en parejas) la parte de {producto} que van a usar con la audiencia."),

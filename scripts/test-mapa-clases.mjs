@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, tituloDeClase, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, tituloDeClase, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -211,6 +211,24 @@ check("Problemas: con 13 clases o más cada fase lleva su tarea (selección, def
   });
   const doce = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
   assert(doce.modo !== "breve" && !doce.filas.some((f) => f.flexible), `12 clases: ${doce.modo}`);
+});
+check("recoger datos se reutiliza en la fase de investigación de Problemas y Estudio de caso, desde 15 clases", () => {
+  [["problemas", /^Análisis e investigación/], ["estudio_caso", /^Indagación o estudio/]].forEach(([estrategia, fase]) => {
+    [["Escuela y educación", 5], ["Alimentación", 6]].forEach(([titulo, semanas]) => {
+      const m = mapaDe(titulo, semanas, HORARIOS["3x1"], { planMaestro: { estrategia } });
+      const idx = ["indagar_disenar", "indagar_aplicar", "indagar_contrastar"].map((c) => m.filas.flatMap((f) => f.tareas).find((t) => t.clave === c));
+      assert(idx.every(Boolean), `${estrategia} ${semanas} sem: faltan tareas de recoger datos`);
+      assert(idx.every((t) => fase.test(t.faseNombre)), `${estrategia}: fuera de su fase: ${idx.map((t) => t.faseNombre)}`);
+    });
+    const doce = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia } });
+    assert(doce.modo !== "breve" && !doce.filas.some((f) => f.flexible), `${estrategia} 12 clases: ${doce.modo}`);
+  });
+});
+check("la prueba con la audiencia depende del tipo de producto: una propuesta se defiende, no se usa", () => {
+  igual(pruebaDelProducto("Our Welcome Proposal — una propuesta bilingüe a la dirección", ["Causes", "Goals"]).tipo, "defender", "propuesta");
+  igual(pruebaDelProducto("Our School Survival Guide", ["School Directions"]).tipo, "guia", "guía con su sección");
+  igual(pruebaDelProducto("Our Menu", ["Welcome"]), null, "producto sin tipo conocido");
+  assert(SECUENCIAS_POR_TAREA["probar_audiencia:defender"]?.length >= 2 && SECUENCIAS_POR_TAREA["probar_audiencia:defender"].every((v) => /por qué|recomend|defiend/i.test(v.map((x) => x.texto).join(" "))), "secuencia de defender");
 });
 check("títulos de clase del código: acción y sección, nunca el nombre interno de la tarea", () => {
   [["Escuela y educación", 4, "proyectos"], ["Alimentación", 6, "insercion_entorno"], ["Actividades de la vida diaria", 4, "indagacion_dialogica"], ["Escuela y educación", 4, "problemas"]].forEach(([titulo, semanas, estrategia]) => {
