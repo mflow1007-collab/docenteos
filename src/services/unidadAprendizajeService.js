@@ -1863,6 +1863,14 @@ export const construirAnexosUnidad = ({
   const CLAVE_DIAGNOSTICA = ["listening", "speaking", "reading", "writing"];
   // El anexo promete solo lo que la clase 1 hace, y habla de su asunto, no del nombre del tema (César, 2026-11-07).
   const asuntoDiagnostico = diagnosticoClase1?.asunto || "";
+  // La cantidad de oraciones del Anexo J es la que pide la clase 1 (dos, no tres).
+  const nEscritura = diagnosticoClase1?.oracionesEscritura || 0;
+  if (idioma && nEscritura && nEscritura !== 3) {
+    const PALABRA = { 1: "una oración", 2: "dos oraciones", 3: "tres oraciones", 4: "cuatro oraciones", 5: "cinco oraciones" };
+    const w = diagnosticaBase[3];
+    w.tarea = w.tarea.replace("tres oraciones", PALABRA[nEscritura] || `${nEscritura} oraciones`);
+    w.criterio = `${(PALABRA[nEscritura] || `${nEscritura} oraciones`).replace(/^./, (c) => c.toUpperCase())} con estructura clara = listo; ${nEscritura > 1 ? "una" : "con errores"}${nEscritura > 1 ? " con errores" : ""} = en proceso; no logra estructurar = requiere apoyo.`;
+  }
   const diagnostica = diagnosticaBase.map((item, index) => ({ item, index }))
     .filter(({ index }) => !diagnosticoClase1?.habilidades?.length || diagnosticoClase1.habilidades.includes(CLAVE_DIAGNOSTICA[index]))
     .map(({ item: base, index }) => ({

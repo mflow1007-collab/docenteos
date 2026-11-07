@@ -174,6 +174,8 @@ check("Anexo J: la clase 1 de Proyectos diagnostica las cuatro habilidades y el 
     const anexo = construirAnexosUnidad({ area: "Inglés", tema: titulo, producto: "Our Guide", diagnosticoClase1: d });
     igual(anexo.diagnostica.length, 4, `${titulo}: ítems del Anexo J`);
     assert(!anexo.diagnostica.some((x) => x.tarea.includes(`"${titulo}"`)), `${titulo}: el Anexo J nombra el tema`);
+    const cuantas = d.oracionesEscritura;
+    assert(cuantas > 0 && new RegExp(`escribe ${["", "una oración", "dos oraciones", "tres oraciones", "cuatro oraciones", "cinco oraciones"][cuantas]}`).test(anexo.diagnostica.find((x) => /Writing/.test(x.habilidad)).tarea), `${titulo}: la cantidad de oraciones del Anexo J no es la de la clase 1 (${cuantas})`);
   });
   // La unidad ya redactada (sin marcas del mapa): el diagnóstico sale de las actividades de la clase 1, y sin mapa no hay.
   const fasesRedactadas = [{ dias: [{ momentos: [{ nombre: "Inicio", actividades: ["x"] }, { nombre: "Desarrollo", actividades: [
