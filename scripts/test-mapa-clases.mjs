@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -191,6 +191,12 @@ check("Anexo J: la clase 1 de Proyectos diagnostica las cuatro habilidades y el 
   // Sin lectura en la clase 1, el anexo no la promete.
   const sinLectura = construirAnexosUnidad({ area: "Inglés", tema: "T", producto: "P", diagnosticoClase1: { habilidades: ["listening", "speaking", "writing"], asunto: "" } });
   assert(!sinLectura.diagnostica.some((x) => /Reading/.test(x.habilidad)) && sinLectura.diagnostica.length === 3, "promete lectura sin hacerla");
+});
+
+check("títulos casi iguales: se detectan los de la C1 y C2 de Rutinas, no los distintos ni los idénticos", () => {
+  const t = ["Planificando Nuestro Plan de Rutinas Saludables", "Planificando Nuestro Plan de Rutinas Saludables Juntos", "Explorando el entorno escolar", "Planificando Nuestro Plan de Rutinas Saludables"];
+  igual(titulosParecidos(t), [[1, 2], [2, 4]], "pares");
+  igual(titulosParecidos(["Ensayando indicaciones", "Presentación de la guía"]), [], "distintos");
 });
 
 console.log("\n[Mapa de clases — combinaciones]");

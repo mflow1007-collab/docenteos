@@ -713,6 +713,23 @@ export const diagnosticoDeFases = (fases = [], hayMapa = false) => {
   return diagnosticoDeActividades((dia?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades);
 };
 
+/**
+ * Pares de clases cuyos títulos son casi iguales (comparten la mayoría de sus palabras): el docente no distingue
+ * una clase de otra. Los iguales del todo ya los trata el control de títulos repetidos.
+ */
+export const titulosParecidos = (titulos = [], umbral = 0.7) => {
+  const palabras = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2));
+  const conjuntos = titulos.map(palabras);
+  const pares = [];
+  conjuntos.forEach((a, i) => conjuntos.slice(i + 1).forEach((b, k) => {
+    const j = i + 1 + k;
+    if (!a.size || !b.size || String(titulos[i]).trim().toLowerCase() === String(titulos[j]).trim().toLowerCase()) return;
+    const comunes = [...a].filter((w) => b.has(w)).length;
+    if (comunes / (a.size + b.size - comunes) >= umbral) pares.push([i + 1, j + 1]);
+  }));
+  return pares;
+};
+
 /** Concordancia con «guía» cuando es el producto, no una persona. */
 export const conGuiaEnFemenino = (t) => String(t)
   .replace(/\b([Nn])uestro ([Gg]u[ií]a)\b/g, "$1uestra $2")
