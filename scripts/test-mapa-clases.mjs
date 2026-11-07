@@ -8,7 +8,8 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
 import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
@@ -162,6 +163,23 @@ check("Proyectos: la clase 1 lleva las dos primeras fases y la revisión del doc
     assert(m.filas.filter((f) => f.fases.some((x) => x.numero === 6)).some((f) => f.tareas.some((t) => ["corregir", "integrar"].includes(t.clave))), `${titulo}: corregir/integrar en Evaluación`);
   });
 });
+check("Anexo J: la clase 1 de Proyectos diagnostica las cuatro habilidades y el anexo promete solo lo que la clase hace", () => {
+  [["Escuela y educación", 4, "ing2-escuela-guia"], ["Alimentación", 6, "ing2-alimentacion-menu"]].forEach(([titulo, semanas]) => {
+    const m = mapaDe(titulo, semanas, HORARIOS["3x1"], { planMaestro: { estrategia: "proyectos" } });
+    ponerSecuencias(m, { producto: "Our Guide — una guía", tema: titulo, asunto: "cómo orientarse en un centro nuevo", audiencia: "los estudiantes de 6.º", invitado: "el invitado", semilla: "x" });
+    const textos = m.filas[0].secuencia.map((x) => x.texto);
+    const d = diagnosticoDeActividades(textos);
+    igual(d.habilidades.sort(), ["listening", "reading", "speaking", "writing"], `${titulo}: habilidades de la clase 1`);
+    assert(/orientarse/.test(d.asunto), `${titulo}: asunto de la lectura: ${d.asunto}`);
+    const anexo = construirAnexosUnidad({ area: "Inglés", tema: titulo, producto: "Our Guide", diagnosticoClase1: d });
+    igual(anexo.diagnostica.length, 4, `${titulo}: ítems del Anexo J`);
+    assert(!anexo.diagnostica.some((x) => x.tarea.includes(`"${titulo}"`)), `${titulo}: el Anexo J nombra el tema`);
+  });
+  // Sin lectura en la clase 1, el anexo no la promete.
+  const sinLectura = construirAnexosUnidad({ area: "Inglés", tema: "T", producto: "P", diagnosticoClase1: { habilidades: ["listening", "speaking", "writing"], asunto: "" } });
+  assert(!sinLectura.diagnostica.some((x) => /Reading/.test(x.habilidad)) && sinLectura.diagnostica.length === 3, "promete lectura sin hacerla");
+});
+
 console.log("\n[Mapa de clases — combinaciones]");
 const filas = [];
 for (const titulo of [...SEMILLAS, ...SIN_SEMILLA]) for (const [nombre, h] of Object.entries(HORARIOS)) for (let semanas = 1; semanas <= 8; semanas += 1) {

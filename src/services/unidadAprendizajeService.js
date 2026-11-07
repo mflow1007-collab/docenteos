@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeActividades, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -1419,6 +1419,9 @@ export const construirAnexosUnidad = ({
   // Etapa 6: fases del plan maestro (entrega y secciones que avanza cada una)
   // para la columna "Estados de la sección" del Anexo I. Vacías → como antes.
   fasesPlan = [],
+  // Habilidades que la clase 1 diagnostica de verdad y asunto de su lectura (mapaClasesService.diagnosticoDeActividades).
+  // Null → plantilla de siempre.
+  diagnosticoClase1 = null,
 }) => {
   const idioma = ES_IDIOMA(area);
   const nombreIdioma = NOMBRE_IDIOMA(area);
@@ -1857,15 +1860,20 @@ export const construirAnexosUnidad = ({
   // Lo que cada tarea diagnóstica exige, por su orden: escuchar y leer son
   // comprensión; responder oralmente, interacción; escribir, producción.
   const EXIGE_DIAGNOSTICA = ["comprension", "interaccion", "comprension", "produccion"];
-  const diagnostica = diagnosticaBase.map((item, index) => ({
-    ...item,
+  const CLAVE_DIAGNOSTICA = ["listening", "speaking", "reading", "writing"];
+  // El anexo promete solo lo que la clase 1 hace, y habla de su asunto, no del nombre del tema (César, 2026-11-07).
+  const asuntoDiagnostico = diagnosticoClase1?.asunto || "";
+  const diagnostica = diagnosticaBase.map((item, index) => ({ item, index }))
+    .filter(({ index }) => !diagnosticoClase1?.habilidades?.length || diagnosticoClase1.habilidades.includes(CLAVE_DIAGNOSTICA[index]))
+    .map(({ item: base, index }) => ({
+    ...(asuntoDiagnostico ? { ...base, tarea: base.tarea.replaceAll(`"${tema}"`, `"${asuntoDiagnostico}"`) } : base),
     ...crearTrazaInstrumento({
       tipo: "diagnostica",
-      item: item.habilidad,
+      item: base.habilidad,
       index,
       exige: EXIGE_DIAGNOSTICA[index],
-      evidencia: item.tarea,
-      piezaProducto: `Evidencia diagnóstica de ${item.habilidad}`,
+      evidencia: asuntoDiagnostico ? base.tarea.replaceAll(`"${tema}"`, `"${asuntoDiagnostico}"`) : base.tarea,
+      piezaProducto: `Evidencia diagnóstica de ${base.habilidad}`,
     }),
   }));
 
@@ -6324,7 +6332,13 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       .filter((a) => a.semana <= Math.ceil(numSemanas / 2))
       .map((a) => a.texto),
   });
+  // El Anexo J diagnostica lo que la clase 1 hace de verdad (con mapa de clases); sin mapa, su plantilla.
+  const dia1Anexo = (fasesSemanalesGeneradas || [])[0]?.dias?.[0];
+  const diagnosticoClase1 = dia1Anexo?.fijoDelMapa?.primeraClase
+    ? diagnosticoDeActividades((dia1Anexo.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades)
+    : null;
   const anexosBase = construirAnexosUnidad({
+    diagnosticoClase1,
     area: claveContenido,
     tema: titulo,
     producto: productoNombrado,

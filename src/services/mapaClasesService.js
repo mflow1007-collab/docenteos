@@ -682,6 +682,24 @@ export const fasesDeActividades = (fila = {}, tareaIds = []) => {
   return { nombres, Desarrollo: desarrollo, Inicio: {} };
 };
 
+/**
+ * Qué habilidades diagnostica de verdad la clase 1, leído de sus actividades: el Anexo J no puede prometer
+ * lo que la clase no hace. Null si no hay actividades (el anexo usa entonces su plantilla).
+ */
+export const diagnosticoDeActividades = (actividades = []) => {
+  const textos = (actividades || []).map((a) => (typeof a === "string" ? a : Object.values(a || {}).filter((v) => typeof v === "string").join(" "))).filter(Boolean);
+  if (!textos.length) return null;
+  const hay = (re) => textos.some((t) => re.test(t));
+  const habilidades = [
+    hay(/escuch\w*[^.]*\b(oraciones|frases)\b|marcan[^.]*\bimagen/i) ? "listening" : "",
+    hay(/pregunta[^.]*\b(pareja|voz alta)\b|\b(pareja|voz alta)\b[^.]*pregunta|responden[^.]*\b(oral|voz alta)/i) ? "speaking" : "",
+    hay(/\bleen\b[^.]*\btexto/i) ? "reading" : "",
+    hay(/\bescriben\b[^.]*\boraciones?\b/i) ? "writing" : "",
+  ].filter(Boolean);
+  const lectura = textos.map((t) => t.match(/\btexto breve sobre (.+?)(?: y | mientras|,|\.|:|$)/i)).find(Boolean);
+  return { habilidades, asunto: lectura ? lectura[1].trim() : "" };
+};
+
 /** Concordancia con «guía» cuando es el producto, no una persona. */
 export const conGuiaEnFemenino = (t) => String(t)
   .replace(/\b([Nn])uestro ([Gg]u[ií]a)\b/g, "$1uestra $2")

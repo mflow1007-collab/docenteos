@@ -53,13 +53,13 @@ export const SECUENCIAS_POR_TAREA = {
     [
       pe(7, "Conocen (en plenaria) la unidad: el docente explica qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa; acuerdan cómo se evaluará con la rúbrica y forman un grupo editor por sección: cartel del acuerdo y lista de grupos; se guardan en la carpeta del producto."),
       pe(5, "Escuchan (individual, dos veces, leídas por el docente) cinco oraciones ({frases}) y marcan en la hoja la imagen que corresponde.", "oraciones sencillas del tema"),
-      p(5, "Leen (en parejas) un texto breve sobre {asunto} y responden qué dice, mientras el docente circula y observa."),
+      pe(5, "Leen (en parejas) un texto breve sobre {asunto} y responden qué dice, mientras el docente circula y observa."),
       pe(5, "Escriben (individual) dos oraciones sobre {asunto} y responden en voz alta una pregunta a su pareja ({frases}): hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
     ],
     [
       pe(7, "Conversan (en plenaria) sobre qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa; revisan la rúbrica, acuerdan cómo se evaluará y eligen la sección de cada grupo editor: cartel del acuerdo y lista de grupos."),
       pe(5, "Escuchan (individual) al docente leer cinco oraciones ({frases}) y marcan la imagen de cada una.", "oraciones sencillas del tema"),
-      p(5, "Leen (en parejas) un texto breve sobre {asunto} y subrayan lo que entienden, mientras el docente anota quién necesita apoyo."),
+      pe(5, "Leen (en parejas) un texto breve sobre {asunto} y subrayan lo que entienden, mientras el docente anota quién necesita apoyo."),
       pe(5, "Escriben (individual) dos oraciones y luego se hacen una pregunta en parejas ({frases}), y el docente escucha a varias: hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
     ],
   ],
@@ -67,13 +67,13 @@ export const SECUENCIAS_POR_TAREA = {
   saberes_previos: [
     [
       p(2, "Piensan (individual) qué saben ya sobre {asunto} y sobre el problema que resolverá {producto}, y lo anotan en una tarjeta."),
-      pe(3, "Hacen (en grupos) un cartel SQA: qué sabemos y qué queremos saber, y qué necesita saber {audiencia} (_We know…_, _We want to know…_)."),
+      pe(3, "Hacen (en grupos) un cartel SQA: qué sabemos, qué queremos saber y qué hace falta saber para ayudar a {audiencia} (_We know…_, _We want to know…_)."),
       p(1, "Comparan (en plenaria) los carteles y señalan lo que habrá que comprobar."),
       pe(2, "Escriben (en grupos) dos preguntas para comprobar lo que creen saber: cartel SQA y preguntas; quedan en la carpeta."),
     ],
     [
       p(2, "Anotan (individual) en una tarjeta lo que ya conocen del problema que resolverá {producto}."),
-      pe(3, "Completan (en grupos) un cartel SQA con lo que saben, lo que quieren saber y lo que necesita saber {audiencia} (_We know…_, _We need to know…_)."),
+      pe(3, "Completan (en grupos) un cartel SQA con lo que saben, lo que quieren saber y lo que hace falta saber para ayudar a {audiencia} (_We know…_, _We need to know…_)."),
       p(1, "Revisan (en plenaria) los carteles y eligen lo que van a comprobar."),
       pe(2, "Redactan (en grupos) dos preguntas para comprobarlo: cartel SQA y preguntas; quedan en la carpeta."),
     ],
