@@ -230,6 +230,16 @@ const invariantesJson = {
     if (fuera.length) return `promete sin hacerlo en la C1: ${fuera.join(", ")}`;
     return j.some((x) => String(x.tarea).includes(`"${u.titulo}"`)) ? "nombra el tema" : "";
   },
+  // I-20: los instrumentos evalúan lo que las clases trabajan, y cada clase dice qué criterios de ellos evalúa.
+  "I-20": (g) => {
+    const items = ["rubricaProducto", "listaCotejoOral", "escalaValoracion", "autoevaluacion", "coevaluacion"].flatMap((k) => g.anexos[k] || []);
+    const cubiertos = new Set(items.map((x) => x.indicadorCodigo).filter(Boolean));
+    const trabajados = new Set(g.dias.flatMap((d) => (d.indicadoresTrabajados || []).map((i) => String(i?.id || i?.codigo || i))));
+    const sin = [...trabajados].filter((i) => !cubiertos.has(i));
+    if (sin.length) return `ningún criterio evalúa ${sin.join(", ")}`;
+    const faltan = g.dias.flatMap((d, i) => ((d.indicadoresTrabajados || []).length && !(d.momentos || []).some((m) => m.evaluacion?.criterios) ? [`C${i + 1}`] : []));
+    return faltan.length ? `clase sin criterios de sus instrumentos: ${faltan.join(", ")}` : "";
+  },
   // Corrector ortográfico: ninguna palabra frecuente sin su tilde en lo que lee el docente.
   "Ortografía": (g) => g.dias.flatMap((d, i) => [d.titulo, d.focoLinguistico, d.intencionPedagogica, ...(d.momentos || []).flatMap((m) => m.actividades || [])].filter((t) => typeof t === "string" && conTildesCorregidas(t) !== t).map(() => `C${i + 1}`)).filter((c, i, l) => l.indexOf(c) === i).join(", "),
   "I-13": (g, u) => {

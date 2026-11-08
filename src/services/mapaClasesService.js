@@ -524,6 +524,41 @@ export const evaluacionDeFila = (fila) => {
   return { tipo, agente, tecnica: [...new Set(lista.map((p) => p[0]))].join(" y "), instrumento };
 };
 
+// Qué anexo es cada instrumento que nombra una clase y dónde están sus criterios.
+const ANEXO_POR_INSTRUMENTO = [
+  [/r[uú]brica/i, "A", "rubricaProducto"],
+  [/lista de cotejo/i, "B", "listaCotejoOral"],
+  [/coevaluaci/i, "D", "coevaluacion"],
+  [/autoevaluaci/i, "E", "autoevaluacion"],
+  [/escala de valoraci/i, "E.2", "escalaValoracion"],
+];
+/**
+ * Cada clase dice qué criterios de sus instrumentos evalúa: los del indicador que trabaja (I-20).
+ * Lo escribe el código a partir de los anexos ya construidos; la IA no interviene.
+ */
+export const vincularInstrumentosConClases = (dias = [], anexos = {}, dimensionesDe = null) => {
+  const enLista = (l) => l.join(", ").replace(/, ([^,]*)$/, " y $1");
+  dias.forEach((dia) => {
+    const trabajados = new Set((dia?.indicadoresTrabajados || []).map((i) => String(i?.id || i?.codigo || i)));
+    // Lo que la clase hace (comprender, producir, interactuar) acota los criterios; sin dato, valen todos los del indicador.
+    const dims = new Set(typeof dimensionesDe === "function" ? dimensionesDe(dia) : []);
+    (dia?.momentos || []).forEach((m) => {
+      const ev = m?.evaluacion;
+      if (!ev?.instrumento) return;
+      const partes = [];
+      ANEXO_POR_INSTRUMENTO.forEach(([re, letra, clave]) => {
+        if (!re.test(ev.instrumento)) return;
+        const delIndicador = (anexos?.[clave] || []).map((it, i) => [it, i + 1]).filter(([it]) => it?.indicadorCodigo && trabajados.has(it.indicadorCodigo));
+        const delaClase = delIndicador.filter(([it]) => !dims.size || !it.exige || dims.has(it.exige));
+        const nums = (delaClase.length ? delaClase : delIndicador).map(([, n]) => n);
+        if (nums.length) partes.push(`Anexo ${letra}, criterio${nums.length > 1 ? "s" : ""} ${enLista(nums)}`);
+      });
+      if (partes.length) ev.criterios = partes.join("; ");
+    });
+  });
+  return dias;
+};
+
 /** Recursos humanos de una clase: el invitado cuenta si la tarea lo requiere. */
 export const humanosDeFila = (fila, alcance = null) => {
   const claves = fila.tareas.map((t) => t.clave);
