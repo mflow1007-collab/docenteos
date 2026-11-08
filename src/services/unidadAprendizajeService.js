@@ -5817,7 +5817,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         plan: planFinal, indice, estructura: prepPlanMaestro.estructura,
         audiencia: datos.planMaestro?.situacion?.audiencia || "",
         modalidadVisita: conMapa?.modalidad || datos.planMaestro?.modalidadVisita || "",
-        filasMapa: conMapa?.filasPorFase[indice] || null,
+        // Con fases «con partes» el mapa no se usa y conMapa trae solo avisos: sin filasPorFase.
+        filasMapa: conMapa?.filasPorFase?.[indice] || null,
         filasUnidad: conMapa?.mapa?.filas || null,
       })),
     };
