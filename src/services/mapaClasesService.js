@@ -542,6 +542,7 @@ export const vincularInstrumentosConClases = (dias = [], anexos = {}, dimensione
     const trabajados = new Set((dia?.indicadoresTrabajados || []).map((i) => String(i?.id || i?.codigo || i)));
     // Lo que la clase hace (comprender, producir, interactuar) acota los criterios; sin dato, valen todos los del indicador.
     const dims = new Set(typeof dimensionesDe === "function" ? dimensionesDe(dia) : []);
+    // La sumativa valora todos los indicadores de su clase, sin acotar por lo que dicen los verbos de sus actividades.
     (dia?.momentos || []).forEach((m) => {
       const ev = m?.evaluacion;
       if (!ev?.instrumento) return;
@@ -549,7 +550,7 @@ export const vincularInstrumentosConClases = (dias = [], anexos = {}, dimensione
       ANEXO_POR_INSTRUMENTO.forEach(([re, letra, clave]) => {
         if (!re.test(ev.instrumento)) return;
         const delIndicador = (anexos?.[clave] || []).map((it, i) => [it, i + 1]).filter(([it]) => it?.indicadorCodigo && trabajados.has(it.indicadorCodigo));
-        const delaClase = delIndicador.filter(([it]) => !dims.size || !it.exige || dims.has(it.exige));
+        const delaClase = /^sumativa/i.test(ev.tipo || "") ? delIndicador : delIndicador.filter(([it]) => !dims.size || !it.exige || dims.has(it.exige));
         const nums = (delaClase.length ? delaClase : delIndicador).map(([, n]) => n);
         if (nums.length) partes.push(`Anexo ${letra}, criterio${nums.length > 1 ? "s" : ""} ${enLista(nums)}`);
       });

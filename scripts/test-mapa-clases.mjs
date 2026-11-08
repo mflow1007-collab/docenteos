@@ -991,6 +991,10 @@ check("I-20: los instrumentos traen criterios de comprensión y de las secciones
   const d3 = [{ indicadoresTrabajados: [{ id: "ING-2-I02" }], momentos: [{ evaluacion: { instrumento: "Lista de cotejo" } }] }];
   vincularInstrumentosConClases(d3, { listaCotejoOral: [{ indicadorCodigo: "ING-2-I02", exige: "produccion" }] }, () => ["comprension"]);
   igual(d3[0].momentos[0].evaluacion.criterios, "Anexo B, criterio 1", "si la dimensión no coincide con ninguno, valen los del indicador");
+  // La sumativa cita los criterios de todos los indicadores de su clase, aunque sus verbos sean de producción.
+  const d4 = [{ indicadoresTrabajados: [{ id: "ING-2-I02" }, { id: "ING-2-I03" }], momentos: [{ evaluacion: { tipo: "Sumativa", instrumento: "Rúbrica analítica (Anexo A) y lista de cotejo oral (Anexo B)" } }] }];
+  vincularInstrumentosConClases(d4, { rubricaProducto: [{ indicadorCodigo: "ING-2-I02", exige: "produccion" }, { indicadorCodigo: "ING-2-I03", exige: "interaccion" }], listaCotejoOral: [{ indicadorCodigo: "ING-2-I03", exige: "interaccion" }, { indicadorCodigo: "ING-2-I02", exige: "produccion" }] }, () => ["produccion"]);
+  igual(d4[0].momentos[0].evaluacion.criterios, "Anexo A, criterios 1 y 2; Anexo B, criterios 1 y 2", "sumativa: todos los indicadores");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);
