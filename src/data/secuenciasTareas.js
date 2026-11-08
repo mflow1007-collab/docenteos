@@ -1,0 +1,340 @@
+/**
+ * secuenciasTareas — Secuencias humanas por tipo de tarea (César, 2026-11-05).
+ * Banco pedagógico de DocenteOS, no currículo oficial. Fuente: la unidad de Alimentación
+ * a mano (v3), generalizada.
+ *
+ * Clave: la tarea (o `probar_audiencia:tipo`). Cada versión son pasos cortos, con el
+ * docente visible. Si la clase tiene una sola tarea, salen todos; si comparte clase,
+ * solo los esenciales (`e`). Solo el último paso de cada tarea lleva producto y destino.
+ * `m` = peso en minutos dentro de la tarea.
+ * Huecos: {invitado}, {audiencia}, {producto}, {tema}, {asunto}, {fuente}, {datos}, {entrega} los pone el código;
+ * {frases} los pone la IA. `pista` dice qué necesita ese hueco; `usa` reconoce, entre los
+ * contenidos de la fila, las expresiones de la malla que le sirven.
+ *
+ * Módulo PURO. Lo consume mapaClasesService.js.
+ */
+const p = (m, texto, pista = "", usa = null, e = false) => ({ m, texto, pista, usa, e });
+const pe = (m, texto, pista = "", usa = null) => p(m, texto, pista, usa, true);
+
+export const SECUENCIAS_POR_TAREA = {
+  acordar: [
+    [
+      pe(5, "Conocen (en plenaria) la unidad: el docente explica qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa."),
+      pe(5, "Acuerdan (en plenaria) cómo se evaluará con la rúbrica y forman un grupo editor por sección: cartel del acuerdo y lista de grupos; se guardan en la carpeta del producto."),
+      pe(7, "Escuchan (individual, dos veces, leídas por el docente) cinco oraciones ({frases}) y marcan en la hoja la imagen que corresponde.", "oraciones sencillas del tema"),
+      pe(7, "Leen (en parejas) un texto breve sobre {asunto} y responden qué dice, mientras el docente circula y observa."),
+      pe(6, "Escriben (individual) dos oraciones sobre {asunto} y responden en voz alta una pregunta a su pareja ({frases}): hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
+    ],
+    [
+      pe(6, "Conversan (en plenaria) con el docente sobre qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa."),
+      pe(4, "Revisan (en plenaria) la rúbrica, acuerdan cómo se evaluará y eligen la sección de cada grupo editor: cartel del acuerdo y lista de grupos."),
+      pe(6, "Escuchan (individual) al docente leer cinco oraciones ({frases}) y marcan la imagen de cada una.", "oraciones sencillas del tema"),
+      pe(7, "Leen (en parejas) un texto breve sobre {asunto} y subrayan lo que entienden, mientras el docente anota quién necesita apoyo."),
+      pe(7, "Escriben (individual) dos oraciones y luego se hacen una pregunta en parejas ({frases}), y el docente escucha a varias: hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
+    ],
+  ],
+  // Proyectos, fase «Evaluación» (Referente por proyecto 2022, p. 35): revisión formativa del docente con la rúbrica. Interpretación DocenteOS, aprobada por César el 2026-11-06.
+  revision_docente: [
+    [
+      p(2, "Entregan (en grupos) su sección al docente y repasan la rúbrica."),
+      pe(4, "Escuchan (en grupos) la revisión del docente con la rúbrica, criterio por criterio, y anotan en qué nivel está cada uno (_Could you explain…?_)."),
+      p(2, "Preguntan (en parejas) lo que no entienden de la revisión."),
+      pe(2, "Anotan (en grupos) las mejoras y quién las hará hasta llegar al nivel satisfactorio: sección con mejoras anotadas; queda en la carpeta."),
+    ],
+    [
+      p(2, "Presentan (en grupos) su sección al docente, con la rúbrica a la vista."),
+      pe(4, "Reciben (en grupos) las observaciones del docente según la rúbrica, criterio por criterio, con su nivel (_Pardon?_)."),
+      p(2, "Comentan (en parejas) qué observación es la más importante."),
+      pe(2, "Escriben (en grupos) la lista de mejoras y quién las hace hasta llegar al nivel satisfactorio: sección con mejoras anotadas; queda en la carpeta."),
+    ],
+  ],
+  // Proyectos: el acuerdo y el diagnóstico de idioma en 22 minutos, para que quepa «Análisis de saberes previos» en la clase 1. Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  "acordar:proyectos": [
+    [
+      pe(7, "Conocen (en plenaria) la unidad: el docente explica qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa; acuerdan cómo se evaluará con la rúbrica y forman un grupo editor por sección: cartel del acuerdo y lista de grupos; se guardan en la carpeta del producto."),
+      pe(5, "Escuchan (individual, dos veces, leídas por el docente) cinco oraciones ({frases}) y marcan en la hoja la imagen que corresponde.", "oraciones sencillas del tema"),
+      pe(5, "Leen (en parejas) un texto breve sobre {asunto} y responden qué dice, mientras el docente circula y observa."),
+      pe(5, "Escriben (individual) dos oraciones sobre {asunto} y responden en voz alta una pregunta a su pareja ({frases}): hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
+    ],
+    [
+      pe(7, "Conversan (en plenaria) sobre qué problema van a resolver, a quién le servirá {producto} y qué harán en cada etapa; revisan la rúbrica, acuerdan cómo se evaluará y eligen la sección de cada grupo editor: cartel del acuerdo y lista de grupos."),
+      pe(5, "Escuchan (individual) al docente leer cinco oraciones ({frases}) y marcan la imagen de cada una.", "oraciones sencillas del tema"),
+      pe(5, "Leen (en parejas) un texto breve sobre {asunto} y subrayan lo que entienden, mientras el docente anota quién necesita apoyo."),
+      pe(5, "Escriben (individual) dos oraciones y luego se hacen una pregunta en parejas ({frases}), y el docente escucha a varias: hoja de diagnóstico; la recoge el docente.", "una pregunta sencilla del tema"),
+    ],
+  ],
+  // Proyectos, fase «Análisis de saberes previos» (Referente por proyecto 2022, p. 32): SQA que alimenta lo que se comprobará después. Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  saberes_previos: [
+    [
+      p(2, "Piensan (individual) qué saben ya sobre {asunto} y sobre el problema que resolverá {producto}, y lo anotan en una tarjeta."),
+      pe(3, "Hacen (en grupos) un cartel SQA: qué sabemos, qué queremos saber y qué hace falta saber para ayudar a {audiencia} (_We know…_, _We want to know…_)."),
+      p(1, "Comparan (en plenaria) los carteles y señalan lo que habrá que comprobar."),
+      pe(2, "Escriben (en grupos) dos preguntas para comprobar lo que creen saber: cartel SQA y preguntas; quedan en la carpeta."),
+    ],
+    [
+      p(2, "Anotan (individual) en una tarjeta lo que ya conocen del problema que resolverá {producto}."),
+      pe(3, "Completan (en grupos) un cartel SQA con lo que saben, lo que quieren saber y lo que hace falta saber para ayudar a {audiencia} (_We know…_, _We need to know…_)."),
+      p(1, "Revisan (en plenaria) los carteles y eligen lo que van a comprobar."),
+      pe(2, "Redactan (en grupos) dos preguntas para comprobarlo: cartel SQA y preguntas; quedan en la carpeta."),
+    ],
+  ],
+  // Problemas, fases 1 a 3 (Adecuación 2023, p. 24). Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  problema_analizar: [
+    [
+      p(1, "Escuchan (en plenaria) el problema que plantea la situación y dicen dónde lo han visto."),
+      pe(2, "Hacen (en grupos) un árbol del problema: qué pasa y qué lo causa (_The problem is…_, _It happens because…_)."),
+      p(1, "Comparan (en plenaria) los árboles de los grupos."),
+      pe(1, "Eligen (en grupos) la causa que más importa: árbol del problema y causa elegida; quedan en la carpeta."),
+    ],
+    [
+      p(1, "Conversan (en plenaria) sobre el problema de la situación y dónde lo han visto."),
+      pe(2, "Dibujan (en grupos) un árbol con lo que pasa y sus causas (_It happens because…_, _One cause is…_)."),
+      p(1, "Revisan (en parejas) el árbol de otro grupo."),
+      pe(1, "Escogen (en grupos) la causa principal: árbol del problema y causa elegida; quedan en la carpeta."),
+    ],
+  ],
+  problema_definir: [
+    [
+      p(1, "Releen (en grupos) la causa que eligieron y qué pasa por ella."),
+      pe(2, "Escriben (en grupos) el problema en una frase (_Students are late because…_)."),
+      p(1, "Leen (en plenaria) las frases y se quedan con la más clara."),
+      pe(1, "Anotan (en grupos) quién, dónde y cuándo ocurre: el problema en una frase y sus elementos; queda en la carpeta."),
+    ],
+    [
+      p(1, "Revisan (en grupos) el árbol del problema que hicieron."),
+      pe(2, "Redactan (en grupos) una frase que diga cuál es el problema (_The problem is that…_)."),
+      p(1, "Comparan (en plenaria) las frases y eligen una."),
+      pe(1, "Escriben (en grupos) quién, dónde y cuándo ocurre: frase del problema y sus elementos; queda en la carpeta."),
+    ],
+  ],
+  problema_objetivos: [
+    [
+      p(1, "Recuerdan (en plenaria) el problema que definieron."),
+      pe(2, "Escriben (en grupos) dos objetivos: qué quieren lograr y qué necesitan averiguar (_We want to…_, _We need to find out…_)."),
+      p(1, "Comparan (en plenaria) los objetivos de los grupos."),
+      pe(1, "Anotan (en grupos) lo que van a investigar: objetivos del grupo y lo que se investigará; quedan en la carpeta."),
+    ],
+    [
+      p(1, "Repasan (en grupos) la frase del problema."),
+      pe(2, "Formulan (en grupos) dos objetivos para resolverlo (_Our goal is to…_, _We have to ask…_)."),
+      p(1, "Leen (en plenaria) los objetivos y señalan los más claros."),
+      pe(1, "Registran (en grupos) qué van a investigar: objetivos del grupo y lo que se investigará; quedan en la carpeta."),
+    ],
+  ],
+  // Proyectos, fase «Evaluación»: segunda ronda hasta el nivel satisfactorio (Referente por proyecto 2022, p. 35). Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  revision_nivel: [
+    [
+      p(1, "Entregan (en grupos) la sección corregida al docente."),
+      pe(2, "Muestran (en grupos) qué mejoraron y el docente la revisa con la rúbrica (_We changed…_)."),
+      p(1, "Preguntan (en parejas) qué criterio todavía no llega al nivel satisfactorio."),
+      pe(1, "Anotan (en grupos) si llegó al nivel satisfactorio o qué falta: sección aprobada o con una mejora pendiente; queda en la carpeta."),
+    ],
+    [
+      p(1, "Presentan (en grupos) su sección corregida al docente."),
+      pe(2, "Enseñan (en grupos) lo que cambiaron mientras el docente la revisa con la rúbrica (_We improved…_)."),
+      p(1, "Revisan (en parejas) qué criterio falta por mejorar."),
+      pe(1, "Escriben (en grupos) si llegó al nivel satisfactorio o qué mejora falta: sección aprobada o con una mejora pendiente; queda en la carpeta."),
+    ],
+  ],
+  visitar_entrevistar: [
+    [
+      p(4, "Repasan (en grupos) su turno y la pregunta que firmó cada estudiante, mientras el docente recuerda cómo pedir la palabra (_Excuse me…_, _May I ask…?_)."),
+      p(4, "Escuchan (en plenaria) a {invitado} presentarse y anotan en la tabla común lo que ya dice."),
+      pe(12, "Entrevistan (por turnos, una pregunta por estudiante) a {invitado} sobre {datos} ({frases}), mientras el docente marca la lista de cotejo.", "preguntar por esos datos"),
+      p(6, "Preguntan (por turnos) lo que falta y reaccionan a lo que oyen (_Really?_, _That’s great!_, _I see_), y el docente ayuda a quien se traba."),
+      pe(4, "Comprueban (en grupos, con {invitado}) que no falte ningún dato y piden aclarar lo que no entendieron: tabla común completa; queda en la carpeta de la sección."),
+    ],
+    [
+      p(3, "Reciben (en plenaria) a {invitado} y le explican para qué sirve {producto}."),
+      p(5, "Ensayan (en parejas) su pregunta en voz baja, y el docente pasa corrigiendo la pronunciación ({frases}).", "preguntar por los datos del guion"),
+      pe(13, "Entrevistan (en grupos, por turnos): cada estudiante hace su propia pregunta del guion a {invitado} sobre {datos} ({frases}), y los demás anotan en la tabla común.", "preguntar por esos datos"),
+      p(5, "Preguntan (en grupos) lo que quedó sin responder, mientras el docente señala en la tabla los huecos."),
+      pe(4, "Comprueban (en plenaria) la tabla con {invitado} y le agradecen ({frases}): tabla común completa; queda en la carpeta de la sección.", "agradecer", /cortesia|you.re welcome/),
+    ],
+  ],
+  presentar: [
+    [
+      p(4, "Reciben (en plenaria) a {audiencia} y le dicen para qué hicieron {producto}."),
+      pe(8, "Presentan (en grupos editores, cada grupo su sección) {producto} ante la audiencia, mientras el docente observa con la rúbrica."),
+      p(4, "Muestran (en grupos editores) una página o pieza concreta de cada sección ({frases}).", "explicar para qué sirve"),
+      pe(7, "Explican (en grupos editores) cómo se usa y responden preguntas de la audiencia ({frases}): presentación oral observada con la rúbrica.", "explicar para qué sirve"),
+    ],
+    [
+      p(3, "Saludan (en plenaria) a {audiencia} y aclaran quién hace de visitante, si lo hay."),
+      pe(9, "Muestran (en grupos editores) una a una todas las secciones de {producto} a la audiencia, explicando para qué sirve cada una ({frases}).", "explicar para qué sirve"),
+      p(4, "Señalan (en grupos editores) en {producto} dónde encontrar cada dato, y el docente anota lo que observa."),
+      pe(6, "Responden (en grupos editores) lo que la audiencia pregunte, mientras el docente completa la rúbrica: presentación oral observada."),
+    ],
+  ],
+  // Presentar una propuesta: se presenta completa y se justifica la recomendación; no se «usa» (Guía 2025, p. 21).
+  "presentar:defender": [
+    [
+      p(4, "Reciben (en plenaria) a {audiencia} y le dicen para qué hicieron {producto}."),
+      pe(8, "Presentan (en grupos editores, cada grupo su sección) {producto} ante la audiencia, mientras el docente observa con la rúbrica."),
+      p(4, "Muestran (en grupos editores) las alternativas que evaluaron, con sus ventajas y desventajas ({frases}).", "justificar una recomendación"),
+      pe(7, "Justifican (en grupos editores) por qué recomiendan esa alternativa y responden lo que la audiencia pregunte ({frases}): presentación oral observada con la rúbrica.", "justificar una recomendación"),
+    ],
+    [
+      p(3, "Saludan (en plenaria) a {audiencia} y recuerdan qué problema investigaron."),
+      pe(9, "Muestran (en grupos editores) una a una las partes de {producto} a la audiencia: las causas, los objetivos, las alternativas y la recomendación ({frases}).", "justificar una recomendación"),
+      p(4, "Señalan (en grupos editores) en {producto} los datos que apoyan la recomendación, y el docente anota lo que observa."),
+      pe(6, "Defienden (en grupos editores) su recomendación y responden lo que la audiencia pregunte, mientras el docente completa la rúbrica: presentación oral observada."),
+    ],
+  ],
+  // La prueba depende del producto (PRUEBA_POR_SECCION): siempre es usarlo con la audiencia.
+  "probar_audiencia:pedido": [
+    [
+      p(3, "Eligen (en parejas) qué plato pedirán y repasan cómo pedirlo ({frases}).", "pedir un plato"),
+      pe(9, "Hacen (en parejas, por turnos) pedidos reales con el menú a {audiencia} (_I’ll have…, please_, _Pardon? Could you repeat that?_), y el docente marca la lista de cotejo de cada estudiante."),
+      p(2, "Cambian (en parejas) de papel y piden otro plato, mientras el docente sigue observando."),
+      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+    [
+      p(3, "Ubican (en parejas) en el menú lo que van a pedir, y el docente aclara dudas."),
+      pe(10, "Usan (en parejas) el menú para hacerle un pedido a {audiencia} y aclarar lo que no entiendan (_I’ll have…, please_, _Pardon? Could you repeat that?_), y el docente observa a cada pareja con la lista de cotejo."),
+      p(2, "Repiten (en parejas) el pedido con otro plato de la guía ({frases}).", "pedir un plato"),
+      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+  ],
+  "probar_audiencia:guia": [
+    [
+      p(3, "Eligen (en parejas) el lugar al que van a llevar a su invitado y repasan cómo indicar el camino ({frases}).", "indicar un lugar"),
+      pe(9, "Guían (en parejas) a {audiencia} usando {producto}, de un lugar a otro ({frases}), y el docente marca la lista de cotejo de cada pareja.", "indicar el camino y ofrecer ayuda"),
+      p(2, "Cambian (en parejas) de papel con otro lugar, mientras el docente sigue observando."),
+      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia no entendió y lo que le sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+    [
+      p(3, "Ubican (en parejas) en {producto} el lugar que van a mostrar, y el docente aclara dudas."),
+      pe(10, "Acompañan (en parejas) a {audiencia} por el centro con {producto} en la mano e indican el camino ({frases}), y el docente observa a cada pareja con la lista de cotejo.", "indicar el camino y ofrecer ayuda"),
+      p(2, "Responden (en parejas) lo que pregunte la audiencia en el recorrido ({frases}).", "ofrecer ayuda"),
+      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+  ],
+  "probar_audiencia:explicar": [
+    [
+      p(3, "Eligen (en parejas) la parte de {producto} que van a explicar y a quién."),
+      pe(9, "Explican (en parejas) a {audiencia} una parte concreta de {producto} con un ejemplo y responden sus dudas (_This part shows…_, _Could you repeat that?_), y el docente marca la lista de cotejo de cada pareja."),
+      p(2, "Cambian (en parejas) de papel, mientras el docente sigue observando."),
+      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+    [
+      p(3, "Repasan (en parejas) qué parte de {producto} van a explicar y con qué ejemplo."),
+      pe(10, "Muestran (en parejas) a {audiencia} cómo usar una parte de {producto} y responden sus dudas (_This part shows…_, _Pardon?_), y el docente observa a cada pareja con la lista de cotejo."),
+      p(2, "Preguntan (en parejas) a la audiencia qué parte le serviría en casa."),
+      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+  ],
+  indagar_disenar: [
+    [
+      p(3, "Repasan (en plenaria) qué datos necesita {producto}, mientras el docente muestra una pregunta modelo ({pregunta})."),
+      pe(7, "Redactan (en grupos) una encuesta breve de 4 o 5 preguntas sobre {asunto} ({preguntas}), sin espacio para nombres."),
+      p(2, "Prueban (en parejas) las preguntas con otro grupo y cambian las que no se entienden."),
+      pe(3, "Firman (individual) la pregunta que aportó cada uno, no las respuestas: encuesta lista; queda en la carpeta."),
+    ],
+    [
+      p(3, "Conversan (en plenaria) sobre qué hay que preguntar para saber {asunto}, y el docente anota los datos en la pizarra."),
+      pe(7, "Escriben (en grupos) las preguntas de la encuesta, una por dato ({preguntas}), sin espacio para nombres."),
+      p(2, "Comparan (en grupos) sus preguntas con las de otro grupo y dejan 4 o 5."),
+      pe(3, "Firman (individual) la pregunta que aportó cada uno, no las respuestas: encuesta lista; queda en la carpeta."),
+    ],
+  ],
+  indagar_aplicar: [
+    [
+      p(2, "Reparten (en parejas) a quién preguntará cada uno, mientras el docente recuerda que las respuestas no llevan nombre."),
+      pe(7, "Aplican (en parejas, por turnos) la encuesta a {poblacion} ({pregunta}, {respuestas}), sin anotar nombres."),
+      p(2, "Reúnen (en grupos) las hojas de respuestas sin nombre."),
+      pe(4, "Cuentan (en grupos) las respuestas y las resumen en cifras del grupo, nunca por nombre ({cifras}): tabla común de resultados; queda en la carpeta."),
+    ],
+    [
+      p(2, "Ensayan (en parejas) cómo hacer las preguntas, mientras el docente aclara que nadie anota nombres."),
+      pe(7, "Preguntan (en parejas, por turnos) a {poblacion} con la encuesta y marcan cada respuesta ({respuestas}), sin anotar nombres."),
+      p(2, "Juntan (en grupos) las respuestas de todas las parejas."),
+      pe(4, "Resumen (en grupos) los resultados en cifras del grupo, nunca por nombre ({cifras}): tabla común de resultados; queda en la carpeta."),
+    ],
+  ],
+  indagar_contrastar: [
+    [
+      p(3, "Leen (en parejas) {fuente}, impresa por el docente, y subrayan el dato principal."),
+      pe(4, "Comprueban (en grupos) si la fuente es fiable: quién la escribió, de cuándo es y para quién."),
+      pe(5, "Comparan (en grupos) sus resultados con la fuente (_The source says…, but our group…_)."),
+      pe(3, "Anotan (en grupos) qué coincide y qué no: tabla de contraste; queda en la carpeta."),
+    ],
+    [
+      p(3, "Escuchan (en plenaria) {fuente}, leída por el docente, y anotan el dato principal."),
+      pe(4, "Verifican (en grupos) si la fuente es fiable: quién la escribió, de cuándo es y a quién se dirige."),
+      pe(5, "Contrastan (en grupos) esa fuente con su tabla de resultados (_The source says…, but our group…_)."),
+      pe(3, "Registran (en grupos) qué coincide y qué no: tabla de contraste; queda en la carpeta."),
+    ],
+  ],
+  // Producto que es una propuesta: no se usa, se defiende (Guía 2025, p. 21). Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  "probar_audiencia:defender": [
+    [
+      p(3, "Eligen (en parejas) la alternativa que van a defender y las razones que la apoyan."),
+      pe(7, "Explican (en parejas) a {audiencia} por qué recomiendan esa alternativa y responden sus dudas (_We recommend… because…_, _Could you repeat that?_), y el docente marca la lista de cotejo de cada pareja."),
+      p(2, "Cambian (en parejas) de papel, mientras el docente sigue observando."),
+      pe(3, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le convenció (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+    [
+      p(3, "Repasan (en parejas) la recomendación y sus razones."),
+      pe(7, "Defienden (en parejas) ante {audiencia} su recomendación y contestan sus preguntas (_We suggest… because…_, _Pardon?_), mientras el docente observa a cada pareja con la lista de cotejo."),
+      p(2, "Intercambian (en parejas) los papeles y repiten la defensa."),
+      pe(3, "Anotan (en plenaria) en tarjetas lo que la audiencia propone cambiar y lo que le convenció: tarjetas en la carpeta del producto."),
+    ],
+  ],
+  "probar_audiencia:general": [
+    [
+      p(3, "Eligen (en parejas) la parte de {producto} que van a usar con la audiencia."),
+      pe(9, "Explican (en parejas) a {audiencia} para qué sirve una parte concreta de {producto} y responden sus dudas (_This part shows…_, _Could you repeat that?_), y el docente marca la lista de cotejo de cada pareja."),
+      p(2, "Cambian (en parejas) de papel, mientras el docente sigue observando."),
+      pe(6, "Recogen (en plenaria) en tarjetas lo que la audiencia cambiaría y lo que le sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+    [
+      p(3, "Repasan (en parejas) qué van a mostrar y cómo lo van a decir ({frases}).", "explicar el producto"),
+      pe(10, "Prueban (en parejas) {producto} con {audiencia} y aclaran lo que no entiendan (_Pardon?_, _Could you repeat that?_), y el docente observa a cada pareja con la lista de cotejo."),
+      p(2, "Preguntan (en parejas) a la audiencia qué le sirvió más."),
+      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de la audiencia (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+  ],
+  evaluar_comentarios: [
+    [
+      pe(4, "Leen (individual) las tarjetas con los comentarios de la audiencia, mientras el docente aclara las palabras que no entienden."),
+      p(2, "Subrayan (individual) en cada tarjeta lo que se pide cambiar."),
+      p(2, "Conversan (en parejas) sobre qué comentario les pareció más útil ({frases}).", "dar su opinión"),
+      pe(5, "Responden (individual) por escrito qué piden cambiar y por qué ({frases}): respuestas firmadas; son la evidencia de comprensión.", "decir qué cambio se pide"),
+    ],
+    [
+      pe(5, "Leen (en grupos) las tarjetas con los comentarios de la audiencia y conversan sobre qué piden, mientras el docente pasa por los grupos."),
+      p(2, "Separan (en grupos) las tarjetas en lo que sirvió y lo que hay que cambiar."),
+      p(2, "Preguntan (en plenaria) al docente lo que no entendieron de las tarjetas."),
+      pe(5, "Escriben (individual, cada quien por su cuenta) qué cambio se pide y por qué ({frases}): respuestas firmadas; son la evidencia de comprensión.", "decir qué cambio se pide"),
+    ],
+  ],
+  corregir_final: [
+    [
+      p(2, "Reparten (en grupos editores) qué sección corrige cada quien."),
+      pe(6, "Corrigen (en grupos editores) en {producto} lo que pidió la audiencia: versión revisada, lista para entregar{entrega}."),
+      p(3, "Comprueban (en grupos editores) que los datos sigan coincidiendo con su fuente, y el docente revisa una muestra."),
+      p(2, "Pasan (en grupos editores) a limpio lo corregido."),
+    ],
+    [
+      p(2, "Ubican (en grupos editores) en {producto} lo que hay que cambiar."),
+      pe(5, "Corrigen (en grupos editores) lo que pidió la audiencia: versión revisada, lista para entregar{entrega}."),
+      p(3, "Leen (en grupos editores) en voz alta lo corregido, y el docente señala lo que falte."),
+      p(2, "Revisan (en grupos editores) que no quede ningún cambio pendiente."),
+    ],
+  ],
+  evaluar_proceso: [
+    [
+      p(3, "Conocen (en plenaria) cómo completar las fichas, y el docente modela un ejemplo."),
+      pe(8, "Evalúan (en parejas) su proceso con las fichas de autoevaluación y coevaluación: fichas en el portafolio."),
+      p(3, "Comentan (en parejas) una fortaleza y una mejora de su compañero ({frases}).", "dar una opinión"),
+      pe(7, "Escriben (individual) su reflexión sobre qué aprendieron y qué harían distinto: reflexión firmada en el portafolio."),
+    ],
+    [
+      p(3, "Recuerdan (en plenaria) con el docente lo que hicieron en la unidad."),
+      pe(8, "Completan (en parejas) las fichas de autoevaluación y coevaluación, y el docente recoge las dudas: fichas en el portafolio."),
+      p(3, "Conversan (en parejas) sobre qué fue lo más difícil ({frases}).", "dar una opinión"),
+      pe(7, "Reflexionan (individual) por escrito sobre qué cambió en {producto} y qué aprendieron: reflexión firmada en el portafolio."),
+    ],
+  ],
+};

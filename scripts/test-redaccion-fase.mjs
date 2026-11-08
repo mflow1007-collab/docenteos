@@ -308,7 +308,7 @@ check("clase con TODAS las secciones: su aporte puede nombrar el producto entero
   }
   const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
   assert(/Si la clase avanza TODAS las secciones \(sin principal\), el "aporteProducto" nombra el producto entero/.test(faseTxt), "el prompt lo pide");
-  assert(/const PROMPT_FASE_VERSION = 9;/.test(faseTxt), "versión del prompt");
+  assert(/const PROMPT_FASE_VERSION = 11;/.test(faseTxt), "versión del prompt");
 });
 
 check("cada fase deja su entrega: la última clase la declara y se avanzan sus secciones", () => {
@@ -455,6 +455,28 @@ check("Anexo F: primero el vocabulario del proyecto (sin singular y plural repet
     ["high school", "malla"], ["freshman", "malla"],
   ], "glosario");
   igual(construirAnexosUnidad(baseAnexos).glosario.map((g) => g.origen), ["malla", "malla"], "sin ampliación, como antes");
+});
+
+check("Anexo F: los términos de la semilla salen primero y estables, sin repetir los de la malla", () => {
+  const { glosario } = construirAnexosUnidad({
+    ...baseAnexos,
+    vocabulario: ["menu"],
+    secciones: ["Our Local Food", "Bilingual Menus"],
+    terminosSecciones: { "Our Local Food": ["dish", "ingredients"], "Bilingual Menus": ["menu", "price"], "Sección quitada": ["nada"] },
+    ampliacion: [{ texto: "ingredient, dishes, chef", tipo: "vocabulario", seccion: "Our Local Food" }],
+  });
+  igual(glosario.map((g) => [g.termino, g.origen]), [
+    ["dish", "DocenteOS"], ["ingredients", "DocenteOS"], ["price", "DocenteOS"], ["chef", "DocenteOS"], ["menu", "malla"],
+  ], "glosario con semilla");
+});
+
+check("Semillas de Inglés 2do: términos por cada sección, máximo 16, sin repetidos", () => {
+  for (const s of SEMILLAS) {
+    igual(Object.keys(s.terminos), s.secciones, `${s.id}: una lista por sección`);
+    const total = Object.values(s.terminos).flat();
+    assert(total.length <= 16, `${s.id}: ${total.length} términos`);
+    igual(new Set(total).size, total.length, `${s.id}: sin repetidos`);
+  }
 });
 
 check("Anexo F: en la malla, lo trabajado en las clases va primero", () => {

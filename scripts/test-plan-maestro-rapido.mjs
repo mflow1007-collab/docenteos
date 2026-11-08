@@ -74,6 +74,9 @@ check("Etapa 1A: la semilla trae qué contiene cada sección; el borrador del t�
   igual(d.planMaestro.piezasSecciones["Healthy Choices"], "etiquetas «Healthy pick» junto a los platos del menú, cada una con su razón y la alternativa más sana", "pieza de Healthy Choices");
   igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.propositosSecciones, {}, "sin semilla, sin propósitos");
   igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.piezasSecciones, {}, "sin semilla, sin piezas");
+  igual(d.planMaestro.terminosSecciones["Bilingual Menus"], ["menu", "price", "drink"], "términos del Anexo F desde la semilla");
+  igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.terminosSecciones, {}, "sin semilla, sin términos");
+  assert(/reales o simuladas/.test(d.planMaestro.piezasSecciones["Interviews with Owners"]) && !/cada dueño/.test(d.planMaestro.piezasSecciones["Interviews with Owners"]), "la entrevista puede ser simulada");
   igual(d.planMaestro.tiposTrabajoSecciones["Healthy Choices"], "proponer", "Etapa S2: tipo de Healthy Choices");
   igual(d.planMaestro.partenDeSecciones["Ordering Food"], ["Bilingual Menus", "Healthy Choices"], "Etapa S2: de qué parte Ordering Food");
   igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.tiposTrabajoSecciones, {}, "sin semilla, sin tipos");

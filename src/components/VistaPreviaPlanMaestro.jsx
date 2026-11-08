@@ -10,7 +10,7 @@
  */
 import { useEffect, useMemo, useRef } from "react";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
-import { ROLES_FASES_POR_ESTRATEGIA, rolesDeFaseGuia } from "../data/rolesFasesEstrategias.js";
+import { ROLES_FASES_POR_ESTRATEGIA, rolesDeFaseGuia, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import {
   PLAN_MAESTRO_INICIAL, calcularVistaPrevia, resolverIndicadoresEstructurados, competenciasDeMalla,
   temasDeLaUnidad, alternarUnionConSiguiente, fijarPartes, fijarSesiones, repartirDeNuevo,
@@ -138,6 +138,19 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
     cuerpo = (
       <>
         <SituacionAprendizajePanel datos={datos} onChange={onChange} pm={pm} temas={temasDeLaUnidad(datos)} />
+
+        {(TIPO_TRABAJO_FASES_POR_ESTRATEGIA[pm.estrategia] || []).includes("visitar") && (
+          <label style={{ display: "block", fontSize: 13, marginTop: 10 }}>
+            ¿Cómo ocurre la visita?
+            <select
+              style={{ marginLeft: 8 }}
+              value={pm.modalidadVisita || MODALIDAD_VISITA_POR_DEFECTO}
+              onChange={(e) => actualizar({ ...pm, modalidadVisita: e.target.value })}
+            >
+              {MODALIDADES_VISITA.map((m) => <option key={m.clave} value={m.clave}>{m.nombre}</option>)}
+            </select>
+          </label>
+        )}
 
         {estrategiaGuia && (
           <>

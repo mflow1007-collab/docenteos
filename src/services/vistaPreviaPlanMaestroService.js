@@ -15,6 +15,7 @@
  * Verificación: scripts/test-vista-previa-plan-maestro.mjs
  */
 
+import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { construirPlanMaestro } from "./planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "./unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../data/indicadoresIngles2doEstructurados.js";
@@ -126,8 +127,10 @@ export const armarEntradaPlanMaestro = ({ datos = {}, mallaPayload } = {}) => {
     secciones: pm.secciones || [],
     propositosSecciones: pm.propositosSecciones || {},
     piezasSecciones: pm.piezasSecciones || {},
+    terminosSecciones: pm.terminosSecciones || {},
     tiposTrabajoSecciones: pm.tiposTrabajoSecciones || {},
     partenDeSecciones: pm.partenDeSecciones || {},
+    tareasOmitidas: ALCANCE_POR_SEMILLA[pm.situacion?.semillaId]?.conInvitado?.tareasOmitidas || [],
     ajustes: {
       unir: pm.unir,
       subdividir: pm.subdividir,
@@ -304,7 +307,7 @@ export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencia
     pm = usarSemilla(pm, semilla, { centro: datos.centro });
     producto = producto || semilla.producto.nombre;
   } else {
-    pm = { ...pm, situacion: borradorSituacion(datos), secciones: seccionesSugeridas(datos), propositosSecciones: {}, piezasSecciones: {}, tiposTrabajoSecciones: {}, partenDeSecciones: {} };
+    pm = { ...pm, situacion: borradorSituacion(datos), secciones: seccionesSugeridas(datos), propositosSecciones: {}, piezasSecciones: {}, terminosSecciones: {}, tiposTrabajoSecciones: {}, partenDeSecciones: {} };
     producto = producto || productoSugerido(datos);
   }
   const rec = recomendarEstrategia(pm.situacion.rasgos);

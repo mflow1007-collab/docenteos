@@ -1,0 +1,387 @@
+/**
+ * tareasPorTipoTrabajo — Tareas que el mapa de clases reparte por tipo de sección
+ * (Etapa 1 del esqueleto «mapa de clases», lista aprobada por César el 2026-11-04).
+ *
+ * Esto NO es texto oficial: es banco pedagógico de DocenteOS. Tipos, minutos y
+ * reglas de reparto son criterio propio. Se apoya en:
+ * - modelo antes de producir: Referente por proyecto 2022, p. 27;
+ * - comentar y mejorar antes de la entrega final: Referente 2022, p. 27; Guía 2025, p. 27;
+ * - reflexión individual al cerrar: Adecuación 2023, p. 26;
+ * - producto único con entregas parciales y sin actividades de más: Referente 2022, pp. 30-31;
+ * - tipos de evidencia y condiciones: Guía 2025, pp. 26 y 29.
+ *
+ * `minutos` = [mínimo, normal] del Desarrollo. El normal reproduce la unidad de
+ * referencia (Alimentación, 6 semanas); el mínimo es una estimación sin medir.
+ * `demuestra`: C comprender · P producir · I interactuar · null = apoyo sin indicador propio.
+ * `faseInsercion` = tipo de fase en Inserción; `rol` = papel de fase en las demás
+ * estrategias; `etapa` agrupa en la versión breve (C recoger · P producir · M mejorar).
+ *
+ * Módulo PURO. Lo consume mapaClasesService.js. Todavía no llega al prompt ni a los anexos.
+ */
+
+const tarea = (clave, nombre, minutos, demuestra, evidencia, condicion, organizacion, entrega, faseInsercion, rol, etapa, didacticos, extra = {}) => ({
+  clave, nombre, minutos, demuestra, evidencia, condicion, organizacion, entrega,
+  faseInsercion, rol, etapa, recursos: { humanos: "Docente y estudiantes", didacticos, tecnologicos: "No requerido" },
+  ...extra,
+});
+
+// «orientar» se añade aquí y no en TIPOS_TRABAJO: esa lista alimenta la generación
+// actual y cambiarla queda para la etapa que conecte el mapa.
+// «Recoger datos» (encuesta anónima y agregada) se reutiliza en varias estrategias: a quién se pregunta y con qué frases
+// de ejemplo depende de lo que se investiga (hábitos en Indagación; un problema o un caso en las demás).
+export const DATOS_ENCUESTA = {
+  indagacion_dialogica: { poblacion: "sus compañeros", pregunta: "_How often do you…?_", preguntas: "_How often do you…?_, _What time do you…?_", respuestas: "_I sometimes…_, _I never…_", cifras: "_8 of 30 students…_" },
+  problemas: { poblacion: "estudiantes de otro grupo a quienes afecta el problema", pregunta: "_Did you…?_", preguntas: "_Did you…?_, _Where…?_, _Why…?_", respuestas: "_Yes, I did…_, _It happened because…_", cifras: "_6 of 10 students…_", estructura: ["Preguntar por el problema y resumir datos", "presente simple y pasado (_Did you…?_, _6 of 10 students…_)"] },
+  estudio_caso: { poblacion: "personas que conocen el caso", pregunta: "_What happened…?_", preguntas: "_What happened…?_, _Why…?_, _Who…?_", respuestas: "_I think…_, _Because…_", cifras: "_5 of 8 people…_", estructura: ["Preguntar por el caso y resumir datos", "(_What happened…?_, _5 of 8 people…_)"] },
+};
+
+export const TAREAS_POR_TIPO = {
+  visitar: [
+    tarea("visitar_modelo", "identificar preguntas con un modelo", [15, 30], "C", "conocimiento", "escrita", "parejas", "Lista de datos por recoger", "preparar_instrumentos", "conocimiento", "C", "Entrevista modelo impresa"),
+    tarea("visitar_guion", "escribir el guion", [15, 30], "P", "producto", "escrita", "grupos, una pregunta firmada por estudiante", "Guion de entrevista y orden de turnos", "preparar_instrumentos", "conocimiento", "C", "Lista de datos, tiras de papel", { individual: true }),
+    tarea("visitar_entrevistar", "entrevistar", [15, 30], "I", "desempeno", "oral", "grupos por turnos, una pregunta por estudiante", "Tabla común con respuestas y datos", "visitar", "conocimiento", "C", "Guion, tabla común en cartulina", { usaModalidad: true, recogeDatos: true }),
+    tarea("visitar_registrar", "registrar por escrito", [10, 30], "P", "producto", "escrita", "grupos", "Registro escrito de la entrevista", "describir", "modelado", "P", "Tabla común, cuaderno"),
+    tarea("visitar_segunda", "segunda entrevista", [20, 20], "I", "desempeno", "oral", "grupos", "Datos que faltaban en la tabla común", "visitar", "conocimiento", "C", "Tabla común", { ampliacion: true, usaModalidad: true }),
+  ],
+  describir: [
+    tarea("describir_modelo", "analizar un modelo", [4, 8], null, "conocimiento", "escrita", "parejas", "Frase modelo anotada", "describir", "conocimiento", "C", "Pieza modelo"),
+    tarea("describir_redactar", "redactar y firmar la pieza", [11, 22], "P", "producto", "escrita", "individual dentro del grupo", "Pieza redactada (borrador)", "describir", "modelado", "P", "Datos de la tabla, papel, colores", { individual: true }),
+  ],
+  analizar: [
+    tarea("analizar_ordenar", "ordenar datos con un modelo", [15, 30], "C", "conocimiento", "escrita", "grupos", "Datos ordenados", "analizar", "conocimiento", "C", "Pieza modelo, tabla común"),
+    tarea("analizar_borrador", "redactar el borrador y comprobar sus datos", [15, 30], "P", "producto", "escrita", "grupos, una entrada firmada por estudiante", "Borrador con datos de fuente", "analizar", "modelado", "P", "Datos ordenados, diccionario, papel", { individual: true }),
+    tarea("analizar_verificar", "verificar con otra fuente", [15, 15], "C", "conocimiento", "escrita", "parejas", "Datos verificados", "analizar", "modelado", "P", "Borrador, fuente adicional", { ampliacion: true }),
+  ],
+  proponer: [
+    tarea("proponer_comparar", "comparar con un texto", [15, 30], "C", "conocimiento", "escrita", "parejas", "Tabla de comparación", "analizar", "conocimiento", "C", "Texto impreso"),
+    tarea("proponer_elegir", "elegir y justificar", [7, 14], "I", "desempeno", "oral", "grupos, cada estudiante propone", "Elección justificada", "proponer", "modelado", "P", "Tabla de comparación"),
+    tarea("proponer_elaborar", "elaborar la pieza", [8, 16], "P", "producto", "escrita", "grupos", "Pieza propuesta (borrador)", "proponer", "modelado", "P", "Tarjetas, papel"),
+  ],
+  aplicar: [
+    tarea("aplicar_modelo", "analizar un modelo", [6, 12], "C", "conocimiento", "oral", "parejas", "Frases identificadas", "aplicar", "conocimiento", "C", "Modelo impreso"),
+    tarea("aplicar_escribir", "escribir", [9, 18], "P", "producto", "escrita", "parejas", "Pieza escrita (borrador)", "aplicar", "modelado", "P", "Piezas anteriores, papel"),
+    tarea("aplicar_ensayar", "ensayar", [10, 20], "I", "desempeno", "oral", "parejas que rotan", "Ensayo observado", "aplicar", "aplicacion", "M", "Pieza escrita"),
+    tarea("aplicar_anotar", "anotar la mejora", [5, 10], "I", "desempeno", "escrita", "parejas", "Observaciones del ensayo", "aplicar", "aplicacion", "M", "Pieza escrita"),
+    tarea("aplicar_segundo", "segundo ensayo", [15, 15], "I", "desempeno", "oral", "parejas que rotan", "Segundo ensayo observado", "aplicar", "aplicacion", "M", "Pieza escrita", { ampliacion: true }),
+    tarea("aplicar_corregir", "corregir", [6, 12], "P", "producto", "escrita", "parejas", "Versión final de la sección", "aplicar", "aplicacion", "M", "Pieza escrita, observaciones", { cierraSeccion: true }),
+  ],
+  // ⚠ socializar y orientar: la unidad de referencia no los usa; sin probar en un plan completo.
+  socializar: [
+    tarea("socializar_reunir", "reunir lo hecho", [5, 15], "C", "conocimiento", "escrita", "grupos", "Ideas reunidas", "socializar", "conocimiento", "C", "Piezas anteriores"),
+    tarea("socializar_redactar", "redactar el mensaje", [15, 25], "P", "producto", "escrita", "grupos", "Mensaje (borrador)", "socializar", "modelado", "P", "Ideas reunidas, papel"),
+    tarea("socializar_leer", "leerlo a otro grupo", [10, 20], "I", "desempeno", "oral", "dos grupos en intercambio", "Comentarios del otro grupo", "socializar", "aplicacion", "M", "Mensaje"),
+  ],
+  orientar: [
+    tarea("orientar_recorrido", "recorrido o mapa", [10, 20], "C", "conocimiento", "escrita", "grupos", "Recorrido o mapa", "analizar", "conocimiento", "C", "Plano, papel"),
+    tarea("orientar_instrucciones", "instrucciones", [15, 30], "P", "producto", "escrita", "grupos", "Instrucciones (borrador)", "analizar", "modelado", "P", "Recorrido o mapa"),
+    tarea("orientar_probar", "prueba con un compañero", [10, 15], "I", "desempeno", "oral", "parejas", "Observaciones de la prueba", "analizar", "aplicacion", "M", "Instrucciones"),
+  ],
+};
+
+// Cómo se usa cada producto con su audiencia. Lo que no aparece usa la prueba general.
+export const PRUEBA_POR_SECCION = {
+  "Ordering Food": { tipo: "pedido", hace: "Hacen pedidos reales con el menú a la audiencia y luego recogen sus comentarios en tarjetas." },
+  "School Directions": { tipo: "guia", hace: "En parejas guían a la audiencia usando la guía, de un lugar a otro, y luego recogen sus comentarios en tarjetas." },
+  "Tips for Families": { tipo: "explicar", hace: "En parejas explican a la audiencia una parte concreta del producto, responden sus dudas y luego recogen sus comentarios en tarjetas." },
+};
+
+// Reunidas: comentar por estaciones y corregir abarcan varias secciones a la vez.
+export const SECCIONES_POR_COMENTAR = 3;
+export const SECCIONES_POR_CORREGIR = 3;
+export const TAREA_COMENTAR = tarea("comentar", "comentar por estaciones", [15, 30], "I", "desempeno", "oral", "estaciones por grupo", "Comentarios por sección", "socializar", "aplicacion", "M", "Piezas de las secciones, ficha de comentarios");
+export const TAREA_CORREGIR = tarea("corregir", "corregir, probar y verificar datos", [15, 30], "P", "producto", "escrita", "grupo editor de cada sección", "Versión final de las secciones", null, "aplicacion", "M", "Piezas, comentarios, tabla común", { cierraSeccion: true });
+
+// Proyectos, fase «Evaluación» (Referente por proyecto 2022, p. 35): el docente evalúa de forma formativa con la
+// rúbrica, sección por sección, y el grupo mejora hasta el nivel satisfactorio. Actividad aparte y formativa,
+// antes de la sumativa (I-04). Interpretación DocenteOS, aprobada por César el 2026-11-06.
+export const TAREA_REVISION_NIVEL = tarea("revision_nivel", "segunda revisión del docente: nivel satisfactorio", [5, 10], "P", "producto", "escrita", "grupo editor de cada sección", "Sección en el nivel satisfactorio o con una mejora pendiente", null, "aplicacion", "M", "Secciones corregidas, rúbrica", { revisionFormativa: true });
+export const TAREA_REVISION_DOCENTE = tarea("revision_docente", "revisión formativa del docente con la rúbrica", [10, 20], "P", "producto", "escrita", "grupo editor de cada sección", "Sección revisada con la rúbrica y mejoras anotadas", null, "aplicacion", "M", "Piezas de las secciones, rúbrica", { revisionFormativa: true });
+// Una vez en la unidad, en este orden.
+export const TAREAS_UNIDAD = {
+  // Indagación: su fase «Validación de las fuentes» (César, 2026-11-06). faseGuia = posición de esa fase.
+  indagarDisenar: tarea("indagar_disenar", "diseñar la encuesta", [8, 15], "P", "producto", "escrita", "grupos, una pregunta firmada por estudiante", "Encuesta anónima", null, "conocimiento", "C", "Cuaderno, hojas para copiar", { faseGuia: 1, claseAparte: true }),
+  indagarAplicar: tarea("indagar_aplicar", "aplicar la encuesta y resumir", [8, 15], "I", "desempeno", "oral y escrita", "parejas por turnos", "Resultados del grupo en la tabla común", null, "conocimiento", "C", "Encuesta, tabla común", { faseGuia: 1, claseAparte: true }),
+  indagarContrastar: tarea("indagar_contrastar", "contrastar con una fuente", [15, 30], "C", "conocimiento", "escrita", "grupos", "Tabla de contraste con la fuente", null, "conocimiento", "C", "Fuente impresa que trae el docente, tabla común", { faseGuia: 1, claseAparte: true }),
+  // Sin ficha del centro, los lugares salen de aquí (César, 2026-11-05).
+  recorrerLugares: tarea("recorrer_lugares", "recorrer el centro y anotar sus lugares", [10, 15], "C", "conocimiento", "oral y escrita", "grupos", "Tabla común de lugares", "recoger", "conocimiento", "C", "Tabla común en cartulina, cuaderno", { hace: "Recorren el centro en grupos y anotan en la tabla común cada lugar que existe de verdad: nombre, para qué sirve y quién lo atiende. Esa tabla es la fuente de la guía." }),
+  acordar: tarea("acordar", "acordar el plan y hacer el diagnóstico", [30, 30], "C", "conocimiento", "oral y escrita", "plenaria y grupos", "Acuerdo y plan; grupos editores; diagnóstico", "recoger", "apertura", "C", "Pieza modelo, hoja de diagnóstico, cartel"),
+  // Proyectos, fase «Análisis de saberes previos» (Referente por proyecto 2022, p. 32): SQA sobre el problema y el
+  // producto, distinto del diagnóstico de idioma de la clase 1. Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  saberesPrevios: tarea("saberes_previos", "recoger los saberes previos sobre el problema y el producto", [8, 15], "C", "conocimiento", "oral y escrita", "grupos", "Cartel SQA y preguntas para comprobar", null, "apertura", "C", "Cartulina, marcadores, tarjetas", { faseGuia: 1 }),
+  // Problemas, fases 1 a 3 (Adecuación 2023, p. 24: identificar y comprender el problema, delimitarlo, esquematizar los
+  // propósitos del grupo). Cada fase conserva su tarea. Interpretación DocenteOS, aprobada por César el 2026-11-07.
+  problemaAnalizar: tarea("problema_analizar", "identificar el problema y sus causas", [5, 10], "C", "conocimiento", "oral y escrita", "grupos", "Árbol del problema y causa elegida", null, "apertura", "C", "Cartulina, marcadores, tarjetas", { faseGuia: 0 }),
+  problemaDefinir: tarea("problema_definir", "definir el problema en una frase", [5, 10], "P", "producto", "escrita", "grupos", "El problema en una frase y sus elementos", null, "apertura", "C", "Cartulina, tarjetas", { faseGuia: 1 }),
+  problemaObjetivos: tarea("problema_objetivos", "formular los objetivos del grupo", [5, 10], "P", "producto", "escrita", "grupos", "Objetivos del grupo y lo que se investigará", null, "apertura", "C", "Cartulina, hojas", { faseGuia: 2 }),
+  glosario: tarea("glosario", "glosario", [15, 15], "P", "producto", "escrita", "grupos", "Glosario de la guía", "aplicar", "aplicacion", "M", "Piezas de las secciones", { ampliacion: true }),
+  integrar: tarea("integrar", "reunir las secciones y revisar el conjunto", [9, 18], "P", "producto", "escrita", "grupos editores", "Producto completo", "aplicar", "aplicacion", "M", "Todas las secciones"),
+  presentar: tarea("presentar", "presentar a la audiencia", [15, 30], ["P", "I"], "desempeno", "oral", "grupos editores ante la audiencia", "Presentación y comentarios de la audiencia", "aplicar", "socializacion", "M", "Producto completo, tarjetas de comentarios", { llegaAudiencia: true, sumativa: true }),
+  // Cuando el producto se prueba con la audiencia (p. ej. pedidos con un menú), presentar y
+  // probar son dos tareas con sus minutos: pedirlo dentro de una sola no siempre se cumplía.
+  presentarSecciones: tarea("presentar", "presentar a la audiencia", [8, 15], "P", "desempeno", "oral", "grupos editores ante la audiencia", "Presentación a la audiencia", "aplicar", "socializacion", "M", "Producto completo", { claseAparte: true, llegaAudiencia: true, sumativa: true, hace: "Presentan TODAS las secciones del producto a la audiencia, nombrándola. Aquí no se corrige y no hay comentarios previos." }),
+  probarConAudiencia: tarea("probar_audiencia", "probar el producto con la audiencia", [7, 15], "I", "desempeno", "oral", "parejas o grupos con la audiencia", "Prueba con la audiencia y comentarios en tarjetas", "aplicar", "socializacion", "M", "Producto completo, tarjetas de comentarios", { claseAparte: true, sumativa: true }),
+  audienciaSecundaria: tarea("audiencia_secundaria", "audiencia secundaria", [15, 15], "I", "desempeno", "oral", "parejas", "Comentarios de la audiencia secundaria", "aplicar", "socializacion", "M", "Producto completo", { ampliacion: true }),
+  evaluarProceso: tarea("evaluar_proceso", "autoevaluación, coevaluación y reflexión individual", [8, 15], null, "desempeno", "escrita", "parejas e individual", "Autoevaluación, coevaluación y reflexión individual", "evaluar", "evaluacion", "M", "Fichas de autoevaluación y coevaluación", { individual: true }),
+  evaluarComentarios: tarea("evaluar_comentarios", "comprender los comentarios", [5, 9], "C", "conocimiento", "escrita", "individual", "Respuestas firmadas", "evaluar", "evaluacion", "M", "Tarjetas de comentarios", { individual: true, sumativa: true }),
+  corregirFinal: tarea("corregir_final", "corregir el producto", [4, 6], null, "producto", "escrita", "grupos editores", "Versión revisada del producto", "evaluar", "evaluacion", "M", "Tarjetas de comentarios, producto"),
+};
+
+// Sección cuyo tipo aprobado aún no está en la semilla: cambiarla en la semilla
+// alteraría la generación actual, así que el mapa lo resuelve por su cuenta.
+export const TIPO_APROBADO_POR_SECCION = { "School Directions": "orientar" };
+
+// Qué hace cada tarea y qué no, para que la clase no invada a otra, y una señal para
+// avisar al administrador si la redacción se aleja (primera prueba real, 2026-11-04).
+export const DETALLE_TAREA = {
+  acordar: { hace: "Presentan la situación, acuerdan producto, audiencia, grupos y rúbrica, y aplican el diagnóstico: escuchan oraciones y marcan imágenes, leen un menú o texto breve, escriben dos oraciones y responden una pregunta en parejas. No se redactan preguntas ni piezas.", senal: "acuerd|diagn|plan" },
+  visitar_modelo: { hace: "Escuchan o leen una entrevista modelo e identifican qué pregunta da cada dato. Aún no escriben el guion ni entrevistan.", senal: "identific|modelo", soloComprender: true },
+  visitar_guion: { hace: "Escriben el guion con una pregunta firmada por cada estudiante y fijan los turnos. No entrevistan todavía.", senal: "guion|pregunta", firma: "Cada estudiante firma su pregunta." },
+  visitar_entrevistar: { hace: "Entrevistan según la modalidad, por turnos, con una pregunta por estudiante; todos anotan en la tabla común y al final comprueban que no falte ningún dato.", senal: "entrevist" },
+  visitar_registrar: { hace: "Redactan desde las notas de la tabla un registro de la entrevista. Se llama registro, no transcripción: nadie grabó.", senal: "regist|redact" },
+  visitar_segunda: { hace: "Hacen una segunda ronda de preguntas solo sobre los datos que faltan en la tabla.", senal: "entrevist|pregunt" },
+  describir_modelo: { hace: "Analizan una pieza modelo y anotan cómo se hace. Es apoyo breve.", senal: "analiz|observ|identific|modelo" },
+  describir_redactar: { hace: "Cada estudiante redacta y firma su pieza con los datos recibidos.", senal: "redact|escrib|elabor", firma: "Cada estudiante firma su pieza." },
+  analizar_ordenar: { hace: "Ordenan los datos recibidos y analizan un modelo para decidir el formato. Aún no redactan la pieza.", senal: "orden|clasific|organiz", soloComprender: true },
+  analizar_borrador: { hace: "Redactan el borrador con los datos ordenados, cada estudiante firma una entrada, y comprueban cada dato contra su fuente.", senal: "borrador|redact|escrib", firma: "Cada estudiante firma su entrada." },
+  analizar_verificar: { hace: "Verifican con otra fuente solo los datos dudosos.", senal: "verific|comprob" },
+  proponer_comparar: { hace: "Leen un texto breve y comparan en una tabla con lo que ya tienen. Aún no escriben la pieza.", senal: "compar", soloComprender: true },
+  proponer_elegir: { hace: "Discuten qué proponer y justifican su elección con la tabla.", senal: "elig|justific|discut|debat|propon" },
+  proponer_elaborar: { hace: "Elaboran la pieza con lo elegido, con su razón y su alternativa.", senal: "elabor|redact|escrib|borrador" },
+  aplicar_modelo: { hace: "Analizan un modelo e identifican sus frases. Es la parte de comprensión de esta tarea.", senal: "modelo|identific|escuch|analiz" },
+  aplicar_escribir: { hace: "Escriben la pieza usando lo identificado y las piezas ya hechas.", senal: "escrib|redact" },
+  aplicar_ensayar: { hace: "Ensayan con la pieza y el producto reales, en los dos papeles.", senal: "ensay|represent|practic" },
+  aplicar_anotar: { hace: "Anotan qué falló y qué cambiar. Aún no corrigen.", senal: "anot|observ|registr|coment" },
+  aplicar_segundo: { hace: "Repiten el ensayo probando lo que anotaron.", senal: "ensay|represent|practic" },
+  aplicar_corregir: { hace: "Corrigen la pieza con lo anotado en el ensayo y la dejan final.", senal: "corrig|ajust|mejor" },
+  // noSeReclama: la cadena de Welcome ya es coherente sin esta tarea en la clase (revisión de Escuela v4, 2026-11-06).
+  socializar_reunir: { hace: "Reúnen lo que ya tienen de las otras secciones.", senal: "reun|revis|seleccion", noSeReclama: true },
+  socializar_redactar: { hace: "Redactan el mensaje con lo reunido.", senal: "redact|escrib" },
+  socializar_leer: { hace: "Lo leen a otro grupo y anotan qué no se entendió.", senal: "le[ae]n|compart|present" },
+  orientar_recorrido: { hace: "Hacen el recorrido o el mapa con los lugares reales.", senal: "recorr|map|plano" },
+  orientar_instrucciones: { hace: "Escriben las instrucciones paso a paso desde el recorrido.", senal: "instruc|escrib|redact" },
+  orientar_probar: { hace: "Un compañero sigue las instrucciones y anotan dónde se pierde.", senal: "prueb|sig|compañero" },
+  comentar: { hace: "Solo comentan y registran dos fortalezas y una mejora por pieza. La corrección va después.", senal: "coment|recorr|fortalez" },
+  corregir: { hace: "El grupo editor corrige con los comentarios, verifica los datos contra su fuente y pasa a limpio.", senal: "corrig|verific|mejor" },
+  glosario: { hace: "Reúnen el vocabulario clave de la guía con su traducción.", senal: "glosario|vocabulario" },
+  integrar: { hace: "Reúnen todas las secciones en un solo producto y revisan que los datos coincidan. No se reescribe ni se presenta a nadie todavía.", senal: "reun|integr|compil|junt|ensambl|un[ei]n?\\b" },
+  presentar: { califica: "la presentación", hace: "Presentan TODAS las secciones del producto a la audiencia y lo ponen a prueba con ella (si es un menú y una guía para pedir, hacen pedidos reales con el menú). Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos.", senal: "present" },
+  probar_audiencia: { califica: "la prueba con la audiencia", hace: "Ponen a prueba el producto con la audiencia: si es un menú y una guía para pedir, hacen pedidos reales con el menú. Luego recogen sus comentarios en tarjetas.", senal: "pedid|pedir|orden|order|prueb|usan|acompan|guian|indic|camino|explic" },
+  audiencia_secundaria: { hace: "Prueban el producto con la audiencia secundaria y recogen sus comentarios.", senal: "present|prueb|muestr" },
+  evaluar_comentarios: { califica: "las respuestas individuales", hace: "Leen los comentarios de la audiencia y cada estudiante responde por escrito qué piden cambiar y por qué. Las respuestas son la evidencia de comprensión.", senal: "comentari", firma: "Cada estudiante firma sus respuestas." },
+  indagar_disenar: { hace: "Redactan una encuesta breve y anónima con los datos que necesita el producto; cada estudiante firma la pregunta que aporta, no las respuestas.", senal: "encuesta|cuestionario", firma: "Cada estudiante firma la pregunta que aporta." },
+  indagar_aplicar: { hace: "Aplican la encuesta a la población elegida sin anotar nombres y resumen las respuestas en cifras del grupo.", senal: "encuesta|respuestas|resum" },
+  indagar_contrastar: { hace: "Comprueban si una fuente impresa es fiable y comparan con ella sus resultados.", senal: "fuente" },
+  revision_docente: { hace: "El docente revisa cada sección con la rúbrica, criterio por criterio, y devuelve en qué nivel está y qué mejorar; el grupo editor anota las mejoras hasta llegar al nivel satisfactorio. Es formativa: no se califica ni se corrige aquí el producto completo.", senal: "rúbrica|rubrica|revis|mejor", formativo: ["la revisión del docente con la rúbrica"] },
+  revision_nivel: { hace: "Cada grupo muestra al docente su sección corregida; el docente la revisa con la rúbrica y anotan si llegó al nivel satisfactorio o qué mejora falta. Es formativa: no se califica.", senal: "satisfactorio|rúbrica|rubrica|revis", formativo: ["la segunda revisión del docente"] },
+  saberes_previos: { hace: "Comparten lo que ya saben del problema y del producto en un cartel SQA (qué sabemos, qué queremos saber) y escriben dos preguntas para comprobar. No es el diagnóstico de idioma.", senal: "sqa|saben|queremos saber|pregunt" },
+  problema_analizar: { hace: "Reconocen el problema de la situación, dicen dónde lo han visto y hacen un árbol de causas y efectos; eligen la causa que más importa. No definen todavía el problema ni investigan.", senal: "causa|problema|árbol" },
+  problema_definir: { hace: "Escriben el problema en una frase y señalan sus elementos (quién, dónde, cuándo). Aún no formulan objetivos.", senal: "frase|defin|problema" },
+  problema_objetivos: { hace: "Escriben los objetivos del grupo y qué van a investigar para lograrlos. Aún no investigan.", senal: "objetivo|investig" },
+  corregir_final: { formativo: ["la corrección"], hace: "Corrigen el producto completo con lo que pidió la audiencia. Queda listo para entregar; no se vuelve a presentar.", senal: "corrig" },
+  evaluar_proceso: { formativo: ["la autoevaluación", "la coevaluación", "la reflexión"], hace: "Completan autoevaluación y coevaluación, y cada estudiante escribe su reflexión.", senal: "autoeval|coeval|reflex" },
+};
+
+// Inventario de datos (César, 2026-11-04): lo que cada sección necesita y lo que recoge,
+// para que ninguna pieza exija un dato sin origen. Banco pedagógico. Las secciones
+// fuera de esta lista (temas sin semilla) no se comprueban.
+export const INVENTARIO_POR_SECCION = {
+  // Alimentación
+  "Interviews with Owners": { evidencia: "Registro escrito de la entrevista", nombres: "entrevista|registro", recoge: ["platos", "ingredientes", "precios", "horario", "clientes"] },
+  "Our Local Food": { evidencia: "Fichas de platos", nombres: "fichas?", necesita: ["platos", "ingredientes"] },
+  "Bilingual Menus": { evidencia: "Menú bilingüe", nombres: "menu", necesita: ["platos", "precios"] },
+  "Healthy Choices": { evidencia: "Etiquetas «Healthy pick»", nombres: "healthy pick|etiquetas|tabla de comparacion", necesita: ["platos", "ingredientes"] },
+  "Ordering Food": { evidencia: "Guía para pedir", nombres: "guia|pedid", necesita: ["platos", "precios"], pruebaConAudiencia: "pedid|pedir|orden|order|can i have|i ll have|i'll have" },
+  // Escuela y educación
+  "Important Places": { evidencia: "Fichas de lugares", nombres: "fichas? de lugares|lugares importantes|lugar del centro", recoge: ["lugares", "función del lugar", "personas"] },
+  "School Directions": { evidencia: "Plano con rutas e indicaciones", nombres: "plano|rutas?|indicaciones|instrucciones", necesita: ["lugares"], recoge: ["rutas"], pruebaConAudiencia: "gui|acompa|indic|camino" },
+  "Asking for Help": { evidencia: "Tarjeta de bolsillo", nombres: "tarjeta de bolsillo|pedir ayuda", necesita: ["lugares", "personas"] },
+  "School Success Tips": { evidencia: "Póster «Top tips»", nombres: "consejos|top tips|poster", necesita: ["lugares"] },
+  "Welcome": { evidencia: "Carta de bienvenida", nombres: "bienvenida", necesita: ["lugares"] },
+  "Final Recommendation": { evidencia: "Párrafo de cierre", nombres: "recomendacion final|parrafo de cierre" },
+  // Actividades de la vida diaria
+  "Our Daily Routines": { evidencia: "Línea de tiempo del día", datosPersonales: true, nombres: "linea de tiempo|rutinas?", recoge: ["horario"] },
+  "What We Found": { evidencia: "Gráfico de resultados", datosPersonales: true, nombres: "grafico|resultados", necesita: ["horario"], recoge: ["horas de sueño", "llegadas tarde"] },
+  "Problems and Causes": { evidencia: "Tabla problema → causa", datosPersonales: true, nombres: "problemas?|causas?", necesita: ["horas de sueño", "llegadas tarde"] },
+  "Our Healthy Schedule": { evidencia: "Horario semanal", nombres: "horario", necesita: ["horario"] },
+  "Tips for Families": { evidencia: "Folleto de consejos", nombres: "folleto|consejos", necesita: ["horario"] },
+};
+// Cómo se reconoce cada dato en el texto de la clase (sin tildes).
+export const MARCAS_DATO = {
+  platos: "plato|dish|menu|sell|serve", ingredientes: "ingredient|made (with|of)|lleva",
+  precios: "precio|price|how much|cost", horario: "horario|hour|open|schedule|time|wake|get up",
+  clientes: "client|customer", lugares: "lugar|place|library|cafeteria|office",
+  "función del lugar": "para que|what .* for|funcion|sirve", personas: "persona|who|quien|teacher|principal",
+  rutas: "ruta|turn|left|right|next to|recorrido", "horas de sueño": "sueno|sleep|horas", "llegadas tarde": "tarde|late",
+};
+
+// Dónde tiene uso cada contenido de la malla (César, 2026-11-05): la tarea que lo necesita,
+// por orden de preferencia. Lista vacía o sin esas tareas en el mapa: queda sin lugar, no
+// se fuerza. Banco pedagógico; se reconoce por el texto de la malla, nunca se copia a ella.
+// Lo que no aparece aquí sigue el reparto general.
+export const USO_DE_CONTENIDOS = [
+  [/voz pasiva/, ["describir_redactar", "analizar_borrador"]],
+  // Rutinas: la frecuencia y el presente de lo cotidiano van donde se recogen y ordenan los datos.
+  [/^frecuencia/, ["indagar_disenar", "indagar_aplicar", "analizar_ordenar", "describir_redactar"]],
+  [/^presente simple para referirse/, ["indagar_aplicar", "analizar_ordenar", "acordar"]],
+  [/how much|how many/, ["visitar_guion", "aplicar_escribir"]],
+  [/presente simple de los verbos be, have, want/, ["visitar_guion", "aplicar_modelo"]],
+  [/^will para/, ["aplicar_escribir", "aplicar_ensayar"]],
+  [/^funcional: comprar/, ["aplicar_modelo", "aplicar_escribir"]],
+  [/^funcional: expresar deseo|want, hope y wish/, ["proponer_elegir", "visitar_guion"]],
+  [/^condicional/, ["proponer_elaborar", "proponer_elegir", "proponer_comparar"]],
+  [/^funcional: pedir y dar consejos|imperativo para dar consejos|^let.s para|^should para|^why don/, ["proponer_elegir", "proponer_elaborar", "proponer_comparar", "socializar_redactar"]],
+  [/^comidas y bebidas/, ["acordar", "describir_redactar"]],
+  [/^numeros cardinales/, ["analizar_borrador", "visitar_entrevistar"]],
+  [/^numeros ordinales/, ["orientar_instrucciones"]],
+  [/^lugares:/, ["orientar_recorrido", "orientar_instrucciones"]],
+  [/^formas de interaccion|^asignaturas|^educacion:/, []],
+  [/^fechas/, []],
+  // Solo la entrevista fija una cita; en un ensayo se forzaba («at noon»): si no cabe, queda sin lugar.
+  [/^hora:/, ["visitar_entrevistar"]],
+  [/^cortesia|^you.re welcome|^captar la atencion|^pedir que repitan/, ["visitar_entrevistar", "probar_audiencia", "orientar_probar"]],
+  // Mostrar interés se forzaba en la presentación y en la prueba (revisiones de g5 y g6): solo la entrevista tiene de qué reaccionar.
+  [/^mostrar interes/, ["visitar_entrevistar"]],
+  [/^interrumpir|^pedir y dar la palabra|^mostrar acuerdo/, ["comentar", "proponer_elegir"]],
+  [/^disculparse/, ["aplicar_ensayar", "probar_audiencia"]],
+  [/^dudar/, ["proponer_elegir", "aplicar_ensayar"]],
+  [/^funcional: sostener|para sostener una conversacion/, ["visitar_entrevistar", "aplicar_ensayar", "comentar", "probar_audiencia"]],
+  [/^funcional: intercambiar|actividades cotidianas/, ["acordar", "describir_redactar"]],
+  [/^funcional: solicitar|solicitar (y ofrecer )?ayuda/, ["aplicar_modelo", "orientar_probar", "probar_audiencia"]],
+  [/^mostrar indiferencia/, []],
+  [/^deseos/, ["probar_audiencia", "proponer_elegir"]],
+];
+
+// Lugares que no se dan por hechos si no hay ficha del centro.
+export const LUGARES_NO_DECLARADOS = /(?<![\p{L}])(caf[eé]ter[ií]as?|gym|gymnasium|art rooms?|music rooms?|floors?|pisos?|auditorium|auditorio|library|biblioteca|gimnasio|computer labs?|science labs?|laboratorios?|playground|cancha)(?![\p{L}])/iu;
+
+// Cómo se reconoce en el texto un contenido gramatical, aunque la clase use otros ejemplos
+// que los de la malla (unidad a mano de Alimentación, 2026-11-06). Sin tildes y con el
+// apóstrofo como espacio, como queda el texto al normalizarlo.
+export const MARCAS_CONTENIDO = [
+  [/^voz pasiva/, "\\b(is|are|was|were) ([a-z]+ed|made|sold|built|written)\\b"],
+  [/^condicional/, "\\bif (you|i|we|they|he|she|it)\\b"],
+  [/imperativo/, "\\b(don t|try|turn|go|ask|study|eat|drink)\\b"],
+  [/^let.s para/, "\\blet s\\b"],
+  [/^why don/, "\\bwhy (don t|not)\\b"],
+  [/^want hope y wish/, "\\b(want|hope|wish)\\b"],
+  [/^presente simple de los verbos/, "\\b(have|want|need|do you|does)\\b"],
+  [/^how much/, "\\bhow (much|many)\\b"],
+  [/^captar la atencion/, "\\bexcuse me\\b"],
+  [/^should para/, "\\bshould\\b"],
+  [/^will para/, "\\b(will|i ll|we ll)\\b"],
+];
+
+// Qué frases le corresponden a un paso según su función: por el paso, las que valen.
+// Basta una de las citadas; sin citas no se juzga (sin tildes, como el texto normalizado).
+export const FRASES_POR_FUNCION = [
+  [/\baclar/, /pardon|repeat|sorry|mean|understand|could you/],
+  [/\breaccion/, /really|great|i see|good for you|what happened|wow/],
+  [/comentarios de la audiencia|en tarjetas/, /like|wish|maybe|could|think|prefer|need|should/],
+];
+
+// Entidad ficticia que declara cada texto modelo cuando el tema no tiene la suya en su alcance.
+export const NOMBRE_MODELO_POR_SEMILLA = { "ing2-rutinas-plan": "Familia modelo" };
+export const NOMBRE_MODELO_GENERAL = "Caso modelo";
+export const ASUNTO_LECTURA_GENERAL = "el problema de la situación de aprendizaje";
+export const RETROALIMENTACION_SEGUNDA_CLASE = "Retroalimentación del acuerdo de la clase anterior: recuerdan qué van a hacer y cómo se evaluará. (What did we agree to do?)";
+
+// Qué fuente contrasta la indagación: la nombra el código y la trae el docente, impresa.
+export const FUENTE_POR_SEMILLA = { "ing2-rutinas-plan": "la recomendación oficial de horas de sueño para adolescentes" };
+
+// De qué trata la lectura y las oraciones del diagnóstico de la clase 1: la situación, no el
+// nombre del tema (César, 2026-11-06). Sin semilla, se queda el tema.
+export const ASUNTO_LECTURA_POR_SEMILLA = {
+  "ing2-escuela-guia": "cómo orientarse en un centro nuevo",
+  "ing2-alimentacion-menu": "qué ofrecen los comedores del barrio y cómo se pide",
+  "ing2-rutinas-plan": "cómo organizar el día entre la escuela y la casa",
+};
+
+// Estructura del día cuando la clase no tiene gramática asignada (aprobadas por César, 2026-11-06).
+// Se busca por la clave de la tarea y, si no está, por su tipo (lo que va antes del guion).
+export const ESTRUCTURA_POR_TAREA = {
+  indagar: ["Preguntar por hábitos y resumir datos", "presente simple (_How often do you…?_, _8 of 30 students…_)"],
+  acordar: ["Intercambiar información", "presente simple (_We are…_)"],
+  recorrer: ["Describir lugares y su función", "presente simple (_This is…_, _You can…_)"],
+  visitar_registrar: ["Registrar la información", "presente simple (_He says…_, _It has…_)"],
+  visitar: ["Hacer preguntas y pedir aclaraciones", "(_Excuse me, could you…?_, _Pardon?_)"],
+  describir: ["Describir y organizar datos", "presente simple (_It has…_, _There are…_)"],
+  analizar: ["Describir y organizar datos", "presente simple (_It has…_, _There are…_)"],
+  proponer: ["Proponer y justificar", "(_We think…_, _because…_)"],
+  aplicar_corregir: ["Corregir y mejorar lo escrito", "presente simple"],
+  aplicar: ["Usar el modelo en una situación", "(_Could you…?_)"],
+  socializar: ["Dar un mensaje a un grupo", "presente simple (_We are…_, _This is for…_)"],
+  orientar: ["Dar indicaciones", "imperativo (_go straight_, _turn right_…)"],
+  comentar: ["Comentar un texto", "(_I agree…_, _Sorry to interrupt…_)"],
+  revision: ["Mejorar lo escrito con comentarios", "presente simple (_We need to…_)"],
+  saberes: ["Compartir lo que se sabe", "presente simple (_We know…_, _We want to know…_)"],
+  problema: ["Describir un problema y sus causas", "presente simple (_The problem is…_, _It happens because…_)"],
+  corregir: ["Corregir y mejorar lo escrito", "presente simple"],
+  integrar: ["Revisar el conjunto", "presente simple (_This section shows…_)"],
+  presentar: ["Explicar para qué sirve cada sección", "presente simple (_This section shows…_)"],
+  probar_audiencia: ["Usar el producto con la audiencia", "(_Excuse me, could you…?_)"],
+  evaluar_comentarios: ["Responder a los comentarios", "(_They ask for…_, _We should change…_)"],
+  evaluar_proceso: ["Reflexionar sobre lo aprendido", "(_I learned…_, _Next time I will…_)"],
+};
+
+// Clase 1: pregunta que acompaña la lectura de la situación, para que den ejemplos del problema.
+export const PREGUNTA_SITUACION_POR_SEMILLA = {
+  "ing2-alimentacion-menu": "¿Han visto a un visitante que no entiende el menú de un comedor? ¿Qué hizo?",
+  "ing2-escuela-guia": "¿Recuerdan su primer día aquí? ¿Qué lugar les costó encontrar?",
+  "ing2-rutinas-plan": "¿Les ha pasado que el tiempo no les alcanza en el día? ¿Qué hacen?",
+};
+export const PREGUNTA_SITUACION_GENERAL = "¿Han vivido algo parecido a lo que cuenta la situación? ¿Qué pasó?";
+
+// Alcance de la semilla cuando la fuente es un solo dueño invitado (ficha de la unidad).
+export const ALCANCE_POR_SEMILLA = {
+  // Decisión de César (2026-11-05): 6.º de primaria, real; visitante solo en rol y declarado.
+  "ing2-escuela-guia": {
+    conInvitado: {
+      productoDescripcion: "una guía bilingüe de la escuela",
+      contextoCambio: [/^Cada año, (.*) recibe a estudiantes de nuevo ingreso y a visitantes, algunos de ellos de habla inglesa\.?$/, "El próximo año, $1 recibirá a los estudiantes que hoy cursan 6.º de primaria, y también a visitantes, algunos de habla inglesa."],
+      problema: "Cuando lleguen, muchos pueden perderse: no sabrán dónde queda cada lugar ni a quién pedir ayuda, y el centro no tiene ninguna orientación en inglés.",
+      propositosSecciones: { "Important Places": "qué lugares tiene el centro y qué se hace en cada uno, según la tabla común del recorrido" },
+      audiencia: "los estudiantes de 6.º de primaria y un visitante",
+      audienciaDetalle: {
+        principal: "los estudiantes de 6.º de primaria",
+        secundarias: [{ quien: "un docente que hace de visitante", funcion: "consulta la guía para orientarse" }],
+      },
+      invitado: "estudiantes de 6.º de primaria",
+      visitante: "otro docente que hace de visitante",
+      entrega: ", con una copia a la dirección",
+      sinModalidad: true,
+      // La cadena de Welcome ya es coherente sin esta tarea (César, 2026-11-06).
+      tareasOmitidas: ["socializar_reunir"],
+    },
+  },
+  "ing2-alimentacion-menu": {
+    conInvitado: {
+      nombreModelo: "Comedor modelo",
+      // La fuente es un solo dueño: el plural que escriba la IA se corrige.
+      reemplazos: [
+        // El modelo ocurre en un comedor local, no en un café o un restaurante.
+        [/\b(at|to|in|from) (a|an|the|our) (local )?(caf[eé]|diner|restaurant)(?!\p{L})/giu, "$1 the comedor"],
+        [/\bde los due[nñ]os de (los )?comedores( locales)?\b/gi, "del dueño del comedor"],
+        [/\ba los due[nñ]os de (los )?comedores( locales)?\b/gi, "al dueño del comedor"],
+        [/\blos due[nñ]os de (los )?comedores( locales)?\b/gi, "el dueño del comedor"],
+        [/\bcon due[nñ]os de comedores\b/gi, "con el dueño del comedor"],
+        [/\bcon due[nñ]os\b/gi, "con el dueño"],
+        [/\ba los due[nñ]os\b/gi, "al dueño"],
+        [/\bde los due[nñ]os\b/gi, "del dueño"],
+      ],
+      productoDescripcion: "el menú bilingüe y las recomendaciones del comedor participante",
+      audiencia: "el dueño del comedor participante y los visitantes",
+      audienciaDetalle: {
+        principal: "el dueño del comedor participante",
+        secundarias: [{ quien: "los visitantes", funcion: "consultan el menú para saber qué piden" }],
+      },
+      // Lo que la semilla dice para varios comedores o una entrevista que pudiera ser simulada.
+      piezasSecciones: {
+        "Interviews with Owners": "la entrevista al dueño invitado (preguntas y respuestas anotadas)",
+        "Bilingual Menus": "el menú bilingüe del comedor participante (plato, descripción, precio)",
+      },
+      invitado: "dueño invitado",
+      invitadoConArticulo: "el dueño invitado",
+      visitante: "otro docente que hace de visitante",
+    },
+  },
+};

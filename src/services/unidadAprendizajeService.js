@@ -2,6 +2,7 @@
  * Servicio: Generador de Unidad de Aprendizaje — formato MINERD
  */
 
+import { mezclarIndicadoresDebiles, resolverDebilesContraMalla } from "./diagnosticoIntegrationService.js";
 import { resolverClave } from "../planning/areaAsignaturaMap.js";
 import { getActividades } from "./bancoPedagogicoService.js";
 import { combinarActividad } from "./combinadorActividadesService.js";
@@ -23,10 +24,13 @@ import {
 } from "./curriculumCombinacionService.js";
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
-import { prepararPlanMaestroGeneracion } from "./vistaPreviaPlanMaestroService.js";
+import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
+import { conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
+import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
-  construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
-  seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases,
+  revisarUnidadConMapa, motivosClaseFinal, contenidosNoVistosEnUnidad, avisosParaAdministrador, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
+  seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases, VERBOS_IDIOMA, VERBOS_GESTION,
 } from "./redaccionFaseService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -552,6 +556,33 @@ export const distribuirTiempoActividades = ({
   return Array.from({ length: n }, (_, index) => base + (index < resto ? 1 : 0));
 };
 
+// Minutos del Desarrollo según lo que exige cada actividad, no según su posición:
+// una entrevista no cabe en los 5 minutos que le tocaban por ir primera. Devuelve
+// los minutos (suman el total) y cuánto harían falta como mínimo.
+const MINIMOS_DESARROLLO = [
+  { min: 15, re: /^(entrevistan|presentan|exponen|debaten|representan)$/ },
+  { min: 8, re: /^(elaboran|escriben|redactan|crean|componen|disenan|diseñan|reescriben|producen|graban|practican|conversan|intercambian|preguntan)$/ },
+  { min: 2, re: /^(guardan|archivan|entregan)$/ },
+];
+const MINIMO_POR_DEFECTO = 5;
+export const minutosPorDemanda = ({ totalMinutos = 30, actividades = [] } = {}) => {
+  const verbo = (a) => String(a?.texto || a || "").trim().split(/[\s(,.:;]+/)[0].toLowerCase();
+  const minimos = actividades.map((a) => MINIMOS_DESARROLLO.find((d) => d.re.test(verbo(a)))?.min || MINIMO_POR_DEFECTO);
+  const necesarios = minimos.reduce((s, m) => s + m, 0);
+  if (!actividades.length) return { minutos: [], necesarios: 0 };
+  // Si no cabe, se reparte en proporción (nunca más minutos que la clase) y el
+  // llamador lo avisa; si sobra, el resto va en proporción a lo que exige.
+  const factor = totalMinutos / necesarios;
+  const minutos = minimos.map((m) => Math.max(1, Math.floor(m * factor)));
+  let resto = totalMinutos - minutos.reduce((s, m) => s + m, 0);
+  const orden = minimos.map((m, i) => [m, i]).sort((a, b) => b[0] - a[0]).map(([, i]) => i);
+  for (let i = 0; resto > 0; i = (i + 1) % orden.length, resto -= 1) minutos[orden[i]] += 1;
+  for (let i = 0; resto < 0; i = (i + 1) % orden.length) {
+    if (minutos[orden[i]] > 1) { minutos[orden[i]] -= 1; resto += 1; }
+  }
+  return { minutos, necesarios };
+};
+
 // ─── Template modelo (PDF "My Life and Daily Routines") ──────────────────────
 // Secciones agregadas 2026-07-04 siguiendo el documento modelo del docente:
 // ejes contextualizados, situación de aprendizaje narrativa, nota institucional,
@@ -853,7 +884,7 @@ export const construirSituacionNarrativa = ({
 };
 
 // Nota institucional de organización temporal (versión parametrizada del modelo)
-const construirNotaInstitucional = ({ clasesPorSemana, durMin, producto, nivel = "" }) => `Conforme al enfoque de atención a la diversidad, evaluación formativa y aprendizaje centrado en el estudiante establecido en el Diseño Curricular del Nivel ${/primaria|primario/i.test(nivel) ? "Primario" : /inicial|kinder|preprimario/i.test(nivel) ? "Inicial" : "Secundario"} del MINERD, la presente unidad organiza su tiempo en torno a un núcleo esencial de ${clasesPorSemana} clase(s) semanal(es) de ${durMin} minutos, complementado por sesiones pedagógicas flexibles que fortalecen la calidad, la pertinencia y la equidad de los aprendizajes. Dichas sesiones no representan una sobreplanificación ni un error en la distribución temporal, sino una decisión metodológica intencional orientada a responder a la diversidad del aula.
+const construirNotaInstitucional = ({ clasesPorSemana, durMin, producto, nivel = "" }) => `Conforme al enfoque de atención a la diversidad, evaluación formativa y aprendizaje centrado en el estudiante establecido en el Diseño Curricular del Nivel ${/primaria|primario/i.test(nivel) ? "Primario" : /inicial|kinder|preprimario/i.test(nivel) ? "Inicial" : "Secundario"} del MINERD, la presente unidad organiza su tiempo en torno a un núcleo esencial de ${clasesPorSemana === 1 ? "1 clase semanal" : `${clasesPorSemana} clases semanales`} de ${durMin} minutos, complementado por sesiones pedagógicas flexibles que fortalecen la calidad, la pertinencia y la equidad de los aprendizajes. Dichas sesiones no representan una sobreplanificación ni un error en la distribución temporal, sino una decisión metodológica intencional orientada a responder a la diversidad del aula.
 Las sesiones flexibles permiten responder a los hallazgos de la evaluación diagnóstica de inicio, habilitar procesos de recuperación pedagógica, nivelación y ampliación según los ritmos de aprendizaje, dar seguimiento continuo a los indicadores de logro y acompañar la construcción progresiva del producto final (${producto.replace(/\.$/, "")}) antes de su valoración sumativa, además de absorber los ajustes propios del calendario escolar y las dinámicas institucionales sin afectar la secuencia didáctica.
 Nota: ante fallas de electricidad, internet o equipos, las actividades que usan TV, proyector o audio se realizan con las alternativas físicas del Anexo L — Plan B tecnológico (imágenes impresas, flashcards, lectura en voz alta y dramatización).`;
 
@@ -1237,6 +1268,143 @@ export const construirRubricaPlan = ({ competenciasDetalle = [], estructuraIndic
 
 // ─── Anexos A-L (parametrizados según el documento modelo) ───────────────────
 
+// Proceso propio de una sección, sacado de lo planificado: las actividades del
+// Desarrollo de las clases cuya pieza es de esa sección. No hay lista por sección
+// ni operaciones supuestas: sin actividad, no hay paso. La gestión (guardar,
+// archivar, compartir) no es una operación de la sección.
+const VERBOS_SIN_OPERACION = new Set([...VERBOS_GESTION.filter((v) => !["Revisan", "Corrigen"].includes(v))].map((v) => v.toLowerCase()));
+const etiquetaOperacion = (actividad = "") => {
+  const palabras = String(actividad || "").replace(/\([^)]*\)/g, " ").replace(/_/g, "").split(/[:;.]/)[0].trim().split(/\s+/);
+  const corte = palabras.findIndex((p, i) => (i >= 2 && (/^(para|sobre|utilizando|usando|con|mediante|que|según|en|y)$/i.test(p) || /(iendo|ando|ándo\w+|iéndo\w+)$/i.test(p)))
+    || (i >= 3 && /^(de|del|al|a)$/i.test(p)));
+  const corta = palabras.slice(0, corte > 0 ? Math.min(corte, 5) : 5);
+  while (corta.length > 2 && /^(de|del|al|a|los|las|el|la|un|una|unos|unas|y)$/i.test(corta[corta.length - 1])) corta.pop();
+  return corta.join(" ").replace(/,+$/, "");
+};
+export const operacionesDeSeccion = (fases = [], seccion = "") => {
+  const marca = `«${String(seccion).toLowerCase()}»`;
+  const vistas = new Set();
+  return (fases || []).flatMap((f) => f?.dias || [])
+    .filter((d) => String(d?.aporteProducto || "").toLowerCase().includes(marca))
+    .flatMap((d) => (d?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || [])
+    .map((a) => String(a?.texto || a || ""))
+    .filter((a) => {
+      const verbo = a.trim().split(/[\s(,.:;]+/)[0].toLowerCase();
+      if (!verbo || VERBOS_SIN_OPERACION.has(verbo) || vistas.has(verbo)) return false;
+      vistas.add(verbo);
+      return true;
+    })
+    .map(etiquetaOperacion)
+    .slice(0, 6);
+};
+
+// Etapa de una pieza según su rótulo: «Sección «X» (borrador): …». Sin rótulo
+// (unidades del motor anterior), null: la pieza vale para cualquier ítem.
+const etapaDePieza = (texto = "") => {
+  const rotulo = String(texto || "").match(/\(([^)]*)\)\s*:/)?.[1]?.toLowerCase() || "";
+  if (/acuerdo|plan/.test(rotulo)) return "apertura";
+  if (/insumo/.test(rotulo)) return "insumos";
+  if (/borrador/.test(rotulo)) return "borrador";
+  if (/revisad/.test(rotulo)) return "revisada";
+  if (/final/.test(rotulo)) return "final";
+  return null;
+};
+const NOMBRE_DIMENSION = { comprension: "comprensión", produccion: "producción", interaccion: "interacción" };
+// Diagnóstico orienta; lo formativo acompaña; solo lo sumativo califica.
+const MOMENTO_EVALUATIVO_POR_INSTRUMENTO = {
+  diagnostica: "diagnostico",
+  rubrica: "sumativo",
+  "lista-cotejo": "formativo",
+  "escala-valoracion": "formativo",
+  autoevaluacion: "formativo",
+  coevaluacion: "formativo",
+  "registro-anecdotico": "formativo",
+};
+// Lo que una clase pide demostrar, según el verbo inicial de sus actividades
+// (listas de verbos de idioma de la regla 4.4). Solo verbos de la lista: lo demás no cuenta.
+const VERBOS_DIMENSION = new Map([
+  ...VERBOS_IDIOMA.responde.map((v) => [v.toLowerCase(), "comprension"]),
+  ...VERBOS_IDIOMA.produce.map((v) => [v.toLowerCase(), "produccion"]),
+  ...VERBOS_IDIOMA.interactua.map((v) => [v.toLowerCase(), "interaccion"]),
+  ...["elaboran", "crean", "componen", "disenan", "diseñan"].map((v) => [v, "produccion"]),
+]);
+export const dimensionDeActividad = (texto = "") =>
+  VERBOS_DIMENSION.get(String(texto || "").trim().split(/[\s(,.:;]+/)[0].toLowerCase()) || "";
+const actividadesDeClase = (dia = {}) => (dia.momentos || [])
+  .filter((m) => m?.nombre !== "Inicio")
+  .flatMap((m) => m?.actividades || [])
+  .map((a) => String(a?.texto || a || ""));
+const dimensionesDeClase = (dia = {}) => [...new Set(actividadesDeClase(dia).map(dimensionDeActividad).filter(Boolean))];
+// La actividad que hace observable un desempeño oral, sin lo que deja escrito.
+// Presentar o exponer pesa más que socializar, que suele ser una puesta en común.
+const VERBOS_PRESENTACION = /^(presentan|exponen|representan)\b/i;
+const VERBOS_PUESTA_EN_COMUN = /^socializan\b/i;
+const primeraParte = (texto = "") => String(texto).split(":")[0].replace(/[.\s]+$/, "").trim();
+const actividadDe = (dia, cumple) => primeraParte(actividadesDeClase(dia).find(cumple) || "");
+
+// La pieza de una clase con lo que permite rastrear su evaluación.
+export const aporteDeClase = (d = {}) => ({
+  semana: d.semana || 1,
+  texto: d.aporteProducto,
+  indicadores: (Array.isArray(d.indicadoresTrabajados) ? d.indicadoresTrabajados : [])
+    .map((ind) => String(ind?.codigoOficial || ind?.codigo || ind?.id || ind || "").trim()).filter(Boolean),
+  dimensiones: dimensionesDeClase(d),
+  actividadInteraccion: actividadDe(d, (a) => dimensionDeActividad(a) === "interaccion"),
+  actividadOral: actividadDe(d, (a) => VERBOS_PRESENTACION.test(a.trim()))
+    || actividadDe(d, (a) => VERBOS_PUESTA_EN_COMUN.test(a.trim())),
+});
+
+/**
+ * Indicadores de cada clase según lo que sus actividades piden demostrar. El plan
+ * reparte cada indicador a un solo tipo de fase y las demás retoman los anteriores,
+ * así que entrevistar o pedir comida quedaba como I01. Conserva los que el plan
+ * fija a la fase y lo declarado si ninguna actividad dice su dimensión; nunca sale
+ * de lo elegido. Modifica las clases y devuelve cuántas cambió.
+ */
+export const ajustarIndicadoresPorActividad = (fases = [], { plan = null, relaciones = [], elegidos = [] } = {}) => {
+  const clave = normalizarCodigoIndicador;
+  const elegidosSet = new Set(elegidos.map(clave));
+  const porDimension = new Map();
+  relaciones
+    .filter((r) => r?.dimension && elegidosSet.has(clave(r.indicadorId)))
+    .forEach((r) => porDimension.set(r.dimension, [...(porDimension.get(r.dimension) || []), r.indicadorId]));
+  if (!porDimension.size) return 0;
+  let cambiadas = 0;
+  (fases || []).forEach((fase, i) => {
+    const delPlan = (plan?.fases?.[i]?.indicadores || []).map((ind) => String(ind?.id || ind));
+    (fase?.dias || []).forEach((dia) => {
+      const delaActividad = dimensionesDeClase(dia).flatMap((d) => porDimension.get(d) || []);
+      if (!delaActividad.length) return;
+      const nuevos = [...new Set([...delPlan, ...delaActividad])].slice(0, 3);
+      const antes = (dia.indicadoresTrabajados || []).map(clave).sort().join();
+      if (antes === [...nuevos].map(clave).sort().join()) return;
+      dia.indicadoresTrabajados = nuevos;
+      (dia.momentos || []).forEach((m) => {
+        if (m?.evidenciasDetalle) m.evidenciasDetalle.indicadores = [...nuevos];
+      });
+      cambiadas += 1;
+    });
+  });
+  return cambiadas;
+};
+
+/**
+ * Secciones que no llegan a versión final o revisada, según sus piezas reales.
+ * Las clases que avanzan la guía entera no cuentan: nada dice qué hicieron con
+ * cada sección.
+ */
+export const seccionesSinFinal = (organizador = []) => (organizador || [])
+  .filter((o) => o?.fases !== undefined && o.seccion !== "Título" && !/final|revisad/i.test(o.fases || ""))
+  .map((o) => o.seccion);
+
+// Un plan se escribe antes de la clase: lo que dice que ya pasó es inventado.
+const HECHO_INVENTADO = /(^|[^\p{L}])(se observ[oó]|se not[oó]|mostraron|han mostrado|demostraron|motivaron|participaron|lograron|respondieron|fueron|estuvieron|tuvieron|han sido|hubo)(?!\p{L})/iu;
+export const sinHechosInventados = (texto = "") => {
+  const oraciones = String(texto || "").split(/(?<=[.!?])\s+/);
+  const quedan = oraciones.filter((o) => !HECHO_INVENTADO.test(o));
+  return { texto: quedan.join(" ").trim(), quitadas: oraciones.length - quedan.length };
+};
+
 export const construirAnexosUnidad = ({
   area, tema, producto, vocabulario = [], fases = [], numSemanas = 4,
   aportesProducto = [], indicadoresPriorizados = [], recursosTecnologicos = [],
@@ -1244,13 +1412,22 @@ export const construirAnexosUnidad = ({
   // Etapa 5: ampliación de DocenteOS (glosario, marcada) y secciones del
   // producto (organizador del Anexo I, regla 4.7). Vacías → como antes.
   ampliacion = [], secciones = [],
+  // Vocabulario clave del proyecto (semilla): sección → términos, para el Anexo F.
+  terminosSecciones = {},
+  // A quién se presenta el producto (evidencia de la rúbrica). Vacío → «la audiencia».
+  audienciaPrincipal = "",
   // Etapa 6: fases del plan maestro (entrega y secciones que avanza cada una)
   // para la columna "Estados de la sección" del Anexo I. Vacías → como antes.
   fasesPlan = [],
+  // Habilidades que la clase 1 diagnostica de verdad y asunto de su lectura (mapaClasesService.diagnosticoDeActividades).
+  // Null → plantilla de siempre.
+  diagnosticoClase1 = null,
 }) => {
   const idioma = ES_IDIOMA(area);
   const nombreIdioma = NOMBRE_IDIOMA(area);
-  const productoCorto = String(producto).replace(/\.$/, "");
+  // Solo el nombre: la descripción larga repetida en cada ítem no aporta y, si
+  // lleva otra audiencia, contradice la situación.
+  const productoCorto = nombreCortoProducto(producto) || String(producto).replace(/\.$/, "");
 
   const criteriosBase = [
     { criterio: `Propósito y contenido (${tema})`, n4: "Responde completamente a la necesidad y audiencia del producto con información pertinente.", n3: "Responde al propósito con la mayoría de la información necesaria.", n2: "Responde parcialmente al propósito y omite información importante.", n1: "El contenido no responde con claridad al propósito." },
@@ -1268,58 +1445,96 @@ export const construirAnexosUnidad = ({
           descripcion: ind?.descripcion || ind?.texto || "",
         })
     .filter((ind) => ind.codigo || ind.descripcion);
-  const piezasTrazables = (Array.isArray(aportesProducto) ? aportesProducto : [])
-    .map((aporte) => String(aporte?.texto || aporte || "").trim())
-    .filter(Boolean);
+  // Los instrumentos evalúan lo que el docente eligió: las relaciones de los
+  // indicadores no elegidos no cuentan, ni aunque se parezcan más al ítem.
+  const codigosElegidos = new Set(indicadoresTrazables.map((ind) => normalizarCodigoIndicador(ind.codigo)).filter(Boolean));
+  const relacionesElegidas = (Array.isArray(relacionesCriterioIndicador) ? relacionesCriterioIndicador : [])
+    .filter((rel) => !codigosElegidos.size || codigosElegidos.has(normalizarCodigoIndicador(rel?.indicadorId)));
+  const relacionesConDimension = relacionesElegidas.some((rel) => rel?.dimension)
+    || (Array.isArray(relacionesCriterioIndicador) ? relacionesCriterioIndicador : []).some((rel) => rel?.dimension);
   const tokensTraza = (texto = "") => String(texto || "")
     .toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .split(/[^a-z0-9ñ]+/)
     .filter((token) => token.length >= 4);
-  // Selecciona la pieza/evidencia que mejor corresponde al texto del ítem. Si
-  // hay coincidencia léxica fuerte, gana esa pieza. Si NO (ítem genérico de
-  // anexo), NO se cae siempre en la primera pieza (regla: nada de fallback
-  // silencioso a [0]): se DISTRIBUYE por `indiceFila` entre las piezas de las
-  // distintas fases, de modo que cada fila del anexo referencie una pieza real
-  // distinta (Fase 1→4) en vez de repetir "Mapa inicial de rutinas" en todas.
-  const seleccionarPieza = (texto = "", indiceFila = null) => {
-    const tokensTexto = new Set(tokensTraza(texto));
-    const candidatos = piezasTrazables.map((pieza) => ({
-      pieza,
-      puntaje: tokensTraza(pieza).filter((token) => tokensTexto.has(token)).length,
-    })).sort((a, b) => b.puntaje - a.puntaje);
-    // Coincidencia FUERTE (≥2 tokens de contenido en común): gana esa pieza por
-    // relevancia real. Una coincidencia de 1 solo token ("producto", "aporte")
-    // es demasiado débil para fijar la pieza y hacía que todas las filas cayeran
-    // en la misma ("Mapa inicial de rutinas"): en ese caso se distribuye.
-    if (candidatos[0]?.puntaje >= 2) return candidatos[0].pieza;
-    // Sin coincidencia fuerte: rota entre las piezas disponibles por índice de
-    // fila, para que cada fila del anexo referencie una pieza real distinta.
-    if (piezasTrazables.length && Number.isInteger(indiceFila)) {
-      return piezasTrazables[indiceFila % piezasTrazables.length];
+  // El nombre del producto sale en casi todos los ítems y en casi todas las
+  // piezas: no distingue nada, y hacía ganar siempre a la primera pieza.
+  const tokensProducto = new Set(tokensTraza(productoCorto));
+  const tokensDistintivos = (texto = "") => tokensTraza(texto).filter((token) => !tokensProducto.has(token));
+  const piezasTrazables = (Array.isArray(aportesProducto) ? aportesProducto : [])
+    .map((aporte) => ({
+      texto: String(aporte?.texto || aporte || "").trim(),
+      etapa: etapaDePieza(aporte?.texto || aporte),
+      indicadores: (Array.isArray(aporte?.indicadores) ? aporte.indicadores : []).map(normalizarCodigoIndicador),
+      dimensiones: Array.isArray(aporte?.dimensiones) ? aporte.dimensiones : [],
+      actividadInteraccion: String(aporte?.actividadInteraccion || ""),
+      actividadOral: String(aporte?.actividadOral || ""),
+    }))
+    .filter((pieza) => pieza.texto);
+  // Selecciona la pieza disponible en la etapa que el ítem evalúa. «Acuerdo y
+  // plan» no evidencia avances ni productos posteriores: solo entra si el ítem
+  // lo pide. Dentro de la etapa se prefieren las piezas de las clases que
+  // trabajaron ese indicador y esa dimensión; una coincidencia léxica fuerte
+  // (≥ 2 palabras propias) desempata y, si no la hay, se rota por `indiceFila`
+  // para que cada fila referencie una pieza real distinta.
+  const seleccionarPieza = (texto = "", indiceFila = null, { etapas = null, codigo = "", dimension = "", oral = false } = {}) => {
+    // La presentación del producto es la última que se planifica y, si la hay, la
+    // que presenta o expone en vez de solo poner en común.
+    if (oral && piezasTrazables.some((p) => p.actividadOral)) {
+      const orales = piezasTrazables.filter((p) => p.actividadOral);
+      const fuertes = orales.filter((p) => VERBOS_PRESENTACION.test(p.actividadOral));
+      return (fuertes.length ? fuertes : orales).at(-1).texto;
     }
-    return candidatos[0]?.puntaje > 0 ? candidatos[0].pieza : productoCorto;
+    let grupo = piezasTrazables;
+    const acotar = (cumple) => {
+      const acotado = grupo.filter(cumple);
+      if (acotado.length) grupo = acotado;
+    };
+    acotar(etapas ? (p) => etapas.includes(p.etapa) : (p) => p.etapa !== "apertura");
+    if (dimension) acotar((p) => p.dimensiones.includes(dimension));
+    // El indicador afina, sin dejar una sola pieza para todas las filas.
+    if (codigo) {
+      const delIndicador = grupo.filter((p) => p.indicadores.includes(normalizarCodigoIndicador(codigo)));
+      if (delIndicador.length >= 2) grupo = delIndicador;
+    }
+    const tokensTexto = new Set(tokensDistintivos(texto));
+    const candidatos = grupo.map((pieza) => ({
+      pieza,
+      puntaje: tokensDistintivos(pieza.texto).filter((token) => tokensTexto.has(token)).length,
+    })).sort((a, b) => b.puntaje - a.puntaje);
+    if (candidatos[0]?.puntaje >= 2) return candidatos[0].pieza.texto;
+    if (grupo.length && Number.isInteger(indiceFila)) return grupo[indiceFila % grupo.length].texto;
+    return candidatos[0]?.pieza.texto || productoCorto;
   };
+  const avisosSeleccion = [];
+  const avisosEvidencia = [];
   const crearTrazaInstrumento = ({
     tipo,
     item,
     index = 0,
     evidencia = "",
     piezaProducto = "",
+    exige = "",
+    etapas = null,
+    // El ítem valora una presentación: su evidencia es lo observado, no un escrito.
+    oral = false,
   }) => {
-    const relacion = seleccionarRelacionParaEvidencia({
+    // `exige` = lo que el ítem pide demostrar (comprensión, producción o
+    // interacción). Si la selección no tiene un indicador de esa dimensión, no se
+    // amplía ni se cae en el primero: el ítem queda sin indicador y se avisa.
+    const dimension = relacionesConDimension ? exige : "";
+    const fueraDeSeleccion = Boolean(dimension) && !relacionesElegidas.some((rel) => rel?.dimension === dimension);
+    const relacion = fueraDeSeleccion ? null : seleccionarRelacionParaEvidencia({
       texto: [item, evidencia, piezaProducto].filter(Boolean).join(" "),
-      relaciones: relacionesCriterioIndicador,
+      relaciones: relacionesElegidas,
+      dimension,
     });
+    const codigoRelacion = relacion?.indicadorId || "";
     const pieza = piezaProducto
-      || seleccionarPieza([item, evidencia].filter(Boolean).join(" "), index);
-    // FALLBACK: los ítems de anexo de puro meta-lenguaje ("Demuestra el indicador
-    // en la actividad prevista", "Una fortaleza observable del producto") no tienen
-    // tokens de contenido y no alcanzan el umbral de emparejamiento. En vez de
-    // dejarlos sin indicador (hueco "requiere revisión — Indicador: —"), se vinculan
-    // al indicador PRIORIZADO de la unidad como VÍNCULO GENERAL transparente: el
-    // instrumento valora el desempeño global de la unidad, cuyo eje es ese indicador.
-    const dominante = indicadoresTrazables.find((ind) => ind.codigo) || null;
+      || seleccionarPieza([item, evidencia].filter(Boolean).join(" "), index, { etapas, codigo: codigoRelacion, dimension: exige, oral });
+    // FALLBACK sin dimensión (áreas sin tríada, ítems de meta-lenguaje): vínculo
+    // general y transparente con el indicador priorizado de la unidad.
+    const dominante = fueraDeSeleccion ? null : indicadoresTrazables.find((ind) => ind.codigo) || null;
     // Una relación de confianza "requiere_revision" existe pero NO está confirmada:
     // conserva su indicador/criterio como propuesta, pero el estado debe ser
     // "requiere_revision" (jamás "relacionado"), para no presentarla como cierta.
@@ -1327,55 +1542,87 @@ export const construirAnexosUnidad = ({
     const usarFallback = !relacion && Boolean(dominante);
     const codigoFinal = relacion?.indicadorId || (usarFallback ? dominante.codigo : "");
     const descripcionFinal = relacion?.indicadorDescripcion || (usarFallback ? dominante.descripcion : "");
-    const requiereRevision = (!relacion && !usarFallback) || relacionDebil;
+    const requiereRevision = !fueraDeSeleccion && ((!relacion && !usarFallback) || relacionDebil);
+    if (fueraDeSeleccion) avisosSeleccion.push(`${tipo}: «${String(item).slice(0, 70)}» pide ${NOMBRE_DIMENSION[dimension]} y ningún indicador elegido la cubre`);
+    const momentoEvaluativo = MOMENTO_EVALUATIVO_POR_INSTRUMENTO[tipo] || "formativo";
+    const textoPieza = String(pieza).replace(/[.\s]+$/, "");
+    // Una interacción o una presentación no se prueba con una pieza escrita: la
+    // evidencia es lo que se observa en la actividad que la clase planificó. Si no
+    // hay tal actividad, no se inventa: se dice y se avisa.
+    const claseDePieza = piezasTrazables.find((p) => p.texto === pieza);
+    let evidenciaObservada = "";
+    if (!evidencia && tipo !== "diagnostica" && piezasTrazables.some((p) => p.etapa)) {
+      if (oral) {
+        evidenciaObservada = claseDePieza?.actividadOral
+          ? `Presentación oral observada: ${claseDePieza.actividadOral}.`
+          : `Presentación oral de ${productoCorto}, que falta planificar en una clase.`;
+        if (!claseDePieza?.actividadOral) avisosEvidencia.push(`«${String(item).slice(0, 60)}»: ninguna clase planifica una presentación oral`);
+      } else if (exige === "interaccion") {
+        evidenciaObservada = claseDePieza?.actividadInteraccion
+          ? `Intercambio observado o grabado: ${claseDePieza.actividadInteraccion}.`
+          : `Intercambio oral observado, que falta planificar en una clase.`;
+        if (!claseDePieza?.actividadInteraccion) avisosEvidencia.push(`«${String(item).slice(0, 60)}»: ninguna clase planifica ese intercambio`);
+      }
+    }
     return {
       instrumentoId: `${tipo}-${index + 1}`,
       criterioOficialId: relacion?.criterioId || "",
       criterioOficialTexto: relacion?.criterioTexto || "",
       indicadorCodigo: codigoFinal,
       indicadorDescripcion: descripcionFinal,
-      tipoRelacion: relacion?.tipoRelacion || (usarFallback ? "vinculo_general_unidad" : "sin_correspondencia_suficiente"),
-      confianzaRelacion: relacion?.confianza || (usarFallback ? "general" : "requiere_revision"),
+      tipoRelacion: relacion?.tipoRelacion || (fueraDeSeleccion ? "fuera_de_seleccion" : usarFallback ? "vinculo_general_unidad" : "sin_correspondencia_suficiente"),
+      confianzaRelacion: relacion?.confianza || (fueraDeSeleccion ? "sin_indicador" : usarFallback ? "general" : "requiere_revision"),
       justificacionRelacion: relacion?.justificacion
-        || (usarFallback
+        || (fueraDeSeleccion
+          ? `Valora ${NOMBRE_DIMENSION[dimension]}, que los indicadores elegidos no cubren; no se amplió la selección.`
+          : usarFallback
           ? "Vínculo general con el indicador priorizado de la unidad; ajústelo si otro encaja mejor."
           : "Requiere revisión docente; no se asignó un indicador por posición."),
       // Estado fiel: "relacionado" SOLO cuando hay criterio oficial real
       // (viene de `relacion`). El fallback vincula al indicador dominante pero
       // NO a un criterio oficial, así que su estado es "vinculo_general" — no
       // debe declararse "relacionado" sin criterio (rompía R1 del render).
-      estadoTrazabilidad: requiereRevision
+      estadoTrazabilidad: fueraDeSeleccion
+        ? "fuera_de_seleccion"
+        : requiereRevision
         ? "requiere_revision"
         : usarFallback
           ? "vinculo_general"
           : "relacionado",
-      evidencia: evidencia || `Desempeño observable en ${pieza}.`,
+      exige: exige || "",
+      momentoEvaluativo,
+      evidencia: (typeof evidencia === "function" ? evidencia(textoPieza) : evidencia) || evidenciaObservada || `Desempeño observable en ${textoPieza}.`,
       piezaProducto: pieza,
-      actividadOrigen: `Actividad de elaboración, práctica o revisión vinculada con ${pieza}.`,
-      destinoRegistro: codigoFinal
-        ? `Registro de calificaciones → ${codigoFinal}`
-        : "Pendiente de revisión docente antes de vincular al Registro",
+      actividadOrigen: `Actividad de elaboración, práctica o revisión vinculada con ${textoPieza}.`,
+      destinoRegistro: momentoEvaluativo === "diagnostico"
+        ? "No va al Registro de calificaciones: orienta la planificación y las adaptaciones"
+        : !codigoFinal
+          ? (fueraDeSeleccion ? "Seguimiento formativo; no va al Registro de calificaciones" : "Pendiente de revisión docente antes de vincular al Registro")
+          : momentoEvaluativo === "sumativo"
+            ? `Registro de calificaciones → ${codigoFinal}`
+            : `Seguimiento formativo → ${codigoFinal}`,
       item,
     };
   };
-  const rubricaProducto = criteriosBase.map((criterio, index) => {
-    const piezaProducto = seleccionarPieza(criterio.criterio);
-    const traza = crearTrazaInstrumento({
+  const ETAPAS_FINALES = ["final", "revisada"];
+  const ETAPAS_PROCESO = ["insumos", "borrador", "final"];
+  // Lo que cada criterio de la rúbrica pide demostrar y la etapa de la que sale.
+  const EXIGE_RUBRICA = ["produccion", "produccion", "produccion", "produccion", "interaccion", "produccion"];
+  const rubricaProducto = criteriosBase.map((criterio, index) => ({
+    ...criterio,
+    ...crearTrazaInstrumento({
       tipo: "rubrica",
       item: criterio.criterio,
       index,
-      piezaProducto,
+      exige: EXIGE_RUBRICA[index],
+      etapas: index === 5 ? ["revisada", "final"] : ETAPAS_FINALES,
       evidencia: index === 4
-        ? `Socialización de ${productoCorto} y respuestas ofrecidas a la audiencia.`
+        ? () => `Socialización de ${productoCorto} y respuestas ofrecidas a ${audienciaPrincipal || "la audiencia"}.`
         : index === 5
-          ? `Versión revisada de ${piezaProducto} con las mejoras incorporadas.`
-          : `Desempeño observable y contenido verificable en ${piezaProducto}.`,
-    });
-    return {
-      ...criterio,
-      ...traza,
-    };
-  });
+          ? (pieza) => `Versión revisada de ${pieza} con las mejoras incorporadas.`
+          : (pieza) => `Desempeño observable y contenido verificable en ${pieza}.`,
+    }),
+  }));
 
   const listaCotejoOralBase = idioma ? [
     `Saluda y responde preguntas iniciales en ${nombreIdioma}.`,
@@ -1392,9 +1639,11 @@ export const construirAnexosUnidad = ({
     `Relaciona "${tema}" con situaciones de su entorno.`,
     "Interactúa con cortesía y respeto con sus compañeros.",
   ];
+  // Saludar, preguntar y conversar son interacción; describir y recomendar, producción.
+  const EXIGE_LISTA_ORAL = ["interaccion", "produccion", "produccion", "interaccion", "produccion", "interaccion"];
   const listaCotejoOral = listaCotejoOralBase.map((item, index) => ({
     criterio: item,
-    ...crearTrazaInstrumento({ tipo: "lista-cotejo", item, index }),
+    ...crearTrazaInstrumento({ tipo: "lista-cotejo", item, index, exige: EXIGE_LISTA_ORAL[index], etapas: ETAPAS_PROCESO }),
   }));
 
   const registroAnecdotico = {
@@ -1425,26 +1674,27 @@ export const construirAnexosUnidad = ({
     "...trabajar en equipo y valorar los aportes de mis compañeros.",
     "...presentar mi producto final al grupo.",
   ];
-  const autoevaluacion = autoevaluacionBase.map((item, index) => {
-    const piezaFila = seleccionarPieza(item, index);
-    return {
-      criterio: item,
-      ...crearTrazaInstrumento({
-        tipo: "autoevaluacion",
-        item,
-        index,
-        piezaProducto: piezaFila,
-        evidencia: `Juicio del estudiante sustentado con una evidencia de ${piezaFila}.`,
-      }),
-    };
-  });
+  const EXIGE_AUTOEVALUACION = idioma ? ["produccion", "produccion", "interaccion", "produccion", "produccion"] : [];
+  const autoevaluacion = autoevaluacionBase.map((item, index) => ({
+    criterio: item,
+    ...crearTrazaInstrumento({
+      tipo: "autoevaluacion",
+      item,
+      index,
+      exige: EXIGE_AUTOEVALUACION[index] || "",
+      etapas: index === autoevaluacionBase.length - 1 ? ETAPAS_FINALES : ETAPAS_PROCESO,
+      oral: index === autoevaluacionBase.length - 1,
+      evidencia: index === autoevaluacionBase.length - 1 ? "" : (pieza) => `Juicio del estudiante sustentado con una evidencia de ${pieza}.`,
+    }),
+  }));
   const coevaluacion = [
     `Una fortaleza observable en ${productoCorto}.`,
     `Otra fortaleza en el desempeño sobre "${tema}".`,
     `Una mejora concreta para la siguiente versión de ${productoCorto}.`,
   ].map((item, index) => ({
     criterio: item,
-    ...crearTrazaInstrumento({ tipo: "coevaluacion", item, index }),
+    // La mejora se pide sobre un avance que todavía puede cambiar.
+    ...crearTrazaInstrumento({ tipo: "coevaluacion", item, index, exige: idioma ? "produccion" : "", etapas: index === 2 ? ["borrador", "final"] : ETAPAS_PROCESO }),
   }));
   const escalaValoracion = [
     `Demuestra el aprendizaje priorizado al trabajar "${tema}".`,
@@ -1454,7 +1704,13 @@ export const construirAnexosUnidad = ({
   ].map((item, index) => ({
     criterio: item,
     escala: ["Logrado", "En proceso", "Requiere apoyo"],
-    ...crearTrazaInstrumento({ tipo: "escala-valoracion", item, index }),
+    ...crearTrazaInstrumento({
+      tipo: "escala-valoracion",
+      item,
+      index,
+      exige: idioma ? "produccion" : "",
+      etapas: [ETAPAS_PROCESO, ETAPAS_FINALES, ["revisada", "final"], ETAPAS_FINALES][index],
+    }),
   }));
 
   // Glosario: primero el vocabulario oficial de la malla; después, hasta 16,
@@ -1475,11 +1731,14 @@ export const construirAnexosUnidad = ({
   const restoMalla = vocabularioMalla.filter((t) => !usadosMalla.includes(t));
   const glosarioMalla = [...usadosMalla, ...restoMalla].slice(0, MAX_GLOSARIO)
     .map((termino) => ({ termino, traduccion: "", origen: "malla" }));
-  // «ingredient» e «ingredients» cuentan como un solo término.
-  const claveSingular = (t) => claveTermino(t).replace(/(?<=[a-z]{3})s$/, "");
+  // «ingredient» e «ingredients», «dish» y «dishes» cuentan como un solo término.
+  const claveSingular = (t) => claveTermino(t).replace(/(?<=(?:sh|ch|ss|x))es$/, "").replace(/(?<=[a-z]{3})s$/, "");
   const vistosGlosario = new Set(vocabularioMalla.map(claveSingular));
   const ampliacionGlosario = Array.isArray(ampliacion) ? ampliacion : [];
+  // Primero los términos clave de la semilla, siempre los mismos; después, lo que
+  // la IA declaró como ampliación.
   const glosarioProyecto = [
+    ...(Array.isArray(secciones) ? secciones : []).flatMap((s) => terminosSecciones?.[s] || []),
     ...ampliacionGlosario.filter((a) => a?.tipo === "vocabulario").flatMap((a) => String(a.texto || "").split(/\s*[,/]\s*/)),
     ...ampliacionGlosario.filter((a) => a?.tipo === "expresion").map((a) => a.texto),
   ]
@@ -1565,14 +1824,13 @@ export const construirAnexosUnidad = ({
         { seccion: "Título", incluye: `Mi nombre y el título del producto (${productoCorto}).`, ...(fasesPlan.length ? { fases: "" } : {}) },
         ...secciones.map((seccion) => {
           const piezas = piezasDeSeccion(seccion);
-          // Estados por los que pasa la sección, en palabras y sin códigos de fase.
-          const estadosSeccion = [...new Set((fasesPlan || [])
-            .filter((f) => (f.entrega?.secciones || []).includes(seccion))
-            .map((f) => mayusculaInicial(String(f.entrega?.estado || "").trim().toLowerCase()))
-            .filter(Boolean))];
+          // Solo los estados con una pieza real: declarar los de la fase afirmaba
+          // avances (y un «Acuerdo y plan» por sección) que nadie planificó.
+          const estadosSeccion = [...new Set(piezas.map((p) => p.estado).filter(Boolean))];
+          const operaciones = operacionesDeSeccion(fases, seccion);
           return {
             seccion,
-            ...(fasesPlan.length ? { fases: estadosSeccion.join(" → "), evidencia: piezas[piezas.length - 1]?.pieza || "" } : {}),
+            ...(fasesPlan.length ? { fases: estadosSeccion.join(" → "), operaciones, evidencia: piezas[piezas.length - 1]?.pieza || "" } : {}),
             incluye: piezas.length
               ? `${piezasPorEstado(piezas)}.`
               : "Lo que el grupo acordó para esta sección en el plan del producto.",
@@ -1599,14 +1857,31 @@ export const construirAnexosUnidad = ({
     { habilidad: "Lectura", tarea: `El estudiante lee un texto breve del área y responde dos preguntas de comprensión.`, criterio: "Responde ambas = listo; una = en proceso; ninguna = requiere apoyo lector." },
     { habilidad: "Producción escrita", tarea: `El estudiante escribe tres ideas sobre "${tema}".`, criterio: "Tres ideas claras = listo; una o dos = en proceso; ninguna = requiere apoyo." },
   ];
-  const diagnostica = diagnosticaBase.map((item, index) => ({
-    ...item,
+  // Lo que cada tarea diagnóstica exige, por su orden: escuchar y leer son
+  // comprensión; responder oralmente, interacción; escribir, producción.
+  const EXIGE_DIAGNOSTICA = ["comprension", "interaccion", "comprension", "produccion"];
+  const CLAVE_DIAGNOSTICA = ["listening", "speaking", "reading", "writing"];
+  // El anexo promete solo lo que la clase 1 hace, y habla de su asunto, no del nombre del tema (César, 2026-11-07).
+  const asuntoDiagnostico = diagnosticoClase1?.asunto || "";
+  // La cantidad de oraciones del Anexo J es la que pide la clase 1 (dos, no tres).
+  const nEscritura = diagnosticoClase1?.oracionesEscritura || 0;
+  if (idioma && nEscritura && nEscritura !== 3) {
+    const PALABRA = { 1: "una oración", 2: "dos oraciones", 3: "tres oraciones", 4: "cuatro oraciones", 5: "cinco oraciones" };
+    const w = diagnosticaBase[3];
+    w.tarea = w.tarea.replace("tres oraciones", PALABRA[nEscritura] || `${nEscritura} oraciones`);
+    w.criterio = `${(PALABRA[nEscritura] || `${nEscritura} oraciones`).replace(/^./, (c) => c.toUpperCase())} con estructura clara = listo; ${nEscritura > 1 ? "una" : "con errores"}${nEscritura > 1 ? " con errores" : ""} = en proceso; no logra estructurar = requiere apoyo.`;
+  }
+  const diagnostica = diagnosticaBase.map((item, index) => ({ item, index }))
+    .filter(({ index }) => !diagnosticoClase1?.habilidades?.length || diagnosticoClase1.habilidades.includes(CLAVE_DIAGNOSTICA[index]))
+    .map(({ item: base, index }) => ({
+    ...(asuntoDiagnostico ? { ...base, tarea: base.tarea.replaceAll(`"${tema}"`, `"${asuntoDiagnostico}"`) } : base),
     ...crearTrazaInstrumento({
       tipo: "diagnostica",
-      item: item.habilidad,
+      item: base.habilidad,
       index,
-      evidencia: item.tarea,
-      piezaProducto: `Evidencia diagnóstica de ${item.habilidad}`,
+      exige: EXIGE_DIAGNOSTICA[index],
+      evidencia: asuntoDiagnostico ? base.tarea.replaceAll(`"${tema}"`, `"${asuntoDiagnostico}"`) : base.tarea,
+      piezaProducto: `Evidencia diagnóstica de ${base.habilidad}`,
     }),
   }));
 
@@ -1615,6 +1890,8 @@ export const construirAnexosUnidad = ({
     { perfil: "Dificultad en la lectura", acceso: "Leer las consignas en voz alta, usar textos breves con imágenes y resaltar palabras clave.", evaluacion: "Permitir respuestas orales o con imágenes; evaluar la comprensión sin penalizar la velocidad lectora." },
     { perfil: "Dificultad de atención", acceso: "Ubicar cerca del docente, dar instrucciones cortas una a la vez y alternar actividades.", evaluacion: "Evaluar en tramos cortos, verificar comprensión con preguntas directas y permitir pausas." },
     { perfil: "Dificultad en la expresión oral", acceso: "Practicar con frases modelo y diálogos guiados; permitir ensayo previo en parejas y apoyos visuales.", evaluacion: "Valorar la intención comunicativa más que la perfección; permitir grabaciones." },
+    { perfil: "Dificultad auditiva", acceso: "Dar las instrucciones por escrito, entregar la transcripción de cada audio o diálogo, usar apoyos visuales y ubicar al estudiante donde vea al docente y a sus compañeros.", evaluacion: "Valorar la comprensión con el texto o la transcripción y anotar la adecuación usada: se observa la comprensión de lo comunicado, no la comprensión auditiva." },
+    { perfil: "Dificultad visual", acceso: "Leer en voz alta los textos y lo que se escribe en la pizarra, entregar material ampliado con buen contraste y describir las imágenes.", evaluacion: "Permitir respuestas orales o material ampliado y más tiempo, y anotar la adecuación usada." },
     { perfil: "Estudiantes avanzados", acceso: "Asignar retos adicionales, rol de tutor par y tareas de creación.", evaluacion: "Evaluar con criterios de mayor complejidad: riqueza de vocabulario, creatividad e interacción ampliada." },
   ];
 
@@ -1645,6 +1922,8 @@ export const construirAnexosUnidad = ({
     rubricaProducto,
     rubricaTrazable: true,
     instrumentosTrazables: true,
+    avisosSeleccion: [...new Set(avisosSeleccion)],
+    avisosEvidencia: [...new Set(avisosEvidencia)],
     indicadoresRubrica: textosUnicos(indicadoresTrazables.map((ind) =>
       [ind.codigo, ind.descripcion].filter(Boolean).join(" — ")
     )),
@@ -4867,7 +5146,11 @@ const _generarFasesConIA = async (
       // Si la fase no sale, se detiene con error visible y registro en aiLogs:
       // nunca base curricular ni plantilla en esta ruta.
       const INTENTOS_POR_FASE = 2;
+      const memoriaAntesDeFase = memoriaAcumulada.length;
       for (let intento = 1; !weekPlan; intento++) {
+        // Al reintentar, las clases del intento fallido se recuperan de caché: si siguieran
+        // en la memoria, cada una se compararía consigo misma y parecería repetida.
+        memoriaAcumulada.length = memoriaAntesDeFase;
         try {
           weekPlan = await generateWeekPlan(
             specFase, semanaGeneracion, durMin, numClases, fases.length,
@@ -4992,6 +5275,19 @@ const _generarFasesConIA = async (
           }))
           .filter((a) => a.texto);
         dia.entregaFase = String(aiClase.entregaFase || "").trim();
+        const filaMapa = contratoFase.mapaClases?.[i];
+        if (filaMapa) {
+          dia.tareasMapa = filaMapa.tareas.map((t) => ({ clave: t.clave, minutos: t.minutos }));
+          dia.focoLinguistico = focoDeFila(filaMapa, contratoFase.filasUnidad || []) || dia.focoLinguistico;
+          dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
+          dia.minutosSecuencia = Array.isArray(aiClase.minutosSecuencia) ? aiClase.minutosSecuencia : null;
+          dia.fasesPorActividad = fasesDeActividades(filaMapa, dia.tareaIdsDesarrollo);
+          // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
+          // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
+          const alcance = ALCANCE_POR_SEMILLA[contexto.planMaestro?.semillaId]?.conInvitado || null;
+          if (necesitaLugares(filaMapa)) dia.ampliacion = ampliacionSinLugares(dia.ampliacion);
+          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[contexto.planMaestro?.semillaId] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: tituloDeClase(filaMapa, rutaPlanMaestro?.plan?.producto || ""), modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
+        }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
         tipo: "unidad_aprendizaje",
@@ -5008,7 +5304,8 @@ const _generarFasesConIA = async (
         String(indicador?.codigoOficial || indicador?.codigo || indicador?.id || indicador || "").trim()
       ).filter(Boolean));
       const relacionesDia = (
-        specFase.arquitecturaCurricular?.evaluacion?.relacionesCriterioIndicador || []
+        specFase.arquitecturaCurricular?.evaluacion?.relacionesMalla
+        || specFase.arquitecturaCurricular?.evaluacion?.relacionesCriterioIndicador || []
       ).filter((relacion) => codigosDia.has(String(relacion?.indicadorId || "").trim()));
 
       // MERGE: la estructura base (generarDia) aporta SOLO forma (momentos,
@@ -5117,6 +5414,7 @@ const _generarFasesConIA = async (
               dia.aporteProducto,
             ].filter(Boolean).join(" "),
             relaciones: relacionesDia,
+            dimension: dimensionDeActividad(actividad?.texto),
           });
           const relacionado = Boolean(
             relacion
@@ -5238,7 +5536,9 @@ const _generarFasesConIA = async (
       };
     }
     if (weekPlan.observacionesSemana) {
-      fase.observacionesSemana = String(weekPlan.observacionesSemana).trim();
+      const observaciones = sinHechosInventados(weekPlan.observacionesSemana);
+      fase.observacionesSemana = observaciones.texto;
+      if (observaciones.quitadas) avisosRedaccionIA.push(`Fase ${fase.numero}: se quitó de las observaciones lo que narraba hechos que aún no han ocurrido`);
     }
 
     // generateWeekPlan actualiza esta memoria internamente. El respaldo no,
@@ -5260,7 +5560,45 @@ const _generarFasesConIA = async (
 
 // ─── Exportación principal ────────────────────────────────────────────────────
 
-export const generarUnidadAprendizaje = async (datos) => {
+// Mapa de clases (Etapa 2 del esqueleto, César, 2026-11-04): solo Inglés y detrás de
+// una condición. Apagado por defecto: sin él, todo se genera como antes. Si el docente
+// ajustó fases o sesiones a mano, su decisión manda y no se usa el mapa.
+export const debeUsarMapaClases = ({ datos = {}, asignatura = "" } = {}) => {
+  const activo = datos.usarMapaClases === true || import.meta.env?.VITE_MAPA_CLASES === "1";
+  if (!activo || !/^ingl/i.test(String(asignatura).trim())) return false;
+  const pm = datos.planMaestro || {};
+  return !(pm.unir?.length || Object.keys(pm.subdividir || {}).length || pm.sesionesPorFase);
+};
+
+export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas, diasClase, horasPorDia, duracionMin }) => {
+  if (!debeUsarMapaClases({ datos, asignatura })) return null;
+  const { entrada } = armarEntradaPlanMaestro({ datos: { ...datos, numSemanas, diasClase, horasPorDia }, mallaPayload });
+  const mapa = armarMapaClases({ ...entrada, textoSituacion: JSON.stringify(datos.planMaestro?.situacion || {}), duracionMin, modalidadVisita: datos.planMaestro?.modalidadVisita || "" });
+  // Fallo del mapa: se detiene aquí, sin pagar ninguna llamada a la IA.
+  const fallos = fallosQueDetienen(mapa);
+  if (fallos.length) throw new Error(`Mapa de clases: la unidad no se puede armar: ${fallos.join("; ")}.`);
+  const r = planDesdeMapa(entrada, mapa);
+  if (!r) return { avisos: [`ℹ️ La estrategia tiene fases con partes: esta unidad no usa el mapa de clases.`] };
+  const situacion = datos.planMaestro?.situacion || {};
+  const invitado = ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.invitado;
+  ponerSecuencias(mapa, {
+    producto: r.plan.producto,
+    tema: datos.titulo || "",
+    asunto: ASUNTO_LECTURA_POR_SEMILLA[situacion.semillaId] || ASUNTO_LECTURA_GENERAL,
+    fuente: FUENTE_POR_SEMILLA[situacion.semillaId] || "",
+    audiencia: situacion.audiencia || "",
+    invitado: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.invitadoConArticulo || invitado || "",
+    entrega: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.entrega || "",
+    semilla: [datos.titulo, datos.centro, datos.grado, datos.seccion].join("|"),
+  });
+  return { ...r, mapa, avisos: mapa.avisos, modalidad: mapa.filas.find((f) => f.modalidad)?.modalidad || "" };
+};
+
+export const generarUnidadAprendizaje = async (datosFormulario) => {
+  // Mapa de clases: una sola ficha de modalidad y alcance para cabecera, clases y anexos.
+  const datos = debeUsarMapaClases({ datos: datosFormulario, asignatura: datosFormulario?.asignatura })
+    ? conFichaDeUnidad(datosFormulario)
+    : datosFormulario;
   const {
     grado = "", seccion = "", area = "", asignatura = "",
     titulo = "", numSemanas = 4,
@@ -5278,12 +5616,13 @@ export const generarUnidadAprendizaje = async (datos) => {
     competenciasFundamentalesSeleccionadas = [],
     temasSeleccionados = [],
     indicadoresTrabajadosAntes = [],
-    indicadoresDebiles = [],
     // Punto de partida del grupo: texto opcional del docente y las dos fuentes
-    // de indicadores débiles por separado (indicadoresDebiles las mezcla).
+    // de indicadores débiles: diagnóstico [{codigo, descripcion}] y evaluaciones
+    // (códigos). avisosDatosGrupo = lo que falte, solo para el administrador.
     puntoPartidaTexto = "",
     indicadoresDebilesDiagnostico = [],
     indicadoresDebilesEvaluaciones = [],
+    avisosDatosGrupo = [],
     // Rótulo del documento: "Unidad de Aprendizaje" o "Secuencia Didáctica"
     // (mismo esquema MINERD; solo cambia la etiqueta)
     tipoPlanificacion = "Unidad de Aprendizaje",
@@ -5308,16 +5647,25 @@ export const generarUnidadAprendizaje = async (datos) => {
   const asignaturaEf = asignatura || area;
   const ambiente = getAmbiente(claveContenido);
   const temasProducto = temasSeleccionados.length ? temasSeleccionados : [titulo];
-  const productoDetalleBase = construirProductoEstructurado(temasProducto, {
+  // Con plan maestro, descripción y audiencia salen de la situación de aprendizaje
+  // (la portada no puede nombrar otra audiencia que la situación). Sin ella, del
+  // catálogo por tema, como antes.
+  const situacionPlan = datos.planMaestro?.situacion?.productoDescripcion && datos.planMaestro?.situacion?.audiencia
+    ? datos.planMaestro.situacion
+    : null;
+  const audienciasPlan = audienciasDeSituacion(situacionPlan);
+  const camposProducto = {
     area: claveContenido,
     asignatura: asignaturaEf,
-    nombre: productoFinalTexto,
-    formato: productoFinalFormato,
-    proposito: productoFinalProposito,
-    audiencia: productoFinalAudiencia,
-    socializacion: productoFinalSocializacion,
-  });
-  const producto = formatearProductoFinal(productoDetalleBase);
+    formato: productoFinalFormato || situacionPlan?.productoDescripcion || "",
+    proposito: productoFinalProposito || situacionPlan?.problema || "",
+    audiencia: productoFinalAudiencia || audienciasPlan.frase,
+    socializacion: productoFinalSocializacion || (situacionPlan ? `presentación y entrega a ${audienciasPlan.principal}` : ""),
+  };
+  const productoDetalleBase = construirProductoEstructurado(temasProducto, { ...camposProducto, nombre: productoFinalTexto });
+  const producto = situacionPlan
+    ? `${productoDetalleBase.nombre} — ${productoDetalleBase.formato}, dirigida a ${productoDetalleBase.audiencia}.`.replace(/\ba el\b/g, "al").replace(/^(.* — (?:un|el) .*?, )dirigida\b/, "$1dirigido")
+    : formatearProductoFinal(productoDetalleBase);
 
   const ejes = getEjesTematicos(claveContenido);
   const compFundBase = COMPETENCIAS_FUND_POR_AREA[claveContenido] || ["Comunicativa", "Pensamiento Lógico, Creativo y Crítico"];
@@ -5452,13 +5800,25 @@ export const generarUnidadAprendizaje = async (datos) => {
   if (prepPlanMaestro.aplica) {
     estrategiaEf = prepPlanMaestro.plan.estrategia.nombre;
     situacion = prepPlanMaestro.situacionTexto;
+    const conMapa = prepararMapaClases({
+      datos, mallaPayload, asignatura: datos.asignatura || claveContenido, numSemanas,
+      diasClase: diasClaseFinal, horasPorDia: horasPorDiaEf, duracionMin: duracionHoraClase,
+    });
+    // Un contenido sin lugar no es un fallo: queda sin marcar en la tabla (César, 2026-11-06).
+    if (conMapa?.avisos?.length) avisosPlanMaestro.push(...conMapa.avisos.filter((a) => !/sin marcar/.test(a)));
+    const planFinal = conMapa?.plan || prepPlanMaestro.plan;
     rutaPlanMaestro = {
-      plan: prepPlanMaestro.plan,
+      mapa: conMapa?.mapa || null,
+      semillaId: datos.planMaestro?.situacion?.semillaId || "",
+      plan: planFinal,
       situacionTexto: prepPlanMaestro.situacionTexto,
       estructura: prepPlanMaestro.estructura,
-      contratos: prepPlanMaestro.plan.fases.map((_, indice) => construirContratoFase({
-        plan: prepPlanMaestro.plan, indice, estructura: prepPlanMaestro.estructura,
+      contratos: planFinal.fases.map((_, indice) => construirContratoFase({
+        plan: planFinal, indice, estructura: prepPlanMaestro.estructura,
         audiencia: datos.planMaestro?.situacion?.audiencia || "",
+        modalidadVisita: conMapa?.modalidad || datos.planMaestro?.modalidadVisita || "",
+        filasMapa: conMapa?.filasPorFase[indice] || null,
+        filasUnidad: conMapa?.mapa?.filas || null,
       })),
     };
   } else {
@@ -5659,6 +6019,8 @@ export const generarUnidadAprendizaje = async (datos) => {
     ? estrategiaSel.fases
     : null;
 
+  // Diagnóstico del grupo: el prompt solo recibe códigos que existen en esta malla.
+  const debilesDiagnostico = resolverDebilesContraMalla(indicadoresDebilesDiagnostico, allInds);
   const { fases: fasesSemanalesGeneradas, productoFinalNombre, advertenciasIA = [], avisosRedaccionIA = [], fasesBaseCurricular = [], combinacionesCreadas = [] } = await _generarFasesConIA(
     numSemanas, schedule, claveContenido, titulo, estrategiaFinal, producto,
     {
@@ -5674,8 +6036,9 @@ export const generarUnidadAprendizaje = async (datos) => {
       // Indicadores de unidades anteriores: alimentan el marcado ~~tachado~~
       // del prompt y la lista de permitidos del validador (R1)
       indicadoresTrabajadosAntes,
-      // Fase 9 — logro real bajo el umbral: marcado (REFORZAR) en el prompt
-      indicadoresDebiles,
+      // Fase 9 — logro real bajo el umbral: marcado (REFORZAR) en el prompt.
+      // Solo códigos de esta malla; el diagnóstico primero.
+      indicadoresDebiles: mezclarIndicadoresDebiles(debilesDiagnostico.codigos, indicadoresDebilesEvaluaciones),
       cupoGeneracion,
     },
     mallaContenidos,
@@ -5693,15 +6056,7 @@ export const generarUnidadAprendizaje = async (datos) => {
   if (!productoFinalTexto) validarProductoFinalAutentico(productoNombrado, titulo);
   const productoFinalDetalle = productoFinalNombre && productoFinalNombre !== producto
     ? {
-        ...construirProductoEstructurado(temasProducto, {
-          area: claveContenido,
-          asignatura: asignaturaEf,
-          nombre: productoNombrado,
-          formato: productoFinalFormato,
-          proposito: productoFinalProposito,
-          audiencia: productoFinalAudiencia,
-          socializacion: productoFinalSocializacion,
-        }),
+        ...construirProductoEstructurado(temasProducto, { ...camposProducto, nombre: productoNombrado }),
         texto: productoNombrado,
         generadoPorIA: true,
       }
@@ -5721,6 +6076,18 @@ export const generarUnidadAprendizaje = async (datos) => {
     indicadoresActuales,
     indicadoresPrevios,
   ), rutaPlanMaestro);
+  const indicadoresDetalle = competenciasDetalleEnriquecidas.flatMap((c) => c.indicadores || [])
+    .filter((i) => typeof i === "object");
+  const codigosDiagnosticoNorm = new Set(debilesDiagnostico.codigos.map(normalizarCodigoIndicador));
+  const codigosEvaluacionSinTexto = [];
+  const debilesEvaluacionesConTexto = (Array.isArray(indicadoresDebilesEvaluaciones) ? indicadoresDebilesEvaluaciones : [])
+    .filter((codigo) => !codigosDiagnosticoNorm.has(normalizarCodigoIndicador(codigo)))
+    .map((codigo) => {
+      const ind = indicadoresDetalle.find((i) => normalizarCodigoIndicador(i.codigo) === normalizarCodigoIndicador(codigo));
+      if (!ind?.descripcion) codigosEvaluacionSinTexto.push(codigo);
+      return ind?.descripcion ? `${ind.codigo} — ${ind.descripcion}` : "";
+    })
+    .filter(Boolean);
   const especificacionCurricularUnidad = buildEspecificacionCurricular({
     mallaPayload, titulo: rutaCurricular.temas.join(" · ") || titulo, allInds, allComps, mallaContenidos, area: claveContenido, grado,
   });
@@ -5762,17 +6129,13 @@ export const generarUnidadAprendizaje = async (datos) => {
     },
     ejesTematicos: ejesFinal,
     situacionAprendizaje: situacionFinal,
-    ambienteAprendizaje: ambiente,
+    ambienteAprendizaje: rutaPlanMaestro?.mapa ? ambienteDeMapa(rutaPlanMaestro.mapa) : ambiente,
     puntoPartida: construirPuntoPartida({
       textoDocente: puntoPartidaTexto,
-      debilesDiagnostico: indicadoresDebilesDiagnostico,
-      // Las evaluaciones devuelven CÓDIGOS (IL-n): se muestran con su texto.
-      debilesEvaluaciones: (Array.isArray(indicadoresDebilesEvaluaciones) ? indicadoresDebilesEvaluaciones : [])
-        .map((codigo) => {
-          const ind = competenciasDetalleEnriquecidas.flatMap((c) => c.indicadores || [])
-            .find((i) => typeof i === "object" && normalizarCodigoIndicador(i.codigo) === normalizarCodigoIndicador(codigo));
-          return ind?.descripcion ? `${ind.codigo} — ${ind.descripcion}` : codigo;
-        }),
+      debilesDiagnostico: debilesDiagnostico.descripciones,
+      // Las evaluaciones devuelven CÓDIGOS (IL-n): se muestran con su texto. Un
+      // código sin texto en la malla no se le enseña al docente (lo ve el admin).
+      debilesEvaluaciones: debilesEvaluacionesConTexto,
     }),
     modeloCurricularSuperior,
     competencias: (() => {
@@ -5862,10 +6225,106 @@ export const generarUnidadAprendizaje = async (datos) => {
   });
   // 3A/6 — aportes REALES al producto (contrato de la IA) mapeados por semana
   // calendario: alimentan el checkpoint y el Anexo H, nunca plantilla
+  // Viabilidad del tiempo: con plan maestro, los minutos del Desarrollo se
+  // calculan por actividad; lo que no cabe se avisa, nunca se estira la clase.
+  const avisosTiempo = [];
+  const avisosClaseFinal = [];
+  const titulosVistos = new Set();
+  if (rutaPlanMaestro) {
+    // Con mapa de clases, cada clase ya trae sus indicadores: este ajuste los pisaba.
+    if (!rutaPlanMaestro.contratos?.some((c) => c.mapaClases)) ajustarIndicadoresPorActividad(fasesSemanalesGeneradas, {
+      plan: rutaPlanMaestro.plan,
+      relaciones: especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesMalla || [],
+      elegidos: competenciasDetalleEnriquecidas.flatMap((c) => c.indicadores || [])
+        .filter((i) => i?.aplicaTemaActual).map((i) => i.codigo || i.id),
+    });
+    (fasesSemanalesGeneradas || []).flatMap((f) => f.dias || []).flatMap((d) => d.momentos || []).forEach((m) => {
+      // Si una actividad cuenta con un invitado, también es un recurso de la clase.
+      if (m?.recursos && (m.actividades || []).some((a) => /invitad/i.test(String(a)))) {
+        m.recursos.humanos = "Docente, estudiantes e invitado";
+      }
+    });
+    (fasesSemanalesGeneradas || []).flatMap((f) => f.dias || []).forEach((d, i) => {
+      const desarrollo = (d.momentos || []).find((m) => m?.nombre === "Desarrollo");
+      if (d.fijoDelMapa && desarrollo) {
+        desarrollo.evaluacion = { ...desarrollo.evaluacion, ...d.fijoDelMapa.evaluacion };
+        desarrollo.recursos = { ...desarrollo.recursos, humanos: d.fijoDelMapa.humanos, didacticos: d.fijoDelMapa.didacticos, tecnologicos: "No requerido para esta actividad" };
+        // Los pasos del banco ya traen sus firmas.
+        if (!d.minutosSecuencia?.length) desarrollo.actividades = conFirmas(desarrollo.actividades || [], d.tareasMapa, d.tareaIdsDesarrollo);
+        const inicio = (d.momentos || []).find((m) => m?.nombre === "Inicio");
+        // Se sustituye y no se quita: el Inicio tiene 5 posiciones fijas.
+        if (d.fijoDelMapa.primeraClase && inicio) {
+          inicio.actividades = inicioPresentacion(inicio.actividades || [], {
+            producto: rutaPlanMaestro.plan?.producto,
+            secciones: rutaPlanMaestro.mapa?.secciones || [],
+            semillaId: datos.planMaestro?.situacion?.semillaId || "",
+          });
+          const minutosInicio = minutosInicioPresentacion(Number.parseInt(String(inicio.tiempo || ""), 10) || 0);
+          if (minutosInicio) inicio.minutosActividad = minutosInicio;
+        }
+        // La clase 2 retoma el acuerdo: la IA le atribuía a la clase 1 lo que no hizo.
+        if (d.fijoDelMapa.segundaClase && inicio?.actividades?.length > 1) {
+          inicio.actividades[1] = RETROALIMENTACION_SEGUNDA_CLASE;
+          if (inicio.actividadesDetalle?.[1]?.texto) inicio.actividadesDetalle[1].texto = RETROALIMENTACION_SEGUNDA_CLASE;
+        }
+        sinGrabado(d.momentos);
+        const corregidos = [];
+        conTitulosCorregidos(d, { modeloFicticio: d.fijoDelMapa.modeloFicticio, nombreModelo: d.fijoDelMapa.nombreModelo, tituloTarea: d.fijoDelMapa.tituloTarea, corregidos });
+        conReemplazos(d, d.fijoDelMapa.reemplazos);
+        corregidos.forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: ${t}`));
+        if (d.fijoDelMapa.modeloFicticio) {
+          const quitados = [];
+          sinLugaresEnClase(d, quitados).forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: nombra un lugar que no consta en la tabla común: «${t}»`));
+          [...new Set(quitados)].forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: se quitó un lugar que no consta en la tabla común: «${t}»`));
+        }
+        sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: usa un equipo que el mapa no prevé: «${m}»`));
+        // El título nunca es el nombre interno de la tarea («Corregir, probar y verificar datos»): lo escribe el código.
+        const nombreInterno = String(d.tareasMapa?.[0]?.nombre || "").trim().toLowerCase();
+        const tituloActual = String(d.titulo || "").trim().toLowerCase();
+        if (nombreInterno && d.fijoDelMapa.tituloTarea && (tituloActual === nombreInterno || tituloActual.startsWith(`${nombreInterno}:`))) {
+          avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título con el nombre de la tarea «${d.titulo}»`);
+          d.titulo = d.fijoDelMapa.tituloTarea;
+        }
+        // Dos clases no se llaman igual: la repetida toma el nombre de su tarea, y si ese también está, lleva su número.
+        const claveTitulo = String(d.titulo || "").trim().toLowerCase();
+        if (claveTitulo && titulosVistos.has(claveTitulo)) {
+          const anterior = d.titulo;
+          const propio = d.fijoDelMapa.tituloTarea;
+          if (propio && !titulosVistos.has(propio.toLowerCase())) {
+            d.titulo = propio;
+            avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título repetido «${anterior}»`);
+          } else if (propio) {
+            d.titulo = `${propio} (clase ${i + 1})`;
+            avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título repetido «${anterior}», lleva el número de la clase`);
+          } else avisosClaseFinal.push(`clase ${i + 1}: título repetido: «${anterior}»`);
+        }
+        titulosVistos.add(String(d.titulo || "").trim().toLowerCase());
+        motivosClaseFinal(d).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: ${m}`));
+        delete d.fijoDelMapa;
+      }
+      if (!desarrollo?.actividades?.length) return;
+      const total = Number.parseInt(String(desarrollo.tiempo || ""), 10) || 0;
+      // Con mapa y una actividad por tarea, los minutos son los de la fila.
+      const soloAcuerdo = d.tareasMapa?.length === 1 && d.tareasMapa[0].clave === "acordar";
+      const tareaIds = d.tareaIdsDesarrollo?.length === desarrollo.actividades.length ? d.tareaIdsDesarrollo : [];
+      const delMapa = (d.minutosSecuencia?.length === desarrollo.actividades.length && [...d.minutosSecuencia])
+        || (soloAcuerdo && minutosConDiagnostico(desarrollo.actividades, total))
+        || (d.tareasMapa?.length ? minutosPorTarea(d.tareasMapa, tareaIds) : null)
+        || (d.tareasMapa?.length === desarrollo.actividades.length ? d.tareasMapa.map((t) => t.minutos) : null);
+      delete d.tareaIdsDesarrollo;
+      delete d.minutosSecuencia;
+      if (delMapa) delMapa[delMapa.length - 1] += total - delMapa.reduce((s, m) => s + m, 0);
+      const { minutos, necesarios } = delMapa
+        ? { minutos: delMapa, necesarios: 0 }
+        : minutosPorDemanda({ totalMinutos: total, actividades: desarrollo.actividades });
+      desarrollo.minutosActividad = minutos;
+      if (necesarios > total) avisosTiempo.push(`clase ${i + 1}: el Desarrollo necesita unos ${necesarios} min y tiene ${total}`);
+    });
+  }
   const aportesProducto = (fasesSemanalesGeneradas || [])
     .flatMap((f) => f.dias || [])
     .filter((d) => d.aporteProducto)
-    .map((d) => ({ semana: d.semana || 1, texto: d.aporteProducto }));
+    .map(aporteDeClase);
 
   // R3 — corpus del documento completo para detectar productos-fantasma:
   // nombres de fase, intenciones pedagógicas, títulos de día y evidencias (es
@@ -5891,7 +6350,10 @@ export const generarUnidadAprendizaje = async (datos) => {
       .filter((a) => a.semana <= Math.ceil(numSemanas / 2))
       .map((a) => a.texto),
   });
-  unidadResult.anexos = construirAnexosUnidad({
+  // El Anexo J diagnostica lo que la clase 1 hace de verdad (con mapa de clases); sin mapa, su plantilla.
+  const diagnosticoClase1 = diagnosticoDeFases(fasesSemanalesGeneradas, Boolean(rutaPlanMaestro?.mapa));
+  const anexosBase = construirAnexosUnidad({
+    diagnosticoClase1,
     area: claveContenido,
     tema: titulo,
     producto: productoNombrado,
@@ -5910,8 +6372,11 @@ export const generarUnidadAprendizaje = async (datos) => {
       .flatMap((comp) => comp.indicadores || [])
       .filter((ind) => ind.aplicaTemaActual),
     relacionesCriterioIndicador:
-      especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesCriterioIndicador || [],
+      especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesMalla
+      || especificacionCurricularUnidad.arquitecturaCurricular?.evaluacion?.relacionesCriterioIndicador || [],
     ampliacion: unidadResult.ampliacionDocenteOS || [],
+    terminosSecciones: unidadResult.planMaestro?.terminosSecciones || {},
+    audienciaPrincipal: audienciasPlan.principal,
     secciones: unidadResult.planMaestro?.secciones || [],
     fasesPlan: unidadResult.planMaestro?.fases || [],
     recursosTecnologicos: (unidadResult.fasesSemanales || [])
@@ -5920,6 +6385,18 @@ export const generarUnidadAprendizaje = async (datos) => {
       .map((momento) => momento.recursos?.tecnologicos || "")
       .filter(Boolean),
   });
+  // Mapa de clases: Anexos H e I se calculan de las clases, sección por sección; nada se graba.
+  unidadResult.anexos = rutaPlanMaestro?.mapa
+    ? JSON.parse(JSON.stringify({
+      ...anexosBase,
+      organizadorProducto: organizadorDesdeMapa(rutaPlanMaestro.mapa, {
+        producto: productoNombrado,
+        piezas: unidadResult.planMaestro?.piezasSecciones,
+        propositos: unidadResult.planMaestro?.propositosSecciones,
+      }),
+      checklistProducto: checklistDesdeMapa(rutaPlanMaestro.mapa, productoNombrado),
+    }).replaceAll("observado o grabado", "observado"))
+    : anexosBase;
   if (rutaPlanMaestro) {
     // Con plan maestro el Anexo A sigue la plantilla de la Guía 2025.
     unidadResult.anexos.rubricaPlan = construirRubricaPlan({
@@ -5970,22 +6447,37 @@ export const generarUnidadAprendizaje = async (datos) => {
     if (global.avisos.length) {
       // Ajustes de la generación (regla 4.4) que el docente no puede aplicar:
       // van aparte y solo los ve el administrador (decisión de César, 2026-11-03).
-      unidadResult.avisosRedaccion = [
-        `⚠️ Redacción de las actividades (regla 4.4, ${global.avisos.length}): ${global.avisos.join("; ")}.`,
-      ];
+      unidadResult.avisosRedaccion = [...global.avisos];
+    }
+    // Mapa de clases: lo que solo se ve mirando la unidad entera. Va al administrador.
+    if (rutaPlanMaestro?.mapa) {
+      const revision = revisarUnidadConMapa(
+        (unidadResult.fasesSemanales || []).flatMap((f) => f.dias || []), rutaPlanMaestro.mapa.filas,
+      );
+      const noVistos = contenidosNoVistosEnUnidad((unidadResult.fasesSemanales || []).flatMap((f) => f.dias || []), rutaPlanMaestro.mapa.filas);
+      unidadResult.avisosRedaccion = [...(unidadResult.avisosRedaccion || []), ...revision, ...noVistos];
     }
     // Lo flexible del Desarrollo y del Cierre que la IA no cumplió: se aceptó
     // sin reintento pagado y se avisa al admin (decisión de César, 2026-11-03).
-    // Con tope, para no inflar el documento guardado (límite de 1 MiB).
-    if (avisosRedaccionIA.length) {
-      const MAX_AVISOS_LOTE = 40;
-      const resto = avisosRedaccionIA.length - MAX_AVISOS_LOTE;
-      unidadResult.avisosRedaccion = [
-        ...(unidadResult.avisosRedaccion || []),
-        `⚠️ Desarrollo y Cierre aceptados con aviso (${avisosRedaccionIA.length}): ${avisosRedaccionIA.slice(0, MAX_AVISOS_LOTE).join("; ")}${resto > 0 ? `; y ${resto} más` : ""}.`,
-      ];
-    }
+    titulosParecidos((fasesSemanalesGeneradas || []).flatMap((f) => f.dias || []).map((d) => d.titulo))
+      .forEach(([a, b]) => avisosClaseFinal.push(`clase ${b}: título casi igual al de la clase ${a}`));
+    unidadResult.avisosRedaccion = [...(unidadResult.avisosRedaccion || []), ...avisosRedaccionIA, ...avisosClaseFinal];
   }
+
+  // Datos del grupo que faltan o no encajan: solo los ve el administrador.
+  const avisosGrupo = [
+    ...(avisosTiempo.length ? [`Tiempo: ${avisosTiempo.join("; ")}.`] : []),
+    ...(Array.isArray(avisosDatosGrupo) ? avisosDatosGrupo : []),
+    ...(unidadResult.anexos?.avisosSeleccion?.length ? [`Selección curricular por revisar: ${unidadResult.anexos.avisosSeleccion.join("; ")}.`] : []),
+    ...(unidadResult.anexos?.avisosEvidencia?.length ? [`Evidencias por planificar: ${unidadResult.anexos.avisosEvidencia.join("; ")}.`] : []),
+    ...(seccionesSinFinal(unidadResult.anexos?.organizadorProducto).length ? [`Secciones sin pieza final: ${seccionesSinFinal(unidadResult.anexos.organizadorProducto).join(", ")}.`] : []),
+    ...(codigosEvaluacionSinTexto.length ? [`Evaluaciones: códigos fuera de esta malla, omitidos del Punto de partida: ${codigosEvaluacionSinTexto.join(", ")}.`] : []),
+  ].filter(Boolean);
+  // La concordancia de «guía» también en los anexos (Anexo K de Escuela).
+  if (rutaPlanMaestro?.mapa && unidadResult.anexos) conGuiaEnTextos(unidadResult.anexos);
+  // El panel del administrador: una línea por aviso, en orden y con tope de tamaño.
+  const avisosPanel = avisosParaAdministrador([...(unidadResult.avisosRedaccion || []), ...avisosGrupo]);
+  if (avisosPanel.length) unidadResult.avisosRedaccion = avisosPanel;
 
   // R1 FINAL sobre el DOCUMENTO RENDERIZADO completo (no solo el JSON de la
   // IA): atrapa cualquier placeholder o campo vacío que entre por código
@@ -6018,7 +6510,7 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
       if (
         vacio(criterio.indicadorCodigo)
         && vacio(criterio.indicadorDescripcion)
-        && criterio.estadoTrazabilidad !== "requiere_revision"
+        && !["requiere_revision", "fuera_de_seleccion"].includes(criterio.estadoTrazabilidad)
       ) {
         errores.push(`${ref} sin indicador curricular vinculado`);
       }
@@ -6057,7 +6549,7 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
         if (
           vacio(item.indicadorCodigo)
           && vacio(item.indicadorDescripcion)
-          && item.estadoTrazabilidad !== "requiere_revision"
+          && !["requiere_revision", "fuera_de_seleccion"].includes(item.estadoTrazabilidad)
         ) {
           errores.push(`${ref} sin indicador`);
         }
@@ -6206,6 +6698,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     .modelo-table ul { margin: 0 0 0 16px; padding: 0; }
     .modelo-table li { margin-bottom: 2pt; }
     .modelo-subhead { background: #dbeafe; color: #1e3a8a; font-weight: bold; padding: 4px 8px; border: 1px solid #93c5fd; font-size: 11pt; }
+    .act-fase { font-size: 9pt; color: #1e3a5f; border: 1px solid #93c5fd; border-radius: 3px; padding: 0 3px; }
     .fase-band { background: #1e3a5f; color: white; padding: 6px 10px; font-weight: bold; font-size: 11pt; margin-top: 18px; }
     .est-band { background: #2563eb; color: white; padding: 4px 10px; font-size: 10pt; }
     .semana-band { background: #3b82f6; color: white; padding: 5px 10px; font-weight: bold; font-size: 11pt; margin-top: 12px; }
@@ -6247,6 +6740,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       thead tr { break-inside: avoid; page-break-inside: avoid; }
       tbody tr { break-inside: auto; page-break-inside: auto; }
       .dia-table { break-inside: auto; page-break-inside: auto; margin-bottom: 6px; }
+      /* Un momento partido entre páginas encimaba sus últimas líneas sobre el siguiente (Rutinas g9, C2). */
+      .dia-table tbody tr { break-inside: avoid; page-break-inside: avoid; }
       .semana-band { break-after: avoid; page-break-after: avoid; }
       /* La intención es un bloque corto: que NO se parta ella misma, pero SÍ
          pueda separarse de la tabla del día. Con break-after:avoid quedaba
@@ -6318,11 +6813,15 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     const diaHtml = (dia) => {
       const momentosHtml = (dia.momentos || []).map((mom) => {
         const totalMomento = Number.parseInt(String(mom.tiempo || ""), 10) || 0;
-        const tiemposActividad = distribuirTiempoActividades({
-          totalMinutos: totalMomento,
-          cantidad: (mom.actividades || []).length,
-          momento: mom.nombre,
-        });
+        // Unidades nuevas: minutos calculados al generar, según cada actividad.
+        // Guardadas o editadas (otro número de actividades): como antes.
+        const tiemposActividad = (mom.minutosActividad || []).length === (mom.actividades || []).length
+          ? mom.minutosActividad
+          : distribuirTiempoActividades({
+            totalMinutos: totalMomento,
+            cantidad: (mom.actividades || []).length,
+            momento: mom.nombre,
+          });
         const actsHtml = (mom.actividades || []).map((a, i) => {
           // Escapa el texto ANTES de convertir el markdown (**bold**, _em_) para
           // no romper el formato intencional pero neutralizar HTML inyectado.
@@ -6330,7 +6829,8 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
             negritaPrimeraPalabra(escHtml(a))
               .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
           );
-          return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span> ${html}</p>`;
+          const faseDeActividad = mom.nombre === "Desarrollo" ? dia.fasesPorActividad?.Desarrollo?.[i] : (mom.nombre === "Inicio" ? dia.fasesPorActividad?.Inicio?.[i] : "");
+          return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span>${faseDeActividad ? ` <span class="act-fase">${escHtml(faseDeActividad)}</span>` : ""} ${html}</p>`;
         }).join("");
         const evalHtml = `<strong>Tipo:</strong> ${escHtml(mom.evaluacion?.tipo)}.<br><strong>Agente:</strong> ${escHtml(mom.evaluacion?.agente)}.<br><strong>Técnica:</strong> ${escHtml(mom.evaluacion?.tecnica)}.<br><strong>Instrumento:</strong> ${escHtml(mom.evaluacion?.instrumento)}.`;
         const recursos = mom.recursos || {};
@@ -6538,7 +7038,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
     <tr><td class="lbl">Título de la Unidad</td><td colspan="3"><strong>${m.titulo}</strong></td></tr>
     <tr><td class="lbl">Duración</td><td>${m.duracion}</td><td class="lbl">Fecha inicio</td><td>${m.fechaInicio}</td></tr>
     <tr><td class="lbl">Horario</td><td colspan="3">${m.horario || ""}</td></tr>
-    <tr><td class="lbl">Asignaturas vinculadas</td><td colspan="3">${(m.asignaturasVinculadas || []).join(", ") || "N/A"}</td></tr>
+    <tr><td class="lbl">Asignaturas vinculadas</td><td colspan="3">${(m.asignaturasVinculadas || []).join(", ") || "Sin articulación"}</td></tr>
     <tr><td class="lbl">Producto final</td><td colspan="3">${m.productoFinal}</td></tr>
   </table>
 
@@ -6784,7 +7284,9 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
         ? `<strong style="color:#b45309">⚠ Requiere revisión docente:</strong> ${item.justificacionRelacion || "No se encontró correspondencia suficiente."}<br>`
         : item.confianzaRelacion === "general"
           ? `<em style="color:#64748b">Vínculo general con el indicador priorizado de la unidad; ajústelo si otro encaja mejor.</em><br>`
-          : ""}
+          : item.estadoTrazabilidad === "fuera_de_seleccion"
+            ? `<em style="color:#64748b">Valoración formativa: los indicadores elegidos para esta unidad no cubren este aspecto.</em><br>`
+            : ""}
       ${item.criterioOficialId || item.criterioOficialTexto
         ? `<strong>Criterio oficial:</strong> ${[item.criterioOficialId, item.criterioOficialTexto].filter(Boolean).join(" — ")}<br>`
         : ""}
@@ -6891,15 +7393,18 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
 
     <h3>ANEXO H — Checklist de progreso del producto final</h3>
     <table class="rubrica">
-      <tr><th>Paso del producto final</th><th style="width:20%">Semana</th><th style="width:8%">✔</th></tr>
-      ${(ax.checklistProducto || []).map((c) => `<tr><td>${c.paso}</td><td>${c.semana}</td><td></td></tr>`).join("")}
+      ${(ax.checklistProducto || []).some((c) => c.recibe)
+        ? `<tr><th>Paso del producto final (lo que entrega)</th><th style="width:32%">Recibe</th><th style="width:12%">Semana</th><th style="width:6%">✔</th></tr>
+      ${(ax.checklistProducto || []).map((c) => `<tr><td>${c.paso}</td><td>${escHtml(c.recibe || "")}</td><td>${c.semana}</td><td></td></tr>`).join("")}`
+        : `<tr><th>Paso del producto final</th><th style="width:20%">Semana</th><th style="width:8%">✔</th></tr>
+      ${(ax.checklistProducto || []).map((c) => `<tr><td>${c.paso}</td><td>${c.semana}</td><td></td></tr>`).join("")}`}
     </table>
 
     <h3>ANEXO I — Organizador gráfico del producto final</h3>
     <table class="rubrica">
       ${(ax.organizadorProducto || []).some((o) => o.fases !== undefined)
-        ? `<tr><th style="width:16%">Sección</th><th style="width:16%">Estados de la sección</th><th style="width:20%">Evidencia principal</th><th style="width:28%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
-      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.fases || ""}</td><td>${o.evidencia || ""}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`
+        ? `<tr><th style="width:16%">Sección</th><th style="width:20%">Proceso de la sección</th><th style="width:18%">Evidencia principal</th><th style="width:26%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
+      ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${(o.operaciones || []).length ? `${o.operaciones.map(escHtml).join(" → ")}${o.fases ? `<br><small>Estados: ${o.fases}</small>` : ""}` : (o.fases || "")}</td><td>${o.evidencia || ""}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`
         : `<tr><th style="width:28%">Sección</th><th style="width:42%">¿Qué incluyo aquí?</th><th>Mis oraciones / notas</th></tr>
       ${(ax.organizadorProducto || []).map((o) => `<tr><td>${o.seccion}</td><td>${o.incluye}</td><td></td></tr>`).join("")}`}
     </table>
