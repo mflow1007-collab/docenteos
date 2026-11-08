@@ -8,7 +8,7 @@ import { armarMapaClases, conGuiaEnTextos, fasesDeActividades, didacticosDeFila,
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import {
   actividadDeTarea, avisosParaAdministrador, conOrganizacionEnParentesis, contenidosFaltantesEnClase, contenidosNoVistosEnUnidad, datosSinRecoger, pendientesDeClase, instruccionTareaFaltante, motivoRedaccionActividad, motivosClaseFinal, motivosFidelidad, motivosRedaccionClase,
-  motivosTareaId, motivosTextoClase, obligacionIncumplida, revisarUnidadConMapa, tareasSinActividad,
+  estructurasDeMalla, motivosTareaId, motivosTextoClase, obligacionIncumplida, revisarUnidadConMapa, tareasSinActividad,
 } from "../src/services/redaccionFaseService.js";
 import { ASUNTO_LECTURA_POR_SEMILLA, FUENTE_POR_SEMILLA, LUGARES_NO_DECLARADOS } from "../src/data/tareasPorTipoTrabajo.js";
 
@@ -146,6 +146,8 @@ check("revisión de Alimentación: presentar al grupo y datos recibidos no son f
   assert(!revisarUnidadConMapa(dias, alimentacion.filas).some((a) => /clase 5: adelanta/.test(a)), "al grupo no adelanta");
   dias[4] = desarrollo(...dias[4].momentos[0].actividades, "Presentan (en grupos) la guía al dueño invitado.");
   assert(revisarUnidadConMapa(dias, alimentacion.filas).some((a) => /clase 5: adelanta/.test(a)), "a la audiencia sí");
+  dias[4] = desarrollo(...dias[4].momentos[0].actividades.slice(0, -1), "Presentan (en grupos editores) al docente las secciones corregidas para una segunda revisión.");
+  assert(!revisarUnidadConMapa(dias, alimentacion.filas).some((a) => /clase 5: adelanta/.test(a)), "entregar al docente para revisión no es presentar a la audiencia");
   const i = alimentacion.filas.findIndex((f) => f.tareas.some((t) => t.clave === "analizar_ordenar"));
   dias[i] = desarrollo("Ordenan (en grupos) los datos recibidos del comedor.");
   assert(!revisarUnidadConMapa(dias, alimentacion.filas).some((a) => new RegExp(`clase ${i + 1}: no se ve`).test(a)), "datos recibidos");
@@ -298,6 +300,13 @@ check("formato: cita, dueño, acción y orden cadena → contenido → estilo �
   const [id] = avisosParaAdministrador(["Clase 6: fallo de correspondencia: ninguna actividad lleva el ID T3"]);
   assert(/^ℹ️/.test(id) && /Dueño: IA/.test(id) && /Corregido por código/.test(id), id);
   assert(/^ℹ️/.test(avisosParaAdministrador(["Fase 2: se quitó de las observaciones lo que narraba hechos"])[0]), "observaciones");
+});
+check("falsos de g13–g16: comparativo en la malla, cantidad con «than» y nombre de sección en el título", () => {
+  assert(estructurasDeMalla(["Grados comparativo y superlativo del adjetivo: Do you have a smaller one?"]).includes("comparativo"), "la malla de 2.º trae comparativos");
+  assert(!estructurasDeMalla(["Presente simple"]).includes("comparativo"), "sin comparativo en la malla");
+  const t = (titulo) => motivosClaseFinal({ titulo, intencionPedagogica: "Los estudiantes corrigen." });
+  assert(!t("Corrigiendo lo ensayado: Ordering Food").length, "el nombre de la sección va en inglés a propósito");
+  assert(t("Healthy Choices and Tips").length, "un título entero en inglés sí se marca");
 });
 console.log(`\nAvisos: ${fallos} fallo(s)`);
 process.exit(fallos ? 1 : 0);

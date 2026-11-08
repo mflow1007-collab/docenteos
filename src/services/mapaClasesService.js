@@ -850,7 +850,7 @@ export const conReemplazos = (dia = {}, reemplazos = []) => {
 /** Títulos de la clase: concordancia con «guía» y un texto modelo no se llama «simulado». */
 export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreModelo = "", tituloTarea = "", corregidos = [] } = {}) => {
   const guia = conGuiaEnFemenino;
-  if (dia.titulo && tituloTarea && (tituloEnIngles(dia.titulo) || textoEnPortugues(dia.titulo))) {
+  if (dia.titulo && tituloTarea && (tituloEnIngles(dia.titulo.split(":")[0]) || textoEnPortugues(dia.titulo))) {
     if (textoEnPortugues(dia.titulo)) corregidos.push(`título fuera de español: «${citaTexto(dia.titulo, null, 60)}»`);
     dia.titulo = tituloTarea;
   }

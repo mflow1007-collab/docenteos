@@ -232,7 +232,11 @@ const ESTRUCTURAS_GRAMATICA = [
   ["estilo_indirecto", /reported speech|indirect speech|estilo indirecto/],
   ["tercer_condicional", /third conditional|tercer condicional/],
   ["segundo_condicional", /second conditional|segundo condicional/],
+  // La malla de 2.º trae «Grados comparativo y superlativo del adjetivo»: sin esta entrada, todo «than» se marcaba fuera de la malla.
+  ["comparativo", /comparativ|superlativ|comparative|superlative/],
 ];
+// «less than six hours»: una cantidad, no el comparativo de un adjetivo.
+const CANTIDAD_CON_THAN = /\b(more|less|fewer|greater|higher|lower|older|younger)\s+than\s+(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|half|a (few|hundred|thousand))\b/gi;
 const quitarTildes = (t) => String(t ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 /** Estructura gramatical conocida de un texto (inglés o español), o null. */
 export const estructuraGramatical = (texto) => {
@@ -800,7 +804,7 @@ export const libretaDeHechos = (memoria = []) => {
 const TAREAS_RECONOCIBLES = [
   { clave: "visitar_entrevistar", verbo: /^entrevistan\b/ },
   // Presentar a los compañeros no es la presentación a la audiencia.
-  { clave: "presentar", verbo: /^presentan\b/, salvo: /\b(en plenaria|al resto del grupo|al grupo|a otro grupo|a otros grupos)\b/ },
+  { clave: "presentar", verbo: /^presentan\b/, salvo: /\b(en plenaria|al resto del grupo|al grupo|a otro grupo|a otros grupos|al docente|para (una |la )?(primera |segunda )?revision)\b/ },
   // Reunir ideas o datos no es integrar: integrar junta las secciones en el producto.
   { clave: "integrar", verbo: /^(reunen|integran|compilan)\b/, solo: /\b(secciones|producto|documento|todo)\b/ },
   { clave: "evaluar_proceso", verbo: /^(autoevaluan|coevaluan)\b/ },
@@ -902,7 +906,7 @@ export const motivosTextoClase = (clase) => {
 export const motivosClaseFinal = (clase, { estructurasGrado = null } = {}) => {
   const motivos = [];
   [["título", clase?.titulo], ["intención pedagógica", clase?.intencionPedagogica]].forEach(([nombre, t]) => {
-    if (t && (textoEnPortugues(t) || tituloEnIngles(t))) motivos.push(`${nombre} fuera de español: «${citaTexto(t, null, 60)}»`);
+    if (t && (textoEnPortugues(t) || tituloEnIngles(nombre === "título" ? t.split(":")[0] : t))) motivos.push(`${nombre} fuera de español: «${citaTexto(t, null, 60)}»`);
   });
   // Comprobación inversa: nada de lo que dice la estructura del día queda fuera de la malla.
   const foco = String(clase?.focoLinguistico || "");
@@ -1050,7 +1054,7 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
       // La estructura del día la escribe el código (focoDeFila): se revisa al final, en motivosClaseFinal.
       if (contrato.estructurasGrado?.length && !contrato.estructurasGrado.includes("comparativo")) {
-        const conThan = [...(clase?.textoModelo?.lineas || []), ...textosActividades(clase).map(textoComoCadena)].find((t) => /\bthan\b/i.test(String(t || "")));
+        const conThan = [...(clase?.textoModelo?.lineas || []), ...textosActividades(clase).map(textoComoCadena)].find((t) => /\bthan\b/i.test(String(t || "").replace(CANTIDAD_CON_THAN, "")));
         if (conThan) motivos44[idx].push(`clase ${idx + 1} — usa un comparativo fuera de la malla del grado: "${String(conThan).slice(0, 70)}"`);
       }
       [...motivosFidelidad(clase, filaMapa).filter((m) => !/^no se ve la tarea/.test(m)), ...motivosTextoClase(clase).filter((m) => !/nombra un equipo.*grabad/i.test(m)), ...motivosTareaId(clase, filaMapa)].forEach((m) => motivos44[idx].push(`clase ${idx + 1} — ${m}`));
