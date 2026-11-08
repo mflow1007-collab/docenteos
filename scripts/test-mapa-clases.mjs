@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, tituloDeClase, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
-import { armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
+import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
@@ -964,6 +964,33 @@ check("lo «grabado» pasa a observado y anotado, sin tocar la negación ni otra
 check("al reintentar una fase, la memoria vuelve a como estaba antes de la fase", () => {
   const fuente = readFileSync(new URL("../src/services/unidadAprendizajeService.js", import.meta.url), "utf8");
   assert(/const memoriaAntesDeFase = memoriaAcumulada\.length;\s+for \(let intento = 1; !weekPlan; intento\+\+\) \{[\s\S]{0,260}memoriaAcumulada\.length = memoriaAntesDeFase;\s+try \{\s+weekPlan = await generateWeekPlan/.test(fuente), "falta restaurar la memoria");
+});
+
+check("I-20: los instrumentos traen criterios de comprensión y de las secciones; cada clase dice cuáles evalúa", () => {
+  const ax = construirAnexosUnidad({ area: "Inglés", tema: "T", producto: "Our Plan", secciones: ["Our Daily Routines", "What We Found"] });
+  igual(ax.listaCotejoOral.length, 7, "la lista de cotejo oral tiene un ítem de comprensión");
+  assert(/Responde a preguntas e indicaciones/.test(ax.listaCotejoOral[6].criterio), "ítem de comprensión de la lista");
+  igual(ax.escalaValoracion.length, 5, "la escala tiene un ítem de comprensión");
+  assert(/Our Daily Routines, What We Found/.test(ax.rubricaProducto[2].n4), "la rúbrica nombra las secciones del plan");
+  assert(!/Our Daily Routines/.test(construirAnexosUnidad({ area: "Inglés", tema: "T", producto: "P" }).rubricaProducto[2].n4), "sin secciones, como antes");
+  const dias = [{ indicadoresTrabajados: [{ id: "ING-2-I02" }, { id: "ING-2-I03" }], momentos: [
+    { evaluacion: { instrumento: "Lista de cotejo oral (Anexo B) y Escala de valoración (Anexo E.2)" } },
+    { evaluacion: { instrumento: "Evaluación diagnóstica (Anexo J)" } },
+  ] }, { indicadoresTrabajados: [{ id: "ING-2-I01" }], momentos: [{ evaluacion: { instrumento: "Lista de cotejo" } }] }];
+  vincularInstrumentosConClases(dias, {
+    listaCotejoOral: [{ indicadorCodigo: "ING-2-I03" }, { indicadorCodigo: "ING-2-I02" }, { indicadorCodigo: "ING-2-I02" }, { indicadorCodigo: "ING-2-I01" }],
+    escalaValoracion: [{ indicadorCodigo: "ING-2-I02" }],
+  });
+  igual(dias[0].momentos[0].evaluacion.criterios, "Anexo B, criterios 1, 2 y 3; Anexo E.2, criterio 1", "criterios de la clase 1");
+  assert(!dias[0].momentos[1].evaluacion.criterios, "el diagnóstico (Anexo J) no se vincula");
+  igual(dias[1].momentos[0].evaluacion.criterios, "Anexo B, criterio 4", "una clase de comprensión evalúa el ítem de comprensión");
+  // Con lo que la clase hace, cita solo los criterios de esa dimensión.
+  const d2 = [{ indicadoresTrabajados: [{ id: "ING-2-I02" }, { id: "ING-2-I03" }], momentos: [{ evaluacion: { instrumento: "Lista de cotejo oral (Anexo B)" } }] }];
+  vincularInstrumentosConClases(d2, { listaCotejoOral: [{ indicadorCodigo: "ING-2-I03", exige: "interaccion" }, { indicadorCodigo: "ING-2-I02", exige: "produccion" }, { indicadorCodigo: "ING-2-I02", exige: "produccion" }, { indicadorCodigo: "ING-2-I03", exige: "interaccion" }] }, () => ["interaccion"]);
+  igual(d2[0].momentos[0].evaluacion.criterios, "Anexo B, criterios 1 y 4", "solo los de interacción");
+  const d3 = [{ indicadoresTrabajados: [{ id: "ING-2-I02" }], momentos: [{ evaluacion: { instrumento: "Lista de cotejo" } }] }];
+  vincularInstrumentosConClases(d3, { listaCotejoOral: [{ indicadorCodigo: "ING-2-I02", exige: "produccion" }] }, () => ["comprension"]);
+  igual(d3[0].momentos[0].evaluacion.criterios, "Anexo B, criterio 1", "si la dimensión no coincide con ninguno, valen los del indicador");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);

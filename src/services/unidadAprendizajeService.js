@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -1334,7 +1334,7 @@ const actividadesDeClase = (dia = {}) => (dia.momentos || [])
   .filter((m) => m?.nombre !== "Inicio")
   .flatMap((m) => m?.actividades || [])
   .map((a) => String(a?.texto || a || ""));
-const dimensionesDeClase = (dia = {}) => [...new Set(actividadesDeClase(dia).map(dimensionDeActividad).filter(Boolean))];
+export const dimensionesDeClase = (dia = {}) => [...new Set(actividadesDeClase(dia).map(dimensionDeActividad).filter(Boolean))];
 // La actividad que hace observable un desempeño oral, sin lo que deja escrito.
 // Presentar o exponer pesa más que socializar, que suele ser una puesta en común.
 const VERBOS_PRESENTACION = /^(presentan|exponen|representan)\b/i;
@@ -1432,7 +1432,7 @@ export const construirAnexosUnidad = ({
   const criteriosBase = [
     { criterio: `Propósito y contenido (${tema})`, n4: "Responde completamente a la necesidad y audiencia del producto con información pertinente.", n3: "Responde al propósito con la mayoría de la información necesaria.", n2: "Responde parcialmente al propósito y omite información importante.", n1: "El contenido no responde con claridad al propósito." },
     { criterio: idioma ? `Uso comunicativo del ${nombreIdioma}` : "Aplicación del lenguaje del área", n4: "Usa con precisión los recursos trabajados para comunicar o resolver la tarea.", n3: "Usa los recursos con errores menores que no afectan el sentido.", n2: "Usa recursos básicos con errores que dificultan parcialmente el sentido.", n1: "Requiere apoyo constante para aplicar los recursos del área." },
-    { criterio: "Organización del producto", n4: "Integra todas las secciones en una secuencia clara, funcional y fácil de consultar.", n3: "Integra las secciones con un orden comprensible.", n2: "Presenta secciones incompletas o conexiones débiles.", n1: "Las piezas aparecen aisladas o desorganizadas." },
+    { criterio: "Organización del producto", n4: secciones.length > 1 ? `Integra todas las secciones (${secciones.join(", ")}) en una secuencia clara, funcional y fácil de consultar.` : "Integra todas las secciones en una secuencia clara, funcional y fácil de consultar.", n3: "Integra las secciones con un orden comprensible.", n2: "Presenta secciones incompletas o conexiones débiles.", n1: "Las piezas aparecen aisladas o desorganizadas." },
     { criterio: "Claridad de la comunicación", n4: "El mensaje se comprende con facilidad y utiliza ejemplos pertinentes.", n3: "El mensaje se comprende con pocos apoyos.", n2: "El mensaje se comprende parcialmente y requiere aclaraciones.", n1: "El mensaje resulta difícil de comprender." },
     { criterio: "Interacción y respuesta a la audiencia", n4: "Presenta, escucha y responde con seguridad, respeto y argumentos pertinentes.", n3: "Presenta y responde adecuadamente a la mayoría de las preguntas.", n2: "Interactúa con respuestas breves o apoyo frecuente.", n1: "No logra sostener la interacción prevista." },
     { criterio: "Revisión y mejora", n4: "Incorpora la retroalimentación y entrega una versión final completa y cuidada.", n3: "Incorpora la mayoría de las mejoras acordadas.", n2: "Incorpora algunas mejoras, pero conserva errores señalados.", n1: "Entrega sin revisar o sin aplicar la retroalimentación." },
@@ -1631,6 +1631,7 @@ export const construirAnexosUnidad = ({
     `Formula y responde preguntas sobre "${tema}".`,
     `Ofrece recomendaciones o instrucciones sobre "${tema}".`,
     "Interactúa con cortesía y respeto con sus compañeros.",
+    `Responde a preguntas e indicaciones sobre "${tema}" después de escuchar o leer un texto breve.`,
   ] : [
     "Participa activamente en las actividades de la clase.",
     `Explica con sus palabras los contenidos centrales de "${tema}".`,
@@ -1640,7 +1641,7 @@ export const construirAnexosUnidad = ({
     "Interactúa con cortesía y respeto con sus compañeros.",
   ];
   // Saludar, preguntar y conversar son interacción; describir y recomendar, producción.
-  const EXIGE_LISTA_ORAL = ["interaccion", "produccion", "produccion", "interaccion", "produccion", "interaccion"];
+  const EXIGE_LISTA_ORAL = ["interaccion", "produccion", "produccion", "interaccion", "produccion", "interaccion", "comprension"];
   const listaCotejoOral = listaCotejoOralBase.map((item, index) => ({
     criterio: item,
     ...crearTrazaInstrumento({ tipo: "lista-cotejo", item, index, exige: EXIGE_LISTA_ORAL[index], etapas: ETAPAS_PROCESO }),
@@ -1701,6 +1702,7 @@ export const construirAnexosUnidad = ({
     `Presenta una evidencia completa y comprensible en ${productoCorto}.`,
     `Aplica la retroalimentación para mejorar ${productoCorto}.`,
     `Explica cómo su aporte contribuye a ${productoCorto}.`,
+    ...(idioma ? [`Comprende los textos y las indicaciones que se usan para ${productoCorto} y responde de forma adecuada.`] : []),
   ].map((item, index) => ({
     criterio: item,
     escala: ["Logrado", "En proceso", "Requiere apoyo"],
@@ -1708,8 +1710,8 @@ export const construirAnexosUnidad = ({
       tipo: "escala-valoracion",
       item,
       index,
-      exige: idioma ? "produccion" : "",
-      etapas: [ETAPAS_PROCESO, ETAPAS_FINALES, ["revisada", "final"], ETAPAS_FINALES][index],
+      exige: idioma ? (index === 4 ? "comprension" : "produccion") : "",
+      etapas: [ETAPAS_PROCESO, ETAPAS_FINALES, ["revisada", "final"], ETAPAS_FINALES, ETAPAS_PROCESO][index],
     }),
   }));
 
@@ -6398,6 +6400,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       checklistProducto: checklistDesdeMapa(rutaPlanMaestro.mapa, productoNombrado),
     }).replaceAll("observado o grabado", "observado"))
     : anexosBase;
+  // Con mapa, cada clase dice qué criterios de sus instrumentos evalúa (I-20).
+  if (rutaPlanMaestro?.mapa) vincularInstrumentosConClases((unidadResult.fasesSemanales || []).flatMap((fase) => fase.dias || []), unidadResult.anexos, dimensionesDeClase);
   if (rutaPlanMaestro) {
     // Con plan maestro el Anexo A sigue la plantilla de la Guía 2025.
     unidadResult.anexos.rubricaPlan = construirRubricaPlan({
@@ -6833,7 +6837,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
           const faseDeActividad = mom.nombre === "Desarrollo" ? dia.fasesPorActividad?.Desarrollo?.[i] : (mom.nombre === "Inicio" ? dia.fasesPorActividad?.Inicio?.[i] : "");
           return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span>${faseDeActividad ? ` <span class="act-fase">${escHtml(faseDeActividad)}</span>` : ""} ${html}</p>`;
         }).join("");
-        const evalHtml = `<strong>Tipo:</strong> ${escHtml(mom.evaluacion?.tipo)}.<br><strong>Agente:</strong> ${escHtml(mom.evaluacion?.agente)}.<br><strong>Técnica:</strong> ${escHtml(mom.evaluacion?.tecnica)}.<br><strong>Instrumento:</strong> ${escHtml(mom.evaluacion?.instrumento)}.`;
+        const evalHtml = `<strong>Tipo:</strong> ${escHtml(mom.evaluacion?.tipo)}.<br><strong>Agente:</strong> ${escHtml(mom.evaluacion?.agente)}.<br><strong>Técnica:</strong> ${escHtml(mom.evaluacion?.tecnica)}.<br><strong>Instrumento:</strong> ${escHtml(mom.evaluacion?.instrumento)}.${mom.evaluacion?.criterios ? `<br><strong>Criterios:</strong> ${escHtml(mom.evaluacion.criterios)}.` : ""}`;
         const recursos = mom.recursos || {};
         const recursosHtml = `<strong>Humanos:</strong> ${escHtml(recursos.humanos)}<br><strong>Didácticos:</strong> ${escHtml(recursos.didacticos)}<br><strong>Tecnológicos:</strong> ${escHtml(recursos.tecnologicos)}`;
         const metaHtml = (mom.metacognicion || []).map(escHtml).join(" · ");
