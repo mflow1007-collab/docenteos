@@ -597,6 +597,8 @@ export const sinEquipos = (momentos = [], didacticosFila = "") => {
   momentos.forEach((m) => {
     if (Array.isArray(m?.metacognicion)) m.metacognicion = m.metacognicion.map(sinVideo);
     Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map(sinVideo); });
+    // La evidencia suele ser un solo texto con formato, no una lista: también se limpia.
+    if (typeof m?.evidencias === "string") m.evidencias = sinVideo(m.evidencias);
   });
   momentos.filter((m) => m?.nombre !== "Desarrollo").forEach((m) => {
     const lista = String(m.recursos?.didacticos || "").split(",").map((r) => r.trim()).filter(Boolean);
@@ -833,6 +835,7 @@ export const tituloDeClase = (fila = {}, producto = "") => {
   return !SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3 ? `${base}: ${secs.join(", ")}` : base;
 };
 
+const ADJETIVOS_DE_GUIA = "alimentari|complet|nuev|corregid|revisad|terminad|escrit|propuest|impres|comunitari|bilingüe|práctic|rápid|sencill|clar|list";
 /** Concordancia con «guía» cuando es el producto, no una persona. */
 export const conGuiaEnFemenino = (t) => String(t)
   .replace(/\b([Nn])uestro ([Gg]u[ií]a)\b/g, "$1uestra $2")
@@ -842,7 +845,9 @@ export const conGuiaEnFemenino = (t) => String(t)
   .replace(/\bEl ([Gg]u[ií]a)\b(?! tur)/g, "La $1")
   .replace(/\bel ([Gg]u[ií]a)\b(?! tur)/g, "la $1")
   // Lleva «la guía»: el adjetivo también concuerda. Lista cerrada: «guía modelo» o «guía como» no cambian.
-  .replace(/\b([Ll]a|[Nn]uestra|[Ee]sta|[Uu]na) ([Gg]u[ií]a) (alimentari|complet|nuev|corregid|revisad|terminad|escrit|propuest|impres|comunitari|bilingüe|práctic|rápid|sencill|clar|list)o\b/g, "$1 $2 $3a");
+  // También con mayúscula inicial («Nuestra Guía Alimentario») y con varios adjetivos seguidos («Guía Alimentaria Comunitario»).
+  .replace(new RegExp(`\\b((?:la|nuestra|esta|una) gu[ií]a(?: (?:${ADJETIVOS_DE_GUIA})a)*) (${ADJETIVOS_DE_GUIA})o\\b`, "gi"), "$1 $2a")
+  .replace(new RegExp(`\\b((?:la|nuestra|esta|una) gu[ií]a(?: (?:${ADJETIVOS_DE_GUIA})a)*) (${ADJETIVOS_DE_GUIA})o\\b`, "gi"), "$1 $2a");
 
 // Palabras frecuentes en títulos e intenciones; no es un corrector completo, que pediría un diccionario.
 const PALABRAS_FRECUENTES = ["nuestro", "nuestra", "nuestros", "nuestras", "clase", "unidad", "sección", "secciones", "entrevista", "presentación", "corrección", "redacción", "revisión", "comunidad", "comunitario", "comunitaria", "estudiantes", "planificación"];
@@ -851,8 +856,10 @@ const faltaUnaLetra = (corta, larga) => larga.length === corta.length + 1 && [..
 const sinTilde = (p) => p.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const TILDES = new Map(["diálogo", "diálogos", "sección", "presentación", "corrección", "redacción", "revisión", "planificación", "información", "evaluación", "análisis", "también", "además", "organización", "retroalimentación", "creación", "acción", "adecuación", "interacción", "comunicación", "orientación", "construcción", "producción", "comprensión", "expresión", "reflexión", "discusión", "decisión", "versión", "sesión", "atención", "observación", "conclusión", "recomendación", "instrucción", "instrucciones", "ejecución", "situación", "intención", "articulación", "participación", "investigación", "población"].map((p) => [sinTilde(p), p]));
 /** Tilde mal puesta o que falta en palabras frecuentes («Dialógo» → «Diálogo»). No es un diccionario. */
+// Errores que el modelo repite y que no son una letra de menos («corrigida», del portugués): se cambian palabra por palabra.
+const ERRATAS_CONOCIDAS = new Map([["corrigida", "corregida"], ["corrigido", "corregido"], ["corrigidas", "corregidas"], ["corrigidos", "corregidos"]]);
 export const conTildesCorregidas = (t = "") => String(t).replace(/(?<![\p{L}\d_-])\p{L}{4,}(?![\p{L}\d_-])/gu, (palabra) => {
-  const correcta = TILDES.get(sinTilde(palabra));
+  const correcta = TILDES.get(sinTilde(palabra)) || ERRATAS_CONOCIDAS.get(sinTilde(palabra));
   if (!correcta || palabra.toLowerCase() === correcta) return palabra;
   return palabra[0] === palabra[0].toUpperCase() ? correcta[0].toUpperCase() + correcta.slice(1) : correcta;
 });

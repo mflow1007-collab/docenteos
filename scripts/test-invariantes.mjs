@@ -192,7 +192,8 @@ const invariantesJson = {
   },
   "I-08": (g) => {
     const lista = g.textos.filter((x) => EQUIPOS.test(x.t)).map((x) => `C${x.c}: ${x.t.slice(0, 60)}`);
-    const recursos = g.dias.flatMap((d, i) => (d.momentos || []).map((m) => ({ c: i + 1, r: `${m.recursos?.tecnologicos || ""} ${m.recursos?.didacticos || ""} ${(m.metacognicion || []).join(" ")}` }))).filter((x) => EQUIPOS.test(x.r)).map((x) => `C${x.c} recursos o metacognición: ${x.r.slice(0, 50)}`);
+    // También las evidencias: citar «el video breve» cuando los recursos dicen «No requerido» es incoherente.
+    const recursos = g.dias.flatMap((d, i) => (d.momentos || []).map((m) => ({ c: i + 1, r: `${m.recursos?.tecnologicos || ""} ${m.recursos?.didacticos || ""} ${(m.metacognicion || []).join(" ")} ${typeof m.evidencias === "string" ? m.evidencias : JSON.stringify(m.evidencias || "")}` }))).filter((x) => EQUIPOS.test(x.r)).map((x) => `C${x.c} recursos, metacognición o evidencias: ${x.r.slice(0, 50)}`);
     return [...lista, ...recursos].slice(0, 4).join(" | ");
   },
   "I-09": (g) => g.textos.filter((x) => /(?<!RD)\$|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(x.t)).map((x) => `C${x.c}: ${x.t.slice(0, 60)}`).slice(0, 3).join(" | "),
