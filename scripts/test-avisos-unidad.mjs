@@ -4,7 +4,7 @@
  * Sin IA: node scripts/test-avisos-unidad.mjs
  */
 import { readFileSync } from "node:fs";
-import { armarMapaClases, conGuiaEnTextos, fasesDeActividades, didacticosDeFila, conFichaDeUnidad, conTildesCorregidas, conTitulosCorregidos, focoDeFila, necesitaLugares, pasosConFrases, ponerSecuencias, sinLugaresEnClase } from "../src/services/mapaClasesService.js";
+import { sinEquipos, armarMapaClases, conGuiaEnTextos, fasesDeActividades, didacticosDeFila, conFichaDeUnidad, conTildesCorregidas, conTitulosCorregidos, focoDeFila, necesitaLugares, pasosConFrases, ponerSecuencias, sinLugaresEnClase } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import {
   actividadDeTarea, avisosParaAdministrador, conOrganizacionEnParentesis, contenidosFaltantesEnClase, contenidosNoVistosEnUnidad, datosSinRecoger, pendientesDeClase, instruccionTareaFaltante, motivoRedaccionActividad, motivosClaseFinal, motivosFidelidad, motivosRedaccionClase,
@@ -307,6 +307,19 @@ check("falsos de g13–g16: comparativo en la malla, cantidad con «than» y nom
   const t = (titulo) => motivosClaseFinal({ titulo, intencionPedagogica: "Los estudiantes corrigen." });
   assert(!t("Corrigiendo lo ensayado: Ordering Food").length, "el nombre de la sección va en inglés a propósito");
   assert(t("Healthy Choices and Tips").length, "un título entero en inglés sí se marca");
+});
+const eq = (a, b, m) => assert(a === b, `${m}: «${a}» en vez de «${b}»`);
+check("revisión de g17: «Guía Alimentario» con mayúscula y «corrigida» se corrigen en el texto", () => {
+  eq(conGuiaEnTextos({ t: "Nuestra Guía Alimentario" }).t, "Nuestra Guía Alimentaria", "adjetivo con mayúscula");
+  eq(conGuiaEnTextos({ t: "La Guía Alimentario Comunitario" }).t, "La Guía Alimentaria Comunitaria", "dos adjetivos seguidos");
+  eq(conGuiaEnTextos({ t: "guía modelo y el guía turístico" }).t, "guía modelo y el guía turístico", "lo que no es la guía del producto no cambia");
+  eq(conTildesCorregidas("Versión corrigida de las secciones corrigidas"), "Versión corregida de las secciones corregidas", "corrigida");
+  eq(conTildesCorregidas("Corrigiendo lo ensayado"), "Corrigiendo lo ensayado", "«corrigiendo» es español correcto");
+});
+check("revisión de g17: «el video breve» también se quita cuando la evidencia es un texto", () => {
+  const m = [{ nombre: "Inicio", recursos: { tecnologicos: "No requerido", didacticos: "pizarra" }, actividades: [], evidencias: "**Conocimientos** (de proceso):\n1. identificación de expresiones al observar el video breve" }];
+  sinEquipos(m, "pizarra");
+  assert(!/video/i.test(m[0].evidencias) && /el ejemplo breve/.test(m[0].evidencias), m[0].evidencias);
 });
 console.log(`\nAvisos: ${fallos} fallo(s)`);
 process.exit(fallos ? 1 : 0);

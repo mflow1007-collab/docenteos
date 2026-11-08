@@ -5279,7 +5279,7 @@ const _generarFasesConIA = async (
         dia.entregaFase = String(aiClase.entregaFase || "").trim();
         const filaMapa = contratoFase.mapaClases?.[i];
         if (filaMapa) {
-          dia.tareasMapa = filaMapa.tareas.map((t) => ({ clave: t.clave, minutos: t.minutos }));
+          dia.tareasMapa = filaMapa.tareas.map((t) => ({ clave: t.clave, minutos: t.minutos, secciones: t.secciones || [] }));
           dia.focoLinguistico = focoDeFila(filaMapa, contratoFase.filasUnidad || []) || dia.focoLinguistico;
           dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
           dia.minutosSecuencia = Array.isArray(aiClase.minutosSecuencia) ? aiClase.minutosSecuencia : null;
