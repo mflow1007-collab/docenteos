@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -5289,7 +5289,7 @@ const _generarFasesConIA = async (
           // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
           const alcance = alcanceDeSituacion(contexto.planMaestro?.situacion) || null;
           if (necesitaLugares(filaMapa)) dia.ampliacion = ampliacionSinLugares(dia.ampliacion);
-          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[contexto.planMaestro?.semillaId] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: tituloDeClase(filaMapa, rutaPlanMaestro?.plan?.producto || ""), modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
+          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[semillaVigente(contexto.planMaestro?.situacion)] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: tituloDeClase(filaMapa, rutaPlanMaestro?.plan?.producto || ""), modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
         }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
@@ -5588,8 +5588,8 @@ export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas
   ponerSecuencias(mapa, {
     producto: r.plan.producto,
     tema: datos.titulo || "",
-    asunto: ASUNTO_LECTURA_POR_SEMILLA[situacion.semillaId] || ASUNTO_LECTURA_GENERAL,
-    fuente: FUENTE_POR_SEMILLA[situacion.semillaId] || "",
+    asunto: asuntoDeLectura(situacion, r.plan.producto),
+    fuente: FUENTE_POR_SEMILLA[semillaVigente(situacion)] || "",
     audiencia: situacion.audiencia || "",
     invitado: alcanceSemilla?.invitadoConArticulo || invitado || "",
     entrega: alcanceSemilla?.entrega || "",
@@ -6266,7 +6266,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           inicio.actividades = inicioPresentacion(inicio.actividades || [], {
             producto: rutaPlanMaestro.plan?.producto,
             secciones: rutaPlanMaestro.mapa?.secciones || [],
-            semillaId: datos.planMaestro?.situacion?.semillaId || "",
+            semillaId: semillaVigente(datos.planMaestro?.situacion),
           });
           const minutosInicio = minutosInicioPresentacion(Number.parseInt(String(inicio.tiempo || ""), 10) || 0);
           if (minutosInicio) inicio.minutosActividad = minutosInicio;

@@ -15,12 +15,14 @@
 
 import { construirPlanMaestro } from "./planMaestroService.js";
 import { SECUENCIAS_POR_TAREA } from "../data/secuenciasTareas.js";
+import { SITUACIONES_SEMILLA_INGLES_2DO } from "../data/situacionesSemillaIngles2do.js";
 import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR, TAREA_REVISION_DOCENTE, TAREA_REVISION_NIVEL,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
   INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION, LUGARES_NO_DECLARADOS,
   PREGUNTA_SITUACION_POR_SEMILLA, PREGUNTA_SITUACION_GENERAL, ESTRUCTURA_POR_TAREA, DATOS_ENCUESTA,
+  ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL,
 } from "../data/tareasPorTipoTrabajo.js";
 
 export const CLASES_MINIMAS = 3;
@@ -1147,6 +1149,33 @@ export const minutosPorTarea = (tareasMapa = [], tareaIds = []) => {
  * Alcance de la semilla (invitado, entrega, recursos humanos), salvo que el docente haya cambiado la audiencia:
  * lo que escribió él nunca lo pisa la semilla (unidad de frases del aula, g19: «estudiantes de 6.º» en Recursos).
  */
+/**
+ * La semilla de la situación, salvo que el docente haya escrito su propia situación con otro producto: entonces los textos que dependen de la
+ * semilla (asunto de la lectura, fuente, modelo, pregunta de la clase 1) no valen y se usan los generales
+ * (unidad de frases del aula, g21: el diagnóstico hablaba de «cómo orientarse en un centro nuevo»).
+ */
+export const semillaVigente = (situacion = {}) => {
+  const id = situacion?.semillaId || "";
+  const semilla = SITUACIONES_SEMILLA_INGLES_2DO.find((x) => x.id === id);
+  if (!id || !semilla) return id;
+  // `borrador: false` solo lo pone la app cuando el docente escribe un campo de la situación.
+  const propio = situacion.productoDescripcion;
+  const delaSemilla = [semilla.producto?.descripcion, ALCANCE_POR_SEMILLA[id]?.conInvitado?.productoDescripcion].filter(Boolean);
+  return situacion.borrador === false && propio && !delaSemilla.includes(propio) ? "" : id;
+};
+
+/**
+ * Sobre qué es el texto de la clase 1 y el diagnóstico: el de la semilla si vale; si no, lo que trata el producto
+ * («cómo usar «X»», o «qué recomienda «X»» si es una propuesta); sin producto, el general (César, 2026-11-10).
+ */
+export const asuntoDeLectura = (situacion = {}, producto = "") => {
+  const delaSemilla = ASUNTO_LECTURA_POR_SEMILLA[semillaVigente(situacion)];
+  if (delaSemilla) return delaSemilla;
+  const nombre = String(producto || "").trim();
+  if (!nombre) return ASUNTO_LECTURA_GENERAL;
+  return /\bpropos(al|uesta)\b/i.test(nombre) ? `qué recomienda «${nombre}»` : `cómo usar «${nombre}»`;
+};
+
 export const alcanceDeSituacion = (situacion = {}) => {
   const alcance = ALCANCE_POR_SEMILLA[situacion?.semillaId]?.conInvitado || null;
   const de = situacion?.audienciaDetalle?.de;

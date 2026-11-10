@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1047,6 +1047,35 @@ check("Proyectos sin recorrido: «ordenar» nombra su fuente y no añade tiempo;
   assert(frases.modo !== "breve" && !fallosQueDetienen(frases).length, "la unidad cabe sin pasar a versión breve");
   const guia = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "proyectos" } });
   assert(guia.filas.some((f) => f.tareas.some((t) => t.clave === "recorrer_lugares")) && !guia.filas.some((f) => f.tareas.some((t) => /fuente que trae el docente/.test(t.instruccion || ""))), "con recorrido, sin cambios");
+});
+
+check("los textos por semilla solo valen si el docente no cambió el producto (asunto de la lectura, fuente, modelo, pregunta)", () => {
+  const semilla = "ing2-escuela-guia";
+  assert(semillaVigente({ semillaId: semilla, productoDescripcion: "una guía bilingüe de la escuela" }) === semilla, "producto de la semilla: vale");
+  assert(semillaVigente({ semillaId: semilla }) === semilla, "sin producto escrito: vale");
+  assert(semillaVigente({ semillaId: semilla, borrador: false, productoDescripcion: "una charla bilingüe con un banco de frases útiles para el aula" }) === "", "situación escrita por el docente con otro producto: no vale");
+  assert(semillaVigente({ semillaId: semilla, borrador: false, productoDescripcion: "una guía bilingüe de la escuela" }) === semilla, "el docente solo ajustó competencias: vale");
+  assert(semillaVigente({ semillaId: semilla, productoDescripcion: "una propuesta bilingüe a la dirección" }) === semilla, "otro producto sobre el mismo problema (Problemas): vale");
+  assert(semillaVigente({ semillaId: "otra-desconocida", productoDescripcion: "x" }) === "otra-desconocida", "semilla fuera del catálogo: como antes");
+  assert(semillaVigente({}) === "", "sin semilla");
+  // Las unidades de referencia hechas con la situación de la semilla conservan su semilla.
+  ["alimentacion-6-semanas", "escuela-4-semanas", "rutinas-4-semanas"].forEach((n) => {
+    const sit = JSON.parse(readFileSync(new URL(`./fixtures/unidades/${n}.json`, import.meta.url), "utf8")).planMaestro.situacion;
+    assert(semillaVigente(sit) === sit.semillaId, `${n}: pierde su semilla`);
+  });
+  // Problemas se hizo con situación y producto escritos por el docente (borrador: false): ya no usa los textos de la guía de la escuela.
+  const problemas = JSON.parse(readFileSync(new URL("./fixtures/unidades/problemas-5-semanas.json", import.meta.url), "utf8")).planMaestro.situacion;
+  assert(problemas.borrador === false && semillaVigente(problemas) === "", "Problemas: situación del docente, sin semilla");
+});
+
+check("el asunto de la lectura sale de la semilla si vale, y si no del producto", () => {
+  const guia = { semillaId: "ing2-escuela-guia", productoDescripcion: "una guía bilingüe de la escuela" };
+  igual(asuntoDeLectura(guia, "Our School Survival Guide"), "cómo orientarse en un centro nuevo", "semilla vigente");
+  const propia = { semillaId: "ing2-escuela-guia", borrador: false, productoDescripcion: "una charla bilingüe con un banco de frases" };
+  igual(asuntoDeLectura(propia, "Useful Classroom Phrases Talk"), "cómo usar «Useful Classroom Phrases Talk»", "producto del docente");
+  igual(asuntoDeLectura(propia, "Our Welcome Proposal"), "qué recomienda «Our Welcome Proposal»", "propuesta");
+  igual(asuntoDeLectura({}, ""), "el problema de la situación de aprendizaje", "sin producto: el general");
+  igual(asuntoDeLectura({}, "Our Healthy Plan"), "cómo usar «Our Healthy Plan»", "sin semilla, con producto");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);
