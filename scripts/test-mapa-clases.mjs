@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, tituloDeClase, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -275,6 +275,9 @@ check("títulos casi iguales: se detectan los de la C1 y C2 de Rutinas, no los d
   const t = ["Planificando Nuestro Plan de Rutinas Saludables", "Planificando Nuestro Plan de Rutinas Saludables Juntos", "Explorando el entorno escolar", "Planificando Nuestro Plan de Rutinas Saludables"];
   igual(titulosParecidos(t), [[1, 2], [2, 4]], "pares");
   igual(titulosParecidos(["Ensayando indicaciones", "Presentación de la guía"]), [], "distintos");
+  // g18: la IA repite el título con otra preposición y mayúsculas; el generador lo cambia por el de la tarea.
+  assert(titulosSimilares("Explorando frases útiles para el aula", "Explorando Frases Útiles en el Aula"), "casi iguales");
+  assert(!titulosSimilares("Explorando frases útiles para el aula", "Revisión final del producto"), "distintos");
 });
 
 console.log("\n[Mapa de clases — combinaciones]");
@@ -872,6 +875,9 @@ check("gramática: máximo 3 estructuras por clase y consejos en las clases de p
 check("la estructura del día sale de la fila y corresponde a la tarea", () => {
   const fila = (clave, contenidos = []) => ({ tareas: [{ clave }], contenidos });
   igual(focoDeFila(fila("presentar")), "Explicar para qué sirve cada sección: presente simple (_This section shows…_)", "presentar");
+  // Describir y organizar datos no arrastra la función de la malla de otro tema («para referirse a actividades cotidianas»).
+  const delTema = [{ categoria: "gramatica", texto: "Presente simple para referirse a actividades cotidianas: I wake up at six." }];
+  igual(focoDeFila(fila("describir_ordenar", []), [fila("describir_ordenar", delTema)]), "Describir y organizar datos: presente simple", "describir sin el «para» de la malla");
   igual(focoDeFila(fila("evaluar_comentarios")), "Responder a los comentarios (_They ask for…_, _We should change…_)", "responder");
   igual(focoDeFila(fila("corregir_final")), "Corregir y mejorar lo escrito: presente simple", "por tipo");
   igual(focoDeFila(fila("proponer_elegir", [{ categoria: "gramatica", texto: "Should para pedir y dar consejos y sugerencias: You should drink more. Other." }])), "Pedir y dar consejos y sugerencias: should", "gramática");

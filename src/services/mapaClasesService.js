@@ -746,7 +746,8 @@ export const focoDeFila = (fila = {}, filas = []) => {
     // Describir u ordenar datos usa el presente simple que la malla da para este tema, no el ejemplo de otro.
     if (/^(describir|analizar)/.test(clave)) {
       const delTema = filas.flatMap((f) => f.contenidos || []).find((c) => c.categoria === "gramatica" && /^presente simple/i.test(c.texto));
-      if (delTema) return `${funcion || fija[0]}: ${delTema.texto.split(":")[0].replace(/\s+en contexto\b.*$/, "").trim().toLowerCase()}`;
+      // Sin el «para …» de la malla: dice la función de otro tema («referirse a actividades cotidianas» en una unidad de frases del aula).
+      if (delTema) return `${funcion || fija[0]}: ${delTema.texto.split(":")[0].replace(/\s+(para|en contexto)\b.*$/, "").trim().toLowerCase()}`;
     }
     return `${funcion || fija[0]}${fija[1].startsWith("(") ? " " : ": "}${fija[1]}`;
   }
@@ -798,15 +799,21 @@ export const diagnosticoDeFases = (fases = [], hayMapa = false) => {
  * Pares de clases cuyos títulos son casi iguales (comparten la mayoría de sus palabras): el docente no distingue
  * una clase de otra. Los iguales del todo ya los trata el control de títulos repetidos.
  */
+const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2));
+/** Dos títulos casi iguales: mismas palabras con otro orden, mayúsculas o una preposición distinta (Jaccard ≥ umbral). */
+export const titulosSimilares = (a, b, umbral = 0.7) => {
+  const x = palabrasDeTitulo(a);
+  const y = palabrasDeTitulo(b);
+  if (!x.size || !y.size) return false;
+  if (String(a).trim().toLowerCase() === String(b).trim().toLowerCase()) return true;
+  const comunes = [...x].filter((w) => y.has(w)).length;
+  return comunes / (x.size + y.size - comunes) >= umbral;
+};
 export const titulosParecidos = (titulos = [], umbral = 0.7) => {
-  const palabras = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2));
-  const conjuntos = titulos.map(palabras);
   const pares = [];
-  conjuntos.forEach((a, i) => conjuntos.slice(i + 1).forEach((b, k) => {
-    const j = i + 1 + k;
-    if (!a.size || !b.size || String(titulos[i]).trim().toLowerCase() === String(titulos[j]).trim().toLowerCase()) return;
-    const comunes = [...a].filter((w) => b.has(w)).length;
-    if (comunes / (a.size + b.size - comunes) >= umbral) pares.push([i + 1, j + 1]);
+  titulos.forEach((a, i) => titulos.slice(i + 1).forEach((b, k) => {
+    // Los iguales (sin distinguir mayúsculas) los resuelve el generador por su cuenta.
+    if (String(a).trim().toLowerCase() !== String(b).trim().toLowerCase() && titulosSimilares(a, b, umbral)) pares.push([i + 1, i + 2 + k]);
   }));
   return pares;
 };
