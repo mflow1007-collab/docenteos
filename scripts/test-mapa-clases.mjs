@@ -9,19 +9,21 @@
  */
 import { readFileSync } from "node:fs";
 import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
-import { construirAnexosUnidad } from "../src/services/unidadAprendizajeService.js";
+import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
 import { SECUENCIAS_POR_TAREA } from "../src/data/secuenciasTareas.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
+import { formatearUnidadHTML } from "../src/services/unidadAprendizajeService.js";
+import { pieDeVersion } from "../src/utils/buildInfo.js";
 import { extraerCriteriosEvaluacionCanonicos } from "../src/services/curriculumBrainService.js";
 
 const normalizaTexto = (t) => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -1217,6 +1219,41 @@ check("adaptaciones NEAE de la fase: alternativas físicas en vez de audio, grab
   igual(nuevas.adaptacionesNEAE, { a: "Se evaluará con respuestas orales, permitiendo responder oralmente al docente si es necesario.", b: "Fichas en formato impreso para quien lo necesite.", c: "Se permitirá responder oralmente al docente para la autoevaluación.", d: "Entregar borradores en formato impreso con opciones de lectura ampliada." }, "grabaciones y formato digital");
   const sin = sinEquiposEnTodo(fase);
   igual(sin.restantes, [], "ya no queda tecnología que avisar");
+});
+
+check("las observaciones de la fase las escribe el código; título frente a contenido; «grabaciones orales» (g27)", () => {
+  const fases = [{ observacionesSemana: "Los estudiantes muestran un progreso constante y se observa interés.", dias: [{ resumenEvaluacion: { observaciones: "Han demostrado un progreso significativo." } }] }, { dias: [{}] }];
+  const n = conObservacionesFijas(fases);
+  igual(fases[0].observacionesSemana, OBSERVACIONES_FASE, "fase con texto inventado");
+  igual(fases[1].observacionesSemana, OBSERVACIONES_FASE, "fase sin texto");
+  igual(fases[0].dias[0].resumenEvaluacion.observaciones, OBSERVACIONES_FASE, "resumen de la clase");
+  assert(n === 2 && !/muestran|demostrado|se observa/.test(JSON.stringify(fases)), "sin afirmar resultados");
+  assert(/^Registrar el desempeño general del grupo/.test(OBSERVACIONES_FASE), "texto del código");
+  // Un plan no dice que ya pasó lo que pasará.
+  ["Los estudiantes muestran un progreso constante.", "Las parejas rotativas fomentaron la interacción.", "Han demostrado un progreso significativo.", "Se observa que mejoran."].forEach((t) => assert(sinHechosInventados(t).quitadas === 1, `queda: ${t}`));
+  assert(sinHechosInventados("Observar si aplican las estructuras; anotar qué refuerzos necesitan.").quitadas === 0, "el texto de plan se conserva");
+  // Título frente a contenido.
+  const probar = { titulo: "Solicitar Comidas y Probar Platos", tareasMapa: [{ clave: "aplicar_modelo" }, { clave: "aplicar_escribir" }] };
+  assert(tituloConLaFuncion(probar, "Analizando un modelo") && probar.titulo === "Analizando un modelo", "«Probar» sin probar");
+  const ensayar = { titulo: "Ensayando y probando los diálogos", tareasMapa: [{ clave: "aplicar_ensayar" }] };
+  assert(!tituloConLaFuncion(ensayar, "x"), "«probando» con ensayo: se conserva");
+  assert(!tituloConLaFuncion({ titulo: "Corrección y verificación de entrevistas locales", tareasMapa: [{ clave: "corregir" }] }, "x"), "entrevistas como objeto: se conserva");
+  const pres = { titulo: "Presentando nuestro producto", tareasMapa: [{ clave: "comentar" }] };
+  assert(tituloConLaFuncion(pres, "Comentando") , "«Presentando» sin presentar");
+  // Intención pedagógica.
+  const intencion = { intencion: "producirán el producto mediante grabaciones orales y escritos corregidos." };
+  sinEquiposEnTodo(intencion);
+  igual(intencion.intencion, "producirán el producto mediante producciones orales y escritos corregidos.", "grabaciones orales");
+});
+
+check("pie de rama y commit: solo lo ve el administrador", () => {
+  const u = { titulo: "Unidad", fasesSemanales: [], areaCurricular: "Lenguas Extranjeras" };
+  const con = formatearUnidadHTML(u, "", { pieAdmin: "Versión: rama x · commit abc1234" });
+  const sin = formatearUnidadHTML(u, "");
+  assert(con.includes("rama x · commit abc1234"), "el administrador ve el pie");
+  assert(!sin.includes("commit abc1234") && !/Versión: rama/.test(sin), "sin pie para el docente");
+  assert(pieDeVersion("docente@gmail.com") === "", "el docente no recibe pie");
+  assert(formatearUnidadHTML(u, "", { pieAdmin: "<b>x" }).includes("&lt;b&gt;x"), "el pie se escapa");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);

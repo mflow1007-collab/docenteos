@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import process from 'node:process'
 import { Buffer } from 'node:buffer'
 import { Readable } from 'node:stream'
+import { execSync } from 'node:child_process'
 import fuenteCheckHandler from './api/fuentes/check.js'
 import educandoHandler from './api/materiales/educando.js'
 import libroAbiertoHandler from './api/materiales/libro-abierto.js'
@@ -128,11 +129,22 @@ function docenteosApiDevPlugin() {
   }
 }
 
+// Rama y commit de esta versión (pie de la unidad, solo visible para administradores)
+const gitInfo = (comando) => {
+  try { return execSync(comando, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() } catch { return '' }
+}
+const BUILD_RAMA = process.env.VERCEL_GIT_COMMIT_REF || gitInfo('git rev-parse --abbrev-ref HEAD') || 'desconocida'
+const BUILD_COMMIT = (process.env.VERCEL_GIT_COMMIT_SHA || gitInfo('git rev-parse HEAD') || 'desconocido').slice(0, 7)
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   Object.assign(process.env, loadEnv(mode, process.cwd(), ''))
 
   return {
+    define: {
+      __BUILD_RAMA__: JSON.stringify(BUILD_RAMA),
+      __BUILD_COMMIT__: JSON.stringify(BUILD_COMMIT),
+    },
     plugins: [react(), docenteosApiDevPlugin()],
     build: {
       rollupOptions: {

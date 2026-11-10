@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from "node:fs";
 import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
   focoDeFila, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
-  diagnosticoDeActividades, conTildesCorregidas,
+  diagnosticoDeActividades, conTildesCorregidas, OBSERVACIONES_FASE,
 } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS, TAREAS_POR_TIPO, TAREAS_UNIDAD } from "../src/data/tareasPorTipoTrabajo.js";
@@ -101,6 +101,8 @@ const invariantesMapa = {
     }));
     return problemas.join("; ");
   },
+  // I-21: un plan se escribe antes de dar las clases; las observaciones de la fase las escribe el código, no la IA.
+  "I-21": () => (/conObservacionesFijas\(unidadResult\.fasesSemanales\)/.test(fuenteGenerador) ? "" : "las observaciones de la fase no las escribe el código"),
   "I-08": (u) => {
     const conEquipo = u.reales.filter((f) => EQUIPOS.test(didacticosDeFila(f)) || (f.secuencia || []).some((x) => EQUIPOS.test(x.texto)));
     return conEquipo.length ? `equipos en: ${conEquipo.map((f) => `C${f.clase}`).join(", ")}` : "";
@@ -232,6 +234,7 @@ const invariantesJson = {
     return j.some((x) => String(x.tarea).includes(`"${u.titulo}"`)) ? "nombra el tema" : "";
   },
   // I-20: los instrumentos evalúan lo que las clases trabajan, y cada clase dice qué criterios de ellos evalúa.
+  "I-21": (g) => g.observaciones.filter((o) => o.texto !== OBSERVACIONES_FASE).map((o) => `F${o.fase}`).join(", "),
   "I-20": (g) => {
     const items = ["rubricaProducto", "listaCotejoOral", "escalaValoracion", "autoevaluacion", "coevaluacion"].flatMap((k) => g.anexos[k] || []);
     const cubiertos = new Set(items.map((x) => x.indicadorCodigo).filter(Boolean));
@@ -260,7 +263,7 @@ const leerGeneracion = (ruta) => {
   ].map((t) => ({ c: i + 1, t })));
   // Lo que alimenta el producto: estructura del día, actividades y ampliación, no los textos modelo.
   const producto = dias.flatMap((d, i) => [d.focoLinguistico || "", ...(d.momentos || []).flatMap((m) => (m.actividades || []).map(String)), ...(d.ampliacion || []).map((a) => a?.texto || "")].map((t) => ({ c: i + 1, t })));
-  return { dias, textos, producto, anexos: u.anexos || {} };
+  return { dias, textos, producto, anexos: u.anexos || {}, observaciones: (u.fasesSemanales || []).map((f, i) => ({ fase: i + 1, texto: String(f.observacionesSemana || "") })) };
 };
 
 const argumento = (nombre) => { const i = process.argv.indexOf(nombre); return i >= 0 ? process.argv[i + 1] : ""; };

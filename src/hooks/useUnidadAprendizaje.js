@@ -5,6 +5,7 @@ import { cosecharGuia } from "../services/bancoGuiasService.js";
 import { leerSesion, guardarSesion } from "../services/planificacionSesionCache.js";
 import { clearGenerationJob, startGenerationJob, subscribeGenerationJobs } from "../services/planificacionBackgroundJobs.js";
 import { conReanudacion } from "../services/reanudacionGeneracion.js";
+import { pieDeVersion } from "../utils/buildInfo.js";
 import { auth, consultarCupoGrado, reservarCupoGrado, consultarTemaEnHistorial, registrarTemaEnHistorial } from "../firebase";
 import { esUsuarioDocenteOS } from "../utils/permisos.js";
 import { guardarPlanificacionConHilo, obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
@@ -234,7 +235,7 @@ export function useUnidadAprendizaje() {
     if (!unidad) return;
     try {
       const logoUrl = `${window.location.origin}/logo-minerd.svg`;
-      const html = formatearUnidadHTML(unidad, logoUrl);
+      const html = formatearUnidadHTML(unidad, logoUrl, { pieAdmin: pieDeVersion(auth.currentUser?.email) });
       const iframe = document.createElement("iframe");
       iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;border:0;visibility:hidden";
       document.body.appendChild(iframe);
@@ -271,7 +272,7 @@ export function useUnidadAprendizaje() {
     if (!unidad) return;
     try {
       const logoUrl = `${window.location.origin}/logo-minerd.svg`;
-      const html = formatearUnidadHTML(unidad, logoUrl);
+      const html = formatearUnidadHTML(unidad, logoUrl, { pieAdmin: pieDeVersion(auth.currentUser?.email) });
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const win = window.open(url, "_blank");

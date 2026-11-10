@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, conObservacionesFijas, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -1398,7 +1398,7 @@ export const seccionesSinFinal = (organizador = []) => (organizador || [])
   .map((o) => o.seccion);
 
 // Un plan se escribe antes de la clase: lo que dice que ya pasó es inventado.
-const HECHO_INVENTADO = /(^|[^\p{L}])(se observ[oó]|se not[oó]|mostraron|han mostrado|demostraron|motivaron|participaron|lograron|respondieron|fueron|estuvieron|tuvieron|han sido|hubo)(?!\p{L})/iu;
+const HECHO_INVENTADO = /(^|[^\p{L}])(se observ[oó]|se observan?|se not[oó]|mostraron|muestran|han mostrado|han demostrado|demostraron|fomentaron|motivaron|participaron|lograron|respondieron|fueron|estuvieron|tuvieron|han sido|hubo)(?!\p{L})/iu;
 export const sinHechosInventados = (texto = "") => {
   const oraciones = String(texto || "").split(/(?<=[.!?])\s+/);
   const quedan = oraciones.filter((o) => !HECHO_INVENTADO.test(o));
@@ -6423,6 +6423,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     : anexosBase;
   // Todo el texto generado, sin video ni proyector: también el detalle de evidencias, las adaptaciones NEAE y las observaciones (g24).
   if (rutaPlanMaestro?.mapa) {
+    // Observaciones de la fase: las escribe el código; la IA inventaba resultados de clases que aún no se dan (g27).
+    conObservacionesFijas(unidadResult.fasesSemanales);
     // Adaptaciones NEAE de cada fase: alternativas físicas, no tecnología (decisión de César, 2026-11-10).
     const enNea = (unidadResult.fasesSemanales || []).reduce((n, fase) => n + adaptacionesNEAESinTecnologia(fase), 0);
     const limpieza = [sinEquiposEnTodo(unidadResult.fasesSemanales), sinEquiposEnTodo(unidadResult.anexos)];
@@ -6704,7 +6706,7 @@ export const validarUnidadRenderizada = (unidad, html = "") => {
 
 // ─── Formateador HTML para PDF ────────────────────────────────────────────────
 
-export const formatearUnidadHTML = (unidad, logoUrl = "") => {
+export const formatearUnidadHTML = (unidad, logoUrl = "", { pieAdmin = "" } = {}) => {
   if (!unidad) return "";
   // Metadatos escapados una sola vez (nombre docente, centro, título, etc.).
   const m = escProfundo(unidad.metadatos || {});
@@ -7470,6 +7472,7 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
   </section>`;
   })()}
 </div>
+${pieAdmin ? `<div style="margin:16px 0 0;padding:6px 0;border-top:1px solid #cbd5e1;font-size:9px;color:#64748b;text-align:right">${String(pieAdmin).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))}</div>` : ""}
 <div style="position:fixed;bottom:20px;right:20px;z-index:999;display:flex;gap:8px">
   <button onclick="window.print()" style="background:#1d4ed8;color:white;border:none;padding:10px 20px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">🖨️ Guardar como PDF</button>
   <button onclick="window.close()" style="background:#64748b;color:white;border:none;padding:10px 16px;border-radius:6px;font-size:13px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">✕ Cerrar</button>
