@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1013,6 +1013,15 @@ check("Cierre con mapa: autoevaluación (E) y coevaluación (D) con criterios de
   const dias = [{ indicadoresTrabajados: [{ id: "ING-2-I01" }], momentos: [{ evaluacion: { ...EVALUACION_CIERRE_MAPA } }] }];
   vincularInstrumentosConClases(dias, anexos, () => ["comprension"]);
   igual(dias[0].momentos[0].evaluacion.criterios, "Anexo D, criterio 1; Anexo E, criterio 2", "una clase de comprensión cita criterios de E y D");
+});
+
+check("la semilla no pisa la audiencia que cambió el docente (invitado, entrega, recursos humanos)", () => {
+  const base = { semillaId: "ing2-escuela-guia" };
+  const delaSemilla = { ...base, audiencia: "los estudiantes de 6.º de primaria y un visitante", audienciaDetalle: { de: "los estudiantes de 6.º de primaria y un visitante" } };
+  assert(/6\.º de primaria/.test(alcanceDeSituacion(delaSemilla)?.invitado || ""), "audiencia de la semilla: aplica");
+  assert(alcanceDeSituacion({ ...base, audiencia: "los estudiantes de 4.º, 5.º y 6.º", audienciaDetalle: { de: "los estudiantes de nuevo ingreso" } }) === null, "audiencia del docente: no aplica");
+  assert(alcanceDeSituacion({ ...base, audiencia: "x" })?.invitado, "sin dato de origen: como antes");
+  assert(alcanceDeSituacion({ semillaId: "otra", audiencia: "x" }) === null, "semilla sin alcance");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);

@@ -1125,6 +1125,16 @@ export const minutosPorTarea = (tareasMapa = [], tareaIds = []) => {
 };
 
 /**
+ * Alcance de la semilla (invitado, entrega, recursos humanos), salvo que el docente haya cambiado la audiencia:
+ * lo que escribió él nunca lo pisa la semilla (unidad de frases del aula, g19: «estudiantes de 6.º» en Recursos).
+ */
+export const alcanceDeSituacion = (situacion = {}) => {
+  const alcance = ALCANCE_POR_SEMILLA[situacion?.semillaId]?.conInvitado || null;
+  const de = situacion?.audienciaDetalle?.de;
+  return alcance && de && de !== situacion?.audiencia ? null : alcance;
+};
+
+/**
  * Ficha de la unidad: una sola decisión de modalidad y alcance, que leen la situación,
  * el producto y el ambiente (César, 2026-11-04). Devuelve los datos con la situación ya
  * ajustada. Nunca pisa lo que escribió el docente.
