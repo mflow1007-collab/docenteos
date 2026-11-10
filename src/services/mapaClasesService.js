@@ -596,7 +596,7 @@ export const didacticosDeFila = (fila) => {
 export const INICIO_PRIMERA_CLASE = "Recuperación de experiencias: comentan qué han vivido o visto sobre este tema. (What do you know about this topic?)";
 
 // Equipos que el mapa no prevé: no se sabe si el centro los tiene.
-const EQUIPO = /\b(videos?|clips?|proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
+const EQUIPO = /\b(videos?|clips?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
 export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con la clase y dicen qué les llama la atención.";
 
 /**
@@ -625,6 +625,27 @@ export const sinEquipos = (momentos = [], didacticosFila = "") => {
     });
   });
   return restantes;
+};
+
+// Equipos en el texto modelo (en inglés): el mapa no prevé tecnología, así que el modelo no puede suponerla (g22, C3: «use the projector»).
+const EQUIPO_EN = /\b(videos?|clips?|projector|computers?|laptops?|tablets?|speakers?|microphone|internet|online|smartphones?)\b/i;
+const CAMBIOS_EQUIPO_EN = [
+  [/\bthe projector\b/gi, "the board"], [/\ba projector\b/gi, "the board"], [/\bprojector\b/gi, "board"],
+  [/\b(the|a|our|this) videos?\b/gi, "$1 example"], [/\bvideos?\b/gi, "example"],
+  [/\b(the|a|our|this) (computer|laptop|tablet)s?\b/gi, "$1 notebook"],
+];
+/** Quita del texto modelo los equipos que el mapa no prevé. Devuelve cuántas líneas cambió y las que aún nombran un equipo. */
+export const sinEquiposEnModelo = (dia = {}) => {
+  const lineas = dia?.textoModelo?.lineas;
+  if (!Array.isArray(lineas)) return { cambios: 0, restantes: [] };
+  let cambios = 0;
+  dia.textoModelo.lineas = lineas.map((l) => {
+    if (typeof l !== "string" || !EQUIPO_EN.test(l)) return l;
+    const nuevo = CAMBIOS_EQUIPO_EN.reduce((t, [re, por]) => t.replace(re, por), l);
+    if (nuevo !== l) cambios += 1;
+    return nuevo;
+  });
+  return { cambios, restantes: dia.textoModelo.lineas.filter((l) => typeof l === "string" && EQUIPO_EN.test(l)).map((l) => l.slice(0, 70)) };
 };
 
 const OBSERVADO = { grabada: "observada y anotada", grabado: "observado y anotado", grabadas: "observadas y anotadas", grabados: "observados y anotados" };

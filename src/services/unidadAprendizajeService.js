@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -6287,6 +6287,10 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           [...new Set(quitados)].forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: se quitó un lugar que no consta en la tabla común: «${t}»`));
         }
         sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: usa un equipo que el mapa no prevé: «${m}»`));
+        // El texto modelo tampoco puede suponer tecnología.
+        const enModelo = sinEquiposEnModelo(d);
+        if (enModelo.cambios) avisosClaseFinal.push(`clase ${i + 1}: ℹ código: el texto modelo nombraba un equipo que el mapa no prevé (${enModelo.cambios} línea${enModelo.cambios > 1 ? "s" : ""})`);
+        enModelo.restantes.forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: el texto modelo usa un equipo que el mapa no prevé: «${m}»`));
         // El título nunca es el nombre interno de la tarea («Corregir, probar y verificar datos»): lo escribe el código.
         const nombreInterno = String(d.tareasMapa?.[0]?.nombre || "").trim().toLowerCase();
         const tituloActual = String(d.titulo || "").trim().toLowerCase();

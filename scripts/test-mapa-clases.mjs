@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1076,6 +1076,20 @@ check("el asunto de la lectura sale de la semilla si vale, y si no del producto"
   igual(asuntoDeLectura(propia, "Our Welcome Proposal"), "qué recomienda «Our Welcome Proposal»", "propuesta");
   igual(asuntoDeLectura({}, ""), "el problema de la situación de aprendizaje", "sin producto: el general");
   igual(asuntoDeLectura({}, "Our Healthy Plan"), "cómo usar «Our Healthy Plan»", "sin semilla, con producto");
+});
+
+check("el texto modelo no supone equipos que el mapa no prevé", () => {
+  const dia = { textoModelo: { titulo: "Model School", lineas: ["A: Why don’t we use the projector for this presentation?", "B: Good idea! Let's watch the video first.", "A: Thank you!"] } };
+  const r = sinEquiposEnModelo(dia);
+  igual(dia.textoModelo.lineas, ["A: Why don’t we use the board for this presentation?", "B: Good idea! Let's watch the example first.", "A: Thank you!"], "líneas");
+  assert(r.cambios === 2 && r.restantes.length === 0, `cambios ${r.cambios}, restantes ${r.restantes}`);
+  const otro = { textoModelo: { lineas: ["A: Can I borrow your smartphone?"] } };
+  assert(sinEquiposEnModelo(otro).restantes.length === 1, "lo que no sabe cambiar se avisa");
+  igual(sinEquiposEnModelo({}).cambios, 0, "sin texto modelo");
+  // g23: «retroproyector» se colaba en los recursos del Cierre porque «proyector» no lo reconocía.
+  const m = [{ nombre: "Cierre", actividades: ["Comparten en plenaria."], recursos: { didacticos: "pizarra, retroproyector para presentaciones", tecnologicos: "retroproyector" } }];
+  sinEquipos(m, "Pizarra y marcadores");
+  igual(m[0].recursos.didacticos, "pizarra", "sin retroproyector en los didácticos");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);
