@@ -89,6 +89,8 @@ const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) },
 export const pruebaDelProducto = (producto = "", secciones = []) => secciones.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean)
   || (/\bpropos(al|uesta)\b/i.test(producto) ? { tipo: "defender", hace: "Defienden ante la audiencia su recomendación: explican por qué recomiendan esa alternativa y responden sus preguntas, y luego recogen sus comentarios en tarjetas." } : null);
 
+// Con la revisión de nivel en la misma clase, corregir cede su parte: el total de la clase no cambia ([15,30] = [10,20] + [5,10]).
+const MINUTOS_CORREGIR_CON_REVISION = [10, 20];
 const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "" }) => {
   const tareasOmitidas = omitidas;
   const indagacion = estrategia === "indagacion_dialogica";
@@ -138,8 +140,15 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Con revisión del docente (Proyectos y Problemas) la mejora es un solo ciclo: Problemas a 4 semanas no cabía en 12 clases.
   const unCiclo = proyectos || estrategia === "problemas";
   if (unCiclo) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion, ...enPuesta }, corregibles, 2, 1, 0);
-  else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g));
-  if (!unCiclo) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g));
+  else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => {
+    push({ ...TAREA_CORREGIR, minutos: MINUTOS_CORREGIR_CON_REVISION, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g);
+    // Hasta el nivel satisfactorio (Referente por proyecto 2022, p. 35): en la misma clase, el docente comprueba lo corregido (opción A de César, 2026-11-10).
+    push({ ...TAREA_REVISION_NIVEL, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1.5, g);
+  });
+  if (!unCiclo) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => {
+    push({ ...TAREA_CORREGIR, minutos: MINUTOS_CORREGIR_CON_REVISION, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g);
+    push({ ...TAREA_REVISION_NIVEL, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2.5, g);
+  });
   // Segunda ronda: el docente comprueba que las secciones corregidas llegaron al nivel satisfactorio.
   if (proyectos || rondaCompleta) push({ ...TAREA_REVISION_NIVEL, ...enEvaluacion, ...enPuesta }, corregibles, 2, 3, 0);
   const u = TAREAS_UNIDAD;
@@ -601,6 +610,17 @@ export const INICIO_PRIMERA_CLASE = "Recuperación de experiencias: comentan qu�
 const EQUIPO = /\b(videos?|clips?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
 export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con la clase y dicen qué les llama la atención.";
 
+// Conserva la mayúscula inicial de lo que reemplaza («Del video» → «Del ejemplo»).
+const conInicial = (original, nuevo) => (original[0] !== original[0].toLowerCase() ? `${nuevo[0].toUpperCase()}${nuevo.slice(1)}` : nuevo);
+const sinVideoEs = (t) => (typeof t === "string" ? t
+  .replace(/\b(the|a|our|this) video\b/gi, (m) => conInicial(m, "the example"))
+  .replace(/\b(el|un|nuestro|este) video\b/gi, (m) => conInicial(m, "el ejemplo"))
+  .replace(/\bdel video\b/gi, (m) => conInicial(m, "del ejemplo"))
+  .replace(/\b(los|unos|estos|nuestros) videos\b/gi, (m, art) => conInicial(m, `${art.toLowerCase()} ejemplos`))
+  .replace(/\b(el|un|su) (retro)?proyector\b/gi, (m) => conInicial(m, "la pizarra"))
+  .replace(/\b(en|con|del) (retro)?proyector\b/gi, (m, pre) => conInicial(m, `${pre.toLowerCase()} la pizarra`))
+  .replace(/\bvideos?\b/gi, (v) => conInicial(v, /s$/i.test(v) ? "ejemplos" : "ejemplo")) : t);
+
 /**
  * Inicio y Cierre sin equipos: quita los que la IA puso en sus recursos y sustituye la
  * actividad de enganche que los usa (el Inicio tiene 5 posiciones fijas). Lo que quede
@@ -610,13 +630,7 @@ export const sinEquipos = (momentos = [], didacticosFila = "") => {
   const restantes = [];
   // El video también se nombra en las evidencias y en las preguntas, en cualquier momento.
   // También en las actividades de cualquier momento, incluido el Desarrollo (g23, Escuela guía C8: «las frases del video»).
-  const sinVideo = (t) => (typeof t === "string" ? t
-    .replace(/\b(the|a|our|this) video\b/gi, "the example")
-    .replace(/\b(el|un|nuestro|este) video\b/gi, "el ejemplo")
-    .replace(/\bdel video\b/gi, "del ejemplo")
-    .replace(/\b(los|unos|estos|nuestros) videos\b/gi, "$1 ejemplos")
-    .replace(/\b(el|un|su) (retro)?proyector\b/gi, "la pizarra")
-    .replace(/\bvideos?\b/gi, (v) => (/s$/i.test(v) ? "ejemplos" : "ejemplo")) : t);
+  const sinVideo = sinVideoEs;
   momentos.forEach((m) => {
     if (Array.isArray(m?.actividadesDetalle)) m.actividadesDetalle.forEach((x) => { if (x && typeof x.texto === "string") x.texto = sinVideo(x.texto); });
     if (Array.isArray(m?.metacognicion)) m.metacognicion = m.metacognicion.map(sinVideo);
@@ -653,6 +667,28 @@ const CAMBIOS_EQUIPO_EN = [
   [/\b(the|a|our|this) videos?\b/gi, "$1 example"], [/\bvideos?\b/gi, "example"],
   [/\b(the|a|our|this) (computer|laptop|tablet)s?\b/gi, "$1 notebook"],
 ];
+/**
+ * Recorre TODO el texto generado (actividades, evidencias y su detalle, adaptaciones NEAE, observaciones, anexos) y quita el video
+ * y el proyector. Devuelve cuántos textos cambió. No toca el texto modelo (en inglés, lo limpia sinEquiposEnModelo) ni valores internos.
+ */
+export const sinEquiposEnTodo = (nodo) => {
+  let cambios = 0;
+  const restantes = [];
+  const recorrer = (n) => {
+    Object.entries(n || {}).forEach(([k, v]) => {
+      if (CLAVES_SIN_TEXTO_DE_CLASE.has(k) || CLAVES_INTERNAS.has(k)) return;
+      if (typeof v === "string") {
+        const nuevo = sinVideoEs(v);
+        if (nuevo !== v) { n[k] = nuevo; cambios += 1; }
+        // Lo que no tiene un reemplazo seguro (audio, computadora, grabadora…) se avisa al administrador.
+        if (EQUIPO.test(normal(nuevo)) && !/^no requerido/i.test(nuevo)) restantes.push(nuevo.slice(0, 90));
+      } else if (v && typeof v === "object") recorrer(v);
+    });
+  };
+  recorrer(nodo);
+  return { cambios, restantes };
+};
+
 /** Quita del texto modelo los equipos que el mapa no prevé. Devuelve cuántas líneas cambió y las que aún nombran un equipo. */
 export const sinEquiposEnModelo = (dia = {}) => {
   const lineas = dia?.textoModelo?.lineas;
@@ -980,6 +1016,11 @@ export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreM
   }, CLAVES_INTERNAS);
   if (tildes) corregidos.push(`tildes (${tildes} texto${tildes > 1 ? "s" : ""})`);
   // La IA marca el nombre del producto con acentos graves (`Useful Classroom Phrases Talk`): en el título van comillas.
+  // El título ya se muestra entre comillas: las internas pasan a « » (g24, C10: «Revisión y Corrección Final de "Our School Survival Guide"»).
+  if (typeof dia.titulo === "string" && /["“”]/.test(dia.titulo)) {
+    dia.titulo = dia.titulo.replace(/["“”]([^"“”]+)["“”]/g, "«$1»").replace(/["“”]/g, "");
+    corregidos.push("título con comillas dobles: se pasaron a « »");
+  }
   if (typeof dia.titulo === "string" && dia.titulo.includes("`")) {
     dia.titulo = dia.titulo.replace(/`([^`]+)`/g, "«$1»").replace(/`/g, "");
     corregidos.push("título con acento grave: se pasó a comillas");

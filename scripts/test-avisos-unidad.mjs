@@ -55,7 +55,10 @@ check("unidad a mano de Alimentación: cero avisos", () => {
   const { dias } = JSON.parse(readFileSync(new URL("./fixtures/unidad-mano-alimentacion.json", import.meta.url), "utf8"));
   assert(dias.length === alimentacion.filas.length, "la unidad no cuadra con el mapa");
   const avisos = avisosDeUnidad(dias, alimentacion.filas);
-  assert(!avisos.length, `${avisos.length}: ${avisos.slice(0, 6).join(" | ")}`);
+  // La unidad a mano es anterior a la revisión hasta el nivel satisfactorio en Inserción (opción A, 2026-11-10): su C13 no la trae y el aviso es correcto.
+  const otros = avisos.filter((a) => !/segunda revisión del docente: nivel satisfactorio/.test(a));
+  assert(!otros.length, `${otros.length}: ${otros.slice(0, 6).join(" | ")}`);
+  assert(avisos.length - otros.length <= 1, "solo la revisión de nivel de C13");
 });
 check("tarea por acción y objeto: «Acompañan… e indican el camino» prueba el producto", () => {
   const fila = claseDe("probar_audiencia");
