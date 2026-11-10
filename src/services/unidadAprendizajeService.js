@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -1667,6 +1667,7 @@ export const construirAnexosUnidad = ({
     "...use the unit vocabulary and structures.",
     "...ask and answer questions about the topic.",
     "...give advice or suggestions about the topic.",
+    "...understand the texts and instructions about the topic and respond.",
     `...present my ${productoCorto.toLowerCase().includes("poster") ? "poster" : "final product"} to my classmates.`,
   ] : [
     `...explicar los conceptos centrales de "${tema}".`,
@@ -1675,7 +1676,7 @@ export const construirAnexosUnidad = ({
     "...trabajar en equipo y valorar los aportes de mis compañeros.",
     "...presentar mi producto final al grupo.",
   ];
-  const EXIGE_AUTOEVALUACION = idioma ? ["produccion", "produccion", "interaccion", "produccion", "produccion"] : [];
+  const EXIGE_AUTOEVALUACION = idioma ? ["produccion", "produccion", "interaccion", "produccion", "comprension", "produccion"] : [];
   const autoevaluacion = autoevaluacionBase.map((item, index) => ({
     criterio: item,
     ...crearTrazaInstrumento({
@@ -5286,9 +5287,9 @@ const _generarFasesConIA = async (
           dia.fasesPorActividad = fasesDeActividades(filaMapa, dia.tareaIdsDesarrollo);
           // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
           // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
-          const alcance = ALCANCE_POR_SEMILLA[contexto.planMaestro?.semillaId]?.conInvitado || null;
+          const alcance = alcanceDeSituacion(contexto.planMaestro?.situacion) || null;
           if (necesitaLugares(filaMapa)) dia.ampliacion = ampliacionSinLugares(dia.ampliacion);
-          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[contexto.planMaestro?.semillaId] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: tituloDeClase(filaMapa, rutaPlanMaestro?.plan?.producto || ""), modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
+          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[semillaVigente(contexto.planMaestro?.situacion)] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: tituloDeClase(filaMapa, rutaPlanMaestro?.plan?.producto || ""), modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
         }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
@@ -5582,15 +5583,16 @@ export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas
   const r = planDesdeMapa(entrada, mapa);
   if (!r) return { avisos: [`ℹ️ La estrategia tiene fases con partes: esta unidad no usa el mapa de clases.`] };
   const situacion = datos.planMaestro?.situacion || {};
-  const invitado = ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.invitado;
+  const alcanceSemilla = alcanceDeSituacion(situacion);
+  const invitado = alcanceSemilla?.invitado;
   ponerSecuencias(mapa, {
     producto: r.plan.producto,
     tema: datos.titulo || "",
-    asunto: ASUNTO_LECTURA_POR_SEMILLA[situacion.semillaId] || ASUNTO_LECTURA_GENERAL,
-    fuente: FUENTE_POR_SEMILLA[situacion.semillaId] || "",
+    asunto: asuntoDeLectura(situacion, r.plan.producto),
+    fuente: FUENTE_POR_SEMILLA[semillaVigente(situacion)] || "",
     audiencia: situacion.audiencia || "",
-    invitado: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.invitadoConArticulo || invitado || "",
-    entrega: ALCANCE_POR_SEMILLA[situacion.semillaId]?.conInvitado?.entrega || "",
+    invitado: alcanceSemilla?.invitadoConArticulo || invitado || "",
+    entrega: alcanceSemilla?.entrega || "",
     semilla: [datos.titulo, datos.centro, datos.grado, datos.seccion].join("|"),
   });
   return { ...r, mapa, avisos: mapa.avisos, modalidad: mapa.filas.find((f) => f.modalidad)?.modalidad || "" };
@@ -5812,6 +5814,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     rutaPlanMaestro = {
       mapa: conMapa?.mapa || null,
       semillaId: datos.planMaestro?.situacion?.semillaId || "",
+      situacion: datos.planMaestro?.situacion || null,
       plan: planFinal,
       situacionTexto: prepPlanMaestro.situacionTexto,
       estructura: prepPlanMaestro.estructura,
@@ -5877,6 +5880,9 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   });
   const mallaContenidos = contenidosRuta.union;
   const advertencias = [...avisosPlanMaestro];
+  // Audiencia de más de un curso: el docente decide; la unidad no cambia.
+  const avisoAudiencia = avisoAudienciaMultiple(datos.planMaestro?.situacion?.audiencia, duracionHoraClase);
+  if (avisoAudiencia) advertencias.push(avisoAudiencia);
 
   // GUARDA DE TRAZABILIDAD (no bloquea): la malla ya está resuelta para esta
   // unidad. Si NO trae criterios de evaluación, los anexos del PDF saldrán con
@@ -6251,6 +6257,12 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       const desarrollo = (d.momentos || []).find((m) => m?.nombre === "Desarrollo");
       if (d.fijoDelMapa && desarrollo) {
         desarrollo.evaluacion = { ...desarrollo.evaluacion, ...d.fijoDelMapa.evaluacion };
+        // Cierre con mapa: autoevaluación y coevaluación con criterios de proceso (I-20).
+        const cierreMapa = (d.momentos || []).find((m) => m?.nombre === "Cierre");
+        if (cierreMapa) cierreMapa.evaluacion = { ...cierreMapa.evaluacion, ...EVALUACION_CIERRE_MAPA };
+        // Inicio con mapa: observación directa sin instrumento formal; Registro anecdótico (Anexo C) solo si se anota algo.
+        const inicioMapa = (d.momentos || []).find((m) => m?.nombre === "Inicio");
+        if (inicioMapa) inicioMapa.evaluacion = { ...inicioMapa.evaluacion, ...EVALUACION_INICIO_MAPA };
         desarrollo.recursos = { ...desarrollo.recursos, humanos: d.fijoDelMapa.humanos, didacticos: d.fijoDelMapa.didacticos, tecnologicos: "No requerido para esta actividad" };
         // Los pasos del banco ya traen sus firmas.
         if (!d.minutosSecuencia?.length) desarrollo.actividades = conFirmas(desarrollo.actividades || [], d.tareasMapa, d.tareaIdsDesarrollo);
@@ -6260,7 +6272,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           inicio.actividades = inicioPresentacion(inicio.actividades || [], {
             producto: rutaPlanMaestro.plan?.producto,
             secciones: rutaPlanMaestro.mapa?.secciones || [],
-            semillaId: datos.planMaestro?.situacion?.semillaId || "",
+            semillaId: semillaVigente(datos.planMaestro?.situacion),
           });
           const minutosInicio = minutosInicioPresentacion(Number.parseInt(String(inicio.tiempo || ""), 10) || 0);
           if (minutosInicio) inicio.minutosActividad = minutosInicio;
@@ -6281,6 +6293,10 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           [...new Set(quitados)].forEach((t) => avisosClaseFinal.push(`clase ${i + 1}: ℹ código: se quitó un lugar que no consta en la tabla común: «${t}»`));
         }
         sinEquipos(d.momentos, d.fijoDelMapa.didacticos).forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: usa un equipo que el mapa no prevé: «${m}»`));
+        // El texto modelo tampoco puede suponer tecnología.
+        const enModelo = sinEquiposEnModelo(d);
+        if (enModelo.cambios) avisosClaseFinal.push(`clase ${i + 1}: ℹ código: el texto modelo nombraba un equipo que el mapa no prevé (${enModelo.cambios} línea${enModelo.cambios > 1 ? "s" : ""})`);
+        enModelo.restantes.forEach((m) => avisosClaseFinal.push(`clase ${i + 1}: el texto modelo usa un equipo que el mapa no prevé: «${m}»`));
         // El título nunca es el nombre interno de la tarea («Corregir, probar y verificar datos»): lo escribe el código.
         const nombreInterno = String(d.tareasMapa?.[0]?.nombre || "").trim().toLowerCase();
         const tituloActual = String(d.titulo || "").trim().toLowerCase();
@@ -6288,12 +6304,16 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título con el nombre de la tarea «${d.titulo}»`);
           d.titulo = d.fijoDelMapa.tituloTarea;
         }
+        // El título refleja la función de la clase: «Explorando…» no titula comentar ni comprar.
+        if (tituloConLaFuncion(d, d.fijoDelMapa.tituloTarea)) avisosClaseFinal.push(`clase ${i + 1}: ℹ código: el título no correspondía a la función de la clase`);
         // Dos clases no se llaman igual: la repetida toma el nombre de su tarea, y si ese también está, lleva su número.
         const claveTitulo = String(d.titulo || "").trim().toLowerCase();
-        if (claveTitulo && titulosVistos.has(claveTitulo)) {
+        // También los casi iguales («Explorando frases útiles para el aula» / «…en el Aula»): la IA los repite con otra preposición o mayúsculas.
+        const seParece = (t) => [...titulosVistos].some((v) => titulosSimilares(v, t));
+        if (claveTitulo && seParece(claveTitulo)) {
           const anterior = d.titulo;
           const propio = d.fijoDelMapa.tituloTarea;
-          if (propio && !titulosVistos.has(propio.toLowerCase())) {
+          if (propio && !seParece(propio)) {
             d.titulo = propio;
             avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título repetido «${anterior}»`);
           } else if (propio) {
@@ -6398,8 +6418,22 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         propositos: unidadResult.planMaestro?.propositosSecciones,
       }),
       checklistProducto: checklistDesdeMapa(rutaPlanMaestro.mapa, productoNombrado),
+      neaePorPerfil: (anexosBase.neaePorPerfil || []).map(adaptacionSinTecnologia),
     }).replaceAll("observado o grabado", "observado"))
     : anexosBase;
+  // Todo el texto generado, sin video ni proyector: también el detalle de evidencias, las adaptaciones NEAE y las observaciones (g24).
+  if (rutaPlanMaestro?.mapa) {
+    // Adaptaciones NEAE de cada fase: alternativas físicas, no tecnología (decisión de César, 2026-11-10).
+    const enNea = (unidadResult.fasesSemanales || []).reduce((n, fase) => n + adaptacionesNEAESinTecnologia(fase), 0);
+    const limpieza = [sinEquiposEnTodo(unidadResult.fasesSemanales), sinEquiposEnTodo(unidadResult.anexos)];
+    const cambiados = limpieza.reduce((n, l) => n + l.cambios, 0) + enNea;
+    const sinResolver = [...new Set(limpieza.flatMap((l) => l.restantes))].slice(0, 6);
+    unidadResult.avisosRedaccion = [
+      ...(unidadResult.avisosRedaccion || []),
+      ...(cambiados ? [`ℹ código: ${cambiados} texto(s) nombraban video o proyector; se cambiaron por «ejemplo» y «pizarra»`] : []),
+      ...sinResolver.map((t) => `nombra un equipo que el mapa no prevé: «${t}»`),
+    ];
+  }
   // Con mapa, cada clase dice qué criterios de sus instrumentos evalúa (I-20).
   if (rutaPlanMaestro?.mapa) vincularInstrumentosConClases((unidadResult.fasesSemanales || []).flatMap((fase) => fase.dias || []), unidadResult.anexos, dimensionesDeClase);
   if (rutaPlanMaestro) {
@@ -6745,15 +6779,15 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       thead tr { break-inside: avoid; page-break-inside: avoid; }
       tbody tr { break-inside: auto; page-break-inside: auto; }
       .dia-table { break-inside: auto; page-break-inside: auto; margin-bottom: 6px; }
-      /* Un momento partido entre páginas encimaba sus últimas líneas sobre el siguiente (Rutinas g9, C2). */
-      .dia-table tbody tr { break-inside: avoid; page-break-inside: avoid; }
-      .semana-band { break-after: avoid; page-break-after: avoid; }
+      /* La clase corre como una secuencia: las filas se parten por donde toque, sin saltar de hoja ni dejar blancos (César, 2026-11-10). */
+      .dia-table tbody tr { break-inside: auto; page-break-inside: auto; }
+      .semana-band, .est-band { break-after: avoid; page-break-after: avoid; }
       /* La intención es un bloque corto: que NO se parta ella misma, pero SÍ
          pueda separarse de la tabla del día. Con break-after:avoid quedaba
          pegada a la dia-table (grande) y formaba un grupo encabezados+tabla
          indivisible que empujaba páginas enteras, dejando huecos al pie. */
-      .intencion-band { break-inside: avoid; page-break-inside: avoid; }
-      .modelo-band { break-inside: avoid; page-break-inside: avoid; }
+      .intencion-band { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
+      .modelo-band { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
       .fase-band { break-before: auto; page-break-before: auto; break-after: avoid; page-break-after: avoid; }
       .section-head { break-after: avoid; page-break-after: avoid; }
       .neae-grid { break-inside: auto; page-break-inside: auto; }

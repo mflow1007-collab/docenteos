@@ -15,12 +15,14 @@
 
 import { construirPlanMaestro } from "./planMaestroService.js";
 import { SECUENCIAS_POR_TAREA } from "../data/secuenciasTareas.js";
+import { SITUACIONES_SEMILLA_INGLES_2DO } from "../data/situacionesSemillaIngles2do.js";
 import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import {
   TAREAS_POR_TIPO, TAREAS_UNIDAD, TAREA_COMENTAR, TAREA_CORREGIR, TAREA_REVISION_DOCENTE, TAREA_REVISION_NIVEL,
   SECCIONES_POR_COMENTAR, SECCIONES_POR_CORREGIR, TIPO_APROBADO_POR_SECCION, DETALLE_TAREA,
   INVENTARIO_POR_SECCION, ALCANCE_POR_SEMILLA, USO_DE_CONTENIDOS, PRUEBA_POR_SECCION, LUGARES_NO_DECLARADOS,
   PREGUNTA_SITUACION_POR_SEMILLA, PREGUNTA_SITUACION_GENERAL, ESTRUCTURA_POR_TAREA, DATOS_ENCUESTA,
+  ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL,
 } from "../data/tareasPorTipoTrabajo.js";
 
 export const CLASES_MINIMAS = 3;
@@ -87,6 +89,8 @@ const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) },
 export const pruebaDelProducto = (producto = "", secciones = []) => secciones.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean)
   || (/\bpropos(al|uesta)\b/i.test(producto) ? { tipo: "defender", hace: "Defienden ante la audiencia su recomendación: explican por qué recomiendan esa alternativa y responden sus preguntas, y luego recogen sus comentarios en tarjetas." } : null);
 
+// Con la revisión de nivel en la misma clase, corregir cede su parte: el total de la clase no cambia ([15,30] = [10,20] + [5,10]).
+const MINUTOS_CORREGIR_CON_REVISION = [10, 20];
 const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "" }) => {
   const tareasOmitidas = omitidas;
   const indagacion = estrategia === "indagacion_dialogica";
@@ -136,8 +140,15 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Con revisión del docente (Proyectos y Problemas) la mejora es un solo ciclo: Problemas a 4 semanas no cabía en 12 clases.
   const unCiclo = proyectos || estrategia === "problemas";
   if (unCiclo) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion, ...enPuesta }, corregibles, 2, 1, 0);
-  else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g));
-  if (!unCiclo) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g));
+  else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => {
+    push({ ...TAREA_CORREGIR, minutos: MINUTOS_CORREGIR_CON_REVISION, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g);
+    // Hasta el nivel satisfactorio (Referente por proyecto 2022, p. 35): en la misma clase, el docente comprueba lo corregido (opción A de César, 2026-11-10).
+    push({ ...TAREA_REVISION_NIVEL, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1.5, g);
+  });
+  if (!unCiclo) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => {
+    push({ ...TAREA_CORREGIR, minutos: MINUTOS_CORREGIR_CON_REVISION, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g);
+    push({ ...TAREA_REVISION_NIVEL, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2.5, g);
+  });
   // Segunda ronda: el docente comprueba que las secciones corregidas llegaron al nivel satisfactorio.
   if (proyectos || rondaCompleta) push({ ...TAREA_REVISION_NIVEL, ...enEvaluacion, ...enPuesta }, corregibles, 2, 3, 0);
   const u = TAREAS_UNIDAD;
@@ -160,6 +171,14 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) push(u.recorrerLugares, [...orden], 0, 1, 0);
   // Cada estrategia hace lo suyo: la indagación valida sus fuentes, no solo ordena datos.
   if (estrategia === "indagacion_dialogica") [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push(t, [...orden], 0, 2, k));
+  // Proyectos sin recorrido ni entrevista: los «datos recibidos» no vienen de nadie. En «Gestión del conocimiento» (Referente
+  // por proyecto 2022, pp. 32–33: buscar, leer, sistematizar fuentes) se ordena lo reunido de la fuente que trae el docente
+  // y de los modelos (revisión de g20, 2026-11-10). El tiempo no cambia: no se añade ninguna tarea.
+  if (estrategia === "proyectos" && !items.some((it) => /^(visitar|recorrer|indagar)/.test(it.t.clave))) {
+    items.filter((it) => it.t.clave === "analizar_ordenar").forEach((it) => {
+      it.t = { ...it.t, hace: "Ordenan en una tabla común lo reunido de la fuente que trae el docente y de los modelos analizados (ejemplos, frases o datos) y analizan un modelo para decidir el formato. Aún no redactan la pieza." };
+    });
+  }
   // Presentar y usar el producto con la audiencia son siempre dos tareas: la de usarlo cubre interactuar.
   const prueba = pruebaDelProducto(producto, orden);
   // Una propuesta se presenta completa y se defiende: no «se usa» (Guía 2025, p. 21).
@@ -524,6 +543,11 @@ export const evaluacionDeFila = (fila) => {
   return { tipo, agente, tecnica: [...new Set(lista.map((p) => p[0]))].join(" y "), instrumento };
 };
 
+// Cierre de una unidad con mapa: la reflexión de la clase se evalúa con los criterios de proceso de los Anexos E y D.
+// Inicio de una unidad con mapa: se observa sin instrumento formal; el Registro anecdótico (Anexo C) solo si se anota algo (g23: «criterio 7» en 15 Inicios).
+export const EVALUACION_INICIO_MAPA = { tipo: "Diagnóstica", agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Sin instrumento formal; Registro anecdótico (Anexo C) solo si se anota algo" };
+export const EVALUACION_CIERRE_MAPA = { tipo: "Formativa", agente: "Autoevaluación y coevaluación", tecnica: "Reflexión oral y ticket de salida", instrumento: "Autoevaluación (Anexo E) y coevaluación (Anexo D)" };
+
 // Qué anexo es cada instrumento que nombra una clase y dónde están sus criterios.
 const ANEXO_POR_INSTRUMENTO = [
   [/r[uú]brica/i, "A", "rubricaProducto"],
@@ -583,8 +607,20 @@ export const didacticosDeFila = (fila) => {
 export const INICIO_PRIMERA_CLASE = "Recuperación de experiencias: comentan qué han vivido o visto sobre este tema. (What do you know about this topic?)";
 
 // Equipos que el mapa no prevé: no se sabe si el centro los tiene.
-const EQUIPO = /\b(videos?|clips?|proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
+const EQUIPO = /\b(videos?|clips?|digital(es)?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
 export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con la clase y dicen qué les llama la atención.";
+
+// Conserva la mayúscula inicial de lo que reemplaza («Del video» → «Del ejemplo»).
+const conInicial = (original, nuevo) => (original[0] !== original[0].toLowerCase() ? `${nuevo[0].toUpperCase()}${nuevo.slice(1)}` : nuevo);
+const sinVideoEs = (t) => (typeof t === "string" ? t
+  .replace(/\b(the|a|our|this) video\b/gi, (m) => conInicial(m, "the example"))
+  .replace(/\b(el|un|nuestro|este) video\b/gi, (m) => conInicial(m, "el ejemplo"))
+  .replace(/\bdel video\b/gi, (m) => conInicial(m, "del ejemplo"))
+  .replace(/\b(los|unos|estos|nuestros) videos\b/gi, (m, art) => conInicial(m, `${art.toLowerCase()} ejemplos`))
+  .replace(/\b(el|un|su) (retro)?proyector\b/gi, (m) => conInicial(m, "la pizarra"))
+  .replace(/\b(en|con|del) (retro)?proyector\b/gi, (m, pre) => conInicial(m, `${pre.toLowerCase()} la pizarra`))
+  .replace(/\b(un|el) audio modelo\b/gi, (m, art) => conInicial(m, `${art.toLowerCase()} diálogo modelo leído por el docente`))
+  .replace(/\bvideos?\b/gi, (v) => conInicial(v, /s$/i.test(v) ? "ejemplos" : "ejemplo")) : t);
 
 /**
  * Inicio y Cierre sin equipos: quita los que la IA puso en sus recursos y sustituye la
@@ -594,8 +630,10 @@ export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con
 export const sinEquipos = (momentos = [], didacticosFila = "") => {
   const restantes = [];
   // El video también se nombra en las evidencias y en las preguntas, en cualquier momento.
-  const sinVideo = (t) => (typeof t === "string" ? t.replace(/\b(the|a|our|this) video\b/gi, "the example").replace(/\b(el|un|nuestro|este) video\b/gi, "el ejemplo") : t);
+  // También en las actividades de cualquier momento, incluido el Desarrollo (g23, Escuela guía C8: «las frases del video»).
+  const sinVideo = sinVideoEs;
   momentos.forEach((m) => {
+    if (Array.isArray(m?.actividadesDetalle)) m.actividadesDetalle.forEach((x) => { if (x && typeof x.texto === "string") x.texto = sinVideo(x.texto); });
     if (Array.isArray(m?.metacognicion)) m.metacognicion = m.metacognicion.map(sinVideo);
     Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map(sinVideo); });
     // La evidencia suele ser un solo texto con formato, no una lista: también se limpia.
@@ -607,11 +645,99 @@ export const sinEquipos = (momentos = [], didacticosFila = "") => {
     m.recursos = { ...m.recursos, didacticos: limpios.join(", ") || didacticosFila, tecnologicos: "No requerido para esta actividad" };
     (m.actividades || []).forEach((a, i) => {
       if (typeof a !== "string" || !EQUIPO.test(normal(a))) return;
-      if (m.nombre === "Inicio" && i === 3) m.actividades[i] = ENGANCHE_SIN_EQUIPOS;
-      else restantes.push(`${m.nombre}: ${a.slice(0, 70)}`);
+      if (m.nombre === "Inicio" && i === 3) { m.actividades[i] = ENGANCHE_SIN_EQUIPOS; return; }
+      const limpia = sinVideo(a);
+      m.actividades[i] = limpia;
+      if (EQUIPO.test(normal(limpia))) restantes.push(`${m.nombre}: ${limpia.slice(0, 70)}`);
     });
   });
+  // Desarrollo: el video y el proyector se cambian por el ejemplo y la pizarra; lo que no se resuelve (parlantes, grabadora…) se avisa.
+  momentos.filter((m) => m?.nombre === "Desarrollo").forEach((m) => (m.actividades || []).forEach((a, i) => {
+    if (typeof a !== "string" || !EQUIPO.test(normal(a))) return;
+    const limpia = sinVideo(a);
+    m.actividades[i] = limpia;
+    if (EQUIPO.test(normal(limpia))) restantes.push(`Desarrollo: ${limpia.slice(0, 70)}`);
+  }));
   return restantes;
+};
+
+// Equipos en el texto modelo (en inglés): el mapa no prevé tecnología, así que el modelo no puede suponerla (g22, C3: «use the projector»).
+const EQUIPO_EN = /\b(videos?|clips?|projector|computers?|laptops?|tablets?|speakers?|microphone|internet|online|smartphones?)\b/i;
+const CAMBIOS_EQUIPO_EN = [
+  [/\bthe projector\b/gi, "the board"], [/\ba projector\b/gi, "the board"], [/\bprojector\b/gi, "board"],
+  [/\b(the|a|our|this) videos?\b/gi, "$1 example"], [/\bvideos?\b/gi, "example"],
+  [/\b(the|a|our|this) (computer|laptop|tablet)s?\b/gi, "$1 notebook"],
+];
+/**
+ * Recorre TODO el texto generado (actividades, evidencias y su detalle, adaptaciones NEAE, observaciones, anexos) y quita el video
+ * y el proyector. Devuelve cuántos textos cambió. No toca el texto modelo (en inglés, lo limpia sinEquiposEnModelo) ni valores internos.
+ */
+export const sinEquiposEnTodo = (nodo) => {
+  let cambios = 0;
+  const restantes = [];
+  const recorrer = (n) => {
+    Object.entries(n || {}).forEach(([k, v]) => {
+      if (CLAVES_SIN_TEXTO_DE_CLASE.has(k) || CLAVES_INTERNAS.has(k)) return;
+      if (typeof v === "string") {
+        const nuevo = sinVideoEs(v);
+        if (nuevo !== v) { n[k] = nuevo; cambios += 1; }
+        // Lo que no tiene un reemplazo seguro (audio, computadora, grabadora…) se avisa al administrador.
+        if (EQUIPO.test(normal(nuevo)) && !/^no requerido/i.test(nuevo)) restantes.push(nuevo.slice(0, 90));
+      } else if (v && typeof v === "object") recorrer(v);
+    });
+  };
+  recorrer(nodo);
+  return { cambios, restantes };
+};
+
+// Adaptaciones NEAE de la fase: sin tecnología declarada, alternativas físicas (g26: «audio», «grabar en audio», «grabadoras de voz»).
+const CAMBIOS_NEAE_SIN_TECNOLOGIA = [
+  [/formatos digitales ampliados o audio/gi, "material ampliado impreso o lectura en voz alta del docente"],
+  [/material ampliado y audio/gi, "material ampliado y lectura en voz alta del docente"],
+  [/grabar en audio (sus|las|los) respuestas/gi, "dar sus respuestas oralmente"],
+  [/el uso de (grabadoras? de voz|grabaciones( de voz)?)/gi, "responder oralmente al docente"],
+  [/grabaciones de voz/gi, "respuestas orales al docente"],
+  [/\bformato digital( accesible)?\b/gi, "formato impreso"],
+  [/grabadoras? de voz/gi, "respuestas orales al docente"],
+  [/permitir grabaciones/gi, "permitir respuestas orales al docente"],
+  [/\bformatos digitales\b/gi, "formatos impresos"],
+  [/\bgrabaciones\b/gi, "respuestas orales"],
+  [/\baudios\b/gi, "lecturas en voz alta del docente"],
+  [/\baudio\b/gi, "lectura en voz alta del docente"],
+];
+/** Cambia en las adaptaciones NEAE de una fase la tecnología por alternativas físicas. Devuelve cuántos textos cambió. */
+export const adaptacionesNEAESinTecnologia = (fase = {}) => {
+  const adaptaciones = fase?.adaptacionesNEAE;
+  if (!adaptaciones || typeof adaptaciones !== "object") return 0;
+  let cambios = 0;
+  Object.entries(adaptaciones).forEach(([k, v]) => {
+    if (typeof v !== "string") return;
+    const nuevo = CAMBIOS_NEAE_SIN_TECNOLOGIA.reduce((t, [re, por]) => t.replace(re, por), v);
+    if (nuevo !== v) { adaptaciones[k] = nuevo; cambios += 1; }
+  });
+  return cambios;
+};
+
+/** Anexo K: sin tecnología declarada, las adaptaciones no suponen grabaciones ni audios (g25). */
+export const adaptacionSinTecnologia = (p = {}) => {
+  const quitar = (t) => (typeof t === "string"
+    ? t.replace(/permitir grabaciones/gi, "permitir respuestas orales al docente").replace(/cada audio o di[aá]logo/gi, "cada diálogo leído")
+    : t);
+  return { ...p, acceso: quitar(p.acceso), evaluacion: quitar(p.evaluacion) };
+};
+
+/** Quita del texto modelo los equipos que el mapa no prevé. Devuelve cuántas líneas cambió y las que aún nombran un equipo. */
+export const sinEquiposEnModelo = (dia = {}) => {
+  const lineas = dia?.textoModelo?.lineas;
+  if (!Array.isArray(lineas)) return { cambios: 0, restantes: [] };
+  let cambios = 0;
+  dia.textoModelo.lineas = lineas.map((l) => {
+    if (typeof l !== "string" || !EQUIPO_EN.test(l)) return l;
+    const nuevo = CAMBIOS_EQUIPO_EN.reduce((t, [re, por]) => t.replace(re, por), l);
+    if (nuevo !== l) cambios += 1;
+    return nuevo;
+  });
+  return { cambios, restantes: dia.textoModelo.lineas.filter((l) => typeof l === "string" && EQUIPO_EN.test(l)).map((l) => l.slice(0, 70)) };
 };
 
 const OBSERVADO = { grabada: "observada y anotada", grabado: "observado y anotado", grabadas: "observadas y anotadas", grabados: "observados y anotados" };
@@ -705,6 +831,7 @@ export const sinLugaresEnClase = (dia = {}, corregidos = []) => {
 const conMayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 const UMBRAL_RECOGER_DATOS = 15;
+const ETIQUETA_POR_TAREA = { describir_modelo: "Analizar un modelo de", describir_redactar: "Redactar", analizar_ordenar: "Organizar lo reunido para", analizar_borrador: "Escribir el borrador de", analizar_verificar: "Comprobar los datos de" };
 const TAREAS_CON_FUNCION_PROPIA = new Set(["analizar_ordenar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos"]);
 
 /**
@@ -737,19 +864,36 @@ export const focoDeFila = (fila = {}, filas = []) => {
   // «Comprar» solo tiene sentido si la unidad pide: en otro tema, will expresa planes.
   const hayPedido = filas.some((f) => f.secciones?.some((x) => PRUEBA_POR_SECCION[x]?.tipo === "pedido"));
   const funcionDelTexto = delTexto && filas.length && !hayPedido && /comprar/i.test(delTexto) ? "Expresar planes" : delTexto;
-  const funcion = funciones.slice(0, 2).join("; ") || (funcionDelTexto ? conMayuscula(funcionDelTexto.trim()) : fija?.[0] || "");
+  // Describir y analizar sin función propia en la malla: la etiqueta nombra la sección que la clase trabaja, no una función
+  // de otro tema («actividades cotidianas» en una unidad de frases del aula). Formato aprobado por César, 2026-11-10.
+  const secsDeLaTarea = (fila.tareas || []).find((t) => t.clave === clave)?.secciones || [];
+  const deSeccion = ETIQUETA_POR_TAREA[clave] && secsDeLaTarea.length >= 1 && secsDeLaTarea.length <= 2
+    ? `${ETIQUETA_POR_TAREA[clave]} ${secsDeLaTarea.map((x) => `«${x}»`).join(" y ")}` : "";
+  const funcion = funciones.slice(0, 2).join("; ") || deSeccion || (funcionDelTexto ? conMayuscula(funcionDelTexto.trim()) : fija?.[0] || "");
   if (!gramatica.length) {
     if (!fija) return funcion;
     // Describir u ordenar datos usa el presente simple que la malla da para este tema, no el ejemplo de otro.
     if (/^(describir|analizar)/.test(clave)) {
       const delTema = filas.flatMap((f) => f.contenidos || []).find((c) => c.categoria === "gramatica" && /^presente simple/i.test(c.texto));
-      if (delTema) return `${funcion || fija[0]}: ${delTema.texto.split(":")[0].replace(/\s+en contexto\b.*$/, "").trim().toLowerCase()}`;
+      // Sin el «para …» de la malla: dice la función de otro tema («referirse a actividades cotidianas» en una unidad de frases del aula).
+      if (delTema) return `${funcion || fija[0]}: ${delTema.texto.split(":")[0].replace(/\s+(para|en contexto)\b.*$/, "").trim().toLowerCase()}`;
     }
     return `${funcion || fija[0]}${fija[1].startsWith("(") ? " " : ": "}${fija[1]}`;
   }
   // Sin el ejemplo de la malla: suele ser de otro tema («a pair of boots» en un menú).
   const nombres = gramatica.map((t) => t.split(":")[0].replace(/\s+(para|en contexto)\b.*$/, "").replace(/\s*\/\s*/g, " / ").trim().toLowerCase());
   return `${funcion}: ${nombres.join(", ")}`;
+};
+
+// «Explorando…» solo describe clases que exploran: modelos, saberes previos, recorridos (g25: C10 comentar y C14 comprar se titulaban «Explorando…»).
+const TAREAS_QUE_EXPLORAN = new Set(["acordar", "saberes_previos", "recorrer_lugares", "visitar_modelo", "describir_modelo", "aplicar_modelo", "problema_analizar", "indagar_contrastar"]);
+/** Cambia por el título de la tarea el que no corresponde a la función de la clase. Devuelve si lo cambió. */
+export const tituloConLaFuncion = (dia = {}, tituloTarea = "") => {
+  const primera = dia?.tareasMapa?.[0]?.clave;
+  const explora = /^explor/i.test(String(dia?.titulo || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+  if (!tituloTarea || !primera || !explora || TAREAS_QUE_EXPLORAN.has(primera)) return false;
+  dia.titulo = tituloTarea;
+  return true;
 };
 
 /** Fases de cada actividad, solo si la clase lleva más de una: su nombre, no su número (César, 2026-11-06). */
@@ -795,15 +939,28 @@ export const diagnosticoDeFases = (fases = [], hayMapa = false) => {
  * Pares de clases cuyos títulos son casi iguales (comparten la mayoría de sus palabras): el docente no distingue
  * una clase de otra. Los iguales del todo ya los trata el control de títulos repetidos.
  */
-export const titulosParecidos = (titulos = [], umbral = 0.7) => {
-  const palabras = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2));
-  const conjuntos = titulos.map(palabras);
+// Raíz de 6 letras: «Exploración» y «Explorando», «gastronomía» y «gastronómica» cuentan como la misma palabra (g25).
+const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2).map((w) => w.slice(0, 6)));
+// Palabras que no distinguen un título de otro.
+const PALABRAS_GENERICAS = new Set(["nuestr", "entre", "sobre", "para", "desde", "juntos", "juntas"]);
+const significativas = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 3).map((w) => w.slice(0, 6)).filter((w) => !PALABRAS_GENERICAS.has(w));
+/** Dos títulos casi iguales: mismas palabras (por su raíz) con otro orden, mayúsculas o una preposición distinta (Jaccard ≥ umbral), o que abren con la misma palabra y comparten otra (g26: «Investigadores en acción…» / «Analizando una pieza modelo» y «Analizando un modelo»). */
+export const titulosSimilares = (a, b, umbral = 0.6) => {
+  const x = palabrasDeTitulo(a);
+  const y = palabrasDeTitulo(b);
+  if (!x.size || !y.size) return false;
+  if (String(a).trim().toLowerCase() === String(b).trim().toLowerCase()) return true;
+  const comunes = [...x].filter((w) => y.has(w)).length;
+  if (comunes / (x.size + y.size - comunes) >= umbral) return true;
+  const sa = significativas(a);
+  const sb = significativas(b);
+  return Boolean(sa.length && sb.length && sa[0] === sb[0] && sa.slice(1).some((w) => sb.slice(1).includes(w)));
+};
+export const titulosParecidos = (titulos = [], umbral = 0.6) => {
   const pares = [];
-  conjuntos.forEach((a, i) => conjuntos.slice(i + 1).forEach((b, k) => {
-    const j = i + 1 + k;
-    if (!a.size || !b.size || String(titulos[i]).trim().toLowerCase() === String(titulos[j]).trim().toLowerCase()) return;
-    const comunes = [...a].filter((w) => b.has(w)).length;
-    if (comunes / (a.size + b.size - comunes) >= umbral) pares.push([i + 1, j + 1]);
+  titulos.forEach((a, i) => titulos.slice(i + 1).forEach((b, k) => {
+    // Los iguales (sin distinguir mayúsculas) los resuelve el generador por su cuenta.
+    if (String(a).trim().toLowerCase() !== String(b).trim().toLowerCase() && titulosSimilares(a, b, umbral)) pares.push([i + 1, i + 2 + k]);
   }));
   return pares;
 };
@@ -913,6 +1070,16 @@ export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreM
     return nuevo;
   }, CLAVES_INTERNAS);
   if (tildes) corregidos.push(`tildes (${tildes} texto${tildes > 1 ? "s" : ""})`);
+  // La IA marca el nombre del producto con acentos graves (`Useful Classroom Phrases Talk`): en el título van comillas.
+  // El título ya se muestra entre comillas: las internas pasan a « » (g24, C10: «Revisión y Corrección Final de "Our School Survival Guide"»).
+  if (typeof dia.titulo === "string" && /["“”]/.test(dia.titulo)) {
+    dia.titulo = dia.titulo.replace(/["“”]([^"“”]+)["“”]/g, "«$1»").replace(/["“”]/g, "");
+    corregidos.push("título con comillas dobles: se pasaron a « »");
+  }
+  if (typeof dia.titulo === "string" && dia.titulo.includes("`")) {
+    dia.titulo = dia.titulo.replace(/`([^`]+)`/g, "«$1»").replace(/`/g, "");
+    corregidos.push("título con acento grave: se pasó a comillas");
+  }
   if (dia.titulo) dia.titulo = conErratasCorregidas(dia.titulo);
   if (dia.intencionPedagogica) dia.intencionPedagogica = conErratasCorregidas(dia.intencionPedagogica);
   if (dia.textoModelo?.titulo) dia.textoModelo.titulo = conTildesCorregidas(guia(dia.textoModelo.titulo)).replace(/\b[Ee]ntrevista simulada\b/gi, "Entrevista modelo");
@@ -1112,6 +1279,54 @@ export const minutosPorTarea = (tareasMapa = [], tareaIds = []) => {
     const base = Math.floor(tareasMapa[k].minutos / total);
     return base + (orden < tareasMapa[k].minutos - base * total ? 1 : 0);
   });
+};
+
+/**
+ * Alcance de la semilla (invitado, entrega, recursos humanos), salvo que el docente haya cambiado la audiencia:
+ * lo que escribió él nunca lo pisa la semilla (unidad de frases del aula, g19: «estudiantes de 6.º» en Recursos).
+ */
+/**
+ * La semilla de la situación, salvo que el docente haya escrito su propia situación con otro producto: entonces los textos que dependen de la
+ * semilla (asunto de la lectura, fuente, modelo, pregunta de la clase 1) no valen y se usan los generales
+ * (unidad de frases del aula, g21: el diagnóstico hablaba de «cómo orientarse en un centro nuevo»).
+ */
+export const semillaVigente = (situacion = {}) => {
+  const id = situacion?.semillaId || "";
+  const semilla = SITUACIONES_SEMILLA_INGLES_2DO.find((x) => x.id === id);
+  if (!id || !semilla) return id;
+  // `borrador: false` solo lo pone la app cuando el docente escribe un campo de la situación.
+  const propio = situacion.productoDescripcion;
+  const delaSemilla = [semilla.producto?.descripcion, ALCANCE_POR_SEMILLA[id]?.conInvitado?.productoDescripcion].filter(Boolean);
+  return situacion.borrador === false && propio && !delaSemilla.includes(propio) ? "" : id;
+};
+
+/**
+ * Sobre qué es el texto de la clase 1 y el diagnóstico: el de la semilla si vale; si no, lo que trata el producto
+ * («cómo usar «X»», o «qué recomienda «X»» si es una propuesta); sin producto, el general (César, 2026-11-10).
+ */
+export const asuntoDeLectura = (situacion = {}, producto = "") => {
+  const delaSemilla = ASUNTO_LECTURA_POR_SEMILLA[semillaVigente(situacion)];
+  if (delaSemilla) return delaSemilla;
+  const nombre = String(producto || "").trim();
+  if (!nombre) return ASUNTO_LECTURA_GENERAL;
+  return /\bpropos(al|uesta)\b/i.test(nombre) ? `qué recomienda «${nombre}»` : `cómo usar «${nombre}»`;
+};
+
+/**
+ * Aviso para el docente cuando la audiencia configurada abarca más de un curso: la prueba con la audiencia puede no caber
+ * en una clase. No cambia el plan (César, 2026-11-10); solo lo señala.
+ */
+export const avisoAudienciaMultiple = (audiencia = "", minutos = 45) => {
+  const texto = String(audiencia || "");
+  const cursos = new Set((texto.match(/\b\d+\.º/g) || []));
+  if (cursos.size < 2 && !/\b(cursos|grados)\b/i.test(texto)) return "";
+  return `La audiencia configurada («${texto.trim()}») abarca más de un curso: puede no caber en ${minutos} min; considera invitar una muestra de cada curso.`;
+};
+
+export const alcanceDeSituacion = (situacion = {}) => {
+  const alcance = ALCANCE_POR_SEMILLA[situacion?.semillaId]?.conInvitado || null;
+  const de = situacion?.audienciaDetalle?.de;
+  return alcance && de && de !== situacion?.audiencia ? null : alcance;
 };
 
 /**
