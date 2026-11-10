@@ -239,7 +239,10 @@ check("cada fase con su clase en las tres estrategias, y tildes corregidas", () 
   assert(/la revisión/.test(conEstado.momentos[0].actividades[0]), "corrige lo que lee el docente");
   const dia = conTitulosCorregidos({ titulo: "x", textoModelo: { titulo: "Familia modelo — Dialógo", lineas: ["A"] }, momentos: [] });
   assert(/Diálogo/.test(dia.textoModelo.titulo), dia.textoModelo.titulo);
-  assert(/\.dia-table tbody tr \{ break-inside: avoid/.test(readFileSync(new URL("../src/services/unidadAprendizajeService.js", import.meta.url), "utf8")), "impresión");
+  // Impresión continua (César, 2026-11-10): las filas del día se parten por donde toque; el encabezado, la intención y el texto modelo no quedan solos al pie.
+  const fuenteImpresion = readFileSync(new URL("../src/services/unidadAprendizajeService.js", import.meta.url), "utf8");
+  assert(/\.dia-table tbody tr \{ break-inside: auto/.test(fuenteImpresion), "las filas del día se parten");
+  assert(/\.semana-band, \.est-band \{ break-after: avoid/.test(fuenteImpresion) && /\.intencion-band \{[^}]*break-after: avoid/.test(fuenteImpresion), "el encabezado no queda huérfano");
 });
 check("Problemas: la revisión formativa antes de la sumativa, y los cursos de acción como contenido", () => {
   const base = { grado: "2do Secundaria", asignatura: "Inglés", centro: "C", numSemanas: 7, diasClase: ["l", "m", "x"], horasPorDia: 1, titulo: "Actividades de la vida diaria" };

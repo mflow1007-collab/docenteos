@@ -6751,15 +6751,15 @@ export const formatearUnidadHTML = (unidad, logoUrl = "") => {
       thead tr { break-inside: avoid; page-break-inside: avoid; }
       tbody tr { break-inside: auto; page-break-inside: auto; }
       .dia-table { break-inside: auto; page-break-inside: auto; margin-bottom: 6px; }
-      /* Un momento partido entre páginas encimaba sus últimas líneas sobre el siguiente (Rutinas g9, C2). */
-      .dia-table tbody tr { break-inside: avoid; page-break-inside: avoid; }
-      .semana-band { break-after: avoid; page-break-after: avoid; }
+      /* La clase corre como una secuencia: las filas se parten por donde toque, sin saltar de hoja ni dejar blancos (César, 2026-11-10). */
+      .dia-table tbody tr { break-inside: auto; page-break-inside: auto; }
+      .semana-band, .est-band { break-after: avoid; page-break-after: avoid; }
       /* La intención es un bloque corto: que NO se parta ella misma, pero SÍ
          pueda separarse de la tabla del día. Con break-after:avoid quedaba
          pegada a la dia-table (grande) y formaba un grupo encabezados+tabla
          indivisible que empujaba páginas enteras, dejando huecos al pie. */
-      .intencion-band { break-inside: avoid; page-break-inside: avoid; }
-      .modelo-band { break-inside: avoid; page-break-inside: avoid; }
+      .intencion-band { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
+      .modelo-band { break-inside: avoid; page-break-inside: avoid; break-after: avoid; page-break-after: avoid; }
       .fase-band { break-before: auto; page-break-before: auto; break-after: avoid; page-break-after: avoid; }
       .section-head { break-after: avoid; page-break-after: avoid; }
       .neae-grid { break-inside: auto; page-break-inside: auto; }
