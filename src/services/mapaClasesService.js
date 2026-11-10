@@ -524,6 +524,9 @@ export const evaluacionDeFila = (fila) => {
   return { tipo, agente, tecnica: [...new Set(lista.map((p) => p[0]))].join(" y "), instrumento };
 };
 
+// Cierre de una unidad con mapa: la reflexión de la clase se evalúa con los criterios de proceso de los Anexos E y D.
+export const EVALUACION_CIERRE_MAPA = { tipo: "Formativa", agente: "Autoevaluación y coevaluación", tecnica: "Reflexión oral y ticket de salida", instrumento: "Autoevaluación (Anexo E) y coevaluación (Anexo D)" };
+
 // Qué anexo es cada instrumento que nombra una clase y dónde están sus criterios.
 const ANEXO_POR_INSTRUMENTO = [
   [/r[uú]brica/i, "A", "rubricaProducto"],

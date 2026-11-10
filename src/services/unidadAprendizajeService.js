@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -1667,6 +1667,7 @@ export const construirAnexosUnidad = ({
     "...use the unit vocabulary and structures.",
     "...ask and answer questions about the topic.",
     "...give advice or suggestions about the topic.",
+    "...understand the texts and instructions about the topic and respond.",
     `...present my ${productoCorto.toLowerCase().includes("poster") ? "poster" : "final product"} to my classmates.`,
   ] : [
     `...explicar los conceptos centrales de "${tema}".`,
@@ -1675,7 +1676,7 @@ export const construirAnexosUnidad = ({
     "...trabajar en equipo y valorar los aportes de mis compañeros.",
     "...presentar mi producto final al grupo.",
   ];
-  const EXIGE_AUTOEVALUACION = idioma ? ["produccion", "produccion", "interaccion", "produccion", "produccion"] : [];
+  const EXIGE_AUTOEVALUACION = idioma ? ["produccion", "produccion", "interaccion", "produccion", "comprension", "produccion"] : [];
   const autoevaluacion = autoevaluacionBase.map((item, index) => ({
     criterio: item,
     ...crearTrazaInstrumento({
@@ -6251,6 +6252,9 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       const desarrollo = (d.momentos || []).find((m) => m?.nombre === "Desarrollo");
       if (d.fijoDelMapa && desarrollo) {
         desarrollo.evaluacion = { ...desarrollo.evaluacion, ...d.fijoDelMapa.evaluacion };
+        // Cierre con mapa: autoevaluación y coevaluación con criterios de proceso (I-20).
+        const cierreMapa = (d.momentos || []).find((m) => m?.nombre === "Cierre");
+        if (cierreMapa) cierreMapa.evaluacion = { ...cierreMapa.evaluacion, ...EVALUACION_CIERRE_MAPA };
         desarrollo.recursos = { ...desarrollo.recursos, humanos: d.fijoDelMapa.humanos, didacticos: d.fijoDelMapa.didacticos, tecnologicos: "No requerido para esta actividad" };
         // Los pasos del banco ya traen sus firmas.
         if (!d.minutosSecuencia?.length) desarrollo.actividades = conFirmas(desarrollo.actividades || [], d.tareasMapa, d.tareaIdsDesarrollo);

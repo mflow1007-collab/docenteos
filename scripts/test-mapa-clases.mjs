@@ -16,7 +16,7 @@ import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstru
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
-import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
+import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
 import { SECUENCIAS_POR_TAREA } from "../src/data/secuenciasTareas.js";
@@ -995,6 +995,18 @@ check("I-20: los instrumentos traen criterios de comprensión y de las secciones
   const d4 = [{ indicadoresTrabajados: [{ id: "ING-2-I02" }, { id: "ING-2-I03" }], momentos: [{ evaluacion: { tipo: "Sumativa", instrumento: "Rúbrica analítica (Anexo A) y lista de cotejo oral (Anexo B)" } }] }];
   vincularInstrumentosConClases(d4, { rubricaProducto: [{ indicadorCodigo: "ING-2-I02", exige: "produccion" }, { indicadorCodigo: "ING-2-I03", exige: "interaccion" }], listaCotejoOral: [{ indicadorCodigo: "ING-2-I03", exige: "interaccion" }, { indicadorCodigo: "ING-2-I02", exige: "produccion" }] }, () => ["produccion"]);
   igual(d4[0].momentos[0].evaluacion.criterios, "Anexo A, criterios 1 y 2; Anexo B, criterios 1 y 2", "sumativa: todos los indicadores");
+});
+
+check("Cierre con mapa: autoevaluación (E) y coevaluación (D) con criterios de proceso, también en clases de comprensión", () => {
+  const ax = construirAnexosUnidad({ area: "Inglés", tema: "T", producto: "Our Plan" });
+  igual(ax.autoevaluacion.length, 6, "la autoevaluación tiene un ítem de comprensión");
+  assert(ax.autoevaluacion.some((i) => i.exige === "comprension"), "ítem de comprensión");
+  assert(/presentar|present/i.test(ax.autoevaluacion[5].criterio), "el último ítem sigue siendo presentar el producto");
+  igual(EVALUACION_CIERRE_MAPA.instrumento, "Autoevaluación (Anexo E) y coevaluación (Anexo D)", "instrumento");
+  const anexos = { autoevaluacion: [{ indicadorCodigo: "ING-2-I02", exige: "produccion" }, { indicadorCodigo: "ING-2-I01", exige: "comprension" }], coevaluacion: [{ indicadorCodigo: "ING-2-I01", exige: "produccion" }] };
+  const dias = [{ indicadoresTrabajados: [{ id: "ING-2-I01" }], momentos: [{ evaluacion: { ...EVALUACION_CIERRE_MAPA } }] }];
+  vincularInstrumentosConClases(dias, anexos, () => ["comprension"]);
+  igual(dias[0].momentos[0].evaluacion.criterios, "Anexo D, criterio 1; Anexo E, criterio 2", "una clase de comprensión cita criterios de E y D");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);
