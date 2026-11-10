@@ -690,6 +690,34 @@ export const sinEquiposEnTodo = (nodo) => {
   return { cambios, restantes };
 };
 
+// Adaptaciones NEAE de la fase: sin tecnología declarada, alternativas físicas (g26: «audio», «grabar en audio», «grabadoras de voz»).
+const CAMBIOS_NEAE_SIN_TECNOLOGIA = [
+  [/formatos digitales ampliados o audio/gi, "material ampliado impreso o lectura en voz alta del docente"],
+  [/material ampliado y audio/gi, "material ampliado y lectura en voz alta del docente"],
+  [/grabar en audio (sus|las|los) respuestas/gi, "dar sus respuestas oralmente"],
+  [/el uso de (grabadoras? de voz|grabaciones( de voz)?)/gi, "responder oralmente al docente"],
+  [/grabaciones de voz/gi, "respuestas orales al docente"],
+  [/\bformato digital( accesible)?\b/gi, "formato impreso"],
+  [/grabadoras? de voz/gi, "respuestas orales al docente"],
+  [/permitir grabaciones/gi, "permitir respuestas orales al docente"],
+  [/\bformatos digitales\b/gi, "formatos impresos"],
+  [/\bgrabaciones\b/gi, "respuestas orales"],
+  [/\baudios\b/gi, "lecturas en voz alta del docente"],
+  [/\baudio\b/gi, "lectura en voz alta del docente"],
+];
+/** Cambia en las adaptaciones NEAE de una fase la tecnología por alternativas físicas. Devuelve cuántos textos cambió. */
+export const adaptacionesNEAESinTecnologia = (fase = {}) => {
+  const adaptaciones = fase?.adaptacionesNEAE;
+  if (!adaptaciones || typeof adaptaciones !== "object") return 0;
+  let cambios = 0;
+  Object.entries(adaptaciones).forEach(([k, v]) => {
+    if (typeof v !== "string") return;
+    const nuevo = CAMBIOS_NEAE_SIN_TECNOLOGIA.reduce((t, [re, por]) => t.replace(re, por), v);
+    if (nuevo !== v) { adaptaciones[k] = nuevo; cambios += 1; }
+  });
+  return cambios;
+};
+
 /** Anexo K: sin tecnología declarada, las adaptaciones no suponen grabaciones ni audios (g25). */
 export const adaptacionSinTecnologia = (p = {}) => {
   const quitar = (t) => (typeof t === "string"
@@ -913,14 +941,20 @@ export const diagnosticoDeFases = (fases = [], hayMapa = false) => {
  */
 // Raíz de 6 letras: «Exploración» y «Explorando», «gastronomía» y «gastronómica» cuentan como la misma palabra (g25).
 const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2).map((w) => w.slice(0, 6)));
-/** Dos títulos casi iguales: mismas palabras (por su raíz) con otro orden, mayúsculas o una preposición distinta (Jaccard ≥ umbral). */
+// Palabras que no distinguen un título de otro.
+const PALABRAS_GENERICAS = new Set(["nuestr", "entre", "sobre", "para", "desde", "juntos", "juntas"]);
+const significativas = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 3).map((w) => w.slice(0, 6)).filter((w) => !PALABRAS_GENERICAS.has(w));
+/** Dos títulos casi iguales: mismas palabras (por su raíz) con otro orden, mayúsculas o una preposición distinta (Jaccard ≥ umbral), o que abren con la misma palabra y comparten otra (g26: «Investigadores en acción…» / «Analizando una pieza modelo» y «Analizando un modelo»). */
 export const titulosSimilares = (a, b, umbral = 0.6) => {
   const x = palabrasDeTitulo(a);
   const y = palabrasDeTitulo(b);
   if (!x.size || !y.size) return false;
   if (String(a).trim().toLowerCase() === String(b).trim().toLowerCase()) return true;
   const comunes = [...x].filter((w) => y.has(w)).length;
-  return comunes / (x.size + y.size - comunes) >= umbral;
+  if (comunes / (x.size + y.size - comunes) >= umbral) return true;
+  const sa = significativas(a);
+  const sb = significativas(b);
+  return Boolean(sa.length && sb.length && sa[0] === sb[0] && sa.slice(1).some((w) => sb.slice(1).includes(w)));
 };
 export const titulosParecidos = (titulos = [], umbral = 0.6) => {
   const pares = [];
@@ -1276,6 +1310,17 @@ export const asuntoDeLectura = (situacion = {}, producto = "") => {
   const nombre = String(producto || "").trim();
   if (!nombre) return ASUNTO_LECTURA_GENERAL;
   return /\bpropos(al|uesta)\b/i.test(nombre) ? `qué recomienda «${nombre}»` : `cómo usar «${nombre}»`;
+};
+
+/**
+ * Aviso para el docente cuando la audiencia configurada abarca más de un curso: la prueba con la audiencia puede no caber
+ * en una clase. No cambia el plan (César, 2026-11-10); solo lo señala.
+ */
+export const avisoAudienciaMultiple = (audiencia = "", minutos = 45) => {
+  const texto = String(audiencia || "");
+  const cursos = new Set((texto.match(/\b\d+\.º/g) || []));
+  if (cursos.size < 2 && !/\b(cursos|grados)\b/i.test(texto)) return "";
+  return `La audiencia configurada («${texto.trim()}») abarca más de un curso: puede no caber en ${minutos} min; considera invitar una muestra de cada curso.`;
 };
 
 export const alcanceDeSituacion = (situacion = {}) => {

@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -5880,6 +5880,9 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   });
   const mallaContenidos = contenidosRuta.union;
   const advertencias = [...avisosPlanMaestro];
+  // Audiencia de más de un curso: el docente decide; la unidad no cambia.
+  const avisoAudiencia = avisoAudienciaMultiple(datos.planMaestro?.situacion?.audiencia, duracionHoraClase);
+  if (avisoAudiencia) advertencias.push(avisoAudiencia);
 
   // GUARDA DE TRAZABILIDAD (no bloquea): la malla ya está resuelta para esta
   // unidad. Si NO trae criterios de evaluación, los anexos del PDF saldrán con
@@ -6420,8 +6423,10 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     : anexosBase;
   // Todo el texto generado, sin video ni proyector: también el detalle de evidencias, las adaptaciones NEAE y las observaciones (g24).
   if (rutaPlanMaestro?.mapa) {
+    // Adaptaciones NEAE de cada fase: alternativas físicas, no tecnología (decisión de César, 2026-11-10).
+    const enNea = (unidadResult.fasesSemanales || []).reduce((n, fase) => n + adaptacionesNEAESinTecnologia(fase), 0);
     const limpieza = [sinEquiposEnTodo(unidadResult.fasesSemanales), sinEquiposEnTodo(unidadResult.anexos)];
-    const cambiados = limpieza.reduce((n, l) => n + l.cambios, 0);
+    const cambiados = limpieza.reduce((n, l) => n + l.cambios, 0) + enNea;
     const sinResolver = [...new Set(limpieza.flatMap((l) => l.restantes))].slice(0, 6);
     unidadResult.avisosRedaccion = [
       ...(unidadResult.avisosRedaccion || []),

@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1166,6 +1166,11 @@ check("títulos: casi duplicados por raíz, título que refleja la función, dig
   assert(titulosSimilares(C1, "Exploración de Nuestra Comida Local"), "C1/C6");
   assert(titulosSimilares("Exploración de Nuestra Comida Local", "Explorando nuestra comida local"), "C6/C10");
   assert(titulosSimilares(C1, "Explorando la cultura gastronómica local"), "C1/C14");
+  // g26: misma apertura y otra raíz compartida.
+  assert(titulosSimilares("Investigadores en acción: Analizando los problemas", "Investigadores en Acción: Diseñando Nuestra Encuesta"), "Problemas C2/C5");
+  assert(titulosSimilares("Analizando una pieza modelo: Greetings and Goodbyes", "Analizando un modelo: Politeness and Encouragement"), "Frases C2/C4");
+  assert(!titulosSimilares("Explorando Nuestras Rutinas Diarias", "Explorando la Fiabilidad de Nuestras Fuentes"), "«Nuestras» no distingue");
+  assert(!titulosSimilares("Redactando frases útiles", "Redactando el borrador de Requesting Assistance"), "misma palabra sola no basta");
   assert(!titulosSimilares("Comparar para comprender: consejos y recomendaciones escolares", "Presentación de Our School Survival Guide"), "distintos");
   assert(!titulosSimilares("Revisión y Corrección Final de «Our School Survival Guide»", "Presentación de Our School Survival Guide"), "Escuela guía C10/C11 no se confunden");
   // El título refleja la función.
@@ -1181,6 +1186,37 @@ check("títulos: casi duplicados por raíz, título que refleja la función, dig
   // Anexo K.
   const p = adaptacionSinTecnologia({ perfil: "Dificultad", acceso: "Entregar la transcripción de cada audio o diálogo.", evaluacion: "Valorar la intención comunicativa; permitir grabaciones." });
   igual(p, { perfil: "Dificultad", acceso: "Entregar la transcripción de cada diálogo leído.", evaluacion: "Valorar la intención comunicativa; permitir respuestas orales al docente." }, "Anexo K");
+});
+
+check("aviso al docente cuando la audiencia abarca más de un curso", () => {
+  assert(/más de un curso: puede no caber en 45 min; considera invitar una muestra/.test(avisoAudienciaMultiple("los estudiantes de 4.º, 5.º y 6.º de primaria y de 1.º de secundaria", 45)), "varios cursos");
+  assert(/cursos/.test(avisoAudienciaMultiple("los cursos de primaria", 45)), "«cursos»");
+  igual(avisoAudienciaMultiple("los estudiantes de 6.º de primaria y un visitante", 45), "", "un solo curso: sin aviso");
+  igual(avisoAudienciaMultiple("la dirección del centro", 45), "", "sin cursos: sin aviso");
+});
+
+check("adaptaciones NEAE de la fase: alternativas físicas en vez de audio, grabaciones o formatos digitales", () => {
+  const fase = { adaptacionesNEAE: {
+    evaluacion: "Los estudiantes con dificultades visuales realizan actividades a través de formatos digitales ampliados o audio, garantizando el acceso.",
+    acceso: "Se proporciona material ampliado y audio para estudiantes con baja visión, permitiendo la lectura.",
+    metodologicas: "Se permitirá el uso de grabadoras de voz para estudiantes que lo requieran.",
+    otra: "Se permitirá a los estudiantes grabar en audio sus respuestas y entregarlas.",
+  } };
+  const n = adaptacionesNEAESinTecnologia(fase);
+  igual(fase.adaptacionesNEAE, {
+    evaluacion: "Los estudiantes con dificultades visuales realizan actividades a través de material ampliado impreso o lectura en voz alta del docente, garantizando el acceso.",
+    acceso: "Se proporciona material ampliado y lectura en voz alta del docente para estudiantes con baja visión, permitiendo la lectura.",
+    metodologicas: "Se permitirá responder oralmente al docente para estudiantes que lo requieran.",
+    otra: "Se permitirá a los estudiantes dar sus respuestas oralmente y entregarlas.",
+  }, "textos");
+  assert(n === 4, `cambios ${n}`);
+  igual(adaptacionesNEAESinTecnologia({}), 0, "sin adaptaciones");
+  // g26: lo que quedó en Alimentación y Rutinas regeneradas.
+  const nuevas = { adaptacionesNEAE: { a: "Se evaluará con respuestas orales, permitiendo el uso de grabaciones si es necesario.", b: "Fichas en formato digital accesible para quien lo necesite.", c: "Se permitirá el uso de grabaciones de voz para la autoevaluación.", d: "Entregar borradores en formato digital con opciones de lectura ampliada." } };
+  adaptacionesNEAESinTecnologia(nuevas);
+  igual(nuevas.adaptacionesNEAE, { a: "Se evaluará con respuestas orales, permitiendo responder oralmente al docente si es necesario.", b: "Fichas en formato impreso para quien lo necesite.", c: "Se permitirá responder oralmente al docente para la autoevaluación.", d: "Entregar borradores en formato impreso con opciones de lectura ampliada." }, "grabaciones y formato digital");
+  const sin = sinEquiposEnTodo(fase);
+  igual(sin.restantes, [], "ya no queda tecnología que avisar");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);
