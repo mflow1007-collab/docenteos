@@ -1024,5 +1024,24 @@ check("la semilla no pisa la audiencia que cambió el docente (invitado, entrega
   assert(alcanceDeSituacion({ semillaId: "otra", audiencia: "x" }) === null, "semilla sin alcance");
 });
 
+check("el título no lleva acentos graves: el nombre del producto va entre comillas", () => {
+  const corregidos = [];
+  const d = conTitulosCorregidos({ titulo: "Comenzamos: planeando el `Useful Classroom Phrases Talk`", momentos: [] }, { corregidos });
+  igual(d.titulo, "Comenzamos: planeando el «Useful Classroom Phrases Talk»", "título");
+  assert(corregidos.some((c) => /acento grave/.test(c)), "se avisa");
+  igual(conTitulosCorregidos({ titulo: "Sin marcas", momentos: [] }, { corregidos: [] }).titulo, "Sin marcas", "sin cambios");
+});
+
+check("Proyectos sin recorrido: «ordenar» nombra su fuente y no añade tiempo; con recorrido queda como estaba", () => {
+  const SEC = ["Greetings and Goodbyes", "Asking for Permission", "Requesting Assistance", "Materials and Work", "Teacher Instructions", "Politeness and Encouragement"];
+  const frases = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "proyectos", secciones: SEC } });
+  const ordenar = frases.filas.flatMap((f) => f.tareas).filter((t) => t.clave === "analizar_ordenar");
+  assert(ordenar.length && ordenar.every((t) => /fuente que trae el docente/.test(t.instruccion)), "frases: ordenar nombra su fuente");
+  assert(!/recibidos/.test(ordenar[0].instruccion), "ya no dice «datos recibidos»");
+  assert(frases.modo !== "breve" && !fallosQueDetienen(frases).length, "la unidad cabe sin pasar a versión breve");
+  const guia = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "proyectos" } });
+  assert(guia.filas.some((f) => f.tareas.some((t) => t.clave === "recorrer_lugares")) && !guia.filas.some((f) => f.tareas.some((t) => /fuente que trae el docente/.test(t.instruccion || ""))), "con recorrido, sin cambios");
+});
+
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);
 if (fallos) process.exit(1);

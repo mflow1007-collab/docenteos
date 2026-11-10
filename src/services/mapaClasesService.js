@@ -160,6 +160,14 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) push(u.recorrerLugares, [...orden], 0, 1, 0);
   // Cada estrategia hace lo suyo: la indagación valida sus fuentes, no solo ordena datos.
   if (estrategia === "indagacion_dialogica") [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push(t, [...orden], 0, 2, k));
+  // Proyectos sin recorrido ni entrevista: los «datos recibidos» no vienen de nadie. En «Gestión del conocimiento» (Referente
+  // por proyecto 2022, pp. 32–33: buscar, leer, sistematizar fuentes) se ordena lo reunido de la fuente que trae el docente
+  // y de los modelos (revisión de g20, 2026-11-10). El tiempo no cambia: no se añade ninguna tarea.
+  if (estrategia === "proyectos" && !items.some((it) => /^(visitar|recorrer|indagar)/.test(it.t.clave))) {
+    items.filter((it) => it.t.clave === "analizar_ordenar").forEach((it) => {
+      it.t = { ...it.t, hace: "Ordenan en una tabla común lo reunido de la fuente que trae el docente y de los modelos analizados (ejemplos, frases o datos) y analizan un modelo para decidir el formato. Aún no redactan la pieza." };
+    });
+  }
   // Presentar y usar el producto con la audiencia son siempre dos tareas: la de usarlo cubre interactuar.
   const prueba = pruebaDelProducto(producto, orden);
   // Una propuesta se presenta completa y se defiende: no «se usa» (Guía 2025, p. 21).
@@ -923,6 +931,11 @@ export const conTitulosCorregidos = (dia = {}, { modeloFicticio = false, nombreM
     return nuevo;
   }, CLAVES_INTERNAS);
   if (tildes) corregidos.push(`tildes (${tildes} texto${tildes > 1 ? "s" : ""})`);
+  // La IA marca el nombre del producto con acentos graves (`Useful Classroom Phrases Talk`): en el título van comillas.
+  if (typeof dia.titulo === "string" && dia.titulo.includes("`")) {
+    dia.titulo = dia.titulo.replace(/`([^`]+)`/g, "«$1»").replace(/`/g, "");
+    corregidos.push("título con acento grave: se pasó a comillas");
+  }
   if (dia.titulo) dia.titulo = conErratasCorregidas(dia.titulo);
   if (dia.intencionPedagogica) dia.intencionPedagogica = conErratasCorregidas(dia.intencionPedagogica);
   if (dia.textoModelo?.titulo) dia.textoModelo.titulo = conTildesCorregidas(guia(dia.textoModelo.titulo)).replace(/\b[Ee]ntrevista simulada\b/gi, "Entrevista modelo");

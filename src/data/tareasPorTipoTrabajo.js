@@ -140,7 +140,7 @@ export const DETALLE_TAREA = {
   visitar_registrar: { hace: "Redactan desde las notas de la tabla un registro de la entrevista. Se llama registro, no transcripción: nadie grabó.", senal: "regist|redact" },
   visitar_segunda: { hace: "Hacen una segunda ronda de preguntas solo sobre los datos que faltan en la tabla.", senal: "entrevist|pregunt" },
   describir_modelo: { hace: "Analizan una pieza modelo y anotan cómo se hace. Es apoyo breve.", senal: "analiz|observ|identific|modelo" },
-  describir_redactar: { hace: "Cada estudiante redacta y firma su pieza con los datos recibidos.", senal: "redact|escrib|elabor", firma: "Cada estudiante firma su pieza." },
+  describir_redactar: { hace: "Redactan y firman su pieza, cada estudiante la suya, con los datos recibidos.", senal: "redact|escrib|elabor", firma: "Cada estudiante firma su pieza." },
   analizar_ordenar: { hace: "Ordenan los datos recibidos y analizan un modelo para decidir el formato. Aún no redactan la pieza.", senal: "orden|clasific|organiz", soloComprender: true },
   analizar_borrador: { hace: "Redactan el borrador con los datos ordenados, cada estudiante firma una entrada, y comprueban cada dato contra su fuente.", senal: "borrador|redact|escrib", firma: "Cada estudiante firma su entrada." },
   analizar_verificar: { hace: "Verifican con otra fuente solo los datos dudosos.", senal: "verific|comprob" },
