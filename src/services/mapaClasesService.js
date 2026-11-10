@@ -716,6 +716,7 @@ export const sinLugaresEnClase = (dia = {}, corregidos = []) => {
 const conMayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 const UMBRAL_RECOGER_DATOS = 15;
+const ETIQUETA_POR_TAREA = { describir_modelo: "Analizar un modelo de", describir_redactar: "Redactar", analizar_ordenar: "Organizar lo reunido para", analizar_borrador: "Escribir el borrador de", analizar_verificar: "Comprobar los datos de" };
 const TAREAS_CON_FUNCION_PROPIA = new Set(["analizar_ordenar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos"]);
 
 /**
@@ -748,7 +749,12 @@ export const focoDeFila = (fila = {}, filas = []) => {
   // «Comprar» solo tiene sentido si la unidad pide: en otro tema, will expresa planes.
   const hayPedido = filas.some((f) => f.secciones?.some((x) => PRUEBA_POR_SECCION[x]?.tipo === "pedido"));
   const funcionDelTexto = delTexto && filas.length && !hayPedido && /comprar/i.test(delTexto) ? "Expresar planes" : delTexto;
-  const funcion = funciones.slice(0, 2).join("; ") || (funcionDelTexto ? conMayuscula(funcionDelTexto.trim()) : fija?.[0] || "");
+  // Describir y analizar sin función propia en la malla: la etiqueta nombra la sección que la clase trabaja, no una función
+  // de otro tema («actividades cotidianas» en una unidad de frases del aula). Formato aprobado por César, 2026-11-10.
+  const secsDeLaTarea = (fila.tareas || []).find((t) => t.clave === clave)?.secciones || [];
+  const deSeccion = ETIQUETA_POR_TAREA[clave] && secsDeLaTarea.length >= 1 && secsDeLaTarea.length <= 2
+    ? `${ETIQUETA_POR_TAREA[clave]} ${secsDeLaTarea.map((x) => `«${x}»`).join(" y ")}` : "";
+  const funcion = funciones.slice(0, 2).join("; ") || deSeccion || (funcionDelTexto ? conMayuscula(funcionDelTexto.trim()) : fija?.[0] || "");
   if (!gramatica.length) {
     if (!fija) return funcion;
     // Describir u ordenar datos usa el presente simple que la malla da para este tema, no el ejemplo de otro.

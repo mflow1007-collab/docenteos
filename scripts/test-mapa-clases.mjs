@@ -878,6 +878,12 @@ check("la estructura del día sale de la fila y corresponde a la tarea", () => {
   // Describir y organizar datos no arrastra la función de la malla de otro tema («para referirse a actividades cotidianas»).
   const delTema = [{ categoria: "gramatica", texto: "Presente simple para referirse a actividades cotidianas: I wake up at six." }];
   igual(focoDeFila(fila("describir_ordenar", []), [fila("describir_ordenar", delTema)]), "Describir y organizar datos: presente simple", "describir sin el «para» de la malla");
+  // La etiqueta de describir y analizar nombra la sección de la clase (formato aprobado 2026-11-10); sin sección, la de la tarea.
+  const deSec = (clave, secciones) => ({ tareas: [{ clave, secciones }], contenidos: [{ categoria: "gramatica", texto: "Presente simple para referirse a actividades cotidianas: I wake up." }] });
+  igual(focoDeFila(deSec("describir_modelo", ["Greetings and Goodbyes"])), "Analizar un modelo de «Greetings and Goodbyes»: presente simple", "modelo con su sección");
+  const filaOrdenar = deSec("analizar_ordenar", ["Requesting Assistance", "Materials and Work"]);
+  igual(focoDeFila(filaOrdenar, [filaOrdenar]), "Organizar lo reunido para «Requesting Assistance» y «Materials and Work»: presente simple", "ordenar con dos secciones");
+  assert(!/«/.test(focoDeFila(deSec("describir_modelo", ["A", "B", "C"]))), "con tres o más secciones, la etiqueta de la tarea");
   igual(focoDeFila(fila("evaluar_comentarios")), "Responder a los comentarios (_They ask for…_, _We should change…_)", "responder");
   igual(focoDeFila(fila("corregir_final")), "Corregir y mejorar lo escrito: presente simple", "por tipo");
   igual(focoDeFila(fila("proponer_elegir", [{ categoria: "gramatica", texto: "Should para pedir y dar consejos y sugerencias: You should drink more. Other." }])), "Pedir y dar consejos y sugerencias: should", "gramática");
