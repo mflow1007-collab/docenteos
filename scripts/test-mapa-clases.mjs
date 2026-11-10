@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1140,6 +1140,9 @@ check("todo el texto generado queda sin video ni proyector: detalle de evidencia
   igual(fase.adaptacionesNEAE.acceso, "Proveer transcripciones y apoyo visual en la pizarra.", "NEAE: proyector");
   igual(fase.adaptacionesNEAE.metodologicas, "Usar el ejemplo como apoyo.", "NEAE: video");
   igual(fase.observaciones, "Revisar los ejemplos con el grupo.", "observaciones");
+  const audioModelo = { a: "Escuchan un audio modelo que muestra un diálogo sobre sugerencias.", b: "El audio modelo se escucha dos veces." };
+  sinEquiposEnTodo(audioModelo);
+  igual(audioModelo, { a: "Escuchan un diálogo modelo leído por el docente que muestra un diálogo sobre sugerencias.", b: "El diálogo modelo leído por el docente se escucha dos veces." }, "audio modelo → leído por el docente");
   igual(fase.dias[0].momentos[0].evidenciasDetalle.conocimientos[0], "Reconocimiento de lugares en el ejemplo.", "detalle de evidencias");
   igual(fase.dias[0].momentos[0].evidenciasDetalle.items[0], { texto: "Lugares del ejemplo", estado: "video" }, "el valor interno no se toca");
   igual(fase.dias[0].momentos[0].evidenciasDetalle.trazabilidad[0].evidenciaTexto, "Del ejemplo", "trazabilidad");
@@ -1155,6 +1158,29 @@ check("el título no lleva comillas dobles internas: pasan a « »", () => {
   igual(conTitulosCorregidos({ titulo: 'Revisión y Corrección Final de "Our School Survival Guide"', momentos: [] }, { corregidos: c }).titulo, "Revisión y Corrección Final de «Our School Survival Guide»", "dobles rectas");
   igual(conTitulosCorregidos({ titulo: "Final de “Our Guide”", momentos: [] }, { corregidos: [] }).titulo, "Final de «Our Guide»", "dobles curvas");
   assert(c.some((x) => /comillas dobles/.test(x)), "se avisa");
+});
+
+check("títulos: casi duplicados por raíz, título que refleja la función, digital como equipo y Anexo K sin tecnología (g25)", () => {
+  // Alimentación g25: C1, C6, C10 y C14 eran el mismo título con otras palabras.
+  const C1 = "Exploración de Nuestra Gastronomía Local";
+  assert(titulosSimilares(C1, "Exploración de Nuestra Comida Local"), "C1/C6");
+  assert(titulosSimilares("Exploración de Nuestra Comida Local", "Explorando nuestra comida local"), "C6/C10");
+  assert(titulosSimilares(C1, "Explorando la cultura gastronómica local"), "C1/C14");
+  assert(!titulosSimilares("Comparar para comprender: consejos y recomendaciones escolares", "Presentación de Our School Survival Guide"), "distintos");
+  assert(!titulosSimilares("Revisión y Corrección Final de «Our School Survival Guide»", "Presentación de Our School Survival Guide"), "Escuela guía C10/C11 no se confunden");
+  // El título refleja la función.
+  const comentar = { titulo: "Explorando nuestra comida local", tareasMapa: [{ clave: "comentar" }] };
+  assert(tituloConLaFuncion(comentar, "Comentando los textos") && comentar.titulo === "Comentando los textos", "comentar no explora");
+  const modelo = { titulo: "Explorando un menú modelo", tareasMapa: [{ clave: "describir_modelo" }] };
+  assert(!tituloConLaFuncion(modelo, "Analizando una pieza modelo") && modelo.titulo === "Explorando un menú modelo", "describir_modelo sí explora");
+  assert(!tituloConLaFuncion({ titulo: "Redactando el borrador", tareasMapa: [{ clave: "comentar" }] }, "x"), "otros títulos no se tocan");
+  // «digital» cuenta como equipo en los recursos del Cierre.
+  const m = [{ nombre: "Cierre", actividades: ["Comparten en plenaria."], recursos: { didacticos: "pizarra, archivo digital del equipo", tecnologicos: "x" } }];
+  sinEquipos(m, "Pizarra y marcadores");
+  igual(m[0].recursos.didacticos, "pizarra", "sin recursos digitales");
+  // Anexo K.
+  const p = adaptacionSinTecnologia({ perfil: "Dificultad", acceso: "Entregar la transcripción de cada audio o diálogo.", evaluacion: "Valorar la intención comunicativa; permitir grabaciones." });
+  igual(p, { perfil: "Dificultad", acceso: "Entregar la transcripción de cada diálogo leído.", evaluacion: "Valorar la intención comunicativa; permitir respuestas orales al docente." }, "Anexo K");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);

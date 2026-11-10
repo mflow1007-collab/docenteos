@@ -607,7 +607,7 @@ export const didacticosDeFila = (fila) => {
 export const INICIO_PRIMERA_CLASE = "Recuperación de experiencias: comentan qué han vivido o visto sobre este tema. (What do you know about this topic?)";
 
 // Equipos que el mapa no prevé: no se sabe si el centro los tiene.
-const EQUIPO = /\b(videos?|clips?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
+const EQUIPO = /\b(videos?|clips?|digital(es)?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
 export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con la clase y dicen qué les llama la atención.";
 
 // Conserva la mayúscula inicial de lo que reemplaza («Del video» → «Del ejemplo»).
@@ -619,6 +619,7 @@ const sinVideoEs = (t) => (typeof t === "string" ? t
   .replace(/\b(los|unos|estos|nuestros) videos\b/gi, (m, art) => conInicial(m, `${art.toLowerCase()} ejemplos`))
   .replace(/\b(el|un|su) (retro)?proyector\b/gi, (m) => conInicial(m, "la pizarra"))
   .replace(/\b(en|con|del) (retro)?proyector\b/gi, (m, pre) => conInicial(m, `${pre.toLowerCase()} la pizarra`))
+  .replace(/\b(un|el) audio modelo\b/gi, (m, art) => conInicial(m, `${art.toLowerCase()} diálogo modelo leído por el docente`))
   .replace(/\bvideos?\b/gi, (v) => conInicial(v, /s$/i.test(v) ? "ejemplos" : "ejemplo")) : t);
 
 /**
@@ -687,6 +688,14 @@ export const sinEquiposEnTodo = (nodo) => {
   };
   recorrer(nodo);
   return { cambios, restantes };
+};
+
+/** Anexo K: sin tecnología declarada, las adaptaciones no suponen grabaciones ni audios (g25). */
+export const adaptacionSinTecnologia = (p = {}) => {
+  const quitar = (t) => (typeof t === "string"
+    ? t.replace(/permitir grabaciones/gi, "permitir respuestas orales al docente").replace(/cada audio o di[aá]logo/gi, "cada diálogo leído")
+    : t);
+  return { ...p, acceso: quitar(p.acceso), evaluacion: quitar(p.evaluacion) };
 };
 
 /** Quita del texto modelo los equipos que el mapa no prevé. Devuelve cuántas líneas cambió y las que aún nombran un equipo. */
@@ -848,6 +857,17 @@ export const focoDeFila = (fila = {}, filas = []) => {
   return `${funcion}: ${nombres.join(", ")}`;
 };
 
+// «Explorando…» solo describe clases que exploran: modelos, saberes previos, recorridos (g25: C10 comentar y C14 comprar se titulaban «Explorando…»).
+const TAREAS_QUE_EXPLORAN = new Set(["acordar", "saberes_previos", "recorrer_lugares", "visitar_modelo", "describir_modelo", "aplicar_modelo", "problema_analizar", "indagar_contrastar"]);
+/** Cambia por el título de la tarea el que no corresponde a la función de la clase. Devuelve si lo cambió. */
+export const tituloConLaFuncion = (dia = {}, tituloTarea = "") => {
+  const primera = dia?.tareasMapa?.[0]?.clave;
+  const explora = /^explor/i.test(String(dia?.titulo || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+  if (!tituloTarea || !primera || !explora || TAREAS_QUE_EXPLORAN.has(primera)) return false;
+  dia.titulo = tituloTarea;
+  return true;
+};
+
 /** Fases de cada actividad, solo si la clase lleva más de una: su nombre, no su número (César, 2026-11-06). */
 export const fasesDeActividades = (fila = {}, tareaIds = []) => {
   const nombres = [...new Set([...(fila.tareas || []).map((t) => t.faseNombre), ...(fila.fases || []).map((f) => f.nombre)])].filter(Boolean);
@@ -891,9 +911,10 @@ export const diagnosticoDeFases = (fases = [], hayMapa = false) => {
  * Pares de clases cuyos títulos son casi iguales (comparten la mayoría de sus palabras): el docente no distingue
  * una clase de otra. Los iguales del todo ya los trata el control de títulos repetidos.
  */
-const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2));
-/** Dos títulos casi iguales: mismas palabras con otro orden, mayúsculas o una preposición distinta (Jaccard ≥ umbral). */
-export const titulosSimilares = (a, b, umbral = 0.7) => {
+// Raíz de 6 letras: «Exploración» y «Explorando», «gastronomía» y «gastronómica» cuentan como la misma palabra (g25).
+const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2).map((w) => w.slice(0, 6)));
+/** Dos títulos casi iguales: mismas palabras (por su raíz) con otro orden, mayúsculas o una preposición distinta (Jaccard ≥ umbral). */
+export const titulosSimilares = (a, b, umbral = 0.6) => {
   const x = palabrasDeTitulo(a);
   const y = palabrasDeTitulo(b);
   if (!x.size || !y.size) return false;
@@ -901,7 +922,7 @@ export const titulosSimilares = (a, b, umbral = 0.7) => {
   const comunes = [...x].filter((w) => y.has(w)).length;
   return comunes / (x.size + y.size - comunes) >= umbral;
 };
-export const titulosParecidos = (titulos = [], umbral = 0.7) => {
+export const titulosParecidos = (titulos = [], umbral = 0.6) => {
   const pares = [];
   titulos.forEach((a, i) => titulos.slice(i + 1).forEach((b, k) => {
     // Los iguales (sin distinguir mayúsculas) los resuelve el generador por su cuenta.
