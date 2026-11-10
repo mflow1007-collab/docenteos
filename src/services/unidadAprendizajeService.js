@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -6257,6 +6257,9 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         // Cierre con mapa: autoevaluación y coevaluación con criterios de proceso (I-20).
         const cierreMapa = (d.momentos || []).find((m) => m?.nombre === "Cierre");
         if (cierreMapa) cierreMapa.evaluacion = { ...cierreMapa.evaluacion, ...EVALUACION_CIERRE_MAPA };
+        // Inicio con mapa: observación directa sin instrumento formal; Registro anecdótico (Anexo C) solo si se anota algo.
+        const inicioMapa = (d.momentos || []).find((m) => m?.nombre === "Inicio");
+        if (inicioMapa) inicioMapa.evaluacion = { ...inicioMapa.evaluacion, ...EVALUACION_INICIO_MAPA };
         desarrollo.recursos = { ...desarrollo.recursos, humanos: d.fijoDelMapa.humanos, didacticos: d.fijoDelMapa.didacticos, tecnologicos: "No requerido para esta actividad" };
         // Los pasos del banco ya traen sus firmas.
         if (!d.minutosSecuencia?.length) desarrollo.actividades = conFirmas(desarrollo.actividades || [], d.tareasMapa, d.tareaIdsDesarrollo);

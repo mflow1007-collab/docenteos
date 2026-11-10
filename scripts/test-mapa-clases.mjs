@@ -16,7 +16,7 @@ import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstru
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
-import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
+import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
 import { SECUENCIAS_POR_TAREA } from "../src/data/secuenciasTareas.js";
@@ -1090,6 +1090,26 @@ check("el texto modelo no supone equipos que el mapa no prevé", () => {
   const m = [{ nombre: "Cierre", actividades: ["Comparten en plenaria."], recursos: { didacticos: "pizarra, retroproyector para presentaciones", tecnologicos: "retroproyector" } }];
   sinEquipos(m, "Pizarra y marcadores");
   igual(m[0].recursos.didacticos, "pizarra", "sin retroproyector en los didácticos");
+  // g23, Escuela guía C8: el video también se cuela en las actividades del Desarrollo.
+  const d = [{ nombre: "Desarrollo", actividades: ["Ensayan (en parejas) situaciones de pedir ayuda utilizando la pieza escrita y las frases del video (_Excuse me…_).", "Observan el video y el proyector.", "Escuchan los videos."], actividadesDetalle: [{ texto: "Miran un video." }] }];
+  const rest = sinEquipos(d, "x");
+  igual(d[0].actividades, ["Ensayan (en parejas) situaciones de pedir ayuda utilizando la pieza escrita y las frases del ejemplo (_Excuse me…_).", "Observan el ejemplo y la pizarra.", "Escuchan los ejemplos."], "actividades del Desarrollo sin video ni proyector");
+  igual(d[0].actividadesDetalle[0].texto, "Miran el ejemplo.", "detalle");
+  igual(rest, [], "nada queda sin resolver");
+  const g = [{ nombre: "Desarrollo", actividades: ["Escuchan la grabadora."] }];
+  assert(sinEquipos(g, "x").some((r) => /^Desarrollo: Escuchan la grabadora/.test(r)), "lo que no sabe cambiar se avisa");
+});
+
+check("Inicio con mapa: observación directa sin instrumento formal, Anexo C solo si se anota algo, y sin «criterio» de Anexo B", () => {
+  igual(EVALUACION_INICIO_MAPA.instrumento, "Sin instrumento formal; Registro anecdótico (Anexo C) solo si se anota algo", "instrumento");
+  igual(EVALUACION_INICIO_MAPA.tecnica, "Observación directa", "técnica");
+  const dias = [{ indicadoresTrabajados: [{ id: "ING-2-I01" }], momentos: [
+    { nombre: "Inicio", evaluacion: { ...EVALUACION_INICIO_MAPA } },
+    { nombre: "Desarrollo", evaluacion: { instrumento: "Lista de cotejo oral (Anexo B)" } },
+  ] }];
+  vincularInstrumentosConClases(dias, { listaCotejoOral: [{ indicadorCodigo: "ING-2-I01" }] });
+  assert(!dias[0].momentos[0].evaluacion.criterios, "el Inicio no cita criterios del Anexo B");
+  igual(dias[0].momentos[1].evaluacion.criterios, "Anexo B, criterio 1", "la clase sigue citando criterios en el Desarrollo");
 });
 
 console.log(`\nResultado: ${pasos} pasan, ${fallos} fallan.`);

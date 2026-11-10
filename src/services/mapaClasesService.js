@@ -535,6 +535,8 @@ export const evaluacionDeFila = (fila) => {
 };
 
 // Cierre de una unidad con mapa: la reflexión de la clase se evalúa con los criterios de proceso de los Anexos E y D.
+// Inicio de una unidad con mapa: se observa sin instrumento formal; el Registro anecdótico (Anexo C) solo si se anota algo (g23: «criterio 7» en 15 Inicios).
+export const EVALUACION_INICIO_MAPA = { tipo: "Diagnóstica", agente: "Heteroevaluación", tecnica: "Observación directa", instrumento: "Sin instrumento formal; Registro anecdótico (Anexo C) solo si se anota algo" };
 export const EVALUACION_CIERRE_MAPA = { tipo: "Formativa", agente: "Autoevaluación y coevaluación", tecnica: "Reflexión oral y ticket de salida", instrumento: "Autoevaluación (Anexo E) y coevaluación (Anexo D)" };
 
 // Qué anexo es cada instrumento que nombra una clase y dónde están sus criterios.
@@ -607,8 +609,16 @@ export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con
 export const sinEquipos = (momentos = [], didacticosFila = "") => {
   const restantes = [];
   // El video también se nombra en las evidencias y en las preguntas, en cualquier momento.
-  const sinVideo = (t) => (typeof t === "string" ? t.replace(/\b(the|a|our|this) video\b/gi, "the example").replace(/\b(el|un|nuestro|este) video\b/gi, "el ejemplo") : t);
+  // También en las actividades de cualquier momento, incluido el Desarrollo (g23, Escuela guía C8: «las frases del video»).
+  const sinVideo = (t) => (typeof t === "string" ? t
+    .replace(/\b(the|a|our|this) video\b/gi, "the example")
+    .replace(/\b(el|un|nuestro|este) video\b/gi, "el ejemplo")
+    .replace(/\bdel video\b/gi, "del ejemplo")
+    .replace(/\b(los|unos|estos|nuestros) videos\b/gi, "$1 ejemplos")
+    .replace(/\b(el|un|su) (retro)?proyector\b/gi, "la pizarra")
+    .replace(/\bvideos?\b/gi, (v) => (/s$/i.test(v) ? "ejemplos" : "ejemplo")) : t);
   momentos.forEach((m) => {
+    if (Array.isArray(m?.actividadesDetalle)) m.actividadesDetalle.forEach((x) => { if (x && typeof x.texto === "string") x.texto = sinVideo(x.texto); });
     if (Array.isArray(m?.metacognicion)) m.metacognicion = m.metacognicion.map(sinVideo);
     Object.entries(m?.evidencias || {}).forEach(([k, l]) => { if (Array.isArray(l)) m.evidencias[k] = l.map(sinVideo); });
     // La evidencia suele ser un solo texto con formato, no una lista: también se limpia.
@@ -620,10 +630,19 @@ export const sinEquipos = (momentos = [], didacticosFila = "") => {
     m.recursos = { ...m.recursos, didacticos: limpios.join(", ") || didacticosFila, tecnologicos: "No requerido para esta actividad" };
     (m.actividades || []).forEach((a, i) => {
       if (typeof a !== "string" || !EQUIPO.test(normal(a))) return;
-      if (m.nombre === "Inicio" && i === 3) m.actividades[i] = ENGANCHE_SIN_EQUIPOS;
-      else restantes.push(`${m.nombre}: ${a.slice(0, 70)}`);
+      if (m.nombre === "Inicio" && i === 3) { m.actividades[i] = ENGANCHE_SIN_EQUIPOS; return; }
+      const limpia = sinVideo(a);
+      m.actividades[i] = limpia;
+      if (EQUIPO.test(normal(limpia))) restantes.push(`${m.nombre}: ${limpia.slice(0, 70)}`);
     });
   });
+  // Desarrollo: el video y el proyector se cambian por el ejemplo y la pizarra; lo que no se resuelve (parlantes, grabadora…) se avisa.
+  momentos.filter((m) => m?.nombre === "Desarrollo").forEach((m) => (m.actividades || []).forEach((a, i) => {
+    if (typeof a !== "string" || !EQUIPO.test(normal(a))) return;
+    const limpia = sinVideo(a);
+    m.actividades[i] = limpia;
+    if (EQUIPO.test(normal(limpia))) restantes.push(`Desarrollo: ${limpia.slice(0, 70)}`);
+  }));
   return restantes;
 };
 
