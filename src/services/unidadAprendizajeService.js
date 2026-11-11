@@ -6282,6 +6282,13 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   // calculan por actividad; lo que no cabe se avisa, nunca se estira la clase.
   const avisosTiempo = [];
   const avisosClaseFinal = [];
+  // Contenidos de la malla que no encajan en las clases: no se fuerzan; quedan para otras unidades (revisor g39,
+  // aprobado por César el 2026-11-11). Una unidad no tiene que cubrir toda la malla del año.
+  const paraOtras = rutaPlanMaestro?.mapa?.contenidosSinLugar || [];
+  if (paraOtras.length) {
+    const muestra = paraOtras.slice(0, 6).map((c) => `«${String(c).replace(/^[a-z]+:/, "").replace(/^Funcional:\s*/i, "").slice(0, 60)}»`).join(", ");
+    avisosClaseFinal.push(`contenidos para otras unidades: ${paraOtras.length} de la malla no encajan en estas clases y no se fuerzan: ${muestra}${paraOtras.length > 6 ? ` y ${paraOtras.length - 6} más` : ""}.`);
+  }
   const titulosVistos = new Set();
   if (rutaPlanMaestro) {
     // Con mapa de clases, cada clase ya trae sus indicadores: este ajuste los pisaba.

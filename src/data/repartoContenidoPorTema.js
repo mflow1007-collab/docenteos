@@ -120,7 +120,7 @@ const funcionesDeEstructura = (item, tabla) => {
  */
 export const construirContenidosPorTema = ({
   temas = [], vocabulario = [], gramatica = [], expresiones = [],
-  procedimientosFuncionales = [], actitudinales = [], tablaFunciones = null,
+  procedimientosFuncionales = [], actitudinales = [], tablaFunciones = null, sinTablaSinFunciones = false,
 } = {}) => {
   if (!Array.isArray(temas) || !temas.length) return [];
   const bloques = temas.map((tema) => ({
@@ -149,6 +149,12 @@ export const construirContenidosPorTema = ({
   };
   repartir(vocabulario, "vocabulario");
   repartir(expresiones, "frases");
+  // Inglés sin tabla de funciones (César, 2026-11-11): el tema no recibe funciones ni gramática que no le
+  // corresponden; la clase toma la etiqueta de su paso y todo sigue en la lista completa del grado.
+  if (!tablaFunciones && sinTablaSinFunciones) {
+    for (const b of bloques) { b.procedimientos.funcionales = []; b.conceptos.gramatica = []; }
+    return bloques;
+  }
   if (!tablaFunciones) {
     // Encabezados sueltos («Adverbios y frases adverbiales de:») unidos a su línea, como con tabla.
     repartir(unirEncabezadosGramatica(gramatica), "gramatica");
@@ -163,7 +169,9 @@ export const construirContenidosPorTema = ({
   // su función no va a ningún tema (queda en la lista completa del grado).
   const estructuras = unirEncabezadosGramatica(gramatica).map((g) => ({ g, funciones: funcionesDeEstructura(g, tablaFunciones) }));
   for (const b of bloques) {
-    const clave = Object.keys(tablaFunciones.temas).find((t) => temasEquivalentes(t, b.tema));
+    // El nombre exacto manda; el parecido solo si no hay exacto («Viajes y turismo» no es «Relaciones … sociales»).
+    const clave = Object.keys(tablaFunciones.temas).find((t) => normClave(t) === normClave(b.tema))
+      || Object.keys(tablaFunciones.temas).find((t) => temasEquivalentes(t, b.tema));
     const suyas = clave ? tablaFunciones.temas[clave] : [];
     b.conceptos.gramatica = estructuras.filter((e) => e.funciones.some((f) => suyas.includes(f))).map((e) => e.g);
     b.procedimientos.funcionales = [...suyas];

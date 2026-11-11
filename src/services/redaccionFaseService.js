@@ -1130,7 +1130,7 @@ const AVISOS_CADENA = /falta la tarea|no se ve que use|adelanta o repite|diagn[o
 const AVISOS_CONTENIDO = /contenido|datos de compa[nñ]eros|fuera de español|estructura del d[ií]a fuera|texto modelo sin declarar|hueco vac[ií]o|no corresponde a la funci[oó]n|nombra un lugar|precio|falta dato|nombra un equipo|usa un equipo|estructura del d[ií]a|comparativo|repite una actividad|nadie graba|selecci[oó]n curricular|evidencias por planificar|evaluaciones:/i;
 const AVISOS_DOCENTE = /^(evaluaciones:|selecci[oó]n curricular)/i;
 const AVISOS_CONFIGURACION = /^diagn[oó]stico: sin dato/i;
-const AVISOS_CODIGO = /^(tiempo:|evidencias por planificar|secciones sin pieza final)|necesita unos \d+ min/i;
+const AVISOS_CODIGO = /^(tiempo:|evidencias por planificar|secciones sin pieza final|contenidos para otras unidades)|necesita unos \d+ min/i;
 const MAX_AVISOS_PANEL = 60;
 
 /**

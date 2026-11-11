@@ -230,12 +230,28 @@ check("procedimientos: las funciones de 3ro salen completas, sin trozos ni encab
   assert(!f.some((x) => /^(Discursivos|Estratégicos|Comprensión oral)$/.test(x)), "sin encabezados");
 });
 
-check("mallas sin tabla de funciones: cada tema lleva las funciones del grado sin trozos (1ro a 6to)", () => {
-  GRADOS.filter((g) => g !== "2do").forEach((g) => {
+check("Inglés sin tabla de funciones (4to a 6to): el tema no recibe funciones ni gramática ajenas (revisor g39)", () => {
+  ["4to", "5to", "6to"].forEach((g) => mallaIngles(g).contenidosPorTema.forEach((b) => {
+    igual(b.procedimientos.funcionales.length, 0, `${g} ${b.tema} funciones`);
+    igual(b.conceptos.gramatica.length, 0, `${g} ${b.tema} gramática`);
+  }));
+});
+
+check("Inglés 1ro y 3ro: cada tema lleva solo las funciones de su tabla, con nombres literales de la malla", () => {
+  ["1ro", "3ro"].forEach((g) => {
     const malla = mallaIngles(g);
-    const esperadas = funcionalesDeProcedimientos(malla.contenidos.procedimientos);
-    malla.contenidosPorTema.forEach((b) => igual(b.procedimientos.funcionales.join(" | "), esperadas.join(" | "), `${g} ${b.tema}`));
+    const literales = funcionalesDeProcedimientos(malla.contenidos.procedimientos);
+    const tabla = FUNCIONES_POR_TEMA[`ingles-${g}`];
+    tabla.funciones.forEach((f) => assert(literales.includes(f.nombre), `${g}: «${f.nombre}» no es literal de la malla`));
+    malla.contenidosPorTema.forEach((b) => igual(b.procedimientos.funcionales.join(" | "), (tabla.temas[b.tema] || []).join(" | "), `${g} ${b.tema}`));
   });
+  const escuela3 = mallaIngles("3ro").contenidosPorTema.find((b) => b.tema === "Escuela y educación");
+  assert(!escuela3.procedimientos.funcionales.some((f) => /predicciones|anuncios/.test(f)), "3ro Escuela sin predicciones ni anuncios");
+});
+
+check("temas: el nombre exacto manda sobre el parecido («Viajes y turismo» no es «Relaciones … sociales»)", () => {
+  const b = mallaIngles("1ro").contenidosPorTema.find((x) => /Viajes/.test(x.tema));
+  igual(b.procedimientos.funcionales[0], "Narrar experiencias personales, propias y de otras personas", "1ro Viajes");
 });
 
 console.log(`\n${pasos} pasos, ${fallos} fallos`);

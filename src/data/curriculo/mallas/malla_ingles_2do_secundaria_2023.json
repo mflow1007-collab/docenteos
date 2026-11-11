@@ -1693,15 +1693,16 @@
           "Números ordinales: first, second, third…"
         ],
         "gramatica": [
-          "Presente simple para sostener una conversación: What do you do for a living? Hello, this is Ethan.",
-          "Presente simple de los verbos be, feel, have, seem, look, hurt, ache … para describir estados anímicos y físicos: She looks tired and angry.",
           "Pasado simple al narrar hechos y experiencias: I lived in the US until I was seven.",
           "Pasado continuo al narrar hechos y experiencias, y describir estados anímicos y físicos: He was coughing last night.",
           "Presente perfecto para narrar hechos y experiencias: I’ve seen the flamingos at Lago Enriquillo.",
           "Pasado continuo y pasado simple para narrar hechos y experiencias: I was doing homework when she called.",
+          "Will para acordar un encuentro y comprar: I’ll be there at 6:00 pm. I’ll have a cheeseburger, please.",
+          "Be going to para expresar planes y acordar encuentros: I’m going to visit Grandma next week. Are you going to join me?",
+          "Presente continuo para expresar planes e intenciones y acordar un encuentro: Our tech support is installing a new antivirus tomorrow. What time are we meeting for dinner? I’m looking for a yellow T•shirt.",
           "There + be en pasado simple para narrar hechos y experiencias: There was an earthquake this morning.",
           "Want, hope y wish para expresar deseo o interés: I hope to spend more time with my family.",
-          "Can, may y could para sostener una conversación: May I speak to Rosa, please? Could you speak louder, please?"
+          "Condicional para dar consejos y sugerencias y expresar planes: If you have a fever, you should see a doctor. If I get home early today, I will bake a cake."
         ],
         "frases": [
           "Cortesía: Excuse me; Thank you!",
@@ -1723,10 +1724,9 @@
       },
       "procedimientos": {
         "funcionales": [
-          "Sostener una conversación",
-          "Describir estados anímicos y físicos",
-          "Expresar deseo o interés",
-          "Narrar hechos y experiencias"
+          "Expresar planes y acordar un encuentro",
+          "Narrar hechos y experiencias",
+          "Expresar deseo o interés"
         ],
         "discursivos": [],
         "comprensionOralEscrita": [],

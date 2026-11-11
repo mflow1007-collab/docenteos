@@ -302,6 +302,8 @@ for (const idiomaKey of ["ingles", "frances"]) {
         procedimientosFuncionales: procedLineas,
         actitudinales: actitudLineas,
         tablaFunciones: FUNCIONES_POR_TEMA[`${idiomaKey}-${grade}`] || null,
+        // Inglés usa el mapa de clases: sin tabla, el tema no recibe funciones ni gramática ajenas (César, 2026-11-11).
+        sinTablaSinFunciones: idiomaKey === "ingles",
       });
 
       const sobre = {
