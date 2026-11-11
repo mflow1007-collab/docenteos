@@ -1320,6 +1320,19 @@ check("semilla escrita para encuesta: sin clases de encuesta, propósitos y piez
   assert(/encuesta/.test(con.piezasSecciones["What We Found"]), "con encuesta se conserva");
 });
 
+check("ABP a 12 clases con otro tema: la encuesta entra y sustituye al «ordenar» suelto; actividades sin dispositivo de grabación (revisor g34)", () => {
+  const m = mapaDe("Actividades de la vida diaria", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  const claves = m.filas.flatMap((f) => f.tareas.map((t) => t.clave));
+  ["indagar_disenar", "indagar_aplicar", "problema_analizar", "problema_definir", "problema_objetivos"].forEach((c) => assert(claves.includes(c), `falta ${c}`));
+  assert(!claves.includes("analizar_ordenar") && !claves.includes("indagar_contrastar"), "sobra ordenar o contrastar");
+  assert(m.modo !== "breve" && !m.filas.some((f) => f.flexible) && verificarMapa(m).length === 0, `el mapa no cabe: ${m.modo}`);
+  const escuela = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  assert(escuela.modo !== "breve" && !escuela.filas.some((f) => f.flexible), "Escuela 12 clases no debe pasar a breve");
+  const nodo = { a: "Comentan las piezas: comentarios orales; se guarda en el dispositivo de grabación del aula." };
+  sinEquiposEnTodo(nodo);
+  igual(nodo.a, "Comentan las piezas: comentarios orales; se anota en el cuaderno del grupo.", "destino sin equipo");
+});
+
 check("pie de rama y commit: solo lo ve el administrador", () => {
   const u = { titulo: "Unidad", fasesSemanales: [], areaCurricular: "Lenguas Extranjeras" };
   const con = formatearUnidadHTML(u, "", { pieAdmin: "Versión: rama x · commit abc1234" });

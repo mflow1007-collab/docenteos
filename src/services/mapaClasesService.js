@@ -169,7 +169,12 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // investigación de cada estrategia que investiga (Referente 2025 p. 20 y 23: encuesta, entrevista, fuentes). Con poco tiempo no cabe.
   const FASE_DE_DATOS = { problemas: /^Análisis e investigación/, estudio_caso: /^Indagación o estudio/ };
   if (FASE_DE_DATOS[estrategia] && totalClases >= datosDesde && faseDe(FASE_DE_DATOS[estrategia]) >= 0) {
-    [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]), estructura: DATOS_ENCUESTA[estrategia].estructura }, [...orden], 0, 2.5, k));
+    (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS ? [u.indagarDisenar, u.indagarAplicar] : [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar]).forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]), estructura: DATOS_ENCUESTA[estrategia].estructura }, [...orden], 0, 2.5, k));
+  }
+  // ABP con menos de 15 clases y encuesta: la encuesta (aplicar y resumir en cifras) ya ordena los datos reales, así que
+  // sustituye al «ordenar» suelto; sin «contrastar con una fuente», que es de Indagación. Así cabe en 12 clases (revisor g34).
+  if (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS && items.some((it) => it.t.clave === "indagar_aplicar")) {
+    for (let i = items.length - 1; i >= 0; i -= 1) if (items[i].t.clave === "analizar_ordenar") items.splice(i, 1);
   }
   // Con 12 clases no caben (la unidad entera ya llena el tiempo): ahí las fases 2 y 3 se unen a la 1 y queda por decidir qué
   // tarea sale (César). Desde 13 clases, cada fase lleva la suya.
@@ -622,6 +627,9 @@ export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con
 // Conserva la mayúscula inicial de lo que reemplaza («Del video» → «Del ejemplo»).
 const conInicial = (original, nuevo) => (original[0] !== original[0].toLowerCase() ? `${nuevo[0].toUpperCase()}${nuevo.slice(1)}` : nuevo);
 const sinVideoEs = (t) => (typeof t === "string" ? t
+  // Destino con un equipo de grabación (revisor g34, C9: «se guarda en el dispositivo de grabación del aula»).
+  .replace(/\bse (guarda|guardan|registra|registran|archiva|archivan) en (el|un) (dispositivo|equipo|aparato) de grabaci[oó]n( del aula)?/gi, (m) => conInicial(m, "se anota en el cuaderno del grupo"))
+  .replace(/\b(el|un) (dispositivo|equipo|aparato) de grabaci[oó]n( del aula)?/gi, (m) => conInicial(m, "el cuaderno del grupo"))
   .replace(/\b(the|a|our|this) video\b/gi, (m) => conInicial(m, "the example"))
   .replace(/\b(el|un|nuestro|este) video\b/gi, (m) => conInicial(m, "el ejemplo"))
   .replace(/\bdel video\b/gi, (m) => conInicial(m, "del ejemplo"))
