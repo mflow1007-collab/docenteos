@@ -135,6 +135,8 @@ const gitInfo = (comando) => {
 }
 const BUILD_RAMA = process.env.VERCEL_GIT_COMMIT_REF || gitInfo('git rev-parse --abbrev-ref HEAD') || 'desconocida'
 const BUILD_COMMIT = (process.env.VERCEL_GIT_COMMIT_SHA || gitInfo('git rev-parse HEAD') || 'desconocido').slice(0, 7)
+// En local puede haber cambios sin commit: el pie lo dice (en Vercel nunca los hay).
+const BUILD_SUCIO = !process.env.VERCEL_GIT_COMMIT_SHA && Boolean(gitInfo('git status --porcelain --untracked-files=no'))
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -144,6 +146,7 @@ export default defineConfig(({ mode }) => {
     define: {
       __BUILD_RAMA__: JSON.stringify(BUILD_RAMA),
       __BUILD_COMMIT__: JSON.stringify(BUILD_COMMIT),
+      __BUILD_SUCIO__: JSON.stringify(BUILD_SUCIO),
     },
     plugins: [react(), docenteosApiDevPlugin()],
     build: {

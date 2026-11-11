@@ -235,7 +235,7 @@ export function useUnidadAprendizaje() {
     if (!unidad) return;
     try {
       const logoUrl = `${window.location.origin}/logo-minerd.svg`;
-      const html = formatearUnidadHTML(unidad, logoUrl, { pieAdmin: pieDeVersion(auth.currentUser?.email) });
+      const html = formatearUnidadHTML(unidad, logoUrl, { pieAdmin: pieDeVersion(auth.currentUser?.email, unidad) });
       const iframe = document.createElement("iframe");
       iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:1px;height:1px;border:0;visibility:hidden";
       document.body.appendChild(iframe);
@@ -272,7 +272,7 @@ export function useUnidadAprendizaje() {
     if (!unidad) return;
     try {
       const logoUrl = `${window.location.origin}/logo-minerd.svg`;
-      const html = formatearUnidadHTML(unidad, logoUrl, { pieAdmin: pieDeVersion(auth.currentUser?.email) });
+      const html = formatearUnidadHTML(unidad, logoUrl, { pieAdmin: pieDeVersion(auth.currentUser?.email, unidad) });
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const win = window.open(url, "_blank");

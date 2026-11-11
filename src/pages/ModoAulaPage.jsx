@@ -2443,7 +2443,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                 if (!unidad) { onVerPlanCompleto ? onVerPlanCompleto(planActivo) : onIrA?.('planificacion'); return }
                 try {
                   const logoUrl = `${window.location.origin}/logo-minerd.svg`
-                  abrirHTMLEnPestana(formatearUnidadHTML(unidad, logoUrl, { pieAdmin: pieDeVersion(auth.currentUser?.email) }))
+                  abrirHTMLEnPestana(formatearUnidadHTML(unidad, logoUrl, { pieAdmin: pieDeVersion(auth.currentUser?.email, unidad) }))
                 } catch (error) {
                   console.error('[ModoAula] No se pudo abrir la planificación:', error)
                   onVerPlanCompleto ? onVerPlanCompleto(planActivo) : onIrA?.('planificacion')

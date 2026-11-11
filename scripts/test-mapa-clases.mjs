@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -23,7 +23,7 @@ import { SECUENCIAS_POR_TAREA } from "../src/data/secuenciasTareas.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
 import { formatearUnidadHTML } from "../src/services/unidadAprendizajeService.js";
-import { pieDeVersion } from "../src/utils/buildInfo.js";
+import { pieDeVersion, textoVersionDeUnidad } from "../src/utils/buildInfo.js";
 import { extraerCriteriosEvaluacionCanonicos } from "../src/services/curriculumBrainService.js";
 
 const normalizaTexto = (t) => String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -1268,6 +1268,58 @@ check("g28: ABP defiende la recomendación en cualquier tema; NEAE sin «grabaci
   igual(conConcordanciaEnTitulo("Guía para el nuevo estudiante"), "Guía para el nuevo estudiante", "singular intacto");
 });
 
+check("estrategias del día: sin estrategias ajenas a la unidad; las técnicas quedan (revisor g30)", () => {
+  const fases = [{ dias: [
+    { estrategiasDia: "Aprendizaje Basado en Problemas (ABP) • Indagación dialógica (diálogo socrático) • Socialización centrada en actividades grupales" },
+    { estrategiasDia: "Indagación dialógica (diálogo socrático) • Estudio de caso" },
+    { estrategiasDia: "Aprendizaje colaborativo • Aprendizaje Basado en Problemas (ABP)" },
+  ] }];
+  igual(sinEstrategiasAjenas(fases, "Aprendizaje Basado en Problemas (ABP)"), 2, "clases cambiadas");
+  igual(fases[0].dias[0].estrategiasDia, "Aprendizaje Basado en Problemas (ABP) • Socialización centrada en actividades grupales", "quita Indagación");
+  igual(fases[0].dias[1].estrategiasDia, "Aprendizaje Basado en Problemas (ABP)", "si no queda nada, la de la unidad");
+  igual(fases[0].dias[2].estrategiasDia, "Aprendizaje colaborativo • Aprendizaje Basado en Problemas (ABP)", "sin ajenas: igual");
+  const proyecto = [{ dias: [{ estrategiasDia: "Aprendizaje Basado en Proyecto • Aprendizaje Basado en Problemas (ABP)" }] }];
+  sinEstrategiasAjenas(proyecto, "Aprendizaje Basado en Proyecto");
+  igual(proyecto[0].dias[0].estrategiasDia, "Aprendizaje Basado en Proyecto", "Proyecto y Problemas no se confunden");
+});
+
+check("NEAE de la fase: las escribe el código desde un menú fijo; tecnología solo si el entorno la declara (revisor 2026-11-11)", () => {
+  const fases = [{ adaptacionesNEAE: { acceso: "Se colocan subtítulos en el video y audio de la entrevista.", evaluacion: "Grabación de la lectura en voz alta." } }, {}];
+  igual(adaptacionesNEAEDelMenu(fases), 2, "fases escritas");
+  const texto = JSON.stringify(fases);
+  assert(!/audio|graba|video|digital|audiovisual|subt[ií]tulo|proyector|computadora|tablet|celular/i.test(texto), `tecnología: ${texto}`);
+  assert(/ampliado y con buen contraste/.test(fases[0].adaptacionesNEAE.acceso) && /lectura en voz alta del docente/.test(fases[0].adaptacionesNEAE.acceso), "menú de acceso");
+  assert(/tiempo adicional/i.test(fases[0].adaptacionesNEAE.evaluacion) && /respuesta oral/.test(fases[0].adaptacionesNEAE.evaluacion), "menú de evaluación");
+  igual(JSON.stringify(fases[0].adaptacionesNEAE), JSON.stringify(fases[1].adaptacionesNEAE), "mismo menú en todas las fases");
+  const conTec = [{}];
+  adaptacionesNEAEDelMenu(conTec, { conTecnologia: true });
+  assert(/audio de las consignas/.test(conTec[0].adaptacionesNEAE.acceso), "con tecnología declarada sí entra");
+});
+
+check("ABP sin encuesta: rechaza una clase que nombra encuestas; la elección de alternativas pide 2–3 con pros y contras (revisor g32)", () => {
+  const fila = { tareas: [{ clave: "analizar_ordenar", instruccion: "Ordenan en una tabla común lo reunido de la fuente que trae el docente y de los modelos analizados." }], secciones: [] };
+  const clase = (a) => ({ momentos: [{ nombre: "Desarrollo", actividades: [a] }] });
+  assert(/encuesta que ninguna clase hizo/.test(obligacionIncumplida(clase("Organizan (en grupos) la información de las encuestas sobre horas de sueño."), fila)), "debía rechazar la encuesta inexistente");
+  igual(obligacionIncumplida(clase("Organizan (en grupos) en la tabla común los datos de la fuente del docente."), fila), "", "sin encuesta: pasa");
+  const conEncuesta = { tareas: [{ clave: "analizar_ordenar", instruccion: "Ordenan los datos recibidos y analizan un modelo." }], secciones: [] };
+  igual(obligacionIncumplida(clase("Organizan (en grupos) la información de las encuestas."), conEncuesta), "", "con encuesta en la unidad: pasa");
+  const m = mapaDe("Actividades de la vida diaria", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  const elegir = m.filas.flatMap((f) => f.tareas).find((t) => t.clave === "proponer_elegir");
+  assert(/2 o 3 cursos de acción/.test(elegir?.instruccion || "") && /pros y sus contras/.test(elegir.instruccion), `instrucción: ${elegir?.instruccion}`);
+});
+
+check("semilla escrita para encuesta: sin clases de encuesta, propósitos y piezas nombran la fuente real (revisor g33)", () => {
+  const plan = () => ({ propositosSecciones: { "What We Found": "qué datos salieron al comparar las rutinas (encuesta: horas de sueño, llegadas tarde, tareas)", "Tips": "consejos" },
+    piezasSecciones: { "What We Found": "un gráfico de barras con los resultados de la encuesta y frases que lo explican" } });
+  const sin = plan();
+  igual(sinEncuestaSiNoHay(sin, { filas: [{ tareas: [{ clave: "analizar_ordenar" }] }] }), 2, "textos cambiados");
+  assert(!/encuesta/i.test(JSON.stringify(sin)) && /fuente que trae el docente/.test(sin.propositosSecciones["What We Found"]), JSON.stringify(sin));
+  igual(sin.propositosSecciones.Tips, "consejos", "lo demás no cambia");
+  const con = plan();
+  igual(sinEncuestaSiNoHay(con, { filas: [{ tareas: [{ clave: "indagar_disenar" }] }] }), 0, "con encuesta: igual");
+  assert(/encuesta/.test(con.piezasSecciones["What We Found"]), "con encuesta se conserva");
+});
+
 check("pie de rama y commit: solo lo ve el administrador", () => {
   const u = { titulo: "Unidad", fasesSemanales: [], areaCurricular: "Lenguas Extranjeras" };
   const con = formatearUnidadHTML(u, "", { pieAdmin: "Versión: rama x · commit abc1234" });
@@ -1275,6 +1327,11 @@ check("pie de rama y commit: solo lo ve el administrador", () => {
   assert(con.includes("rama x · commit abc1234"), "el administrador ve el pie");
   assert(!sin.includes("commit abc1234") && !/Versión: rama/.test(sin), "sin pie para el docente");
   assert(pieDeVersion("docente@gmail.com") === "", "el docente no recibe pie");
+  // El pie dice con qué versión se GENERÓ la unidad, no con cuál se imprime (revisor, 2026-11-11).
+  const generada = { metadatos: { versionGenerador: { rama: "main", commit: "abc1234", cambiosSinCommit: true } } };
+  igual(pieDeVersion("admin@docenteos.com", generada), "Versión: rama main · commit abc1234 +cambios sin commit", "pie con la versión de la unidad");
+  igual(pieDeVersion("docente@gmail.com", generada), "", "el docente tampoco lo ve con versión en la unidad");
+  igual(textoVersionDeUnidad({ metadatos: { versionGenerador: { rama: "x", commit: "1234567", cambiosSinCommit: false } } }), "Versión: rama x · commit 1234567", "sin cambios pendientes");
   assert(formatearUnidadHTML(u, "", { pieAdmin: "<b>x" }).includes("&lt;b&gt;x"), "el pie se escapa");
 });
 

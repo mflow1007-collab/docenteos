@@ -25,7 +25,8 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, conObservacionesFijas, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { versionDeBuild } from "../utils/buildInfo.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
@@ -5583,6 +5584,8 @@ export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas
   if (fallos.length) throw new Error(`Mapa de clases: la unidad no se puede armar: ${fallos.join("; ")}.`);
   const r = planDesdeMapa(entrada, mapa);
   if (!r) return { avisos: [`ℹ️ La estrategia tiene fases con partes: esta unidad no usa el mapa de clases.`] };
+  // Sin clases de encuesta, los textos de la semilla no la piden (revisor g33).
+  sinEncuestaSiNoHay(r.plan, mapa);
   const situacion = datos.planMaestro?.situacion || {};
   const alcanceSemilla = alcanceDeSituacion(situacion);
   const invitado = alcanceSemilla?.invitado;
@@ -6120,6 +6123,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     // IDs de todos los indicadores de la malla (base curricular de la unidad)
     curricularRefs: allInds.map(i => i.id).filter(Boolean),
     metadatos: {
+      // Versión del código que generó la unidad: el pie del administrador la muestra (revisor, 2026-11-11).
+      versionGenerador: versionDeBuild(),
       titulo, grado, seccion, area, asignatura: asignaturaEf,
       nivel, ciclo, modalidad, jornada,
       duracion: `${numSemanas} semanas / ${numSemanas * horasSemanales} horas clase (${durMinEf} min c/u)`,
@@ -6429,8 +6434,10 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   if (rutaPlanMaestro?.mapa) {
     // Observaciones de la fase: las escribe el código; la IA inventaba resultados de clases que aún no se dan (g27).
     conObservacionesFijas(unidadResult.fasesSemanales);
-    // Adaptaciones NEAE de cada fase: alternativas físicas, no tecnología (decisión de César, 2026-11-10).
-    const enNea = (unidadResult.fasesSemanales || []).reduce((n, fase) => n + adaptacionesNEAESinTecnologia(fase), 0);
+    sinEstrategiasAjenas(unidadResult.fasesSemanales, estrategiaFinal);
+    // Adaptaciones NEAE de cada fase: las escribe el código desde un menú fijo de adaptaciones físicas (revisor,
+    // 2026-11-11). El aula del mapa no declara tecnología («ninguna clase depende de electricidad o internet»).
+    const enNea = adaptacionesNEAEDelMenu(unidadResult.fasesSemanales, { conTecnologia: false });
     const limpieza = [sinEquiposEnTodo(unidadResult.fasesSemanales), sinEquiposEnTodo(unidadResult.anexos)];
     const cambiados = limpieza.reduce((n, l) => n + l.cambios, 0) + enNea;
     const sinResolver = [...new Set(limpieza.flatMap((l) => l.restantes))].slice(0, 6);

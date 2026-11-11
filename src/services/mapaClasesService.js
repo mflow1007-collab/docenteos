@@ -14,6 +14,7 @@
  */
 
 import { construirPlanMaestro } from "./planMaestroService.js";
+import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { SECUENCIAS_POR_TAREA } from "../data/secuenciasTareas.js";
 import { SITUACIONES_SEMILLA_INGLES_2DO } from "../data/situacionesSemillaIngles2do.js";
 import { TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
@@ -94,7 +95,7 @@ export const pruebaDelProducto = (producto = "", secciones = [], estrategia = ""
 
 // Con la revisión de nivel en la misma clase, corregir cede su parte: el total de la clase no cambia ([15,30] = [10,20] + [5,10]).
 const MINUTOS_CORREGIR_CON_REVISION = [10, 20];
-const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "", problemaDesde = 13 }) => {
+const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "", problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS }) => {
   const tareasOmitidas = omitidas;
   const indagacion = estrategia === "indagacion_dialogica";
   const faseDe = (re) => fases.findIndex((f) => re.test(f.nombre));
@@ -103,7 +104,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   let ordenarIndagacion = false;
   const ajustePorEstrategia = (t, seccion = "") => {
     if (indagacion && t.clave === "analizar_ordenar") return { ...t, faseGuia: faseDe(/^Análisis y organización/), hace: "Organizan y priorizan los datos validados en una tabla de frecuencia o una matriz por categoría, y deciden qué problemas atenderá el plan. Aún no redactan la pieza." };
-    if (estrategia === "problemas" && t.clave === "proponer_elegir") return { ...t, faseGuia: faseDe(/^Reestructuración/), hace: `Evalúan los cursos de acción posibles${seccion ? ` para «${seccion}»` : ""} (ventajas, desventajas y viabilidad) y justifican cuál eligen con la tabla.` };
+    if (estrategia === "problemas" && t.clave === "proponer_elegir") return { ...t, faseGuia: faseDe(/^Reestructuración/), hace: `Proponen 2 o 3 cursos de acción posibles${seccion ? ` para «${seccion}»` : ""}, comparan en una tabla sus pros y sus contras (ventajas, desventajas y si se puede hacer) y eligen uno con dos razones.` };
     return t;
   };
   const orden = ordenarSecciones(secciones, tipos, partenDe);
@@ -142,12 +143,16 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Proyectos: tras la revisión del docente, un solo ciclo de mejora para todas las secciones.
   // Con revisión del docente (Proyectos y Problemas) la mejora es un solo ciclo: Problemas a 4 semanas no cabía en 12 clases.
   const unCiclo = proyectos || estrategia === "problemas";
-  if (unCiclo) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion, ...enPuesta }, corregibles, 2, 1, 0);
+  // Problemas con menos de 15 clases no tiene la segunda ronda: la revisión hasta el nivel satisfactorio va en la
+  // misma clase de corrección, como en Indagación (opción A de César, 2026-11-10; revisor g30: solo 1 «satisfactorio»).
+  const nivelEnCorreccion = estrategia === "problemas" && !rondaCompleta;
+  if (unCiclo) push({ ...TAREA_CORREGIR, faseInsercion: "proponer", ...enEvaluacion, ...enPuesta, ...(nivelEnCorreccion ? { minutos: MINUTOS_CORREGIR_CON_REVISION } : {}) }, corregibles, 2, 1, 0);
   else trozos(tempranas, SECCIONES_POR_CORREGIR).forEach((grupo, g) => {
     push({ ...TAREA_CORREGIR, minutos: MINUTOS_CORREGIR_CON_REVISION, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1, g);
     // Hasta el nivel satisfactorio (Referente por proyecto 2022, p. 35): en la misma clase, el docente comprueba lo corregido (opción A de César, 2026-11-10).
     push({ ...TAREA_REVISION_NIVEL, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1.5, g);
   });
+  if (nivelEnCorreccion) push({ ...TAREA_REVISION_NIVEL, faseInsercion: "proponer", ...enPuesta }, corregibles, 2, 1.5, 0);
   if (!unCiclo) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => {
     push({ ...TAREA_CORREGIR, minutos: MINUTOS_CORREGIR_CON_REVISION, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g);
     push({ ...TAREA_REVISION_NIVEL, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2.5, g);
@@ -163,7 +168,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // «Recoger datos» (diseñar el instrumento, aplicarlo y resumir de forma agregada y anónima) se reutiliza en la fase de
   // investigación de cada estrategia que investiga (Referente 2025 p. 20 y 23: encuesta, entrevista, fuentes). Con poco tiempo no cabe.
   const FASE_DE_DATOS = { problemas: /^Análisis e investigación/, estudio_caso: /^Indagación o estudio/ };
-  if (FASE_DE_DATOS[estrategia] && totalClases >= UMBRAL_RECOGER_DATOS && faseDe(FASE_DE_DATOS[estrategia]) >= 0) {
+  if (FASE_DE_DATOS[estrategia] && totalClases >= datosDesde && faseDe(FASE_DE_DATOS[estrategia]) >= 0) {
     [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]), estructura: DATOS_ENCUESTA[estrategia].estructura }, [...orden], 0, 2.5, k));
   }
   // Con 12 clases no caben (la unidad entera ya llena el tiempo): ahí las fases 2 y 3 se unen a la 1 y queda por decidir qué
@@ -177,7 +182,8 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Proyectos sin recorrido ni entrevista: los «datos recibidos» no vienen de nadie. En «Gestión del conocimiento» (Referente
   // por proyecto 2022, pp. 32–33: buscar, leer, sistematizar fuentes) se ordena lo reunido de la fuente que trae el docente
   // y de los modelos (revisión de g20, 2026-11-10). El tiempo no cambia: no se añade ninguna tarea.
-  if (estrategia === "proyectos" && !items.some((it) => /^(visitar|recorrer|indagar)/.test(it.t.clave))) {
+  // Lo mismo en Problemas sin encuesta (revisor g30: «ordenan los datos de las encuestas» que nadie hizo).
+  if (["proyectos", "problemas"].includes(estrategia) && !items.some((it) => /^(visitar|recorrer|indagar)/.test(it.t.clave))) {
     items.filter((it) => it.t.clave === "analizar_ordenar").forEach((it) => {
       it.t = { ...it.t, hace: "Ordenan en una tabla común lo reunido de la fuente que trae el docente y de los modelos analizados (ejemplos, frases o datos) y analizan un modelo para decidir el formato. Aún no redactan la pieza." };
     });
@@ -724,7 +730,62 @@ export const adaptacionesNEAESinTecnologia = (fase = {}) => {
   return cambios;
 };
 
+/**
+ * Adaptaciones NEAE de la fase desde un menú fijo de adaptaciones físicas: las escribe el código, no la IA (revisor,
+ * 2026-11-11: cuatro veces la IA coló tecnología con otra palabra — audio, grabación, digitales, audiovisual).
+ * Las opciones con tecnología solo entran si el entorno la declara. Mismo enfoque que las observaciones de la fase.
+ */
+export const ADAPTACIONES_NEAE_MENU = {
+  acceso: ["material impreso ampliado y con buen contraste", "lectura en voz alta del docente de las consignas y los textos", "pictogramas impresos de apoyo"],
+  metodologicas: ["pareja de apoyo durante la tarea", "consignas en pasos cortos, una a la vez, con un ejemplo en la pizarra"],
+  evaluacion: ["tiempo adicional", "respuesta oral al docente cuando escribir sea la barrera", "pareja de apoyo que lee la consigna, sin dar la respuesta"],
+};
+const ADAPTACIONES_NEAE_CON_TECNOLOGIA = {
+  acceso: ["audio de las consignas en el equipo del aula"],
+  evaluacion: ["respuesta grabada en el equipo del aula"],
+};
+const frase = (lista) => {
+  const t = lista.length > 1 ? `${lista.slice(0, -1).join("; ")} y ${lista[lista.length - 1]}` : (lista[0] || "");
+  return t ? `${t.charAt(0).toUpperCase()}${t.slice(1)}.` : "";
+};
+export const adaptacionesNEAEDelMenu = (fases = [], { conTecnologia = false } = {}) => {
+  const texto = Object.fromEntries(Object.entries(ADAPTACIONES_NEAE_MENU).map(([k, lista]) => [
+    k, frase([...lista, ...(conTecnologia ? ADAPTACIONES_NEAE_CON_TECNOLOGIA[k] || [] : [])]),
+  ]));
+  let cambios = 0;
+  (fases || []).forEach((fase) => {
+    if (!fase || typeof fase !== "object") return;
+    const antes = JSON.stringify(fase.adaptacionesNEAE || null);
+    fase.adaptacionesNEAE = { ...texto };
+    if (JSON.stringify(fase.adaptacionesNEAE) !== antes) cambios += 1;
+  });
+  return cambios;
+};
+
 // Un plan se escribe antes de dar las clases: las observaciones de la fase no pueden afirmar resultados. Las escribe el código (g27).
+/**
+ * «Estrategias del día» sin estrategias ajenas a la unidad (revisor, g30: una unidad ABP etiquetaba 8 clases con
+ * «Indagación dialógica»). Se quitan las otras estrategias de la Guía; las técnicas (colaborativo, socialización…)
+ * quedan. Devuelve cuántas clases cambió.
+ */
+const sinTildes = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[.()]/g, " ").replace(/\s+/g, " ").trim();
+export const sinEstrategiasAjenas = (fases = [], estrategiaUnidad = "") => {
+  const propia = sinTildes(estrategiaUnidad);
+  const ajenas = ESTRATEGIAS_FASES_GUIA_2025.map((e) => sinTildes(e.nombre)).filter((n) => n && n !== propia)
+    // «Aprendizaje Basado en Problemas (ABP)» → «aprendizaje basado en problemas»: se compara por el nombre sin sigla.
+    .map((n) => n.replace(/\s*abp$/, "").trim());
+  let cambios = 0;
+  (fases || []).forEach((fase) => (fase?.dias || []).forEach((dia) => {
+    if (typeof dia?.estrategiasDia !== "string" || !dia.estrategiasDia.trim()) return;
+    const partes = dia.estrategiasDia.split(/\s*[•·]\s*/).filter(Boolean);
+    const quedan = partes.filter((p) => !ajenas.some((a) => sinTildes(p).startsWith(a)));
+    if (quedan.length === partes.length) return;
+    dia.estrategiasDia = (quedan.length ? quedan : [estrategiaUnidad]).join(" • ");
+    cambios += 1;
+  }));
+  return cambios;
+};
+
 export const OBSERVACIONES_FASE = "Registrar el desempeño general del grupo e identificar estudiantes que requieren atención diferenciada o refuerzo.";
 /** Pone en cada fase (y en el resumen de evaluación de sus clases) las observaciones fijas. Devuelve cuántas fases cambió. */
 export const conObservacionesFijas = (fases = []) => {
@@ -1236,6 +1297,7 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", f
   const claveBanco = (t) => {
     if (t.clave === "probar_audiencia") return `probar_audiencia:${t.tipoPrueba || "general"}`;
     if (t.clave === "presentar" && t.tipoPrueba === "defender") return "presentar:defender";
+    if (t.clave === "proponer_elegir" && mapa.estrategia === "problemas") return "proponer_elegir:problemas";
     if (t.clave === "acordar" && mapa.estrategia === "proyectos") return "acordar:proyectos";
     return t.clave;
   };
@@ -1405,6 +1467,31 @@ export const conFichaDeUnidad = (datos) => {
   return { ...datos, planMaestro: { ...pm, modalidadVisita: modalidad, situacion, ...(piezasSecciones ? { piezasSecciones } : {}) } };
 };
 
+/**
+ * Semillas escritas para una estrategia con encuesta (Rutinas: «What We Found» = resultados de la encuesta). Si la
+ * unidad no tiene clases de encuesta (p. ej. ABP a 12 clases), sus propósitos y piezas nombran la fuente real: la que
+ * trae el docente (revisor g32/g33: la IA seguía la semilla y ordenaba «encuestas» que nadie hizo). Devuelve cuántos cambió.
+ */
+const SIN_ENCUESTA = [
+  [/\((?:la |una )?encuestas?:/gi, "(datos de la fuente que trae el docente:"],
+  [/\b(?:la|una|las|unas|sus|su) encuestas?\b/gi, "la fuente que trae el docente"],
+  [/\bencuestas?\b/gi, "fuente que trae el docente"],
+];
+export const sinEncuestaSiNoHay = (plan = {}, mapa = {}) => {
+  const hayEncuesta = (mapa.filas || []).some((f) => (f.tareas || []).some((t) => /^indagar_(disenar|aplicar)$/.test(t.clave)));
+  if (hayEncuesta) return 0;
+  let cambios = 0;
+  ["propositosSecciones", "piezasSecciones"].forEach((campo) => {
+    if (!plan[campo] || typeof plan[campo] !== "object") return;
+    plan[campo] = Object.fromEntries(Object.entries(plan[campo]).map(([sec, texto]) => {
+      if (typeof texto !== "string" || !/encuesta/i.test(texto)) return [sec, texto];
+      cambios += 1;
+      return [sec, SIN_ENCUESTA.reduce((t, [re, por]) => t.replace(re, por), texto)];
+    }));
+  });
+  return cambios;
+};
+
 /** Ambiente: solo lo que las tareas usan; ninguna clase depende de tecnología. */
 export const ambienteDeMapa = (mapa) => {
   const conInvitado = mapa.filas.some((f) => f.modalidad === "invitado");
@@ -1479,7 +1566,7 @@ const ajustesParaPlan = (filas, fases) => {
  * @param {string[]} [entrada.contenidosSeleccionados] - sin ella, todos los del tema.
  * @returns {{filas:object[], modo:string, total:number, avisos:string[], tipos:object, seccionesSupuestas:string[], ajustesPlan:object|null}}
  */
-const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, problemaDesde = 13, ...entrada } = {}) => {
+const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS, ...entrada } = {}) => {
   const { semanas, diasClase, horasPorDia } = entrada.horario || {};
   const total = semanas * (diasClase?.length || 0) * horasPorDia;
   if (!Number.isInteger(total) || total <= 0) throw error("el horario necesita semanas, días de clase y horas por día.");
@@ -1491,7 +1578,7 @@ const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenido
   const clave = plan.estrategia.clave;
   const tiposFase = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[clave] || null;
   const { tipos, supuestas } = tiposDeSecciones(plan.secciones, entrada.tiposTrabajoSecciones || {});
-  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto, problemaDesde });
+  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto, problemaDesde, datosDesde });
   const capacidad = minutosDesarrollo(duracionMin);
   const avisos = [];
   if (supuestas.length) avisos.push(`Tipo de trabajo supuesto por la posición de la sección: ${supuestas.join(", ")}. El docente puede cambiarlo.`);
@@ -1619,13 +1706,18 @@ const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenido
  */
 export const armarMapaClases = (args = {}) => {
   const base = armarMapaClasesBase(args);
-  if (base.estrategia !== "problemas" || base.total !== 12) return base;
-  try {
-    const propias = armarMapaClasesBase({ ...args, problemaDesde: 12 });
-    const cabe = propias.modo !== "breve" && !propias.breve && !propias.filas.some((f) => f.flexible)
-      && !propias.avisos.some((a) => /no cabe en este tiempo/.test(String(a?.texto ?? a)));
-    return cabe ? propias : base;
-  } catch { return base; }
+  if (base.estrategia !== "problemas" || base.total < 12 || base.total >= UMBRAL_RECOGER_DATOS) return base;
+  // De más completo a menos: tareas de las fases 1–3 y recogida de datos (encuesta), luego solo las fases 1–3
+  // (revisor g30: «recoger datos» es tarea característica de la investigación en ABP). Gana el primero que cabe.
+  const cabe = (m) => m.modo !== "breve" && !m.breve && !m.filas.some((f) => f.flexible)
+    && !m.avisos.some((a) => /no cabe en este tiempo/.test(String(a?.texto ?? a)));
+  for (const intento of [{ problemaDesde: 12, datosDesde: 12 }, { problemaDesde: 12 }]) {
+    try {
+      const m = armarMapaClasesBase({ ...args, ...intento });
+      if (cabe(m)) return m;
+    } catch { /* este intento no cabe: se prueba el siguiente */ }
+  }
+  return base;
 };
 
 // Estado que deja la clase, para el «aporte al producto» que escribe el código.
