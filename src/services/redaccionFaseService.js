@@ -772,6 +772,11 @@ export const obligacionIncumplida = (clase, fila) => {
   if (claves.includes("evaluar_comentarios") && !normales.some((a) => /^(leen|responden|analizan|identifican)\b/.test(a) && /comentari/.test(a))) {
     return "nadie lee los comentarios de la audiencia: una actividad empieza por leerlos y responder por escrito qué piden cambiar.";
   }
+  // Sin encuesta en la unidad, «ordenar» trabaja con la fuente que trae el docente: una encuesta sería un dato que nadie
+  // recogió (revisor g30/g32: «Organizan la información de las encuestas» sin que ninguna clase la hiciera).
+  if (fila.tareas.some((t) => /fuente que trae el docente/.test(t.instruccion || "")) && normales.some((a) => /\bencuestas?\b/.test(a))) {
+    return "nombra una encuesta que ninguna clase hizo: los datos salen de la fuente que trae el docente y de los modelos.";
+  }
   if (fila.secciones.some((s) => INVENTARIO_POR_SECCION[s])) {
     const dato = actividades.find((a) => /\b(calorias?|proteinas?|porcentaje|vegetarian[oa]?s?|vegan[oa]?s?)\b/.test(normalizar(a)));
     if (dato) return `usa un dato que ninguna clase recogió: "${dato.slice(0, 80)}". Quítalo o escribe «falta dato».`;

@@ -104,7 +104,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   let ordenarIndagacion = false;
   const ajustePorEstrategia = (t, seccion = "") => {
     if (indagacion && t.clave === "analizar_ordenar") return { ...t, faseGuia: faseDe(/^Análisis y organización/), hace: "Organizan y priorizan los datos validados en una tabla de frecuencia o una matriz por categoría, y deciden qué problemas atenderá el plan. Aún no redactan la pieza." };
-    if (estrategia === "problemas" && t.clave === "proponer_elegir") return { ...t, faseGuia: faseDe(/^Reestructuración/), hace: `Evalúan los cursos de acción posibles${seccion ? ` para «${seccion}»` : ""} (ventajas, desventajas y viabilidad) y justifican cuál eligen con la tabla.` };
+    if (estrategia === "problemas" && t.clave === "proponer_elegir") return { ...t, faseGuia: faseDe(/^Reestructuración/), hace: `Proponen 2 o 3 cursos de acción posibles${seccion ? ` para «${seccion}»` : ""}, comparan en una tabla sus pros y sus contras (ventajas, desventajas y si se puede hacer) y eligen uno con dos razones.` };
     return t;
   };
   const orden = ordenarSecciones(secciones, tipos, partenDe);

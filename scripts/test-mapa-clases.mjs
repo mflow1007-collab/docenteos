@@ -1296,6 +1296,18 @@ check("NEAE de la fase: las escribe el código desde un menú fijo; tecnología 
   assert(/audio de las consignas/.test(conTec[0].adaptacionesNEAE.acceso), "con tecnología declarada sí entra");
 });
 
+check("ABP sin encuesta: rechaza una clase que nombra encuestas; la elección de alternativas pide 2–3 con pros y contras (revisor g32)", () => {
+  const fila = { tareas: [{ clave: "analizar_ordenar", instruccion: "Ordenan en una tabla común lo reunido de la fuente que trae el docente y de los modelos analizados." }], secciones: [] };
+  const clase = (a) => ({ momentos: [{ nombre: "Desarrollo", actividades: [a] }] });
+  assert(/encuesta que ninguna clase hizo/.test(obligacionIncumplida(clase("Organizan (en grupos) la información de las encuestas sobre horas de sueño."), fila)), "debía rechazar la encuesta inexistente");
+  igual(obligacionIncumplida(clase("Organizan (en grupos) en la tabla común los datos de la fuente del docente."), fila), "", "sin encuesta: pasa");
+  const conEncuesta = { tareas: [{ clave: "analizar_ordenar", instruccion: "Ordenan los datos recibidos y analizan un modelo." }], secciones: [] };
+  igual(obligacionIncumplida(clase("Organizan (en grupos) la información de las encuestas."), conEncuesta), "", "con encuesta en la unidad: pasa");
+  const m = mapaDe("Actividades de la vida diaria", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  const elegir = m.filas.flatMap((f) => f.tareas).find((t) => t.clave === "proponer_elegir");
+  assert(/2 o 3 cursos de acción/.test(elegir?.instruccion || "") && /pros y sus contras/.test(elegir.instruccion), `instrucción: ${elegir?.instruccion}`);
+});
+
 check("pie de rama y commit: solo lo ve el administrador", () => {
   const u = { titulo: "Unidad", fasesSemanales: [], areaCurricular: "Lenguas Extranjeras" };
   const con = formatearUnidadHTML(u, "", { pieAdmin: "Versión: rama x · commit abc1234" });
