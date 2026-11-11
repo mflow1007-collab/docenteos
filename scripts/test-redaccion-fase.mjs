@@ -61,17 +61,19 @@ check("vista previa completa → plan de 7 fases y situación compuesta", () => 
   assert(prep.situacionTexto.includes("Centro Hector Francisco Lopez"), "situación con el centro");
 });
 
-check("vista previa obligatoria: sin estrategia, sin competencias o con situación incompleta → error visible", () => {
-  lanza(() => prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: PLAN_MAESTRO_INICIAL }, mallaPayload: malla, horario }), /Vista previa del plan maestro.*estrategia/, "sin estrategia");
-  lanza(() => prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: { ...pm, competenciasElegidas: [], indicadoresElegidos: [], aspectosElegidos: {} } }, mallaPayload: malla, horario }), /ninguna competencia/, "sin competencias");
+check("vista previa: plan vacío lo completa DocenteOS; sin competencias (ya prellenado) o con situación incompleta → error visible", () => {
+  // Plan vacío o tocado antes del prellenado: DocenteOS lo completa (César, 2026-11-11: «DocenteOS se encarga»).
+  const completado = prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: PLAN_MAESTRO_INICIAL }, mallaPayload: malla, horario });
+  assert(completado.aplica && completado.plan?.estrategia?.clave, "el plan vacío no se completó");
+  // El docente quitó todas las competencias de un plan ya prellenado (marca presente): eso sí es un error visible.
+  lanza(() => prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: { ...pm, prellenado: { titulo: "x", producto: "", firma: "" }, competenciasElegidas: [], indicadoresElegidos: [], aspectosElegidos: {} } }, mallaPayload: malla, horario }), /ninguna competencia/, "sin competencias");
   lanza(() => prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: { ...pm, situacion: { ...pm.situacion, problema: "" } } }, mallaPayload: malla, horario }), /situación.*problema/, "situación incompleta");
   const estado = estadoPlanMaestroParaGenerar({ datos: { ...datos, planMaestro: PLAN_MAESTRO_INICIAL }, mallaPayload: malla, horario });
-  igual([estado.aplica, estado.listo], [true, false], "estado para el botón");
-  // El aviso del formulario dice solo lo que falta, sin repetir «Vista previa»
-  igual(estado.falta, "elige la estrategia de la unidad.", "lo que falta");
-  assert(!/Vista previa: .*Vista previa: /.test(estado.motivo), "el error no repite el prefijo");
+  igual([estado.aplica, estado.listo], [true, true], "plan vacío: el botón queda libre");
   const sinProblema = estadoPlanMaestroParaGenerar({ datos: { ...datos, planMaestro: { ...pm, situacion: { ...pm.situacion, problema: "" } } }, mallaPayload: malla, horario });
   assert(/^la situación de aprendizaje no está lista: .*problema/.test(sinProblema.falta), "situación incompleta: lo que falta");
+  // El aviso del formulario dice solo lo que falta, sin repetir «Vista previa»
+  assert(!/Vista previa: .*Vista previa: /.test(sinProblema.motivo), "el error no repite el prefijo");
 });
 
 check("asignatura sin indicadores estructurados → no aplica (genera como antes)", () => {

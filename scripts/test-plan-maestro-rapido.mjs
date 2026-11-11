@@ -11,7 +11,7 @@
  */
 import { readFileSync } from "node:fs";
 import {
-  prellenarPlanMaestro, debePrellenarPlanMaestro, planMaestroSinTocar, estadoPlanMaestroParaGenerar,
+  prellenarPlanMaestro, prellenarSinPisar, debePrellenarPlanMaestro, planMaestroSinTocar, estadoPlanMaestroParaGenerar,
   resolverIndicadoresEstructurados, competenciasDeMalla, PLAN_MAESTRO_INICIAL, prepararPlanMaestroGeneracion,
 } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { seccionesPrincipalesUnidad, construirContratoFase, hiloPartenDe } from "../src/services/redaccionFaseService.js";
@@ -270,6 +270,19 @@ check("si el docente no toca nada, la vista previa nunca bloquea: temas con y si
   // 3 partes y no se puede unir: no cabe en 3 sesiones. La estrategia que propone DocenteOS siempre cabe.
   const reales = bloqueos.filter((b) => !/ 1 sem conocimientos_previos:/.test(b));
   igual(reales.slice(0, 5), [], `bloqueos sin que el docente toque nada (${reales.length})`);
+});
+
+check("trampa: el docente toca el plan antes del prellenado; DocenteOS completa sin pisar lo elegido y no bloquea (César, 2026-11-11)", () => {
+  const datos = { ...base, numSemanas: 4, titulo: "Actividades de la vida diaria", temasSeleccionados: ["Actividades de la vida diaria"],
+    planMaestro: { ...PLAN_MAESTRO_INICIAL, estrategia: "problemas" } };
+  assert(debePrellenarPlanMaestro({ planMaestro: datos.planMaestro, titulo: datos.titulo }), "debía prellenar aunque el docente tocara la estrategia");
+  const r = prellenarSinPisar({ datos, indicadores: estructura.indicadores, competencias });
+  igual(r.planMaestro.estrategia, "problemas", "la estrategia del docente se conserva");
+  assert(r.planMaestro.competenciasElegidas.length > 0 && r.planMaestro.situacion, "competencias y situación completadas");
+  const e = estadoPlanMaestroParaGenerar({ datos, mallaPayload: malla, horario });
+  assert(e.listo, `sigue bloqueando: ${e.falta}`);
+  const conCompetencias = { ...datos.planMaestro, competenciasElegidas: ["x"], prellenado: undefined };
+  assert(!debePrellenarPlanMaestro({ planMaestro: { ...conCompetencias, situacion: {} }, titulo: datos.titulo }), "con competencias del docente no se toca");
 });
 
 console.log(`\nModo rápido del plan maestro: ${pasos} pasos, ${fallos} fallos`);
