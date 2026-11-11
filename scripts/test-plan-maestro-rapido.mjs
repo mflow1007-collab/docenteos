@@ -240,5 +240,17 @@ check("«Alimentación»: solo la fase de aplicación lleva la audiencia real", 
   assert(/c\.audienciaReal \? `APLICACIÓN ANTE LA AUDIENCIA REAL/.test(txt), "buildFasePrompt nombra la audiencia");
 });
 
+check("situación de más de 800 caracteres: aviso, no bloqueo; estrategia cambiada sin aceptar: se realinea sola (César, 2026-11-11)", () => {
+  const h = { ...horario, semanas: 4 };
+  const d = prellenar({ ...base, numSemanas: 4, titulo: "Alimentación", temasSeleccionados: ["Alimentación"] });
+  const larga = { ...d.planMaestro.situacion, contexto: `${d.planMaestro.situacion.contexto} ${"Los estudiantes conversan con sus familias y vecinos sobre lo que comen cada día en casa y en el colmado. ".repeat(6)}` };
+  const r = prepararPlanMaestroGeneracion({ datos: { ...d, planMaestro: { ...d.planMaestro, situacion: larga } }, mallaPayload: malla, horario: h });
+  assert(r.situacionTexto.length > 800, `la situación no pasó de 800 (${r.situacionTexto.length})`);
+  assert(r.avisosSituacion.some((a) => /8 líneas/.test(a)), "falta el aviso de longitud");
+  const sinAceptar = { ...d.planMaestro, estrategia: "problemas", situacion: { ...d.planMaestro.situacion, estrategiaAlineada: "proyectos" } };
+  const r2 = prepararPlanMaestroGeneracion({ datos: { ...d, planMaestro: sinAceptar }, mallaPayload: malla, horario: h });
+  assert(r2.aplica && r2.plan.estrategia.clave === "problemas", "la realineación no se aceptó sola");
+});
+
 console.log(`\nModo rápido del plan maestro: ${pasos} pasos, ${fallos} fallos`);
 if (fallos) process.exit(1);

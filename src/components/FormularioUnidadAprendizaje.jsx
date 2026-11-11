@@ -1655,7 +1655,7 @@ export default function FormularioUnidadAprendizaje({
           </div>
           {titulo && estadoPlanMaestro.aplica && !estadoPlanMaestro.listo && (
             <p className="pd-hint" style={{ marginTop: 6 }}>
-              Falta en la vista previa: {estadoPlanMaestro.falta}{" "}
+              Antes de generar, falta: {estadoPlanMaestro.falta}{" "}
               <button
                 type="button"
                 className="pd-link-btn"

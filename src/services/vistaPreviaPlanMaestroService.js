@@ -20,7 +20,7 @@ import { construirPlanMaestro } from "./planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "./unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../data/indicadoresIngles2doEstructurados.js";
 import {
-  validarSituacion, propuestasParaTemas, usarSemilla, alinearSiNoHay, recomendarEstrategia,
+  validarSituacion, propuestasParaTemas, usarSemilla, alinearSiNoHay, recomendarEstrategia, aceptarRealineacion,
   borradorSituacion, productoSugerido, seccionesSugeridas,
 } from "./situacionAprendizajeService.js";
 
@@ -172,15 +172,19 @@ export const prepararPlanMaestroGeneracion = ({ datos = {}, mallaPayload, horari
     const detalle = vista.error.replace(/^Vista previa: /, "");
     throw Object.assign(error(`completa la «Vista previa del plan maestro» antes de generar: ${detalle}`), { detalle });
   }
-  const pm = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
-  const { texto, errores } = validarSituacion({
+  const pmDatos = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
+  // Si el docente cambió la estrategia y no aceptó la situación realineada, se acepta sola: el docente
+  // no tiene que entender la realineación para poder generar (César, 2026-11-11).
+  const pm = pmDatos.situacion?.estrategiaAlineada && pmDatos.estrategia && pmDatos.situacion.estrategiaAlineada !== pmDatos.estrategia
+    ? aceptarRealineacion(pmDatos) : pmDatos;
+  const { texto, errores, avisos = [] } = validarSituacion({
     situacion: pm.situacion, producto: datos.productoFinalTexto, estrategia: pm.estrategia,
   });
   if (errores.length) {
     const detalle = `la situación de aprendizaje no está lista: ${errores.join(" ")}`;
     throw Object.assign(error(detalle), { detalle });
   }
-  return { aplica: true, plan: vista.plan, estructura, situacionTexto: texto };
+  return { aplica: true, plan: vista.plan, estructura, situacionTexto: texto, avisosSituacion: avisos };
 };
 
 /** Versión que no lanza, para habilitar el botón Generar en el formulario. */

@@ -109,7 +109,7 @@ check("sin criterios completos no hay recomendación (error visible)", () => {
   assert(/contexto, producto y su alcance, punto de llegada/.test(msg), `mensaje: ${msg}`);
 });
 
-check("validador: situación vacía, problema «no saben inglés», sin competencia, demasiado larga", () => {
+check("validador: situación vacía, problema «no saben inglés», sin competencia; demasiado larga solo avisa", () => {
   igual(validarSituacion({ situacion: null, producto: "", estrategia: "" }).errores.length, 1, "sin situación");
   const vacia = validarSituacion({ situacion: situacionVacia(), producto: "", estrategia: "proyectos" }).errores;
   ["problema", "contexto", "nombre del producto", "qué es el producto", "a quién va dirigido", "punto de llegada", "competencia"]
@@ -121,7 +121,9 @@ check("validador: situación vacía, problema «no saben inglés», sin competen
   const sinComp = { ...situacionDesdeSemilla(escuela), competenciasLlegada: [] };
   assert(validarSituacion({ situacion: sinComp, producto: "X", estrategia: "proyectos" }).errores.some((e) => /competencia/.test(e)), "competencia");
   const larga = { ...situacionDesdeSemilla(escuela), contexto: "a".repeat(400) };
-  assert(validarSituacion({ situacion: larga, producto: "X", estrategia: "proyectos" }).errores.some((e) => /máximo es 800/.test(e)), "largo");
+  // Las 8 líneas son una alerta, no un tope (César, 2026-11-11): aviso, sin error.
+  const vLarga = validarSituacion({ situacion: larga, producto: "X", estrategia: "proyectos" });
+  assert(!vLarga.errores.some((e) => /800|8 líneas/.test(e)) && vLarga.avisos.some((a) => /8 líneas/.test(a)), "largo: aviso, no error");
 });
 
 check("realineación: cambiar de estrategia muestra antes/después y bloquea hasta aceptar", () => {

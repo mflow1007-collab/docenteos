@@ -222,6 +222,9 @@ export default function SituacionAprendizajePanel({ datos, onChange, pm, temas }
             </div>
           )}
           <ListaErrores errores={validacion.errores.map((e) => `Situación: ${e}`)} />
+          {(validacion.avisos || []).map((a) => (
+            <p key={a} style={{ fontSize: 12, color: "#92400e", margin: "4px 0 0" }}>Aviso (no impide generar): {a}</p>
+          ))}
 
           <div className="pd-section-title" style={{ marginTop: 12 }}>Secciones del producto</div>
           <p className="pd-hint" style={{ margin: "0 0 4px" }}>
