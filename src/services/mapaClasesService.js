@@ -1467,6 +1467,31 @@ export const conFichaDeUnidad = (datos) => {
   return { ...datos, planMaestro: { ...pm, modalidadVisita: modalidad, situacion, ...(piezasSecciones ? { piezasSecciones } : {}) } };
 };
 
+/**
+ * Semillas escritas para una estrategia con encuesta (Rutinas: «What We Found» = resultados de la encuesta). Si la
+ * unidad no tiene clases de encuesta (p. ej. ABP a 12 clases), sus propósitos y piezas nombran la fuente real: la que
+ * trae el docente (revisor g32/g33: la IA seguía la semilla y ordenaba «encuestas» que nadie hizo). Devuelve cuántos cambió.
+ */
+const SIN_ENCUESTA = [
+  [/\((?:la |una )?encuestas?:/gi, "(datos de la fuente que trae el docente:"],
+  [/\b(?:la|una|las|unas|sus|su) encuestas?\b/gi, "la fuente que trae el docente"],
+  [/\bencuestas?\b/gi, "fuente que trae el docente"],
+];
+export const sinEncuestaSiNoHay = (plan = {}, mapa = {}) => {
+  const hayEncuesta = (mapa.filas || []).some((f) => (f.tareas || []).some((t) => /^indagar_(disenar|aplicar)$/.test(t.clave)));
+  if (hayEncuesta) return 0;
+  let cambios = 0;
+  ["propositosSecciones", "piezasSecciones"].forEach((campo) => {
+    if (!plan[campo] || typeof plan[campo] !== "object") return;
+    plan[campo] = Object.fromEntries(Object.entries(plan[campo]).map(([sec, texto]) => {
+      if (typeof texto !== "string" || !/encuesta/i.test(texto)) return [sec, texto];
+      cambios += 1;
+      return [sec, SIN_ENCUESTA.reduce((t, [re, por]) => t.replace(re, por), texto)];
+    }));
+  });
+  return cambios;
+};
+
 /** Ambiente: solo lo que las tareas usan; ninguna clase depende de tecnología. */
 export const ambienteDeMapa = (mapa) => {
   const conInvitado = mapa.filas.some((f) => f.modalidad === "invitado");

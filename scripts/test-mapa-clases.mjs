@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1306,6 +1306,18 @@ check("ABP sin encuesta: rechaza una clase que nombra encuestas; la elección de
   const m = mapaDe("Actividades de la vida diaria", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
   const elegir = m.filas.flatMap((f) => f.tareas).find((t) => t.clave === "proponer_elegir");
   assert(/2 o 3 cursos de acción/.test(elegir?.instruccion || "") && /pros y sus contras/.test(elegir.instruccion), `instrucción: ${elegir?.instruccion}`);
+});
+
+check("semilla escrita para encuesta: sin clases de encuesta, propósitos y piezas nombran la fuente real (revisor g33)", () => {
+  const plan = () => ({ propositosSecciones: { "What We Found": "qué datos salieron al comparar las rutinas (encuesta: horas de sueño, llegadas tarde, tareas)", "Tips": "consejos" },
+    piezasSecciones: { "What We Found": "un gráfico de barras con los resultados de la encuesta y frases que lo explican" } });
+  const sin = plan();
+  igual(sinEncuestaSiNoHay(sin, { filas: [{ tareas: [{ clave: "analizar_ordenar" }] }] }), 2, "textos cambiados");
+  assert(!/encuesta/i.test(JSON.stringify(sin)) && /fuente que trae el docente/.test(sin.propositosSecciones["What We Found"]), JSON.stringify(sin));
+  igual(sin.propositosSecciones.Tips, "consejos", "lo demás no cambia");
+  const con = plan();
+  igual(sinEncuestaSiNoHay(con, { filas: [{ tareas: [{ clave: "indagar_disenar" }] }] }), 0, "con encuesta: igual");
+  assert(/encuesta/.test(con.piezasSecciones["What We Found"]), "con encuesta se conserva");
 });
 
 check("pie de rama y commit: solo lo ve el administrador", () => {
