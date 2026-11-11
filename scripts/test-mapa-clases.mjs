@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, recursosSinTruncar, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, ACTIVIDAD_NIVEL_SATISFACTORIO, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1348,6 +1348,26 @@ check("revisor g35: nivel satisfactorio obligatorio en su clase; integrar en «P
   igual(recursosSinTruncar(dias, ["Pizarra, tabla común"]), 1, "un momento cambiado");
   igual(dias[0].momentos[0].recursos.didacticos, "Pizarra, tabla común", "se repone de la fila");
   igual(dias[0].momentos[1].recursos.didacticos, "Pieza modelo, Texto impreso", "lo sano no cambia");
+});
+
+check("A1 por código: la clase con revision_nivel comprueba el nivel satisfactorio aunque la IA lo omita (g37)", () => {
+  const des = (n) => ({ nombre: "Desarrollo", actividades: Array.from({ length: n }, (_, k) => `Act ${k + 1}.`), actividadesDetalle: Array.from({ length: n }, (_, k) => ({ id: `S5-C10-M2-A${k + 1}`, texto: `Act ${k + 1}.`, tipo: "actividad" })), minutosActividad: Array(n).fill(30 / n) });
+  const dias = [
+    { numeroGlobal: 10, tareasMapa: [{ clave: "revision_nivel" }, { clave: "integrar" }], momentos: [{ nombre: "Inicio", actividades: [] }, des(4)] },
+    { numeroGlobal: 11, tareasMapa: [{ clave: "presentar" }], momentos: [des(3)] },
+    { numeroGlobal: 12, tareasMapa: [{ clave: "revision_nivel" }], momentos: [{ ...des(2), actividades: ["Act 1.", "Comprueban que llega al nivel satisfactorio."] }] },
+    { numeroGlobal: 13, tareasMapa: [{ clave: "revision_nivel" }], momentos: [des(6)] },
+  ];
+  igual(JSON.stringify(conNivelSatisfactorio(dias)), "[10,13]", "solo las que lo omiten");
+  const d10 = dias[0].momentos[1];
+  igual(d10.actividades.length, 5, "una actividad más");
+  igual(d10.actividades[1], ACTIVIDAD_NIVEL_SATISFACTORIO, "segunda actividad");
+  igual(d10.actividadesDetalle.map((x) => x.id).join(","), "S5-C10-M2-A1,S5-C10-M2-A2,S5-C10-M2-A3,S5-C10-M2-A4,S5-C10-M2-A5", "ids renumerados");
+  igual(d10.minutosActividad.reduce((s, x) => s + x, 0), 30, "mismos minutos");
+  igual(d10.minutosActividad.length, 5, "un tiempo por actividad");
+  igual(dias[1].momentos[0].actividades.length, 3, "sin revision_nivel no cambia");
+  igual(dias[3].momentos[0].actividades.length, 6, "nunca más de 6");
+  assert(/nivel satisfactorio/.test(dias[3].momentos[0].actividades[0]), "con 6 va dentro de la primera");
 });
 
 check("pie de rama y commit: solo lo ve el administrador", () => {

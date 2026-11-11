@@ -1521,6 +1521,46 @@ export const recursosSinTruncar = (dias = [], didacticosPorDia = []) => {
   return cambios;
 };
 
+/** Actividad fija del nivel satisfactorio (secuencia de `revision_nivel`, aprobada por César el 2026-11-07). */
+export const ACTIVIDAD_NIVEL_SATISFACTORIO = "Entregan (en grupos) cada sección corregida y el docente la revisa con la rúbrica: si llega al nivel satisfactorio, queda aprobada; si no, la devuelve con una mejora concreta que el grupo anota: sección aprobada o con una mejora pendiente; queda en la carpeta.";
+
+/**
+ * La clase con `revision_nivel` comprueba el nivel satisfactorio aunque la IA lo omita en todos sus intentos (revisor
+ * g35 y g37, A1; César, 2026-11-11: lo escribe el código). Se inserta como segunda actividad del Desarrollo, sin pasar
+ * de 6 actividades, y los minutos del Desarrollo se reparten de nuevo. Devuelve los números de clase cambiados.
+ */
+export const conNivelSatisfactorio = (dias = []) => {
+  const cambiadas = [];
+  (dias || []).forEach((dia, i) => {
+    if (!(dia?.tareasMapa || []).some((t) => t?.clave === "revision_nivel")) return;
+    const des = (dia.momentos || []).find((m) => m?.nombre === "Desarrollo");
+    if (!des || !Array.isArray(des.actividades)) return;
+    const textos = [...des.actividades, ...(des.actividadesDetalle || []).map((x) => x?.texto)].map((a) => String(typeof a === "string" ? a : a?.texto || ""));
+    if (textos.some((a) => /satisfactori/i.test(a))) return;
+    const n = des.actividades.length;
+    if (n >= 6) {
+      const extra = ` Después, el docente revisa cada sección corregida con la rúbrica: si llega al nivel satisfactorio, queda aprobada; si no, la devuelve con una mejora concreta.`;
+      if (typeof des.actividades[0] === "string") des.actividades[0] = `${des.actividades[0]}${extra}`;
+      if (typeof des.actividadesDetalle?.[0]?.texto === "string") des.actividadesDetalle[0].texto = `${des.actividadesDetalle[0].texto}${extra}`;
+    } else {
+      const pos = Math.min(1, n);
+      des.actividades.splice(pos, 0, ACTIVIDAD_NIVEL_SATISFACTORIO);
+      if (Array.isArray(des.actividadesDetalle) && des.actividadesDetalle.length === n) {
+        const base = String(des.actividadesDetalle[0]?.id || "").replace(/-A\d+$/, "");
+        des.actividadesDetalle.splice(pos, 0, { id: `${base}-A${pos + 1}`, texto: ACTIVIDAD_NIVEL_SATISFACTORIO, tipo: "actividad" });
+        des.actividadesDetalle.forEach((x, k) => { if (x && base && /-A\d+$/.test(String(x.id || ""))) x.id = `${base}-A${k + 1}`; });
+      }
+      if (Array.isArray(des.minutosActividad) && des.minutosActividad.length === n) {
+        const total = des.minutosActividad.reduce((s, x) => s + (Number(x) || 0), 0);
+        const cada = Math.floor(total / (n + 1));
+        des.minutosActividad = Array.from({ length: n + 1 }, (_, k) => cada + (k < total - cada * (n + 1) ? 1 : 0));
+      }
+    }
+    cambiadas.push(dia.numeroGlobal || i + 1);
+  });
+  return cambiadas;
+};
+
 /** Ambiente: solo lo que las tareas usan; ninguna clase depende de tecnología. */
 export const ambienteDeMapa = (mapa) => {
   const conInvitado = mapa.filas.some((f) => f.modalidad === "invitado");
