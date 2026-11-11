@@ -152,7 +152,8 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
     // Hasta el nivel satisfactorio (Referente por proyecto 2022, p. 35): en la misma clase, el docente comprueba lo corregido (opción A de César, 2026-11-10).
     push({ ...TAREA_REVISION_NIVEL, faseInsercion: "socializar", ...enEvaluacion }, grupo, 2, 1.5, g);
   });
-  if (nivelEnCorreccion) push({ ...TAREA_REVISION_NIVEL, faseInsercion: "proponer", ...enPuesta }, corregibles, 2, 1.5, 0);
+  // Con «integrar», la comprobación del nivel es trabajo de grupo de «Puesta en común» (revisor g35, C10).
+  if (nivelEnCorreccion) push({ ...TAREA_REVISION_NIVEL, faseInsercion: "proponer", ...(puesta >= 0 ? { faseGuia: puesta } : {}) }, corregibles, 2, 1.5, 0);
   if (!unCiclo) trozos(tardias, SECCIONES_POR_CORREGIR).forEach((grupo, g) => {
     push({ ...TAREA_CORREGIR, minutos: MINUTOS_CORREGIR_CON_REVISION, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2, g);
     push({ ...TAREA_REVISION_NIVEL, faseInsercion: "proponer", ...enEvaluacion }, grupo, 2, 2.5, g);
