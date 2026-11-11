@@ -110,9 +110,11 @@ export const VERBOS_IDIOMA = {
 // Guardan, Archivan y Entregan: decisión de César (2026-11-01, Etapa D).
 // Ensayan, Reúnen y Discuten: decisión de César (2026-11-05).
 // Recorren…Clasifican y Acuerdan…Recogen: decisión de César (2026-11-06), verbos de su unidad a mano.
+// Consultan y Ajustan: Alimentación C13 (g28), César 2026-11-11.
 export const VERBOS_GESTION = ["Socializan", "Comparten", "Revisan", "Corrigen", "Practican", "Guardan", "Archivan", "Entregan", "Ensayan", "Reúnen", "Discuten",
   "Recorren", "Firman", "Justifican", "Prueban", "Anotan", "Clasifican",
-  "Acuerdan", "Forman", "Completan", "Añaden", "Agradecen", "Ilustran", "Ordenan", "Repasan", "Recogen"];
+  "Acuerdan", "Forman", "Completan", "Añaden", "Agradecen", "Ilustran", "Ordenan", "Repasan", "Recogen",
+  "Consultan", "Ajustan"];
 const NIVELES = ["preformal", "receptivo", "resolutivo", "autonomo", "estrategico"];
 // Nivel mínimo esperado por papel de fase (progresión 4.4); su falta solo se avisa.
 export const NIVEL_MINIMO_POR_ROL = {
