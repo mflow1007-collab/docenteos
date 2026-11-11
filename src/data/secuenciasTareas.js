@@ -266,6 +266,22 @@ export const SECUENCIAS_POR_TAREA = {
       pe(3, "Registran (en grupos) qué coincide y qué no: tabla de contraste; queda en la carpeta."),
     ],
   ],
+  // ABProblemas, «Reestructuración del problema»: evaluar 2–3 alternativas con pros y contras y elegir una con razones
+  // (tarea característica de la estrategia; revisor g30, 2026-11-11). Interpretación DocenteOS, aprobada por César el 2026-11-11.
+  "proponer_elegir:problemas": [
+    [
+      p(2, "Recuerdan (en plenaria) el problema y los objetivos que definieron, con el docente señalando el cartel."),
+      pe(4, "Proponen (en grupos, cada estudiante una) 2 o 3 alternativas para resolver el problema de {asunto} y las escriben en la tabla."),
+      pe(6, "Comparan (en grupos) los pros y los contras de cada alternativa (qué se gana, qué cuesta, si se puede hacer) en la tabla ({frases}), mientras el docente pasa por cada grupo.", "frases para comparar: It's easier/cheaper/better, but…; The problem is…"),
+      pe(4, "Eligen (en grupos) una alternativa y escriben dos razones: tabla de alternativas con la elegida marcada; queda en la carpeta."),
+    ],
+    [
+      p(2, "Repasan (en plenaria) el problema y lo que quieren lograr, mientras el docente lo anota en la pizarra."),
+      pe(4, "Escriben (en grupos, cada estudiante una) 2 o 3 alternativas para el problema de {asunto}, una por fila de la tabla."),
+      pe(6, "Valoran (en grupos) cada alternativa con sus pros y sus contras y si se puede hacer ({frases}), mientras el docente escucha y pregunta.", "frases para valorar: It's a good idea because…; It's difficult because…"),
+      pe(4, "Deciden (en grupos) cuál recomiendan y justifican la elección con dos razones: tabla de pros y contras con la decisión; queda en la carpeta."),
+    ],
+  ],
   // Producto que es una propuesta: no se usa, se defiende (Guía 2025, p. 21). Interpretación DocenteOS, aprobada por César el 2026-11-07.
   "probar_audiencia:defender": [
     [
