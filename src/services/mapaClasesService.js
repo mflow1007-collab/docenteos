@@ -94,7 +94,7 @@ export const pruebaDelProducto = (producto = "", secciones = [], estrategia = ""
 
 // Con la revisión de nivel en la misma clase, corregir cede su parte: el total de la clase no cambia ([15,30] = [10,20] + [5,10]).
 const MINUTOS_CORREGIR_CON_REVISION = [10, 20];
-const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "" }) => {
+const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "", problemaDesde = 13 }) => {
   const tareasOmitidas = omitidas;
   const indagacion = estrategia === "indagacion_dialogica";
   const faseDe = (re) => fases.findIndex((f) => re.test(f.nombre));
@@ -168,7 +168,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   }
   // Con 12 clases no caben (la unidad entera ya llena el tiempo): ahí las fases 2 y 3 se unen a la 1 y queda por decidir qué
   // tarea sale (César). Desde 13 clases, cada fase lleva la suya.
-  if (estrategia === "problemas" && totalClases >= 13) [u.problemaAnalizar, u.problemaDefinir, u.problemaObjetivos].forEach((t, k) => push(t, [...orden], 0, 1 + k, 0));
+  if (estrategia === "problemas" && totalClases >= problemaDesde) [u.problemaAnalizar, u.problemaDefinir, u.problemaObjetivos].forEach((t, k) => push(t, [...orden], 0, 1 + k, 0));
   push(u.glosario, [...orden], 3, 0, 0);
   push({ ...u.integrar, ...enEvaluacion }, [...orden], 3, 1, 0);
   if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) push(u.recorrerLugares, [...orden], 0, 1, 0);
@@ -1479,7 +1479,7 @@ const ajustesParaPlan = (filas, fases) => {
  * @param {string[]} [entrada.contenidosSeleccionados] - sin ella, todos los del tema.
  * @returns {{filas:object[], modo:string, total:number, avisos:string[], tipos:object, seccionesSupuestas:string[], ajustesPlan:object|null}}
  */
-export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, ...entrada } = {}) => {
+const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, problemaDesde = 13, ...entrada } = {}) => {
   const { semanas, diasClase, horasPorDia } = entrada.horario || {};
   const total = semanas * (diasClase?.length || 0) * horasPorDia;
   if (!Number.isInteger(total) || total <= 0) throw error("el horario necesita semanas, días de clase y horas por día.");
@@ -1491,7 +1491,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   const clave = plan.estrategia.clave;
   const tiposFase = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[clave] || null;
   const { tipos, supuestas } = tiposDeSecciones(plan.secciones, entrada.tiposTrabajoSecciones || {});
-  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto });
+  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto, problemaDesde });
   const capacidad = minutosDesarrollo(duracionMin);
   const avisos = [];
   if (supuestas.length) avisos.push(`Tipo de trabajo supuesto por la posición de la sección: ${supuestas.join(", ")}. El docente puede cambiarlo.`);
@@ -1610,6 +1610,22 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
     seleccionados: contenidosSeleccionados, fases: plan.fases.map((f) => f.numero),
     ajustesPlan: ajustesParaPlan(filas, plan.fases),
   };
+};
+
+/**
+ * ABProblemas con 12 clases: intenta darle a cada fase su tarea (selección, definición y objetivos) y, si el mapa no cabe
+ * así (versión breve, clases flexibles o tareas descartadas), vuelve a unir las fases como antes. Con 13 clases o más, siempre.
+ * Un solo número no sirve: depende de cuántas tareas lleve el producto (g28: Rutinas cabe, Escuela no).
+ */
+export const armarMapaClases = (args = {}) => {
+  const base = armarMapaClasesBase(args);
+  if (base.estrategia !== "problemas" || base.total !== 12) return base;
+  try {
+    const propias = armarMapaClasesBase({ ...args, problemaDesde: 12 });
+    const cabe = propias.modo !== "breve" && !propias.breve && !propias.filas.some((f) => f.flexible)
+      && !propias.avisos.some((a) => /no cabe en este tiempo/.test(String(a?.texto ?? a)));
+    return cabe ? propias : base;
+  } catch { return base; }
 };
 
 // Estado que deja la clase, para el «aporte al producto» que escribe el código.

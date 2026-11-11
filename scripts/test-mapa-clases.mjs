@@ -222,6 +222,15 @@ check("Problemas: con 13 clases o más cada fase lleva su tarea (selección, def
   const doce = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
   assert(doce.modo !== "breve" && !doce.filas.some((f) => f.flexible), `12 clases: ${doce.modo}`);
 });
+check("Problemas con 12 clases: lleva las tareas de selección, definición y objetivos si el mapa cabe, y si no vuelve a unir las fases", () => {
+  const claves = (m) => m.filas.flatMap((f) => f.tareas.map((t) => t.clave));
+  const rutinas = mapaDe("Actividades de la vida diaria", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  ["problema_analizar", "problema_definir", "problema_objetivos"].forEach((c) => assert(claves(rutinas).includes(c), `Rutinas 12 clases: falta ${c}`));
+  assert(rutinas.modo !== "breve" && !rutinas.filas.some((f) => f.flexible) && verificarMapa(rutinas).length === 0, "Rutinas: el mapa no cabe");
+  const escuela = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  assert(escuela.modo !== "breve" && !escuela.filas.some((f) => f.flexible), "Escuela 12 clases no debe pasar a versión breve");
+  assert(!claves(escuela).includes("problema_analizar"), "Escuela vuelve a unir las fases (no caben)");
+});
 check("recoger datos se parametriza por estrategia: hábitos en Indagación, el problema o el caso en las demás", () => {
   const textos = (estrategia, semanas = 5) => {
     const m = mapaDe("Escuela y educación", semanas, HORARIOS["3x1"], { planMaestro: { estrategia } });
