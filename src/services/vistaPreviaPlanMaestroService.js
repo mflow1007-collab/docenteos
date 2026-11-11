@@ -166,7 +166,21 @@ export const prepararPlanMaestroGeneracion = ({ datos = {}, mallaPayload, horari
     diasClase: horario.diasClase,
     horasPorDia: horario.horasPorDia,
   };
-  const vista = calcularVistaPrevia({ datos: datosPlan, mallaPayload });
+  let vista = calcularVistaPrevia({ datos: datosPlan, mallaPayload });
+  // Menos sesiones que fases y el docente no unió ninguna: DocenteOS las une solo, seguidas y lo más parejo
+  // posible (una clase puede llevar dos o más fases, César 2026-11-06). El docente no tiene que saber unir fases.
+  const faltan = /el horario da (\d+) sesiones y la estrategia tiene (\d+) fases/.exec(vista.error || "");
+  if (faltan && !(datos.planMaestro?.unir || []).length) {
+    const [total, nFases] = [Number(faltan[1]), Number(faltan[2])];
+    const grupos = Array.from({ length: total }, (_, i) => {
+      const desde = Math.floor((i * nFases) / total) + 1;
+      const hasta = Math.floor(((i + 1) * nFases) / total);
+      return Array.from({ length: hasta - desde + 1 }, (_, k) => desde + k);
+    }).filter((g) => g.length >= 2);
+    const conUnion = { ...datosPlan, planMaestro: { ...(datos.planMaestro || {}), unir: grupos, subdividir: {}, sesionesPorFase: null } };
+    const intento = calcularVistaPrevia({ datos: conUnion, mallaPayload });
+    if (!intento.error) vista = intento;
+  }
   if (vista.error) {
     // `detalle` = solo lo que falta (sin repetir «Vista previa»): lo muestra el formulario.
     const detalle = vista.error.replace(/^Vista previa: /, "");

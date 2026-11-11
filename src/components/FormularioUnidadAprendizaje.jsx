@@ -4,6 +4,8 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { analizarComplejidad, motivoProductoFinal, productoFinalDeDatos } from "../services/unidadAprendizajeService";
+import { auth } from "../firebase";
+import { esUsuarioDocenteOS } from "../utils/permisos";
 import {
   getAreas,
   getAreaCurricularDeAsignatura,
@@ -1521,10 +1523,13 @@ export default function FormularioUnidadAprendizaje({
       </details>
       </>)}
 
+      {/* Una sola puerta para personalizar (César, 2026-11-11): DocenteOS decide por defecto; quien quiera, ajusta aquí. */}
+      <details className="pd-detalles" id="personalizar-unidad">
+        <summary>Personalizar la unidad (opcional · DocenteOS ya lo prepara todo; ábrelo solo si quieres ajustar algo)</summary>
       <details className="pd-detalles" id="producto-final-unidad">
         <summary>
           {estadoPlanMaestro.aplica
-            ? "Producto final de la unidad (el nombre es obligatorio · lo demás, opcional)"
+            ? "Producto final de la unidad (opcional · DocenteOS lo propone si lo dejas vacío)"
             : "Producto final de la unidad (opcional · DocenteOS completa lo que falte)"}
         </summary>
         <div className="pd-field pd-field-full">
@@ -1623,8 +1628,10 @@ export default function FormularioUnidadAprendizaje({
         horario={{ numSemanas, diasClase, horasPorDia }}
         estadoMalla={estadoCurriculoAsesor.status}
       />
+      </details>
 
-      {motivoProducto && (
+      {/* El docente solo ve el resultado: este aviso técnico es para el administrador. */}
+      {motivoProducto && esUsuarioDocenteOS(auth?.currentUser?.email) && (
         <p className="pd-hint" style={{ marginTop: 8, color: "#92400e" }}>
           ⚠️ Revisa el producto final: {motivoProducto}. Puedes generar igual; la unidad
           saldrá con este aviso.{" "}
@@ -1634,6 +1641,8 @@ export default function FormularioUnidadAprendizaje({
             onClick={() => {
               const seccionProducto = document.getElementById("producto-final-unidad");
               if (!seccionProducto) return;
+              const puerta = document.getElementById("personalizar-unidad");
+              if (puerta) puerta.open = true;
               seccionProducto.open = true;
               seccionProducto.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
@@ -1663,6 +1672,8 @@ export default function FormularioUnidadAprendizaje({
                   // La vista previa es un <details> plegado: se abre y se lleva al docente a ella.
                   const vista = document.getElementById("vista-previa-plan-maestro");
                   if (!vista) return;
+                  const puerta = document.getElementById("personalizar-unidad");
+                  if (puerta) puerta.open = true;
                   vista.open = true;
                   vista.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
