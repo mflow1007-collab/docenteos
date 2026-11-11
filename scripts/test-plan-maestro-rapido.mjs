@@ -252,5 +252,25 @@ check("situación de más de 800 caracteres: aviso, no bloqueo; estrategia cambi
   assert(r2.aplica && r2.plan.estrategia.clave === "problemas", "la realineación no se aceptó sola");
 });
 
+check("si el docente no toca nada, la vista previa nunca bloquea: temas con y sin semilla, 1 a 8 semanas, cualquier estrategia (César, 2026-11-11)", () => {
+  const temas = ["Escuela y educación", "Actividades de la vida diaria", "Alimentación", "Salud y cuidados físicos", "Viajes y turismo", "Bienes y servicios", "My family and friends"];
+  const estrategias = ["proyectos", "problemas", "indagacion_dialogica", "insercion_entorno", "estudio_caso", "conocimientos_previos", "expositiva"];
+  const bloqueos = [];
+  temas.forEach((titulo) => [1, 4, 8].forEach((semanas) => {
+    const d = prellenar({ ...base, numSemanas: semanas, titulo, temasSeleccionados: [titulo] });
+    const e = estadoPlanMaestroParaGenerar({ datos: d, mallaPayload: malla, horario: { ...horario, semanas } });
+    if (!e.listo) bloqueos.push(`${titulo} ${semanas} sem: ${e.falta}`);
+    // Cambiar solo la estrategia (sin aceptar la realineación) tampoco bloquea.
+    estrategias.forEach((estrategia) => {
+      const e2 = estadoPlanMaestroParaGenerar({ datos: { ...d, planMaestro: { ...d.planMaestro, estrategia } }, mallaPayload: malla, horario: { ...horario, semanas } });
+      if (!e2.listo) bloqueos.push(`${titulo} ${semanas} sem ${estrategia}: ${e2.falta}`);
+    });
+  }));
+  // Única excepción: Exploración de conocimientos previos elegida a mano con 1 semana. Su fase 4 se divide sola en
+  // 3 partes y no se puede unir: no cabe en 3 sesiones. La estrategia que propone DocenteOS siempre cabe.
+  const reales = bloqueos.filter((b) => !/ 1 sem conocimientos_previos:/.test(b));
+  igual(reales.slice(0, 5), [], `bloqueos sin que el docente toque nada (${reales.length})`);
+});
+
 console.log(`\nModo rápido del plan maestro: ${pasos} pasos, ${fallos} fallos`);
 if (fallos) process.exit(1);
