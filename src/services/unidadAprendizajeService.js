@@ -3367,7 +3367,8 @@ export const validarCoherenciaProducto = ({
       let m;
       RE_FANTASMA.lastIndex = 0;
       while ((m = RE_FANTASMA.exec(texto)) !== null) {
-        const nombre = m[0].trim();
+        // Un título que empieza con gerundio («Ajustando Our School Survival Guide») no es parte del nombre.
+        const nombre = m[0].trim().replace(/^[A-Za-záéíóúñ]+(?:ando|iendo|endo)\s+(?=[A-Z])/i, "");
         // No es fantasma si sus tokens coinciden con el producto declarado.
         const toks = tokensTrazaAula(nombre);
         const esElProducto = toks.length && toks.every((t) => tokensProd.has(t));
