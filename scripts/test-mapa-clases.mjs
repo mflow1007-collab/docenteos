@@ -1281,6 +1281,9 @@ check("estrategias del día: sin estrategias ajenas a la unidad; las técnicas q
   const proyecto = [{ dias: [{ estrategiasDia: "Aprendizaje Basado en Proyecto • Aprendizaje Basado en Problemas (ABP)" }] }];
   sinEstrategiasAjenas(proyecto, "Aprendizaje Basado en Proyecto");
   igual(proyecto[0].dias[0].estrategiasDia, "Aprendizaje Basado en Proyecto", "Proyecto y Problemas no se confunden");
+  const corta = [{ dias: [{ estrategiasDia: "Aprendizaje Basado en Proyectos • Recuperación de experiencias previas • Inserción en el entorno" }] }];
+  sinEstrategiasAjenas(corta, "Aprendizaje Basado en Proyecto");
+  igual(corta[0].dias[0].estrategiasDia, "Aprendizaje Basado en Proyectos • Recuperación de experiencias previas", "forma corta «Inserción en el entorno» (g36)");
 });
 
 check("NEAE de la fase: las escribe el código desde un menú fijo; tecnología solo si el entorno la declara (revisor 2026-11-11)", () => {

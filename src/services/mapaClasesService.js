@@ -781,9 +781,10 @@ export const adaptacionesNEAEDelMenu = (fases = [], { conTecnologia = false } = 
 const sinTildes = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[.()]/g, " ").replace(/\s+/g, " ").trim();
 export const sinEstrategiasAjenas = (fases = [], estrategiaUnidad = "") => {
   const propia = sinTildes(estrategiaUnidad);
-  const ajenas = ESTRATEGIAS_FASES_GUIA_2025.map((e) => sinTildes(e.nombre)).filter((n) => n && n !== propia)
-    // «Aprendizaje Basado en Problemas (ABP)» → «aprendizaje basado en problemas»: se compara por el nombre sin sigla.
-    .map((n) => n.replace(/\s*abp$/, "").trim());
+  // Se reconoce cada estrategia por su forma corta: la primera palabra («inserción», «indagación», «exploración»…) o,
+  // en las de «Aprendizaje Basado en…», las cuatro primeras (g36: la IA escribe «Inserción en el entorno»).
+  const corta = (n) => { const p = n.replace(/\s*abp$/, "").trim().split(" "); return p[0] === "aprendizaje" ? p.slice(0, 4).join(" ") : (p[0] === "estudio" ? "estudio de caso" : p[0]); };
+  const ajenas = ESTRATEGIAS_FASES_GUIA_2025.map((e) => sinTildes(e.nombre)).filter((n) => n && n !== propia).map(corta);
   let cambios = 0;
   (fases || []).forEach((fase) => (fase?.dias || []).forEach((dia) => {
     if (typeof dia?.estrategiasDia !== "string" || !dia.estrategiasDia.trim()) return;
