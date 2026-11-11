@@ -19,6 +19,7 @@ import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { construirPlanMaestro } from "./planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "./unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../data/indicadoresIngles2doEstructurados.js";
+import { indicadoresEstructuradosDeMalla } from "./indicadoresDesdeMallaService.js";
 import {
   validarSituacion, propuestasParaTemas, usarSemilla, alinearSiNoHay, recomendarEstrategia, aceptarRealineacion,
   borradorSituacion, productoSugerido, seccionesSugeridas,
@@ -67,6 +68,12 @@ export const resolverIndicadoresEstructurados = (mallaPayload) => {
       .map((ind) => ind.id);
     if (distintos.length) throw error(`en la malla cargada, ${distintos.join(", ")} pertenecen a otra competencia que en ${etiqueta}.`);
     return { etiqueta, indicadores };
+  }
+  // Los demás grados de Inglés: estructurados desde su malla oficial, sin tocar el texto (César, 2026-11-11:
+  // el motor es para todos los grados). Solo Inglés: el mapa de clases es de Inglés.
+  if ([...porId.keys()].some((id) => /^ING-\d+-I\d+$/.test(String(id)))) {
+    const indicadores = indicadoresEstructuradosDeMalla(mallaPayload);
+    if (indicadores?.length) return { etiqueta: `Inglés ${mallaPayload?.grade || ""}`.trim(), indicadores };
   }
   return null;
 };

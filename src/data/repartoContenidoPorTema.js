@@ -77,6 +77,31 @@ export const unirEncabezadosGramatica = (items = []) => {
   return out;
 };
 
+// Encabezados de la lista de Procedimientos del PDF (no son contenidos).
+const ENCABEZADO_PROCEDIMIENTOS = /^(funcionales|discursivos|estrat[eé]gicos|comprensi[oó]n (oral|escrita)|producci[oó]n (oral|escrita)|otros|sociolingü[ií]sticos( y socioculturales)?)\s*:?\s*$/i;
+
+/**
+ * Las funciones de la sección «Funcionales» de Procedimientos, cada una en un ítem completo. El PDF parte las
+ * líneas por maquetación («• Solicitar y ofrecer explicaciones y» + «motivos»): una línea con viñeta abre un ítem,
+ * una que empieza en minúscula continúa el anterior. El texto sigue siendo literal; solo se reagrupan líneas.
+ * Se usa en los grados sin tabla de funciones (César, 2026-11-11: el motor es para todos los grados).
+ */
+export const funcionalesDeProcedimientos = (lineas = []) => {
+  const out = [];
+  let dentro = false;
+  for (const raw of lineas) {
+    const x = String(raw || "").trim();
+    if (!x) continue;
+    if (ENCABEZADO_PROCEDIMIENTOS.test(x)) { dentro = /^funcionales/i.test(x); continue; }
+    if (!dentro) continue;
+    const sinVineta = x.replace(/^(?:•\s*)+/, "").trim();
+    const continua = !x.startsWith("•") && out.length && /^[a-záéíóúñü]/.test(sinVineta);
+    if (continua) out[out.length - 1] = `${out[out.length - 1]} ${sinVineta}`;
+    else out.push(sinVineta);
+  }
+  return out;
+};
+
 const funcionesDeEstructura = (item, tabla) => {
   const cabeza = normClave(String(item).split(/:\s/)[0]);
   return tabla.funciones.filter((f) => f.patron.test(cabeza)).map((f) => f.nombre);
@@ -125,7 +150,12 @@ export const construirContenidosPorTema = ({
   repartir(vocabulario, "vocabulario");
   repartir(expresiones, "frases");
   if (!tablaFunciones) {
-    repartir(gramatica, "gramatica");
+    // Encabezados sueltos («Adverbios y frases adverbiales de:») unidos a su línea, como con tabla.
+    repartir(unirEncabezadosGramatica(gramatica), "gramatica");
+    // Sin tabla, cada tema lleva las funciones del grado completas, sin trozos ni encabezados del PDF.
+    // Si la lista no tiene sección «Funcionales» reconocible, se deja como venía (no se pierde nada).
+    const funcionales = funcionalesDeProcedimientos(procedimientosFuncionales);
+    if (funcionales.length) for (const b of bloques) b.procedimientos.funcionales = [...funcionales];
     return bloques;
   }
   // Opción B (src/data/funcionesPorTemaLenguas.js): la gramática va a los temas

@@ -130,7 +130,7 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
   } else if (!estructura.indicadores) {
     cuerpo = (
       <p className="pd-hint">
-        La vista previa del plan maestro todavía solo está disponible para Inglés 2do de Secundaria.
+        La vista previa del plan maestro todavía solo está disponible para Inglés.
         Puedes generar la unidad con el motor anterior (por semanas).
       </p>
     );
