@@ -14,7 +14,7 @@ import { ROLES_FASES_POR_ESTRATEGIA, rolesDeFaseGuia, TIPO_TRABAJO_FASES_POR_EST
 import {
   PLAN_MAESTRO_INICIAL, calcularVistaPrevia, resolverIndicadoresEstructurados, competenciasDeMalla,
   temasDeLaUnidad, alternarUnionConSiguiente, fijarPartes, fijarSesiones, repartirDeNuevo,
-  alternarCompetencia, alternarIndicador, alternarAspecto, prellenarPlanMaestro, debePrellenarPlanMaestro,
+  alternarCompetencia, alternarIndicador, alternarAspecto, prellenarSinPisar, debePrellenarPlanMaestro,
 } from "../services/vistaPreviaPlanMaestroService.js";
 import SituacionAprendizajePanel from "./SituacionAprendizajePanel.jsx";
 
@@ -76,9 +76,10 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
   // Siempre con los datos más recientes (el prellenado espera a que termine el título).
   const datosActuales = useRef(datos);
   useEffect(() => { datosActuales.current = datos; });
+  // Sin pisar lo que el docente ya eligió (si tocó el plan antes de que DocenteOS lo prellenara).
   const prellenar = () => onChange({
     ...datosActuales.current,
-    ...prellenarPlanMaestro({
+    ...prellenarSinPisar({
       datos: datosActuales.current,
       indicadores: estructura.indicadores,
       competencias: competenciasDeMalla(mallaPayload, estructura.indicadores),

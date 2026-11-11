@@ -157,9 +157,14 @@ export const calcularVistaPrevia = ({ datos, mallaPayload }) => {
  * algo. `horario` es el que usará el generador (semanas, días, horas).
  * @returns {{aplica:false}|{aplica:true, plan, estructura, situacionTexto}}
  */
-export const prepararPlanMaestroGeneracion = ({ datos = {}, mallaPayload, horario }) => {
+export const prepararPlanMaestroGeneracion = ({ datos: datosEntrada = {}, mallaPayload, horario }) => {
   const estructura = resolverIndicadoresEstructurados(mallaPayload);
   if (!estructura) return { aplica: false };
+  // Plan tocado antes del prellenado: DocenteOS completa lo que falta sin pisar lo que eligió el docente.
+  const datos = !datosEntrada.planMaestro?.prellenado && String(datosEntrada.titulo || "").trim()
+    && !(datosEntrada.planMaestro?.competenciasElegidas || []).length
+    ? { ...datosEntrada, ...prellenarSinPisar({ datos: datosEntrada, indicadores: estructura.indicadores, competencias: competenciasDeMalla(mallaPayload, estructura.indicadores) }) }
+    : datosEntrada;
   const datosPlan = {
     ...datos,
     numSemanas: horario.semanas,
@@ -340,6 +345,31 @@ export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencia
   };
 };
 
+/**
+ * Prellena sin pisar lo que el docente ya eligió (estrategia, situación, secciones, competencias, producto).
+ * Cubre la trampa de tocar el plan antes de que DocenteOS lo prellene: el plan quedaba sin competencias y bloqueaba
+ * con «el docente no ha elegido ninguna competencia» (César, 2026-11-11).
+ */
+export const prellenarSinPisar = ({ datos = {}, indicadores = [], competencias = [] } = {}) => {
+  const pre = prellenarPlanMaestro({ datos, indicadores, competencias });
+  const propio = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
+  const pm = { ...pre.planMaestro };
+  if (propio.estrategia) pm.estrategia = propio.estrategia;
+  if (propio.situacion) pm.situacion = propio.situacion;
+  if ((propio.secciones || []).length) {
+    ["secciones", "propositosSecciones", "piezasSecciones", "terminosSecciones", "tiposTrabajoSecciones", "partenDeSecciones"]
+      .forEach((k) => { if (propio[k] !== undefined) pm[k] = propio[k]; });
+  }
+  if ((propio.competenciasElegidas || []).length) {
+    pm.competenciasElegidas = propio.competenciasElegidas;
+    pm.indicadoresElegidos = propio.indicadoresElegidos;
+    pm.aspectosElegidos = propio.aspectosElegidos;
+  }
+  ["unir", "subdividir", "sesionesPorFase", "modalidadVisita"].forEach((k) => { if (propio[k] && (!Array.isArray(propio[k]) || propio[k].length)) pm[k] = propio[k]; });
+  const producto = String(datos.productoFinalTexto || "").trim() || pre.productoFinalTexto;
+  return { planMaestro: pm, productoFinalTexto: producto };
+};
+
 /** Firma del plan sin la marca de prellenado: si cambia, el docente lo tocó. */
 const firmaPlanMaestro = (pm) => JSON.stringify({ ...(pm || {}), prellenado: undefined });
 
@@ -353,6 +383,8 @@ export const debePrellenarPlanMaestro = ({ planMaestro, titulo = "", productoFin
   if (!t) return false;
   if (planMaestroSinTocar(planMaestro)) return true;
   const marca = planMaestro?.prellenado;
+  // Tocado antes del prellenado y sin competencias: se completa sin pisar lo elegido (prellenarSinPisar).
+  if (!marca && !(planMaestro?.competenciasElegidas || []).length) return true;
   if (!marca || marca.titulo === t) return false;
   return firmaPlanMaestro(planMaestro) === marca.firma && String(productoFinalTexto || "") === marca.producto;
 };
