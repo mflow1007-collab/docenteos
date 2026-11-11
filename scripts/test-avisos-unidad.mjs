@@ -102,7 +102,7 @@ check("I-11: detecta gym, cafeteria, art room y floor; Model School se permite; 
   assert(!sinLugaresEnClase(conEnganche).length && !/auditorio/.test(conEnganche.momentos[0].actividades[3]), "el enganche se sustituye");
 });
 check("verbos nuevos y mensaje de organización con el texto real", () => {
-  ["Recorren", "Firman", "Justifican", "Prueban", "Anotan", "Discuten", "Ensayan", "Clasifican", "Reúnen", "Acuerdan", "Recogen", "Consultan", "Ajustan"].forEach((v) => assert(!/lista de verbos/.test(motivoRedaccionActividad(`${v} (en parejas) sus fichas.`, { esIdioma: true })), v));
+  ["Recorren", "Firman", "Justifican", "Prueban", "Anotan", "Discuten", "Ensayan", "Clasifican", "Reúnen", "Acuerdan", "Recogen", "Consultan", "Ajustan", "Reciben"].forEach((v) => assert(!/lista de verbos/.test(motivoRedaccionActividad(`${v} (en parejas) sus fichas.`, { esIdioma: true })), v));
   const m = motivoRedaccionActividad("Comparten sus fichas en grupo y las leen.");
   assert(/«en grupo»/.test(m) && /"Comparten \(en grupo\) …"/.test(m), m);
   assert(!motivoRedaccionActividad("Reflexionan sobre la ayuda: reflexiones orales; se comparten en grupo."), "el destino no es organización");
