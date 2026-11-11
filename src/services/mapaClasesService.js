@@ -88,14 +88,20 @@ const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) },
  * recomendación (una propuesta no se usa; Guía 2025, p. 21). Null: la prueba general.
  */
 const PRUEBA_DEFENDER = { tipo: "defender", hace: "Defienden ante la audiencia su recomendación: explican por qué recomiendan esa alternativa y responden sus preguntas, y luego recogen sus comentarios en tarjetas." };
+// Banco de frases o charla: se usa practicando con un grupo pequeño de invitados que pide algo con una tarjeta del banco
+// (revisor de «Frases del aula», 2026-11-11; César: llevarla a 15). Se reconoce por el nombre o por qué es el producto.
+const PRUEBA_FRASES = { tipo: "frases", hace: "Practican en parejas con un grupo pequeño de invitados: el invitado pide permiso o ayuda con una tarjeta del banco y la pareja lo guía y aclara; luego recogen sus comentarios en tarjetas." };
+export const esBancoDeFrases = (texto = "") => /\b(phrases?|frases?|talk|charlas?)\b/i.test(String(texto));
 // En ABProblemas el producto responde al problema y se defiende ante quien decide, cualquiera que sea el tema (g28: Rutinas con ABP usaba la prueba de Indagación).
-export const pruebaDelProducto = (producto = "", secciones = [], estrategia = "") => (estrategia === "problemas" ? PRUEBA_DEFENDER : null)
+// Prioridad: Problemas → sección conocida → banco de frases → propuesta.
+export const pruebaDelProducto = (producto = "", secciones = [], estrategia = "", descripcion = "") => (estrategia === "problemas" ? PRUEBA_DEFENDER : null)
   || secciones.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean)
+  || (esBancoDeFrases(`${producto} ${descripcion}`) ? PRUEBA_FRASES : null)
   || (/\bpropos(al|uesta)\b/i.test(producto) ? PRUEBA_DEFENDER : null);
 
 // Con la revisión de nivel en la misma clase, corregir cede su parte: el total de la clase no cambia ([15,30] = [10,20] + [5,10]).
 const MINUTOS_CORREGIR_CON_REVISION = [10, 20];
-const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "", problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS }) => {
+const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "", descripcion = "", problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS, encuestaProyectos = true }) => {
   const tareasOmitidas = omitidas;
   const indagacion = estrategia === "indagacion_dialogica";
   const faseDe = (re) => fases.findIndex((f) => re.test(f.nombre));
@@ -168,13 +174,19 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Problemas: las fases 1 a 3 (selección, definición y objetivos) cada una con su tarea.
   // «Recoger datos» (diseñar el instrumento, aplicarlo y resumir de forma agregada y anónima) se reutiliza en la fase de
   // investigación de cada estrategia que investiga (Referente 2025 p. 20 y 23: encuesta, entrevista, fuentes). Con poco tiempo no cabe.
-  const FASE_DE_DATOS = { problemas: /^Análisis e investigación/, estudio_caso: /^Indagación o estudio/ };
-  if (FASE_DE_DATOS[estrategia] && totalClases >= datosDesde && faseDe(FASE_DE_DATOS[estrategia]) >= 0) {
-    (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS ? [u.indagarDisenar, u.indagarAplicar] : [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar]).forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]), estructura: DATOS_ENCUESTA[estrategia].estructura }, [...orden], 0, 2.5, k));
+  const FASE_DE_DATOS = { problemas: /^Análisis e investigación/, estudio_caso: /^Indagación o estudio/, proyectos: /^Gestión del conocimiento/ };
+  // Proyectos: si el producto no depende de lugares, «Gestión del conocimiento» recoge datos con la encuesta en lugar del
+  // recorrido; los datos salen de la audiencia, no solo de los modelos (revisor de «Frases del aula», 2026-11-11).
+  const sinLugares = !orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"));
+  const recogeDatos = estrategia === "proyectos" ? encuestaProyectos && sinLugares : totalClases >= datosDesde;
+  if (FASE_DE_DATOS[estrategia] && recogeDatos && faseDe(FASE_DE_DATOS[estrategia]) >= 0) {
+    const corta = estrategia === "proyectos" || (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS);
+    (corta ? [u.indagarDisenar, u.indagarAplicar] : [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar]).forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]), estructura: DATOS_ENCUESTA[estrategia].estructura }, [...orden], 0, 2.5, k));
   }
   // ABP con menos de 15 clases y encuesta: la encuesta (aplicar y resumir en cifras) ya ordena los datos reales, así que
   // sustituye al «ordenar» suelto; sin «contrastar con una fuente», que es de Indagación. Así cabe en 12 clases (revisor g34).
-  if (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS && items.some((it) => it.t.clave === "indagar_aplicar")) {
+  // Lo mismo en Proyectos con encuesta.
+  if ((estrategia === "proyectos" || (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS)) && items.some((it) => it.t.clave === "indagar_aplicar")) {
     for (let i = items.length - 1; i >= 0; i -= 1) if (items[i].t.clave === "analizar_ordenar") items.splice(i, 1);
   }
   // Con 12 clases no caben (la unidad entera ya llena el tiempo): ahí las fases 2 y 3 se unen a la 1 y queda por decidir qué
@@ -196,7 +208,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
     });
   }
   // Presentar y usar el producto con la audiencia son siempre dos tareas: la de usarlo cubre interactuar.
-  const prueba = pruebaDelProducto(producto, orden, estrategia);
+  const prueba = pruebaDelProducto(producto, orden, estrategia, descripcion);
   // Una propuesta se presenta completa y se defiende: no «se usa» (Guía 2025, p. 21).
   push(prueba?.tipo === "defender"
     ? { ...u.presentarSecciones, tipoPrueba: "defender", hace: "Presentan TODA la propuesta a la audiencia: las causas, los objetivos, las alternativas evaluadas y la recomendación. Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos." }
@@ -601,9 +613,23 @@ export const vincularInstrumentosConClases = (dias = [], anexos = {}, dimensione
 };
 
 /** Recursos humanos de una clase: el invitado cuenta si la tarea lo requiere. */
-export const humanosDeFila = (fila, alcance = null) => {
+/**
+ * Audiencia que no cabe en la clase sumativa (más de un curso o más de 15 personas): la configuración no cambia, pero la
+ * clase invita a una muestra y cada pareja atiende a un grupo pequeño (revisor de «Frases del aula», 2026-11-11). Vacío si cabe.
+ */
+export const muestraDeAudiencia = (audiencia = "") => {
+  const texto = String(audiencia || "");
+  const cursos = [...new Set([...texto.matchAll(/\b(\d{1,2})\s*(?:\.\s*º|º|°|\.º|ro|do|to|vo|no|mo)(?![\p{L}])/gu)].map((m) => `${m[1]}.º`))];
+  if (cursos.length > 1) return `2–3 estudiantes invitados de ${cursos.slice(0, -1).join(", ")} y ${cursos[cursos.length - 1]}`;
+  const cuantos = Math.max(0, ...[...texto.matchAll(/\b(\d{2,4})\s+(?:personas|estudiantes|alumnos|familias|padres|madres|invitados|miembros)\b/gi)].map((m) => Number(m[1])));
+  if (cuantos > 15) return `un grupo pequeño de invitados (5 o 6) de ${texto.replace(/^\s*(los|las|el|la)\s+/i, "")}`;
+  return "";
+};
+
+export const humanosDeFila = (fila, alcance = null, muestra = "") => {
   const claves = fila.tareas.map((t) => t.clave);
   if (claves.includes("presentar") || claves.includes("probar_audiencia")) {
+    if (muestra) return `Docente, estudiantes y ${muestra}`;
     if (!alcance?.invitado) return "Docente, estudiantes y la audiencia";
     return `Docente, estudiantes, ${alcance.invitado}${alcance.visitante ? ` y ${alcance.visitante}` : ""}`;
   }
@@ -1087,6 +1113,10 @@ const TITULO_POR_TAREA = {
   corregir_final: "Corrigiendo {p}", evaluar_proceso: "Reflexionando sobre lo aprendido",
 };
 const SIN_SECCION = new Set(["acordar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos", "recorrer_lugares", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "corregir_final", "evaluar_proceso", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "revision_docente", "revision_nivel"]);
+/** Títulos posibles de la clase, uno por tarea (la primera manda): para reemplazar un título que se parece a otro. */
+export const titulosDeTareas = (fila = {}, producto = "") => [...new Set((fila.tareas || [])
+  .map((t) => tituloDeClase({ ...fila, tareas: [t] }, producto)).filter(Boolean))];
+
 export const tituloDeClase = (fila = {}, producto = "") => {
   const t = fila.tareas?.[0];
   if (!t) return "";
@@ -1302,6 +1332,9 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", f
   // La fuente que se contrasta se nombra en los pasos y en los recursos de su clase.
   const nombreFuente = fuente || `una fuente sobre ${asunto || tema}`;
   const datosEncuesta = DATOS_ENCUESTA[mapa.estrategia] || DATOS_ENCUESTA.indagacion_dialogica;
+  // Banco de frases: la encuesta pregunta qué frases les cuesta usar, no cómo usar el producto (revisor de «Frases del aula»).
+  const frases = mapa.filas.some((f) => f.tareas.some((t) => t.tipoPrueba === "frases"));
+  const asuntoEncuesta = frases ? "qué frases les cuesta usar en clase" : (asunto || tema);
   mapa.filas.forEach((fila) => fila.tareas.filter((t) => t.clave === "indagar_contrastar").forEach((t) => {
     t.recursos = { ...t.recursos, didacticos: String(t.recursos?.didacticos || "").replace("Fuente impresa que trae el docente", `Fuente impresa: ${nombreFuente}`) };
   }));
@@ -1332,13 +1365,15 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", f
       texto: conContraccion(x.texto
         .replaceAll("{producto}", nombreCorto(producto))
         .replaceAll("{tema}", tema)
-        .replaceAll("{asunto}", asunto || tema)
+        .replaceAll("{asunto}", fila.tareas.some((t) => t.clave.startsWith("indagar_")) ? asuntoEncuesta : (asunto || tema))
         .replaceAll("{fuente}", nombreFuente)
         .replaceAll("{poblacion}", datosEncuesta.poblacion)
         .replaceAll("{preguntas}", datosEncuesta.preguntas)
         .replaceAll("{pregunta}", datosEncuesta.pregunta)
         .replaceAll("{respuestas}", datosEncuesta.respuestas)
         .replaceAll("{cifras}", datosEncuesta.cifras)
+        .replaceAll("{cuantas}", datosEncuesta.cuantas || "4 o 5")
+        .replaceAll("{decide}", String(datosEncuesta.decide || "").replaceAll("{producto}", nombreCorto(producto)))
         .replace(/\{audiencia\}/g, () => {
           if (audienciaDicha || !audiencia) return "la audiencia";
           audienciaDicha = true;
@@ -1635,7 +1670,12 @@ const ajustesParaPlan = (filas, fases) => {
  * @param {string[]} [entrada.contenidosSeleccionados] - sin ella, todos los del tema.
  * @returns {{filas:object[], modo:string, total:number, avisos:string[], tipos:object, seccionesSupuestas:string[], ajustesPlan:object|null}}
  */
-const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS, ...entrada } = {}) => {
+// Qué es el producto («una charla bilingüe con un banco de frases…»): viene en la situación del plan maestro.
+const descripcionDelProducto = (textoSituacion = "") => {
+  try { return String(JSON.parse(textoSituacion || "{}")?.productoDescripcion || ""); } catch { return ""; }
+};
+
+const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS, encuestaProyectos = true, ...entrada } = {}) => {
   const { semanas, diasClase, horasPorDia } = entrada.horario || {};
   const total = semanas * (diasClase?.length || 0) * horasPorDia;
   if (!Number.isInteger(total) || total <= 0) throw error("el horario necesita semanas, días de clase y horas por día.");
@@ -1647,7 +1687,7 @@ const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenido
   const clave = plan.estrategia.clave;
   const tiposFase = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[clave] || null;
   const { tipos, supuestas } = tiposDeSecciones(plan.secciones, entrada.tiposTrabajoSecciones || {});
-  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto, problemaDesde, datosDesde });
+  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto, descripcion: descripcionDelProducto(entrada.textoSituacion), problemaDesde, datosDesde, encuestaProyectos });
   const capacidad = minutosDesarrollo(duracionMin);
   const avisos = [];
   if (supuestas.length) avisos.push(`Tipo de trabajo supuesto por la posición de la sección: ${supuestas.join(", ")}. El docente puede cambiarlo.`);
@@ -1773,13 +1813,21 @@ const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenido
  * así (versión breve, clases flexibles o tareas descartadas), vuelve a unir las fases como antes. Con 13 clases o más, siempre.
  * Un solo número no sirve: depende de cuántas tareas lleve el producto (g28: Rutinas cabe, Escuela no).
  */
+const cabeMapa = (m) => m.modo !== "breve" && !m.breve && !m.filas.some((f) => f.flexible)
+  && !m.avisos.some((a) => /no cabe en este tiempo/.test(String(a?.texto ?? a)));
+
 export const armarMapaClases = (args = {}) => {
   const base = armarMapaClasesBase(args);
+  // Proyectos con encuesta: si así no cabe, se arma sin ella (y «ordenar» vuelve a trabajar con la fuente del docente).
+  if (base.estrategia === "proyectos") {
+    if (!base.filas.some((f) => f.tareas.some((t) => t.clave === "indagar_aplicar")) || cabeMapa(base)) return base;
+    const sin = armarMapaClasesBase({ ...args, encuestaProyectos: false });
+    return { ...sin, avisos: [...sin.avisos, "La encuesta no cabe en este tiempo: los datos salen de la fuente que trae el docente y de los modelos."] };
+  }
   if (base.estrategia !== "problemas" || base.total < 12 || base.total >= UMBRAL_RECOGER_DATOS) return base;
   // De más completo a menos: tareas de las fases 1–3 y recogida de datos (encuesta), luego solo las fases 1–3
   // (revisor g30: «recoger datos» es tarea característica de la investigación en ABP). Gana el primero que cabe.
-  const cabe = (m) => m.modo !== "breve" && !m.breve && !m.filas.some((f) => f.flexible)
-    && !m.avisos.some((a) => /no cabe en este tiempo/.test(String(a?.texto ?? a)));
+  const cabe = cabeMapa;
   for (const intento of [{ problemaDesde: 12, datosDesde: 12 }, { problemaDesde: 12 }]) {
     try {
       const m = armarMapaClasesBase({ ...args, ...intento });

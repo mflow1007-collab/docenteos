@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -1049,15 +1049,22 @@ check("el título no lleva acentos graves: el nombre del producto va entre comil
   igual(conTitulosCorregidos({ titulo: "Sin marcas", momentos: [] }, { corregidos: [] }).titulo, "Sin marcas", "sin cambios");
 });
 
-check("Proyectos sin recorrido: «ordenar» nombra su fuente y no añade tiempo; con recorrido queda como estaba", () => {
+check("Proyectos sin lugares: «Gestión del conocimiento» recoge datos con la encuesta; con recorrido queda como estaba (revisor de Frases del aula)", () => {
   const SEC = ["Greetings and Goodbyes", "Asking for Permission", "Requesting Assistance", "Materials and Work", "Teacher Instructions", "Politeness and Encouragement"];
   const frases = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "proyectos", secciones: SEC } });
-  const ordenar = frases.filas.flatMap((f) => f.tareas).filter((t) => t.clave === "analizar_ordenar");
-  assert(ordenar.length && ordenar.every((t) => /fuente que trae el docente/.test(t.instruccion)), "frases: ordenar nombra su fuente");
-  assert(!/recibidos/.test(ordenar[0].instruccion), "ya no dice «datos recibidos»");
+  const tareas = frases.filas.flatMap((f) => f.tareas);
+  const encuesta = tareas.filter((t) => ["indagar_disenar", "indagar_aplicar"].includes(t.clave));
+  igual(encuesta.map((t) => t.clave), ["indagar_disenar", "indagar_aplicar"], "diseñar y aplicar la encuesta");
+  assert(encuesta.every((t) => t.faseNombre === "Gestión del conocimiento"), `en Gestión del conocimiento: ${encuesta.map((t) => t.faseNombre)}`);
+  assert(!tareas.some((t) => ["analizar_ordenar", "indagar_contrastar", "recorrer_lugares"].includes(t.clave)), "la encuesta sustituye a «ordenar»; sin contrastar ni recorrido");
   assert(frases.modo !== "breve" && !fallosQueDetienen(frases).length, "la unidad cabe sin pasar a versión breve");
+  // Si la encuesta no cabe, se arma sin ella y «ordenar» nombra su fuente (g20).
+  const sin = armarMapaClases({ ...entrada("Escuela y educación", 4, ...HORARIOS["3x1"], { planMaestro: { estrategia: "proyectos", secciones: SEC } }), encuestaProyectos: false });
+  const ordenar = sin.filas.flatMap((f) => f.tareas).filter((t) => t.clave === "analizar_ordenar");
+  assert(ordenar.length && ordenar.every((t) => /fuente que trae el docente/.test(t.instruccion)), "sin encuesta: ordenar nombra su fuente");
   const guia = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "proyectos" } });
-  assert(guia.filas.some((f) => f.tareas.some((t) => t.clave === "recorrer_lugares")) && !guia.filas.some((f) => f.tareas.some((t) => /fuente que trae el docente/.test(t.instruccion || ""))), "con recorrido, sin cambios");
+  const tg = guia.filas.flatMap((f) => f.tareas);
+  assert(tg.some((t) => t.clave === "recorrer_lugares") && !tg.some((t) => t.clave.startsWith("indagar_")), "con lugares: recorrido y sin encuesta");
 });
 
 check("los textos por semilla solo valen si el docente no cambió el producto (asunto de la lectura, fuente, modelo, pregunta)", () => {
@@ -1348,6 +1355,25 @@ check("revisor g35: nivel satisfactorio obligatorio en su clase; integrar en «P
   igual(recursosSinTruncar(dias, ["Pizarra, tabla común"]), 1, "un momento cambiado");
   igual(dias[0].momentos[0].recursos.didacticos, "Pizarra, tabla común", "se repone de la fila");
   igual(dias[0].momentos[1].recursos.didacticos, "Pieza modelo, Texto impreso", "lo sano no cambia");
+});
+
+check("Frases del aula: banco de frases → práctica con invitados; audiencia de varios cursos → muestra; títulos alternos por tarea", () => {
+  igual(pruebaDelProducto("Useful Classroom Phrases Talk", ["Greetings and Goodbyes"], "proyectos")?.tipo, "frases", "por el nombre");
+  igual(pruebaDelProducto("Our Class Book", [], "proyectos", "una charla bilingüe con un banco de frases")?.tipo, "frases", "por la descripción");
+  igual(pruebaDelProducto("Useful Classroom Phrases Talk", [], "problemas")?.tipo, "defender", "Problemas manda");
+  igual(pruebaDelProducto("Phrases", ["School Directions"], "proyectos")?.tipo, "guia", "la sección conocida manda");
+  assert(!esBancoDeFrases("una guía bilingüe de la escuela") && !esBancoDeFrases("un plan de rutinas"), "otros productos no");
+  igual(muestraDeAudiencia("los estudiantes de 4.º, 5.º y 6.º de primaria y de 1.º de secundaria"), "2–3 estudiantes invitados de 4.º, 5.º, 6.º y 1.º", "varios cursos");
+  igual(muestraDeAudiencia("los estudiantes de 6.º de primaria; también a un docente que hace de visitante"), "", "un curso: cabe");
+  igual(muestraDeAudiencia("las familias; también al consejo de curso"), "", "sin cursos ni cifra: cabe");
+  assert(/grupo pequeño/.test(muestraDeAudiencia("30 familias del sector")), "más de 15 personas: grupo pequeño");
+  const fila = { tareas: [{ clave: "presentar" }, { clave: "probar_audiencia" }] };
+  igual(humanosDeFila(fila, null, "2–3 estudiantes invitados de 4.º y 5.º"), "Docente, estudiantes y 2–3 estudiantes invitados de 4.º y 5.º", "humanos con la muestra");
+  igual(humanosDeFila(fila, null), "Docente, estudiantes y la audiencia", "sin muestra, como antes");
+  const c = { tareas: [{ clave: "aplicar_modelo", secciones: ["A"] }, { clave: "describir_redactar", secciones: ["B"] }] };
+  const alternos = titulosDeTareas(c, "P");
+  igual(alternos.length, 2, "un título por tarea");
+  assert(titulosSimilares("Analizando una pieza modelo: Greetings", alternos[0]) && !titulosSimilares("Analizando una pieza modelo: Greetings", alternos[1]), `el segundo no se parece: ${alternos}`);
 });
 
 check("A1 por código: la clase con revision_nivel comprueba el nivel satisfactorio aunque la IA lo omita (g37)", () => {

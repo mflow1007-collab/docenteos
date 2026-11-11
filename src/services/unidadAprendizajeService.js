@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { versionDeBuild } from "../utils/buildInfo.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
@@ -5291,7 +5291,7 @@ const _generarFasesConIA = async (
           // Se aplica al final: la fusión con la respuesta de la IA escribe los recursos después.
           const alcance = alcanceDeSituacion(contexto.planMaestro?.situacion) || null;
           if (necesitaLugares(filaMapa)) dia.ampliacion = ampliacionSinLugares(dia.ampliacion);
-          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[semillaVigente(contexto.planMaestro?.situacion)] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: tituloDeClase(filaMapa, rutaPlanMaestro?.plan?.producto || ""), modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
+          dia.fijoDelMapa = { nombreModelo: alcance?.nombreModelo || NOMBRE_MODELO_POR_SEMILLA[semillaVigente(contexto.planMaestro?.situacion)] || NOMBRE_MODELO_GENERAL, segundaClase: filaMapa.clase === 2, reemplazos: alcance?.reemplazos || [], tituloTarea: tituloDeClase(filaMapa, rutaPlanMaestro?.plan?.producto || ""), titulosTareas: titulosDeTareas(filaMapa, rutaPlanMaestro?.plan?.producto || ""), modeloFicticio: necesitaLugares(filaMapa), evaluacion: evaluacionDeFila(filaMapa), humanos: humanosDeFila(filaMapa, alcance, muestraDeAudiencia(contexto.planMaestro?.situacion?.audiencia)), didacticos: didacticosDeFila(filaMapa), primeraClase: filaMapa.clase === 1 };
         }
       }
       dia.secuenciaPedagogica = anclaSecuencia?.secuenciaPedagogica || {
@@ -5594,7 +5594,8 @@ export const prepararMapaClases = ({ datos, mallaPayload, asignatura, numSemanas
     tema: datos.titulo || "",
     asunto: asuntoDeLectura(situacion, r.plan.producto),
     fuente: FUENTE_POR_SEMILLA[semillaVigente(situacion)] || "",
-    audiencia: situacion.audiencia || "",
+    // Audiencia que no cabe en el aula: la sumativa nombra la muestra invitada; la configuración no cambia.
+    audiencia: muestraDeAudiencia(situacion.audiencia) || situacion.audiencia || "",
     invitado: alcanceSemilla?.invitadoConArticulo || invitado || "",
     entrega: alcanceSemilla?.entrega || "",
     semilla: [datos.titulo, datos.centro, datos.grado, datos.seccion].join("|"),
@@ -6322,8 +6323,10 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         if (claveTitulo && seParece(claveTitulo)) {
           const anterior = d.titulo;
           const propio = d.fijoDelMapa.tituloTarea;
-          if (propio && !seParece(propio)) {
-            d.titulo = propio;
+          // Si el de la primera tarea también se parece («Analizando un modelo» tras «Analizando una pieza modelo»), el de otra tarea de la clase.
+          const otro = (d.fijoDelMapa.titulosTareas || []).find((x) => !seParece(String(x).trim().toLowerCase()));
+          if (otro) {
+            d.titulo = otro;
             avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título repetido «${anterior}»`);
           } else if (propio) {
             d.titulo = `${propio} (clase ${i + 1})`;

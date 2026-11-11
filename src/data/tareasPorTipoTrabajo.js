@@ -32,6 +32,8 @@ const tarea = (clave, nombre, minutos, demuestra, evidencia, condicion, organiza
 export const DATOS_ENCUESTA = {
   indagacion_dialogica: { poblacion: "sus compañeros", pregunta: "_How often do you…?_", preguntas: "_How often do you…?_, _What time do you…?_", respuestas: "_I sometimes…_, _I never…_", cifras: "_8 of 30 students…_" },
   problemas: { poblacion: "estudiantes de otro grupo a quienes afecta el problema", pregunta: "_Did you…?_", preguntas: "_Did you…?_, _Where…?_, _Why…?_", respuestas: "_Yes, I did…_, _It happened because…_", cifras: "_6 of 10 students…_", estructura: ["Preguntar por el problema y resumir datos", "presente simple y pasado (_Did you…?_, _6 of 10 students…_)"] },
+  // Proyectos sin lugares: se pregunta a la audiencia qué le cuesta (revisor de «Frases del aula», 2026-11-11).
+  proyectos: { poblacion: "un curso de la audiencia o al docente que la atiende", pregunta: "_Is it difficult for you to…?_", preguntas: "_Is it difficult for you to…?_, _What do you say when…?_", respuestas: "_Yes, it is…_, _I don't know how to…_", cifras: "_7 of 12 students don't know how to…_", cuantas: "3 o 4", decide: " y eligen qué incluir en {producto} a partir de esos datos", estructura: ["Preguntar a la audiencia y resumir datos", "presente simple (_Is it difficult for you to…?_, _7 of 12 students…_)"] },
   estudio_caso: { poblacion: "personas que conocen el caso", pregunta: "_What happened…?_", preguntas: "_What happened…?_, _Why…?_, _Who…?_", respuestas: "_I think…_, _Because…_", cifras: "_5 of 8 people…_", estructura: ["Preguntar por el caso y resumir datos", "(_What happened…?_, _5 of 8 people…_)"] },
 };
 
