@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -221,6 +221,15 @@ check("Problemas: con 13 clases o más cada fase lleva su tarea (selección, def
   });
   const doce = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
   assert(doce.modo !== "breve" && !doce.filas.some((f) => f.flexible), `12 clases: ${doce.modo}`);
+});
+check("Problemas con 12 clases: lleva las tareas de selección, definición y objetivos si el mapa cabe, y si no vuelve a unir las fases", () => {
+  const claves = (m) => m.filas.flatMap((f) => f.tareas.map((t) => t.clave));
+  const rutinas = mapaDe("Actividades de la vida diaria", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  ["problema_analizar", "problema_definir", "problema_objetivos"].forEach((c) => assert(claves(rutinas).includes(c), `Rutinas 12 clases: falta ${c}`));
+  assert(rutinas.modo !== "breve" && !rutinas.filas.some((f) => f.flexible) && verificarMapa(rutinas).length === 0, "Rutinas: el mapa no cabe");
+  const escuela = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  assert(escuela.modo !== "breve" && !escuela.filas.some((f) => f.flexible), "Escuela 12 clases no debe pasar a versión breve");
+  assert(!claves(escuela).includes("problema_analizar"), "Escuela vuelve a unir las fases (no caben)");
 });
 check("recoger datos se parametriza por estrategia: hábitos en Indagación, el problema o el caso en las demás", () => {
   const textos = (estrategia, semanas = 5) => {
@@ -1244,6 +1253,19 @@ check("las observaciones de la fase las escribe el código; título frente a con
   const intencion = { intencion: "producirán el producto mediante grabaciones orales y escritos corregidos." };
   sinEquiposEnTodo(intencion);
   igual(intencion.intencion, "producirán el producto mediante producciones orales y escritos corregidos.", "grabaciones orales");
+});
+
+check("g28: ABP defiende la recomendación en cualquier tema; NEAE sin «grabación»; título corto y concordancia", () => {
+  assert(pruebaDelProducto("Our Healthy Routines Plan", ["Tips for Families"], "problemas").tipo === "defender", "ABP de Problemas defiende, aunque el producto no se llame propuesta");
+  assert(pruebaDelProducto("Our Healthy Routines Plan", ["Tips for Families"], "indagacion_dialogica")?.tipo !== "defender", "Indagación no cambia");
+  const fase = { adaptacionesNEAE: { evaluacion: "Para estudiantes con dificultades visuales, se permite la grabación de lectura en voz alta del docente de la sesión." } };
+  adaptacionesNEAESinTecnologia(fase);
+  assert(!/grabaci/i.test(fase.adaptacionesNEAE.evaluacion) && /lectura en voz alta del docente/.test(fase.adaptacionesNEAE.evaluacion), `NEAE: ${fase.adaptacionesNEAE.evaluacion}`);
+  const corto = { titulo: "Corrigiendo", tareasMapa: [{ clave: "corregir" }] };
+  assert(tituloConLaFuncion(corto, "Corrigiendo y verificando las secciones") && corto.titulo === "Corrigiendo y verificando las secciones", "título de una palabra");
+  assert(!tituloConLaFuncion({ titulo: "Corrigiendo nuestras secciones", tareasMapa: [{ clave: "corregir" }] }, "x"), "título de 3 palabras se conserva");
+  igual(conConcordanciaEnTitulo("Comprendamos el problema para ayudar al nuevo estudiantes"), "Comprendamos el problema para ayudar a los nuevos estudiantes", "concordancia");
+  igual(conConcordanciaEnTitulo("Guía para el nuevo estudiante"), "Guía para el nuevo estudiante", "singular intacto");
 });
 
 check("pie de rama y commit: solo lo ve el administrador", () => {

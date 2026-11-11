@@ -80,6 +80,8 @@ Las 7 fases de la Guía coinciden con Ref p. 20. Los pasos de Ad p. 24 apoyan ca
 | Aprendizaje individual | Pieza individual firmada (`describir_redactar`-tipo) | Ad p. 24 («indagación individual que luego será consensuada») |
 | Puesta en común | `socializar_reunir`, `presentar` | Ref p. 20 («Socialización»); Ad p. 24 («puesta en común de los hallazgos», «comunicación de los resultados») |
 
+**Umbral de clases (g28, 2026-11-10):** las tareas propias de las fases 1 a 3 (selección, definición, objetivos) entran con 13 clases o más; «recoger datos», con 15. Con 12 clases el mapa lo intenta y, si no cabe (versión breve, clases flexibles o tareas descartadas), vuelve a unir esas fases en la clase 2 y avisa. Rutinas a 4 semanas cabe; Escuela a 4 semanas no. Para ABP se recomiendan 15 clases.
+
 **Decisión abierta (B):** ABProblemas no tiene fase de evaluación; la evaluación del producto (`evaluar_comentarios`, `evaluar_proceso`) iría en «Puesta en común». Hoy el código ya la manda a la última fase.
 
 ## 5. Estudio de caso (Guía: 5 fases)

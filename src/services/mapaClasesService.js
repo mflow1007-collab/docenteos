@@ -86,12 +86,15 @@ const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) },
  * Cómo se prueba el producto con la audiencia: por sus secciones conocidas o, si es una propuesta, defendiendo la
  * recomendación (una propuesta no se usa; Guía 2025, p. 21). Null: la prueba general.
  */
-export const pruebaDelProducto = (producto = "", secciones = []) => secciones.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean)
-  || (/\bpropos(al|uesta)\b/i.test(producto) ? { tipo: "defender", hace: "Defienden ante la audiencia su recomendación: explican por qué recomiendan esa alternativa y responden sus preguntas, y luego recogen sus comentarios en tarjetas." } : null);
+const PRUEBA_DEFENDER = { tipo: "defender", hace: "Defienden ante la audiencia su recomendación: explican por qué recomiendan esa alternativa y responden sus preguntas, y luego recogen sus comentarios en tarjetas." };
+// En ABProblemas el producto responde al problema y se defiende ante quien decide, cualquiera que sea el tema (g28: Rutinas con ABP usaba la prueba de Indagación).
+export const pruebaDelProducto = (producto = "", secciones = [], estrategia = "") => (estrategia === "problemas" ? PRUEBA_DEFENDER : null)
+  || secciones.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean)
+  || (/\bpropos(al|uesta)\b/i.test(producto) ? PRUEBA_DEFENDER : null);
 
 // Con la revisión de nivel en la misma clase, corregir cede su parte: el total de la clase no cambia ([15,30] = [10,20] + [5,10]).
 const MINUTOS_CORREGIR_CON_REVISION = [10, 20];
-const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "" }) => {
+const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "", problemaDesde = 13 }) => {
   const tareasOmitidas = omitidas;
   const indagacion = estrategia === "indagacion_dialogica";
   const faseDe = (re) => fases.findIndex((f) => re.test(f.nombre));
@@ -165,7 +168,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   }
   // Con 12 clases no caben (la unidad entera ya llena el tiempo): ahí las fases 2 y 3 se unen a la 1 y queda por decidir qué
   // tarea sale (César). Desde 13 clases, cada fase lleva la suya.
-  if (estrategia === "problemas" && totalClases >= 13) [u.problemaAnalizar, u.problemaDefinir, u.problemaObjetivos].forEach((t, k) => push(t, [...orden], 0, 1 + k, 0));
+  if (estrategia === "problemas" && totalClases >= problemaDesde) [u.problemaAnalizar, u.problemaDefinir, u.problemaObjetivos].forEach((t, k) => push(t, [...orden], 0, 1 + k, 0));
   push(u.glosario, [...orden], 3, 0, 0);
   push({ ...u.integrar, ...enEvaluacion }, [...orden], 3, 1, 0);
   if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) push(u.recorrerLugares, [...orden], 0, 1, 0);
@@ -180,7 +183,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
     });
   }
   // Presentar y usar el producto con la audiencia son siempre dos tareas: la de usarlo cubre interactuar.
-  const prueba = pruebaDelProducto(producto, orden);
+  const prueba = pruebaDelProducto(producto, orden, estrategia);
   // Una propuesta se presenta completa y se defiende: no «se usa» (Guía 2025, p. 21).
   push(prueba?.tipo === "defender"
     ? { ...u.presentarSecciones, tipoPrueba: "defender", hace: "Presentan TODA la propuesta a la audiencia: las causas, los objetivos, las alternativas evaluadas y la recomendación. Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos." }
@@ -699,10 +702,12 @@ const CAMBIOS_NEAE_SIN_TECNOLOGIA = [
   [/el uso de (grabadoras? de voz|grabaciones( de voz)?)/gi, "responder oralmente al docente"],
   [/grabaciones de voz/gi, "respuestas orales al docente"],
   [/\bformato digital( accesible)?\b/gi, "formato impreso"],
+  [/grabaci[oó]n de (la )?lectura en voz alta( del docente)?/gi, "lectura en voz alta del docente"],
   [/grabadoras? de voz/gi, "respuestas orales al docente"],
   [/permitir grabaciones/gi, "permitir respuestas orales al docente"],
   [/\bformatos digitales\b/gi, "formatos impresos"],
   [/\bgrabaciones\b/gi, "respuestas orales"],
+  [/\bgrabaci[oó]n\b/gi, "respuesta oral"],
   [/\baudios\b/gi, "lecturas en voz alta del docente"],
   [/\baudio\b/gi, "lectura en voz alta del docente"],
 ];
@@ -910,12 +915,17 @@ export const tituloConLaFuncion = (dia = {}, tituloTarea = "") => {
   const claves = (dia?.tareasMapa || []).map((t) => t.clave);
   const titulo = String(dia?.titulo || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (!tituloTarea || !claves.length || !titulo) return false;
+  const muyCorto = String(dia?.titulo || "").trim().split(/\s+/).filter(Boolean).length < 3;
   const exploraSinExplorar = /^explor/.test(titulo) && !TAREAS_QUE_EXPLORAN.has(claves[0]);
   const prometeLoQueNoHace = TITULOS_Y_SUS_TAREAS.some(([re, tareas]) => re.test(titulo) && !claves.some((c) => tareas.includes(c)));
-  if (!exploraSinExplorar && !prometeLoQueNoHace) return false;
+  if (!muyCorto && !exploraSinExplorar && !prometeLoQueNoHace) return false;
   dia.titulo = tituloTarea;
   return true;
 };
+
+/** «ayudar al nuevo estudiantes» (g28, Problemas C2): el artículo y «nuevo» van en plural con un sustantivo de personas en plural. Solo este patrón. */
+export const conConcordanciaEnTitulo = (titulo = "") => String(titulo).replace(/\b(al|del|el|un) nuev[oa] (estudiantes|alumnos|docentes|maestros|compañeros|visitantes)\b/gi,
+  (m, art, nombre) => ({ al: "a los nuevos", del: "de los nuevos", el: "los nuevos", un: "unos nuevos" }[art.toLowerCase()] + " " + nombre));
 
 /** Fases de cada actividad, solo si la clase lleva más de una: su nombre, no su número (César, 2026-11-06). */
 export const fasesDeActividades = (fila = {}, tareaIds = []) => {
@@ -1469,7 +1479,7 @@ const ajustesParaPlan = (filas, fases) => {
  * @param {string[]} [entrada.contenidosSeleccionados] - sin ella, todos los del tema.
  * @returns {{filas:object[], modo:string, total:number, avisos:string[], tipos:object, seccionesSupuestas:string[], ajustesPlan:object|null}}
  */
-export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, ...entrada } = {}) => {
+const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, problemaDesde = 13, ...entrada } = {}) => {
   const { semanas, diasClase, horasPorDia } = entrada.horario || {};
   const total = semanas * (diasClase?.length || 0) * horasPorDia;
   if (!Number.isInteger(total) || total <= 0) throw error("el horario necesita semanas, días de clase y horas por día.");
@@ -1481,7 +1491,7 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
   const clave = plan.estrategia.clave;
   const tiposFase = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[clave] || null;
   const { tipos, supuestas } = tiposDeSecciones(plan.secciones, entrada.tiposTrabajoSecciones || {});
-  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto });
+  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto, problemaDesde });
   const capacidad = minutosDesarrollo(duracionMin);
   const avisos = [];
   if (supuestas.length) avisos.push(`Tipo de trabajo supuesto por la posición de la sección: ${supuestas.join(", ")}. El docente puede cambiarlo.`);
@@ -1600,6 +1610,22 @@ export const armarMapaClases = ({ duracionMin = 45, modalidadVisita = "", conten
     seleccionados: contenidosSeleccionados, fases: plan.fases.map((f) => f.numero),
     ajustesPlan: ajustesParaPlan(filas, plan.fases),
   };
+};
+
+/**
+ * ABProblemas con 12 clases: intenta darle a cada fase su tarea (selección, definición y objetivos) y, si el mapa no cabe
+ * así (versión breve, clases flexibles o tareas descartadas), vuelve a unir las fases como antes. Con 13 clases o más, siempre.
+ * Un solo número no sirve: depende de cuántas tareas lleve el producto (g28: Rutinas cabe, Escuela no).
+ */
+export const armarMapaClases = (args = {}) => {
+  const base = armarMapaClasesBase(args);
+  if (base.estrategia !== "problemas" || base.total !== 12) return base;
+  try {
+    const propias = armarMapaClasesBase({ ...args, problemaDesde: 12 });
+    const cabe = propias.modo !== "breve" && !propias.breve && !propias.filas.some((f) => f.flexible)
+      && !propias.avisos.some((a) => /no cabe en este tiempo/.test(String(a?.texto ?? a)));
+    return cabe ? propias : base;
+  } catch { return base; }
 };
 
 // Estado que deja la clase, para el «aporte al producto» que escribe el código.
