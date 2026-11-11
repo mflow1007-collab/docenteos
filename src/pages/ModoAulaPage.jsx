@@ -9,6 +9,8 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { auth } from '../firebase.js'
+import { pieDeVersion } from '../utils/buildInfo.js'
 import { actualizarPlanificacionDetallada, obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
 import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula, obtenerInstrumentosDelDia } from '../services/modoAulaService.js'
 import { obtenerClaseDeHoy, crearAspectoId } from '../services/hiloPedagogico.js'
@@ -2441,7 +2443,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                 if (!unidad) { onVerPlanCompleto ? onVerPlanCompleto(planActivo) : onIrA?.('planificacion'); return }
                 try {
                   const logoUrl = `${window.location.origin}/logo-minerd.svg`
-                  abrirHTMLEnPestana(formatearUnidadHTML(unidad, logoUrl))
+                  abrirHTMLEnPestana(formatearUnidadHTML(unidad, logoUrl, { pieAdmin: pieDeVersion(auth.currentUser?.email) }))
                 } catch (error) {
                   console.error('[ModoAula] No se pudo abrir la planificación:', error)
                   onVerPlanCompleto ? onVerPlanCompleto(planActivo) : onIrA?.('planificacion')

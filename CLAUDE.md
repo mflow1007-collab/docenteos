@@ -61,6 +61,7 @@ Una clase puede contener dos o más fases (César, 2026-11-06). Cada fase conser
 ### Evidencia
 - I-13 Hay piezas individuales firmadas en las clases que el Anexo I marca como firmadas.
 - I-20 Los instrumentos evalúan lo que las clases trabajan, y cada clase dice qué criterios de ellos evalúa (según el indicador que trabaja y lo que hace). Lo escribe el código.
+- I-21 Las observaciones de la fase las escribe el código con texto fijo («Registrar el desempeño general del grupo…»); ningún texto del plan afirma resultados de clases que aún no se dan («muestran», «han demostrado», «se observa», «fomentaron»).
 
 ### Regla de generalización
 Las secuencias se definen por TIPO DE TAREA (recolectar, probar, usar con la audiencia), no por tema. Un arreglo que solo funciona en una unidad no está terminado.

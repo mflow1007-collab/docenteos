@@ -619,6 +619,7 @@ const sinVideoEs = (t) => (typeof t === "string" ? t
   .replace(/\b(los|unos|estos|nuestros) videos\b/gi, (m, art) => conInicial(m, `${art.toLowerCase()} ejemplos`))
   .replace(/\b(el|un|su) (retro)?proyector\b/gi, (m) => conInicial(m, "la pizarra"))
   .replace(/\b(en|con|del) (retro)?proyector\b/gi, (m, pre) => conInicial(m, `${pre.toLowerCase()} la pizarra`))
+  .replace(/\bgrabaciones orales\b/gi, (m) => conInicial(m, "producciones orales"))
   .replace(/\b(un|el) audio modelo\b/gi, (m, art) => conInicial(m, `${art.toLowerCase()} diálogo modelo leído por el docente`))
   .replace(/\bvideos?\b/gi, (v) => conInicial(v, /s$/i.test(v) ? "ejemplos" : "ejemplo")) : t);
 
@@ -714,6 +715,18 @@ export const adaptacionesNEAESinTecnologia = (fase = {}) => {
     if (typeof v !== "string") return;
     const nuevo = CAMBIOS_NEAE_SIN_TECNOLOGIA.reduce((t, [re, por]) => t.replace(re, por), v);
     if (nuevo !== v) { adaptaciones[k] = nuevo; cambios += 1; }
+  });
+  return cambios;
+};
+
+// Un plan se escribe antes de dar las clases: las observaciones de la fase no pueden afirmar resultados. Las escribe el código (g27).
+export const OBSERVACIONES_FASE = "Registrar el desempeño general del grupo e identificar estudiantes que requieren atención diferenciada o refuerzo.";
+/** Pone en cada fase (y en el resumen de evaluación de sus clases) las observaciones fijas. Devuelve cuántas fases cambió. */
+export const conObservacionesFijas = (fases = []) => {
+  let cambios = 0;
+  (fases || []).forEach((fase) => {
+    if (fase && fase.observacionesSemana !== OBSERVACIONES_FASE) { fase.observacionesSemana = OBSERVACIONES_FASE; cambios += 1; }
+    (fase?.dias || []).forEach((d) => { if (d?.resumenEvaluacion) d.resumenEvaluacion.observaciones = OBSERVACIONES_FASE; });
   });
   return cambios;
 };
@@ -887,11 +900,19 @@ export const focoDeFila = (fila = {}, filas = []) => {
 
 // «Explorando…» solo describe clases que exploran: modelos, saberes previos, recorridos (g25: C10 comentar y C14 comprar se titulaban «Explorando…»).
 const TAREAS_QUE_EXPLORAN = new Set(["acordar", "saberes_previos", "recorrer_lugares", "visitar_modelo", "describir_modelo", "aplicar_modelo", "problema_analizar", "indagar_contrastar"]);
+// Títulos que prometen una acción que la clase no hace (g26/g27: «Probar Platos» en una clase que escribe diálogos de pedidos).
+const TITULOS_Y_SUS_TAREAS = [
+  [/\b(prueba|probar|probando|probemos|probamos)\b/, ["probar_audiencia", "aplicar_ensayar", "aplicar_corregir", "corregir", "corregir_final", "analizar_verificar", "visitar_entrevistar"]],
+  [/\bpresent(a|ar|ando|acion|amos)/, ["presentar", "probar_audiencia", "audiencia_secundaria"]],
+];
 /** Cambia por el título de la tarea el que no corresponde a la función de la clase. Devuelve si lo cambió. */
 export const tituloConLaFuncion = (dia = {}, tituloTarea = "") => {
-  const primera = dia?.tareasMapa?.[0]?.clave;
-  const explora = /^explor/i.test(String(dia?.titulo || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-  if (!tituloTarea || !primera || !explora || TAREAS_QUE_EXPLORAN.has(primera)) return false;
+  const claves = (dia?.tareasMapa || []).map((t) => t.clave);
+  const titulo = String(dia?.titulo || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!tituloTarea || !claves.length || !titulo) return false;
+  const exploraSinExplorar = /^explor/.test(titulo) && !TAREAS_QUE_EXPLORAN.has(claves[0]);
+  const prometeLoQueNoHace = TITULOS_Y_SUS_TAREAS.some(([re, tareas]) => re.test(titulo) && !claves.some((c) => tareas.includes(c)));
+  if (!exploraSinExplorar && !prometeLoQueNoHace) return false;
   dia.titulo = tituloTarea;
   return true;
 };
