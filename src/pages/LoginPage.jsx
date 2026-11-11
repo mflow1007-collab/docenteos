@@ -453,7 +453,7 @@ export default function LoginPage() {
               <div className="lp-divider" aria-hidden="true"><span>o</span></div>
 
               {/* Botón secundario */}
-              <Link to="/mi-registro" className="lp-btn-secondary" tabIndex={6}>
+              <Link to="/registro" className="lp-btn-secondary" tabIndex={6}>
                 <UserPlus size={17} aria-hidden="true" />
                 Crear cuenta
               </Link>
