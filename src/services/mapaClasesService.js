@@ -86,8 +86,11 @@ const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) },
  * Cómo se prueba el producto con la audiencia: por sus secciones conocidas o, si es una propuesta, defendiendo la
  * recomendación (una propuesta no se usa; Guía 2025, p. 21). Null: la prueba general.
  */
-export const pruebaDelProducto = (producto = "", secciones = []) => secciones.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean)
-  || (/\bpropos(al|uesta)\b/i.test(producto) ? { tipo: "defender", hace: "Defienden ante la audiencia su recomendación: explican por qué recomiendan esa alternativa y responden sus preguntas, y luego recogen sus comentarios en tarjetas." } : null);
+const PRUEBA_DEFENDER = { tipo: "defender", hace: "Defienden ante la audiencia su recomendación: explican por qué recomiendan esa alternativa y responden sus preguntas, y luego recogen sus comentarios en tarjetas." };
+// En ABProblemas el producto responde al problema y se defiende ante quien decide, cualquiera que sea el tema (g28: Rutinas con ABP usaba la prueba de Indagación).
+export const pruebaDelProducto = (producto = "", secciones = [], estrategia = "") => (estrategia === "problemas" ? PRUEBA_DEFENDER : null)
+  || secciones.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean)
+  || (/\bpropos(al|uesta)\b/i.test(producto) ? PRUEBA_DEFENDER : null);
 
 // Con la revisión de nivel en la misma clase, corregir cede su parte: el total de la clase no cambia ([15,30] = [10,20] + [5,10]).
 const MINUTOS_CORREGIR_CON_REVISION = [10, 20];
@@ -180,7 +183,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
     });
   }
   // Presentar y usar el producto con la audiencia son siempre dos tareas: la de usarlo cubre interactuar.
-  const prueba = pruebaDelProducto(producto, orden);
+  const prueba = pruebaDelProducto(producto, orden, estrategia);
   // Una propuesta se presenta completa y se defiende: no «se usa» (Guía 2025, p. 21).
   push(prueba?.tipo === "defender"
     ? { ...u.presentarSecciones, tipoPrueba: "defender", hace: "Presentan TODA la propuesta a la audiencia: las causas, los objetivos, las alternativas evaluadas y la recomendación. Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos." }
@@ -699,10 +702,12 @@ const CAMBIOS_NEAE_SIN_TECNOLOGIA = [
   [/el uso de (grabadoras? de voz|grabaciones( de voz)?)/gi, "responder oralmente al docente"],
   [/grabaciones de voz/gi, "respuestas orales al docente"],
   [/\bformato digital( accesible)?\b/gi, "formato impreso"],
+  [/grabaci[oó]n de (la )?lectura en voz alta( del docente)?/gi, "lectura en voz alta del docente"],
   [/grabadoras? de voz/gi, "respuestas orales al docente"],
   [/permitir grabaciones/gi, "permitir respuestas orales al docente"],
   [/\bformatos digitales\b/gi, "formatos impresos"],
   [/\bgrabaciones\b/gi, "respuestas orales"],
+  [/\bgrabaci[oó]n\b/gi, "respuesta oral"],
   [/\baudios\b/gi, "lecturas en voz alta del docente"],
   [/\baudio\b/gi, "lectura en voz alta del docente"],
 ];
@@ -910,12 +915,17 @@ export const tituloConLaFuncion = (dia = {}, tituloTarea = "") => {
   const claves = (dia?.tareasMapa || []).map((t) => t.clave);
   const titulo = String(dia?.titulo || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (!tituloTarea || !claves.length || !titulo) return false;
+  const muyCorto = String(dia?.titulo || "").trim().split(/\s+/).filter(Boolean).length < 3;
   const exploraSinExplorar = /^explor/.test(titulo) && !TAREAS_QUE_EXPLORAN.has(claves[0]);
   const prometeLoQueNoHace = TITULOS_Y_SUS_TAREAS.some(([re, tareas]) => re.test(titulo) && !claves.some((c) => tareas.includes(c)));
-  if (!exploraSinExplorar && !prometeLoQueNoHace) return false;
+  if (!muyCorto && !exploraSinExplorar && !prometeLoQueNoHace) return false;
   dia.titulo = tituloTarea;
   return true;
 };
+
+/** «ayudar al nuevo estudiantes» (g28, Problemas C2): el artículo y «nuevo» van en plural con un sustantivo de personas en plural. Solo este patrón. */
+export const conConcordanciaEnTitulo = (titulo = "") => String(titulo).replace(/\b(al|del|el|un) nuev[oa] (estudiantes|alumnos|docentes|maestros|compañeros|visitantes)\b/gi,
+  (m, art, nombre) => ({ al: "a los nuevos", del: "de los nuevos", el: "los nuevos", un: "unos nuevos" }[art.toLowerCase()] + " " + nombre));
 
 /** Fases de cada actividad, solo si la clase lleva más de una: su nombre, no su número (César, 2026-11-06). */
 export const fasesDeActividades = (fila = {}, tareaIds = []) => {

@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1244,6 +1244,19 @@ check("las observaciones de la fase las escribe el código; título frente a con
   const intencion = { intencion: "producirán el producto mediante grabaciones orales y escritos corregidos." };
   sinEquiposEnTodo(intencion);
   igual(intencion.intencion, "producirán el producto mediante producciones orales y escritos corregidos.", "grabaciones orales");
+});
+
+check("g28: ABP defiende la recomendación en cualquier tema; NEAE sin «grabación»; título corto y concordancia", () => {
+  assert(pruebaDelProducto("Our Healthy Routines Plan", ["Tips for Families"], "problemas").tipo === "defender", "ABP de Problemas defiende, aunque el producto no se llame propuesta");
+  assert(pruebaDelProducto("Our Healthy Routines Plan", ["Tips for Families"], "indagacion_dialogica")?.tipo !== "defender", "Indagación no cambia");
+  const fase = { adaptacionesNEAE: { evaluacion: "Para estudiantes con dificultades visuales, se permite la grabación de lectura en voz alta del docente de la sesión." } };
+  adaptacionesNEAESinTecnologia(fase);
+  assert(!/grabaci/i.test(fase.adaptacionesNEAE.evaluacion) && /lectura en voz alta del docente/.test(fase.adaptacionesNEAE.evaluacion), `NEAE: ${fase.adaptacionesNEAE.evaluacion}`);
+  const corto = { titulo: "Corrigiendo", tareasMapa: [{ clave: "corregir" }] };
+  assert(tituloConLaFuncion(corto, "Corrigiendo y verificando las secciones") && corto.titulo === "Corrigiendo y verificando las secciones", "título de una palabra");
+  assert(!tituloConLaFuncion({ titulo: "Corrigiendo nuestras secciones", tareasMapa: [{ clave: "corregir" }] }, "x"), "título de 3 palabras se conserva");
+  igual(conConcordanciaEnTitulo("Comprendamos el problema para ayudar al nuevo estudiantes"), "Comprendamos el problema para ayudar a los nuevos estudiantes", "concordancia");
+  igual(conConcordanciaEnTitulo("Guía para el nuevo estudiante"), "Guía para el nuevo estudiante", "singular intacto");
 });
 
 check("pie de rama y commit: solo lo ve el administrador", () => {
