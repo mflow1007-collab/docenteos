@@ -322,11 +322,14 @@ export const componerSituacion = (args) => {
 
 /**
  * Valida la situación para la estrategia elegida.
- * @returns {{texto: string, errores: string[]}}
+ * Las 8 líneas (≈800 caracteres) de la Guía son una alerta, no un tope: si la situación necesita más, pasa
+ * (César, 2026-11-11). Va en `avisos`, que no bloquean la generación.
+ * @returns {{texto: string, errores: string[], avisos: string[]}}
  */
 export const validarSituacion = ({ situacion, producto, estrategia }) => {
-  if (!situacion) return { texto: "", errores: ["elige una situación propuesta o escribe la tuya."] };
+  if (!situacion) return { texto: "", errores: ["elige una situación propuesta o escribe la tuya."], avisos: [] };
   const errores = [];
+  const avisos = [];
   const alineada = situacion.estrategiaAlineada || estrategia;
   const el = elementosSituacion({ situacion, producto, estrategia: alineada });
   if (!el.problema) errores.push("falta el problema o la necesidad.");
@@ -346,9 +349,9 @@ export const validarSituacion = ({ situacion, producto, estrategia }) => {
   comps.forEach((c) => { if (!COMPETENCIAS_LLEGADA[c]) errores.push(`"${c}" no es una competencia del punto de llegada.`); });
   const texto = componerSituacion({ situacion, producto, estrategia: alineada });
   if (texto.length > MAX_CARACTERES_SITUACION) {
-    errores.push(`la situación tiene ${texto.length} caracteres; el máximo es ${MAX_CARACTERES_SITUACION} (unas 8 líneas). Acorta algún elemento.`);
+    avisos.push(`la situación tiene ${texto.length} caracteres; la Guía recomienda unas 8 líneas (${MAX_CARACTERES_SITUACION}). Se acepta, pero conviene acortarla si se puede.`);
   }
-  return { texto, errores };
+  return { texto, errores, avisos };
 };
 
 // ── Recomendación de estrategia (Guía 1.2.4) ───────────────────────────────

@@ -5803,6 +5803,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   let situacion;
   let rutaPlanMaestro = null;
   if (prepPlanMaestro.aplica) {
+    // Situación más larga que las 8 líneas de la Guía: pasa, y el administrador lo ve (César, 2026-11-11).
+    (prepPlanMaestro.avisosSituacion || []).forEach((a) => avisosPlanMaestro.push(`⚠ Situación de aprendizaje: ${a}`));
     estrategiaEf = prepPlanMaestro.plan.estrategia.nombre;
     situacion = prepPlanMaestro.situacionTexto;
     const conMapa = prepararMapaClases({
