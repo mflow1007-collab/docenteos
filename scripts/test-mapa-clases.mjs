@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, recursosSinTruncar, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1331,6 +1331,20 @@ check("ABP a 12 clases con otro tema: la encuesta entra y sustituye al «ordenar
   const nodo = { a: "Comentan las piezas: comentarios orales; se guarda en el dispositivo de grabación del aula." };
   sinEquiposEnTodo(nodo);
   igual(nodo.a, "Comentan las piezas: comentarios orales; se anota en el cuaderno del grupo.", "destino sin equipo");
+});
+
+check("revisor g35: nivel satisfactorio obligatorio en su clase; integrar en «Puesta en común» de ABP; recursos sin truncar", () => {
+  const fila = { tareas: [{ clave: "corregir" }, { clave: "revision_nivel" }], secciones: [] };
+  const clase = (a) => ({ momentos: [{ nombre: "Desarrollo", actividades: a }] });
+  assert(/nivel satisfactorio/.test(obligacionIncumplida(clase(["Corrigen (en grupos) sus secciones con la rúbrica como guía."]), fila)), "debía exigir el nivel satisfactorio");
+  igual(obligacionIncumplida(clase(["Corrigen (en grupos) sus secciones.", "Comprueban (en grupos) con el docente que cada sección llega al nivel satisfactorio."]), fila), "", "con nivel satisfactorio: pasa");
+  const m = mapaDe("Actividades de la vida diaria", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  const filaIntegrar = m.filas.find((f) => f.tareas.some((t) => t.clave === "integrar"));
+  assert(filaIntegrar.tareas.find((t) => t.clave === "integrar").faseNombre === "Puesta en común", `integrar en ${filaIntegrar.tareas.find((t) => t.clave === "integrar").faseNombre}`);
+  const dias = [{ momentos: [{ recursos: { didacticos: "Tex... `, Gráf..." } }, { recursos: { didacticos: "Pieza modelo, Texto impreso" } }] }];
+  igual(recursosSinTruncar(dias, ["Pizarra, tabla común"]), 1, "un momento cambiado");
+  igual(dias[0].momentos[0].recursos.didacticos, "Pizarra, tabla común", "se repone de la fila");
+  igual(dias[0].momentos[1].recursos.didacticos, "Pieza modelo, Texto impreso", "lo sano no cambia");
 });
 
 check("pie de rama y commit: solo lo ve el administrador", () => {

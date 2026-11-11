@@ -180,7 +180,8 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // tarea sale (César). Desde 13 clases, cada fase lleva la suya.
   if (estrategia === "problemas" && totalClases >= problemaDesde) [u.problemaAnalizar, u.problemaDefinir, u.problemaObjetivos].forEach((t, k) => push(t, [...orden], 0, 1 + k, 0));
   push(u.glosario, [...orden], 3, 0, 0);
-  push({ ...u.integrar, ...enEvaluacion }, [...orden], 3, 1, 0);
+  // Problemas: reunir las secciones es trabajo de grupo de «Puesta en común», no de «Aprendizaje individual» (revisor g35).
+  push({ ...u.integrar, ...enEvaluacion, ...(estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS && puesta >= 0 ? { faseGuia: puesta } : {}) }, [...orden], 3, 1, 0);
   if (orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"))) push(u.recorrerLugares, [...orden], 0, 1, 0);
   // Cada estrategia hace lo suyo: la indagación valida sus fuentes, no solo ordena datos.
   if (estrategia === "indagacion_dialogica") [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar].forEach((t, k) => push(t, [...orden], 0, 2, k));
@@ -1497,6 +1498,24 @@ export const sinEncuestaSiNoHay = (plan = {}, mapa = {}) => {
       return [sec, SIN_ENCUESTA.reduce((t, [re, por]) => t.replace(re, por), texto)];
     }));
   });
+  return cambios;
+};
+
+/**
+ * Recursos de la clase sin restos truncados de la IA (revisor g35, C4: «Tex... `, Gráf...»). Quita los elementos con
+ * «...», «…» o acentos graves sueltos; si no queda ninguno, pone los recursos didácticos de la fila. Devuelve cuántos cambió.
+ */
+export const recursosSinTruncar = (dias = [], didacticosPorDia = []) => {
+  let cambios = 0;
+  (dias || []).forEach((dia, i) => (dia?.momentos || []).forEach((m) => {
+    const r = m?.recursos;
+    if (!r || typeof r.didacticos !== "string") return;
+    const partes = r.didacticos.split(",").map((x) => x.trim()).filter(Boolean);
+    const sanas = partes.filter((x) => !/\.\.\.|…|`/.test(x));
+    if (sanas.length === partes.length) return;
+    r.didacticos = sanas.length ? sanas.join(", ") : (didacticosPorDia[i] || "Pizarra y materiales impresos de la clase");
+    cambios += 1;
+  }));
   return cambios;
 };
 

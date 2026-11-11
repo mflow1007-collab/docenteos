@@ -56,9 +56,10 @@ check("unidad a mano de Alimentación: cero avisos", () => {
   assert(dias.length === alimentacion.filas.length, "la unidad no cuadra con el mapa");
   const avisos = avisosDeUnidad(dias, alimentacion.filas);
   // La unidad a mano es anterior a la revisión hasta el nivel satisfactorio en Inserción (opción A, 2026-11-10): su C13 no la trae y el aviso es correcto.
-  const otros = avisos.filter((a) => !/segunda revisión del docente: nivel satisfactorio/.test(a));
+  // Por lo mismo, tampoco dice «nivel satisfactorio» en sus clases con revisión de nivel (C11, C13): regla del revisor g35.
+  const otros = avisos.filter((a) => !/segunda revisión del docente: nivel satisfactorio|nadie comprueba el nivel satisfactorio/.test(a));
   assert(!otros.length, `${otros.length}: ${otros.slice(0, 6).join(" | ")}`);
-  assert(avisos.length - otros.length <= 1, "solo la revisión de nivel de C13");
+  assert(avisos.length - otros.length <= 3, "solo la revisión de nivel de C11 y C13");
 });
 check("tarea por acción y objeto: «Acompañan… e indican el camino» prueba el producto", () => {
   const fila = claseDe("probar_audiencia");
