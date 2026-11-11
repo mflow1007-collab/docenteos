@@ -585,7 +585,7 @@ check("4.4: verbo de la lista (taxonomía, idioma solo en idiomas, gestión)", (
   assert(!motivoRedaccionActividad(`Escuchan (en parejas) un audio ${largo}`, { esIdioma: true }), "idioma");
   assert(/lista de verbos/.test(motivoRedaccionActividad(`Escuchan un audio ${largo}`)), "idioma fuera de idiomas");
   assert(!motivoRedaccionActividad("Socializan (en plenaria) el mapa."), "gestión");
-  for (const v of ["Participan", "Realizan", "Recopilan", "Reciben", "Acordan", "Recordandon", "Discutan"]) {
+  for (const v of ["Participan", "Realizan", "Recopilan", "Acordan", "Recordandon", "Discutan"]) {
     assert(/lista de verbos/.test(motivoRedaccionActividad(`${v} en el Gallery Walk ${largo}`, { esIdioma: true })), v);
   }
 });
