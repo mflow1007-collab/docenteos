@@ -15,7 +15,7 @@ import { construirPlanMaestro } from "../src/services/planMaestroService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
-import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
+import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, ACTIVIDAD_NIVEL_SATISFACTORIO, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
 import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
@@ -1281,6 +1281,9 @@ check("estrategias del día: sin estrategias ajenas a la unidad; las técnicas q
   const proyecto = [{ dias: [{ estrategiasDia: "Aprendizaje Basado en Proyecto • Aprendizaje Basado en Problemas (ABP)" }] }];
   sinEstrategiasAjenas(proyecto, "Aprendizaje Basado en Proyecto");
   igual(proyecto[0].dias[0].estrategiasDia, "Aprendizaje Basado en Proyecto", "Proyecto y Problemas no se confunden");
+  const corta = [{ dias: [{ estrategiasDia: "Aprendizaje Basado en Proyectos • Recuperación de experiencias previas • Inserción en el entorno" }] }];
+  sinEstrategiasAjenas(corta, "Aprendizaje Basado en Proyecto");
+  igual(corta[0].dias[0].estrategiasDia, "Aprendizaje Basado en Proyectos • Recuperación de experiencias previas", "forma corta «Inserción en el entorno» (g36)");
 });
 
 check("NEAE de la fase: las escribe el código desde un menú fijo; tecnología solo si el entorno la declara (revisor 2026-11-11)", () => {
@@ -1318,6 +1321,53 @@ check("semilla escrita para encuesta: sin clases de encuesta, propósitos y piez
   const con = plan();
   igual(sinEncuestaSiNoHay(con, { filas: [{ tareas: [{ clave: "indagar_disenar" }] }] }), 0, "con encuesta: igual");
   assert(/encuesta/.test(con.piezasSecciones["What We Found"]), "con encuesta se conserva");
+});
+
+check("ABP a 12 clases con otro tema: la encuesta entra y sustituye al «ordenar» suelto; actividades sin dispositivo de grabación (revisor g34)", () => {
+  const m = mapaDe("Actividades de la vida diaria", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  const claves = m.filas.flatMap((f) => f.tareas.map((t) => t.clave));
+  ["indagar_disenar", "indagar_aplicar", "problema_analizar", "problema_definir", "problema_objetivos"].forEach((c) => assert(claves.includes(c), `falta ${c}`));
+  assert(!claves.includes("analizar_ordenar") && !claves.includes("indagar_contrastar"), "sobra ordenar o contrastar");
+  assert(m.modo !== "breve" && !m.filas.some((f) => f.flexible) && verificarMapa(m).length === 0, `el mapa no cabe: ${m.modo}`);
+  const escuela = mapaDe("Escuela y educación", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  assert(escuela.modo !== "breve" && !escuela.filas.some((f) => f.flexible), "Escuela 12 clases no debe pasar a breve");
+  const nodo = { a: "Comentan las piezas: comentarios orales; se guarda en el dispositivo de grabación del aula." };
+  sinEquiposEnTodo(nodo);
+  igual(nodo.a, "Comentan las piezas: comentarios orales; se anota en el cuaderno del grupo.", "destino sin equipo");
+});
+
+check("revisor g35: nivel satisfactorio obligatorio en su clase; integrar en «Puesta en común» de ABP; recursos sin truncar", () => {
+  const fila = { tareas: [{ clave: "corregir" }, { clave: "revision_nivel" }], secciones: [] };
+  const clase = (a) => ({ momentos: [{ nombre: "Desarrollo", actividades: a }] });
+  assert(/nivel satisfactorio/.test(obligacionIncumplida(clase(["Corrigen (en grupos) sus secciones con la rúbrica como guía."]), fila)), "debía exigir el nivel satisfactorio");
+  igual(obligacionIncumplida(clase(["Corrigen (en grupos) sus secciones.", "Comprueban (en grupos) con el docente que cada sección llega al nivel satisfactorio."]), fila), "", "con nivel satisfactorio: pasa");
+  const m = mapaDe("Actividades de la vida diaria", 4, HORARIOS["3x1"], { planMaestro: { estrategia: "problemas" } });
+  const filaIntegrar = m.filas.find((f) => f.tareas.some((t) => t.clave === "integrar"));
+  assert(filaIntegrar.tareas.find((t) => t.clave === "integrar").faseNombre === "Puesta en común", `integrar en ${filaIntegrar.tareas.find((t) => t.clave === "integrar").faseNombre}`);
+  const dias = [{ momentos: [{ recursos: { didacticos: "Tex... `, Gráf..." } }, { recursos: { didacticos: "Pieza modelo, Texto impreso" } }] }];
+  igual(recursosSinTruncar(dias, ["Pizarra, tabla común"]), 1, "un momento cambiado");
+  igual(dias[0].momentos[0].recursos.didacticos, "Pizarra, tabla común", "se repone de la fila");
+  igual(dias[0].momentos[1].recursos.didacticos, "Pieza modelo, Texto impreso", "lo sano no cambia");
+});
+
+check("A1 por código: la clase con revision_nivel comprueba el nivel satisfactorio aunque la IA lo omita (g37)", () => {
+  const des = (n) => ({ nombre: "Desarrollo", actividades: Array.from({ length: n }, (_, k) => `Act ${k + 1}.`), actividadesDetalle: Array.from({ length: n }, (_, k) => ({ id: `S5-C10-M2-A${k + 1}`, texto: `Act ${k + 1}.`, tipo: "actividad" })), minutosActividad: Array(n).fill(30 / n) });
+  const dias = [
+    { numeroGlobal: 10, tareasMapa: [{ clave: "revision_nivel" }, { clave: "integrar" }], momentos: [{ nombre: "Inicio", actividades: [] }, des(4)] },
+    { numeroGlobal: 11, tareasMapa: [{ clave: "presentar" }], momentos: [des(3)] },
+    { numeroGlobal: 12, tareasMapa: [{ clave: "revision_nivel" }], momentos: [{ ...des(2), actividades: ["Act 1.", "Comprueban que llega al nivel satisfactorio."] }] },
+    { numeroGlobal: 13, tareasMapa: [{ clave: "revision_nivel" }], momentos: [des(6)] },
+  ];
+  igual(JSON.stringify(conNivelSatisfactorio(dias)), "[10,13]", "solo las que lo omiten");
+  const d10 = dias[0].momentos[1];
+  igual(d10.actividades.length, 5, "una actividad más");
+  igual(d10.actividades[1], ACTIVIDAD_NIVEL_SATISFACTORIO, "segunda actividad");
+  igual(d10.actividadesDetalle.map((x) => x.id).join(","), "S5-C10-M2-A1,S5-C10-M2-A2,S5-C10-M2-A3,S5-C10-M2-A4,S5-C10-M2-A5", "ids renumerados");
+  igual(d10.minutosActividad.reduce((s, x) => s + x, 0), 30, "mismos minutos");
+  igual(d10.minutosActividad.length, 5, "un tiempo por actividad");
+  igual(dias[1].momentos[0].actividades.length, 3, "sin revision_nivel no cambia");
+  igual(dias[3].momentos[0].actividades.length, 6, "nunca más de 6");
+  assert(/nivel satisfactorio/.test(dias[3].momentos[0].actividades[0]), "con 6 va dentro de la primera");
 });
 
 check("pie de rama y commit: solo lo ve el administrador", () => {

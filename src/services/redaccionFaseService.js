@@ -772,6 +772,11 @@ export const obligacionIncumplida = (clase, fila) => {
   if (claves.includes("evaluar_comentarios") && !normales.some((a) => /^(leen|responden|analizan|identifican)\b/.test(a) && /comentari/.test(a))) {
     return "nadie lee los comentarios de la audiencia: una actividad empieza por leerlos y responder por escrito qué piden cambiar.";
   }
+  // A1 (opción A de César, 2026-11-10): la clase con revisión de nivel dice que el docente comprueba el nivel
+  // satisfactorio (revisor g35: la IA lo omitía cuando la clase compartía tareas con «integrar»).
+  if (claves.includes("revision_nivel") && !/satisfactori/.test(texto)) {
+    return "nadie comprueba el nivel satisfactorio: una actividad dice que el docente revisa cada sección corregida con la rúbrica y, si no llega al nivel satisfactorio, la devuelve con una mejora concreta.";
+  }
   // Sin encuesta en la unidad, «ordenar» trabaja con la fuente que trae el docente: una encuesta sería un dato que nadie
   // recogió (revisor g30/g32: «Organizan la información de las encuestas» sin que ninguna clase la hiciera).
   if (fila.tareas.some((t) => /fuente que trae el docente/.test(t.instruccion || "")) && normales.some((a) => /\bencuestas?\b/.test(a))) {
