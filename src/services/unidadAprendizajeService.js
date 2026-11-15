@@ -6324,7 +6324,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         // Dos clases no se llaman igual: la repetida toma el nombre de su tarea, y si ese también está, lleva su número.
         const claveTitulo = String(d.titulo || "").trim().toLowerCase();
         // También los casi iguales («Explorando frases útiles para el aula» / «…en el Aula»): la IA los repite con otra preposición o mayúsculas.
-        const seParece = (t) => [...titulosVistos].some((v) => titulosSimilares(v, t));
+        const seParece = (t) => [...titulosVistos].some((v) => titulosSimilares(v, t, 0.6, rutaPlanMaestro?.plan?.producto || ""));
         if (claveTitulo && seParece(claveTitulo)) {
           const anterior = d.titulo;
           const propio = d.fijoDelMapa.tituloTarea;

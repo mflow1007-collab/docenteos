@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila } from "./mapaClasesService.js";
 import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA, FRASES_POR_FUNCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -1062,6 +1062,9 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
           ...(sinContenido.length ? [instruccionContenidosFaltantes(sinContenido)] : []),
         ].join(" "));
       }
+      // La clase escribe con la estructura de otra función (intención, modelo, metacognición): se regenera con la de su etiqueta (revisor de g41a).
+      const otraEstructura = estructuraAjenaEnClase(clase, filaMapa);
+      if (otraEstructura) fallaRedaccion(idx, `la estructura del día es «${focoDeFila(filaMapa, contrato.filasUnidad || [])}», pero la clase usa otra: "${citaTexto(otraEstructura, null, 70)}". Escribe la intención pedagógica, el texto modelo, las actividades y la metacognición con la estructura del día; no uses esa otra.`);
       const sinDatos = datosSinRecoger(clase, filaMapa);
       if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
       // La estructura del día la escribe el código (focoDeFila): se revisa al final, en motivosClaseFinal.

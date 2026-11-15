@@ -407,8 +407,10 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
   };
   CATEGORIAS.forEach((cat) => { items[cat] = items[cat].filter((t) => !porUso(cat, t)); });
   // Prioridad = el orden en que se llama: funciones, su gramática, vocabulario, expresiones.
+  // La gramática no cae en una clase cuya función no sirve («why don't» en la de pedir ayuda, g41a).
+  const cabe = (f, cat, texto) => f.contenidos.length < TOPE_CONTENIDOS_POR_CLASE && (cat !== "gramatica" || gramaticaEncaja(f, texto));
   const poner = (fila, cat, texto) => {
-    const destino = fila.contenidos.length < TOPE_CONTENIDOS_POR_CLASE ? fila : utiles.find((f) => f.contenidos.length < TOPE_CONTENIDOS_POR_CLASE);
+    const destino = cabe(fila, cat, texto) ? fila : utiles.find((f) => cabe(f, cat, texto));
     if (destino) destino.contenidos.push({ categoria: cat, texto }); else sinLugar.push(`${cat}:${texto}`);
   };
   const enOrden = (lista, cat, destinos) => lista.forEach((t, i) => poner(destinos[Math.floor((i * destinos.length) / lista.length)], cat, t));
@@ -427,6 +429,25 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
     if (funcion) poner(lugarFuncion[funcion], "gramatica", t); else sinFuncion.push(t);
   });
   enOrden(sinFuncion, "gramatica", conUso);
+  // Lo que el uso puso antes de conocer la función de la clase («why don't» en la de pedir ayuda, g41a) se muda
+  // a otra clase con la misma tarea que lo admita, o a cualquiera que lo admita; si ninguna, queda sin lugar.
+  utiles.forEach((f) => {
+    f.contenidos.filter((c) => c.categoria === "gramatica" && !gramaticaEncaja(f, c.texto)).forEach((c) => {
+      f.contenidos.splice(f.contenidos.indexOf(c), 1);
+      const claves = USO_DE_CONTENIDOS.find(([re]) => re.test(normal(c.texto).trim()))?.[1] || [];
+      const otra = utiles.find((g) => g !== f && cabe(g, "gramatica", c.texto) && g.tareas.some((t) => claves.includes(t.clave)))
+        || utiles.find((g) => g !== f && cabe(g, "gramatica", c.texto));
+      if (otra) otra.contenidos.push(c); else sinLugar.push(`gramatica:${c.texto}`);
+    });
+  });
+  // La clase cuya función pide una gramática (pedir ayuda → can/could/may) la recibe si el reparto no se la dio.
+  utiles.forEach((f) => {
+    const r = reglaDeFila(f);
+    if (!r || f.contenidos.some((c) => c.categoria === "gramatica" && r[1].test(c.texto.split(":")[0]))) return;
+    const todas = [...items.gramatica, ...utiles.flatMap((g) => g.contenidos).filter((c) => c.categoria === "gramatica").map((c) => c.texto)];
+    const sirve = todas.find((t) => r[1].test(t.split(":")[0]));
+    if (sirve && f.contenidos.length < TOPE_CONTENIDOS_POR_CLASE) f.contenidos.push({ categoria: "gramatica", texto: sirve });
+  });
   enOrden(items.vocabulario, "vocabulario", candidatas((f) => hay(f, "C") || hay(f, "P")));
   enOrden(items.expresiones, "expresiones", candidatas((f) => hay(f, "I")));
   return sinLugar;
@@ -951,7 +972,25 @@ const ETIQUETA_POR_TAREA = { describir_modelo: "Analizar un modelo de", describi
 // «acordar»: la clase 1 presenta la unidad; la función de la malla puede ser de otro tema («actividades cotidianas» en Frases del aula, revisor de g40a).
 const TAREAS_CON_FUNCION_PROPIA = new Set(["acordar", "analizar_ordenar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos"]);
 // Gramática que sirve a cada función: pedir ayuda no se hace con «why don't» (que es para sugerir). Revisor de g40a.
-const GRAMATICA_DE_FUNCION = [[/ayuda/i, /\b(can|could|may)\b/i], [/consejos|sugerencias/i, /\b(should|let|why don|imperativo|condicional)/i]];
+// Tercer elemento: estructura que delata la función de otra clase (sugerir con «why don't» en una clase de pedir ayuda).
+export const GRAMATICA_DE_FUNCION = [[/ayuda/i, /\b(can|could|may)\b/i, /\bwhy (don['’]?t|not)\b/i], [/consejos|sugerencias/i, /\b(should|let|why don|imperativo|condicional)/i, null]];
+const reglaDeFila = (fila) => {
+  const funcion = (fila?.contenidos || []).find((c) => c.categoria === "funcionales")?.texto || "";
+  return GRAMATICA_DE_FUNCION.find(([f]) => f.test(funcion)) || null;
+};
+/** Una gramática que no sirve a la función de la clase no va en ella (revisor de g41a). */
+export const gramaticaEncaja = (fila, texto) => { const r = reglaDeFila(fila); return !r || r[1].test(String(texto).split(":")[0]); };
+/**
+ * Lo que la clase escribe con la estructura de otra función: intención, texto modelo, metacognición y actividades.
+ * La etiqueta dice «can, may y could» y el modelo pregunta «Why don't we…?» (revisor de g41a). Devuelve la frase o "".
+ */
+export const estructuraAjenaEnClase = (clase = {}, fila = {}) => {
+  const r = reglaDeFila(fila);
+  if (!r?.[2]) return "";
+  const textos = [clase?.intencionPedagogica, ...(clase?.textoModelo?.lineas || []),
+    ...(clase?.momentos || []).flatMap((m) => [...[].concat(m?.metacognicion || []), ...(m?.actividades || []).map((a) => (typeof a === "string" ? a : a?.texto || ""))])];
+  return String(textos.find((t) => r[2].test(String(t || ""))) || "");
+};
 
 /**
  * Estructura del día: la escribe el código, para que corresponda a la tarea de la clase.
@@ -982,10 +1021,10 @@ export const focoDeFila = (fila = {}, filas = []) => {
   let gramatica = propia ? [] : textos("gramatica");
   // Si la gramática de la clase no sirve a su función, la de la malla del tema que sí sirve; si no hay, la función sola.
   const regla = GRAMATICA_DE_FUNCION.find(([f]) => f.test(funciones[0] || ""));
-  if (regla && gramatica.length && !gramatica.some((g) => regla[1].test(g.split(":")[0]))) {
+  if (regla && !gramatica.some((g) => regla[1].test(g.split(":")[0]))) {
     const otra = filas.flatMap((f) => f.contenidos || []).find((c) => c.categoria === "gramatica" && regla[1].test(c.texto.split(":")[0]));
-    if (!otra) return funciones.slice(0, 2).join("; ");
-    gramatica = [otra.texto];
+    if (!otra && gramatica.length) return funciones.slice(0, 2).join("; ");
+    if (otra) gramatica = [otra.texto];
   }
   const delTexto = gramatica.map((t) => t.split(":")[0].match(/\bpara (.+)$/)?.[1]).find(Boolean);
   // «Comprar» solo tiene sentido si la unidad pide: en otro tema, will expresa planes.
@@ -1081,22 +1120,31 @@ export const diagnosticoDeFases = (fases = [], hayMapa = false) => {
  */
 // Raíz de 6 letras: «Exploración» y «Explorando», «gastronomía» y «gastronómica» cuentan como la misma palabra (g25).
 // Verbos de mejora: «Perfeccionando…» y «Refinando…» son el mismo título para el docente (revisor de g40a).
-const raizDeTitulo = (w) => (/^(perfecc|refin|mejor|puli|afin)/.test(w) ? "mejora" : w.slice(0, 6));
+const raizDeTitulo = (w) => (/^(perfecc|refin|mejor|puli|afin|refuer|reforz)/.test(w) ? "mejora" : w.slice(0, 6));
 const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2).map(raizDeTitulo));
 // Palabras que no distinguen un título de otro.
 const PALABRAS_GENERICAS = new Set(["nuestr", "entre", "sobre", "para", "desde", "juntos", "juntas"]);
 const significativas = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 3).map(raizDeTitulo).filter((w) => !PALABRAS_GENERICAS.has(w));
 /** Dos títulos casi iguales: mismas palabras (por su raíz) con otro orden, mayúsculas o una preposición distinta (Jaccard ≥ umbral), o que abren con la misma palabra y comparten otra (g26: «Investigadores en acción…» / «Analizando una pieza modelo» y «Analizando un modelo»). */
-export const titulosSimilares = (a, b, umbral = 0.6) => {
+export const titulosSimilares = (a0, b0, umbral = 0.6, producto = "") => {
+  // El nombre del producto no distingue una clase de otra: se quita antes de comparar (revisor de g41a).
+  const sinProducto = (t) => (producto && String(producto).trim().length > 3 ? String(t || "").replace(new RegExp(`[«“"‘']?${String(producto).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[»”"’']?`, "ig"), " ") : String(t || ""));
+  const a = sinProducto(a0);
+  const b = sinProducto(b0);
   const x = palabrasDeTitulo(a);
   const y = palabrasDeTitulo(b);
   if (!x.size || !y.size) return false;
-  if (String(a).trim().toLowerCase() === String(b).trim().toLowerCase()) return true;
+  if (String(a0).trim().toLowerCase() === String(b0).trim().toLowerCase()) return true;
   const comunes = [...x].filter((w) => y.has(w)).length;
   if (comunes / (x.size + y.size - comunes) >= umbral) return true;
   const sa = significativas(a);
   const sb = significativas(b);
-  return Boolean(sa.length && sb.length && sa[0] === sb[0] && sa.slice(1).some((w) => sb.slice(1).includes(w)));
+  if (sa.length && sb.length && sa[0] === sb[0] && sa.slice(1).some((w) => sb.slice(1).includes(w))) return true;
+  // Con otro verbo al inicio y el resto igual («Perfeccionamiento de frases útiles…» / «Refuerzo de Frases Útiles…»), es el mismo título (revisor de g40a).
+  const resto = (l) => new Set(l.slice(1).filter((w) => w !== "mejora"));
+  const ra = resto(sa);
+  const rb = resto(sb);
+  return ra.size >= 2 && ra.size === rb.size && [...ra].every((w) => rb.has(w));
 };
 /** Título de más de 10 palabras: la parte antes de los dos puntos si tiene de 3 a 10; si no, el de la tarea (revisor de g40a). */
 export const tituloCorto = (titulo = "", tituloTarea = "", max = 10) => {
@@ -1127,7 +1175,7 @@ const TITULO_POR_TAREA = {
   aplicar_escribir: "Escribiendo", aplicar_ensayar: "Ensayando", aplicar_anotar: "Anotando la mejora", aplicar_segundo: "Ensayando otra vez",
   aplicar_corregir: "Corrigiendo lo ensayado", socializar_reunir: "Reuniendo lo hecho", socializar_redactar: "Redactando el mensaje",
   socializar_leer: "Leyendo el mensaje a otro grupo", orientar_recorrido: "Haciendo el recorrido", orientar_instrucciones: "Escribiendo las instrucciones",
-  orientar_probar: "Probando las instrucciones", comentar: "Comentando las piezas", corregir: "Corrigiendo", revision_docente: "Revisando con la rúbrica",
+  orientar_probar: "Probando las instrucciones", comentar: "Comentamos un texto de {p}", corregir: "Corrigiendo", revision_docente: "Revisando con la rúbrica",
   revision_nivel: "Comprobando el nivel satisfactorio", indagar_disenar: "Diseñando la encuesta", indagar_aplicar: "Aplicando la encuesta",
   indagar_contrastar: "Contrastando con una fuente", glosario: "Armando el glosario", integrar: "Reuniendo {p}", presentar: "Presentando {p}",
   probar_audiencia: "Probando {p} con la audiencia", audiencia_secundaria: "Mostrando {p} a otra audiencia", evaluar_comentarios: "Respondiendo a los comentarios",
