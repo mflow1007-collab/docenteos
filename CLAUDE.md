@@ -26,7 +26,7 @@ App de planificación docente alineada al currículo MINERD. React + Firebase (F
 
 ## Invariantes del motor (no se pueden romper)
 
-Cada invariante tiene su prueba en `scripts/test-invariantes.mjs` y se comprueba en las DOS unidades de referencia: Alimentación 6 semanas y Escuela 4 semanas. Un cambio que rompa uno no se hace commit. Para cambiar un invariante, pregunta a César.
+Cada invariante tiene su prueba en `scripts/test-invariantes.mjs` y se comprueba en las DOS unidades de referencia: Alimentación 6 semanas y Escuela 4 semanas. I-22 a I-24 se comprueban además en Frases del aula (Proyectos, 4 semanas). Un cambio que rompa uno no se hace commit. Para cambiar un invariante, pregunta a César.
 
 ### Estructura (código)
 - I-01 La clase 1 no hace referencia a clases anteriores; empieza con recuperación de experiencias.
@@ -49,6 +49,9 @@ Cada invariante tiene su prueba en `scripts/test-invariantes.mjs` y se comprueba
   - Los textos modelo pueden usar un centro ficticio declarado («Model School»), igual que el comedor modelo.
   - La estructura del día, la tabla de Ampliación y las actividades que alimentan el producto solo usan lugares de la tabla común del recorrido o términos genéricos.
 - I-12 La audiencia sale de la configuración de la unidad (en Escuela, por defecto 6.º de primaria, real), también en la situación de aprendizaje; nunca «la persona invitada».
+- I-22 La forma de usar el producto con la audiencia sale de su tipo, no del tema. Un banco de frases o una charla se practica en parejas con un grupo pequeño de invitados: el invitado pide permiso o ayuda con una tarjeta del banco, la pareja lo guía y aclara, y el docente observa con la lista de cotejo. Lo escribe el código.
+- I-23 Si la audiencia configurada no cabe en la clase sumativa (más de un curso o más de 15 personas), la configuración no cambia: la sumativa invita a una muestra (2–3 estudiantes por curso), cada pareja atiende a un grupo pequeño y Recursos > Humanos nombra esa muestra, nunca «la audiencia».
+- I-24 En Proyectos, si el producto no depende de lugares, la fase de Gestión del conocimiento recoge datos con la encuesta (diseñar 3–4 preguntas, aplicarlas sin nombres a la audiencia, contar y elegir a partir de los datos) en lugar del recorrido; si depende de lugares, recorrido y sin encuesta. Lo escribe el código.
 
 ### Fases
 Una clase puede contener dos o más fases (César, 2026-11-06). Cada fase conserva su tarea característica dentro de esa clase, aunque sea breve: no se pierde ninguna tarea por compartir clase. Cada actividad indica su fase y el encabezado las muestra por separado («Fase A → Fase B»), no con un nombre fusionado.

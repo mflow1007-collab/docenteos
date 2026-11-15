@@ -227,14 +227,14 @@ export const SECUENCIAS_POR_TAREA = {
   indagar_disenar: [
     [
       p(3, "Repasan (en plenaria) qué datos necesita {producto}, mientras el docente muestra una pregunta modelo ({pregunta})."),
-      pe(7, "Redactan (en grupos) una encuesta breve de 4 o 5 preguntas sobre {asunto} ({preguntas}), sin espacio para nombres."),
+      pe(7, "Redactan (en grupos) una encuesta breve de {cuantas} preguntas sobre {asunto} ({preguntas}), sin espacio para nombres."),
       p(2, "Prueban (en parejas) las preguntas con otro grupo y cambian las que no se entienden."),
       pe(3, "Firman (individual) la pregunta que aportó cada uno, no las respuestas: encuesta lista; queda en la carpeta."),
     ],
     [
       p(3, "Conversan (en plenaria) sobre qué hay que preguntar para saber {asunto}, y el docente anota los datos en la pizarra."),
-      pe(7, "Escriben (en grupos) las preguntas de la encuesta, una por dato ({preguntas}), sin espacio para nombres."),
-      p(2, "Comparan (en grupos) sus preguntas con las de otro grupo y dejan 4 o 5."),
+      pe(7, "Escriben (en grupos) {cuantas} preguntas breves sobre {asunto}, una por dato ({preguntas}), sin espacio para nombres."),
+      p(2, "Comparan (en grupos) sus preguntas con las de otro grupo y dejan {cuantas}."),
       pe(3, "Firman (individual) la pregunta que aportó cada uno, no las respuestas: encuesta lista; queda en la carpeta."),
     ],
   ],
@@ -243,13 +243,13 @@ export const SECUENCIAS_POR_TAREA = {
       p(2, "Reparten (en parejas) a quién preguntará cada uno, mientras el docente recuerda que las respuestas no llevan nombre."),
       pe(7, "Aplican (en parejas, por turnos) la encuesta a {poblacion} ({pregunta}, {respuestas}), sin anotar nombres."),
       p(2, "Reúnen (en grupos) las hojas de respuestas sin nombre."),
-      pe(4, "Cuentan (en grupos) las respuestas y las resumen en cifras del grupo, nunca por nombre ({cifras}): tabla común de resultados; queda en la carpeta."),
+      pe(4, "Cuentan (en grupos) las respuestas y las resumen en cifras del grupo, nunca por nombre ({cifras}){decide}: tabla común de resultados; queda en la carpeta."),
     ],
     [
       p(2, "Ensayan (en parejas) cómo hacer las preguntas, mientras el docente aclara que nadie anota nombres."),
       pe(7, "Preguntan (en parejas, por turnos) a {poblacion} con la encuesta y marcan cada respuesta ({respuestas}), sin anotar nombres."),
       p(2, "Juntan (en grupos) las respuestas de todas las parejas."),
-      pe(4, "Resumen (en grupos) los resultados en cifras del grupo, nunca por nombre ({cifras}): tabla común de resultados; queda en la carpeta."),
+      pe(4, "Resumen (en grupos) los resultados en cifras del grupo, nunca por nombre ({cifras}){decide}: tabla común de resultados; queda en la carpeta."),
     ],
   ],
   indagar_contrastar: [
@@ -295,6 +295,22 @@ export const SECUENCIAS_POR_TAREA = {
       pe(7, "Defienden (en parejas) ante {audiencia} su recomendación y contestan sus preguntas (_We suggest… because…_, _Pardon?_), mientras el docente observa a cada pareja con la lista de cotejo."),
       p(2, "Intercambian (en parejas) los papeles y repiten la defensa."),
       pe(3, "Anotan (en plenaria) en tarjetas lo que la audiencia propone cambiar y lo que le convenció: tarjetas en la carpeta del producto."),
+    ],
+  ],
+  // Banco de frases o charla: un grupo pequeño de invitados pide algo con una tarjeta del banco y la pareja lo guía
+  // (revisor de «Frases del aula», 2026-11-11; César: llevarla a 15).
+  "probar_audiencia:frases": [
+    [
+      p(3, "Reparten (en parejas) las tarjetas del banco que van a usar y repasan cómo aclarar ({frases}).", "pedir que repitan o aclaren"),
+      pe(10, "Practican (en parejas) con un grupo pequeño de invitados: el invitado pide permiso o ayuda con una tarjeta del banco y la pareja lo guía y aclara (_Pardon?_, _Could you repeat that?_); el docente observa a cada pareja con la lista de cotejo."),
+      p(2, "Cambian (en parejas) de tarjeta y de invitado, mientras el docente sigue observando."),
+      pe(5, "Recogen (en plenaria) en tarjetas lo que los invitados cambiarían y la frase que más les sirvió (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
+    ],
+    [
+      p(3, "Eligen (en parejas) las tarjetas del banco con las que van a trabajar, y el docente aclara dudas."),
+      pe(10, "Practican (en parejas) con un grupo pequeño de invitados: cada invitado pide permiso o ayuda con una tarjeta del banco y la pareja lo guía y aclara (_Pardon?_, _Could you repeat that?_); el docente observa a cada pareja con la lista de cotejo."),
+      p(2, "Repiten (en parejas) con otra tarjeta del banco ({frases}).", "pedir permiso o ayuda"),
+      pe(5, "Anotan (en plenaria) en tarjetas los comentarios de los invitados (_I like…_, _I wish…_): tarjetas en la carpeta del producto."),
     ],
   ],
   "probar_audiencia:general": [

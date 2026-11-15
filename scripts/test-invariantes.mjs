@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from "node:fs";
 import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
   focoDeFila, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
-  diagnosticoDeActividades, conTildesCorregidas, OBSERVACIONES_FASE,
+  diagnosticoDeActividades, conTildesCorregidas, OBSERVACIONES_FASE, muestraDeAudiencia, esBancoDeFrases,
 } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS, TAREAS_POR_TIPO, TAREAS_UNIDAD } from "../src/data/tareasPorTipoTrabajo.js";
@@ -31,14 +31,17 @@ const unidad = (titulo, numSemanas, extra = {}) => {
   const prellenado = { ...base, ...prellenarPlanMaestro({ datos: base, indicadores: estructura.indicadores, competencias }) };
   // Unidades con otra estrategia, o con un producto propio (una propuesta con sus secciones): se declaran aquí.
   if (extra.planMaestro) prellenado.planMaestro = { ...prellenado.planMaestro, ...extra.planMaestro };
+  if (extra.situacion) prellenado.planMaestro = { ...prellenado.planMaestro, situacion: { ...prellenado.planMaestro.situacion, ...extra.situacion } };
   if (extra.productoFinalTexto) prellenado.productoFinalTexto = extra.productoFinalTexto;
   const datos = conFichaDeUnidad(prellenado);
   const { entrada } = armarEntradaPlanMaestro({ datos, mallaPayload: malla });
-  const mapa = armarMapaClases(entrada);
   const s = datos.planMaestro.situacion;
+  const mapa = armarMapaClases({ ...entrada, textoSituacion: JSON.stringify(s || {}) });
   const alcance = ALCANCE_POR_SEMILLA[s.semillaId]?.conInvitado || null;
-  ponerSecuencias(mapa, { producto: entrada.producto || s.productoDescripcion, tema: titulo, asunto: ASUNTO_LECTURA_POR_SEMILLA[s.semillaId] || "", audiencia: s.audiencia, invitado: alcance?.invitadoConArticulo || alcance?.invitado || "", entrega: alcance?.entrega || "", semilla: titulo });
-  return { titulo, datos, mapa, alcance, reales: mapa.filas.filter((f) => !f.flexible) };
+  // Como en prepararMapaClases: una audiencia que no cabe en el aula se nombra por su muestra (I-23).
+  const muestra = muestraDeAudiencia(s.audiencia);
+  ponerSecuencias(mapa, { producto: entrada.producto || s.productoDescripcion, tema: titulo, asunto: ASUNTO_LECTURA_POR_SEMILLA[s.semillaId] || "", audiencia: muestra || s.audiencia, invitado: alcance?.invitadoConArticulo || alcance?.invitado || "", entrega: alcance?.entrega || "", semilla: titulo });
+  return { titulo, datos, mapa, alcance, muestra, producto: `${entrada.producto || ""} ${s.productoDescripcion || ""}`, reales: mapa.filas.filter((f) => !f.flexible) };
 };
 
 const sumativas = (u) => u.reales.filter((f) => f.tareas.some((t) => t.sumativa));
@@ -103,6 +106,40 @@ const invariantesMapa = {
   },
   // I-21: un plan se escribe antes de dar las clases; las observaciones de la fase las escribe el código, no la IA.
   "I-21": () => (/conObservacionesFijas\(unidadResult\.fasesSemanales\)/.test(fuenteGenerador) ? "" : "las observaciones de la fase no las escribe el código"),
+  // I-22: la forma de usar el producto con la audiencia sale de su tipo; un banco de frases o charla se practica con un
+  // grupo pequeño de invitados que pide algo con una tarjeta del banco (fuera de Problemas, donde se defiende).
+  "I-22": (u) => {
+    const prueba = u.reales.flatMap((f) => f.tareas.filter((t) => t.clave === "probar_audiencia").map((t) => ({ f, t })));
+    const frases = esBancoDeFrases(u.producto) && u.mapa.estrategia !== "problemas" && !prueba.some(({ t }) => ["pedido", "guia", "explicar"].includes(t.tipoPrueba));
+    const mal = prueba.filter(({ t }) => (t.tipoPrueba === "frases") !== frases);
+    if (mal.length) return `prueba ${mal.map(({ f, t }) => `C${f.clase}:${t.tipoPrueba}`).join(", ")} para ${frases ? "un banco de frases" : "otro producto"}`;
+    const sinTarjeta = frases ? prueba.filter(({ f }) => !(f.secuencia || []).some((x) => /grupo pequeño de invitados/.test(x.texto) && /tarjeta del banco/.test(x.texto))) : [];
+    return sinTarjeta.length ? `sin invitados con tarjeta: ${sinTarjeta.map(({ f }) => `C${f.clase}`).join(", ")}` : "";
+  },
+  // I-23: una audiencia que no cabe en el aula (más de un curso o de 15 personas) no se cambia; la sumativa invita a una
+  // muestra y Recursos > Humanos la nombra, nunca «la audiencia».
+  "I-23": (u) => {
+    const problemas = [];
+    u.reales.filter((f) => f.tareas.some((t) => ["presentar", "probar_audiencia"].includes(t.clave))).forEach((f) => {
+      const humanos = humanosDeFila(f, u.alcance, u.muestra);
+      if (u.muestra && (!humanos.includes(u.muestra) || /la audiencia/.test(humanos))) problemas.push(`C${f.clase} humanos: ${humanos}`);
+      if (u.muestra && (f.secuencia || []).some((x) => x.texto.includes(u.datos.planMaestro.situacion.audiencia))) problemas.push(`C${f.clase} nombra la audiencia entera`);
+    });
+    if (!u.muestra && /\d\.º.*\d\.º/.test(u.datos.planMaestro.situacion.audiencia || "")) problemas.push("varios cursos sin muestra");
+    return problemas.join("; ");
+  },
+  // I-24: en Proyectos, si el producto no depende de lugares, «Gestión del conocimiento» recoge datos con la encuesta
+  // (diseñar y aplicar) en lugar del recorrido; si depende de lugares, recorrido y sin encuesta.
+  "I-24": (u) => {
+    if (u.mapa.estrategia !== "proyectos") return "";
+    const tareas = u.reales.flatMap((f) => f.tareas);
+    const recorrido = tareas.some((t) => t.clave === "recorrer_lugares");
+    const encuesta = tareas.filter((t) => ["indagar_disenar", "indagar_aplicar"].includes(t.clave));
+    if (recorrido) return encuesta.length ? "con recorrido y además encuesta" : "";
+    if (encuesta.length < 2) return u.mapa.avisos.some((a) => /encuesta no cabe/.test(String(a?.texto ?? a))) ? "" : "sin lugares y sin encuesta";
+    if (encuesta.some((t) => t.faseNombre !== "Gestión del conocimiento")) return `encuesta fuera de Gestión del conocimiento: ${encuesta.map((t) => t.faseNombre).join(", ")}`;
+    return tareas.some((t) => t.clave === "analizar_ordenar") ? "la encuesta no sustituye a «ordenar»" : "";
+  },
   "I-08": (u) => {
     const conEquipo = u.reales.filter((f) => EQUIPOS.test(didacticosDeFila(f)) || (f.secuencia || []).some((x) => EQUIPOS.test(x.texto)));
     return conEquipo.length ? `equipos en: ${conEquipo.map((f) => `C${f.clase}`).join(", ")}` : "";
@@ -271,11 +308,24 @@ const fixture = (nombre) => { const ruta = new URL(`./fixtures/unidades/${nombre
 // Las cuatro unidades de referencia (CLAUDE.md): Alimentación (Inserción, 6 sem.), Escuela (Proyectos, 4 sem.), Rutinas
 // (Indagación, 4 sem.) y una propuesta de Problemas (5 sem.). Sin argumento se revisan sus generaciones fijadas.
 const PROPUESTA = { planMaestro: { estrategia: "problemas", secciones: ["Causes of the Problem", "Our Goals", "Options We Evaluated", "Our Recommendation"] }, productoFinalTexto: "Our Welcome Proposal — una propuesta bilingüe a la dirección con las causas, los objetivos, las alternativas evaluadas y la recomendada" };
+// Banco de frases (Proyectos, 4 sem.): producto sin lugares y audiencia de varios cursos (revisor, 2026-11-11).
+const FRASES = {
+  planMaestro: { estrategia: "proyectos", secciones: ["Greetings and Goodbyes", "Asking for Permission", "Asking for Help", "Materials and Work", "Teacher Instructions", "Politeness and Encouragement"] },
+  situacion: {
+    origen: "real", borrador: false,
+    contexto: "En el Centro Hector Francisco Lopez, los estudiantes de 4.º, 5.º y 6.º de primaria y de 1.º de secundaria reciben clases de inglés, y los de 2do de Secundaria los visitarán, curso por curso.",
+    problema: "Muchos no saben pedir permiso, ayuda o aclaraciones en inglés dentro del aula, y no tienen a mano frases útiles para hacerlo.",
+    productoDescripcion: "una charla bilingüe con un banco de frases útiles para el aula",
+    audiencia: "los estudiantes de 4.º, 5.º y 6.º de primaria y de 1.º de secundaria",
+  },
+  productoFinalTexto: "Useful Classroom Phrases Talk",
+};
 const unidades = [
   { u: unidad("Alimentación", 6), json: argumento("--alimentacion") || fixture("alimentacion-6-semanas.json") },
   { u: unidad("Escuela y educación", 4), json: argumento("--escuela") || fixture("escuela-4-semanas.json") },
   { u: unidad("Actividades de la vida diaria", 4, { planMaestro: { estrategia: "indagacion_dialogica" } }), json: argumento("--rutinas") || fixture("rutinas-4-semanas.json") },
   { u: unidad("Escuela y educación", 5, PROPUESTA), json: argumento("--problemas") || fixture("problemas-5-semanas.json") },
+  { u: unidad("Escuela y educación", 4, FRASES), json: argumento("--frases") || fixture("frases-4-semanas.json") },
 ];
 
 let fallos = 0;
@@ -291,7 +341,7 @@ const mostrar = (titulo, tabla, generaciones) => {
     console.log(`${id}  ${celdas.map((c) => c.txt).join(" ")}  ${celdas.map((c) => c.msg).filter(Boolean).join(" // ")}`);
   });
 };
-console.log("Columnas: Alimentación 6 sem. | Escuela 4 sem. | Rutinas 4 sem. | Problemas 5 sem.");
+console.log("Columnas: Alimentación 6 sem. | Escuela 4 sem. | Rutinas 4 sem. | Problemas 5 sem. | Frases 4 sem.");
 mostrar("Sin IA: lo que decide el código", invariantesMapa, null);
 const generaciones = unidades.map(({ json }) => (json ? leerGeneracion(json) : null));
 if (generaciones.some(Boolean)) mostrar("Última generación: lo que escribe la IA", invariantesJson, generaciones);

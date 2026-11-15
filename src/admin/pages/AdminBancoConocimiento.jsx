@@ -3479,8 +3479,8 @@ export default function AdminBancoConocimiento({ onIrPotenteIA = null }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Banco de Conocimiento Curricular</h2>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--adm-text, #1e293b)' }}>Banco de Conocimiento Curricular</h2>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--adm-muted, #64748b)' }}>
             Carga las mallas oficiales que solicita el generador de planificación
           </p>
         </div>
@@ -3594,7 +3594,8 @@ export default function AdminBancoConocimiento({ onIrPotenteIA = null }) {
           <div style={{ fontSize: 13 }}>Comienza agregando una malla curricular JSON con el botón de arriba</div>
         </div>
       ) : (
-        <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+        <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e2e8f0', background: '#ffffff', color: '#1e293b' }}>
+          {/* El panel de administración es oscuro: la tabla va en tarjeta blanca, como las tarjetas de arriba, para que su letra oscura se lea (César, 2026-11-11). */}
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>

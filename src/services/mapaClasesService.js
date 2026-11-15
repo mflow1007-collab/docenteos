@@ -88,14 +88,20 @@ const trozos = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) },
  * recomendación (una propuesta no se usa; Guía 2025, p. 21). Null: la prueba general.
  */
 const PRUEBA_DEFENDER = { tipo: "defender", hace: "Defienden ante la audiencia su recomendación: explican por qué recomiendan esa alternativa y responden sus preguntas, y luego recogen sus comentarios en tarjetas." };
+// Banco de frases o charla: se usa practicando con un grupo pequeño de invitados que pide algo con una tarjeta del banco
+// (revisor de «Frases del aula», 2026-11-11; César: llevarla a 15). Se reconoce por el nombre o por qué es el producto.
+const PRUEBA_FRASES = { tipo: "frases", hace: "Practican en parejas con un grupo pequeño de invitados: el invitado pide permiso o ayuda con una tarjeta del banco y la pareja lo guía y aclara; luego recogen sus comentarios en tarjetas." };
+export const esBancoDeFrases = (texto = "") => /\b(phrases?|frases?|talk|charlas?)\b/i.test(String(texto));
 // En ABProblemas el producto responde al problema y se defiende ante quien decide, cualquiera que sea el tema (g28: Rutinas con ABP usaba la prueba de Indagación).
-export const pruebaDelProducto = (producto = "", secciones = [], estrategia = "") => (estrategia === "problemas" ? PRUEBA_DEFENDER : null)
+// Prioridad: Problemas → sección conocida → banco de frases → propuesta.
+export const pruebaDelProducto = (producto = "", secciones = [], estrategia = "", descripcion = "") => (estrategia === "problemas" ? PRUEBA_DEFENDER : null)
   || secciones.map((s) => PRUEBA_POR_SECCION[s]).find(Boolean)
+  || (esBancoDeFrases(`${producto} ${descripcion}`) ? PRUEBA_FRASES : null)
   || (/\bpropos(al|uesta)\b/i.test(producto) ? PRUEBA_DEFENDER : null);
 
 // Con la revisión de nivel en la misma clase, corregir cede su parte: el total de la clase no cambia ([15,30] = [10,20] + [5,10]).
 const MINUTOS_CORREGIR_CON_REVISION = [10, 20];
-const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "", problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS }) => {
+const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmitidas: omitidas = [], estrategia, totalClases = 99, producto = "", descripcion = "", problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS, encuestaProyectos = true }) => {
   const tareasOmitidas = omitidas;
   const indagacion = estrategia === "indagacion_dialogica";
   const faseDe = (re) => fases.findIndex((f) => re.test(f.nombre));
@@ -168,13 +174,19 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
   // Problemas: las fases 1 a 3 (selección, definición y objetivos) cada una con su tarea.
   // «Recoger datos» (diseñar el instrumento, aplicarlo y resumir de forma agregada y anónima) se reutiliza en la fase de
   // investigación de cada estrategia que investiga (Referente 2025 p. 20 y 23: encuesta, entrevista, fuentes). Con poco tiempo no cabe.
-  const FASE_DE_DATOS = { problemas: /^Análisis e investigación/, estudio_caso: /^Indagación o estudio/ };
-  if (FASE_DE_DATOS[estrategia] && totalClases >= datosDesde && faseDe(FASE_DE_DATOS[estrategia]) >= 0) {
-    (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS ? [u.indagarDisenar, u.indagarAplicar] : [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar]).forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]), estructura: DATOS_ENCUESTA[estrategia].estructura }, [...orden], 0, 2.5, k));
+  const FASE_DE_DATOS = { problemas: /^Análisis e investigación/, estudio_caso: /^Indagación o estudio/, proyectos: /^Gestión del conocimiento/ };
+  // Proyectos: si el producto no depende de lugares, «Gestión del conocimiento» recoge datos con la encuesta en lugar del
+  // recorrido; los datos salen de la audiencia, no solo de los modelos (revisor de «Frases del aula», 2026-11-11).
+  const sinLugares = !orden.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes("lugares"));
+  const recogeDatos = estrategia === "proyectos" ? encuestaProyectos && sinLugares : totalClases >= datosDesde;
+  if (FASE_DE_DATOS[estrategia] && recogeDatos && faseDe(FASE_DE_DATOS[estrategia]) >= 0) {
+    const corta = estrategia === "proyectos" || (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS);
+    (corta ? [u.indagarDisenar, u.indagarAplicar] : [u.indagarDisenar, u.indagarAplicar, u.indagarContrastar]).forEach((t, k) => push({ ...t, faseGuia: faseDe(FASE_DE_DATOS[estrategia]), estructura: DATOS_ENCUESTA[estrategia].estructura }, [...orden], 0, 2.5, k));
   }
   // ABP con menos de 15 clases y encuesta: la encuesta (aplicar y resumir en cifras) ya ordena los datos reales, así que
   // sustituye al «ordenar» suelto; sin «contrastar con una fuente», que es de Indagación. Así cabe en 12 clases (revisor g34).
-  if (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS && items.some((it) => it.t.clave === "indagar_aplicar")) {
+  // Lo mismo en Proyectos con encuesta.
+  if ((estrategia === "proyectos" || (estrategia === "problemas" && totalClases < UMBRAL_RECOGER_DATOS)) && items.some((it) => it.t.clave === "indagar_aplicar")) {
     for (let i = items.length - 1; i >= 0; i -= 1) if (items[i].t.clave === "analizar_ordenar") items.splice(i, 1);
   }
   // Con 12 clases no caben (la unidad entera ya llena el tiempo): ahí las fases 2 y 3 se unen a la 1 y queda por decidir qué
@@ -196,7 +208,7 @@ const listarTareas = ({ fases, tiposFase, secciones, tipos, partenDe, tareasOmit
     });
   }
   // Presentar y usar el producto con la audiencia son siempre dos tareas: la de usarlo cubre interactuar.
-  const prueba = pruebaDelProducto(producto, orden, estrategia);
+  const prueba = pruebaDelProducto(producto, orden, estrategia, descripcion);
   // Una propuesta se presenta completa y se defiende: no «se usa» (Guía 2025, p. 21).
   push(prueba?.tipo === "defender"
     ? { ...u.presentarSecciones, tipoPrueba: "defender", hace: "Presentan TODA la propuesta a la audiencia: las causas, los objetivos, las alternativas evaluadas y la recomendación. Luego recogen sus comentarios en tarjetas. Aquí no se corrige y no hay comentarios previos." }
@@ -395,8 +407,10 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
   };
   CATEGORIAS.forEach((cat) => { items[cat] = items[cat].filter((t) => !porUso(cat, t)); });
   // Prioridad = el orden en que se llama: funciones, su gramática, vocabulario, expresiones.
+  // La gramática no cae en una clase cuya función no sirve («why don't» en la de pedir ayuda, g41a).
+  const cabe = (f, cat, texto) => f.contenidos.length < TOPE_CONTENIDOS_POR_CLASE && (cat !== "gramatica" || gramaticaEncaja(f, texto));
   const poner = (fila, cat, texto) => {
-    const destino = fila.contenidos.length < TOPE_CONTENIDOS_POR_CLASE ? fila : utiles.find((f) => f.contenidos.length < TOPE_CONTENIDOS_POR_CLASE);
+    const destino = cabe(fila, cat, texto) ? fila : utiles.find((f) => cabe(f, cat, texto));
     if (destino) destino.contenidos.push({ categoria: cat, texto }); else sinLugar.push(`${cat}:${texto}`);
   };
   const enOrden = (lista, cat, destinos) => lista.forEach((t, i) => poner(destinos[Math.floor((i * destinos.length) / lista.length)], cat, t));
@@ -415,6 +429,25 @@ const ubicarContenidos = (filas, plan, seleccionados) => {
     if (funcion) poner(lugarFuncion[funcion], "gramatica", t); else sinFuncion.push(t);
   });
   enOrden(sinFuncion, "gramatica", conUso);
+  // Lo que el uso puso antes de conocer la función de la clase («why don't» en la de pedir ayuda, g41a) se muda
+  // a otra clase con la misma tarea que lo admita, o a cualquiera que lo admita; si ninguna, queda sin lugar.
+  utiles.forEach((f) => {
+    f.contenidos.filter((c) => c.categoria === "gramatica" && !gramaticaEncaja(f, c.texto)).forEach((c) => {
+      f.contenidos.splice(f.contenidos.indexOf(c), 1);
+      const claves = USO_DE_CONTENIDOS.find(([re]) => re.test(normal(c.texto).trim()))?.[1] || [];
+      const otra = utiles.find((g) => g !== f && cabe(g, "gramatica", c.texto) && g.tareas.some((t) => claves.includes(t.clave)))
+        || utiles.find((g) => g !== f && cabe(g, "gramatica", c.texto));
+      if (otra) otra.contenidos.push(c); else sinLugar.push(`gramatica:${c.texto}`);
+    });
+  });
+  // La clase cuya función pide una gramática (pedir ayuda → can/could/may) la recibe si el reparto no se la dio.
+  utiles.forEach((f) => {
+    const r = reglaDeFila(f);
+    if (!r || f.contenidos.some((c) => c.categoria === "gramatica" && r[1].test(c.texto.split(":")[0]))) return;
+    const todas = [...items.gramatica, ...utiles.flatMap((g) => g.contenidos).filter((c) => c.categoria === "gramatica").map((c) => c.texto)];
+    const sirve = todas.find((t) => r[1].test(t.split(":")[0]));
+    if (sirve && f.contenidos.length < TOPE_CONTENIDOS_POR_CLASE) f.contenidos.push({ categoria: "gramatica", texto: sirve });
+  });
   enOrden(items.vocabulario, "vocabulario", candidatas((f) => hay(f, "C") || hay(f, "P")));
   enOrden(items.expresiones, "expresiones", candidatas((f) => hay(f, "I")));
   return sinLugar;
@@ -601,9 +634,23 @@ export const vincularInstrumentosConClases = (dias = [], anexos = {}, dimensione
 };
 
 /** Recursos humanos de una clase: el invitado cuenta si la tarea lo requiere. */
-export const humanosDeFila = (fila, alcance = null) => {
+/**
+ * Audiencia que no cabe en la clase sumativa (más de un curso o más de 15 personas): la configuración no cambia, pero la
+ * clase invita a una muestra y cada pareja atiende a un grupo pequeño (revisor de «Frases del aula», 2026-11-11). Vacío si cabe.
+ */
+export const muestraDeAudiencia = (audiencia = "") => {
+  const texto = String(audiencia || "");
+  const cursos = [...new Set([...texto.matchAll(/\b(\d{1,2})\s*(?:\.\s*º|º|°|\.º|ro|do|to|vo|no|mo)(?![\p{L}])/gu)].map((m) => `${m[1]}.º`))];
+  if (cursos.length > 1) return `2–3 estudiantes invitados de ${cursos.slice(0, -1).join(", ")} y ${cursos[cursos.length - 1]}`;
+  const cuantos = Math.max(0, ...[...texto.matchAll(/\b(\d{2,4})\s+(?:personas|estudiantes|alumnos|familias|padres|madres|invitados|miembros)\b/gi)].map((m) => Number(m[1])));
+  if (cuantos > 15) return `un grupo pequeño de invitados (5 o 6) de ${texto.replace(/^\s*(los|las|el|la)\s+/i, "")}`;
+  return "";
+};
+
+export const humanosDeFila = (fila, alcance = null, muestra = "") => {
   const claves = fila.tareas.map((t) => t.clave);
   if (claves.includes("presentar") || claves.includes("probar_audiencia")) {
+    if (muestra) return `Docente, estudiantes y ${muestra}`;
     if (!alcance?.invitado) return "Docente, estudiantes y la audiencia";
     return `Docente, estudiantes, ${alcance.invitado}${alcance.visitante ? ` y ${alcance.visitante}` : ""}`;
   }
@@ -922,7 +969,28 @@ const conMayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 const UMBRAL_RECOGER_DATOS = 15;
 const ETIQUETA_POR_TAREA = { describir_modelo: "Analizar un modelo de", describir_redactar: "Redactar", analizar_ordenar: "Organizar lo reunido para", analizar_borrador: "Escribir el borrador de", analizar_verificar: "Comprobar los datos de" };
-const TAREAS_CON_FUNCION_PROPIA = new Set(["analizar_ordenar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos"]);
+// «acordar»: la clase 1 presenta la unidad; la función de la malla puede ser de otro tema («actividades cotidianas» en Frases del aula, revisor de g40a).
+const TAREAS_CON_FUNCION_PROPIA = new Set(["acordar", "analizar_ordenar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos"]);
+// Gramática que sirve a cada función: pedir ayuda no se hace con «why don't» (que es para sugerir). Revisor de g40a.
+// Tercer elemento: estructura que delata la función de otra clase (sugerir con «why don't» en una clase de pedir ayuda).
+export const GRAMATICA_DE_FUNCION = [[/ayuda/i, /\b(can|could|may)\b/i, /\bwhy (don['’]?t|not)\b/i], [/consejos|sugerencias/i, /\b(should|let|why don|imperativo|condicional)/i, null]];
+const reglaDeFila = (fila) => {
+  const funcion = (fila?.contenidos || []).find((c) => c.categoria === "funcionales")?.texto || "";
+  return GRAMATICA_DE_FUNCION.find(([f]) => f.test(funcion)) || null;
+};
+/** Una gramática que no sirve a la función de la clase no va en ella (revisor de g41a). */
+export const gramaticaEncaja = (fila, texto) => { const r = reglaDeFila(fila); return !r || r[1].test(String(texto).split(":")[0]); };
+/**
+ * Lo que la clase escribe con la estructura de otra función: intención, texto modelo, metacognición y actividades.
+ * La etiqueta dice «can, may y could» y el modelo pregunta «Why don't we…?» (revisor de g41a). Devuelve la frase o "".
+ */
+export const estructuraAjenaEnClase = (clase = {}, fila = {}) => {
+  const r = reglaDeFila(fila);
+  if (!r?.[2]) return "";
+  const textos = [clase?.intencionPedagogica, ...(clase?.textoModelo?.lineas || []),
+    ...(clase?.momentos || []).flatMap((m) => [...[].concat(m?.metacognicion || []), ...(m?.actividades || []).map((a) => (typeof a === "string" ? a : a?.texto || ""))])];
+  return String(textos.find((t) => r[2].test(String(t || ""))) || "");
+};
 
 /**
  * Estructura del día: la escribe el código, para que corresponda a la tarea de la clase.
@@ -947,9 +1015,17 @@ export const focoDeFila = (fila = {}, filas = []) => {
   const textos = (cat) => (fila.contenidos || []).filter((c) => c.categoria === cat).map((c) => c.texto);
   // Tareas cuya acción no la sirve la gramática que el reparto le dio a la clase (organizar datos, entender un problema):
   // su estructura es la de la tarea, no la de otro tema de la malla (Rutinas C8, Problemas C5).
-  const propia = TAREAS_CON_FUNCION_PROPIA.has(clave);
+  // La tarea que trae su propia estructura (la encuesta) la usa aunque el reparto le dé gramática de otro tema (revisor de g40a).
+  const propia = TAREAS_CON_FUNCION_PROPIA.has(clave) || Boolean(estructuraDeTarea);
   const funciones = propia ? [] : textos("funcionales").map((t) => t.replace(/^Funcional:\s*/i, "").trim());
-  const gramatica = propia ? [] : textos("gramatica");
+  let gramatica = propia ? [] : textos("gramatica");
+  // Si la gramática de la clase no sirve a su función, la de la malla del tema que sí sirve; si no hay, la función sola.
+  const regla = GRAMATICA_DE_FUNCION.find(([f]) => f.test(funciones[0] || ""));
+  if (regla && !gramatica.some((g) => regla[1].test(g.split(":")[0]))) {
+    const otra = filas.flatMap((f) => f.contenidos || []).find((c) => c.categoria === "gramatica" && regla[1].test(c.texto.split(":")[0]));
+    if (!otra && gramatica.length) return funciones.slice(0, 2).join("; ");
+    if (otra) gramatica = [otra.texto];
+  }
   const delTexto = gramatica.map((t) => t.split(":")[0].match(/\bpara (.+)$/)?.[1]).find(Boolean);
   // «Comprar» solo tiene sentido si la unidad pide: en otro tema, will expresa planes.
   const hayPedido = filas.some((f) => f.secciones?.some((x) => PRUEBA_POR_SECCION[x]?.tipo === "pedido"));
@@ -1043,21 +1119,43 @@ export const diagnosticoDeFases = (fases = [], hayMapa = false) => {
  * una clase de otra. Los iguales del todo ya los trata el control de títulos repetidos.
  */
 // Raíz de 6 letras: «Exploración» y «Explorando», «gastronomía» y «gastronómica» cuentan como la misma palabra (g25).
-const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2).map((w) => w.slice(0, 6)));
+// Verbos de mejora: «Perfeccionando…» y «Refinando…» son el mismo título para el docente (revisor de g40a).
+const raizDeTitulo = (w) => (/^(perfecc|refin|mejor|puli|afin|refuer|reforz)/.test(w) ? "mejora" : w.slice(0, 6));
+const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2).map(raizDeTitulo));
 // Palabras que no distinguen un título de otro.
 const PALABRAS_GENERICAS = new Set(["nuestr", "entre", "sobre", "para", "desde", "juntos", "juntas"]);
-const significativas = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 3).map((w) => w.slice(0, 6)).filter((w) => !PALABRAS_GENERICAS.has(w));
+const significativas = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 3).map(raizDeTitulo).filter((w) => !PALABRAS_GENERICAS.has(w));
 /** Dos títulos casi iguales: mismas palabras (por su raíz) con otro orden, mayúsculas o una preposición distinta (Jaccard ≥ umbral), o que abren con la misma palabra y comparten otra (g26: «Investigadores en acción…» / «Analizando una pieza modelo» y «Analizando un modelo»). */
-export const titulosSimilares = (a, b, umbral = 0.6) => {
+export const titulosSimilares = (a0, b0, umbral = 0.6, producto = "") => {
+  // El nombre del producto no distingue una clase de otra: se quita antes de comparar (revisor de g41a).
+  const sinProducto = (t) => (producto && String(producto).trim().length > 3 ? String(t || "").replace(new RegExp(`[«“"‘']?${String(producto).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[»”"’']?`, "ig"), " ") : String(t || ""));
+  // Misma función con otra sección («Escribiendo el borrador: «Requesting Assistance»» / «…: «Materials and Work»»): distintos por construcción.
+  const citadas = (t) => [...String(t || "").matchAll(/«([^»]+)»/g)].map((m) => m[1].toLowerCase()).filter((x) => !producto || x !== String(producto).trim().toLowerCase()).sort().join("|");
+  if (citadas(a0) && citadas(b0) && citadas(a0) !== citadas(b0)) return false;
+  const a = sinProducto(a0);
+  const b = sinProducto(b0);
   const x = palabrasDeTitulo(a);
   const y = palabrasDeTitulo(b);
   if (!x.size || !y.size) return false;
-  if (String(a).trim().toLowerCase() === String(b).trim().toLowerCase()) return true;
+  if (String(a0).trim().toLowerCase() === String(b0).trim().toLowerCase()) return true;
   const comunes = [...x].filter((w) => y.has(w)).length;
   if (comunes / (x.size + y.size - comunes) >= umbral) return true;
   const sa = significativas(a);
   const sb = significativas(b);
-  return Boolean(sa.length && sb.length && sa[0] === sb[0] && sa.slice(1).some((w) => sb.slice(1).includes(w)));
+  if (sa.length && sb.length && sa[0] === sb[0] && sa.slice(1).some((w) => sb.slice(1).includes(w))) return true;
+  // Con otro verbo al inicio y el resto igual («Perfeccionamiento de frases útiles…» / «Refuerzo de Frases Útiles…»), es el mismo título (revisor de g40a).
+  const resto = (l) => new Set(l.slice(1).filter((w) => w !== "mejora"));
+  const ra = resto(sa);
+  const rb = resto(sb);
+  return ra.size >= 2 && ra.size === rb.size && [...ra].every((w) => rb.has(w));
+};
+/** Título de más de 10 palabras: la parte antes de los dos puntos si tiene de 3 a 10; si no, el de la tarea (revisor de g40a). */
+export const tituloCorto = (titulo = "", tituloTarea = "", max = 10) => {
+  const palabras = (t) => String(t || "").trim().split(/\s+/).filter(Boolean).length;
+  if (palabras(titulo) <= max) return titulo;
+  const antes = String(titulo).split(":")[0].trim();
+  if (antes !== String(titulo).trim() && palabras(antes) >= 3 && palabras(antes) <= max) return antes;
+  return tituloTarea || titulo;
 };
 export const titulosParecidos = (titulos = [], umbral = 0.6) => {
   const pares = [];
@@ -1071,29 +1169,40 @@ export const titulosParecidos = (titulos = [], umbral = 0.6) => {
 // Título de la clase cuando la IA no lo devuelve o se repite: lo escribe el código desde la acción y la sección,
 // no con el nombre interno de la tarea. `{p}` = producto; la sección se añade sola si la tarea es de una sección.
 const TITULO_POR_TAREA = {
-  acordar: "Acordando el plan de {p}", problema_analizar: "Entendiendo el problema y sus causas", problema_definir: "Definiendo el problema", problema_objetivos: "Fijando nuestros objetivos", saberes_previos: "Lo que sabemos y queremos saber", recorrer_lugares: "Recorriendo el centro",
+  acordar: "Conociendo el proyecto: {p}", problema_analizar: "Entendiendo el problema y sus causas", problema_definir: "Definiendo el problema", problema_objetivos: "Fijando nuestros objetivos", saberes_previos: "Lo que sabemos y queremos saber", recorrer_lugares: "Recorriendo el centro",
   visitar_modelo: "Conociendo una entrevista modelo", visitar_guion: "Escribiendo el guion", visitar_entrevistar: "Entrevistando",
   visitar_registrar: "Registrando lo que dijeron", visitar_segunda: "Completando los datos que faltan",
   describir_modelo: "Analizando una pieza modelo", describir_redactar: "Redactando la pieza", analizar_ordenar: "Ordenando los datos",
   analizar_borrador: "Escribiendo el borrador", analizar_verificar: "Comprobando los datos", proponer_comparar: "Comparando con un texto",
-  proponer_elegir: "Eligiendo y justificando", proponer_elaborar: "Elaborando la pieza", aplicar_modelo: "Analizando un modelo",
-  aplicar_escribir: "Escribiendo", aplicar_ensayar: "Ensayando", aplicar_anotar: "Anotando la mejora", aplicar_segundo: "Ensayando otra vez",
+  proponer_elegir: "Eligiendo y justificando", proponer_elaborar: "Elaborando la pieza", aplicar_modelo: "Usando el modelo",
+  aplicar_escribir: "Escribiendo", aplicar_ensayar: "Practicando en parejas", aplicar_anotar: "Practicando y anotando la mejora", aplicar_segundo: "Practicando otra vez en parejas",
   aplicar_corregir: "Corrigiendo lo ensayado", socializar_reunir: "Reuniendo lo hecho", socializar_redactar: "Redactando el mensaje",
   socializar_leer: "Leyendo el mensaje a otro grupo", orientar_recorrido: "Haciendo el recorrido", orientar_instrucciones: "Escribiendo las instrucciones",
-  orientar_probar: "Probando las instrucciones", comentar: "Comentando las piezas", corregir: "Corrigiendo", revision_docente: "Revisando con la rúbrica",
+  orientar_probar: "Probando las instrucciones", comentar: "Comentando las piezas de los compañeros", corregir: "Corrigiendo", revision_docente: "Revisando con la rúbrica",
   revision_nivel: "Comprobando el nivel satisfactorio", indagar_disenar: "Diseñando la encuesta", indagar_aplicar: "Aplicando la encuesta",
-  indagar_contrastar: "Contrastando con una fuente", glosario: "Armando el glosario", integrar: "Reuniendo {p}", presentar: "Presentando {p}",
+  indagar_contrastar: "Contrastando con una fuente", glosario: "Armando el glosario", integrar: "Revisando el conjunto de {p}", presentar: "Presentando {p} a la audiencia",
   probar_audiencia: "Probando {p} con la audiencia", audiencia_secundaria: "Mostrando {p} a otra audiencia", evaluar_comentarios: "Respondiendo a los comentarios",
   corregir_final: "Corrigiendo {p}", evaluar_proceso: "Reflexionando sobre lo aprendido",
 };
-const SIN_SECCION = new Set(["acordar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos", "recorrer_lugares", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "corregir_final", "evaluar_proceso", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "revision_docente", "revision_nivel"]);
+const SIN_SECCION = new Set(["comentar", "acordar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos", "recorrer_lugares", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "corregir_final", "evaluar_proceso", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "revision_docente", "revision_nivel"]);
+/** Títulos posibles de la clase, uno por tarea (la primera manda): para reemplazar un título que se parece a otro. */
+export const titulosDeTareas = (fila = {}, producto = "") => [...new Set((fila.tareas || [])
+  .map((t) => tituloDeClase({ ...fila, tareas: [t] }, producto)).filter(Boolean))];
+
+/**
+ * Título de la clase: lo escribe el código desde la función de la tarea principal y su sección (revisor de g42a),
+ * como las observaciones y las adaptaciones. Si la clase reúne el producto, esa es su tarea principal (como en focoDeFila).
+ */
 export const tituloDeClase = (fila = {}, producto = "") => {
-  const t = fila.tareas?.[0];
+  const t = (fila.tareas || []).find((x) => x.clave === "integrar") || fila.tareas?.[0];
   if (!t) return "";
-  const p = nombreCorto(producto) || "el producto";
+  const corto = nombreCorto(producto);
+  const p = corto ? `«${corto}»` : "el producto";
   const base = (TITULO_POR_TAREA[t.clave] || `${t.nombre.charAt(0).toUpperCase()}${t.nombre.slice(1)}`).replace("{p}", p);
   const secs = t.secciones || [];
-  return !SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3 ? `${base}: ${secs.join(", ")}` : base;
+  const nombres = secs.map((x) => `«${x}»`);
+  const conSecciones = nombres.length > 1 ? `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}` : nombres[0];
+  return !SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3 ? `${base}: ${conSecciones}` : base;
 };
 
 const ADJETIVOS_DE_GUIA = "alimentari|complet|nuev|corregid|revisad|terminad|escrit|propuest|impres|comunitari|bilingüe|práctic|rápid|sencill|clar|list";
@@ -1302,6 +1411,9 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", f
   // La fuente que se contrasta se nombra en los pasos y en los recursos de su clase.
   const nombreFuente = fuente || `una fuente sobre ${asunto || tema}`;
   const datosEncuesta = DATOS_ENCUESTA[mapa.estrategia] || DATOS_ENCUESTA.indagacion_dialogica;
+  // Banco de frases: la encuesta pregunta qué frases les cuesta usar, no cómo usar el producto (revisor de «Frases del aula»).
+  const frases = mapa.filas.some((f) => f.tareas.some((t) => t.tipoPrueba === "frases"));
+  const asuntoEncuesta = frases ? "qué frases les cuesta usar en clase" : (asunto || tema);
   mapa.filas.forEach((fila) => fila.tareas.filter((t) => t.clave === "indagar_contrastar").forEach((t) => {
     t.recursos = { ...t.recursos, didacticos: String(t.recursos?.didacticos || "").replace("Fuente impresa que trae el docente", `Fuente impresa: ${nombreFuente}`) };
   }));
@@ -1332,13 +1444,15 @@ export const ponerSecuencias = (mapa, { producto = "", tema = "", asunto = "", f
       texto: conContraccion(x.texto
         .replaceAll("{producto}", nombreCorto(producto))
         .replaceAll("{tema}", tema)
-        .replaceAll("{asunto}", asunto || tema)
+        .replaceAll("{asunto}", fila.tareas.some((t) => t.clave.startsWith("indagar_")) ? asuntoEncuesta : (asunto || tema))
         .replaceAll("{fuente}", nombreFuente)
         .replaceAll("{poblacion}", datosEncuesta.poblacion)
         .replaceAll("{preguntas}", datosEncuesta.preguntas)
         .replaceAll("{pregunta}", datosEncuesta.pregunta)
         .replaceAll("{respuestas}", datosEncuesta.respuestas)
         .replaceAll("{cifras}", datosEncuesta.cifras)
+        .replaceAll("{cuantas}", datosEncuesta.cuantas || "4 o 5")
+        .replaceAll("{decide}", String(datosEncuesta.decide || "").replaceAll("{producto}", nombreCorto(producto)))
         .replace(/\{audiencia\}/g, () => {
           if (audienciaDicha || !audiencia) return "la audiencia";
           audienciaDicha = true;
@@ -1635,7 +1749,12 @@ const ajustesParaPlan = (filas, fases) => {
  * @param {string[]} [entrada.contenidosSeleccionados] - sin ella, todos los del tema.
  * @returns {{filas:object[], modo:string, total:number, avisos:string[], tipos:object, seccionesSupuestas:string[], ajustesPlan:object|null}}
  */
-const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS, ...entrada } = {}) => {
+// Qué es el producto («una charla bilingüe con un banco de frases…»): viene en la situación del plan maestro.
+const descripcionDelProducto = (textoSituacion = "") => {
+  try { return String(JSON.parse(textoSituacion || "{}")?.productoDescripcion || ""); } catch { return ""; }
+};
+
+const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenidosSeleccionados = null, problemaDesde = 13, datosDesde = UMBRAL_RECOGER_DATOS, encuestaProyectos = true, ...entrada } = {}) => {
   const { semanas, diasClase, horasPorDia } = entrada.horario || {};
   const total = semanas * (diasClase?.length || 0) * horasPorDia;
   if (!Number.isInteger(total) || total <= 0) throw error("el horario necesita semanas, días de clase y horas por día.");
@@ -1647,7 +1766,7 @@ const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenido
   const clave = plan.estrategia.clave;
   const tiposFase = TIPO_TRABAJO_FASES_POR_ESTRATEGIA[clave] || null;
   const { tipos, supuestas } = tiposDeSecciones(plan.secciones, entrada.tiposTrabajoSecciones || {});
-  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto, problemaDesde, datosDesde });
+  const items = listarTareas({ estrategia: clave, fases: plan.fases, tiposFase, secciones: plan.secciones, tipos, partenDe: plan.partenDeSecciones, tareasOmitidas: entrada.tareasOmitidas || [], totalClases: total, producto: plan.producto, descripcion: descripcionDelProducto(entrada.textoSituacion), problemaDesde, datosDesde, encuestaProyectos });
   const capacidad = minutosDesarrollo(duracionMin);
   const avisos = [];
   if (supuestas.length) avisos.push(`Tipo de trabajo supuesto por la posición de la sección: ${supuestas.join(", ")}. El docente puede cambiarlo.`);
@@ -1773,13 +1892,21 @@ const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenido
  * así (versión breve, clases flexibles o tareas descartadas), vuelve a unir las fases como antes. Con 13 clases o más, siempre.
  * Un solo número no sirve: depende de cuántas tareas lleve el producto (g28: Rutinas cabe, Escuela no).
  */
+const cabeMapa = (m) => m.modo !== "breve" && !m.breve && !m.filas.some((f) => f.flexible)
+  && !m.avisos.some((a) => /no cabe en este tiempo/.test(String(a?.texto ?? a)));
+
 export const armarMapaClases = (args = {}) => {
   const base = armarMapaClasesBase(args);
+  // Proyectos con encuesta: si así no cabe, se arma sin ella (y «ordenar» vuelve a trabajar con la fuente del docente).
+  if (base.estrategia === "proyectos") {
+    if (!base.filas.some((f) => f.tareas.some((t) => t.clave === "indagar_aplicar")) || cabeMapa(base)) return base;
+    const sin = armarMapaClasesBase({ ...args, encuestaProyectos: false });
+    return { ...sin, avisos: [...sin.avisos, "La encuesta no cabe en este tiempo: los datos salen de la fuente que trae el docente y de los modelos."] };
+  }
   if (base.estrategia !== "problemas" || base.total < 12 || base.total >= UMBRAL_RECOGER_DATOS) return base;
   // De más completo a menos: tareas de las fases 1–3 y recogida de datos (encuesta), luego solo las fases 1–3
   // (revisor g30: «recoger datos» es tarea característica de la investigación en ABP). Gana el primero que cabe.
-  const cabe = (m) => m.modo !== "breve" && !m.breve && !m.filas.some((f) => f.flexible)
-    && !m.avisos.some((a) => /no cabe en este tiempo/.test(String(a?.texto ?? a)));
+  const cabe = cabeMapa;
   for (const intento of [{ problemaDesde: 12, datosDesde: 12 }, { problemaDesde: 12 }]) {
     try {
       const m = armarMapaClasesBase({ ...args, ...intento });

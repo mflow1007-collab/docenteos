@@ -77,6 +77,31 @@ export const unirEncabezadosGramatica = (items = []) => {
   return out;
 };
 
+// Encabezados de la lista de Procedimientos del PDF (no son contenidos).
+const ENCABEZADO_PROCEDIMIENTOS = /^(funcionales|discursivos|estrat[eé]gicos|comprensi[oó]n (oral|escrita)|producci[oó]n (oral|escrita)|otros|sociolingü[ií]sticos( y socioculturales)?)\s*:?\s*$/i;
+
+/**
+ * Las funciones de la sección «Funcionales» de Procedimientos, cada una en un ítem completo. El PDF parte las
+ * líneas por maquetación («• Solicitar y ofrecer explicaciones y» + «motivos»): una línea con viñeta abre un ítem,
+ * una que empieza en minúscula continúa el anterior. El texto sigue siendo literal; solo se reagrupan líneas.
+ * Se usa en los grados sin tabla de funciones (César, 2026-11-11: el motor es para todos los grados).
+ */
+export const funcionalesDeProcedimientos = (lineas = []) => {
+  const out = [];
+  let dentro = false;
+  for (const raw of lineas) {
+    const x = String(raw || "").trim();
+    if (!x) continue;
+    if (ENCABEZADO_PROCEDIMIENTOS.test(x)) { dentro = /^funcionales/i.test(x); continue; }
+    if (!dentro) continue;
+    const sinVineta = x.replace(/^(?:•\s*)+/, "").trim();
+    const continua = !x.startsWith("•") && out.length && /^[a-záéíóúñü]/.test(sinVineta);
+    if (continua) out[out.length - 1] = `${out[out.length - 1]} ${sinVineta}`;
+    else out.push(sinVineta);
+  }
+  return out;
+};
+
 const funcionesDeEstructura = (item, tabla) => {
   const cabeza = normClave(String(item).split(/:\s/)[0]);
   return tabla.funciones.filter((f) => f.patron.test(cabeza)).map((f) => f.nombre);
@@ -95,7 +120,7 @@ const funcionesDeEstructura = (item, tabla) => {
  */
 export const construirContenidosPorTema = ({
   temas = [], vocabulario = [], gramatica = [], expresiones = [],
-  procedimientosFuncionales = [], actitudinales = [], tablaFunciones = null,
+  procedimientosFuncionales = [], actitudinales = [], tablaFunciones = null, sinTablaSinFunciones = false,
 } = {}) => {
   if (!Array.isArray(temas) || !temas.length) return [];
   const bloques = temas.map((tema) => ({
@@ -124,8 +149,19 @@ export const construirContenidosPorTema = ({
   };
   repartir(vocabulario, "vocabulario");
   repartir(expresiones, "frases");
+  // Inglés sin tabla de funciones (César, 2026-11-11): el tema no recibe funciones ni gramática que no le
+  // corresponden; la clase toma la etiqueta de su paso y todo sigue en la lista completa del grado.
+  if (!tablaFunciones && sinTablaSinFunciones) {
+    for (const b of bloques) { b.procedimientos.funcionales = []; b.conceptos.gramatica = []; }
+    return bloques;
+  }
   if (!tablaFunciones) {
-    repartir(gramatica, "gramatica");
+    // Encabezados sueltos («Adverbios y frases adverbiales de:») unidos a su línea, como con tabla.
+    repartir(unirEncabezadosGramatica(gramatica), "gramatica");
+    // Sin tabla, cada tema lleva las funciones del grado completas, sin trozos ni encabezados del PDF.
+    // Si la lista no tiene sección «Funcionales» reconocible, se deja como venía (no se pierde nada).
+    const funcionales = funcionalesDeProcedimientos(procedimientosFuncionales);
+    if (funcionales.length) for (const b of bloques) b.procedimientos.funcionales = [...funcionales];
     return bloques;
   }
   // Opción B (src/data/funcionesPorTemaLenguas.js): la gramática va a los temas
@@ -133,7 +169,9 @@ export const construirContenidosPorTema = ({
   // su función no va a ningún tema (queda en la lista completa del grado).
   const estructuras = unirEncabezadosGramatica(gramatica).map((g) => ({ g, funciones: funcionesDeEstructura(g, tablaFunciones) }));
   for (const b of bloques) {
-    const clave = Object.keys(tablaFunciones.temas).find((t) => temasEquivalentes(t, b.tema));
+    // El nombre exacto manda; el parecido solo si no hay exacto («Viajes y turismo» no es «Relaciones … sociales»).
+    const clave = Object.keys(tablaFunciones.temas).find((t) => normClave(t) === normClave(b.tema))
+      || Object.keys(tablaFunciones.temas).find((t) => temasEquivalentes(t, b.tema));
     const suyas = clave ? tablaFunciones.temas[clave] : [];
     b.conceptos.gramatica = estructuras.filter((e) => e.funciones.some((f) => suyas.includes(f))).map((e) => e.g);
     b.procedimientos.funcionales = [...suyas];
