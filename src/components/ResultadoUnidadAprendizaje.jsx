@@ -213,7 +213,8 @@ export default function ResultadoUnidadAprendizaje({ unidad, onGuardar, onDescar
   // anteriores los traen dentro de «advertencias».
   // Producto fantasma (César, 2026-11-04): suele saltar con el producto traducido
   // en un título; el docente no tiene qué corregir.
-  const esAvisoRedaccion = (texto) => texto.startsWith("⚠️ Redacción de las actividades (regla 4.4") || texto.startsWith("⚠ Producto-fantasma");
+  // Motor anterior (motivo y condición): también solo para el administrador (revisor, 2026-11-11).
+  const esAvisoRedaccion = (texto) => texto.startsWith("⚠️ Redacción de las actividades (regla 4.4") || texto.startsWith("⚠ Producto-fantasma") || texto.startsWith("🛠️ Motor anterior:");
   const esAdmin = esUsuarioDocenteOS(auth.currentUser?.email);
   const avisosTodos = Array.isArray(unidad.advertencias) ? unidad.advertencias.filter(Boolean).map(String) : [];
   const avisosGeneracion = avisosTodos.filter((texto) => !esAvisoRedaccion(texto));

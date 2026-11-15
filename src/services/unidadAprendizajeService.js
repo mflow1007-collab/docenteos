@@ -283,6 +283,26 @@ const ESTRATEGIA_AFIN_POR_AREA = {
 // MULTI-ÁREA: las señales son de contenido (no de asignatura). Cuando la
 // situación NO da señal clara, cae a la estrategia AFÍN al área (Referente §1.4)
 // en vez de un default fijo, respetando la lógica propia de la disciplina.
+/**
+ * Clave de la estrategia que eligió el docente: la del plan maestro (ya es una clave) o la que escribió, si es una
+ * de las oficiales (por su nombre o su forma corta: «Proyectos», «ABP», «Inserción en el entorno»). null si no eligió
+ * ninguna o no se reconoce.
+ */
+/** Prefijo de los avisos de motor anterior: solo los ve el administrador (ResultadoUnidadAprendizaje). */
+export const PREFIJO_MOTOR_ANTERIOR = "🛠️ Motor anterior:";
+
+export const claveEstrategiaElegida = (clavePlan = "", texto = "") => {
+  if (clavePlan && FASES_POR_ESTRATEGIA[clavePlan]) return clavePlan;
+  const t = String(texto || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  if (!t.trim()) return null;
+  const PATRONES = [
+    ["problemas", /\bproblemas?\b/], ["proyectos", /\bproyectos?\b/], ["estudio_caso", /\bestudio de casos?\b/],
+    ["insercion_entorno", /\binsercion\b/], ["indagacion_dialogica", /\bindagacion dialogica\b/],
+    ["descubrimiento", /\bdescubrimiento\b/], ["expositiva", /\bexpositiva\b/], ["conocimientos_previos", /\bconocimientos previos\b/],
+  ];
+  return PATRONES.find(([, re]) => re.test(t))?.[0] || null;
+};
+
 const seleccionarEstrategiaPorSituacion = ({ situacion = "", tema = "", producto = "", area = "" } = {}) => {
   const t = `${situacion} ${tema} ${producto}`
     .toLowerCase()
@@ -5815,6 +5835,13 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       datos, mallaPayload, asignatura: datos.asignatura || claveContenido, numSemanas,
       diasClase: diasClaseFinal, horasPorDia: horasPorDiaEf, duracionMin: duracionHoraClase,
     });
+    // Plan maestro sin mapa de clases: también es el motor anterior para las clases; el administrador ve por qué.
+    if (!conMapa?.mapa) {
+      const motivo = !debeUsarMapaClases({ datos: { ...datos, usarMapaClases: true }, asignatura: datos.asignatura || claveContenido })
+        ? (/^ingl/i.test(String(datos.asignatura || claveContenido)) ? "el docente ajustó a mano las fases o las sesiones" : "la asignatura no es Inglés")
+        : (conMapa ? "la estrategia tiene fases con partes" : "el mapa de clases está apagado (VITE_MAPA_CLASES)");
+      avisosPlanMaestro.push(`${PREFIJO_MOTOR_ANTERIOR} las clases se redactan por fases, sin mapa de clases. Motivo: ${motivo}.`);
+    }
     // Un contenido sin lugar no es un fallo: queda sin marcar en la tabla (César, 2026-11-06).
     if (conMapa?.avisos?.length) avisosPlanMaestro.push(...conMapa.avisos.filter((a) => !/sin marcar/.test(a)));
     const planFinal = conMapa?.plan || prepPlanMaestro.plan;
@@ -5835,17 +5862,24 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       })),
     };
   } else {
-    const aviso = `ℹ️ ${claveContenido} — ${grado} todavía no tiene vista previa del plan maestro: la unidad se genera con el motor anterior (por semanas).`;
-    onProgress?.(aviso);
+    // Motor anterior: el administrador ve el motivo y la condición (revisor, 2026-11-11); el docente solo ve el resultado.
+    const aviso = `${PREFIJO_MOTOR_ANTERIOR} ${claveContenido} — ${grado} se generó con el motor anterior (por semanas). Motivo: la malla no tiene indicadores estructurados. Condición: el plan maestro y el mapa de clases solo funcionan con Inglés (cualquier grado).`;
+    onProgress?.(`ℹ️ ${claveContenido} — ${grado}: la unidad se genera por semanas.`);
     avisosPlanMaestro.push(aviso);
     // R10 — La estrategia E-A se deriva de la NATURALEZA de la situación (Guía Paso
     // 1.2.4), NO del área. Prioridad: (1) texto del docente > (2) estrategia por
     // situación (una de las 8 oficiales con fases) > (3) fallback por área.
     // estrategiaClave = id de FASES_POR_ESTRATEGIA (null si el docente forzó texto
     // libre que no mapea a una oficial → las fases caen al comportamiento genérico).
-    const estrategiaClave = seleccionarEstrategiaPorSituacion({
+    // La estrategia que eligió el docente (plan maestro o texto) nunca se cambia en silencio (revisor, 2026-11-11):
+    // si es una de las oficiales, se usan sus fases; si no se reconoce, se avisa.
+    const elegida = claveEstrategiaElegida(datos.planMaestro?.estrategia, estrategiaTexto);
+    const estrategiaClave = elegida || seleccionarEstrategiaPorSituacion({
       situacion: situacionTexto || "", tema: titulo, producto, area: claveContenido,
     });
+    if (!elegida && (datos.planMaestro?.estrategia || String(estrategiaTexto || "").trim())) {
+      avisosPlanMaestro.push(`⚠️ La estrategia elegida («${datos.planMaestro?.estrategia || estrategiaTexto}») no es una de las estrategias oficiales que conoce el motor anterior: las fases salen de «${FASES_POR_ESTRATEGIA[estrategiaClave]?.nombre || estrategiaClave}».`);
+    }
     estrategiaSel = FASES_POR_ESTRATEGIA[estrategiaClave]; // {nombre, fases[]} o undefined
     estrategiaEf = estrategiaTexto
       || (estrategiaSel ? estrategiaSel.nombre : getEstrategia(claveContenido));
@@ -5864,7 +5898,9 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   const estrategiaOficial = Array.isArray(mallaPayload.estrategiasSugeridas) && mallaPayload.estrategiasSugeridas.length
     ? String(mallaPayload.estrategiasSugeridas[0]?.nombre || mallaPayload.estrategiasSugeridas[0] || "").trim()
     : "";
-  const estrategiaFinal = rutaPlanMaestro ? estrategiaEf : (estrategiaTexto || estrategiaOficial || estrategiaEf);
+  // La estrategia elegida por el docente manda sobre la sugerida por la malla (nunca se cambia en silencio).
+  const estrategiaFinal = rutaPlanMaestro ? estrategiaEf
+    : (estrategiaTexto || (claveEstrategiaElegida(datos.planMaestro?.estrategia) ? estrategiaEf : "") || estrategiaOficial || estrategiaEf);
   const ejesOficiales = Array.isArray(mallaPayload.ejesTransversales)
     ? mallaPayload.ejesTransversales
         .map((e) => String(e?.eje || e?.nombre || e?.titulo || (typeof e === "string" ? e : "")).trim())
@@ -6247,6 +6283,13 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
   // calculan por actividad; lo que no cabe se avisa, nunca se estira la clase.
   const avisosTiempo = [];
   const avisosClaseFinal = [];
+  // Contenidos de la malla que no encajan en las clases: no se fuerzan; quedan para otras unidades (revisor g39,
+  // aprobado por César el 2026-11-11). Una unidad no tiene que cubrir toda la malla del año.
+  const paraOtras = rutaPlanMaestro?.mapa?.contenidosSinLugar || [];
+  if (paraOtras.length) {
+    const muestra = paraOtras.slice(0, 6).map((c) => `«${String(c).replace(/^[a-z]+:/, "").replace(/^Funcional:\s*/i, "").slice(0, 60)}»`).join(", ");
+    avisosClaseFinal.push(`contenidos para otras unidades: ${paraOtras.length} de la malla no encajan en estas clases y no se fuerzan: ${muestra}${paraOtras.length > 6 ? ` y ${paraOtras.length - 6} más` : ""}.`);
+  }
   const titulosVistos = new Set();
   if (rutaPlanMaestro) {
     // Con mapa de clases, cada clase ya trae sus indicadores: este ajuste los pisaba.
