@@ -948,7 +948,10 @@ const conMayuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 const UMBRAL_RECOGER_DATOS = 15;
 const ETIQUETA_POR_TAREA = { describir_modelo: "Analizar un modelo de", describir_redactar: "Redactar", analizar_ordenar: "Organizar lo reunido para", analizar_borrador: "Escribir el borrador de", analizar_verificar: "Comprobar los datos de" };
-const TAREAS_CON_FUNCION_PROPIA = new Set(["analizar_ordenar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos"]);
+// «acordar»: la clase 1 presenta la unidad; la función de la malla puede ser de otro tema («actividades cotidianas» en Frases del aula, revisor de g40a).
+const TAREAS_CON_FUNCION_PROPIA = new Set(["acordar", "analizar_ordenar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos"]);
+// Gramática que sirve a cada función: pedir ayuda no se hace con «why don't» (que es para sugerir). Revisor de g40a.
+const GRAMATICA_DE_FUNCION = [[/ayuda/i, /\b(can|could|may)\b/i], [/consejos|sugerencias/i, /\b(should|let|why don|imperativo|condicional)/i]];
 
 /**
  * Estructura del día: la escribe el código, para que corresponda a la tarea de la clase.
@@ -973,9 +976,17 @@ export const focoDeFila = (fila = {}, filas = []) => {
   const textos = (cat) => (fila.contenidos || []).filter((c) => c.categoria === cat).map((c) => c.texto);
   // Tareas cuya acción no la sirve la gramática que el reparto le dio a la clase (organizar datos, entender un problema):
   // su estructura es la de la tarea, no la de otro tema de la malla (Rutinas C8, Problemas C5).
-  const propia = TAREAS_CON_FUNCION_PROPIA.has(clave);
+  // La tarea que trae su propia estructura (la encuesta) la usa aunque el reparto le dé gramática de otro tema (revisor de g40a).
+  const propia = TAREAS_CON_FUNCION_PROPIA.has(clave) || Boolean(estructuraDeTarea);
   const funciones = propia ? [] : textos("funcionales").map((t) => t.replace(/^Funcional:\s*/i, "").trim());
-  const gramatica = propia ? [] : textos("gramatica");
+  let gramatica = propia ? [] : textos("gramatica");
+  // Si la gramática de la clase no sirve a su función, la de la malla del tema que sí sirve; si no hay, la función sola.
+  const regla = GRAMATICA_DE_FUNCION.find(([f]) => f.test(funciones[0] || ""));
+  if (regla && gramatica.length && !gramatica.some((g) => regla[1].test(g.split(":")[0]))) {
+    const otra = filas.flatMap((f) => f.contenidos || []).find((c) => c.categoria === "gramatica" && regla[1].test(c.texto.split(":")[0]));
+    if (!otra) return funciones.slice(0, 2).join("; ");
+    gramatica = [otra.texto];
+  }
   const delTexto = gramatica.map((t) => t.split(":")[0].match(/\bpara (.+)$/)?.[1]).find(Boolean);
   // «Comprar» solo tiene sentido si la unidad pide: en otro tema, will expresa planes.
   const hayPedido = filas.some((f) => f.secciones?.some((x) => PRUEBA_POR_SECCION[x]?.tipo === "pedido"));
@@ -1069,10 +1080,12 @@ export const diagnosticoDeFases = (fases = [], hayMapa = false) => {
  * una clase de otra. Los iguales del todo ya los trata el control de títulos repetidos.
  */
 // Raíz de 6 letras: «Exploración» y «Explorando», «gastronomía» y «gastronómica» cuentan como la misma palabra (g25).
-const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2).map((w) => w.slice(0, 6)));
+// Verbos de mejora: «Perfeccionando…» y «Refinando…» son el mismo título para el docente (revisor de g40a).
+const raizDeTitulo = (w) => (/^(perfecc|refin|mejor|puli|afin)/.test(w) ? "mejora" : w.slice(0, 6));
+const palabrasDeTitulo = (t) => new Set(String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 2).map(raizDeTitulo));
 // Palabras que no distinguen un título de otro.
 const PALABRAS_GENERICAS = new Set(["nuestr", "entre", "sobre", "para", "desde", "juntos", "juntas"]);
-const significativas = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 3).map((w) => w.slice(0, 6)).filter((w) => !PALABRAS_GENERICAS.has(w));
+const significativas = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((w) => w.length > 3).map(raizDeTitulo).filter((w) => !PALABRAS_GENERICAS.has(w));
 /** Dos títulos casi iguales: mismas palabras (por su raíz) con otro orden, mayúsculas o una preposición distinta (Jaccard ≥ umbral), o que abren con la misma palabra y comparten otra (g26: «Investigadores en acción…» / «Analizando una pieza modelo» y «Analizando un modelo»). */
 export const titulosSimilares = (a, b, umbral = 0.6) => {
   const x = palabrasDeTitulo(a);
@@ -1084,6 +1097,14 @@ export const titulosSimilares = (a, b, umbral = 0.6) => {
   const sa = significativas(a);
   const sb = significativas(b);
   return Boolean(sa.length && sb.length && sa[0] === sb[0] && sa.slice(1).some((w) => sb.slice(1).includes(w)));
+};
+/** Título de más de 10 palabras: la parte antes de los dos puntos si tiene de 3 a 10; si no, el de la tarea (revisor de g40a). */
+export const tituloCorto = (titulo = "", tituloTarea = "", max = 10) => {
+  const palabras = (t) => String(t || "").trim().split(/\s+/).filter(Boolean).length;
+  if (palabras(titulo) <= max) return titulo;
+  const antes = String(titulo).split(":")[0].trim();
+  if (antes !== String(titulo).trim() && palabras(antes) >= 3 && palabras(antes) <= max) return antes;
+  return tituloTarea || titulo;
 };
 export const titulosParecidos = (titulos = [], umbral = 0.6) => {
   const pares = [];

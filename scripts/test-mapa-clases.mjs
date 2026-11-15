@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -1374,6 +1374,25 @@ check("Frases del aula: banco de frases → práctica con invitados; audiencia d
   const alternos = titulosDeTareas(c, "P");
   igual(alternos.length, 2, "un título por tarea");
   assert(titulosSimilares("Analizando una pieza modelo: Greetings", alternos[0]) && !titulosSimilares("Analizando una pieza modelo: Greetings", alternos[1]), `el segundo no se parece: ${alternos}`);
+});
+
+check("revisor de g40a: verbos de mejora, títulos largos y etiquetas que sirven a la función de la clase", () => {
+  assert(titulosSimilares("Perfeccionando Frases para el Aula", "Refinando las Frases Útiles para el Aula"), "perfeccionar y refinar son el mismo título");
+  assert(titulosSimilares("Mejorando nuestra guía", "Puliendo nuestra guía"), "mejorar y pulir también");
+  assert(!titulosSimilares("Construyendo frases útiles: instrucciones y cortesía", "Perfeccionando Frases para el Aula"), "construir no es mejorar");
+  igual(tituloCorto("Plantean sus preguntas y registran respuestas: avanzan en su charla de frases útiles para el aula", "Diseñando la encuesta"), "Plantean sus preguntas y registran respuestas", "corta en los dos puntos");
+  igual(tituloCorto("Creando consejos efectivos para un mejor desempeño escolar y recomendaciones finales del grupo", "Eligiendo"), "Eligiendo", "sin dos puntos: el de la tarea");
+  igual(tituloCorto("Redactando la pieza: Greetings and Goodbyes", "X"), "Redactando la pieza: Greetings and Goodbyes", "10 o menos: igual");
+  const g = (texto) => ({ categoria: "gramatica", texto });
+  const f = (texto) => ({ categoria: "funcionales", texto: `Funcional: ${texto}` });
+  const conversacion = { clase: 7, tareas: [{ clave: "proponer_elaborar" }], contenidos: [g("Can, may y could para sostener una conversación: May I speak to Rosa?")] };
+  const ayuda = { clase: 3, tareas: [{ clave: "describir_modelo" }], contenidos: [f("Solicitar y ofrecer ayuda"), g("Why don’t/ Why not para sugerencias: Why don’t we meet?")] };
+  igual(focoDeFila(ayuda, [ayuda, conversacion]), "Solicitar y ofrecer ayuda: can, may y could", "pedir ayuda con can/could/may");
+  igual(focoDeFila(ayuda, [ayuda]), "Solicitar y ofrecer ayuda", "sin gramática que sirva: la función sola");
+  const encuesta = { clase: 2, tareas: [{ clave: "indagar_disenar", estructura: ["Preguntar a la audiencia y resumir datos", "presente simple (_7 of 12 students…_)"] }], contenidos: [g("Presente simple para referirse a actividades cotidianas: She always…")] };
+  igual(focoDeFila(encuesta, [encuesta]), "Preguntar a la audiencia y resumir datos: presente simple (_7 of 12 students…_)", "la encuesta usa su estructura");
+  const c1 = { clase: 1, tareas: [{ clave: "acordar" }, { clave: "saberes_previos" }], contenidos: [f("Intercambiar información sobre actividades cotidianas")] };
+  assert(!/cotidianas/.test(focoDeFila(c1, [c1])), `la clase 1 no toma la función de otro tema: ${focoDeFila(c1, [c1])}`);
 });
 
 check("A1 por código: la clase con revision_nivel comprueba el nivel satisfactorio aunque la IA lo omita (g37)", () => {
