@@ -279,8 +279,8 @@ check("títulos de clase del código: acción y sección, nunca el nombre intern
     igual(new Set(m.filas.filter((f) => !f.flexible && f.tareas.length).map((f) => tituloDeClase(f, "P"))).size > 6, true, `${estrategia}: títulos variados`);
   });
   const f = { tareas: [{ clave: "corregir", nombre: "corregir, probar y verificar datos", secciones: ["Ordering Food"] }] };
-  igual(tituloDeClase(f, "X"), "Corrigiendo: Ordering Food", "corregir con su sección");
-  igual(tituloDeClase({ tareas: [{ clave: "acordar", nombre: "acordar el plan y hacer el diagnóstico", secciones: ["A"] }] }, "Our Guide — una guía"), "Acordando el plan de Our Guide", "acordar con el producto");
+  igual(tituloDeClase(f, "X"), "Corrigiendo: «Ordering Food»", "corregir con su sección");
+  igual(tituloDeClase({ tareas: [{ clave: "acordar", nombre: "acordar el plan y hacer el diagnóstico", secciones: ["A"] }] }, "Our Guide — una guía"), "Conociendo el proyecto: «Our Guide»", "acordar con el producto");
 });
 check("títulos casi iguales: se detectan los de la C1 y C2 de Rutinas, no los distintos ni los idénticos", () => {
   const t = ["Planificando Nuestro Plan de Rutinas Saludables", "Planificando Nuestro Plan de Rutinas Saludables Juntos", "Explorando el entorno escolar", "Planificando Nuestro Plan de Rutinas Saludables"];
@@ -1374,7 +1374,14 @@ check("Frases del aula: banco de frases → práctica con invitados; audiencia d
   const c = { tareas: [{ clave: "aplicar_modelo", secciones: ["A"] }, { clave: "describir_redactar", secciones: ["B"] }] };
   const alternos = titulosDeTareas(c, "P");
   igual(alternos.length, 2, "un título por tarea");
-  assert(titulosSimilares("Analizando una pieza modelo: Greetings", alternos[0]) && !titulosSimilares("Analizando una pieza modelo: Greetings", alternos[1]), `el segundo no se parece: ${alternos}`);
+  assert(!titulosSimilares("Analizando una pieza modelo: Greetings", alternos[1]), `el segundo no se parece: ${alternos}`);
+  // Títulos por función y sección (revisor de g42a): la misma función con otra sección no es un duplicado.
+  igual(tituloDeClase({ tareas: [{ clave: "analizar_borrador", nombre: "x", secciones: ["Requesting Assistance"] }] }, "P"), "Escribiendo el borrador: «Requesting Assistance»", "función + sección");
+  assert(!titulosSimilares("Escribiendo el borrador: «Requesting Assistance»", "Escribiendo el borrador: «Materials and Work»"), "otra sección, otro título");
+  igual(tituloDeClase({ tareas: [{ clave: "comentar", nombre: "x", secciones: ["A"] }] }, "P"), "Comentando las piezas de los compañeros", "comentar sin sección");
+  igual(tituloDeClase({ tareas: [{ clave: "corregir", nombre: "x" }, { clave: "integrar", nombre: "y" }] }, "Talk — una charla"), "Revisando el conjunto de «Talk»", "la clase que reúne: revisar el conjunto");
+  igual(tituloDeClase({ tareas: [{ clave: "presentar", nombre: "x" }] }, "Talk"), "Presentando «Talk» a la audiencia", "sumativa");
+  igual(tituloDeClase({ tareas: [{ clave: "aplicar_ensayar", nombre: "x", secciones: ["Politeness"] }] }, "Talk"), "Practicando en parejas: «Politeness»", "practicar en parejas");
 });
 
 check("revisor de g40a: verbos de mejora, títulos largos y etiquetas que sirven a la función de la clase", () => {

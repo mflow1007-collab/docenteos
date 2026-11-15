@@ -1129,6 +1129,9 @@ const significativas = (t) => String(t || "").toLowerCase().normalize("NFD").rep
 export const titulosSimilares = (a0, b0, umbral = 0.6, producto = "") => {
   // El nombre del producto no distingue una clase de otra: se quita antes de comparar (revisor de g41a).
   const sinProducto = (t) => (producto && String(producto).trim().length > 3 ? String(t || "").replace(new RegExp(`[«“"‘']?${String(producto).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[»”"’']?`, "ig"), " ") : String(t || ""));
+  // Misma función con otra sección («Escribiendo el borrador: «Requesting Assistance»» / «…: «Materials and Work»»): distintos por construcción.
+  const citadas = (t) => [...String(t || "").matchAll(/«([^»]+)»/g)].map((m) => m[1].toLowerCase()).filter((x) => !producto || x !== String(producto).trim().toLowerCase()).sort().join("|");
+  if (citadas(a0) && citadas(b0) && citadas(a0) !== citadas(b0)) return false;
   const a = sinProducto(a0);
   const b = sinProducto(b0);
   const x = palabrasDeTitulo(a);
@@ -1166,33 +1169,40 @@ export const titulosParecidos = (titulos = [], umbral = 0.6) => {
 // Título de la clase cuando la IA no lo devuelve o se repite: lo escribe el código desde la acción y la sección,
 // no con el nombre interno de la tarea. `{p}` = producto; la sección se añade sola si la tarea es de una sección.
 const TITULO_POR_TAREA = {
-  acordar: "Acordando el plan de {p}", problema_analizar: "Entendiendo el problema y sus causas", problema_definir: "Definiendo el problema", problema_objetivos: "Fijando nuestros objetivos", saberes_previos: "Lo que sabemos y queremos saber", recorrer_lugares: "Recorriendo el centro",
+  acordar: "Conociendo el proyecto: {p}", problema_analizar: "Entendiendo el problema y sus causas", problema_definir: "Definiendo el problema", problema_objetivos: "Fijando nuestros objetivos", saberes_previos: "Lo que sabemos y queremos saber", recorrer_lugares: "Recorriendo el centro",
   visitar_modelo: "Conociendo una entrevista modelo", visitar_guion: "Escribiendo el guion", visitar_entrevistar: "Entrevistando",
   visitar_registrar: "Registrando lo que dijeron", visitar_segunda: "Completando los datos que faltan",
   describir_modelo: "Analizando una pieza modelo", describir_redactar: "Redactando la pieza", analizar_ordenar: "Ordenando los datos",
   analizar_borrador: "Escribiendo el borrador", analizar_verificar: "Comprobando los datos", proponer_comparar: "Comparando con un texto",
-  proponer_elegir: "Eligiendo y justificando", proponer_elaborar: "Elaborando la pieza", aplicar_modelo: "Analizando un modelo",
-  aplicar_escribir: "Escribiendo", aplicar_ensayar: "Ensayando", aplicar_anotar: "Anotando la mejora", aplicar_segundo: "Ensayando otra vez",
+  proponer_elegir: "Eligiendo y justificando", proponer_elaborar: "Elaborando la pieza", aplicar_modelo: "Usando el modelo",
+  aplicar_escribir: "Escribiendo", aplicar_ensayar: "Practicando en parejas", aplicar_anotar: "Practicando y anotando la mejora", aplicar_segundo: "Practicando otra vez en parejas",
   aplicar_corregir: "Corrigiendo lo ensayado", socializar_reunir: "Reuniendo lo hecho", socializar_redactar: "Redactando el mensaje",
   socializar_leer: "Leyendo el mensaje a otro grupo", orientar_recorrido: "Haciendo el recorrido", orientar_instrucciones: "Escribiendo las instrucciones",
-  orientar_probar: "Probando las instrucciones", comentar: "Comentamos un texto de {p}", corregir: "Corrigiendo", revision_docente: "Revisando con la rúbrica",
+  orientar_probar: "Probando las instrucciones", comentar: "Comentando las piezas de los compañeros", corregir: "Corrigiendo", revision_docente: "Revisando con la rúbrica",
   revision_nivel: "Comprobando el nivel satisfactorio", indagar_disenar: "Diseñando la encuesta", indagar_aplicar: "Aplicando la encuesta",
-  indagar_contrastar: "Contrastando con una fuente", glosario: "Armando el glosario", integrar: "Reuniendo {p}", presentar: "Presentando {p}",
+  indagar_contrastar: "Contrastando con una fuente", glosario: "Armando el glosario", integrar: "Revisando el conjunto de {p}", presentar: "Presentando {p} a la audiencia",
   probar_audiencia: "Probando {p} con la audiencia", audiencia_secundaria: "Mostrando {p} a otra audiencia", evaluar_comentarios: "Respondiendo a los comentarios",
   corregir_final: "Corrigiendo {p}", evaluar_proceso: "Reflexionando sobre lo aprendido",
 };
-const SIN_SECCION = new Set(["acordar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos", "recorrer_lugares", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "corregir_final", "evaluar_proceso", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "revision_docente", "revision_nivel"]);
+const SIN_SECCION = new Set(["comentar", "acordar", "problema_analizar", "problema_definir", "problema_objetivos", "saberes_previos", "recorrer_lugares", "glosario", "integrar", "presentar", "probar_audiencia", "audiencia_secundaria", "evaluar_comentarios", "corregir_final", "evaluar_proceso", "indagar_disenar", "indagar_aplicar", "indagar_contrastar", "revision_docente", "revision_nivel"]);
 /** Títulos posibles de la clase, uno por tarea (la primera manda): para reemplazar un título que se parece a otro. */
 export const titulosDeTareas = (fila = {}, producto = "") => [...new Set((fila.tareas || [])
   .map((t) => tituloDeClase({ ...fila, tareas: [t] }, producto)).filter(Boolean))];
 
+/**
+ * Título de la clase: lo escribe el código desde la función de la tarea principal y su sección (revisor de g42a),
+ * como las observaciones y las adaptaciones. Si la clase reúne el producto, esa es su tarea principal (como en focoDeFila).
+ */
 export const tituloDeClase = (fila = {}, producto = "") => {
-  const t = fila.tareas?.[0];
+  const t = (fila.tareas || []).find((x) => x.clave === "integrar") || fila.tareas?.[0];
   if (!t) return "";
-  const p = nombreCorto(producto) || "el producto";
+  const corto = nombreCorto(producto);
+  const p = corto ? `«${corto}»` : "el producto";
   const base = (TITULO_POR_TAREA[t.clave] || `${t.nombre.charAt(0).toUpperCase()}${t.nombre.slice(1)}`).replace("{p}", p);
   const secs = t.secciones || [];
-  return !SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3 ? `${base}: ${secs.join(", ")}` : base;
+  const nombres = secs.map((x) => `«${x}»`);
+  const conSecciones = nombres.length > 1 ? `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}` : nombres[0];
+  return !SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3 ? `${base}: ${conSecciones}` : base;
 };
 
 const ADJETIVOS_DE_GUIA = "alimentari|complet|nuev|corregid|revisad|terminad|escrit|propuest|impres|comunitari|bilingüe|práctic|rápid|sencill|clar|list";

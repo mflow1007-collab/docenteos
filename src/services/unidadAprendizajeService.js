@@ -6321,6 +6321,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
           const corto = tituloCorto(d.titulo, d.fijoDelMapa.tituloTarea);
           if (corto !== d.titulo) { avisosClaseFinal.push(`clase ${i + 1}: ℹ código: título largo «${d.titulo}»`); d.titulo = corto; }
         }
+        // El título lo escribe el código desde la función y la sección de la clase (revisor de g42a); el de la IA queda en tituloIA.
+        if (d.fijoDelMapa.tituloTarea) d.titulo = d.fijoDelMapa.tituloTarea;
         // Dos clases no se llaman igual: la repetida toma el nombre de su tarea, y si ese también está, lleva su número.
         const claveTitulo = String(d.titulo || "").trim().toLowerCase();
         // También los casi iguales («Explorando frases útiles para el aula» / «…en el Aula»): la IA los repite con otra preposición o mayúsculas.
