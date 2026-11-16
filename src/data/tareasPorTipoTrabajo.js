@@ -196,10 +196,10 @@ export const INVENTARIO_POR_SECCION = {
   // Escuela y educación
   "Important Places": { evidencia: "Fichas de lugares", nombres: "fichas? de lugares|lugares importantes|lugar del centro", recoge: ["lugares", "función del lugar", "personas"] },
   "School Directions": { evidencia: "Plano con rutas e indicaciones", nombres: "plano|rutas?|indicaciones|instrucciones", necesita: ["lugares"], recoge: ["rutas"], pruebaConAudiencia: "gui|acompa|indic|camino" },
-  "Asking for Help": { evidencia: "Tarjeta de bolsillo", nombres: "tarjeta de bolsillo|pedir ayuda", necesita: ["lugares", "personas"] },
+  "Asking for Help": { evidencia: "Tarjeta de bolsillo", nombres: "tarjeta de bolsillo|(pedir|ofrecer|solicitar) ayuda", necesita: ["lugares", "personas"] },
   "School Success Tips": { evidencia: "Póster «Top tips»", nombres: "consejos|top tips|poster", necesita: ["lugares"] },
   "Welcome": { evidencia: "Carta de bienvenida", nombres: "bienvenida", necesita: ["lugares"] },
-  "Final Recommendation": { evidencia: "Párrafo de cierre", nombres: "recomendacion final|parrafo de cierre" },
+  "Final Recommendation": { evidencia: "Párrafo de cierre", nombres: "recomendaci(on|ones)|parrafos? de cierre" },
   // Actividades de la vida diaria
   "Our Daily Routines": { evidencia: "Línea de tiempo del día", datosPersonales: true, nombres: "linea de tiempo|rutinas?", recoge: ["horario"] },
   "What We Found": { evidencia: "Gráfico de resultados", datosPersonales: true, nombres: "grafico|resultados", necesita: ["horario"], recoge: ["horas de sueño", "llegadas tarde"] },

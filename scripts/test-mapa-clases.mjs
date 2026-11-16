@@ -8,11 +8,11 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
-import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
+import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla, competenciasDelFormulario, indicadoresSugeridos, encajeConTema, tablaFuncionesDe, prellenarPlanMaestro as prellenarPM } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, ACTIVIDAD_NIVEL_SATISFACTORIO, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
@@ -1366,11 +1366,12 @@ check("Frases del aula: banco de frases → práctica con invitados; audiencia d
   assert(!esBancoDeFrases("una guía bilingüe de la escuela") && !esBancoDeFrases("un plan de rutinas"), "otros productos no");
   igual(muestraDeAudiencia("los estudiantes de 4.º, 5.º y 6.º de primaria y de 1.º de secundaria"), "2–3 estudiantes invitados de 4.º, 5.º, 6.º y 1.º", "varios cursos");
   igual(muestraDeAudiencia("los estudiantes de 6.º de primaria; también a un docente que hace de visitante"), "", "un curso: cabe");
-  igual(muestraDeAudiencia("las familias; también al consejo de curso"), "", "sin cursos ni cifra: cabe");
+  igual(muestraDeAudiencia("las familias; también al consejo de curso"), "un grupo pequeño de invitados (5 o 6) de familias; también al consejo de curso", "un grupo sin cifra (las familias): muestra (2026-11-16)");
+  igual(muestraDeAudiencia("el consejo de curso"), "", "sin cursos, cifra ni grupo: cabe");
   assert(/grupo pequeño/.test(muestraDeAudiencia("30 familias del sector")), "más de 15 personas: grupo pequeño");
   const fila = { tareas: [{ clave: "presentar" }, { clave: "probar_audiencia" }] };
   igual(humanosDeFila(fila, null, "2–3 estudiantes invitados de 4.º y 5.º"), "Docente, estudiantes y 2–3 estudiantes invitados de 4.º y 5.º", "humanos con la muestra");
-  igual(humanosDeFila(fila, null), "Docente, estudiantes y la audiencia", "sin muestra, como antes");
+  igual(humanosDeFila(fila, null, "", "los estudiantes de nuevo ingreso y los visitantes"), "Docente, estudiantes y los estudiantes de nuevo ingreso y los visitantes", "sin ficha ni muestra: la audiencia configurada, nunca «la audiencia»");
   const c = { tareas: [{ clave: "aplicar_modelo", secciones: ["A"] }, { clave: "describir_redactar", secciones: ["B"] }] };
   const alternos = titulosDeTareas(c, "P");
   igual(alternos.length, 2, "un título por tarea");
@@ -1388,6 +1389,12 @@ check("Frases del aula: banco de frases → práctica con invitados; audiencia d
   igual(focoDeFila(elab, [imp, elab]), "Escribir el borrador de «Teacher Instructions»: modo imperativo", "borrador de instrucciones en imperativo");
   const elabOtra = { ...elab, tareas: [{ clave: "proponer_elaborar", secciones: ["Politeness"] }] };
   igual(focoDeFila(elabOtra, [imp, elabOtra]), "Escribir el borrador de «Politeness»: presente simple", "otra sección: su gramática");
+  // Aplicar con función propia del reparto: toma la etiqueta de la clase anterior de su sección (Escuela 3.º C8, 2026-11-16).
+  const escribir = { clase: 7, tareas: [{ clave: "aplicar_escribir", secciones: ["Asking for Help"] }], contenidos: [{ categoria: "funcionales", texto: "Funcional: Solicitar y ofrecer ayuda" }, { categoria: "gramatica", texto: "Can, may y could para pedir ayuda: Can you help me?" }] };
+  const ensayar = { clase: 8, tareas: [{ clave: "aplicar_ensayar", secciones: ["Asking for Help"] }], contenidos: [{ categoria: "funcionales", texto: "Funcional: Expresar opiniones y sugerencias" }, { categoria: "gramatica", texto: "Why don’t/ why not para hacer sugerencias: Why not…?" }] };
+  igual(focoDeFila(ensayar, [escribir, ensayar]), focoDeFila(escribir, []), "practicar Asking for Help hereda la etiqueta de su sección");
+  assert(!/why/i.test(focoDeFila(ensayar, [escribir, ensayar])), "sin why don't al practicar pedir ayuda");
+  igual(focoDeFila(ensayar, [ensayar]), "Expresar opiniones y sugerencias: why don’t / why not", "sin clase anterior de la sección: la suya");
 });
 
 check("revisor de g40a: verbos de mejora, títulos largos y etiquetas que sirven a la función de la clase", () => {
@@ -1417,6 +1424,43 @@ check("revisor de g40a: verbos de mejora, títulos largos y etiquetas que sirven
   igual(focoDeFila(encuesta, [encuesta]), "Preguntar a la audiencia y resumir datos: presente simple (_7 of 12 students…_)", "la encuesta usa su estructura");
   const c1 = { clase: 1, tareas: [{ clave: "acordar" }, { clave: "saberes_previos" }], contenidos: [f("Intercambiar información sobre actividades cotidianas")] };
   assert(!/cotidianas/.test(focoDeFila(c1, [c1])), `la clase 1 no toma la función de otro tema: ${focoDeFila(c1, [c1])}`);
+});
+
+check("revisor de g44: grabar y audio sin tecnología, título con la sección trabajada y competencias del formulario", () => {
+  const d = { a: "una lista oral de ajustes; lo graban en la ficha de audio del grupo.", b: "Lista de ajustes grabada.", c: "Proyectan el modelo y reproducen el diálogo." };
+  sinEquiposEnTodo(d);
+  igual(d.a, "una lista oral de ajustes; lo anotan en la ficha del grupo.", "grabar → anotar, sin «de audio»");
+  igual(d.b, "Lista de ajustes anotada.", "grabada → anotada");
+  igual(d.c, "Muestran el modelo y leen en voz alta el diálogo.", "proyectar y reproducir");
+  const titulos = ["Comparando con un texto: «Final Recommendation»", "Usando el modelo: «Asking for Help»"];
+  igual(tituloConSeccionTrabajada(titulos[0], titulos, "Leen un texto sobre cómo pedir ayuda y escriben frases para Asking for Help.", "Guide"), titulos[1], "la sección que la clase trabaja");
+  igual(tituloConSeccionTrabajada(titulos[0], titulos, "Comparan la Final Recommendation con un texto.", "Guide"), titulos[0], "si aparece, se queda");
+  igual(tituloConSeccionTrabajada("Revisando el conjunto de «Guide»", [], "Revisan.", "Guide"), "Revisando el conjunto de «Guide»", "el producto no es una sección");
+  const c6 = ["Comparando con un texto: «Final Recommendation»"];
+  igual(tituloConSeccionTrabajada(c6[0], c6, "Leen el texto modelo sobre recomendaciones finales en la escuela.", "Guide"), c6[0], "el plural también nombra la sección (g47, C6)");
+  igual(tituloDeClase({ tareas: [{ clave: "corregir", nombre: "x", secciones: ["A", "B", "C", "D", "E"] }] }, "Guide"), "Corrigiendo las secciones de «Guide»", "muchas secciones: no un título de una palabra (g47, C17)");
+  const cs = [{ id: "C01", nombre: "Comunicativa" }, { id: "C04", nombre: "Ética y Ciudadana" }, { id: "C05", nombre: "Científica y Tecnológica" }];
+  igual(competenciasDelFormulario(cs, ["Comunicativa", "Científica y Tecnológica"]).map((c) => c.id).join(), "C01,C05", "las casillas del formulario");
+  igual(competenciasDelFormulario(cs, []).length, 0, "sin casillas: ninguna (el prellenado pone la Comunicativa)");
+});
+
+check("indicadores por tema y ya trabajados (César, 2026-11-16)", () => {
+  const malla2 = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
+  const inds = resolverIndicadoresEstructurados(malla2).indicadores;
+  const tabla = tablaFuncionesDe({ grado: "2do Secundaria", asignatura: "Inglés" });
+  assert(tabla, "tabla de 2do");
+  const i16 = inds.find((i) => i.id === "ING-2-I16");
+  igual(encajeConTema(i16, ["Viajes y turismo"], tabla), 0, "I16 (actividades cotidianas) no encaja con Viajes");
+  assert(encajeConTema(i16, ["Escuela y educación"], tabla) > 1, "I16 encaja con Escuela");
+  const dos = indicadoresSugeridos({ indicadores: inds, competenciasIds: ["ING-2-C01", "ING-2-C05"], temas: ["Escuela y educación"], tabla });
+  assert(dos.length <= 3 && dos.some((id) => id.startsWith("ING-2-I0")) && dos.some((id) => ["ING-2-I13", "ING-2-I14", "ING-2-I15"].includes(id)), `al menos uno por competencia y caben: ${dos}`);
+  const sinUsados = indicadoresSugeridos({ indicadores: inds, competenciasIds: ["ING-2-C01"], temas: ["Escuela y educación"], tabla, trabajados: ["ING-2-I01"] });
+  assert(!sinUsados.includes("ING-2-I01"), `el trabajado no se marca: ${sinUsados}`);
+  igual(indicadoresSugeridos({ indicadores: inds, competenciasIds: ["ING-2-C01"], temas: ["Escuela y educación"], tabla, trabajados: ["ING-2-I01", "ING-2-I02", "ING-2-I03"] }).length, 0, "todos trabajados: ninguno (la vista previa avisa)");
+  const comps = competenciasDeMalla(malla2, inds);
+  const pre = prellenarPM({ datos: { titulo: "Escuela y educación", grado: "2do Secundaria", asignatura: "Inglés", competenciasFundamentalesSeleccionadas: ["Comunicativa", "Científica y Tecnológica"] }, indicadores: inds, competencias: comps });
+  igual(pre.planMaestro.competenciasElegidas.join(), "ING-2-C01,ING-2-C05", "las dos competencias marcadas");
+  assert(pre.planMaestro.indicadoresElegidos.length <= 3, `caben en la unidad: ${pre.planMaestro.indicadoresElegidos}`);
 });
 
 check("A1 por código: la clase con revision_nivel comprueba el nivel satisfactorio aunque la IA lo omita (g37)", () => {

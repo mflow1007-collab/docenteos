@@ -643,15 +643,18 @@ export const muestraDeAudiencia = (audiencia = "") => {
   const cursos = [...new Set([...texto.matchAll(/\b(\d{1,2})\s*(?:\.\s*º|º|°|\.º|ro|do|to|vo|no|mo)(?![\p{L}])/gu)].map((m) => `${m[1]}.º`))];
   if (cursos.length > 1) return `2–3 estudiantes invitados de ${cursos.slice(0, -1).join(", ")} y ${cursos[cursos.length - 1]}`;
   const cuantos = Math.max(0, ...[...texto.matchAll(/\b(\d{2,4})\s+(?:personas|estudiantes|alumnos|familias|padres|madres|invitados|miembros)\b/gi)].map((m) => Number(m[1])));
-  if (cuantos > 15) return `un grupo pequeño de invitados (5 o 6) de ${texto.replace(/^\s*(los|las|el|la)\s+/i, "")}`;
+  // Un grupo sin cifra que no cabe en el aula («las familias», «la comunidad»): también va por muestra (revisor de Rutinas 1.º, 2026-11-16).
+  const grupoSinCifra = /\b(familias|padres|madres|representantes|comunidad|vecinos)\b/i.test(texto);
+  if (cuantos > 15 || (!cuantos && grupoSinCifra)) return `un grupo pequeño de invitados (5 o 6) de ${texto.replace(/^\s*(los|las|el|la)\s+/i, "")}`;
   return "";
 };
 
-export const humanosDeFila = (fila, alcance = null, muestra = "") => {
+export const humanosDeFila = (fila, alcance = null, muestra = "", audiencia = "") => {
   const claves = fila.tareas.map((t) => t.clave);
   if (claves.includes("presentar") || claves.includes("probar_audiencia")) {
     if (muestra) return `Docente, estudiantes y ${muestra}`;
-    if (!alcance?.invitado) return "Docente, estudiantes y la audiencia";
+    // Sin ficha de invitado: la audiencia configurada, con su nombre; nunca «la audiencia» (I-12, I-23).
+    if (!alcance?.invitado) return audiencia ? `Docente, estudiantes y ${String(audiencia).trim()}` : "Docente, estudiantes y la audiencia";
     return `Docente, estudiantes, ${alcance.invitado}${alcance.visitante ? ` y ${alcance.visitante}` : ""}`;
   }
   if (claves.includes("visitar_entrevistar") && fila.modalidad === "invitado") return `Docente, estudiantes y ${alcance?.invitado || "la persona entrevistada"}`;
@@ -670,7 +673,7 @@ export const didacticosDeFila = (fila) => {
 export const INICIO_PRIMERA_CLASE = "Recuperación de experiencias: comentan qué han vivido o visto sobre este tema. (What do you know about this topic?)";
 
 // Equipos que el mapa no prevé: no se sabe si el centro los tiene.
-const EQUIPO = /\b(videos?|clips?|digital(es)?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
+const EQUIPO = /\b(videos?|clips?|digital(es)?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio|grab(a|an|ar|en)|film(a|an|ar)|proyect(a|an|ar)|reproduc(e|en|ir))\b/;
 export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con la clase y dicen qué les llama la atención.";
 
 // Conserva la mayúscula inicial de lo que reemplaza («Del video» → «Del ejemplo»).
@@ -687,7 +690,14 @@ const sinVideoEs = (t) => (typeof t === "string" ? t
   .replace(/\b(en|con|del) (retro)?proyector\b/gi, (m, pre) => conInicial(m, `${pre.toLowerCase()} la pizarra`))
   .replace(/\bgrabaciones orales\b/gi, (m) => conInicial(m, "producciones orales"))
   .replace(/\b(un|el) audio modelo\b/gi, (m, art) => conInicial(m, `${art.toLowerCase()} diálogo modelo leído por el docente`))
-  .replace(/\bvideos?\b/gi, (v) => conInicial(v, /s$/i.test(v) ? "ejemplos" : "ejemplo")) : t);
+  .replace(/\bvideos?\b/gi, (v) => conInicial(v, /s$/i.test(v) ? "ejemplos" : "ejemplo"))
+  // Verbos de grabar o proyectar y «audio» en cualquier frase (revisor de g44, C11: «lo graban en la ficha de audio del grupo»).
+  .replace(/\b(ficha|hoja|tarjeta|carpeta|cuaderno|registro) de audio\b/gi, (m, n) => conInicial(m, n.toLowerCase()))
+  // Solo cuando graban lo que ya hicieron (un registro): «Graban un audio» no tiene reemplazo seguro y se avisa.
+  .replace(/\b(lo|la|los|las) (grab|film)(an|amos|a|ar|en|e)\b/gi, (m, pron, _v, fin) => conInicial(m, `${pron.toLowerCase()} anot${fin.toLowerCase()}`))
+  .replace(/\bgrabad([oa]s?)\b/gi, (m, fin) => conInicial(m, `anotad${fin.toLowerCase()}`))
+  .replace(/\bproyect(an|amos|a|ar)\b/gi, (m, fin) => conInicial(m, { an: "muestran", amos: "mostramos", a: "muestra", ar: "mostrar" }[fin.toLowerCase()]))
+  .replace(/\breproduc(en|imos|e|ir)\b(?!\s+(?:el|un|los)\s+(?:audio|video|clip))/gi, (m, fin) => conInicial(m, `le${{ en: "en", imos: "emos", e: "e", ir: "er" }[fin.toLowerCase()]} en voz alta`)) : t);
 
 /**
  * Inicio y Cierre sin equipos: quita los que la IA puso en sus recursos y sustituye la
@@ -997,14 +1007,15 @@ export const estructuraAjenaEnClase = (clase = {}, fila = {}) => {
  * Función de la fila y su gramática; sin gramática, la frase fija de la tarea principal.
  */
 export const focoDeFila = (fila = {}, filas = [], { heredada = false } = {}) => {
-  // Aplicar sin contenido propio: nombra la estructura de la clase anterior de la misma
-  // sección, no una etiqueta genérica (revisión de g6 y g7, 2026-11-06).
+  // Aplicar: nombra la estructura de la clase anterior de la misma sección, no una etiqueta genérica
+  // (revisión de g6 y g7, 2026-11-06) ni la función que el reparto le dejó a la clase («why don't» al practicar
+  // «Asking for Help», Escuela 3.º, 2026-11-16). Sin clase anterior de esa sección, la suya.
   const primera = fila.tareas?.[0]?.clave || "";
-  if (/^aplicar_/.test(primera) && primera !== "aplicar_corregir" && !(fila.contenidos || []).some((c) => ["gramatica", "funcionales"].includes(c.categoria))) {
+  if (/^aplicar_/.test(primera) && primera !== "aplicar_corregir") {
     const previa = [...filas].reverse().find((f) => f.clase < fila.clase && !f.flexible
       && f.tareas?.some((t) => /^aplicar_/.test(t.clave) && t.secciones?.some((s) => fila.tareas[0].secciones?.includes(s)))
       && (f.contenidos || []).some((c) => ["gramatica", "funcionales"].includes(c.categoria)));
-    if (previa) return focoDeFila(previa, [], { heredada: true });
+    if (previa) return focoDeFila(previa, filas, { heredada: true });
   }
   // Si la clase reúne el producto, esa es su tarea principal.
   const clave = (fila.tareas || []).find((t) => t.clave === "integrar")?.clave || fila.tareas?.[0]?.clave || "";
@@ -1167,6 +1178,23 @@ export const tituloCorto = (titulo = "", tituloTarea = "", max = 10) => {
   if (antes !== String(titulo).trim() && palabras(antes) >= 3 && palabras(antes) <= max) return antes;
   return tituloTarea || titulo;
 };
+/** ¿El texto (normalizado) nombra la sección, por su nombre o por su inventario? */
+export const seccionNombrada = (seccion, textoNormal) => String(textoNormal || "").includes(normal(seccion))
+  || (INVENTARIO_POR_SECCION[seccion]?.nombres ? new RegExp(INVENTARIO_POR_SECCION[seccion].nombres).test(String(textoNormal || "")) : false);
+/**
+ * El título nombra la sección que la clase trabaja: si la de su tarea no aparece en las actividades y la de otra
+ * tarea de la clase sí, se toma el título de esa tarea (revisor de g44, C5: «Final Recommendation» en una clase
+ * de «Asking for Help»). Sin sección en el título, o si ninguna aparece, el título no cambia.
+ */
+export const tituloConSeccionTrabajada = (titulo = "", titulosTareas = [], textoActividades = "", producto = "") => {
+  const prod = String(nombreCorto(producto) || "").toLowerCase();
+  const seccionesDe = (t) => [...String(t || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).filter((x) => x.toLowerCase() !== prod);
+  // Por su nombre o por cómo la llama la clase en español (inventario: «pedir ayuda», «lugares importantes»…).
+  const texto = normal(textoActividades);
+  const aparece = (t) => seccionesDe(t).some((sec) => seccionNombrada(sec, texto));
+  if (!seccionesDe(titulo).length || aparece(titulo)) return titulo;
+  return titulosTareas.find((t) => t !== titulo && seccionesDe(t).length && aparece(t)) || titulo;
+};
 export const titulosParecidos = (titulos = [], umbral = 0.6) => {
   const pares = [];
   titulos.forEach((a, i) => titulos.slice(i + 1).forEach((b, k) => {
@@ -1212,7 +1240,9 @@ export const tituloDeClase = (fila = {}, producto = "") => {
   const secs = t.secciones || [];
   const nombres = secs.map((x) => `«${x}»`);
   const conSecciones = nombres.length > 1 ? `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}` : nombres[0];
-  return !SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3 ? `${base}: ${conSecciones}` : base;
+  if (!SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3) return `${base}: ${conSecciones}`;
+  // Muchas secciones y un título de una palabra («Corrigiendo»): nombra que trabaja las secciones (g47, C17).
+  return !SIN_SECCION.has(t.clave) && secs.length > 3 && !/\s/.test(base) ? `${base} las secciones de ${p}` : base;
 };
 
 const ADJETIVOS_DE_GUIA = "alimentari|complet|nuev|corregid|revisad|terminad|escrit|propuest|impres|comunitari|bilingüe|práctic|rápid|sencill|clar|list";

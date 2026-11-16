@@ -8,15 +8,16 @@
  * Desde la Etapa 5 es obligatoria donde existe: la generación redacta cada
  * fase de este plan con la IA.
  */
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
 import { ROLES_FASES_POR_ESTRATEGIA, rolesDeFaseGuia, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import {
   PLAN_MAESTRO_INICIAL, calcularVistaPrevia, resolverIndicadoresEstructurados, competenciasDeMalla,
   temasDeLaUnidad, alternarUnionConSiguiente, fijarPartes, fijarSesiones, repartirDeNuevo,
-  alternarCompetencia, alternarIndicador, alternarAspecto, prellenarSinPisar, debePrellenarPlanMaestro,
+  alternarCompetencia, alternarIndicador, alternarAspecto, prellenarSinPisar, debePrellenarPlanMaestro, competenciasDelFormulario, conIndicadoresSugeridos,
 } from "../services/vistaPreviaPlanMaestroService.js";
 import SituacionAprendizajePanel from "./SituacionAprendizajePanel.jsx";
+import { obtenerIndicadoresTrabajadosPrevios } from "../services/planificacionDataService.js";
 
 const NOMBRE_CATEGORIA = {
   vocabulario: "Vocabulario", gramatica: "Gramática", expresiones: "Expresiones", funcionales: "Funcionales",
@@ -76,6 +77,26 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
   // Siempre con los datos más recientes (el prellenado espera a que termine el título).
   const datosActuales = useRef(datos);
   useEffect(() => { datosActuales.current = datos; });
+  // Indicadores ya trabajados en planes anteriores del mismo grado y asignatura: salen tachados y no se marcan
+  // por defecto (César, 2026-11-16). Si no se pueden leer, la lista queda vacía y no se tacha nada.
+  const [trabajados, setTrabajados] = useState([]);
+  const trabajadosRef = useRef([]);
+  useEffect(() => {
+    let vivo = true;
+    if (!datos.grado || !datos.asignatura) { setTrabajados([]); trabajadosRef.current = []; return undefined; }
+    obtenerIndicadoresTrabajadosPrevios(datos.grado, datos.asignatura)
+      .then((lista) => { if (vivo) { const l = (lista || []).map((c) => String(c).toUpperCase()); setTrabajados(l); trabajadosRef.current = l; } })
+      .catch(() => { if (vivo) { setTrabajados([]); trabajadosRef.current = []; } });
+    return () => { vivo = false; };
+  }, [datos.grado, datos.asignatura]);
+  // La lista llega después del prellenado: si DocenteOS marcó un indicador ya trabajado, se recalcula su sugerencia.
+  useEffect(() => {
+    const actual = datosActuales.current.planMaestro;
+    if (!trabajados.length || !estructura.indicadores || !actual?.prellenado) return;
+    if (!(actual.indicadoresElegidos || []).some((id) => trabajados.includes(String(id).toUpperCase()))) return;
+    onChange({ ...datosActuales.current, planMaestro: conIndicadoresSugeridos({ ...PLAN_MAESTRO_INICIAL, ...actual }, { indicadores: estructura.indicadores, datos: datosActuales.current, trabajados }) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trabajados, estructura.indicadores]);
   // Sin pisar lo que el docente ya eligió (si tocó el plan antes de que DocenteOS lo prellenara).
   const prellenar = () => onChange({
     ...datosActuales.current,
@@ -83,6 +104,7 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
       datos: datosActuales.current,
       indicadores: estructura.indicadores,
       competencias: competenciasDeMalla(mallaPayload, estructura.indicadores),
+      trabajados: trabajadosRef.current,
     }),
   });
   useEffect(() => {
@@ -93,6 +115,27 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datos.titulo, datos.planMaestro, datos.productoFinalTexto, estructura.indicadores]);
+
+  // Las casillas «Competencias Fundamentales» del formulario mandan sobre las del plan: marcar o desmarcar una
+  // después del prellenado la añade o la quita aquí (César, 2026-11-16). Siempre queda al menos una.
+  const seleccionPrevia = useRef(datos.competenciasFundamentalesSeleccionadas);
+  useEffect(() => {
+    const antes = seleccionPrevia.current || [];
+    const ahora = datos.competenciasFundamentalesSeleccionadas || [];
+    seleccionPrevia.current = ahora;
+    if (!estructura.indicadores || antes === ahora || !(datosActuales.current.planMaestro?.competenciasElegidas || []).length) return;
+    const competencias = competenciasDeMalla(mallaPayload, estructura.indicadores);
+    const entran = competenciasDelFormulario(competencias, ahora.filter((c) => !antes.includes(c)));
+    const salen = competenciasDelFormulario(competencias, antes.filter((c) => !ahora.includes(c)));
+    let siguiente = { ...PLAN_MAESTRO_INICIAL, ...datosActuales.current.planMaestro };
+    entran.forEach((c) => { if (!siguiente.competenciasElegidas.includes(c.id)) siguiente = alternarCompetencia(siguiente, c.id, estructura.indicadores); });
+    salen.forEach((c) => { if (siguiente.competenciasElegidas.includes(c.id) && siguiente.competenciasElegidas.length > 1) siguiente = alternarCompetencia(siguiente, c.id, estructura.indicadores); });
+    if (siguiente.competenciasElegidas.join() !== (datosActuales.current.planMaestro?.competenciasElegidas || []).join()) {
+      siguiente = conIndicadoresSugeridos(siguiente, { indicadores: estructura.indicadores, datos: datosActuales.current, trabajados: trabajadosRef.current });
+      onChange({ ...datosActuales.current, planMaestro: siguiente });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datos.competenciasFundamentalesSeleccionadas, estructura.indicadores]);
 
   const vista = calcularVistaPrevia({ datos: datosPlan, mallaPayload });
   // Si las sesiones fijadas no cuadran, se muestran las fases del reparto
@@ -200,8 +243,8 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
 
         <div className="pd-section-title" style={{ marginTop: 12 }}>Competencias e indicadores</div>
         <p className="pd-hint" style={{ margin: "0 0 6px" }}>
-          Elige las competencias de la unidad. Al marcar una entran todos sus indicadores; quita los que no trabajes
-          y marca los aspectos del tema.
+          Elige las competencias de la unidad. DocenteOS marca los indicadores que van con el tema y caben en la
+          unidad; los tachados ya se trabajaron en un plan anterior. Puedes marcar o quitar los que quieras.
         </p>
         <div className="pd-comp-fund-grid">
           {competencias.map((c) => {
@@ -221,16 +264,24 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
         {competencias.filter((c) => pm.competenciasElegidas.includes(c.id)).map((c) => (
           <div key={c.id} style={cajaFase}>
             <strong style={{ fontSize: 13 }}>{c.nombre}</strong>
+            {!estructura.indicadores.some((ind) => ind.competenciaId === c.id && pm.indicadoresElegidos.includes(ind.id)) && (
+              <div style={cajaError} role="alert">
+                Esta competencia no tiene ningún indicador marcado: los que van con el tema ya se trabajaron o no encajan.
+                Marca uno o quita la competencia.
+              </div>
+            )}
             {estructura.indicadores.filter((ind) => ind.competenciaId === c.id).map((ind) => {
               const elegido = pm.indicadoresElegidos.includes(ind.id);
+              const yaTrabajado = trabajados.includes(String(ind.id).toUpperCase());
               const marcados = pm.aspectosElegidos[ind.id] || [];
               return (
                 <div key={ind.id} style={{ marginTop: 6, fontSize: 13 }}>
                   <label style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
                     <input type="checkbox" checked={elegido} onChange={() => actualizar(alternarIndicador(pm, ind.id))} />
-                    <span>
+                    <span style={yaTrabajado ? { textDecoration: "line-through", opacity: 0.72 } : undefined}>
                       <em>{NOMBRE_ACCION[ind.accion]}</em> · <TextoIndicador indicador={ind} marcados={marcados} />
                     </span>
+                    {yaTrabajado && <span className="pd-hint" style={{ whiteSpace: "nowrap" }}>trabajado en un plan anterior</span>}
                   </label>
                   {elegido && ind.listas.map((lista, l) => (
                     <div key={l} style={{ marginLeft: 22, marginTop: 2 }}>
