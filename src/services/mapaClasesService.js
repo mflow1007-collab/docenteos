@@ -1178,6 +1178,9 @@ export const tituloCorto = (titulo = "", tituloTarea = "", max = 10) => {
   if (antes !== String(titulo).trim() && palabras(antes) >= 3 && palabras(antes) <= max) return antes;
   return tituloTarea || titulo;
 };
+/** ¿El texto (normalizado) nombra la sección, por su nombre o por su inventario? */
+export const seccionNombrada = (seccion, textoNormal) => String(textoNormal || "").includes(normal(seccion))
+  || (INVENTARIO_POR_SECCION[seccion]?.nombres ? new RegExp(INVENTARIO_POR_SECCION[seccion].nombres).test(String(textoNormal || "")) : false);
 /**
  * El título nombra la sección que la clase trabaja: si la de su tarea no aparece en las actividades y la de otra
  * tarea de la clase sí, se toma el título de esa tarea (revisor de g44, C5: «Final Recommendation» en una clase
@@ -1186,8 +1189,9 @@ export const tituloCorto = (titulo = "", tituloTarea = "", max = 10) => {
 export const tituloConSeccionTrabajada = (titulo = "", titulosTareas = [], textoActividades = "", producto = "") => {
   const prod = String(nombreCorto(producto) || "").toLowerCase();
   const seccionesDe = (t) => [...String(t || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).filter((x) => x.toLowerCase() !== prod);
-  const texto = String(textoActividades || "").toLowerCase();
-  const aparece = (t) => seccionesDe(t).some((sec) => texto.includes(sec.toLowerCase()));
+  // Por su nombre o por cómo la llama la clase en español (inventario: «pedir ayuda», «lugares importantes»…).
+  const texto = normal(textoActividades);
+  const aparece = (t) => seccionesDe(t).some((sec) => seccionNombrada(sec, texto));
   if (!seccionesDe(titulo).length || aparece(titulo)) return titulo;
   return titulosTareas.find((t) => t !== titulo && seccionesDe(t).length && aparece(t)) || titulo;
 };

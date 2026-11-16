@@ -63,6 +63,13 @@ check("el verbo de una actividad dice su dimensión; un verbo fuera de las lista
   igual(["Escuchan (en parejas) x", "Redactan x", "Entrevistan x", "Reflexionan x"].map(dimensionDeActividad), ["comprension", "produccion", "interaccion", ""], "dimensiones");
 });
 
+check("dos indicadores de la misma dimensión (dos competencias): cada uno en algún instrumento (I-20)", () => {
+  const dos = [indicadores[0], indicadores[1], indicadores[12]]; // I01 y I13 (responde), I02 (produce)
+  const ax = anexosCon({ indicadoresPriorizados: dos });
+  const evaluados = new Set([...ax.rubricaProducto, ...ax.listaCotejoOral, ...ax.autoevaluacion, ...ax.coevaluacion, ...ax.escalaValoracion].map((f) => f.indicadorCodigo));
+  assert(evaluados.has("ING-2-I01") && evaluados.has("ING-2-I13"), `los dos «responde» se evalúan: ${[...evaluados]}`);
+  assert(evaluados.has("ING-2-I02"), "y el de producción");
+});
 console.log("2. Selección curricular:");
 check("las relaciones cubren lo que el docente eligió, no solo la selección automática", () => {
   const a = construirArquitecturaUnidadMINERD({

@@ -13,6 +13,7 @@ import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
   focoDeFila, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
   diagnosticoDeActividades, conTildesCorregidas, OBSERVACIONES_FASE, muestraDeAudiencia, esBancoDeFrases,
+  seccionNombrada,
 } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS, TAREAS_POR_TIPO, TAREAS_UNIDAD } from "../src/data/tareasPorTipoTrabajo.js";
@@ -288,8 +289,8 @@ const invariantesJson = {
     const secciones = new Set(g.secciones || []);
     return g.dias.map((d, i) => {
       const nombradas = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).filter((x) => !secciones.size || secciones.has(x));
-      const texto = (d.momentos || []).flatMap((m) => m.actividades || []).map(String).join(" ").toLowerCase();
-      return nombradas.length && !nombradas.some((x) => texto.includes(x.toLowerCase())) ? `C${i + 1}` : "";
+      const texto = (d.momentos || []).flatMap((m) => m.actividades || []).map(String).join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return nombradas.length && !nombradas.some((x) => seccionNombrada(x, texto)) ? `C${i + 1}` : "";
     }).filter(Boolean).join(", ");
   },
   "I-13": (g, u) => {

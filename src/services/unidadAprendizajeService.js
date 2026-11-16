@@ -1942,6 +1942,29 @@ export const construirAnexosUnidad = ({
         alternativa: "La unidad puede desarrollarse con los recursos didácticos físicos indicados en cada actividad.",
       }];
 
+  // Cada indicador elegido tiene al menos un criterio en algún instrumento (I-20). Con dos indicadores de la misma
+  // dimensión (dos «responde» de dos competencias), los ítems se iban todos al primero: el que queda sin ítem toma
+  // uno de su dimensión cuyo indicador conserve otro (César, 2026-11-16: varias competencias por unidad).
+  const itemsInstrumentos = [rubricaProducto, listaCotejoOral, escalaValoracion, autoevaluacion, coevaluacion].filter(Array.isArray).flat();
+  const relacionDe = new Map();
+  relacionesElegidas.forEach((rel) => { const cod = normalizarCodigoIndicador(rel?.indicadorId); if (cod && rel?.criterioId && !relacionDe.has(cod)) relacionDe.set(cod, rel); });
+  const cuantos = (cod) => itemsInstrumentos.filter((x) => normalizarCodigoIndicador(x.indicadorCodigo) === cod).length;
+  relacionDe.forEach((rel, cod) => {
+    if (cuantos(cod)) return;
+    const item = itemsInstrumentos.find((x) => {
+      const actual = normalizarCodigoIndicador(x.indicadorCodigo);
+      return actual && actual !== cod && cuantos(actual) >= 2 && (!rel.dimension || relacionDe.get(actual)?.dimension === rel.dimension);
+    });
+    if (!item) { avisosSeleccion.push(`${rel.indicadorId}: ningún instrumento lo evalúa`); return; }
+    Object.assign(item, {
+      indicadorCodigo: rel.indicadorId,
+      indicadorDescripcion: rel.indicadorDescripcion || item.indicadorDescripcion,
+      criterioOficialId: rel.criterioId,
+      criterioOficialTexto: rel.criterioTexto || "",
+      justificacionRelacion: "Reparto entre los indicadores elegidos de la misma dimensión: cada uno se evalúa en algún instrumento.",
+    });
+  });
+
   return {
     rubricaProducto,
     rubricaTrazable: true,
