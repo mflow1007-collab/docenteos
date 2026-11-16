@@ -673,7 +673,8 @@ export const didacticosDeFila = (fila) => {
 export const INICIO_PRIMERA_CLASE = "Recuperación de experiencias: comentan qué han vivido o visto sobre este tema. (What do you know about this topic?)";
 
 // Equipos que el mapa no prevé: no se sabe si el centro los tiene.
-const EQUIPO = /\b(videos?|clips?|digital(es)?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio|grab(a|an|ar|en)|film(a|an|ar)|proyect(a|an|ar)|reproduc(e|en|ir))\b/;
+// Por raíz y en todas sus formas (revisión g44): lo que queda tras limpiar se avisa al admin.
+const EQUIPO = /\b(videos?|clips?|digital(es)?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio\w*|grab(a|an|ar|en|ado|ada|ados|adas)|film\w*|proyect(a|an|ar|ado|ada|ados|adas)|reproduc\w+|pantallas?|tv|televis\w+|telefonos?|dispositivos?|foto(?!copia)\w*)\b/;
 export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con la clase y dicen qué les llama la atención.";
 
 // Conserva la mayúscula inicial de lo que reemplaza («Del video» → «Del ejemplo»).
@@ -694,7 +695,11 @@ const sinVideoEs = (t) => (typeof t === "string" ? t
   // Verbos de grabar o proyectar y «audio» en cualquier frase (revisor de g44, C11: «lo graban en la ficha de audio del grupo»).
   .replace(/\b(ficha|hoja|tarjeta|carpeta|cuaderno|registro) de audio\b/gi, (m, n) => conInicial(m, n.toLowerCase()))
   // Solo cuando graban lo que ya hicieron (un registro): «Graban un audio» no tiene reemplazo seguro y se avisa.
-  .replace(/\b(lo|la|los|las) (grab|film)(an|amos|a|ar|en|e)\b/gi, (m, pron, _v, fin) => conInicial(m, `${pron.toLowerCase()} anot${fin.toLowerCase()}`))
+  .replace(/\b(lo|la|los|las|se) (grab|film)(an|amos|a|ar|en|e)\b/gi, (m, pron, _v, fin) => conInicial(m, `${pron.toLowerCase()} anot${fin.toLowerCase()}`))
+  // Por raíz (revisión g44, C6: «el mapa escolar proyectado»): lo que se iba a proyectar o mostrar en pantalla va en la pizarra.
+  .replace(/\s+proyectad[oa]s?\b/gi, " en la pizarra")
+  .replace(/\b(en|con|de) (la|una) pantalla\b/gi, (m, pre) => conInicial(m, `${pre.toLowerCase()} la pizarra`))
+  .replace(/\b(en|con|de) (la|el|un|una) (tv|televisi[oó]n|televisor)\b/gi, (m, pre) => conInicial(m, `${pre.toLowerCase()} la pizarra`))
   .replace(/\bgrabad([oa]s?)\b/gi, (m, fin) => conInicial(m, `anotad${fin.toLowerCase()}`))
   .replace(/\bproyect(an|amos|a|ar)\b/gi, (m, fin) => conInicial(m, { an: "muestran", amos: "mostramos", a: "muestra", ar: "mostrar" }[fin.toLowerCase()]))
   .replace(/\breproduc(en|imos|e|ir)\b(?!\s+(?:el|un|los)\s+(?:audio|video|clip))/gi, (m, fin) => conInicial(m, `le${{ en: "en", imos: "emos", e: "e", ir: "er" }[fin.toLowerCase()]} en voz alta`)) : t);
@@ -1178,6 +1183,70 @@ export const tituloCorto = (titulo = "", tituloTarea = "", max = 10) => {
   if (antes !== String(titulo).trim() && palabras(antes) >= 3 && palabras(antes) <= max) return antes;
   return tituloTarea || titulo;
 };
+/**
+ * El texto modelo es de una sección que la clase trabaja (revisión g44, C7: «Welcome» con un modelo de «Asking for
+ * Help»). Devuelve la sección que debería nombrar si no nombra ninguna de las de sus tareas, o "".
+ */
+export const modeloDeOtraSeccion = (clase = {}, fila = {}) => {
+  const tm = clase?.textoModelo;
+  if (!tm || !(tm.lineas || []).length) return "";
+  const seccion = seccionDelModelo(fila);
+  if (!seccion) return "";
+  // El CONTENIDO del modelo, no su título (revisión g48b: «Asking for Directions» en la clase de «Welcome»).
+  return modeloNombraSeccion(seccion, normal((tm.lineas || []).join(" "))) ? "" : seccion;
+};
+/** La sección del título de la clase (tarea principal con 1–3 secciones), o "" si la clase trabaja el producto entero. */
+export const seccionDelModelo = (fila = {}) => {
+  const t = (fila.tareas || []).find((x) => x.clave === "integrar") || fila.tareas?.[0];
+  return t && !SIN_SECCION.has(t.clave) && (t.secciones || []).length >= 1 && (t.secciones || []).length <= 3 ? t.secciones[0] : "";
+};
+/**
+ * Clase sin sección propia (revisar el conjunto, presentar, responder comentarios): su modelo muestra la estructura del
+ * día («This section shows…», «They ask for…»), no un diálogo genérico de pedir ayuda (revisión g48b, C14 y C16).
+ * Devuelve la etiqueta si el modelo no usa ninguno de sus ejemplos, o "".
+ */
+export const modeloSinLaEstructura = (clase = {}, fila = {}, filas = []) => {
+  const tm = clase?.textoModelo;
+  const principal = ((fila.tareas || []).find((x) => x.clave === "integrar") || fila.tareas?.[0])?.clave || "";
+  if (!tm || !(tm.lineas || []).length || seccionDelModelo(fila) || !["integrar", "evaluar_comentarios", "presentar"].includes(principal)) return "";
+  const etiqueta = focoDeFila(fila, filas);
+  const ejemplos = (etiqueta.match(/_[^_]+_/g) || []).map((e) => normal(e.replace(/[_….]/g, "")).trim().split(/\s+/).slice(0, 2).join(" ")).filter(Boolean);
+  if (!ejemplos.length) return "";
+  const texto = normal((tm.lineas || []).join(" "));
+  return ejemplos.some((e) => texto.includes(e)) ? "" : etiqueta;
+};
+// El modelo está en inglés: la sección se reconoce por sus palabras propias o por pistas de su función.
+const PISTAS_MODELO = {
+  "Asking for Help": "help|could you|can you|may i ask",
+  "School Success Tips": "tips?|advice|you should|succeed",
+  "School Directions": "directions?|go straight|turn (left|right)|next to|how do i get",
+  "Important Places": "places?|library|cafeteria|office is",
+  "Final Recommendation": "recommend",
+  "Welcome": "welcome",
+};
+const PALABRAS_COMUNES_SECCION = new Set(["school", "with", "your", "from", "their", "about", "work"]);
+/** ¿El texto (normalizado, en inglés) del modelo es de la sección? Nombre, palabras propias (≥ 4 letras), inventario o pistas. */
+export const modeloNombraSeccion = (seccion, textoNormal) => {
+  if (seccionNombrada(seccion, textoNormal)) return true;
+  const propias = normal(seccion).split(/[^a-z]+/).filter((w) => w.length >= 4 && !PALABRAS_COMUNES_SECCION.has(w));
+  if (propias.some((w) => new RegExp(`\\b${w.slice(0, Math.max(4, w.length - 2))}`).test(textoNormal))) return true;
+  return PISTAS_MODELO[seccion] ? new RegExp(`\\b(${PISTAS_MODELO[seccion]})\\b`).test(textoNormal) : false;
+};
+/** Un ejemplo literal de la gramática de la malla copiado en la clase («May I speak to Rosa, please?»). Devuelve la frase o "". */
+export const ejemploDeMallaCopiado = (clase = {}, filas = []) => {
+  const ejemplos = [...new Set(filas.flatMap((f) => f.contenidos || []).filter((c) => c.categoria === "gramatica")
+    .flatMap((c) => String(c.texto).split(":").slice(1).join(":").split(/(?<=[.?!])\s+/))
+    .map((e) => normal(e).replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim())
+    .filter((e) => e.split(" ").length >= 4))];
+  if (!ejemplos.length) return "";
+  const textos = [...(clase?.momentos || []).flatMap((m) => m?.actividades || []).map((a) => (typeof a === "string" ? a : a?.texto || "")), ...(clase?.textoModelo?.lineas || [])];
+  for (const t of textos) {
+    const n = normal(t).replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ");
+    const copiado = ejemplos.find((e) => n.includes(e));
+    if (copiado) return copiado;
+  }
+  return "";
+};
 /** ¿El texto (normalizado) nombra la sección, por su nombre o por su inventario? */
 export const seccionNombrada = (seccion, textoNormal) => String(textoNormal || "").includes(normal(seccion))
   || (INVENTARIO_POR_SECCION[seccion]?.nombres ? new RegExp(INVENTARIO_POR_SECCION[seccion].nombres).test(String(textoNormal || "")) : false);
@@ -1273,7 +1342,9 @@ export const conTildesCorregidas = (t = "") => String(t).replace(/(?<![\p{L}\d_-
   if (!correcta || palabra.toLowerCase() === correcta) return palabra;
   return palabra[0] === palabra[0].toUpperCase() ? correcta[0].toUpperCase() + correcta.slice(1) : correcta;
 });
-export const conErratasCorregidas = (t = "") => String(t).replace(/\p{L}{4,}/gu, (palabra) => {
+// Erratas fijas que no son de una letra (revisión g44: «pisarrón»).
+const ERRATAS_FIJAS = [[/\bpisarr[oó]n(es)?\b/gi, (m, pl) => `${m[0] === "P" ? "P" : "p"}izarr${pl ? "ones" : "ón"}`]];
+export const conErratasCorregidas = (t = "") => ERRATAS_FIJAS.reduce((acc, [re, f]) => acc.replace(re, f), String(t)).replace(/\p{L}{4,}/gu, (palabra) => {
   const baja = palabra.toLowerCase();
   const correcta = PALABRAS_FRECUENTES.find((p) => faltaUnaLetra(baja, p));
   if (!correcta || PALABRAS_FRECUENTES.includes(baja)) return palabra;
@@ -1513,13 +1584,59 @@ const esNombreDelProducto = (frase, nombres) => {
 };
 
 /** Los pasos del banco con lo que puso la IA en {frases}. Sin frase, el hueco desaparece. */
-export const pasosConFrases = (secuencia = [], respuesta = [], { sinLugares = false, nombres = [] } = {}) => secuencia.map((paso, i) => {
+export const pasosConFrases = (secuencia = [], respuesta = [], { sinLugares = false, nombres = [], ejemplosEtiqueta = [], tareaEtiqueta = null } = {}) => secuencia.map((paso, i) => {
   const r = respuesta[i];
   // Solo lo que está en cursiva: a veces la IA repite el paso entero en el hueco.
   const crudo = String((typeof r === "string" ? r : r?.frases) || "");
-  const frases = (crudo.match(/_[^_]{2,80}_/g) || []).filter((f) => /\p{L}{2}/u.test(f) && (!sinLugares || !LUGARES_NO_DECLARADOS.test(f)) && !esNombreDelProducto(f, nombres)).slice(0, 2).join(", ");
+  // Si la etiqueta del día trae ejemplos, el paréntesis usa su estructura (revisión g44, C16: «Excuse me, could you
+  // tell me…?» con la etiqueta «They ask for…, We should change…»): la frase empieza como alguno de ellos.
+  const inicio = (f) => normal(String(f).replace(/_/g, "")).trim().split(/\s+/)[0] || "";
+  // Solo en los pasos de la tarea que da la etiqueta: los demás tienen su propia lengua (el diagnóstico, la encuesta).
+  const delaEtiqueta = tareaEtiqueta === null || paso.tarea === tareaEtiqueta;
+  const inicios = new Set((delaEtiqueta ? ejemplosEtiqueta || [] : []).map(inicio).filter(Boolean));
+  // Guiar a alguien: el ejemplo es una indicación (imperativo de dirección), no una descripción (revisión g48b, C15).
+  const guia = /indican el camino|dan indicaciones|gu[ií]an .* de un lugar a otro/i.test(paso.texto);
+  const esIndicacion = (f) => /^(go|turn|walk|take|cross|follow|keep|continue|stop)\b/i.test(String(f).replace(/_/g, "").trim());
+  const frases = (crudo.match(/_[^_]{2,80}_/g) || []).filter((f) => /\p{L}{2}/u.test(f) && (!sinLugares || !LUGARES_NO_DECLARADOS.test(f)) && !esNombreDelProducto(f, nombres)
+    && (!inicios.size || inicios.has(inicio(f))) && (!guia || esIndicacion(f))).slice(0, 2).join(", ");
   return frases ? paso.texto.replace("{frases}", frases) : paso.texto.replace(/\s*\(\{frases\}\)/, "");
 });
+
+// Producción extensa o prueba con la audiencia: puede pasar del tope (revisión g48b).
+const ACTIVIDAD_LARGA = /^(redactan|elaboran|presentan|muestran|acompa[nñ]an|gu[ií]an)\b|borrador|con la audiencia|invitados|versi[oó]n final/i;
+/**
+ * Ajusta los minutos del Desarrollo al total y a un tope por actividad (revisión g48b: «Escriben dos preguntas» 18 min).
+ * La diferencia con el total se reparte en proporción, no se carga a la última; ninguna actividad pasa de `tope`
+ * salvo las de producción extensa o de prueba con la audiencia, y el sobrante va en proporción a las demás.
+ */
+export const minutosConTope = (minutos = [], actividades = [], total = 0, tope = 12) => {
+  if (!minutos.length) return minutos;
+  const texto = (a) => String(typeof a === "string" ? a : a?.texto || "");
+  const larga = minutos.map((_, i) => ACTIVIDAD_LARGA.test(texto(actividades[i])));
+  // Reparte `cantidad` entre los índices `donde`, en proporción a `peso`, con enteros que suman exacto.
+  const repartir = (base, cantidad, donde, peso) => {
+    const suma = donde.reduce((s, i) => s + (peso[i] || 1), 0) || 1;
+    const partes = donde.map((i) => ({ i, v: (cantidad * (peso[i] || 1)) / suma }));
+    const out = [...base];
+    let resto = cantidad;
+    partes.forEach((p) => { const e = Math.trunc(p.v); out[p.i] += e; resto -= e; });
+    partes.sort((a, b) => Math.abs(b.v - Math.trunc(b.v)) - Math.abs(a.v - Math.trunc(a.v)));
+    for (let k = 0; resto !== 0 && partes.length; k += 1) { const p = partes[k % partes.length]; const paso = Math.sign(resto); if (out[p.i] + paso >= 1) { out[p.i] += paso; resto -= paso; } }
+    return out;
+  };
+  let out = [...minutos];
+  const diferencia = (total || out.reduce((s, m) => s + m, 0)) - out.reduce((s, m) => s + m, 0);
+  if (diferencia) out = repartir(out, diferencia, out.map((_, i) => i), out);
+  for (let vuelta = 0; vuelta < 4; vuelta += 1) {
+    const sobra = out.reduce((s, m, i) => s + (!larga[i] && m > tope ? m - tope : 0), 0);
+    if (!sobra) break;
+    out = out.map((m, i) => (!larga[i] && m > tope ? tope : m));
+    let destino = out.map((_, i) => i).filter((i) => larga[i] || out[i] < tope);
+    if (!destino.length) destino = out.map((_, i) => i);
+    out = repartir(out, sobra, destino, out);
+  }
+  return out;
+};
 
 /**
  * Minutos de cada actividad según su tarea: los de la tarea, repartidos entre sus
@@ -1721,11 +1838,21 @@ export const ambienteDeMapa = (mapa) => {
   return `Aula ordinaria organizada por grupos editores, con la tabla común, el cartel del acuerdo y las secciones del producto a la vista. Se usan pizarra, cartulinas y materiales impresos; ninguna clase depende de electricidad o internet.${conInvitado ? " El entorno entra al aula por medio de la persona invitada." : ""}`;
 };
 
+// Probar o ensayar lo que ya tiene borrador no lo devuelve a «insumos recopilados» (revisión g44, C10).
+const TAREAS_EN_PRUEBA = new Set(["orientar_probar", "socializar_leer", "aplicar_ensayar", "aplicar_anotar", "aplicar_segundo"]);
 const estadoDeTarea = (t) => {
   if (t.cierraSeccion) return "versión final";
   if ([].concat(t.demuestra).includes("P")) return "borrador";
+  if (TAREAS_EN_PRUEBA.has(t.clave)) return "en prueba";
   return "insumos recopilados";
 };
+const RANGO_ESTADO = { "insumos recopilados": 1, borrador: 2, "en prueba": 3, "versión final": 4 };
+/** Estados de una sección en orden, sin retroceder: uno anterior al último ya alcanzado no se repite. */
+export const estadosMonotonos = (estados = []) => estados.reduce((acc, e) => {
+  const ultimo = acc.length ? RANGO_ESTADO[acc[acc.length - 1]] || 0 : 0;
+  if ((RANGO_ESTADO[e] || 0) > ultimo) acc.push(e);
+  return acc;
+}, []);
 
 // Los anexos nombran el producto; su descripción ya está en la situación.
 const nombreCorto = (producto) => String(producto || "").split(/\s+[—–]\s+/)[0].trim();
@@ -1738,7 +1865,7 @@ export const organizadorDesdeMapa = (mapa, { producto = "", piezas = {}, proposi
     { seccion: "Título", incluye: `Mi nombre y el título del producto (${nombreCorto(producto)}).`, fases: "" },
     ...mapa.secciones.map((seccion) => {
       const suyas = filas.flatMap((f) => f.tareas.filter((t) => t.secciones.includes(seccion) && !COMPARTIDAS.includes(t.clave)).map((t) => ({ ...t, clase: f.clase })));
-      const estados = [...new Set(suyas.map(estadoDeTarea))];
+      const estados = estadosMonotonos(suyas.map(estadoDeTarea));
       const seCierraEn = suyas.find((t) => t.cierraSeccion);
       const comentada = filas.find((f) => f.tareas.some((t) => t.clave === "comentar" && t.secciones.includes(seccion)));
       const operaciones = suyas.map((t) => `${t.nombre} (C${t.clase})`);
@@ -1849,7 +1976,7 @@ const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenido
       fases: [...new Set(lista.map((t) => t.fase))].sort((a, b) => a - b).map(faseInfo),
       minutos: usados, minutosLibres: Math.max(0, capacidad - usados),
       indicadores: [], contenidos: [], recibe: [],
-      entregas: lista.map((t) => t.entrega),
+      entregas: [...new Set(lista.map((t) => t.entrega))],
       evidencias: lista.map((t) => ({ tipo: t.evidencia, condicion: t.condicion, individual: t.individual, sumativa: t.sumativa })),
       modalidad: lista.find((t) => t.modalidad)?.modalidad || null,
     };
@@ -1965,6 +2092,7 @@ const estadoDeFila = (fila) => {
   if (fila.tareas.some((t) => t.cierraSeccion) || claves.includes("integrar")) return "versión final";
   if (claves.includes("comentar")) return "comentarios";
   if (fila.tareas.some((t) => [].concat(t.demuestra).includes("P"))) return "borrador";
+  if (fila.tareas.length && fila.tareas.every((t) => TAREAS_EN_PRUEBA.has(t.clave))) return "en prueba";
   return "insumos recopilados";
 };
 
@@ -1972,7 +2100,8 @@ const estadoDeFila = (fila) => {
 export const aporteDeFila = (fila, producto, secciones = []) => {
   if (fila.flexible) return `«${producto}» (refuerzo): clase flexible del docente, sin pieza nueva`;
   const estado = estadoDeFila(fila);
-  const pieza = fila.entregas.join("; ");
+  // Sin piezas repetidas (revisión g44, C8: «Pieza propuesta (borrador)» dos veces).
+  const pieza = [...new Set(fila.entregas.map((e) => String(e).trim()))].join("; ");
   if (fila.secciones.length === secciones.length && secciones.length > 1) return `«${producto}» (${estado}): ${pieza}`;
   if (fila.secciones.length === 1) return `Sección «${fila.secciones[0]}» (${estado}): ${pieza}`;
   return `Secciones ${fila.secciones.map((s) => `«${s}»`).join(" · ")} (${estado}): ${pieza}`;

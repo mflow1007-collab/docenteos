@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
 import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA, FRASES_POR_FUNCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -576,12 +576,21 @@ const textosActividades = (clase) => (clase?.momentos || [])
  * Clase con secuencia del banco: los pasos los escribe el código, con las frases de la IA.
  * Va antes de normalizar la voz, que une los objetos de actividad en una frase.
  */
+// Tareas cuya lengua no es la de la etiqueta del día (el acuerdo y el diagnóstico, la encuesta, los saberes previos).
+const LENGUA_PROPIA = /^(acordar|saberes_previos|indagar_)/;
+/** Ejemplos de la etiqueta del día y la tarea que la da, para que el paréntesis de sus pasos use esa estructura (revisión g44). */
+const ejemplosDeEtiqueta = (fila, filas) => {
+  const principal = Math.max(0, (fila.tareas || []).findIndex((t) => t.clave === "integrar"));
+  const clave = fila.tareas?.[principal]?.clave || "";
+  if (!clave || LENGUA_PROPIA.test(clave)) return { ejemplosEtiqueta: [], tareaEtiqueta: null };
+  return { ejemplosEtiqueta: focoDeFila(fila, filas).match(/_[^_]+_/g) || [], tareaEtiqueta: principal };
+};
 export const aplicarSecuencias = (data, contrato, startDia = 1) => {
   (contrato?.mapaClases ? data?.clases || [] : []).forEach((clase, i) => {
     const fila = contrato.mapaClases[startDia + i - 1];
     const desarrollo = fila?.secuencia && (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo");
     if (!desarrollo || clase.secuenciaAplicada) return;
-    desarrollo.actividades = pasosConFrases(fila.secuencia, Array.isArray(desarrollo.actividades) ? desarrollo.actividades : [], { sinLugares: necesitaLugares(fila), nombres: [contrato.producto, ...(contrato.secciones || [])].filter(Boolean) });
+    desarrollo.actividades = pasosConFrases(fila.secuencia, Array.isArray(desarrollo.actividades) ? desarrollo.actividades : [], { sinLugares: necesitaLugares(fila), nombres: [contrato.producto, ...(contrato.secciones || [])].filter(Boolean), ...ejemplosDeEtiqueta(fila, contrato.filasUnidad || []) });
     clase.tareaIdsDesarrollo = fila.secuencia.map((x) => `T${x.tarea + 1}`);
     clase.minutosSecuencia = fila.secuencia.map((x) => x.minutos);
     clase.secuenciaAplicada = true;
@@ -711,9 +720,17 @@ export const tareasSinActividad = (clase, fila) => {
   });
 };
 /** Actividad mínima de una tarea que la IA no escribió, con su sección y su entrega. */
+// La actividad que escribe el código empieza con verbo en 3.ª plural, como exige la voz MINERD: «Lo leen…» → «Leen…»,
+// «Cada grupo muestra…» → «Muestran (cada grupo)…» (g48: el documento se rechazaba en el control final de voz).
+export const conVerboInicial = (texto = "") => String(texto)
+  .replace(/^(?:lo|la|los|las|les|le)\s+(\p{L}+n)\b/iu, (m, v) => v[0].toUpperCase() + v.slice(1))
+  .replace(/^cada (grupo|pareja|equipo|estudiante)\s+(\p{L}+?)(a|e)\b/iu, (m, quien, raiz, vocal) => `${raiz[0].toUpperCase()}${raiz.slice(1)}${vocal}n (cada ${quien.toLowerCase()})`)
+  .replace(/^solo\s+(\p{L}+n)\b/iu, (m, v) => v[0].toUpperCase() + v.slice(1))
+  .replace(/^el grupo editor\s+(\p{L}+?)(a|e)\b/iu, (m, raiz, vocal) => `${raiz[0].toUpperCase()}${raiz.slice(1)}${vocal}n (en grupos editores)`)
+  .replace(/^el docente\s+/iu, "Reciben la revisión del docente, que ");
 export const actividadDeTarea = (t) => {
   const seccion = t.secciones?.length === 1 ? ` Sección «${t.secciones[0]}»` : "";
-  const hace = String(t.instruccion || `Trabajan en ${t.nombre}.`).replace(/\s+Aún no [^.]*\./, "").replace(/\s+Es apoyo breve\./, "");
+  const hace = conVerboInicial(String(t.instruccion || `Trabajan en ${t.nombre}.`).replace(/\s+Aún no [^.]*\./, "").replace(/\s+Es apoyo breve\./, ""));
   return `${hace}${seccion ? `${seccion}:` : ""} ${String(t.entrega || "").toLowerCase()}; queda en la carpeta.`.replace(/\s+/g, " ").trim();
 };
 const tareaConSeccion = (t) => `«${t.nombre}»${t.secciones.length === 1 ? ` de «${t.secciones[0]}»` : ""}`;
@@ -1065,6 +1082,13 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       // La clase escribe con la estructura de otra función (intención, modelo, metacognición): se regenera con la de su etiqueta (revisor de g41a).
       const otraEstructura = estructuraAjenaEnClase(clase, filaMapa);
       if (otraEstructura) fallaRedaccion(idx, `la estructura del día es «${focoDeFila(filaMapa, contrato.filasUnidad || [])}», pero la clase usa otra: "${citaTexto(otraEstructura, null, 70)}". Escribe la intención pedagógica, el texto modelo, las actividades y la metacognición con la estructura del día; no uses esa otra.`);
+      // El texto modelo es de la sección que la clase trabaja; ningún ejemplo literal de la malla se copia (revisión g44).
+      const seccionDelModelo = modeloDeOtraSeccion(clase, filaMapa);
+      if (seccionDelModelo) fallaRedaccion(idx, `el texto modelo no es de la sección que trabaja la clase: escríbelo para «${seccionDelModelo}», con su función y su vocabulario en las líneas, no solo en el título.`);
+      const estructuraModelo = modeloSinLaEstructura(clase, filaMapa, contrato.filasUnidad || []);
+      if (estructuraModelo) fallaRedaccion(idx, `el texto modelo debe mostrar la estructura del día («${estructuraModelo}»), no un diálogo de otra función.`);
+      const copiado = ejemploDeMallaCopiado(clase, contrato.filasUnidad || []);
+      if (copiado) fallaRedaccion(idx, `copia un ejemplo literal de la malla ("${citaTexto(copiado, null, 60)}"): escribe un ejemplo propio de la situación de la unidad.`);
       const sinDatos = datosSinRecoger(clase, filaMapa);
       if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
       // La estructura del día la escribe el código (focoDeFila): se revisa al final, en motivosClaseFinal.

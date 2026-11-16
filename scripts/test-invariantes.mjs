@@ -13,7 +13,7 @@ import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
   focoDeFila, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
   diagnosticoDeActividades, conTildesCorregidas, OBSERVACIONES_FASE, muestraDeAudiencia, esBancoDeFrases,
-  seccionNombrada,
+  seccionNombrada, modeloNombraSeccion,
 } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS, TAREAS_POR_TIPO, TAREAS_UNIDAD } from "../src/data/tareasPorTipoTrabajo.js";
@@ -293,6 +293,27 @@ const invariantesJson = {
       return nombradas.length && !nombradas.some((x) => seccionNombrada(x, texto)) ? `C${i + 1}` : "";
     }).filter(Boolean).join(", ");
   },
+  // El texto modelo es de la sección que nombra el título (revisión g44, C7).
+  "Modelo-sección": (g) => {
+    // Las generaciones fijadas antes de la regla no la cumplían: se exige a las generadas con ella.
+    if (!g.reglasModelo) return "";
+    const secciones = new Set(g.secciones || []);
+    return g.dias.map((d, i) => {
+      const nombradas = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).filter((x) => !secciones.size || secciones.has(x));
+      const tm = d.textoModelo;
+      if (!tm || !(tm.lineas || []).length) return "";
+      // Sin sección en el título: el modelo muestra la estructura del día (revisión g48b, C14 y C16).
+      if (!nombradas.length) {
+        if (!/^(Revisar el conjunto|Responder a los comentarios|Explicar para qué sirve)/.test(String(d.focoLinguistico || ""))) return "";
+        const ejemplos = (String(d.focoLinguistico || "").match(/_[^_]+_/g) || []).map((e) => e.replace(/[_….]/g, "").toLowerCase().trim().split(/\s+/).slice(0, 2).join(" ")).filter(Boolean);
+        const lineas = (tm.lineas || []).join(" ").toLowerCase();
+        return ejemplos.length && !ejemplos.some((e) => lineas.includes(e)) ? `C${i + 1}` : "";
+      }
+      // El contenido del modelo, no su título (revisión g48b).
+      const texto = (tm.lineas || []).join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return nombradas.some((x) => modeloNombraSeccion(x, texto)) ? "" : `C${i + 1}`;
+    }).filter(Boolean).join(", ");
+  },
   "I-13": (g, u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma)).map((f) => f.clase);
     const faltan = prometidas.filter((c) => !JSON.stringify((g.dias[c - 1]?.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).match(/firm/i));
@@ -310,7 +331,7 @@ const leerGeneracion = (ruta) => {
   ].map((t) => ({ c: i + 1, t })));
   // Lo que alimenta el producto: estructura del día, actividades y ampliación, no los textos modelo.
   const producto = dias.flatMap((d, i) => [d.focoLinguistico || "", ...(d.momentos || []).flatMap((m) => (m.actividades || []).map(String)), ...(d.ampliacion || []).map((a) => a?.texto || "")].map((t) => ({ c: i + 1, t })));
-  return { dias, textos, producto, secciones: u.planMaestro?.secciones || [], anexos: u.anexos || {}, observaciones: (u.fasesSemanales || []).map((f, i) => ({ fase: i + 1, texto: String(f.observacionesSemana || "") })) };
+  return { dias, textos, producto, reglasModelo: Boolean(u.metadatos?.reglasModelo), secciones: u.planMaestro?.secciones || [], anexos: u.anexos || {}, observaciones: (u.fasesSemanales || []).map((f, i) => ({ fase: i + 1, texto: String(f.observacionesSemana || "") })) };
 };
 
 const argumento = (nombre) => { const i = process.argv.indexOf(nombre); return i >= 0 ? process.argv[i + 1] : ""; };

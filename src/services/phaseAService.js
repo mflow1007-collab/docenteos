@@ -11,7 +11,7 @@
  * PROHIBIDO: fallback a templates JS.
  */
 
-import { hojaDeRuta } from './mapaClasesService.js';
+import { hojaDeRuta, seccionDelModelo, focoDeFila } from './mapaClasesService.js';
 import { INVENTARIO_POR_SECCION } from '../data/tareasPorTipoTrabajo.js';
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
@@ -556,8 +556,16 @@ const PRESENTES_CONOCIDOS = new Map(
 const futuroAPresente = (texto) => texto.replace(/^(\S+)([aei])rán(?=$|[\s(,.:;])/i, (m, raiz, vocal) => (
   PRESENTES_CONOCIDOS.get(claveVerboPresente(`${raiz}${vocal.toLowerCase() === 'a' ? 'an' : 'en'}`)) || m
 ));
+// Subjuntivo a presente indicativo, solo en la primera palabra y solo si el presente es un verbo conocido de las listas
+// (revisión g48b, C10: «Comparen» → «Comparan»; «Practiquen» → «Practican»; «Organicen» → «Organizan»). Un presente
+// conocido que ya termina en -en («Leen», «Escriben») no se toca.
+const subjuntivoAPresente = (texto) => texto.replace(/^(\S+?)(qu|gu|c)?en(?=$|[\s(,.:;])/i, (m, raiz, letra) => {
+  if (PRESENTES_CONOCIDOS.has(claveVerboPresente(m))) return m;
+  const cambio = { qu: 'c', gu: 'g', c: 'z' }[String(letra || '').toLowerCase()] || '';
+  return PRESENTES_CONOCIDOS.get(claveVerboPresente(`${raiz}${cambio}an`)) || m;
+});
 export function corregirOrtografiaVerbos(texto) {
-  return futuroAPresente(String(texto ?? ''))
+  return subjuntivoAPresente(futuroAPresente(String(texto ?? '')))
     .replace(RE_VERBOS_SIN_TILDE, (m) => {
       const bien = VERBOS_SIN_TILDE[m.toLowerCase()];
       return m[0] === m[0].toUpperCase() ? bien[0].toUpperCase() + bien.slice(1) : bien;
@@ -1298,7 +1306,10 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
       if (!esInicio) {
         // Con mapa de clases, el número lo piden las tareas de la fila (César, 2026-11-04).
         const conMapa = Boolean(opts.contratoFase?.mapaClases);
-        const minActividades = conMapa ? 2 : (m.nombre === 'Desarrollo' ? 4 : 3);
+        // Ninguna actividad pasa de 12 min (revisión g48b): el Desarrollo con mapa pide las que hagan falta para el tiempo.
+        const minutosMomento = Number.parseInt(String(m.tiempo || ''), 10) || 0;
+        // Los pasos que escribe el código (secuencia del banco) ya traen su número: no se les exige más.
+        const minActividades = conMapa ? Math.max(2, m.nombre === 'Desarrollo' && !clase.secuenciaAplicada ? Math.ceil(minutosMomento / 12) : 2) : (m.nombre === 'Desarrollo' ? 4 : 3);
         if ((m.actividades || []).filter((x) => String(x || '').trim()).length < minActividades) {
           avisarOFallar(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
         }
@@ -1837,6 +1848,10 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
       `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,
       `- Recibe: ${f.recibe.length ? f.recibe.map((r) => `${r.texto}${r.clase ? ` (clase ${r.clase})` : ''}`).join('; ') : 'la situación de aprendizaje'}`,
       `- Entrega: ${f.entregas.join('; ')}`,
+      // El texto modelo sale de la sección del título o, sin sección, de la estructura del día (revisión g48b).
+      ...(spec.esIdioma ? [seccionDelModelo(f)
+        ? `- "textoModelo": de la sección «${seccionDelModelo(f)}» (la del título de la clase): sus líneas muestran su función y su vocabulario.`
+        : `- "textoModelo": muestra la estructura del día (${focoDeFila(f, filasLote || [])}), no un diálogo de otra función.`] : []),
       ...(f.secciones.some((s) => INVENTARIO_POR_SECCION[s]?.datosPersonales) ? ['- Los datos de compañeros se recogen sin nombres y se presentan agregados ("8 of 30 students…"), nunca por nombre.'] : []),
       ...(f.secciones.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes('lugares')) ? ['- Los lugares del centro salen de la tabla común del recorrido. No inventes lugares, pisos ni instalaciones (cafeteria, gym, art room, second floor…). "textoModelo" habla de un centro ficticio llamado Model School. En las actividades y en "ampliacion" usa solo términos genéricos (the office, the classroom) o «los lugares de la tabla común».'] : []),
       ...(f.datosRecoge?.length ? [`- Datos que esta clase DEBE preguntar y dejar anotados, porque las piezas siguientes los necesitan: ${f.datosRecoge.join(', ')}. Nómbralos en una actividad o en el texto modelo.`] : []),

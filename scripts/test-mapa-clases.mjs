@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estadosMonotonos, minutosConTope, modeloDeOtraSeccion, ejemploDeMallaCopiado, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -17,8 +17,8 @@ import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, ACTIVIDAD_NIVEL_SATISFACTORIO, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
-import { contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
-import { buildFasePrompt, normalizarVozBatch } from "../src/services/phaseAService.js";
+import { actividadDeTarea, contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
+import { buildFasePrompt, normalizarVozBatch, corregirOrtografiaVerbos } from "../src/services/phaseAService.js";
 import { SECUENCIAS_POR_TAREA } from "../src/data/secuenciasTareas.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
 import { debeUsarMapaClases, prepararMapaClases } from "../src/services/unidadAprendizajeService.js";
@@ -584,7 +584,11 @@ check("Anexo I: cada sección con su proceso, sus estados y su cierre; Anexo H, 
   igual(o.length, 6, "filas");
   const de = (s) => o.find((x) => x.seccion === s);
   mapaSecciones(ref).forEach((s) => assert(/versión final$/i.test(de(s).fases), `${s}: ${de(s).fases}`));
-  igual(de("Ordering Food").fases, "Insumos recopilados → Borrador → Versión final", "Ordering Food");
+  igual(de("Ordering Food").fases, "Insumos recopilados → Borrador → En prueba → Versión final", "Ordering Food (ensayar es «en prueba», revisión g44)");
+  // Los estados de una sección nunca retroceden (revisión g44, C10: «Borrador → Insumos recopilados → Versión final»).
+  const RANGO = { "Insumos recopilados": 1, Borrador: 2, "En prueba": 3, "Versión final": 4 };
+  mapaSecciones(ref).forEach((s) => { const r = de(s).fases.split(" → ").map((e) => RANGO[e] || 0); assert(r.every((x, i) => !i || x > r[i - 1]), `${s} retrocede: ${de(s).fases}`); });
+  igual(estadosMonotonos(["borrador", "insumos recopilados", "en prueba", "versión final"]), ["borrador", "en prueba", "versión final"], "monótonos");
   assert(de("Interviews with Owners").operaciones.some((x) => x.startsWith("entrevistar (C4)")) && de("Interviews with Owners").operaciones.some((x) => x.startsWith("registrar por escrito (C5)")), "omite entrevistar o registrar");
   assert(!de("Our Local Food").operaciones.some((x) => /entrevistar|registrar/.test(x)), "mezcla secciones");
   igual(new Set(mapaSecciones(ref).map((s) => de(s).evidencia)).size, 5, "evidencia propia por sección");
@@ -1461,6 +1465,45 @@ check("indicadores por tema y ya trabajados (César, 2026-11-16)", () => {
   const pre = prellenarPM({ datos: { titulo: "Escuela y educación", grado: "2do Secundaria", asignatura: "Inglés", competenciasFundamentalesSeleccionadas: ["Comunicativa", "Científica y Tecnológica"] }, indicadores: inds, competencias: comps });
   igual(pre.planMaestro.competenciasElegidas.join(), "ING-2-C01,ING-2-C05", "las dos competencias marcadas");
   assert(pre.planMaestro.indicadoresElegidos.length <= 3, `caben en la unidad: ${pre.planMaestro.indicadoresElegidos}`);
+});
+
+check("revisión g44: modelo de la sección, ejemplos de la malla, paréntesis con la estructura de la etiqueta, tecnología por raíz y pizarrón", () => {
+  const fila = { tareas: [{ clave: "socializar_redactar", secciones: ["Welcome"] }] };
+  igual(modeloDeOtraSeccion({ textoModelo: { titulo: "Model School — Asking for Help", lineas: ["A: Excuse me, could you help me?"] } }, fila), "Welcome", "modelo de otra sección");
+  igual(modeloDeOtraSeccion({ textoModelo: { titulo: "Model School — Welcome letter", lineas: ["Dear new students, welcome!"] } }, fila), "", "modelo de su sección");
+  const filas = [{ contenidos: [{ categoria: "gramatica", texto: "Can, may y could para sostener una conversación: May I speak to Rosa, please? Can you help me?" }] }];
+  igual(ejemploDeMallaCopiado({ momentos: [{ actividades: ["Practican (en parejas) la llamada (_May I speak to Rosa, please?_)."] }] }, filas), "may i speak to rosa please", "ejemplo literal de la malla");
+  igual(ejemploDeMallaCopiado({ momentos: [{ actividades: ["Practican (_May I borrow your pencil?_)."] }] }, filas), "", "ejemplo propio");
+  const paso = [{ texto: "Responden (individual) qué piden cambiar ({frases}): respuestas firmadas." }];
+  igual(pasosConFrases([{ ...paso[0], tarea: 0 }], ["_Excuse me, could you tell me…?_"], { ejemplosEtiqueta: ["_They ask for…_", "_We should change…_"], tareaEtiqueta: 0 })[0], "Responden (individual) qué piden cambiar: respuestas firmadas.", "frase de otra estructura: fuera");
+  igual(pasosConFrases([{ ...paso[0], tarea: 0 }], ["_They ask for more examples._"], { ejemplosEtiqueta: ["_They ask for…_", "_We should change…_"], tareaEtiqueta: 0 })[0], "Responden (individual) qué piden cambiar (_They ask for more examples._): respuestas firmadas.", "frase de la etiqueta: se queda");
+  const d = { a: "se graban en el resumen de sesión.", b: "Observan el mapa escolar proyectado." };
+  sinEquiposEnTodo(d);
+  igual([d.a, d.b], ["se anotan en el resumen de sesión.", "Observan el mapa escolar en la pizarra."], "tecnología por raíz");
+  igual(conErratasCorregidas("Escriben en el pisarrón."), "Escriben en el pizarrón.", "pizarrón");
+});
+
+check("la actividad que escribe el código cuando falta una tarea pasa la voz MINERD (g48: «Lo leen…», «Cada grupo muestra…»)", () => {
+  const malas = [...Object.entries(DETALLE_TAREA)].map(([clave, d]) => ({ clave, act: actividadDeTarea({ nombre: clave, instruccion: d.hace, entrega: "pieza", secciones: [] }) }))
+    .filter(({ act }) => !validarVozActividad(act).ok);
+  igual(malas.map((m) => `${m.clave}: ${m.act.slice(0, 40)}`), [], "todas con verbo inicial");
+});
+
+check("tiempos del Desarrollo: tope de 12 min salvo producción extensa o prueba con la audiencia; el sobrante en proporción (revisión g48b)", () => {
+  const suma = (l) => l.reduce((s, x) => s + x, 0);
+  const a = minutosConTope([18, 6, 6], ["Escriben dos preguntas.", "Leen.", "Comparten."], 30);
+  assert(Math.max(...a) <= 12 && suma(a) === 30, `C2: ${a}`);
+  const b = minutosConTope([20, 5, 5], ["Acompañan a la audiencia con la guía en la mano.", "Leen.", "Anotan."], 30);
+  igual(b, [20, 5, 5], "la prueba con la audiencia puede pasar del tope");
+  const c = minutosConTope([10, 10, 6], ["Leen.", "Escriben.", "Comparten."], 30);
+  assert(suma(c) === 30 && c[2] < 10, `el sobrante no se carga a la última: ${c}`);
+});
+
+check("conjugación en presente y paréntesis de guiar con una indicación (revisión g48b)", () => {
+  igual(["Comparen las notas.", "Practiquen.", "Leen."].map(corregirOrtografiaVerbos), ["Comparan las notas.", "Practican.", "Leen."], "presente indicativo");
+  const paso = [{ texto: "Acompañan (en parejas) a la audiencia por el centro con la guía en la mano e indican el camino ({frases}), y el docente observa." }];
+  igual(pasosConFrases(paso, ["_This is the library._"])[0], "Acompañan (en parejas) a la audiencia por el centro con la guía en la mano e indican el camino, y el docente observa.", "una descripción no sirve de indicación");
+  igual(pasosConFrases(paso, ["_Go straight and turn left._"])[0], "Acompañan (en parejas) a la audiencia por el centro con la guía en la mano e indican el camino (_Go straight and turn left._), y el docente observa.", "imperativo de dirección");
 });
 
 check("A1 por código: la clase con revision_nivel comprueba el nivel satisfactorio aunque la IA lo omita (g37)", () => {

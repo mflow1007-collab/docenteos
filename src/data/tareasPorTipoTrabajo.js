@@ -195,7 +195,7 @@ export const INVENTARIO_POR_SECCION = {
   "Ordering Food": { evidencia: "Guía para pedir", nombres: "guia|pedid", necesita: ["platos", "precios"], pruebaConAudiencia: "pedid|pedir|orden|order|can i have|i ll have|i'll have" },
   // Escuela y educación
   "Important Places": { evidencia: "Fichas de lugares", nombres: "fichas? de lugares|lugares importantes|lugar del centro", recoge: ["lugares", "función del lugar", "personas"] },
-  "School Directions": { evidencia: "Plano con rutas e indicaciones", nombres: "plano|rutas?|indicaciones|instrucciones", necesita: ["lugares"], recoge: ["rutas"], pruebaConAudiencia: "gui|acompa|indic|camino" },
+  "School Directions": { evidencia: "Plano con rutas e indicaciones", nombres: "plano|rutas?|indicaciones|instrucciones|direcciones", necesita: ["lugares"], recoge: ["rutas"], pruebaConAudiencia: "gui|acompa|indic|camino" },
   "Asking for Help": { evidencia: "Tarjeta de bolsillo", nombres: "tarjeta de bolsillo|(pedir|ofrecer|solicitar) ayuda", necesita: ["lugares", "personas"] },
   "School Success Tips": { evidencia: "Póster «Top tips»", nombres: "consejos|top tips|poster", necesita: ["lugares"] },
   "Welcome": { evidencia: "Carta de bienvenida", nombres: "bienvenida", necesita: ["lugares"] },
