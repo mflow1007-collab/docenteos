@@ -12,7 +12,7 @@ import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLug
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
-import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla, competenciasDelFormulario } from "../src/services/vistaPreviaPlanMaestroService.js";
+import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla, competenciasDelFormulario, indicadoresSugeridos, encajeConTema, tablaFuncionesDe, prellenarPlanMaestro as prellenarPM } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, ACTIVIDAD_NIVEL_SATISFACTORIO, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
@@ -1439,6 +1439,25 @@ check("revisor de g44: grabar y audio sin tecnología, título con la sección t
   const cs = [{ id: "C01", nombre: "Comunicativa" }, { id: "C04", nombre: "Ética y Ciudadana" }, { id: "C05", nombre: "Científica y Tecnológica" }];
   igual(competenciasDelFormulario(cs, ["Comunicativa", "Científica y Tecnológica"]).map((c) => c.id).join(), "C01,C05", "las casillas del formulario");
   igual(competenciasDelFormulario(cs, []).length, 0, "sin casillas: ninguna (el prellenado pone la Comunicativa)");
+});
+
+check("indicadores por tema y ya trabajados (César, 2026-11-16)", () => {
+  const malla2 = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
+  const inds = resolverIndicadoresEstructurados(malla2).indicadores;
+  const tabla = tablaFuncionesDe({ grado: "2do Secundaria", asignatura: "Inglés" });
+  assert(tabla, "tabla de 2do");
+  const i16 = inds.find((i) => i.id === "ING-2-I16");
+  igual(encajeConTema(i16, ["Viajes y turismo"], tabla), 0, "I16 (actividades cotidianas) no encaja con Viajes");
+  assert(encajeConTema(i16, ["Escuela y educación"], tabla) > 1, "I16 encaja con Escuela");
+  const dos = indicadoresSugeridos({ indicadores: inds, competenciasIds: ["ING-2-C01", "ING-2-C05"], temas: ["Escuela y educación"], tabla });
+  assert(dos.length <= 3 && dos.some((id) => id.startsWith("ING-2-I0")) && dos.some((id) => ["ING-2-I13", "ING-2-I14", "ING-2-I15"].includes(id)), `al menos uno por competencia y caben: ${dos}`);
+  const sinUsados = indicadoresSugeridos({ indicadores: inds, competenciasIds: ["ING-2-C01"], temas: ["Escuela y educación"], tabla, trabajados: ["ING-2-I01"] });
+  assert(!sinUsados.includes("ING-2-I01"), `el trabajado no se marca: ${sinUsados}`);
+  igual(indicadoresSugeridos({ indicadores: inds, competenciasIds: ["ING-2-C01"], temas: ["Escuela y educación"], tabla, trabajados: ["ING-2-I01", "ING-2-I02", "ING-2-I03"] }).length, 0, "todos trabajados: ninguno (la vista previa avisa)");
+  const comps = competenciasDeMalla(malla2, inds);
+  const pre = prellenarPM({ datos: { titulo: "Escuela y educación", grado: "2do Secundaria", asignatura: "Inglés", competenciasFundamentalesSeleccionadas: ["Comunicativa", "Científica y Tecnológica"] }, indicadores: inds, competencias: comps });
+  igual(pre.planMaestro.competenciasElegidas.join(), "ING-2-C01,ING-2-C05", "las dos competencias marcadas");
+  assert(pre.planMaestro.indicadoresElegidos.length <= 3, `caben en la unidad: ${pre.planMaestro.indicadoresElegidos}`);
 });
 
 check("A1 por código: la clase con revision_nivel comprueba el nivel satisfactorio aunque la IA lo omita (g37)", () => {

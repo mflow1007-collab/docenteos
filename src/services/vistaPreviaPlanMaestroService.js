@@ -20,6 +20,7 @@ import { construirPlanMaestro } from "./planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "./unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../data/indicadoresIngles2doEstructurados.js";
 import { indicadoresEstructuradosDeMalla } from "./indicadoresDesdeMallaService.js";
+import { FUNCIONES_POR_TEMA } from "../data/funcionesPorTemaLenguas.js";
 import {
   validarSituacion, propuestasParaTemas, usarSemilla, alinearSiNoHay, recomendarEstrategia, aceptarRealineacion,
   borradorSituacion, productoSugerido, seccionesSugeridas,
@@ -326,6 +327,57 @@ export const planMaestroSinTocar = (planMaestro) => {
  * editable en la vista previa; nada sustituye a la malla oficial.
  * @returns {{planMaestro: object, productoFinalTexto: string}}
  */
+// ─── Indicadores por tema (César, 2026-11-16) ────────────────────────────────
+// Un indicador encaja con el tema si las funciones que nombra son funciones del tema (tabla de funciones por tema,
+// aprobada por César); si no nombra ninguna función, es general y vale para cualquier tema. Los ya trabajados en
+// planes anteriores del mismo grado y asignatura no se eligen por defecto. BORRADOR de la relación: César la valida.
+const textoNormal = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+/** Tabla de funciones por tema del grado y asignatura de la unidad, o null si no hay. */
+export const tablaFuncionesDe = ({ grado = "", asignatura = "" } = {}) => {
+  const g = String(grado || "").trim().split(/\s+/)[0].toLowerCase();
+  const a = /ingl/i.test(asignatura) ? "ingles" : /franc/i.test(asignatura) ? "frances" : "";
+  return (a && g && FUNCIONES_POR_TEMA[`${a}-${g}`]) || null;
+};
+/** Cuánto encaja un indicador con los temas: 0 no encaja, 1 general, más de 2 nombra funciones del tema. */
+export const encajeConTema = (indicador, temas = [], tabla = null) => {
+  if (!tabla) return 1;
+  const texto = textoNormal(JSON.stringify([indicador?.tronco, indicador?.listas, indicador?.entre, indicador?.cierre]));
+  const funciones = tabla.funciones.filter((f) => f.patron.test(texto));
+  if (!funciones.length) return 1;
+  const delTema = new Set(temas.flatMap((t) => tabla.temas[t] || []));
+  const propias = funciones.filter((f) => delTema.has(f.nombre)).length;
+  return propias ? 2 + propias / funciones.length : 0;
+};
+/**
+ * Indicadores que DocenteOS marca por defecto: de las competencias elegidas, los que encajan con el tema y no se han
+ * trabajado, al menos uno por competencia y en total los que caben (3, lo que soportan las clases sumativas de una
+ * unidad corta). Los demás quedan visibles para que el docente los marque.
+ */
+export const indicadoresSugeridos = ({ indicadores = [], competenciasIds = [], temas = [], tabla = null, trabajados = [], tope = 3 } = {}) => {
+  const usados = new Set((trabajados || []).map((c) => String(c).toUpperCase()));
+  const limite = Math.max(tope, competenciasIds.length);
+  const porCompetencia = competenciasIds.map((cid) => indicadores
+    .filter((i) => i.competenciaId === cid && !usados.has(String(i.id).toUpperCase()))
+    .map((i, k) => ({ id: i.id, s: encajeConTema(i, temas, tabla), k }))
+    .filter((x) => x.s > 0)
+    .sort((a, b) => b.s - a.s || a.k - b.k)
+    .map((x) => x.id));
+  const elegidos = [];
+  for (let ronda = 0; elegidos.length < limite; ronda += 1) {
+    const antes = elegidos.length;
+    porCompetencia.forEach((lista) => { if (lista[ronda] && elegidos.length < limite) elegidos.push(lista[ronda]); });
+    if (elegidos.length === antes) break;
+  }
+  return elegidos;
+};
+/** Ajusta los indicadores del plan a los sugeridos para sus competencias (sin tocar las competencias). */
+export const conIndicadoresSugeridos = (pm, { indicadores = [], datos = {}, trabajados = [] } = {}) => {
+  const sugeridos = indicadoresSugeridos({ indicadores, competenciasIds: pm.competenciasElegidas || [], temas: temasDeLaUnidad(datos), tabla: tablaFuncionesDe(datos), trabajados });
+  if (!sugeridos.length) return pm;
+  const aspectos = Object.fromEntries(Object.entries(pm.aspectosElegidos || {}).filter(([id]) => sugeridos.includes(id)));
+  return { ...pm, indicadoresElegidos: sugeridos, aspectosElegidos: aspectos };
+};
+
 const nombreComp = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z ]+/g, " ").trim();
 /** Competencias de la malla que corresponden a las casillas «Competencias Fundamentales» del formulario, en el orden de la malla. */
 export const competenciasDelFormulario = (competencias = [], seleccionadas = []) => {
@@ -336,7 +388,7 @@ export const competenciasDelFormulario = (competencias = [], seleccionadas = [])
   });
 };
 
-export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencias = [] } = {}) => {
+export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencias = [], trabajados = [] } = {}) => {
   const temas = temasDeLaUnidad(datos);
   const semilla = propuestasParaTemas(temas)[0] || null;
   let pm = { ...PLAN_MAESTRO_INICIAL };
@@ -358,6 +410,7 @@ export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencia
   const elegidas = competenciasDelFormulario(competencias, datos.competenciasFundamentalesSeleccionadas);
   const iniciales = elegidas.length ? elegidas : [competencias.find((c) => /comunicativa/i.test(c.nombre)) || competencias[0]].filter(Boolean);
   iniciales.forEach((c) => { pm = alternarCompetencia(pm, c.id, indicadores); });
+  pm = conIndicadoresSugeridos(pm, { indicadores, datos, trabajados });
   const titulo = String(datos.titulo || "").trim();
   return {
     planMaestro: { ...pm, prellenado: { titulo, producto, firma: firmaPlanMaestro(pm) } },
@@ -370,8 +423,8 @@ export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencia
  * Cubre la trampa de tocar el plan antes de que DocenteOS lo prellene: el plan quedaba sin competencias y bloqueaba
  * con «el docente no ha elegido ninguna competencia» (César, 2026-11-11).
  */
-export const prellenarSinPisar = ({ datos = {}, indicadores = [], competencias = [] } = {}) => {
-  const pre = prellenarPlanMaestro({ datos, indicadores, competencias });
+export const prellenarSinPisar = ({ datos = {}, indicadores = [], competencias = [], trabajados = [] } = {}) => {
+  const pre = prellenarPlanMaestro({ datos, indicadores, competencias, trabajados });
   const propio = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
   const pm = { ...pre.planMaestro };
   if (propio.estrategia) pm.estrategia = propio.estrategia;
