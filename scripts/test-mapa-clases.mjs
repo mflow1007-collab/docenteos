@@ -1382,6 +1382,12 @@ check("Frases del aula: banco de frases → práctica con invitados; audiencia d
   igual(tituloDeClase({ tareas: [{ clave: "corregir", nombre: "x" }, { clave: "integrar", nombre: "y" }] }, "Talk — una charla"), "Revisando el conjunto de «Talk»", "la clase que reúne: revisar el conjunto");
   igual(tituloDeClase({ tareas: [{ clave: "presentar", nombre: "x" }] }, "Talk"), "Presentando «Talk» a la audiencia", "sumativa");
   igual(tituloDeClase({ tareas: [{ clave: "aplicar_ensayar", nombre: "x", secciones: ["Politeness"] }] }, "Talk"), "Practicando en parejas: «Politeness»", "practicar en parejas");
+  // Revisor de g43: elaborar la pieza de una sección es escribir su borrador; unas instrucciones, en imperativo.
+  const imp = { clase: 6, tareas: [{ clave: "proponer_elegir" }], contenidos: [{ categoria: "gramatica", texto: "Modo imperativo para dar consejos y sugerencias: Don’t eat junk food." }] };
+  const elab = { clase: 7, tareas: [{ clave: "proponer_elaborar", secciones: ["Teacher Instructions"] }], contenidos: [{ categoria: "funcionales", texto: "Funcional: Sostener una conversación" }, { categoria: "gramatica", texto: "Presente simple para sostener una conversación: What do you do?" }] };
+  igual(focoDeFila(elab, [imp, elab]), "Escribir el borrador de «Teacher Instructions»: modo imperativo", "borrador de instrucciones en imperativo");
+  const elabOtra = { ...elab, tareas: [{ clave: "proponer_elaborar", secciones: ["Politeness"] }] };
+  igual(focoDeFila(elabOtra, [imp, elabOtra]), "Escribir el borrador de «Politeness»: presente simple", "otra sección: su gramática");
 });
 
 check("revisor de g40a: verbos de mejora, títulos largos y etiquetas que sirven a la función de la clase", () => {
