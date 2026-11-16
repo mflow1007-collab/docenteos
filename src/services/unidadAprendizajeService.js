@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, tituloConSeccionTrabajada, minutosConTope, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { bienvenidaFueraDeLugar, vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, tituloConSeccionTrabajada, minutosConTope, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { versionDeBuild } from "../utils/buildInfo.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
@@ -5139,6 +5139,7 @@ const _generarFasesConIA = async (
     };
   };
 
+  const modelosUnidad = [];
   for (const fase of fases) {
     const numClases = fase.dias.length;
     const semanasFase = [...new Set(fase.dias.map((d) => d.semana).filter(Boolean))];
@@ -5187,7 +5188,8 @@ const _generarFasesConIA = async (
         ...(mallaPayload?.contenidosPorTema || []).flatMap((t) => t?.conceptos?.gramatica || t?.conceptos?.["gramática"] || t?.gramatica || []),
         ...(Array.isArray(mallaPayload?.gramatica) ? mallaPayload.gramatica : []),
       ];
-      specFase.contratoFase = { ...contratoFase, estructurasGrado: estructurasDeMalla(gramaticaGrado) };
+      // Modelos de las fases anteriores: ninguno se repite (revisor de g49).
+      specFase.contratoFase = { ...contratoFase, estructurasGrado: estructurasDeMalla(gramaticaGrado), modelosPrevios: modelosUnidad.slice() };
       specFase.situacionTexto = rutaPlanMaestro.situacionTexto;
       specFase.temaTrabajoSemana = "";
       specFase.indicadoresTrabajo = (allInds || []).filter((ind) => permitidos.has(ind.id || ind.codigoOficial));
@@ -5383,6 +5385,14 @@ const _generarFasesConIA = async (
         if (filaMapa) {
           dia.tareasMapa = filaMapa.tareas.map((t) => ({ clave: t.clave, minutos: t.minutos, secciones: t.secciones || [] }));
           dia.focoLinguistico = focoDeFila(filaMapa, contratoFase.filasUnidad || []) || dia.focoLinguistico;
+          // La bienvenida fuera de la clase 1 y de su sección la quita el código si quedan al menos 2 líneas (revisor de g49).
+          const bienvenida = bienvenidaFueraDeLugar(dia, filaMapa);
+          const sinBienvenida = bienvenida ? (dia.textoModelo?.lineas || []).filter((l) => !/\bwelcome to\b/i.test(String(l))) : null;
+          if (sinBienvenida && sinBienvenida.length >= 2) {
+            dia.textoModelo = { ...dia.textoModelo, lineas: sinBienvenida };
+            avisosRedaccionIA.push(`Clase ${filaMapa.clase}: ℹ código: se quitó la bienvenida del texto modelo («${String(bienvenida).slice(0, 50)}»)`);
+          }
+          modelosUnidad.push({ clase: filaMapa.clase, lineas: dia.textoModelo?.lineas || [] });
           dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
           dia.minutosSecuencia = Array.isArray(aiClase.minutosSecuencia) ? aiClase.minutosSecuencia : null;
           dia.fasesPorActividad = fasesDeActividades(filaMapa, dia.tareaIdsDesarrollo);
@@ -6245,8 +6255,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     metadatos: {
       // Versión del código que generó la unidad: el pie del administrador la muestra (revisor, 2026-11-11).
       versionGenerador: versionDeBuild(),
-      // Reglas del texto modelo vigentes al generar (revisión g48b): la comprobación «Modelo-sección» se exige desde aquí.
-      reglasModelo: 1,
+      // Reglas del texto modelo vigentes al generar: 1 = Modelo-sección (g48b); 2 = sección principal, estructura, sin repetidos ni digital (g49).
+      reglasModelo: 2,
       titulo, grado, seccion, area, asignatura: asignaturaEf,
       nivel, ciclo, modalidad, jornada,
       duracion: `${numSemanas} semanas / ${numSemanas * horasSemanales} horas clase (${durMinEf} min c/u)`,
@@ -6451,13 +6461,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         }
         // El título lo escribe el código desde la función y la sección de la clase (revisor de g42a); el de la IA queda en tituloIA.
         if (d.fijoDelMapa.tituloTarea) d.titulo = d.fijoDelMapa.tituloTarea;
-        // La sección del título es la que la clase trabaja (la del paso que redactó la IA), no la primera tarea de la fila.
-        if (d.fijoDelMapa.tituloTarea) {
-          // Con el texto modelo: el modelo se pide para la sección de la primera tarea, y título y modelo deben coincidir (g49a, C10).
-          const textoClase = [...(d.momentos || []).flatMap((m) => m?.actividades || []).map((a) => (typeof a === "string" ? a : a?.texto || "")), ...(d.textoModelo?.lineas || [])].join(" ");
-          const conSeccion = tituloConSeccionTrabajada(d.titulo, d.fijoDelMapa.titulosTareas || [], textoClase, rutaPlanMaestro?.plan?.producto || "");
-          if (conSeccion !== d.titulo) { avisosClaseFinal.push(`clase ${i + 1}: ℹ código: el título nombraba una sección que la clase no trabaja («${d.titulo}»)`); d.titulo = conSeccion; }
-        }
+        // La sección del título es la principal que fija el mapa (revisor de g49): no se cambia por lo que la IA redactó.
         // Dos clases no se llaman igual: la repetida toma el nombre de su tarea, y si ese también está, lleva su número.
         const claveTitulo = String(d.titulo || "").trim().toLowerCase();
         // También los casi iguales («Explorando frases útiles para el aula» / «…en el Aula»): la IA los repite con otra preposición o mayúsculas.

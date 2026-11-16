@@ -192,7 +192,7 @@ check("revisión de g6 y g7: título en inglés, adjetivo de «guía» y estruct
   assert(/la guía modelo/.test(conTitulosCorregidos({ momentos: [{ actividades: ["Leen la guía modelo."] }] }).momentos[0].actividades[0]), "modelo no cambia");
   const filas = (m) => m.filas.filter((f) => f.tareas[0]?.clave.startsWith("aplicar_") && f.tareas[0].clave !== "aplicar_corregir");
   [alimentacion, escuela].forEach((m) => filas(m).forEach((f) => assert(!/Usar el modelo en una situación/.test(focoDeFila(f, m.filas)), `C${f.clase}: ${focoDeFila(f, m.filas)}`)));
-  assert(focoDeFila({ tareas: [{ clave: "aplicar_ensayar", secciones: ["S"] }], contenidos: [] }, []).startsWith("Usar el modelo"), "sin clase anterior");
+  assert(focoDeFila({ tareas: [{ clave: "aplicar_ensayar", secciones: ["S"] }], contenidos: [] }, []).startsWith("Practicar «S»"), "sin clase anterior: la etiqueta nombra su sección (g49)");
 });
 check("tercera unidad: Indagación valida sus fuentes, con datos anónimos y gramática de la malla", () => {
   const base = { grado: "2do Secundaria", asignatura: "Inglés", centro: "C", numSemanas: 4, diasClase: ["l", "m", "x"], horasPorDia: 1, titulo: "Actividades de la vida diaria" };

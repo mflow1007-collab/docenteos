@@ -11,7 +11,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
-  focoDeFila, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
+  focoDeFila, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
   diagnosticoDeActividades, conTildesCorregidas, OBSERVACIONES_FASE, muestraDeAudiencia, esBancoDeFrases,
   seccionNombrada, modeloNombraSeccion,
 } from "../src/services/mapaClasesService.js";
@@ -314,6 +314,34 @@ const invariantesJson = {
       return nombradas.some((x) => modeloNombraSeccion(x, texto)) ? "" : `C${i + 1}`;
     }).filter(Boolean).join(", ");
   },
+  // Revisor de g49 (reglasModelo ≥ 2): una sola sección principal, modelo con la estructura de la etiqueta, sin modelos
+  // repetidos ni bienvenida fuera de C1, sin «digital» fuera del Anexo L y Desarrollo con 3 actividades o más.
+  "Etiqueta-sección": (g) => {
+    if (g.reglasModelo < 2) return "";
+    const secciones = new Set(g.secciones || []);
+    return g.dias.map((d, i) => {
+      const nombradas = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).filter((x) => !secciones.size || secciones.has(x));
+      return nombradas.length && !nombradas.some((x) => funcionEsDeSeccion(d.focoLinguistico, x)) ? `C${i + 1}` : "";
+    }).filter(Boolean).join(", ");
+  },
+  "Modelo-estructura": (g) => g.reglasModelo < 2 ? "" : g.dias.map((d, i) => {
+    const lineas = d.textoModelo?.lineas || [];
+    const pruebas = patronesDeEtiqueta(d.focoLinguistico || "");
+    return lineas.length && pruebas.length && !pruebas.some((p) => p(lineas)) ? `C${i + 1}` : "";
+  }).filter(Boolean).join(", "),
+  "Modelo-repetido": (g) => g.reglasModelo < 2 ? "" : g.dias.map((d, i) => {
+    const previos = g.dias.slice(0, i).map((x, k) => ({ clase: k + 1, lineas: x.textoModelo?.lineas || [] }));
+    const r = modeloRepetido(d, previos);
+    const bienvenida = i > 0 && !/welcome|greet/i.test(String(d.titulo || "")) && (d.textoModelo?.lineas || []).some((l) => /\bwelcome to\b/i.test(l));
+    return [r ? `C${i + 1}=C${r.clase}` : "", bienvenida ? `C${i + 1} bienvenida` : ""].filter(Boolean).join(" ");
+  }).filter(Boolean).join(", "),
+  "Sin digital": (g) => {
+    const json = g.raw;
+    if (g.reglasModelo < 2 || !json) return "";
+    const fuera = JSON.stringify({ ...json, avisosRedaccion: [], advertencias: [], anexos: { ...(json.anexos || {}), recursosTecnologicosPrevistos: null } }).match(/[^"]{0,30}\bdigital(es)?\b[^"]{0,20}/gi) || [];
+    return fuera.length ? `${fuera.length}: ${fuera[0]}` : "";
+  },
+  "Desarrollo ≥ 3": (g) => g.reglasModelo < 2 ? "" : g.dias.map((d, i) => ((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).length < 3 ? `C${i + 1}` : "").filter(Boolean).join(", "),
   "I-13": (g, u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma)).map((f) => f.clase);
     const faltan = prometidas.filter((c) => !JSON.stringify((g.dias[c - 1]?.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).match(/firm/i));
@@ -331,7 +359,7 @@ const leerGeneracion = (ruta) => {
   ].map((t) => ({ c: i + 1, t })));
   // Lo que alimenta el producto: estructura del día, actividades y ampliación, no los textos modelo.
   const producto = dias.flatMap((d, i) => [d.focoLinguistico || "", ...(d.momentos || []).flatMap((m) => (m.actividades || []).map(String)), ...(d.ampliacion || []).map((a) => a?.texto || "")].map((t) => ({ c: i + 1, t })));
-  return { dias, textos, producto, reglasModelo: Boolean(u.metadatos?.reglasModelo), secciones: u.planMaestro?.secciones || [], anexos: u.anexos || {}, observaciones: (u.fasesSemanales || []).map((f, i) => ({ fase: i + 1, texto: String(f.observacionesSemana || "") })) };
+  return { raw: u, dias, textos, producto, reglasModelo: Number(u.metadatos?.reglasModelo || 0), secciones: u.planMaestro?.secciones || [], anexos: u.anexos || {}, observaciones: (u.fasesSemanales || []).map((f, i) => ({ fase: i + 1, texto: String(f.observacionesSemana || "") })) };
 };
 
 const argumento = (nombre) => { const i = process.argv.indexOf(nombre); return i >= 0 ? process.argv[i + 1] : ""; };

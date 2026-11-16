@@ -1307,9 +1307,13 @@ export function validateBatch(data, durMin, count, focoGram = [], opts = {}) {
         // Con mapa de clases, el número lo piden las tareas de la fila (César, 2026-11-04).
         const conMapa = Boolean(opts.contratoFase?.mapaClases);
         // Ninguna actividad pasa de 12 min (revisión g48b): el Desarrollo con mapa pide las que hagan falta para el tiempo.
-        const minutosMomento = Number.parseInt(String(m.tiempo || ''), 10) || 0;
+        // Con mapa, los minutos del Desarrollo son los de la fila (el código los pone al final): el tiempo que declara la IA no rebaja el mínimo.
+        const filaR1 = conMapa ? opts.contratoFase.mapaClases[(opts.startDia || 1) + idx - 1] : null;
+        const minutosFila = m.nombre === 'Desarrollo' ? (filaR1?.tareas || []).reduce((a, t) => a + (Number(t.minutos) || 0), 0) : 0;
+        const minutosMomento = Math.max(Number.parseInt(String(m.tiempo || ''), 10) || 0, minutosFila);
         // Los pasos que escribe el código (secuencia del banco) ya traen su número: no se les exige más.
-        const minActividades = conMapa ? Math.max(2, m.nombre === 'Desarrollo' && !clase.secuenciaAplicada ? Math.ceil(minutosMomento / 12) : 2) : (m.nombre === 'Desarrollo' ? 4 : 3);
+        // El Desarrollo tiene al menos 3 actividades (revisor de g49: 15 + 15 de leer y comparar).
+        const minActividades = conMapa ? (m.nombre === 'Desarrollo' && !clase.secuenciaAplicada ? Math.max(3, Math.ceil(minutosMomento / 12)) : 2) : (m.nombre === 'Desarrollo' ? 4 : 3);
         if ((m.actividades || []).filter((x) => String(x || '').trim()).length < minActividades) {
           avisarOFallar(`R1: clase ${idx + 1} momento "${m.nombre}" debe tener mínimo ${minActividades} actividades`);
         }
@@ -1850,8 +1854,10 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
       `- Entrega: ${f.entregas.join('; ')}`,
       // El texto modelo sale de la sección del título o, sin sección, de la estructura del día (revisión g48b).
       ...(spec.esIdioma ? [seccionDelModelo(f)
-        ? `- "textoModelo": de la sección «${seccionDelModelo(f)}» (la del título de la clase): sus líneas muestran su función y su vocabulario.`
-        : `- "textoModelo": muestra la estructura del día (${focoDeFila(f, filasLote || [])}), no un diálogo de otra función.`] : []),
+        ? `- "textoModelo": de la sección «${seccionDelModelo(f)}» (la del título de la clase): sus líneas usan la estructura del día (${focoDeFila(f, filasLote || [])}) y el vocabulario de la sección.`
+        : `- "textoModelo": muestra la estructura del día (${focoDeFila(f, filasLote || [])}), no un diálogo de otra función.`,
+      // Ningún modelo repite el de otra clase; la bienvenida solo en la clase 1 y en la sección de bienvenida (revisor de g49).
+      `- "textoModelo" es nuevo: no repite líneas del modelo de otra clase${f.clase !== 1 && !/welcome|greet/i.test(seccionDelModelo(f)) ? ' y no abre con «Welcome to…»' : ''}.`] : []),
       ...(f.secciones.some((s) => INVENTARIO_POR_SECCION[s]?.datosPersonales) ? ['- Los datos de compañeros se recogen sin nombres y se presentan agregados ("8 of 30 students…"), nunca por nombre.'] : []),
       ...(f.secciones.some((s) => INVENTARIO_POR_SECCION[s]?.necesita?.includes('lugares')) ? ['- Los lugares del centro salen de la tabla común del recorrido. No inventes lugares, pisos ni instalaciones (cafeteria, gym, art room, second floor…). "textoModelo" habla de un centro ficticio llamado Model School. En las actividades y en "ampliacion" usa solo términos genéricos (the office, the classroom) o «los lugares de la tabla común».'] : []),
       ...(f.datosRecoge?.length ? [`- Datos que esta clase DEBE preguntar y dejar anotados, porque las piezas siguientes los necesitan: ${f.datosRecoge.join(', ')}. Nómbralos en una actividad o en el texto modelo.`] : []),
@@ -1865,9 +1871,14 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
   const clasesLote = (filasLote || []).map((f) => f.clase);
   const hojaTx = filasLote ? hojaDeRuta(c.filasUnidad || filasLote, clasesLote).join('\n') : '';
   const libretaTx = filasLote ? libretaDeHechos(memoria || []) : '';
+  // Modelos ya escritos en fases anteriores: ninguna línea se repite (revisor de g49: C11 = C5).
+  const modelosUsadosTx = filasLote && (c.modelosPrevios || []).some((x) => (x.lineas || []).length)
+    ? `\nTEXTOS MODELO YA USADOS (no repitas ninguna de sus líneas; cada clase de este lote también tiene el suyo):\n${c.modelosPrevios.filter((x) => (x.lineas || []).length)
+      .map((x) => `- C${x.clase}: ${x.lineas.slice(0, 3).map((l) => `"${String(l).replace(/^[^:]{1,30}:\s*/, '').slice(0, 70)}"`).join(' / ')}`).join('\n')}\n`
+    : '';
   const mapaTx = filasLote ? `LA UNIDAD COMPLETA. Tú redactas solo lo marcado con ►; lo demás ya tiene su clase y no se adelanta.
 ${hojaTx}
-${libretaTx ? `\n${libretaTx}\n` : ''}
+${libretaTx ? `\n${libretaTx}\n` : ''}${modelosUsadosTx}
 MAPA DE ESTAS CLASES. DocenteOS ya decidió cada clase; tú solo redactas.
 
 ${filasLote.map(filaTx).join('\n\n')}

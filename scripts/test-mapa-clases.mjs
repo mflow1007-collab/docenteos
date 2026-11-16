@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estadosMonotonos, minutosConTope, modeloDeOtraSeccion, ejemploDeMallaCopiado, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { modeloNombraSeccion, seccionNombrada, seccionPrincipal, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, bienvenidaFueraDeLugar, modeloSinLaEstructura, conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estadosMonotonos, minutosConTope, modeloDeOtraSeccion, ejemploDeMallaCopiado, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -37,7 +37,7 @@ const estructura = resolverIndicadoresEstructurados(malla);
 const competencias = competenciasDeMalla(malla, estructura.indicadores);
 const SEMILLAS = ["Escuela y educación", "Actividades de la vida diaria", "Alimentación"];
 const SIN_SEMILLA = ["Salud y cuidados físicos", "Viajes y turismo", "Bienes y servicios"];
-const HORARIOS = { "3x1": [["l", "m", "x"], 1], "2x1": [["l", "m"], 1], "5x1": [["l", "m", "x", "j", "v"], 1], "2x2": [["l", "m"], 2] };
+const HORARIOS = { "3x1": [["l", "m", "x"], 1], "4x1": [["l", "m", "x", "j"], 1], "2x1": [["l", "m"], 1], "5x1": [["l", "m", "x", "j", "v"], 1], "2x2": [["l", "m"], 2] };
 
 const entrada = (titulo, semanas, dias, horas, extra = {}) => {
   const base = { grado: "2do Secundaria", asignatura: "Inglés", centro: "Centro de prueba - Hato Nuevo", numSemanas: semanas, diasClase: dias, horasPorDia: horas, titulo };
@@ -268,6 +268,43 @@ check("la prueba con la audiencia depende del tipo de producto: una propuesta se
   const fp = (tipo) => ({ clase: 14, tareas: [{ clave: "presentar", tipoPrueba: tipo, secciones: [] }, { clave: "probar_audiencia", tipoPrueba: tipo, secciones: [] }], contenidos: [] });
   assert(/Defender una recomendación/.test(focoDeFila(fp("defender"), [])) && !/Defender/.test(focoDeFila(fp("guia"), [])), "estructura de la presentación de una propuesta");
   assert(SECUENCIAS_POR_TAREA["probar_audiencia:defender"]?.length >= 2 && SECUENCIAS_POR_TAREA["probar_audiencia:defender"].every((v) => /por qué|recomend|defiend/i.test(v.map((x) => x.texto).join(" "))), "secuencia de defender");
+});
+check("una sola sección principal: sección del título == sección de la etiqueta (revisor de g49)", () => {
+  const malos = [];
+  [["Escuela y educación", 4, "proyectos"], ["Alimentación", 6, "insercion_entorno"], ["Actividades de la vida diaria", 4, "indagacion_dialogica"], ["Escuela y educación", 4, "problemas"], ["Escuela y educación", 4, "insercion_entorno"], ["Escuela y educación", 4, "proyectos", "4x1"], ["Escuela y educación", 4, "", "4x1"]].forEach(([titulo, semanas, estrategia, horario]) => {
+    const m = mapaDe(titulo, semanas, HORARIOS[horario || "3x1"], estrategia ? { planMaestro: { estrategia } } : {});
+    m.filas.filter((f) => !f.flexible && f.tareas.length).forEach((f) => {
+      const s = seccionPrincipal(f);
+      const t = tituloDeClase(f, "Our Guide — una guía");
+      const e = focoDeFila(f, m.filas);
+      const enTitulo = [...t.matchAll(/«([^»]+)»/g)].map((x) => x[1]).filter((x) => x !== "Our Guide");
+      if (s && (enTitulo.join() !== s || !funcionEsDeSeccion(e, s))) malos.push(`${estrategia} C${f.clase}: «${s}» · ${t} · ${e}`);
+      if (!s && enTitulo.length) malos.push(`${estrategia} C${f.clase}: sin sección principal y el título nombra ${enTitulo}`);
+    });
+  });
+  igual(malos, [], "título y etiqueta de la misma sección");
+});
+check("modelos: usan la estructura de la etiqueta, no se repiten y la bienvenida solo en C1 o su sección (revisor de g49)", () => {
+  const usa = (et, l) => modeloSinLaEstructura({ textoModelo: { lineas: l } }, { tareas: [{ clave: "comentar" }], contenidos: [] }, []) === "" && patronesDeEtiqueta(et).some((p) => p(l));
+  const imp = "Escribir el borrador de «Teacher Instructions»: modo imperativo";
+  igual(patronesDeEtiqueta(imp).some((p) => p(["Student: Could you pass me the textbook, please?"])), false, "imperativo: una petición no cuenta");
+  igual(patronesDeEtiqueta(imp).some((p) => p(["Teacher: Please open your books on page 5."])), true, "imperativo");
+  igual(usa("Comentar un texto (_I agree…_, _Sorry to interrupt…_)", ["A: Can we start? B: Yes, but let's organize."]), false, "comentar sin I agree");
+  igual(usa("Comentar un texto (_I agree…_, _Sorry to interrupt…_)", ["A: I agree with your idea."]), true, "comentar con I agree");
+  igual(patronesDeEtiqueta("Solicitar y ofrecer ayuda: can, may y could").some((p) => p(["A: Could you help me?"])), true, "can/could/may");
+  igual(patronesDeEtiqueta("Preguntar a la audiencia y resumir datos: presente simple (_7 of 12 students…_)").some((p) => p(["Result: 9 of 20 students say please."])), true, "cifras: cualquier número");
+  igual(patronesDeEtiqueta("Analizar un modelo de «A»: presente simple").length, 0, "solo presente simple: sin prueba");
+  igual(modeloRepetido({ textoModelo: { lineas: ["Ana: Excuse me, can you help me with this exercise?"] } }, [{ clase: 5, lineas: ["Luis: Excuse me, can you help me with this exercise?"] }]), { clase: 5, linea: "excuse me can you help me with this exercise" }, "C11 = C5");
+  igual(modeloRepetido({ textoModelo: { lineas: ["Ana: Thank you!"] } }, [{ clase: 5, lineas: ["Luis: Thank you!"] }]), null, "líneas cortas no cuentan");
+  const bienvenida = { textoModelo: { lineas: ["Teacher: Welcome to Model School!"] } };
+  assert(bienvenidaFueraDeLugar(bienvenida, { clase: 4, tareas: [{ clave: "describir_modelo", secciones: ["Asking for Permission"] }] }), "bienvenida en C4");
+  igual(bienvenidaFueraDeLugar(bienvenida, { clase: 1, tareas: [{ clave: "acordar" }] }), "", "C1 sí");
+  igual(bienvenidaFueraDeLugar(bienvenida, { clase: 6, tareas: [{ clave: "proponer_elaborar", secciones: ["Welcome"] }] }), "", "sección Welcome sí");
+  // Secciones del docente sin inventario (Frases g50): se reconocen por la palabra de su nombre, en inglés y en español.
+  assert(modeloNombraSeccion("Teacher Instructions", "a: please sit down."), "instrucciones");
+  assert(modeloNombraSeccion("Politeness and Encouragement", "a: _sorry to interrupt you_"), "cortesía con subrayado");
+  assert(seccionNombrada("Requesting Assistance", "redactan frases para pedir ayuda"), "pedir ayuda en español");
+  assert(!modeloNombraSeccion("Materials and Work", "a: good morning! how are you?"), "un saludo no es de materiales");
 });
 check("títulos de clase del código: acción y sección, nunca el nombre interno de la tarea", () => {
   [["Escuela y educación", 4, "proyectos"], ["Alimentación", 6, "insercion_entorno"], ["Actividades de la vida diaria", 4, "indagacion_dialogica"], ["Escuela y educación", 4, "problemas"]].forEach(([titulo, semanas, estrategia]) => {
@@ -897,8 +934,17 @@ check("la estructura del día sale de la fila y corresponde a la tarea", () => {
   const deSec = (clave, secciones) => ({ tareas: [{ clave, secciones }], contenidos: [{ categoria: "gramatica", texto: "Presente simple para referirse a actividades cotidianas: I wake up." }] });
   igual(focoDeFila(deSec("describir_modelo", ["Greetings and Goodbyes"])), "Analizar un modelo de «Greetings and Goodbyes»: presente simple", "modelo con su sección");
   const filaOrdenar = deSec("analizar_ordenar", ["Requesting Assistance", "Materials and Work"]);
-  igual(focoDeFila(filaOrdenar, [filaOrdenar]), "Organizar lo reunido para «Requesting Assistance» y «Materials and Work»: presente simple", "ordenar con dos secciones");
-  assert(!/«/.test(focoDeFila(deSec("describir_modelo", ["A", "B", "C"]))), "con tres o más secciones, la etiqueta de la tarea");
+  igual(focoDeFila(filaOrdenar, [filaOrdenar]), "Organizar lo reunido para «Requesting Assistance»: presente simple", "ordenar con dos secciones: solo la principal (g49)");
+  igual(focoDeFila(deSec("describir_modelo", ["A", "B", "C"])), "Analizar un modelo de «A»: presente simple", "con tres secciones, la principal");
+  // Sección principal: la función de otra sección no entra en la etiqueta (Frases g49, C3).
+  const c3 = { clase: 3, tareas: [{ clave: "describir_modelo", secciones: ["Greetings and Goodbyes"] }, { clave: "proponer_comparar", secciones: ["Teacher Instructions"] }],
+    contenidos: [{ categoria: "funcionales", texto: "Funcional: Solicitar y ofrecer ayuda" }, { categoria: "gramatica", texto: "Can, could y may para pedir ayuda: Can you help me?" }] };
+  igual(seccionPrincipal(c3), "Greetings and Goodbyes", "sin sección de la función: la de la tarea principal");
+  igual(focoDeFila(c3, [c3]), "Analizar un modelo de «Greetings and Goodbyes»: presente simple", "etiqueta de la sección principal, sin la función ni la gramática de otra");
+  const c5 = { clase: 5, tareas: [{ clave: "proponer_elaborar", secciones: ["Final Recommendation"] }, { clave: "aplicar_modelo", secciones: ["Asking for Help"] }], contenidos: c3.contenidos };
+  igual(seccionPrincipal(c5), "Asking for Help", "la función de la fila elige la sección que la clase trabaja");
+  igual(tituloDeClase(c5, "Guide"), "Usando el modelo: «Asking for Help»", "título de la sección principal");
+  assert(/ayuda/.test(focoDeFila(c5, [c5])), focoDeFila(c5, [c5]));
   igual(focoDeFila(fila("evaluar_comentarios")), "Responder a los comentarios (_They ask for…_, _We should change…_)", "responder");
   igual(focoDeFila(fila("corregir_final")), "Corregir y mejorar lo escrito: presente simple", "por tipo");
   igual(focoDeFila(fila("proponer_elegir", [{ categoria: "gramatica", texto: "Should para pedir y dar consejos y sugerencias: You should drink more. Other." }])), "Pedir y dar consejos y sugerencias: should", "gramática");
@@ -1174,7 +1220,11 @@ check("todo el texto generado queda sin video ni proyector: detalle de evidencia
   igual(restantes, [], "nada sin resolver");
   igual(sinEquiposEnTodo({ a: "Sin equipos." }), { cambios: 0, restantes: [] }, "sin cambios");
   const audio = sinEquiposEnTodo({ adaptaciones: { evaluacion: "Formatos digitales ampliados o audio.", recursos: "No requerido para esta actividad" } });
-  igual(audio, { cambios: 0, restantes: ["Formatos digitales ampliados o audio."] }, "lo que no sabe cambiar (audio) se avisa");
+  igual(audio, { cambios: 1, restantes: ["Formatos ampliados o audio."] }, "lo que no sabe cambiar (audio) se avisa");
+  // «Digital» como adjetivo fuera del Anexo L (revisor de g49, C14: «en un único documento digital»).
+  const dig = { a: "Reúnen las secciones en un único documento digital.", b: "Lo entregan en formato digital.", recursosTecnologicosPrevistos: [{ x: "Documento digital" }] };
+  sinEquiposEnTodo(dig);
+  igual(dig, { a: "Reúnen las secciones en un único documento.", b: "Lo entregan en papel.", recursosTecnologicosPrevistos: [{ x: "Documento digital" }] }, "sin digital salvo en el Anexo L");
 });
 check("el título no lleva comillas dobles internas: pasan a « »", () => {
   const c = [];
@@ -1378,8 +1428,12 @@ check("Frases del aula: banco de frases → práctica con invitados; audiencia d
   igual(humanosDeFila(fila, null, "", "los estudiantes de nuevo ingreso y los visitantes"), "Docente, estudiantes y los estudiantes de nuevo ingreso y los visitantes", "sin ficha ni muestra: la audiencia configurada, nunca «la audiencia»");
   const c = { tareas: [{ clave: "aplicar_modelo", secciones: ["A"] }, { clave: "describir_redactar", secciones: ["B"] }] };
   const alternos = titulosDeTareas(c, "P");
-  igual(alternos.length, 2, "un título por tarea");
-  assert(!titulosSimilares("Analizando una pieza modelo: Greetings", alternos[1]), `el segundo no se parece: ${alternos}`);
+  // Una sola sección principal (revisor de g49): los títulos alternos son solo de las tareas de esa sección.
+  igual(alternos, ["Usando el modelo: «A»"], "un título por tarea de la sección principal");
+  const c2 = { tareas: [{ clave: "aplicar_modelo", secciones: ["A"] }, { clave: "describir_redactar", secciones: ["A"] }] };
+  const alternos2 = titulosDeTareas(c2, "P");
+  igual(alternos2.length, 2, "dos tareas de la misma sección: un título por tarea");
+  assert(!titulosSimilares("Analizando una pieza modelo: Greetings", alternos2[1]), `el segundo no se parece: ${alternos2}`);
   // Títulos por función y sección (revisor de g42a): la misma función con otra sección no es un duplicado.
   igual(tituloDeClase({ tareas: [{ clave: "analizar_borrador", nombre: "x", secciones: ["Requesting Assistance"] }] }, "P"), "Escribiendo el borrador: «Requesting Assistance»", "función + sección");
   assert(!titulosSimilares("Escribiendo el borrador: «Requesting Assistance»", "Escribiendo el borrador: «Materials and Work»"), "otra sección, otro título");
@@ -1398,7 +1452,7 @@ check("Frases del aula: banco de frases → práctica con invitados; audiencia d
   const ensayar = { clase: 8, tareas: [{ clave: "aplicar_ensayar", secciones: ["Asking for Help"] }], contenidos: [{ categoria: "funcionales", texto: "Funcional: Expresar opiniones y sugerencias" }, { categoria: "gramatica", texto: "Why don’t/ why not para hacer sugerencias: Why not…?" }] };
   igual(focoDeFila(ensayar, [escribir, ensayar]), focoDeFila(escribir, []), "practicar Asking for Help hereda la etiqueta de su sección");
   assert(!/why/i.test(focoDeFila(ensayar, [escribir, ensayar])), "sin why don't al practicar pedir ayuda");
-  igual(focoDeFila(ensayar, [ensayar]), "Expresar opiniones y sugerencias: why don’t / why not", "sin clase anterior de la sección: la suya");
+  igual(focoDeFila(ensayar, [ensayar]), "Practicar «Asking for Help»: presente simple", "sin clase anterior de la sección: la de su sección, sin la función de otra (g49)");
 });
 
 check("revisor de g40a: verbos de mejora, títulos largos y etiquetas que sirven a la función de la clase", () => {
@@ -1495,6 +1549,9 @@ check("tiempos del Desarrollo: tope de 12 min salvo producción extensa o prueba
   assert(Math.max(...a) <= 12 && suma(a) === 30, `C2: ${a}`);
   const b = minutosConTope([20, 5, 5], ["Acompañan a la audiencia con la guía en la mano.", "Leen.", "Anotan."], 30);
   igual(b, [20, 5, 5], "la prueba con la audiencia puede pasar del tope");
+  // Elaborar una lista no es producción extensa (revisor de g49, C12).
+  const lista = minutosConTope([8, 18, 4], ["Comentan las piezas.", "Elaboran una lista de dos fortalezas y una mejora.", "Comparten."], 30);
+  assert(Math.max(...lista) <= 12 && lista.reduce((a, b) => a + b, 0) === 30, `elaborar una lista con tope: ${lista}`);
   const c = minutosConTope([10, 10, 6], ["Leen.", "Escriben.", "Comparten."], 30);
   assert(suma(c) === 30 && c[2] < 10, `el sobrante no se carga a la última: ${c}`);
 });

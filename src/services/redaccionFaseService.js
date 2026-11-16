@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
 import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA, FRASES_POR_FUNCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -580,7 +580,9 @@ const textosActividades = (clase) => (clase?.momentos || [])
 const LENGUA_PROPIA = /^(acordar|saberes_previos|indagar_)/;
 /** Ejemplos de la etiqueta del día y la tarea que la da, para que el paréntesis de sus pasos use esa estructura (revisión g44). */
 const ejemplosDeEtiqueta = (fila, filas) => {
-  const principal = Math.max(0, (fila.tareas || []).findIndex((t) => t.clave === "integrar"));
+  // La tarea de la sección principal (revisor de g49), o la que reúne el producto, o la primera.
+  const tp = tareaPrincipal(fila);
+  const principal = Math.max(0, (fila.tareas || []).indexOf(tp));
   const clave = fila.tareas?.[principal]?.clave || "";
   if (!clave || LENGUA_PROPIA.test(clave)) return { ejemplosEtiqueta: [], tareaEtiqueta: null };
   return { ejemplosEtiqueta: focoDeFila(fila, filas).match(/_[^_]+_/g) || [], tareaEtiqueta: principal };
@@ -923,7 +925,8 @@ export const motivosTextoClase = (clase) => {
   // «$RD200» es pesos con el formato cambiado: lo corrige el código.
   const moneda = textos.find((t) => /(?<!RD)\$(?!\s?RD)|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t));
   if (moneda) motivos.push(`precio fuera de pesos dominicanos: "${citaTexto(moneda, /\$|d[oó]lar|dollar/i)}"`);
-  const equipo = textos.find((t) => /\b(videos?|proyector(es)?|parlantes?|bocinas?|grabad[oa]s?|digital(es)?)\b/i.test(t));
+  // «Digital» en español lo quita el código al terminar (sinEquiposEnTodo, revisor de g49); en el modelo en inglés se avisa.
+  const equipo = textos.find((t) => /\b(videos?|proyector(es)?|parlantes?|bocinas?|grabad[oa]s?)\b/i.test(t)) || modelo.find((t) => /\bdigital\b/i.test(t));
   if (equipo) motivos.push(`nombra un equipo que el mapa no prevé: "${citaTexto(equipo, /videos?|proyector|parlante|bocina|grabad|digital/i)}"`);
   return motivos;
 };
@@ -1086,7 +1089,16 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       const seccionDelModelo = modeloDeOtraSeccion(clase, filaMapa);
       if (seccionDelModelo) fallaRedaccion(idx, `el texto modelo no es de la sección que trabaja la clase: escríbelo para «${seccionDelModelo}», con su función y su vocabulario en las líneas, no solo en el título.`);
       const estructuraModelo = modeloSinLaEstructura(clase, filaMapa, contrato.filasUnidad || []);
-      if (estructuraModelo) fallaRedaccion(idx, `el texto modelo debe mostrar la estructura del día («${estructuraModelo}»), no un diálogo de otra función.`);
+      if (estructuraModelo) fallaRedaccion(idx, `el texto modelo debe usar la estructura del día («${estructuraModelo}») en sus líneas, no un diálogo de otra función.`);
+      // Ningún modelo repite el de otra clase, de esta fase o de las anteriores (revisor de g49).
+      const previos = [...(contrato.modelosPrevios || []), ...(data?.clases || []).slice(0, idx)
+        .map((c, k) => ({ clase: contrato.mapaClases?.[startDia + k - 1]?.clase || startDia + k, lineas: c?.textoModelo?.lineas || [] }))];
+      const repetido = modeloRepetido(clase, previos);
+      if (repetido) fallaRedaccion(idx, `el texto modelo repite el de la clase ${repetido.clase} ("${citaTexto(repetido.linea, null, 60)}"): escribe uno nuevo, de la sección y la estructura de esta clase.`);
+      // Si quedan 2 líneas o más sin ella, la quita el código al guardar la clase: no se paga un reintento.
+      const bienvenida = bienvenidaFueraDeLugar(clase, filaMapa);
+      const quedan = (clase?.textoModelo?.lineas || []).filter((l) => !/\bwelcome to\b/i.test(String(l))).length;
+      if (bienvenida && quedan < 2) fallaRedaccion(idx, `el texto modelo abre con una bienvenida ("${citaTexto(bienvenida, null, 50)}"), que solo va en la clase 1 y en la sección de bienvenida: empieza con la situación de esta clase.`);
       const copiado = ejemploDeMallaCopiado(clase, contrato.filasUnidad || []);
       if (copiado) fallaRedaccion(idx, `copia un ejemplo literal de la malla ("${citaTexto(copiado, null, 60)}"): escribe un ejemplo propio de la situación de la unidad.`);
       const sinDatos = datosSinRecoger(clase, filaMapa);
