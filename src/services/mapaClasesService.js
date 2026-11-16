@@ -643,15 +643,18 @@ export const muestraDeAudiencia = (audiencia = "") => {
   const cursos = [...new Set([...texto.matchAll(/\b(\d{1,2})\s*(?:\.\s*º|º|°|\.º|ro|do|to|vo|no|mo)(?![\p{L}])/gu)].map((m) => `${m[1]}.º`))];
   if (cursos.length > 1) return `2–3 estudiantes invitados de ${cursos.slice(0, -1).join(", ")} y ${cursos[cursos.length - 1]}`;
   const cuantos = Math.max(0, ...[...texto.matchAll(/\b(\d{2,4})\s+(?:personas|estudiantes|alumnos|familias|padres|madres|invitados|miembros)\b/gi)].map((m) => Number(m[1])));
-  if (cuantos > 15) return `un grupo pequeño de invitados (5 o 6) de ${texto.replace(/^\s*(los|las|el|la)\s+/i, "")}`;
+  // Un grupo sin cifra que no cabe en el aula («las familias», «la comunidad»): también va por muestra (revisor de Rutinas 1.º, 2026-11-16).
+  const grupoSinCifra = /\b(familias|padres|madres|representantes|comunidad|vecinos)\b/i.test(texto);
+  if (cuantos > 15 || (!cuantos && grupoSinCifra)) return `un grupo pequeño de invitados (5 o 6) de ${texto.replace(/^\s*(los|las|el|la)\s+/i, "")}`;
   return "";
 };
 
-export const humanosDeFila = (fila, alcance = null, muestra = "") => {
+export const humanosDeFila = (fila, alcance = null, muestra = "", audiencia = "") => {
   const claves = fila.tareas.map((t) => t.clave);
   if (claves.includes("presentar") || claves.includes("probar_audiencia")) {
     if (muestra) return `Docente, estudiantes y ${muestra}`;
-    if (!alcance?.invitado) return "Docente, estudiantes y la audiencia";
+    // Sin ficha de invitado: la audiencia configurada, con su nombre; nunca «la audiencia» (I-12, I-23).
+    if (!alcance?.invitado) return audiencia ? `Docente, estudiantes y ${String(audiencia).trim()}` : "Docente, estudiantes y la audiencia";
     return `Docente, estudiantes, ${alcance.invitado}${alcance.visitante ? ` y ${alcance.visitante}` : ""}`;
   }
   if (claves.includes("visitar_entrevistar") && fila.modalidad === "invitado") return `Docente, estudiantes y ${alcance?.invitado || "la persona entrevistada"}`;
@@ -997,14 +1000,15 @@ export const estructuraAjenaEnClase = (clase = {}, fila = {}) => {
  * Función de la fila y su gramática; sin gramática, la frase fija de la tarea principal.
  */
 export const focoDeFila = (fila = {}, filas = [], { heredada = false } = {}) => {
-  // Aplicar sin contenido propio: nombra la estructura de la clase anterior de la misma
-  // sección, no una etiqueta genérica (revisión de g6 y g7, 2026-11-06).
+  // Aplicar: nombra la estructura de la clase anterior de la misma sección, no una etiqueta genérica
+  // (revisión de g6 y g7, 2026-11-06) ni la función que el reparto le dejó a la clase («why don't» al practicar
+  // «Asking for Help», Escuela 3.º, 2026-11-16). Sin clase anterior de esa sección, la suya.
   const primera = fila.tareas?.[0]?.clave || "";
-  if (/^aplicar_/.test(primera) && primera !== "aplicar_corregir" && !(fila.contenidos || []).some((c) => ["gramatica", "funcionales"].includes(c.categoria))) {
+  if (/^aplicar_/.test(primera) && primera !== "aplicar_corregir") {
     const previa = [...filas].reverse().find((f) => f.clase < fila.clase && !f.flexible
       && f.tareas?.some((t) => /^aplicar_/.test(t.clave) && t.secciones?.some((s) => fila.tareas[0].secciones?.includes(s)))
       && (f.contenidos || []).some((c) => ["gramatica", "funcionales"].includes(c.categoria)));
-    if (previa) return focoDeFila(previa, [], { heredada: true });
+    if (previa) return focoDeFila(previa, filas, { heredada: true });
   }
   // Si la clase reúne el producto, esa es su tarea principal.
   const clave = (fila.tareas || []).find((t) => t.clave === "integrar")?.clave || fila.tareas?.[0]?.clave || "";

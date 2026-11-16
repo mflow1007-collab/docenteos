@@ -1366,11 +1366,12 @@ check("Frases del aula: banco de frases → práctica con invitados; audiencia d
   assert(!esBancoDeFrases("una guía bilingüe de la escuela") && !esBancoDeFrases("un plan de rutinas"), "otros productos no");
   igual(muestraDeAudiencia("los estudiantes de 4.º, 5.º y 6.º de primaria y de 1.º de secundaria"), "2–3 estudiantes invitados de 4.º, 5.º, 6.º y 1.º", "varios cursos");
   igual(muestraDeAudiencia("los estudiantes de 6.º de primaria; también a un docente que hace de visitante"), "", "un curso: cabe");
-  igual(muestraDeAudiencia("las familias; también al consejo de curso"), "", "sin cursos ni cifra: cabe");
+  igual(muestraDeAudiencia("las familias; también al consejo de curso"), "un grupo pequeño de invitados (5 o 6) de familias; también al consejo de curso", "un grupo sin cifra (las familias): muestra (2026-11-16)");
+  igual(muestraDeAudiencia("el consejo de curso"), "", "sin cursos, cifra ni grupo: cabe");
   assert(/grupo pequeño/.test(muestraDeAudiencia("30 familias del sector")), "más de 15 personas: grupo pequeño");
   const fila = { tareas: [{ clave: "presentar" }, { clave: "probar_audiencia" }] };
   igual(humanosDeFila(fila, null, "2–3 estudiantes invitados de 4.º y 5.º"), "Docente, estudiantes y 2–3 estudiantes invitados de 4.º y 5.º", "humanos con la muestra");
-  igual(humanosDeFila(fila, null), "Docente, estudiantes y la audiencia", "sin muestra, como antes");
+  igual(humanosDeFila(fila, null, "", "los estudiantes de nuevo ingreso y los visitantes"), "Docente, estudiantes y los estudiantes de nuevo ingreso y los visitantes", "sin ficha ni muestra: la audiencia configurada, nunca «la audiencia»");
   const c = { tareas: [{ clave: "aplicar_modelo", secciones: ["A"] }, { clave: "describir_redactar", secciones: ["B"] }] };
   const alternos = titulosDeTareas(c, "P");
   igual(alternos.length, 2, "un título por tarea");
@@ -1388,6 +1389,12 @@ check("Frases del aula: banco de frases → práctica con invitados; audiencia d
   igual(focoDeFila(elab, [imp, elab]), "Escribir el borrador de «Teacher Instructions»: modo imperativo", "borrador de instrucciones en imperativo");
   const elabOtra = { ...elab, tareas: [{ clave: "proponer_elaborar", secciones: ["Politeness"] }] };
   igual(focoDeFila(elabOtra, [imp, elabOtra]), "Escribir el borrador de «Politeness»: presente simple", "otra sección: su gramática");
+  // Aplicar con función propia del reparto: toma la etiqueta de la clase anterior de su sección (Escuela 3.º C8, 2026-11-16).
+  const escribir = { clase: 7, tareas: [{ clave: "aplicar_escribir", secciones: ["Asking for Help"] }], contenidos: [{ categoria: "funcionales", texto: "Funcional: Solicitar y ofrecer ayuda" }, { categoria: "gramatica", texto: "Can, may y could para pedir ayuda: Can you help me?" }] };
+  const ensayar = { clase: 8, tareas: [{ clave: "aplicar_ensayar", secciones: ["Asking for Help"] }], contenidos: [{ categoria: "funcionales", texto: "Funcional: Expresar opiniones y sugerencias" }, { categoria: "gramatica", texto: "Why don’t/ why not para hacer sugerencias: Why not…?" }] };
+  igual(focoDeFila(ensayar, [escribir, ensayar]), focoDeFila(escribir, []), "practicar Asking for Help hereda la etiqueta de su sección");
+  assert(!/why/i.test(focoDeFila(ensayar, [escribir, ensayar])), "sin why don't al practicar pedir ayuda");
+  igual(focoDeFila(ensayar, [ensayar]), "Expresar opiniones y sugerencias: why don’t / why not", "sin clase anterior de la sección: la suya");
 });
 
 check("revisor de g40a: verbos de mejora, títulos largos y etiquetas que sirven a la función de la clase", () => {
