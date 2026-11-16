@@ -996,7 +996,7 @@ export const estructuraAjenaEnClase = (clase = {}, fila = {}) => {
  * Estructura del día: la escribe el código, para que corresponda a la tarea de la clase.
  * Función de la fila y su gramática; sin gramática, la frase fija de la tarea principal.
  */
-export const focoDeFila = (fila = {}, filas = []) => {
+export const focoDeFila = (fila = {}, filas = [], { heredada = false } = {}) => {
   // Aplicar sin contenido propio: nombra la estructura de la clase anterior de la misma
   // sección, no una etiqueta genérica (revisión de g6 y g7, 2026-11-06).
   const primera = fila.tareas?.[0]?.clave || "";
@@ -1004,7 +1004,7 @@ export const focoDeFila = (fila = {}, filas = []) => {
     const previa = [...filas].reverse().find((f) => f.clase < fila.clase && !f.flexible
       && f.tareas?.some((t) => /^aplicar_/.test(t.clave) && t.secciones?.some((s) => fila.tareas[0].secciones?.includes(s)))
       && (f.contenidos || []).some((c) => ["gramatica", "funcionales"].includes(c.categoria)));
-    if (previa) return focoDeFila(previa);
+    if (previa) return focoDeFila(previa, [], { heredada: true });
   }
   // Si la clase reúne el producto, esa es su tarea principal.
   const clave = (fila.tareas || []).find((t) => t.clave === "integrar")?.clave || fila.tareas?.[0]?.clave || "";
@@ -1035,6 +1035,16 @@ export const focoDeFila = (fila = {}, filas = []) => {
   const secsDeLaTarea = (fila.tareas || []).find((t) => t.clave === clave)?.secciones || [];
   const deSeccion = ETIQUETA_POR_TAREA[clave] && secsDeLaTarea.length >= 1 && secsDeLaTarea.length <= 2
     ? `${ETIQUETA_POR_TAREA[clave]} ${secsDeLaTarea.map((x) => `«${x}»`).join(" y ")}` : "";
+  // Elaborar la pieza de una sección es escribir su borrador: la etiqueta nombra la sección, no la función que el reparto
+  // dejó en la clase («Sostener una conversación» en Teacher Instructions); unas instrucciones se escriben en imperativo (revisor de g43).
+  if (!heredada && clave === "proponer_elaborar" && secsDeLaTarea.length === 1) {
+    const seccion = secsDeLaTarea[0];
+    const imperativo = /instruc|direction|indicaci|steps|rules|reglas/i.test(seccion)
+      && filas.flatMap((f) => f.contenidos || []).some((c) => c.categoria === "gramatica" && /imperativo/i.test(c.texto.split(":")[0]));
+    const nombresG = gramatica.map((t) => t.split(":")[0].replace(/\s+(para|en contexto)\b.*$/, "").trim().toLowerCase());
+    const estructura = imperativo ? "modo imperativo" : [...new Set(nombresG)].join(", ") || "presente simple";
+    return `Escribir el borrador de «${seccion}»: ${estructura}`;
+  }
   const funcion = funciones.slice(0, 2).join("; ") || deSeccion || (funcionDelTexto ? conMayuscula(funcionDelTexto.trim()) : fija?.[0] || "");
   if (!gramatica.length) {
     if (!fija) return funcion;
