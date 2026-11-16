@@ -1436,6 +1436,9 @@ check("revisor de g44: grabar y audio sin tecnología, título con la sección t
   igual(tituloConSeccionTrabajada(titulos[0], titulos, "Leen un texto sobre cómo pedir ayuda y escriben frases para Asking for Help.", "Guide"), titulos[1], "la sección que la clase trabaja");
   igual(tituloConSeccionTrabajada(titulos[0], titulos, "Comparan la Final Recommendation con un texto.", "Guide"), titulos[0], "si aparece, se queda");
   igual(tituloConSeccionTrabajada("Revisando el conjunto de «Guide»", [], "Revisan.", "Guide"), "Revisando el conjunto de «Guide»", "el producto no es una sección");
+  const c6 = ["Comparando con un texto: «Final Recommendation»"];
+  igual(tituloConSeccionTrabajada(c6[0], c6, "Leen el texto modelo sobre recomendaciones finales en la escuela.", "Guide"), c6[0], "el plural también nombra la sección (g47, C6)");
+  igual(tituloDeClase({ tareas: [{ clave: "corregir", nombre: "x", secciones: ["A", "B", "C", "D", "E"] }] }, "Guide"), "Corrigiendo las secciones de «Guide»", "muchas secciones: no un título de una palabra (g47, C17)");
   const cs = [{ id: "C01", nombre: "Comunicativa" }, { id: "C04", nombre: "Ética y Ciudadana" }, { id: "C05", nombre: "Científica y Tecnológica" }];
   igual(competenciasDelFormulario(cs, ["Comunicativa", "Científica y Tecnológica"]).map((c) => c.id).join(), "C01,C05", "las casillas del formulario");
   igual(competenciasDelFormulario(cs, []).length, 0, "sin casillas: ninguna (el prellenado pone la Comunicativa)");

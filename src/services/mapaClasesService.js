@@ -1240,7 +1240,9 @@ export const tituloDeClase = (fila = {}, producto = "") => {
   const secs = t.secciones || [];
   const nombres = secs.map((x) => `«${x}»`);
   const conSecciones = nombres.length > 1 ? `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}` : nombres[0];
-  return !SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3 ? `${base}: ${conSecciones}` : base;
+  if (!SIN_SECCION.has(t.clave) && secs.length >= 1 && secs.length <= 3) return `${base}: ${conSecciones}`;
+  // Muchas secciones y un título de una palabra («Corrigiendo»): nombra que trabaja las secciones (g47, C17).
+  return !SIN_SECCION.has(t.clave) && secs.length > 3 && !/\s/.test(base) ? `${base} las secciones de ${p}` : base;
 };
 
 const ADJETIVOS_DE_GUIA = "alimentari|complet|nuev|corregid|revisad|terminad|escrit|propuest|impres|comunitari|bilingüe|práctic|rápid|sencill|clar|list";
