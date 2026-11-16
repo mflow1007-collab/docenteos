@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, tituloConSeccionTrabajada, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { versionDeBuild } from "../utils/buildInfo.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
@@ -6366,6 +6366,12 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         }
         // El título lo escribe el código desde la función y la sección de la clase (revisor de g42a); el de la IA queda en tituloIA.
         if (d.fijoDelMapa.tituloTarea) d.titulo = d.fijoDelMapa.tituloTarea;
+        // La sección del título es la que la clase trabaja (la del paso que redactó la IA), no la primera tarea de la fila.
+        if (d.fijoDelMapa.tituloTarea) {
+          const textoClase = (d.momentos || []).flatMap((m) => m?.actividades || []).map((a) => (typeof a === "string" ? a : a?.texto || "")).join(" ");
+          const conSeccion = tituloConSeccionTrabajada(d.titulo, d.fijoDelMapa.titulosTareas || [], textoClase, rutaPlanMaestro?.plan?.producto || "");
+          if (conSeccion !== d.titulo) { avisosClaseFinal.push(`clase ${i + 1}: ℹ código: el título nombraba una sección que la clase no trabaja («${d.titulo}»)`); d.titulo = conSeccion; }
+        }
         // Dos clases no se llaman igual: la repetida toma el nombre de su tarea, y si ese también está, lleva su número.
         const claveTitulo = String(d.titulo || "").trim().toLowerCase();
         // También los casi iguales («Explorando frases útiles para el aula» / «…en el Aula»): la IA los repite con otra preposición o mayúsculas.

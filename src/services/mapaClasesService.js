@@ -673,7 +673,7 @@ export const didacticosDeFila = (fila) => {
 export const INICIO_PRIMERA_CLASE = "Recuperación de experiencias: comentan qué han vivido o visto sobre este tema. (What do you know about this topic?)";
 
 // Equipos que el mapa no prevé: no se sabe si el centro los tiene.
-const EQUIPO = /\b(videos?|clips?|digital(es)?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio)\b/;
+const EQUIPO = /\b(videos?|clips?|digital(es)?|(retro)?proyector(es)?|parlantes?|bocinas?|altavoz|grabadoras?|grabacion(es)?|computadoras?|laptops?|tablets?|internet|audiovisual(es)?|celular(es)?|audio|grab(a|an|ar|en)|film(a|an|ar)|proyect(a|an|ar)|reproduc(e|en|ir))\b/;
 export const ENGANCHE_SIN_EQUIPOS = "Observan un ejemplo impreso relacionado con la clase y dicen qué les llama la atención.";
 
 // Conserva la mayúscula inicial de lo que reemplaza («Del video» → «Del ejemplo»).
@@ -690,7 +690,14 @@ const sinVideoEs = (t) => (typeof t === "string" ? t
   .replace(/\b(en|con|del) (retro)?proyector\b/gi, (m, pre) => conInicial(m, `${pre.toLowerCase()} la pizarra`))
   .replace(/\bgrabaciones orales\b/gi, (m) => conInicial(m, "producciones orales"))
   .replace(/\b(un|el) audio modelo\b/gi, (m, art) => conInicial(m, `${art.toLowerCase()} diálogo modelo leído por el docente`))
-  .replace(/\bvideos?\b/gi, (v) => conInicial(v, /s$/i.test(v) ? "ejemplos" : "ejemplo")) : t);
+  .replace(/\bvideos?\b/gi, (v) => conInicial(v, /s$/i.test(v) ? "ejemplos" : "ejemplo"))
+  // Verbos de grabar o proyectar y «audio» en cualquier frase (revisor de g44, C11: «lo graban en la ficha de audio del grupo»).
+  .replace(/\b(ficha|hoja|tarjeta|carpeta|cuaderno|registro) de audio\b/gi, (m, n) => conInicial(m, n.toLowerCase()))
+  // Solo cuando graban lo que ya hicieron (un registro): «Graban un audio» no tiene reemplazo seguro y se avisa.
+  .replace(/\b(lo|la|los|las) (grab|film)(an|amos|a|ar|en|e)\b/gi, (m, pron, _v, fin) => conInicial(m, `${pron.toLowerCase()} anot${fin.toLowerCase()}`))
+  .replace(/\bgrabad([oa]s?)\b/gi, (m, fin) => conInicial(m, `anotad${fin.toLowerCase()}`))
+  .replace(/\bproyect(an|amos|a|ar)\b/gi, (m, fin) => conInicial(m, { an: "muestran", amos: "mostramos", a: "muestra", ar: "mostrar" }[fin.toLowerCase()]))
+  .replace(/\breproduc(en|imos|e|ir)\b(?!\s+(?:el|un|los)\s+(?:audio|video|clip))/gi, (m, fin) => conInicial(m, `le${{ en: "en", imos: "emos", e: "e", ir: "er" }[fin.toLowerCase()]} en voz alta`)) : t);
 
 /**
  * Inicio y Cierre sin equipos: quita los que la IA puso en sus recursos y sustituye la
@@ -1170,6 +1177,19 @@ export const tituloCorto = (titulo = "", tituloTarea = "", max = 10) => {
   const antes = String(titulo).split(":")[0].trim();
   if (antes !== String(titulo).trim() && palabras(antes) >= 3 && palabras(antes) <= max) return antes;
   return tituloTarea || titulo;
+};
+/**
+ * El título nombra la sección que la clase trabaja: si la de su tarea no aparece en las actividades y la de otra
+ * tarea de la clase sí, se toma el título de esa tarea (revisor de g44, C5: «Final Recommendation» en una clase
+ * de «Asking for Help»). Sin sección en el título, o si ninguna aparece, el título no cambia.
+ */
+export const tituloConSeccionTrabajada = (titulo = "", titulosTareas = [], textoActividades = "", producto = "") => {
+  const prod = String(nombreCorto(producto) || "").toLowerCase();
+  const seccionesDe = (t) => [...String(t || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).filter((x) => x.toLowerCase() !== prod);
+  const texto = String(textoActividades || "").toLowerCase();
+  const aparece = (t) => seccionesDe(t).some((sec) => texto.includes(sec.toLowerCase()));
+  if (!seccionesDe(titulo).length || aparece(titulo)) return titulo;
+  return titulosTareas.find((t) => t !== titulo && seccionesDe(t).length && aparece(t)) || titulo;
 };
 export const titulosParecidos = (titulos = [], umbral = 0.6) => {
   const pares = [];

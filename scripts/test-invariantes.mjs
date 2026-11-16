@@ -283,6 +283,15 @@ const invariantesJson = {
   },
   // Corrector ortográfico: ninguna palabra frecuente sin su tilde en lo que lee el docente.
   "Ortografía": (g) => g.dias.flatMap((d, i) => [d.titulo, d.focoLinguistico, d.intencionPedagogica, ...(d.momentos || []).flatMap((m) => m.actividades || [])].filter((t) => typeof t === "string" && conTildesCorregidas(t) !== t).map(() => `C${i + 1}`)).filter((c, i, l) => l.indexOf(c) === i).join(", "),
+  // La sección que nombra el título aparece en las actividades de la clase (revisor de g44, C5).
+  "Título-sección": (g) => {
+    const secciones = new Set(g.secciones || []);
+    return g.dias.map((d, i) => {
+      const nombradas = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).filter((x) => !secciones.size || secciones.has(x));
+      const texto = (d.momentos || []).flatMap((m) => m.actividades || []).map(String).join(" ").toLowerCase();
+      return nombradas.length && !nombradas.some((x) => texto.includes(x.toLowerCase())) ? `C${i + 1}` : "";
+    }).filter(Boolean).join(", ");
+  },
   "I-13": (g, u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma)).map((f) => f.clase);
     const faltan = prometidas.filter((c) => !JSON.stringify((g.dias[c - 1]?.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).match(/firm/i));
@@ -300,7 +309,7 @@ const leerGeneracion = (ruta) => {
   ].map((t) => ({ c: i + 1, t })));
   // Lo que alimenta el producto: estructura del día, actividades y ampliación, no los textos modelo.
   const producto = dias.flatMap((d, i) => [d.focoLinguistico || "", ...(d.momentos || []).flatMap((m) => (m.actividades || []).map(String)), ...(d.ampliacion || []).map((a) => a?.texto || "")].map((t) => ({ c: i + 1, t })));
-  return { dias, textos, producto, anexos: u.anexos || {}, observaciones: (u.fasesSemanales || []).map((f, i) => ({ fase: i + 1, texto: String(f.observacionesSemana || "") })) };
+  return { dias, textos, producto, secciones: u.planMaestro?.secciones || [], anexos: u.anexos || {}, observaciones: (u.fasesSemanales || []).map((f, i) => ({ fase: i + 1, texto: String(f.observacionesSemana || "") })) };
 };
 
 const argumento = (nombre) => { const i = process.argv.indexOf(nombre); return i >= 0 ? process.argv[i + 1] : ""; };

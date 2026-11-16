@@ -14,7 +14,7 @@ import { ROLES_FASES_POR_ESTRATEGIA, rolesDeFaseGuia, TIPO_TRABAJO_FASES_POR_EST
 import {
   PLAN_MAESTRO_INICIAL, calcularVistaPrevia, resolverIndicadoresEstructurados, competenciasDeMalla,
   temasDeLaUnidad, alternarUnionConSiguiente, fijarPartes, fijarSesiones, repartirDeNuevo,
-  alternarCompetencia, alternarIndicador, alternarAspecto, prellenarSinPisar, debePrellenarPlanMaestro,
+  alternarCompetencia, alternarIndicador, alternarAspecto, prellenarSinPisar, debePrellenarPlanMaestro, competenciasDelFormulario,
 } from "../services/vistaPreviaPlanMaestroService.js";
 import SituacionAprendizajePanel from "./SituacionAprendizajePanel.jsx";
 
@@ -93,6 +93,26 @@ export default function VistaPreviaPlanMaestro({ datos, onChange, mallaPayload, 
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datos.titulo, datos.planMaestro, datos.productoFinalTexto, estructura.indicadores]);
+
+  // Las casillas «Competencias Fundamentales» del formulario mandan sobre las del plan: marcar o desmarcar una
+  // después del prellenado la añade o la quita aquí (César, 2026-11-16). Siempre queda al menos una.
+  const seleccionPrevia = useRef(datos.competenciasFundamentalesSeleccionadas);
+  useEffect(() => {
+    const antes = seleccionPrevia.current || [];
+    const ahora = datos.competenciasFundamentalesSeleccionadas || [];
+    seleccionPrevia.current = ahora;
+    if (!estructura.indicadores || antes === ahora || !(datosActuales.current.planMaestro?.competenciasElegidas || []).length) return;
+    const competencias = competenciasDeMalla(mallaPayload, estructura.indicadores);
+    const entran = competenciasDelFormulario(competencias, ahora.filter((c) => !antes.includes(c)));
+    const salen = competenciasDelFormulario(competencias, antes.filter((c) => !ahora.includes(c)));
+    let siguiente = { ...PLAN_MAESTRO_INICIAL, ...datosActuales.current.planMaestro };
+    entran.forEach((c) => { if (!siguiente.competenciasElegidas.includes(c.id)) siguiente = alternarCompetencia(siguiente, c.id, estructura.indicadores); });
+    salen.forEach((c) => { if (siguiente.competenciasElegidas.includes(c.id) && siguiente.competenciasElegidas.length > 1) siguiente = alternarCompetencia(siguiente, c.id, estructura.indicadores); });
+    if (siguiente.competenciasElegidas.join() !== (datosActuales.current.planMaestro?.competenciasElegidas || []).join()) {
+      onChange({ ...datosActuales.current, planMaestro: siguiente });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datos.competenciasFundamentalesSeleccionadas, estructura.indicadores]);
 
   const vista = calcularVistaPrevia({ datos: datosPlan, mallaPayload });
   // Si las sesiones fijadas no cuadran, se muestran las fases del reparto

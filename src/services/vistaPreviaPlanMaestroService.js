@@ -326,6 +326,16 @@ export const planMaestroSinTocar = (planMaestro) => {
  * editable en la vista previa; nada sustituye a la malla oficial.
  * @returns {{planMaestro: object, productoFinalTexto: string}}
  */
+const nombreComp = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z ]+/g, " ").trim();
+/** Competencias de la malla que corresponden a las casillas «Competencias Fundamentales» del formulario, en el orden de la malla. */
+export const competenciasDelFormulario = (competencias = [], seleccionadas = []) => {
+  const marcadas = (seleccionadas || []).map(nombreComp).filter(Boolean);
+  return competencias.filter((c) => {
+    const n = nombreComp(c.nombre);
+    return marcadas.some((m) => n === m || n.startsWith(m) || m.startsWith(n) || n.split(" ")[0] === m.split(" ")[0]);
+  });
+};
+
 export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencias = [] } = {}) => {
   const temas = temasDeLaUnidad(datos);
   const semilla = propuestasParaTemas(temas)[0] || null;
@@ -343,8 +353,11 @@ export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencia
   const rec = recomendarEstrategia(pm.situacion.rasgos);
   const estrategia = rec.recomendada.disponible ? rec.recomendada.clave : rec.mejorDisponible?.clave;
   if (estrategia) pm = alinearSiNoHay({ ...pm, estrategia });
-  const comunicativa = competencias.find((c) => /comunicativa/i.test(c.nombre)) || competencias[0];
-  if (comunicativa) pm = alternarCompetencia(pm, comunicativa.id, indicadores);
+  // Las competencias que el docente marcó en el formulario (por su nombre fundamental); sin ninguna, la Comunicativa
+  // (César, 2026-11-16: marcó varias y el plan solo tomó una).
+  const elegidas = competenciasDelFormulario(competencias, datos.competenciasFundamentalesSeleccionadas);
+  const iniciales = elegidas.length ? elegidas : [competencias.find((c) => /comunicativa/i.test(c.nombre)) || competencias[0]].filter(Boolean);
+  iniciales.forEach((c) => { pm = alternarCompetencia(pm, c.id, indicadores); });
   const titulo = String(datos.titulo || "").trim();
   return {
     planMaestro: { ...pm, prellenado: { titulo, producto, firma: firmaPlanMaestro(pm) } },

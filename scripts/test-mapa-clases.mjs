@@ -8,11 +8,11 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
-import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
+import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla, competenciasDelFormulario } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data/tareasPorTipoTrabajo.js";
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, ACTIVIDAD_NIVEL_SATISFACTORIO, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
@@ -1424,6 +1424,21 @@ check("revisor de g40a: verbos de mejora, títulos largos y etiquetas que sirven
   igual(focoDeFila(encuesta, [encuesta]), "Preguntar a la audiencia y resumir datos: presente simple (_7 of 12 students…_)", "la encuesta usa su estructura");
   const c1 = { clase: 1, tareas: [{ clave: "acordar" }, { clave: "saberes_previos" }], contenidos: [f("Intercambiar información sobre actividades cotidianas")] };
   assert(!/cotidianas/.test(focoDeFila(c1, [c1])), `la clase 1 no toma la función de otro tema: ${focoDeFila(c1, [c1])}`);
+});
+
+check("revisor de g44: grabar y audio sin tecnología, título con la sección trabajada y competencias del formulario", () => {
+  const d = { a: "una lista oral de ajustes; lo graban en la ficha de audio del grupo.", b: "Lista de ajustes grabada.", c: "Proyectan el modelo y reproducen el diálogo." };
+  sinEquiposEnTodo(d);
+  igual(d.a, "una lista oral de ajustes; lo anotan en la ficha del grupo.", "grabar → anotar, sin «de audio»");
+  igual(d.b, "Lista de ajustes anotada.", "grabada → anotada");
+  igual(d.c, "Muestran el modelo y leen en voz alta el diálogo.", "proyectar y reproducir");
+  const titulos = ["Comparando con un texto: «Final Recommendation»", "Usando el modelo: «Asking for Help»"];
+  igual(tituloConSeccionTrabajada(titulos[0], titulos, "Leen un texto sobre cómo pedir ayuda y escriben frases para Asking for Help.", "Guide"), titulos[1], "la sección que la clase trabaja");
+  igual(tituloConSeccionTrabajada(titulos[0], titulos, "Comparan la Final Recommendation con un texto.", "Guide"), titulos[0], "si aparece, se queda");
+  igual(tituloConSeccionTrabajada("Revisando el conjunto de «Guide»", [], "Revisan.", "Guide"), "Revisando el conjunto de «Guide»", "el producto no es una sección");
+  const cs = [{ id: "C01", nombre: "Comunicativa" }, { id: "C04", nombre: "Ética y Ciudadana" }, { id: "C05", nombre: "Científica y Tecnológica" }];
+  igual(competenciasDelFormulario(cs, ["Comunicativa", "Científica y Tecnológica"]).map((c) => c.id).join(), "C01,C05", "las casillas del formulario");
+  igual(competenciasDelFormulario(cs, []).length, 0, "sin casillas: ninguna (el prellenado pone la Comunicativa)");
 });
 
 check("A1 por código: la clase con revision_nivel comprueba el nivel satisfactorio aunque la IA lo omita (g37)", () => {
