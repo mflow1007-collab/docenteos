@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { seccionesSecundarias, estadoDeFila, modeloNombraSeccion, seccionNombrada, seccionPrincipal, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, bienvenidaFueraDeLugar, modeloSinLaEstructura, conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estadosMonotonos, minutosConTope, modeloDeOtraSeccion, ejemploDeMallaCopiado, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { seccionCubierta, tituloSinBienvenida, seccionesSecundarias, estadoDeFila, modeloNombraSeccion, seccionNombrada, seccionPrincipal, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, bienvenidaFueraDeLugar, modeloSinLaEstructura, conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estadosMonotonos, minutosConTope, modeloDeOtraSeccion, ejemploDeMallaCopiado, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -321,6 +321,10 @@ check("modelos: usan la estructura de la etiqueta, no se repiten y la bienvenida
   assert(bienvenidaFueraDeLugar(bienvenida, { clase: 4, tareas: [{ clave: "describir_modelo", secciones: ["Asking for Permission"] }] }), "bienvenida en C4");
   igual(bienvenidaFueraDeLugar(bienvenida, { clase: 1, tareas: [{ clave: "acordar" }] }), "", "C1 sí");
   igual(bienvenidaFueraDeLugar(bienvenida, { clase: 6, tareas: [{ clave: "proponer_elaborar", secciones: ["Welcome"] }] }), "", "sección Welcome sí");
+  // Bienvenida en el título del modelo (g55a C5) y actividad del código con formato de la IA (g55).
+  assert(bienvenidaFueraDeLugar({ textoModelo: { titulo: "Final Recommendation: Welcome to Model School", lineas: ["A: We recommend…"] } }, { clase: 5, tareas: [{ clave: "proponer_comparar", secciones: ["Final Recommendation"] }] }), "título con bienvenida");
+  igual(tituloSinBienvenida("Final Recommendation: Welcome to Model School"), "Final Recommendation", "se quita del título");
+  assert(seccionCubierta("Asking for Permission", "elaboran un borrador de frases para pedir permiso"), "permiso en español cubre la sección");
   // Secciones del docente sin inventario (Frases g50): se reconocen por la palabra de su nombre, en inglés y en español.
   assert(modeloNombraSeccion("Teacher Instructions", "a: please sit down."), "instrucciones");
   assert(modeloNombraSeccion("Politeness and Encouragement", "a: _sorry to interrupt you_"), "cortesía con subrayado");

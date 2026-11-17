@@ -25,7 +25,7 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { bienvenidaFueraDeLugar, vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, tituloConSeccionTrabajada, minutosConTope, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { bienvenidaFueraDeLugar, tituloSinBienvenida, modeloRepetido, vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, tituloConSeccionTrabajada, minutosConTope, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { versionDeBuild } from "../utils/buildInfo.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
@@ -5390,7 +5390,17 @@ const _generarFasesConIA = async (
           const sinBienvenida = bienvenida ? (dia.textoModelo?.lineas || []).filter((l) => !/\bwelcome to\b/i.test(String(l))) : null;
           if (sinBienvenida && sinBienvenida.length >= 2) {
             dia.textoModelo = { ...dia.textoModelo, lineas: sinBienvenida };
+            if (/\bwelcome to\b/i.test(String(dia.textoModelo.titulo || ""))) dia.textoModelo.titulo = tituloSinBienvenida(dia.textoModelo.titulo);
             avisosRedaccionIA.push(`Clase ${filaMapa.clase}: ℹ código: se quitó la bienvenida del texto modelo («${String(bienvenida).slice(0, 50)}»)`);
+          }
+          // Las líneas que repiten el modelo de otra clase las quita el código si quedan al menos 2 (revisor de g56b: C11 = C9).
+          for (let vuelta = 0; vuelta < 6 && dia.textoModelo?.lineas?.length; vuelta += 1) {
+            const repetido = modeloRepetido(dia, modelosUnidad);
+            if (!repetido) break;
+            const restantes = dia.textoModelo.lineas.filter((l) => !String(l).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").includes(repetido.linea));
+            if (restantes.length < 2 || restantes.length === dia.textoModelo.lineas.length) break;
+            dia.textoModelo = { ...dia.textoModelo, lineas: restantes };
+            avisosRedaccionIA.push(`Clase ${filaMapa.clase}: ℹ código: se quitó del texto modelo una línea que repetía la clase ${repetido.clase} («${repetido.linea.slice(0, 50)}»)`);
           }
           modelosUnidad.push({ clase: filaMapa.clase, lineas: dia.textoModelo?.lineas || [] });
           dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
@@ -6508,6 +6518,19 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         ? { minutos: minutosConTope(delMapa, desarrollo.actividades, total), necesarios: 0 }
         : minutosPorDemanda({ totalMinutos: total, actividades: desarrollo.actividades });
       desarrollo.minutosActividad = minutos;
+      // La actividad de una sección que escribió el código tiene al menos 5 min, tomados de la más larga sin dejarla
+      // por debajo de 5 (revisor de g55: 2 min para «Asking for Permission»).
+      const delCodigo = (a) => /(, sección «[^»]+»[^:]*|por estaciones\).*): [^;]+; queda en la carpeta\.$/.test(String(typeof a === "string" ? a : a?.texto || ""));
+      desarrollo.actividades.forEach((a, k) => {
+        if (!delCodigo(a) || (minutos[k] || 0) >= 5) return;
+        let falta = 5 - (minutos[k] || 0);
+        while (falta > 0) {
+          const donante = minutos.map((m, j) => [m, j]).filter(([m, j]) => j !== k && m > 5).sort((x, y) => y[0] - x[0])[0];
+          if (!donante) break;
+          const da = Math.min(falta, donante[0] - 5);
+          minutos[donante[1]] -= da; minutos[k] += da; falta -= da;
+        }
+      });
       if (necesarios > total) avisosTiempo.push(`clase ${i + 1}: el Desarrollo necesita unos ${necesarios} min y tiene ${total}`);
     });
   }
@@ -7053,8 +7076,13 @@ export const formatearUnidadHTML = (unidad, logoUrl = "", { pieAdmin = "" } = {}
             negritaPrimeraPalabra(escHtml(a))
               .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
           );
-          const faseDeActividad = mom.nombre === "Desarrollo" ? dia.fasesPorActividad?.Desarrollo?.[i] : (mom.nombre === "Inicio" ? dia.fasesPorActividad?.Inicio?.[i] : "");
-          return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span>${faseDeActividad ? ` <span class="act-fase">${escHtml(faseDeActividad)}</span>` : ""} ${html}</p>`;
+          // La fase no va dentro del texto de cada actividad (revisor de g55): una sola línea «Fase X:» cuando cambia,
+          // y solo si la clase reúne más de una fase en ese momento.
+          const fasesMomento = mom.nombre === "Desarrollo" ? dia.fasesPorActividad?.Desarrollo : (mom.nombre === "Inicio" ? dia.fasesPorActividad?.Inicio : null);
+          const faseDeActividad = Array.isArray(fasesMomento) ? fasesMomento[i] : "";
+          const variasFases = Array.isArray(fasesMomento) && new Set(fasesMomento.filter(Boolean)).size > 1;
+          const cambia = variasFases && faseDeActividad && (i === 0 || fasesMomento[i - 1] !== faseDeActividad);
+          return `${cambia ? `<p class="act-fase-linea" style="margin:6px 0 2px;font-weight:600">Fase ${escHtml(faseDeActividad)}:</p>` : ""}<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span> ${html}</p>`;
         }).join("");
         const evalHtml = `<strong>Tipo:</strong> ${escHtml(mom.evaluacion?.tipo)}.<br><strong>Agente:</strong> ${escHtml(mom.evaluacion?.agente)}.<br><strong>Técnica:</strong> ${escHtml(mom.evaluacion?.tecnica)}.<br><strong>Instrumento:</strong> ${escHtml(mom.evaluacion?.instrumento)}.${mom.evaluacion?.criterios ? `<br><strong>Criterios:</strong> ${escHtml(mom.evaluacion.criterios)}.` : ""}`;
         const recursos = mom.recursos || {};

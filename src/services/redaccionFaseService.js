@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, seccionesSecundarias, seccionPrincipal, seccionNombrada, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, seccionesSecundarias, seccionesConActividad, seccionPrincipal, seccionNombrada, seccionCubierta, ejemploDeSeccion, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
 import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA, FRASES_POR_FUNCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -711,13 +711,18 @@ export const tareasSinActividad = (clase, fila) => {
   if (!fila || fila.flexible || clase?.secuenciaAplicada) return [];
   const actividades = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map((a) => normalizar(textoComoCadena(a)));
   const repetida = (t) => fila.tareas.filter((x) => x.clave === t.clave).length > 1;
+  // Palabras de la entrega («pieza redactada», «comentarios del otro grupo»): con la sección, cuentan como la tarea (g55).
+  const deEntrega = (t) => normalizar(t.entrega).split(/[^a-z]+/).filter((w) => w.length >= 6).map((w) => w.slice(0, 5));
   return fila.tareas.filter((t) => {
     if (!t.senal || t.paralelo || DETALLE_TAREA[t.clave]?.noSeReclama) return false;
     const accion = new RegExp(t.senal);
     const pideSeccion = repetida(t) && [].concat(t.demuestra).includes("P");
+    const conSeccion = t.secciones.length >= 1 && t.secciones.length <= 3;
     return !actividades.some((a) => {
-      if (!accion.test(a)) return false;
-      return !pideSeccion || NOMBRA_TODAS.test(a) || t.secciones.some((s) => nombraSeccion(a, s));
+      const nombrada = t.secciones.some((s) => nombraSeccion(a, s) || seccionCubierta(s, a));
+      if (accion.test(a)) return !pideSeccion || NOMBRA_TODAS.test(a) || nombrada;
+      // Sin la señal literal: la actividad nombra la sección y hace lo que la tarea entrega.
+      return conSeccion && nombrada && deEntrega(t).some((w) => a.includes(w));
     });
   });
 };
@@ -730,10 +735,22 @@ export const conVerboInicial = (texto = "") => String(texto)
   .replace(/^solo\s+(\p{L}+n)\b/iu, (m, v) => v[0].toUpperCase() + v.slice(1))
   .replace(/^el grupo editor\s+(\p{L}+?)(a|e)\b/iu, (m, raiz, vocal) => `${raiz[0].toUpperCase()}${raiz.slice(1)}${vocal}n (en grupos editores)`)
   .replace(/^el docente\s+/iu, "Reciben la revisión del docente, que ");
+/** Una actividad por estaciones para varias secciones de comentar o revisar (revisor de g55, opción a). */
+export const actividadPorEstaciones = (t, secciones = []) => {
+  const verbo = t.clave === "revision_docente" ? "Revisan (en grupos, por estaciones) con la rúbrica" : "Comentan (en grupos, por estaciones)";
+  return `${verbo} cada sección y dejan su hoja por sección: ${secciones.map((x) => `«${x}»`).join(", ")}: ${String(t.entrega || "comentarios por sección").toLowerCase()}; queda en la carpeta.`;
+};
 export const actividadDeTarea = (t) => {
-  const seccion = t.secciones?.length === 1 ? ` Sección «${t.secciones[0]}»` : "";
-  const hace = conVerboInicial(String(t.instruccion || `Trabajan en ${t.nombre}.`).replace(/\s+Aún no [^.]*\./, "").replace(/\s+Es apoyo breve\./, ""));
-  return `${hace}${seccion ? `${seccion}:` : ""} ${String(t.entrega || "").toLowerCase()}; queda en la carpeta.`.replace(/\s+/g, " ").trim();
+  // Con el formato de las de la IA (revisor de g55): verbo + (modalidad) + tarea + sección con un ejemplo + «: entrega; destino».
+  const seccion = t.secciones?.length === 1 ? t.secciones[0] : "";
+  const org = String(t.organizacion || "");
+  const modalidad = /individual/i.test(org) ? "individual" : /pareja/i.test(org) ? "en parejas" : /grupo|equipo|estaci/i.test(org) ? "en grupos" : "";
+  let hace = conVerboInicial(String(t.instruccion || `Trabajan en ${t.nombre}.`).replace(/\s+Aún no [^.]*\./, "").replace(/\s+Es apoyo breve\./, ""))
+    .split(/(?<=\.)\s+/)[0].replace(/\.\s*$/, "");
+  if (modalidad && !/^\S+\s*\(/.test(hace)) hace = hace.replace(/^(\S+)/, `$1 (${modalidad})`);
+  const ejemplo = seccion ? ejemploDeSeccion(seccion) : "";
+  const deSeccion = seccion ? `, sección «${seccion}»${ejemplo ? ` (_${ejemplo}_)` : ""}` : "";
+  return `${hace}${deSeccion}: ${String(t.entrega || "").toLowerCase()}; queda en la carpeta.`.replace(/\s+/g, " ").trim();
 };
 const tareaConSeccion = (t) => `«${t.nombre}»${t.secciones.length === 1 ? ` de «${t.secciones[0]}»` : ""}`;
 const entregaDeTarea = (t, seccion) => (t.secciones.length === 1 && seccion ? `${t.entrega}: ${seccion}` : t.entrega);
@@ -1093,14 +1110,14 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       // Cada sección secundaria con tarea propia tiene su actividad en el Desarrollo, con su entrega (revisor de g50:
       // C10 no leía el «Welcome» a otro grupo); y la sección del título está en las dos primeras (C7 redactaba otra).
       const desarrolloTx = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
-      const sinActividad = seccionesSecundarias(filaMapa, (contrato.secciones || []).length)
-        .filter((sec) => !desarrolloTx.some((a) => seccionNombrada(sec, normalizar(a))));
+      const sinActividad = seccionesConActividad(filaMapa, (contrato.secciones || []).length)
+        .filter((sec) => !desarrolloTx.some((a) => seccionCubierta(sec, normalizar(a))));
       if (sinActividad.length) {
         const de = (sec) => filaMapa.tareas.find((t) => t.secciones.includes(sec));
         fallaRedaccion(idx, `falta una actividad del Desarrollo para cada sección secundaria: ${sinActividad.map((sec) => `«${sec}» (${de(sec)?.nombre} → ${de(sec)?.entrega})`).join("; ")}. Nombra la sección en esa actividad.`);
       }
       const principalTitulo = seccionPrincipal(filaMapa);
-      if (principalTitulo && !clase?.secuenciaAplicada && desarrolloTx.length >= 2 && !desarrolloTx.slice(0, 2).some((a) => seccionNombrada(principalTitulo, normalizar(a)))) {
+      if (principalTitulo && !clase?.secuenciaAplicada && desarrolloTx.length >= 2 && !desarrolloTx.slice(0, 2).some((a) => seccionCubierta(principalTitulo, normalizar(a)))) {
         fallaRedaccion(idx, `las dos primeras actividades del Desarrollo deben trabajar «${principalTitulo}», la sección del título de la clase.`);
       }
       // Ningún modelo repite el de otra clase, de esta fase o de las anteriores (revisor de g49).

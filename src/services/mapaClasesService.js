@@ -1314,6 +1314,14 @@ export const seccionesSecundarias = (fila = {}, total = 0) => {
     .flatMap((t) => t.secciones))].filter((s) => s !== principal);
 };
 export const TOPE_SECUNDARIAS = 2;
+// Comentar y revisar con la rúbrica se hacen por estaciones: cada sección con su entregable, sin tope (revisor de g55, opción a).
+export const TAREAS_POR_ESTACIONES = new Set(["comentar", "revision_docente"]);
+/** Secciones que necesitan actividad propia en la clase: las secundarias y las de comentar o revisar por estaciones. */
+export const seccionesConActividad = (fila = {}, total = 0) => {
+  const principal = seccionPrincipal(fila);
+  return [...new Set([...seccionesSecundarias(fila, total),
+    ...(fila.tareas || []).filter((t) => TAREAS_POR_ESTACIONES.has(t.clave)).flatMap((t) => t.secciones || [])])].filter((x) => x !== principal);
+};
 // Tareas de toda la clase (recorrido, encuesta, acuerdo, saberes previos, revisión): no son de una sección secundaria.
 export const TAREAS_COMPARTIDAS = /^(recorrer_|indagar_|acordar|saberes_|revision_|problema_)/;
 /**
@@ -1418,7 +1426,14 @@ export const modeloRepetido = (clase = {}, previos = []) => {
 /** La apertura de bienvenida («Welcome to Model School!») va solo en la clase 1 y en las de la sección de bienvenida o saludos. */
 export const bienvenidaFueraDeLugar = (clase = {}, fila = {}) => {
   if (fila.clase === 1 || /welcome|greet|bienven|salud/i.test(seccionPrincipal(fila))) return "";
-  return (clase?.textoModelo?.lineas || []).find((l) => /\bwelcome to\b/.test(lineaSinHablante(l))) || "";
+  // También el título del modelo (revisor de g55: «Final Recommendation: Welcome to Model School»).
+  return (clase?.textoModelo?.lineas || []).find((l) => /\bwelcome to\b/.test(lineaSinHablante(l)))
+    || (/\bwelcome to\b/i.test(String(clase?.textoModelo?.titulo || "")) ? String(clase.textoModelo.titulo) : "");
+};
+/** Título del modelo sin la bienvenida: «Final Recommendation: Welcome to Model School» → «Final Recommendation». */
+export const tituloSinBienvenida = (titulo = "", nombreModelo = "Model School") => {
+  const limpio = String(titulo).replace(/\s*[:—–-]?\s*welcome to [^:—–]*/i, "").replace(/\s*[:—–-]\s*$/, "").trim();
+  return limpio || nombreModelo;
 };
 // El modelo está en inglés: la sección se reconoce por sus palabras propias o por pistas de su función.
 const PISTAS_MODELO = {
@@ -1433,7 +1448,7 @@ const PALABRAS_COMUNES_SECCION = new Set(["school", "with", "your", "from", "the
 /** ¿El texto (normalizado, en inglés) del modelo es de la sección? Nombre, palabras propias (≥ 4 letras), inventario o pistas. */
 // Secciones del docente sin pistas propias: se reconocen por la palabra de su nombre (Frases del aula, g50).
 const PISTAS_POR_PALABRA = [[/greet|goodbye|welcome/, "hello|hi|good (morning|afternoon|evening)|goodbye|bye|see you|how are you|nice to meet"],
-  [/permission/, "may i|can i|could i|is it ok"], [/help|assist/, "help|can you|could you|i don'?t understand"],
+  [/permission/, "may|can i|could i|is it ok|permiso"], [/help|assist/, "help|can you|could you|i don'?t understand"],
   [/material/, "pencils?|pens?|books?|notebooks?|erasers?|rulers?|scissors|glue|paper|materials?"],
   [/instruction/, "please (sit|open|close|take|listen|write|read|work)|sit down|open your|close your|listen|raise your hand|work in"],
   [/polite|encourag/, "please|thank|sorry|excuse me|great job|well done|good job|you can do it"], [/comment|feedback/, "i agree|i think|sorry to interrupt|good idea"]];
@@ -1445,6 +1460,17 @@ export const modeloNombraSeccion = (seccion, textoNormal) => {
   if (propias.some((w) => new RegExp(`\\b${w.slice(0, Math.max(4, w.length - 2))}`).test(textoNormal))) return true;
   return PISTAS_MODELO[seccion] ? new RegExp(`\\b(${PISTAS_MODELO[seccion]})\\b`).test(textoNormal) : false;
 };
+// Un ejemplo en inglés de lo que dice cada sección, por la palabra de su nombre (actividad que escribe el código, g55).
+const EJEMPLO_POR_PALABRA = [[/greet|goodbye/, "Good morning!"], [/welcome/, "Welcome to our school!"], [/permission/, "May I go out?"],
+  [/help|assist/, "Could you help me, please?"], [/material/, "Can I borrow a pencil?"], [/instruction/, "Open your books, please."],
+  [/polite|encourag/, "Great job! Thank you."], [/direction/, "Go straight and turn left."], [/places?\b/, "This is the library."],
+  [/tips?\b|advice/, "You should ask questions."], [/recommend/, "We recommend…"], [/comment|feedback/, "I agree…"]];
+export const ejemploDeSeccion = (seccion = "") => EJEMPLO_POR_PALABRA.find(([r]) => r.test(normal(seccion)))?.[1] || "";
+/**
+ * ¿La actividad (texto normalizado) trabaja la sección? Por su nombre, por cómo la llama en español o por sus pistas en
+ * inglés (revisor de g55: «frases para pedir permiso» ya es Asking for Permission; no se añade otra actividad).
+ */
+export const seccionCubierta = (seccion, textoNormal) => modeloNombraSeccion(seccion, String(textoNormal || "").replace(/_/g, " "));
 /** Un ejemplo literal de la gramática de la malla copiado en la clase («May I speak to Rosa, please?»). Devuelve la frase o "". */
 export const ejemploDeMallaCopiado = (clase = {}, filas = []) => {
   const ejemplos = [...new Set(filas.flatMap((f) => f.contenidos || []).filter((c) => c.categoria === "gramatica")

@@ -11,7 +11,7 @@
  * PROHIBIDO: fallback a templates JS.
  */
 
-import { hojaDeRuta, seccionDelModelo, focoDeFila, seccionesSecundarias, seccionNombrada } from './mapaClasesService.js';
+import { hojaDeRuta, seccionDelModelo, focoDeFila, seccionesSecundarias, seccionesConActividad, seccionCubierta, TAREAS_POR_ESTACIONES } from './mapaClasesService.js';
 import { INVENTARIO_POR_SECCION } from '../data/tareasPorTipoTrabajo.js';
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
@@ -28,7 +28,7 @@ import { nivelCanonico } from '../data/fundamentoDoctrinalMINERD.js';
 import { ESTRATEGIAS_OFICIALES_TEXTO } from '../data/estrategiasOficialesMINERD.js';
 import { resolverNaturalezaArea } from '../data/naturalezaAreasMINERD.js';
 import { getFundamentoDoctrinal } from './fundamentoDoctrinalService.js';
-import { hechosDeClase, libretaDeHechos, aplicarSecuencias, aplicarFilasMapa, validarLoteContrato, pendientesDeClase, tareasSinActividad, actividadDeTarea, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
+import { hechosDeClase, libretaDeHechos, aplicarSecuencias, aplicarFilasMapa, validarLoteContrato, pendientesDeClase, tareasSinActividad, actividadDeTarea, actividadPorEstaciones, validarFaseCompleta, hiloPartenDe, VERBOS_POR_NIVEL, VERBOS_IDIOMA, VERBOS_GESTION, NIVEL_MINIMO_POR_ROL } from './redaccionFaseService.js';
 
 const MODULE_NAME  = 'planificacion';
 const BATCH_SIZE   = 2;
@@ -1852,7 +1852,7 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
       `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,
       // Una sección principal (la del título) y las secundarias, cada una con su actividad propia (revisor de g50).
       ...(seccionDelModelo(f) ? [`- Sección principal: «${seccionDelModelo(f)}» (la del título); las actividades 1 y 2 del Desarrollo la trabajan.`] : []),
-      ...(seccionesSecundarias(f, (c.secciones || []).length).length ? [`- Secciones secundarias: cada una lleva UNA actividad propia del Desarrollo que la nombra, con su entrega: ${seccionesSecundarias(f, (c.secciones || []).length).map((sec) => { const t = f.tareas.find((x) => x.secciones.includes(sec)); return `«${sec}» (${t?.nombre} → ${t?.entrega})`; }).join('; ')}.`] : []),
+      ...(seccionesConActividad(f, (c.secciones || []).length).length ? [`- Secciones secundarias: cada una lleva UNA actividad propia del Desarrollo que la nombra, con su entrega (comentar o revisar: por estaciones, cada sección con su hoja): ${seccionesConActividad(f, (c.secciones || []).length).map((sec) => { const t = f.tareas.find((x) => x.secciones.includes(sec)); return `«${sec}» (${t?.nombre} → ${t?.entrega})`; }).join('; ')}.`] : []),
       `- Recibe: ${f.recibe.length ? f.recibe.map((r) => `${r.texto}${r.clase ? ` (clase ${r.clase})` : ''}`).join('; ') : 'la situación de aprendizaje'}`,
       `- Entrega: ${f.entregas.join('; ')}`,
       // El texto modelo sale de la sección del título o, sin sección, de la estructura del día (revisión g48b).
@@ -2196,10 +2196,20 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         // Sección secundaria sin actividad tras el reintento (revisor de g50): el código escribe la de su tarea, con su entrega.
         if (desarrollo) {
           const texto = (desarrollo.actividades || []).map((a) => (typeof a === 'string' ? a : Object.values(a || {}).join(' '))).join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const sinActividad = seccionesSecundarias(filaMapa, (spec.contratoFase?.secciones || []).length).filter((sec) => !seccionNombrada(sec, texto));
+          const sinActividad = seccionesConActividad(filaMapa, (spec.contratoFase?.secciones || []).length).filter((sec) => !seccionCubierta(sec, texto));
+          // Las de comentar o revisar van juntas, en una actividad por estaciones; las demás, una por sección.
+          const deTarea = (sec) => filaMapa.tareas.find((x) => x.secciones.includes(sec) && x.secciones.length <= 3 && !/^(recorrer_|indagar_|acordar|saberes_|problema_)/.test(x.clave))
+            || filaMapa.tareas.find((x) => TAREAS_POR_ESTACIONES.has(x.clave) && x.secciones.includes(sec));
+          const porEstaciones = new Map();
           sinActividad.forEach((sec) => {
-            const t = filaMapa.tareas.find((x) => x.secciones.includes(sec));
+            const t = deTarea(sec);
+            if (!t) return;
+            if (TAREAS_POR_ESTACIONES.has(t.clave)) { porEstaciones.set(t, [...(porEstaciones.get(t) || []), sec]); return; }
             desarrollo.actividades.push(actividadDeTarea({ ...t, secciones: [sec] }));
+            if (Array.isArray(clase.tareaIdsDesarrollo)) clase.tareaIdsDesarrollo.push(`T${filaMapa.tareas.indexOf(t) + 1}`);
+          });
+          porEstaciones.forEach((secs, t) => {
+            desarrollo.actividades.push(actividadPorEstaciones(t, secs));
             if (Array.isArray(clase.tareaIdsDesarrollo)) clase.tareaIdsDesarrollo.push(`T${filaMapa.tareas.indexOf(t) + 1}`);
           });
           if (sinActividad.length) {

@@ -11,7 +11,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
-  focoDeFila, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
+  focoDeFila, seccionCubierta, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
   diagnosticoDeActividades, conTildesCorregidas, OBSERVACIONES_FASE, muestraDeAudiencia, esBancoDeFrases,
   seccionNombrada, modeloNombraSeccion,
 } from "../src/services/mapaClasesService.js";
@@ -345,9 +345,9 @@ const invariantesJson = {
   "Secundaria-actividad": (g) => g.reglasModelo < 3 ? "" : g.dias.map((d, i) => {
     const total = (g.secciones || []).length;
     const principal = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).find((x) => (g.secciones || []).includes(x)) || "";
-    const secundarias = [...new Set((d.tareasMapa || []).filter((t) => t.secciones.length && t.secciones.length <= 3 && (!total || t.secciones.length < total) && !/^(recorrer_|indagar_|acordar|saberes_|revision_|problema_)/.test(t.clave)).flatMap((t) => t.secciones))].filter((x) => x !== principal);
+    const secundarias = [...new Set((d.tareasMapa || []).filter((t) => ["comentar", "revision_docente"].includes(t.clave) || (t.secciones.length && t.secciones.length <= 3 && (!total || t.secciones.length < total) && !/^(recorrer_|indagar_|acordar|saberes_|revision_|problema_)/.test(t.clave))).flatMap((t) => t.secciones))].filter((x) => x !== principal);
     const texto = normal(((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).map(String).join(" "));
-    const faltan = secundarias.filter((x) => !seccionNombrada(x, texto));
+    const faltan = secundarias.filter((x) => !seccionCubierta(x, texto));
     return faltan.length ? `C${i + 1}: ${faltan.join(" / ")}` : "";
   }).filter(Boolean).join(", "),
   "Desarrollo ≥ 3": (g) => g.reglasModelo < 2 ? "" : g.dias.map((d, i) => ((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).length < 3 ? `C${i + 1}` : "").filter(Boolean).join(", "),
