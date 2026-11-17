@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, seccionesSecundarias, seccionesConActividad, seccionPrincipal, seccionNombrada, seccionCubierta, ejemploDeSeccion, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, seccionesSecundarias, seccionesConActividad, seccionPrincipal, seccionNombrada, seccionCubierta, actividadCubreTarea, ejemploDeSeccion, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
 import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA, FRASES_POR_FUNCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -711,18 +711,16 @@ export const tareasSinActividad = (clase, fila) => {
   if (!fila || fila.flexible || clase?.secuenciaAplicada) return [];
   const actividades = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map((a) => normalizar(textoComoCadena(a)));
   const repetida = (t) => fila.tareas.filter((x) => x.clave === t.clave).length > 1;
-  // Palabras de la entrega («pieza redactada», «comentarios del otro grupo»): con la sección, cuentan como la tarea (g55).
-  const deEntrega = (t) => normalizar(t.entrega).split(/[^a-z]+/).filter((w) => w.length >= 6).map((w) => w.slice(0, 5));
   return fila.tareas.filter((t) => {
     if (!t.senal || t.paralelo || DETALLE_TAREA[t.clave]?.noSeReclama) return false;
     const accion = new RegExp(t.senal);
     const pideSeccion = repetida(t) && [].concat(t.demuestra).includes("P");
     const conSeccion = t.secciones.length >= 1 && t.secciones.length <= 3;
     return !actividades.some((a) => {
-      const nombrada = t.secciones.some((s) => nombraSeccion(a, s) || seccionCubierta(s, a));
+      const nombrada = t.secciones.some((s) => nombraSeccion(a, s) || seccionCubierta(s, a, fila.secciones || []));
       if (accion.test(a)) return !pideSeccion || NOMBRA_TODAS.test(a) || nombrada;
-      // Sin la señal literal: la actividad nombra la sección y hace lo que la tarea entrega.
-      return conSeccion && nombrada && deEntrega(t).some((w) => a.includes(w));
+      // Sin la señal literal: la actividad trabaja la sección (pista exclusiva) con el verbo de su estado o su entrega.
+      return conSeccion && t.secciones.some((s) => actividadCubreTarea(a, t, s, fila.secciones || []));
     });
   });
 };
@@ -1110,14 +1108,15 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       // Cada sección secundaria con tarea propia tiene su actividad en el Desarrollo, con su entrega (revisor de g50:
       // C10 no leía el «Welcome» a otro grupo); y la sección del título está en las dos primeras (C7 redactaba otra).
       const desarrolloTx = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
+      // Por pista exclusiva de la sección y con el verbo de su estado: en borrador, redactar (revisor de g56).
+      const de = (sec) => filaMapa.tareas.find((t) => t.secciones.includes(sec) && t.secciones.length <= 3) || filaMapa.tareas.find((t) => t.secciones.includes(sec));
       const sinActividad = seccionesConActividad(filaMapa, (contrato.secciones || []).length)
-        .filter((sec) => !desarrolloTx.some((a) => seccionCubierta(sec, normalizar(a))));
+        .filter((sec) => !desarrolloTx.some((a) => actividadCubreTarea(normalizar(a), de(sec), sec, contrato.secciones || [])));
       if (sinActividad.length) {
-        const de = (sec) => filaMapa.tareas.find((t) => t.secciones.includes(sec));
         fallaRedaccion(idx, `falta una actividad del Desarrollo para cada sección secundaria: ${sinActividad.map((sec) => `«${sec}» (${de(sec)?.nombre} → ${de(sec)?.entrega})`).join("; ")}. Nombra la sección en esa actividad.`);
       }
       const principalTitulo = seccionPrincipal(filaMapa);
-      if (principalTitulo && !clase?.secuenciaAplicada && desarrolloTx.length >= 2 && !desarrolloTx.slice(0, 2).some((a) => seccionCubierta(principalTitulo, normalizar(a)))) {
+      if (principalTitulo && !clase?.secuenciaAplicada && desarrolloTx.length >= 2 && !desarrolloTx.slice(0, 2).some((a) => seccionCubierta(principalTitulo, normalizar(a), contrato.secciones || []))) {
         fallaRedaccion(idx, `las dos primeras actividades del Desarrollo deben trabajar «${principalTitulo}», la sección del título de la clase.`);
       }
       // Ningún modelo repite el de otra clase, de esta fase o de las anteriores (revisor de g49).

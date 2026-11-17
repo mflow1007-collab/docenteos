@@ -11,7 +11,7 @@
  * PROHIBIDO: fallback a templates JS.
  */
 
-import { hojaDeRuta, seccionDelModelo, focoDeFila, seccionesSecundarias, seccionesConActividad, seccionCubierta, TAREAS_POR_ESTACIONES } from './mapaClasesService.js';
+import { hojaDeRuta, seccionDelModelo, focoDeFila, seccionesSecundarias, seccionesConActividad, actividadCubreTarea, TAREAS_POR_ESTACIONES, ejemploDeSeccion } from './mapaClasesService.js';
 import { INVENTARIO_POR_SECCION } from '../data/tareasPorTipoTrabajo.js';
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
@@ -1857,7 +1857,7 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
       `- Entrega: ${f.entregas.join('; ')}`,
       // El texto modelo sale de la sección del título o, sin sección, de la estructura del día (revisión g48b).
       ...(spec.esIdioma ? [seccionDelModelo(f)
-        ? `- "textoModelo": de la sección «${seccionDelModelo(f)}» (la del título de la clase): sus líneas usan la estructura del día (${focoDeFila(f, filasLote || [])}) y el vocabulario de la sección.`
+        ? `- "textoModelo": de la sección «${seccionDelModelo(f)}» (la del título de la clase): sus líneas usan la estructura del día (${focoDeFila(f, filasLote || [])}) y el vocabulario de la sección${ejemploDeSeccion(seccionDelModelo(f)) ? ` (p. ej. "${ejemploDeSeccion(seccionDelModelo(f))}")` : ''}; no es un diálogo de las secciones secundarias de la clase.`
         : `- "textoModelo": muestra la estructura del día (${focoDeFila(f, filasLote || [])}), no un diálogo de otra función.`,
       // Ningún modelo repite el de otra clase; la bienvenida solo en la clase 1 y en la sección de bienvenida (revisor de g49).
       `- "textoModelo" es nuevo: no repite líneas del modelo de otra clase${f.clase !== 1 && !/welcome|greet/i.test(seccionDelModelo(f)) ? ' y no abre con «Welcome to…»' : ''}.`] : []),
@@ -2185,32 +2185,49 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
         const clase = result.data.clases[0];
         const faltan = tareasSinActividad(clase, filaMapa);
         const desarrollo = (clase.momentos || []).find((m) => m?.nombre === 'Desarrollo');
+        // La actividad del código va detrás de las de su tarea y de las anteriores, dentro de su fase (revisor de g56).
+        const insertar = (texto, t) => {
+          const k = filaMapa.tareas.indexOf(t);
+          const ids = Array.isArray(clase.tareaIdsDesarrollo) && clase.tareaIdsDesarrollo.length === desarrollo.actividades.length ? clase.tareaIdsDesarrollo : null;
+          let pos = desarrollo.actividades.length;
+          if (ids) {
+            const ultima = ids.reduce((acc, id, j) => ((Number(String(id).slice(1)) - 1) <= k ? j : acc), -1);
+            pos = ultima + 1;
+          }
+          desarrollo.actividades.splice(pos, 0, texto);
+          if (ids) ids.splice(pos, 0, `T${k + 1}`);
+          else if (Array.isArray(clase.tareaIdsDesarrollo)) clase.tareaIdsDesarrollo.push(`T${k + 1}`);
+        };
         if (faltan.length && desarrollo) {
-          faltan.forEach((t) => {
-            desarrollo.actividades.push(actividadDeTarea(t));
-            if (Array.isArray(clase.tareaIdsDesarrollo)) clase.tareaIdsDesarrollo.push(`T${filaMapa.tareas.indexOf(t) + 1}`);
-          });
+          faltan.forEach((t) => insertar(actividadDeTarea(t), t));
           clase.avisosRedaccion = clase.avisosRedaccion.filter((m) => !/falta la tarea/.test(m));
           clase.avisosRedaccion.push(`clase 1 — ℹ código: se añadió la actividad que faltaba: ${faltan.map((t) => `«${t.nombre}»`).join(", ")}`);
         }
         // Sección secundaria sin actividad tras el reintento (revisor de g50): el código escribe la de su tarea, con su entrega.
         if (desarrollo) {
-          const texto = (desarrollo.actividades || []).map((a) => (typeof a === 'string' ? a : Object.values(a || {}).join(' '))).join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const sinActividad = seccionesConActividad(filaMapa, (spec.contratoFase?.secciones || []).length).filter((sec) => !seccionCubierta(sec, texto));
           // Las de comentar o revisar van juntas, en una actividad por estaciones; las demás, una por sección.
           const deTarea = (sec) => filaMapa.tareas.find((x) => x.secciones.includes(sec) && x.secciones.length <= 3 && !/^(recorrer_|indagar_|acordar|saberes_|problema_)/.test(x.clave))
             || filaMapa.tareas.find((x) => TAREAS_POR_ESTACIONES.has(x.clave) && x.secciones.includes(sec));
+          const seccionesUnidad = spec.contratoFase?.secciones || [];
+          const normalTx = (a) => (typeof a === 'string' ? a : Object.values(a || {}).join(' ')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const textos = (desarrollo.actividades || []).map(normalTx);
+          const sinActividad = seccionesConActividad(filaMapa, seccionesUnidad.length)
+            .filter((sec) => !textos.some((a) => actividadCubreTarea(a, deTarea(sec) || {}, sec, seccionesUnidad)));
           const porEstaciones = new Map();
           sinActividad.forEach((sec) => {
             const t = deTarea(sec);
             if (!t) return;
             if (TAREAS_POR_ESTACIONES.has(t.clave)) { porEstaciones.set(t, [...(porEstaciones.get(t) || []), sec]); return; }
-            desarrollo.actividades.push(actividadDeTarea({ ...t, secciones: [sec] }));
-            if (Array.isArray(clase.tareaIdsDesarrollo)) clase.tareaIdsDesarrollo.push(`T${filaMapa.tareas.indexOf(t) + 1}`);
+            insertar(actividadDeTarea({ ...t, secciones: [sec] }), t);
           });
+          // Estaciones: la actividad genérica de la IA («cada sección», «por estaciones») se REEMPLAZA por la que nombra
+          // todas las secciones de la tarea; solo si no hay ninguna, se añade (revisor de g56: C9 act. 1 ≈ act. 5).
+          const GENERICA = /\b(cada (seccion|estacion|pieza)|por estaciones|estaciones|las secciones|las piezas)\b/;
           porEstaciones.forEach((secs, t) => {
-            desarrollo.actividades.push(actividadPorEstaciones(t, secs));
-            if (Array.isArray(clase.tareaIdsDesarrollo)) clase.tareaIdsDesarrollo.push(`T${filaMapa.tareas.indexOf(t) + 1}`);
+            const senal = t.senal ? new RegExp(t.senal) : /coment|revis|rubric/;
+            const j = desarrollo.actividades.findIndex((a) => GENERICA.test(normalTx(a)) && senal.test(normalTx(a)));
+            if (j >= 0) desarrollo.actividades[j] = actividadPorEstaciones(t, t.secciones);
+            else insertar(actividadPorEstaciones(t, secs), t);
           });
           if (sinActividad.length) {
             clase.avisosRedaccion = clase.avisosRedaccion.filter((m) => !/sección secundaria/.test(m));

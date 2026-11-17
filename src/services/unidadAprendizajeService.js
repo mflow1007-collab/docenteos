@@ -6521,8 +6521,10 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       // La actividad de una sección que escribió el código tiene al menos 5 min, tomados de la más larga sin dejarla
       // por debajo de 5 (revisor de g55: 2 min para «Asking for Permission»).
       const delCodigo = (a) => /(, sección «[^»]+»[^:]*|por estaciones\).*): [^;]+; queda en la carpeta\.$/.test(String(typeof a === "string" ? a : a?.texto || ""));
+      // Con 5 actividades o más, también las de la IA (revisor de g56: «Anotan mejoras» 3 min en Frases C9).
+      const conMinimo = (a) => delCodigo(a) || desarrollo.actividades.length >= 5;
       desarrollo.actividades.forEach((a, k) => {
-        if (!delCodigo(a) || (minutos[k] || 0) >= 5) return;
+        if (!conMinimo(a) || (minutos[k] || 0) >= 5) return;
         let falta = 5 - (minutos[k] || 0);
         while (falta > 0) {
           const donante = minutos.map((m, j) => [m, j]).filter(([m, j]) => j !== k && m > 5).sort((x, y) => y[0] - x[0])[0];

@@ -1448,7 +1448,7 @@ const PALABRAS_COMUNES_SECCION = new Set(["school", "with", "your", "from", "the
 /** ¿El texto (normalizado, en inglés) del modelo es de la sección? Nombre, palabras propias (≥ 4 letras), inventario o pistas. */
 // Secciones del docente sin pistas propias: se reconocen por la palabra de su nombre (Frases del aula, g50).
 const PISTAS_POR_PALABRA = [[/greet|goodbye|welcome/, "hello|hi|good (morning|afternoon|evening)|goodbye|bye|see you|how are you|nice to meet"],
-  [/permission/, "may|can i|could i|is it ok|permiso"], [/help|assist/, "help|can you|could you|i don'?t understand"],
+  [/permission/, "(may|can|could) i (go|leave|use|borrow|have|open|close|sit|come|take|get|drink|turn|work|change)|is it ok|permiso"], [/help|assist/, "help|can you|could you|i don'?t understand"],
   [/material/, "pencils?|pens?|books?|notebooks?|erasers?|rulers?|scissors|glue|paper|materials?"],
   [/instruction/, "please (sit|open|close|take|listen|write|read|work)|sit down|open your|close your|listen|raise your hand|work in"],
   [/polite|encourag/, "please|thank|sorry|excuse me|great job|well done|good job|you can do it"], [/comment|feedback/, "i agree|i think|sorry to interrupt|good idea"]];
@@ -1470,7 +1470,55 @@ export const ejemploDeSeccion = (seccion = "") => EJEMPLO_POR_PALABRA.find(([r])
  * ¿La actividad (texto normalizado) trabaja la sección? Por su nombre, por cómo la llama en español o por sus pistas en
  * inglés (revisor de g55: «frases para pedir permiso» ya es Asking for Permission; no se añade otra actividad).
  */
-export const seccionCubierta = (seccion, textoNormal) => modeloNombraSeccion(seccion, String(textoNormal || "").replace(/_/g, " "));
+// Alternativas de nivel superior de una expresión («a|b (c|d)» → «a», «b (c|d)»), para ver qué pista concreta encaja.
+const alternativas = (fuente = "") => {
+  const partes = []; let nivel = 0; let actual = "";
+  for (const ch of String(fuente)) {
+    if (ch === "(") nivel += 1; else if (ch === ")") nivel -= 1;
+    if (ch === "|" && nivel === 0) { partes.push(actual); actual = ""; } else actual += ch;
+  }
+  partes.push(actual);
+  return partes.filter(Boolean);
+};
+/** Pistas de una sección, una por una: nombres en español, acción, pistas en inglés y palabras propias del nombre. */
+const pistasDeSeccion = (seccion = "") => {
+  const n = normal(seccion);
+  const fuentes = [
+    ...(INVENTARIO_POR_SECCION[seccion]?.nombres ? alternativas(INVENTARIO_POR_SECCION[seccion].nombres) : []),
+    ...FUNCION_Y_SECCION.filter(([, b]) => b.test(n)).flatMap(([a]) => alternativas(a.source)),
+    ...(PISTAS_MODELO[seccion] ? alternativas(PISTAS_MODELO[seccion]) : []),
+    ...PISTAS_POR_PALABRA.filter(([r]) => r.test(n)).flatMap(([, p]) => alternativas(p)),
+    ...n.split(/[^a-z]+/).filter((w) => w.length >= 4 && !PALABRAS_COMUNES_SECCION.has(w)).map((w) => w.slice(0, Math.max(4, w.length - 2))),
+  ];
+  return [...new Set(fuentes)].map((f) => { try { return new RegExp(`\\b(${f})`); } catch { return null; } }).filter(Boolean);
+};
+/**
+ * ¿La actividad (texto normalizado) trabaja la sección? Por su nombre exacto, o por una pista EXCLUSIVA de ella entre las
+ * secciones del producto (revisor de g56: «consejos» es de School Success Tips y de Final Recommendation, y «May I…?»
+ * de Asking for Permission y de Politeness: no cuentan para ninguna). Sin la lista de secciones, todas sus pistas.
+ */
+export const seccionCubierta = (seccion, textoNormal, secciones = []) => {
+  const t = String(textoNormal || "").replace(/_/g, " ").replace(/[’‘]/g, "'");
+  if (t.includes(normal(seccion))) return true;
+  const otras = secciones.filter((x) => x !== seccion).map(pistasDeSeccion);
+  return pistasDeSeccion(seccion).some((r) => {
+    const m = t.match(r);
+    return m && !otras.some((ps) => ps.some((r2) => r2.test(m[0])));
+  });
+};
+// Tareas cuyo estado es el borrador: la actividad que las cubre redacta (elegir o justificar no es borrador, g56a C7).
+// Las que escriben una pieza (no corregir ni revisar el nivel, que también demuestran producto).
+const TAREAS_DE_BORRADOR = /^(describir_redactar|analizar_borrador|proponer_elaborar|socializar_redactar|aplicar_escribir|orientar_instrucciones|visitar_guion)$/;
+const VERBO_DE_BORRADOR = /\b(redact|escrib|elabor|reescrib|complet|corrig)/;
+/** ¿La actividad hace la tarea de esa sección? La sección (pista exclusiva) y el verbo o la entrega de su estado. */
+export const actividadCubreTarea = (textoNormal, t = {}, seccion = "", secciones = []) => {
+  const a = String(textoNormal || "");
+  if (!seccionCubierta(seccion, a, secciones)) return false;
+  if (TAREAS_DE_BORRADOR.test(t.clave || "")) return VERBO_DE_BORRADOR.test(a);
+  // Palabras propias de la entrega: «sección», «versión» o «borrador» están en casi todas y no prueban nada.
+  const entrega = normal(t.entrega || "").split(/[^a-z]+/).filter((w) => w.length >= 6 && !/^(seccion|secciones|version|borrador|producto|piezas?|carpeta|grupos?)$/.test(w)).map((w) => w.slice(0, 5));
+  return (t.senal ? new RegExp(t.senal).test(a) : false) || entrega.some((w) => a.includes(w)) || (!t.senal && !entrega.length);
+};
 /** Un ejemplo literal de la gramática de la malla copiado en la clase («May I speak to Rosa, please?»). Devuelve la frase o "". */
 export const ejemploDeMallaCopiado = (clase = {}, filas = []) => {
   const ejemplos = [...new Set(filas.flatMap((f) => f.contenidos || []).filter((c) => c.categoria === "gramatica")

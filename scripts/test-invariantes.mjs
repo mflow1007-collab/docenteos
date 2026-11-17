@@ -347,8 +347,15 @@ const invariantesJson = {
     const principal = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).find((x) => (g.secciones || []).includes(x)) || "";
     const secundarias = [...new Set((d.tareasMapa || []).filter((t) => ["comentar", "revision_docente"].includes(t.clave) || (t.secciones.length && t.secciones.length <= 3 && (!total || t.secciones.length < total) && !/^(recorrer_|indagar_|acordar|saberes_|revision_|problema_)/.test(t.clave))).flatMap((t) => t.secciones))].filter((x) => x !== principal);
     const texto = normal(((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).map(String).join(" "));
-    const faltan = secundarias.filter((x) => !seccionCubierta(x, texto));
+    const faltan = secundarias.filter((x) => !seccionCubierta(x, texto, g.secciones || []));
     return faltan.length ? `C${i + 1}: ${faltan.join(" / ")}` : "";
+  }).filter(Boolean).join(", "),
+  // Revisor de g56: cada tarea de borrador tiene una actividad que redacta y nombra su sección (pista exclusiva).
+  "Borrador-sección": (g) => g.reglasModelo < 3 ? "" : g.dias.map((d, i) => {
+    const actividades = ((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).map((a) => normal(String(a)));
+    const faltan = (d.tareasMapa || []).filter((t) => /^(describir_redactar|analizar_borrador|proponer_elaborar|socializar_redactar|aplicar_escribir|orientar_instrucciones)$/.test(t.clave) && t.secciones.length <= 3)
+      .flatMap((t) => t.secciones).filter((x) => !actividades.some((a) => /\b(redact|escrib|elabor|reescrib|complet|corrig)/.test(a) && seccionCubierta(x, a, g.secciones || [])));
+    return faltan.length ? `C${i + 1}: ${[...new Set(faltan)].join(" / ")}` : "";
   }).filter(Boolean).join(", "),
   "Desarrollo ≥ 3": (g) => g.reglasModelo < 2 ? "" : g.dias.map((d, i) => ((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).length < 3 ? `C${i + 1}` : "").filter(Boolean).join(", "),
   "I-13": (g, u) => {
