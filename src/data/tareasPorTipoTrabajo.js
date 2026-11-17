@@ -194,9 +194,9 @@ export const INVENTARIO_POR_SECCION = {
   "Healthy Choices": { evidencia: "Etiquetas «Healthy pick»", nombres: "healthy pick|etiquetas|tabla de comparacion", necesita: ["platos", "ingredientes"] },
   "Ordering Food": { evidencia: "Guía para pedir", nombres: "guia|pedid", necesita: ["platos", "precios"], pruebaConAudiencia: "pedid|pedir|orden|order|can i have|i ll have|i'll have" },
   // Escuela y educación
-  "Important Places": { evidencia: "Fichas de lugares", nombres: "fichas? de lugares|lugares importantes|lugar del centro", recoge: ["lugares", "función del lugar", "personas"] },
+  "Important Places": { evidencia: "Fichas de lugares", nombres: "fichas? de lugares|lugares importantes|lugar(es)? (del centro|de la escuela|escolares)", recoge: ["lugares", "función del lugar", "personas"] },
   "School Directions": { evidencia: "Plano con rutas e indicaciones", nombres: "plano|rutas?|indicaciones|instrucciones|direcciones", necesita: ["lugares"], recoge: ["rutas"], pruebaConAudiencia: "gui|acompa|indic|camino" },
-  "Asking for Help": { evidencia: "Tarjeta de bolsillo", nombres: "tarjeta de bolsillo|(pedir|ofrecer|solicitar) ayuda", necesita: ["lugares", "personas"] },
+  "Asking for Help": { evidencia: "Tarjeta de bolsillo", nombres: "tarjeta de bolsillo|(pedir|pidiendo|piden|ofrecer|ofreciendo|ofrecen|solicitar|solicitan)( y \\w+)? ayuda", necesita: ["lugares", "personas"] },
   "School Success Tips": { evidencia: "Póster «Top tips»", nombres: "consejos|top tips|poster", necesita: ["lugares"] },
   "Welcome": { evidencia: "Carta de bienvenida", nombres: "bienvenida", necesita: ["lugares"] },
   "Final Recommendation": { evidencia: "Párrafo de cierre", nombres: "recomendaci(on|ones)|parrafos? de cierre" },

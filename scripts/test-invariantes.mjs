@@ -341,6 +341,15 @@ const invariantesJson = {
     const fuera = JSON.stringify({ ...json, avisosRedaccion: [], advertencias: [], anexos: { ...(json.anexos || {}), recursosTecnologicosPrevistos: null } }).match(/[^"]{0,30}\bdigital(es)?\b[^"]{0,20}/gi) || [];
     return fuera.length ? `${fuera.length}: ${fuera[0]}` : "";
   },
+  // Revisor de g50 (reglasModelo ≥ 3): cada sección secundaria con tarea propia tiene su actividad en el Desarrollo.
+  "Secundaria-actividad": (g) => g.reglasModelo < 3 ? "" : g.dias.map((d, i) => {
+    const total = (g.secciones || []).length;
+    const principal = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).find((x) => (g.secciones || []).includes(x)) || "";
+    const secundarias = [...new Set((d.tareasMapa || []).filter((t) => t.secciones.length && t.secciones.length <= 3 && (!total || t.secciones.length < total) && !/^(recorrer_|indagar_|acordar|saberes_|revision_|problema_)/.test(t.clave)).flatMap((t) => t.secciones))].filter((x) => x !== principal);
+    const texto = normal(((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).map(String).join(" "));
+    const faltan = secundarias.filter((x) => !seccionNombrada(x, texto));
+    return faltan.length ? `C${i + 1}: ${faltan.join(" / ")}` : "";
+  }).filter(Boolean).join(", "),
   "Desarrollo ≥ 3": (g) => g.reglasModelo < 2 ? "" : g.dias.map((d, i) => ((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).length < 3 ? `C${i + 1}` : "").filter(Boolean).join(", "),
   "I-13": (g, u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma)).map((f) => f.clase);

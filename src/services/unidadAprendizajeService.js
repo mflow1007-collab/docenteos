@@ -6255,8 +6255,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     metadatos: {
       // Versión del código que generó la unidad: el pie del administrador la muestra (revisor, 2026-11-11).
       versionGenerador: versionDeBuild(),
-      // Reglas del texto modelo vigentes al generar: 1 = Modelo-sección (g48b); 2 = sección principal, estructura, sin repetidos ni digital (g49).
-      reglasModelo: 2,
+      // Reglas del texto modelo vigentes al generar: 1 = Modelo-sección (g48b); 2 = sección principal, estructura, sin repetidos ni digital (g49); 3 = cobertura de secciones y secundarias con actividad (g50).
+      reglasModelo: 3,
       titulo, grado, seccion, area, asignatura: asignaturaEf,
       nivel, ciclo, modalidad, jornada,
       duracion: `${numSemanas} semanas / ${numSemanas * horasSemanales} horas clase (${durMinEf} min c/u)`,
@@ -6485,6 +6485,15 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       }
       if (!desarrollo?.actividades?.length) return;
       const total = Number.parseInt(String(desarrollo.tiempo || ""), 10) || 0;
+      // Con mapa, el Desarrollo tiene al menos 3 actividades (revisor de g49): si la IA dejó 2 tras su reintento, el código
+      // añade la comprobación con los criterios de éxito, que vale para cualquier tarea, y los minutos se reparten con tope.
+      if (d.tareasMapa?.length && desarrollo.actividades.length < 3) {
+        const comprobar = "Comprueban (en parejas) lo hecho con los criterios de éxito de la clase y anotan una mejora para la próxima versión.";
+        desarrollo.actividades = [...desarrollo.actividades, typeof desarrollo.actividades[0] === "string" ? comprobar : { ...desarrollo.actividades[0], texto: comprobar }];
+        if (Array.isArray(d.tareaIdsDesarrollo) && d.tareaIdsDesarrollo.length) d.tareaIdsDesarrollo = [...d.tareaIdsDesarrollo, d.tareaIdsDesarrollo[d.tareaIdsDesarrollo.length - 1]];
+        if (Array.isArray(d.minutosSecuencia)) d.minutosSecuencia = null;
+        avisosClaseFinal.push(`clase ${i + 1}: ℹ código: el Desarrollo tenía menos de 3 actividades; se añadió la comprobación con los criterios de éxito`);
+      }
       // Con mapa y una actividad por tarea, los minutos son los de la fila.
       const soloAcuerdo = d.tareasMapa?.length === 1 && d.tareasMapa[0].clave === "acordar";
       const tareaIds = d.tareaIdsDesarrollo?.length === desarrollo.actividades.length ? d.tareaIdsDesarrollo : [];

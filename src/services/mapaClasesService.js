@@ -1091,8 +1091,10 @@ export const focoDeFila = (fila = {}, filas = [], { heredada = false } = {}) => 
     // la gramática de la malla que sirve a la sección, si la hay (pedir ayuda: can, may y could).
     if (principal && funcion === deSeccion) {
       const regla = SECCION_Y_GRAMATICA.find(([sec]) => sec.test(normal(principal)));
-      const suya = regla && filas.flatMap((f) => f.contenidos || []).find((c) => c.categoria === "gramatica" && regla[1].test(c.texto.split(":")[0]));
-      const nombre = suya ? suya.texto.split(":")[0].replace(/\s+(para|en contexto)\b.*$/, "").replace(/\s*\/\s*/g, " / ").trim().toLowerCase() : "presente simple";
+      const gramaticas = filas.flatMap((f) => f.contenidos || []).filter((c) => c.categoria === "gramatica");
+      // Hasta dos estructuras de la malla que sirven a la sección (un consejo: should o imperativo, g54a).
+      const suyas = regla ? [...new Set(regla[1].map((r) => gramaticas.find((c) => r.test(c.texto.split(":")[0]))).filter(Boolean))].slice(0, 2) : [];
+      const nombre = suyas.length ? suyas.map((g) => g.texto.split(":")[0].replace(/\s+(para|en contexto)\b.*$/, "").replace(/\s*\/\s*/g, " / ").trim().toLowerCase()).join(", ") : "presente simple";
       return `${funcion}: ${nombre}`;
     }
     // Describir u ordenar datos usa el presente simple que la malla da para este tema, no el ejemplo de otro.
@@ -1232,7 +1234,8 @@ const FUNCION_Y_SECCION = [[/ayuda/, /help|assist/], [/permiso/, /permission/], 
   [/instruc|indicaci|direcci/, /instruction|direction/], [/consejo|sugerenc|recomend/, /tips?\b|advice|recommend/], [/cortes|anim|elogi/, /polite|encourag/],
   [/opini|comentar/, /comment|opinion/], [/lugar/, /places?\b/], [/material/, /material/]];
 // Sección del producto ↔ gramática de la malla que la sirve.
-const SECCION_Y_GRAMATICA = [[/help|assist|permission/, /\b(can|could|may)\b/i], [/tips?\b|advice|recommend/, /\b(should|let|why don|imperativo|condicional)/i]];
+// En orden de preferencia: un consejo se da con «should» antes que con el imperativo (g52a).
+const SECCION_Y_GRAMATICA = [[/help|assist|permission/, [/\b(can|could|may)\b/i]], [/tips?\b|advice|recommend/, [/\bshould\b/i, /\blet/i, /\bwhy don/i, /condicional/i, /imperativo/i]]];
 const funcionDeFila = (fila = {}) => String((fila.contenidos || []).find((c) => c.categoria === "funcionales")?.texto || "").replace(/^Funcional:\s*/i, "").trim();
 /** ¿La función (o la etiqueta) es de la sección? Por su nombre, su inventario o la acción. */
 export const funcionEsDeSeccion = (funcion = "", seccion = "") => {
@@ -1248,11 +1251,102 @@ const tareaConSeccion = (t) => t && !SIN_SECCION.has(t.clave) && (t.secciones ||
  * "" si la clase trabaja el producto entero o no tiene sección.
  */
 export const seccionPrincipal = (fila = {}) => {
+  // La fija el mapa con el reparto de toda la unidad (asignarPrincipales); sin reparto, se calcula aquí.
+  if (typeof fila.seccionPrincipal === "string" && (!fila.seccionPrincipal
+    || (fila.tareas || []).some((x) => tareaConSeccion(x) && x.secciones.includes(fila.seccionPrincipal)))) return fila.seccionPrincipal;
+  return opcionesPrincipales(fila)[0] || "";
+};
+/**
+ * Secciones que pueden ser la principal de la clase, de la dominante a la menor: la que más minutos ocupa (el título
+ * dice lo que la clase hace, revisor de g50: C5 comparaba 23 min «Final Recommendation» y se titulaba «Asking for Help»);
+ * empate: la de la función de la fila, luego el orden de las tareas. Vacío si la clase reúne el producto o empieza
+ * con una tarea de todo el producto.
+ */
+export const opcionesPrincipales = (fila = {}) => {
   const t = (fila.tareas || []).find((x) => x.clave === "integrar") || fila.tareas?.[0];
-  if (!t || SIN_SECCION.has(t.clave)) return "";
+  if (!t || SIN_SECCION.has(t.clave)) return [];
   const funcion = funcionDeFila(fila);
-  const porFuncion = (fila.tareas || []).filter(tareaConSeccion).flatMap((x) => x.secciones).find((s) => funcionEsDeSeccion(funcion, s));
-  return porFuncion || (tareaConSeccion(t) ? t.secciones[0] : "");
+  const minutos = new Map();
+  (fila.tareas || []).filter(tareaConSeccion).forEach((x) => x.secciones.forEach((sec) => minutos.set(sec, (minutos.get(sec) || 0) + (Number(x.minutos) || 0) / x.secciones.length)));
+  const orden = [...minutos.keys()];
+  return orden.sort((a, b) => (minutos.get(b) - minutos.get(a)) || (Number(funcionEsDeSeccion(funcion, b)) - Number(funcionEsDeSeccion(funcion, a))) || (orden.indexOf(a) - orden.indexOf(b)));
+};
+/**
+ * Reparto de las secciones principales en toda la unidad (revisor de g50): cada sección es principal al menos una vez,
+ * de preferencia en la clase de su borrador. Primero la de cada clase (función o tarea principal); luego, cada sección que
+ * no es principal en ninguna toma una clase donde trabaja y cuya principal ya lo es en otra. Empate: el orden de las clases.
+ */
+export const asignarPrincipales = (filas = [], secciones = []) => {
+  const reales = filas.filter((f) => !f.flexible);
+  reales.forEach((f) => { delete f.seccionPrincipal; });
+  const opciones = new Map(reales.map((f) => [f, opcionesPrincipales(f)]));
+  // Emparejamiento sección → clase (caminos de aumento): cada sección toma una clase donde trabaja, de preferencia
+  // donde domina y luego la de su borrador; una clase ya tomada cede si su sección tiene otra.
+  const deBorrador = (f, s) => (f.tareas || []).some((t) => tareaConSeccion(t) && t.secciones.includes(s) && [].concat(t.demuestra).includes("P"));
+  const dueno = new Map();
+  const candidatas = (s) => reales.filter((f) => opciones.get(f).includes(s))
+    .sort((a, b) => (opciones.get(a).indexOf(s) - opciones.get(b).indexOf(s)) || (Number(deBorrador(b, s)) - Number(deBorrador(a, s))) || a.clase - b.clase);
+  const tomar = (s, vistas) => candidatas(s).some((f) => {
+    if (vistas.has(f)) return false;
+    vistas.add(f);
+    if (!dueno.has(f) || tomar(dueno.get(f), vistas)) { dueno.set(f, s); return true; }
+    return false;
+  });
+  secciones.forEach((s) => tomar(s, new Set()));
+  reales.forEach((f) => {
+    f.seccionPrincipal = dueno.get(f) || opciones.get(f)[0] || "";
+    // Las tareas de la principal van primero, para que las actividades 1 y 2 sean de la sección del título (g52a, C8);
+    // solo entre tareas de una sección, y sin cambiar el orden dentro de cada sección.
+    const p = f.seccionPrincipal;
+    if (p && f.tareas.every(tareaConSeccion) && !f.tareas[0].secciones.includes(p)) {
+      f.tareas = [...f.tareas.filter((t) => t.secciones.includes(p)), ...f.tareas.filter((t) => !t.secciones.includes(p))];
+      f.entregas = [...new Set(f.tareas.map((t) => t.entrega))];
+      f.evidencias = f.tareas.map((t) => ({ tipo: t.evidencia, condicion: t.condicion, individual: t.individual, sumativa: t.sumativa }));
+    }
+  });
+  return filas;
+};
+/** Secciones secundarias de la clase con actividad propia: las de sus tareas, sin la principal ni las del producto entero. */
+export const seccionesSecundarias = (fila = {}, total = 0) => {
+  const principal = seccionPrincipal(fila);
+  // Las tareas de casi todo el producto (revisar con la rúbrica 5 de 6 secciones) trabajan el conjunto, no una secundaria.
+  return [...new Set((fila.tareas || []).filter((t) => (t.secciones || []).length && t.secciones.length <= 3 && (!total || t.secciones.length < total) && !TAREAS_COMPARTIDAS.test(t.clave))
+    .flatMap((t) => t.secciones))].filter((s) => s !== principal);
+};
+export const TOPE_SECUNDARIAS = 2;
+// Tareas de toda la clase (recorrido, encuesta, acuerdo, saberes previos, revisión): no son de una sección secundaria.
+export const TAREAS_COMPARTIDAS = /^(recorrer_|indagar_|acordar|saberes_|revision_|problema_)/;
+/**
+ * Como máximo 2 secundarias con actividad propia por clase (revisor de g50: Frases C8 comentaba tres secciones además de la
+ * suya). Las que sobran pasan a la misma tarea de otra clase de la misma fase con sitio; si no hay, las cubre la clase que
+ * revisa el conjunto. Devuelve los movimientos, para avisar.
+ */
+export const limitarSecundarias = (filas = [], secciones = []) => {
+  const movidas = [];
+  const reales = filas.filter((f) => !f.flexible);
+  const fasesDe = (f) => new Set((f.tareas || []).map((t) => t.fase));
+  reales.forEach((f) => {
+    let sobran = seccionesSecundarias(f, secciones.length).length - TOPE_SECUNDARIAS;
+    while (sobran > 0) {
+      const tarea = [...f.tareas].filter((t) => t.secciones.length > 1 && t.secciones.length < secciones.length && !t.secciones.includes(seccionPrincipal(f)))
+        .sort((a, b) => b.secciones.length - a.secciones.length)[0];
+      if (!tarea) break;
+      const seccion = tarea.secciones[tarea.secciones.length - 1];
+      // Otra clase de la misma fase, o la siguiente con la misma tarea antes de que la sección se corrija.
+      const corregida = reales.find((g) => g.clase > f.clase && g.tareas.some((t) => /corregir|revision/.test(t.clave) && t.secciones.includes(seccion)))?.clase || Infinity;
+      const destino = reales.find((g) => g !== f && ([...fasesDe(g)].some((x) => fasesDe(f).has(x)) || (g.clase > f.clase && g.clase <= corregida))
+        && g.tareas.some((t) => t.clave === tarea.clave && !t.secciones.includes(seccion))
+        && seccionesSecundarias(g, secciones.length).length < TOPE_SECUNDARIAS);
+      // Sin clase con sitio, se queda: nunca se pierde el ciclo de una sección.
+      if (!destino) break;
+      tarea.secciones = tarea.secciones.slice(0, -1);
+      destino.tareas.find((t) => t.clave === tarea.clave).secciones.push(seccion);
+      movidas.push(`«${seccion}» (${tarea.nombre}): de la clase ${f.clase} a la clase ${destino.clase}`);
+      [f, destino].forEach((g) => { g.secciones = [...new Set(g.tareas.flatMap((t) => t.secciones))]; });
+      sobran -= 1;
+    }
+  });
+  return movidas;
 };
 /** La tarea de la sección principal (o la principal de la fila si no hay sección). */
 export const tareaPrincipal = (fila = {}) => {
@@ -1277,7 +1371,7 @@ export const modeloSinLaEstructura = (clase = {}, fila = {}, filas = []) => {
   if (!pruebas.length) return "";
   return pruebas.some((p) => p(tm.lineas)) ? "" : etiqueta;
 };
-const VERBOS_IMPERATIVO = /^((please|always|never|just|first|then|now)\s+)?(open|close|take|go|turn|walk|cross|follow|keep|continue|stop|write|read|listen|look|sit|stand|put|give|pass|raise|work|check|use|bring|come|try|let'?s|don'?t|do not|answer|repeat|copy|underline|circle|match|complete|share|ask|tell|show|find|choose|wait|line|clean|pick|hand|start|finish|remember|be|get|move|help|say|talk|practice|draw|label|fill|join|enter|leave|return|visit|make|form|prepare|review|switch|discuss|compare|count|speak|whisper|build|focus|stay|plan|organize|do|eat|sleep|study|arrive|respect|meet|learn|note|pay|drink|wash|smile|greet|thank)\b/;
+const VERBOS_IMPERATIVO = /^((please|always|never|just|first|then|now|next|finally),?\s+)?(open|close|take|go|turn|walk|cross|follow|keep|continue|stop|write|read|listen|look|sit|stand|put|give|pass|raise|work|check|use|bring|come|try|let'?s|don'?t|do not|answer|repeat|copy|underline|circle|match|complete|share|ask|tell|show|find|choose|wait|line|clean|pick|hand|start|finish|remember|be|get|move|help|say|talk|practice|draw|label|fill|join|enter|leave|return|visit|make|form|prepare|review|switch|discuss|compare|count|speak|whisper|build|focus|stay|plan|organize|do|eat|sleep|study|arrive|respect|meet|learn|note|pay|drink|wash|smile|greet|thank)\b/;
 const lineaSinHablante = (l) => normal(String(l || "").replace(/[’‘]/g, "'")).replace(/^[^:]{1,30}:\s*/, "").replace(/^[^a-z0-9]+/, "");
 // Estructuras con nombre en la etiqueta y cómo se reconocen en el modelo.
 const ESTRUCTURAS_DE_ETIQUETA = [
@@ -1299,7 +1393,8 @@ export const patronesDeEtiqueta = (etiqueta = "") => {
   const estructura = sinEjemplos.includes(":") ? sinEjemplos.split(":").slice(1).join(":") : "";
   ESTRUCTURAS_DE_ETIQUETA.forEach(([nombre, patron]) => {
     if (!nombre.test(estructura)) return;
-    if (!patron) pruebas.push((lineas) => lineas.some((l) => VERBOS_IMPERATIVO.test(lineaSinHablante(l))));
+    // Cada oración de la línea («First, go straight… Then, turn left»), no solo su comienzo.
+    if (!patron) pruebas.push((lineas) => lineas.some((l) => lineaSinHablante(l).split(/(?<=[.!?;])\s+/).some((o) => VERBOS_IMPERATIVO.test(o.replace(/^[^a-z0-9]+/, "")))));
     else pruebas.push((lineas) => patron.test(lineas.map(lineaSinHablante).join(" ")));
   });
   if (!pruebas.length && /\bayuda\b/.test(sinEjemplos)) pruebas.push((lineas) => /\b(can|could|may)\b/.test(lineas.map(lineaSinHablante).join(" ")));
@@ -1330,8 +1425,8 @@ const PISTAS_MODELO = {
   "Asking for Help": "help|could you|can you|may i ask",
   "School Success Tips": "tips?|advice|should|succeed|success|important to|always|never|helps? you|if you",
   "School Directions": "directions?|go straight|turn (left|right)|next to|how do i get",
-  "Important Places": "places?|library|cafeteria|office is",
-  "Final Recommendation": "recommend",
+  "Important Places": "places?|library|cafeteria|office|room|lab|where|is (next to|near)",
+  "Final Recommendation": "recommend\\w*|suggest\\w*|should|the best|why don'?t we|if we|we think",
   "Welcome": "welcome",
 };
 const PALABRAS_COMUNES_SECCION = new Set(["school", "with", "your", "from", "their", "about", "work"]);
@@ -1367,9 +1462,9 @@ export const ejemploDeMallaCopiado = (clase = {}, filas = []) => {
 };
 /** ¿El texto (normalizado) nombra la sección, por su nombre o por su inventario? */
 export const seccionNombrada = (seccion, textoNormal) => String(textoNormal || "").includes(normal(seccion))
-  || (INVENTARIO_POR_SECCION[seccion]?.nombres ? new RegExp(INVENTARIO_POR_SECCION[seccion].nombres).test(String(textoNormal || ""))
-    // Sin inventario (secciones del docente): por la acción en español («saludos», «pedir ayuda», «cortesía»), como la función.
-    : FUNCION_Y_SECCION.some(([a, b]) => b.test(normal(seccion)) && a.test(String(textoNormal || ""))));
+  || (INVENTARIO_POR_SECCION[seccion]?.nombres ? new RegExp(INVENTARIO_POR_SECCION[seccion].nombres).test(String(textoNormal || "")) : false)
+  // Por la acción en español («saludos», «pidiendo ayuda», «cortesía»), como la función (g50, g52a).
+  || FUNCION_Y_SECCION.some(([a, b]) => b.test(normal(seccion)) && a.test(String(textoNormal || "")));
 /**
  * El título nombra la sección que la clase trabaja: si la de su tarea no aparece en las actividades y la de otra
  * tarea de la clase sí, se toma el título de esa tarea (revisor de g44, C5: «Final Recommendation» en una clase
@@ -2162,6 +2257,8 @@ const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenido
     .forEach((t) => avisos.push(`La tarea «${t.nombre}» no cabe en este tiempo y no está en el mapa.`));
 
   filas.forEach((f, i) => { f.semana = Math.ceil((i + 1) / (diasClase.length * horasPorDia)); });
+  // Tope de secundarias con actividad propia, antes de encadenar lo que cada clase recibe (revisor de g50).
+  limitarSecundarias(filas, plan.secciones).forEach((m) => avisos.push(`ℹ Sección secundaria movida: ${m}.`));
   ponerDatosARecoger(filas, plan.secciones);
   encadenar(filas, plan.partenDeSecciones);
   const indicadoresElegidos = plan.fases.flatMap((f) => f.indicadores);
@@ -2169,6 +2266,8 @@ const armarMapaClasesBase = ({ duracionMin = 45, modalidadVisita = "", contenido
   sinTarea.forEach((id) => avisos.push(`El indicador ${id} no tiene tarea de su acción en este mapa.`));
   const contenidosSinLugar = ubicarContenidos(filas, plan, contenidosSeleccionados);
   if (contenidosSinLugar.length) avisos.push(`${contenidosSinLugar.length} contenido(s) del tema quedan sin marcar: no caben con sentido en este tiempo.`);
+  // La sección principal de cada clase, con la función ya ubicada y cada sección principal al menos una vez.
+  asignarPrincipales(filas, plan.secciones);
   return {
     contenidosSinLugar,
     filas, modo, total, capacidad, tipos, seccionesSupuestas: supuestas, avisos, breve,
@@ -2209,13 +2308,15 @@ export const armarMapaClases = (args = {}) => {
 };
 
 // Estado que deja la clase, para el «aporte al producto» que escribe el código.
-const estadoDeFila = (fila) => {
+export const estadoDeFila = (fila) => {
   const claves = fila.tareas.map((t) => t.clave);
   if (claves.includes("acordar")) return "acuerdo y plan";
   if (claves.some((c) => c.startsWith("evaluar"))) return "versión revisada";
   if (claves.includes("presentar") || claves.includes("audiencia_secundaria")) return "presentación";
   if (fila.tareas.some((t) => t.cierraSeccion) || claves.includes("integrar")) return "versión final";
   if (claves.includes("comentar")) return "comentarios";
+  // Diseñar o aplicar la encuesta recoge datos: no es el borrador de una sección (revisor de g50, Frases C2).
+  if (claves.length && claves.every((c) => /^(indagar_|recorrer_|visitar_|saberes_)/.test(c))) return "insumos recopilados";
   if (fila.tareas.some((t) => [].concat(t.demuestra).includes("P"))) return "borrador";
   if (fila.tareas.length && fila.tareas.every((t) => TAREAS_EN_PRUEBA.has(t.clave))) return "en prueba";
   return "insumos recopilados";

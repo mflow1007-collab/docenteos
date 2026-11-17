@@ -11,7 +11,7 @@
  * PROHIBIDO: fallback a templates JS.
  */
 
-import { hojaDeRuta, seccionDelModelo, focoDeFila } from './mapaClasesService.js';
+import { hojaDeRuta, seccionDelModelo, focoDeFila, seccionesSecundarias, seccionNombrada } from './mapaClasesService.js';
 import { INVENTARIO_POR_SECCION } from '../data/tareasPorTipoTrabajo.js';
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
@@ -1850,6 +1850,9 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
         : ['- Tareas del Desarrollo, en este orden:', ...f.tareas.map((t, k) => `   · [T${k + 1}] ${t.paralelo ? `[${t.secciones[0]}] ` : ''}${t.nombre} (${t.minutos} min): ${t.instruccion}`)]),
       ...(f.tareas.some((t) => t.paralelo) ? ['- Trabajo por grupos a la vez: cada grupo hace solo las tareas de su sección.'] : []),
       `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,
+      // Una sección principal (la del título) y las secundarias, cada una con su actividad propia (revisor de g50).
+      ...(seccionDelModelo(f) ? [`- Sección principal: «${seccionDelModelo(f)}» (la del título); las actividades 1 y 2 del Desarrollo la trabajan.`] : []),
+      ...(seccionesSecundarias(f, (c.secciones || []).length).length ? [`- Secciones secundarias: cada una lleva UNA actividad propia del Desarrollo que la nombra, con su entrega: ${seccionesSecundarias(f, (c.secciones || []).length).map((sec) => { const t = f.tareas.find((x) => x.secciones.includes(sec)); return `«${sec}» (${t?.nombre} → ${t?.entrega})`; }).join('; ')}.`] : []),
       `- Recibe: ${f.recibe.length ? f.recibe.map((r) => `${r.texto}${r.clase ? ` (clase ${r.clase})` : ''}`).join('; ') : 'la situación de aprendizaje'}`,
       `- Entrega: ${f.entregas.join('; ')}`,
       // El texto modelo sale de la sección del título o, sin sección, de la estructura del día (revisión g48b).
@@ -2189,6 +2192,20 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
           });
           clase.avisosRedaccion = clase.avisosRedaccion.filter((m) => !/falta la tarea/.test(m));
           clase.avisosRedaccion.push(`clase 1 — ℹ código: se añadió la actividad que faltaba: ${faltan.map((t) => `«${t.nombre}»`).join(", ")}`);
+        }
+        // Sección secundaria sin actividad tras el reintento (revisor de g50): el código escribe la de su tarea, con su entrega.
+        if (desarrollo) {
+          const texto = (desarrollo.actividades || []).map((a) => (typeof a === 'string' ? a : Object.values(a || {}).join(' '))).join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const sinActividad = seccionesSecundarias(filaMapa, (spec.contratoFase?.secciones || []).length).filter((sec) => !seccionNombrada(sec, texto));
+          sinActividad.forEach((sec) => {
+            const t = filaMapa.tareas.find((x) => x.secciones.includes(sec));
+            desarrollo.actividades.push(actividadDeTarea({ ...t, secciones: [sec] }));
+            if (Array.isArray(clase.tareaIdsDesarrollo)) clase.tareaIdsDesarrollo.push(`T${filaMapa.tareas.indexOf(t) + 1}`);
+          });
+          if (sinActividad.length) {
+            clase.avisosRedaccion = clase.avisosRedaccion.filter((m) => !/sección secundaria/.test(m));
+            clase.avisosRedaccion.push(`clase 1 — ℹ código: se añadió la actividad de la sección secundaria: ${sinActividad.map((sec) => `«${sec}»`).join(", ")}`);
+          }
         }
       }
 

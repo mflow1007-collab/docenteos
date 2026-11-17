@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, seccionesSecundarias, seccionPrincipal, seccionNombrada, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
 import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA, FRASES_POR_FUNCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -1090,6 +1090,19 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       if (seccionDelModelo) fallaRedaccion(idx, `el texto modelo no es de la sección que trabaja la clase: escríbelo para «${seccionDelModelo}», con su función y su vocabulario en las líneas, no solo en el título.`);
       const estructuraModelo = modeloSinLaEstructura(clase, filaMapa, contrato.filasUnidad || []);
       if (estructuraModelo) fallaRedaccion(idx, `el texto modelo debe usar la estructura del día («${estructuraModelo}») en sus líneas, no un diálogo de otra función.`);
+      // Cada sección secundaria con tarea propia tiene su actividad en el Desarrollo, con su entrega (revisor de g50:
+      // C10 no leía el «Welcome» a otro grupo); y la sección del título está en las dos primeras (C7 redactaba otra).
+      const desarrolloTx = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
+      const sinActividad = seccionesSecundarias(filaMapa, (contrato.secciones || []).length)
+        .filter((sec) => !desarrolloTx.some((a) => seccionNombrada(sec, normalizar(a))));
+      if (sinActividad.length) {
+        const de = (sec) => filaMapa.tareas.find((t) => t.secciones.includes(sec));
+        fallaRedaccion(idx, `falta una actividad del Desarrollo para cada sección secundaria: ${sinActividad.map((sec) => `«${sec}» (${de(sec)?.nombre} → ${de(sec)?.entrega})`).join("; ")}. Nombra la sección en esa actividad.`);
+      }
+      const principalTitulo = seccionPrincipal(filaMapa);
+      if (principalTitulo && !clase?.secuenciaAplicada && desarrolloTx.length >= 2 && !desarrolloTx.slice(0, 2).some((a) => seccionNombrada(principalTitulo, normalizar(a)))) {
+        fallaRedaccion(idx, `las dos primeras actividades del Desarrollo deben trabajar «${principalTitulo}», la sección del título de la clase.`);
+      }
       // Ningún modelo repite el de otra clase, de esta fase o de las anteriores (revisor de g49).
       const previos = [...(contrato.modelosPrevios || []), ...(data?.clases || []).slice(0, idx)
         .map((c, k) => ({ clase: contrato.mapaClases?.[startDia + k - 1]?.clase || startDia + k, lineas: c?.textoModelo?.lineas || [] }))];

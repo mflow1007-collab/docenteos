@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { modeloNombraSeccion, seccionNombrada, seccionPrincipal, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, bienvenidaFueraDeLugar, modeloSinLaEstructura, conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estadosMonotonos, minutosConTope, modeloDeOtraSeccion, ejemploDeMallaCopiado, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { seccionesSecundarias, estadoDeFila, modeloNombraSeccion, seccionNombrada, seccionPrincipal, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, bienvenidaFueraDeLugar, modeloSinLaEstructura, conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estadosMonotonos, minutosConTope, modeloDeOtraSeccion, ejemploDeMallaCopiado, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -268,6 +268,27 @@ check("la prueba con la audiencia depende del tipo de producto: una propuesta se
   const fp = (tipo) => ({ clase: 14, tareas: [{ clave: "presentar", tipoPrueba: tipo, secciones: [] }, { clave: "probar_audiencia", tipoPrueba: tipo, secciones: [] }], contenidos: [] });
   assert(/Defender una recomendación/.test(focoDeFila(fp("defender"), [])) && !/Defender/.test(focoDeFila(fp("guia"), [])), "estructura de la presentación de una propuesta");
   assert(SECUENCIAS_POR_TAREA["probar_audiencia:defender"]?.length >= 2 && SECUENCIAS_POR_TAREA["probar_audiencia:defender"].every((v) => /por qué|recomend|defiend/i.test(v.map((x) => x.texto).join(" "))), "secuencia de defender");
+});
+check("cobertura (revisor de g50): cada sección es principal al menos una vez y ninguna clase lleva más de 2 secundarias movibles", () => {
+  const frases = { planMaestro: { estrategia: "proyectos", secciones: ["Greetings and Goodbyes", "Asking for Permission", "Requesting Assistance", "Materials and Work", "Teacher Instructions", "Politeness and Encouragement"] }, productoFinalTexto: "Useful Classroom Phrases Talk" };
+  const casos = [["Escuela 16", mapaDe("Escuela y educación", 4, HORARIOS["4x1"], {})], ["Frases 12", mapaDe("Escuela y educación", 4, HORARIOS["3x1"], frases)],
+    ["Alimentación 18", mapaDe("Alimentación", 6, HORARIOS["3x1"])], ["Escuela 12", mapaDe("Escuela y educación", 4, HORARIOS["3x1"])]];
+  casos.forEach(([n, m]) => {
+    const reales = m.filas.filter((f) => !f.flexible);
+    const conTarea = m.secciones.filter((s) => reales.some((f) => f.tareas.some((t) => !["comentar", "integrar"].includes(t.clave) && t.secciones.length <= 3 && t.secciones.includes(s))));
+    const sinPrincipal = conTarea.filter((s) => !reales.some((f) => seccionPrincipal(f) === s));
+    igual(sinPrincipal, [], `${n}: secciones que nunca son principales`);
+    // Una tarea con varias secciones (comentar) reparte las que sobran; tareas sueltas sin minutos libres quedan (Frases C3, pendiente de César).
+    const pasadas = reales.filter((f) => seccionPrincipal(f) && seccionesSecundarias(f, m.secciones.length).length > 2
+      && f.tareas.some((t) => t.secciones.length > 1 && t.secciones.length <= 3));
+    igual(pasadas.map((f) => `C${f.clase}`), [], `${n}: más de 2 secundarias en una tarea que se puede repartir`);
+  });
+  const frasesM = casos[1][1];
+  igual(["Greetings and Goodbyes", "Asking for Permission"].map((s) => frasesM.filas.find((f) => seccionPrincipal(f) === s)?.clase), [3, 4], "Frases: Asking for Permission es principal en C4");
+  const escuela = casos[0][1];
+  // La principal es la que domina en minutos (C5 compara 23 min «Final Recommendation»): el título dice lo que la clase hace.
+  igual([5, 7, 8].map((c) => seccionPrincipal(escuela.filas[c - 1])), ["Final Recommendation", "Welcome", "Final Recommendation"], "Escuela: C5 y C8 Final Recommendation, C7 Welcome");
+  igual(estadoDeFila(frasesM.filas[1]), "insumos recopilados", "la encuesta recoge datos: no es un borrador");
 });
 check("una sola sección principal: sección del título == sección de la etiqueta (revisor de g49)", () => {
   const malos = [];

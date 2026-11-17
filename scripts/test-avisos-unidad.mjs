@@ -82,7 +82,9 @@ check("C2: «reunir lo hecho» no se reclama (revisión de Escuela v4)", () => {
   assert(!tareasSinActividad(desarrollo("Recorren (en grupos) el centro.", "Analizan (en plenaria) el modelo.", "Hacen (en grupos) el mapa del recorrido."), fila).length, "no debe forzarla");
 });
 check("tareaId: sin ID o con otro ID es correspondencia, no tarea ausente", () => {
-  const fila = escuela.filas[5];
+  // Con el orden de tareas anterior al reparto de principales (g52a): School Success Tips primero.
+  const sst = (t) => Number(t.secciones.includes("School Success Tips"));
+  const fila = { ...escuela.filas[5], tareas: [...escuela.filas[5].tareas].sort((a, b) => sst(b) - sst(a)) };
   const clase = { tareaIdsDesarrollo: ["T1", "T1", "T2", "T2"], ...desarrollo("Discuten (en grupos) la tabla.", "Justifican su elección.", "Elaboran (en grupos) una propuesta de School Success Tips y de Final Recommendation.", "Redactan (en grupos) el borrador.") };
   const m = motivosTareaId(clase, fila);
   assert(m.length === 2 && m.every((x) => /correspondencia/.test(x) && /Final Recommendation/.test(x)), m.join(" | "));
