@@ -1,0 +1,160 @@
+{
+  "nivel": "Primaria",
+  "grado": "4to",
+  "area": "Lengua Española",
+  "asignatura": "Lengua Española",
+  "reemplazaA": "primaria-4to-lengua-espanola-lengua-espanola-2022",
+  "requiereTextoRecuperado": true,
+  "guia": {
+    "titulo": "Secuencias Didácticas Lengua Española. Cuarto grado. Nivel Primario. Guía del docente",
+    "edicion": "Tercera edición, reorganizada según la Adecuación Curricular vigente",
+    "anio": 2025,
+    "isbn": "978-9945-657-05-0",
+    "institucion": "CIEDHumano (PUCMM) para el MINERD",
+    "programa": "CRECE Primaria",
+    "urlFuente": "https://www.ministeriodeeducacion.gob.do/docs/direccion-de-educacion-primaria/8uPu-secuencia-didactica-4o-lengua-espanola-2026pdf.pdf",
+    "restriccionUso": "se prohíbe la reproducción parcial o total con fines comerciales"
+  },
+  "secuencias": [
+    {
+      "numero": 1,
+      "titulo": "La conversación",
+      "grupo": "principal",
+      "paginaInicio": 12,
+      "paginaFin": 23,
+      "partes": [
+        { "nombre": "Comprensión oral", "pagina": 13 },
+        { "nombre": "Gramática textual", "pagina": 19 },
+        { "nombre": "Producción oral", "pagina": 21 },
+        { "nombre": "Anexo", "pagina": 23 }
+      ]
+    },
+    {
+      "numero": 2,
+      "titulo": "La carta de solicitud de permiso",
+      "grupo": "principal",
+      "paginaInicio": 24,
+      "paginaFin": 47,
+      "partes": [
+        { "nombre": "Comprensión oral", "pagina": 25 },
+        { "nombre": "Comprensión escrita", "pagina": 31 },
+        { "nombre": "Gramática textual", "pagina": 36 },
+        { "nombre": "Producción escrita", "pagina": 41 },
+        { "nombre": "Anexos", "pagina": 45 }
+      ]
+    },
+    {
+      "numero": 3,
+      "titulo": "La biografía",
+      "grupo": "principal",
+      "paginaInicio": 48,
+      "paginaFin": 71,
+      "partes": [
+        { "nombre": "Comprensión oral", "pagina": 49 },
+        { "nombre": "Comprensión escrita", "pagina": 58 },
+        { "nombre": "Gramática textual", "pagina": 66 },
+        { "nombre": "Producción escrita", "pagina": 68 },
+        { "nombre": "Anexo", "pagina": 71 }
+      ]
+    },
+    {
+      "numero": 4,
+      "titulo": "El informe de lectura",
+      "grupo": "principal",
+      "paginaInicio": 72,
+      "paginaFin": 99,
+      "partes": [
+        { "nombre": "Comprensión oral", "pagina": 73 },
+        { "nombre": "Comprensión escrita", "pagina": 78 },
+        { "nombre": "Gramática textual", "pagina": 85 },
+        { "nombre": "Producción oral", "pagina": 87 },
+        { "nombre": "Producción escrita", "pagina": 92 },
+        { "nombre": "Anexos", "pagina": 96 }
+      ]
+    },
+    {
+      "numero": 5,
+      "titulo": "La historieta",
+      "grupo": "principal",
+      "paginaInicio": 100,
+      "paginaFin": 119,
+      "partes": [
+        { "nombre": "Comprensión escrita", "pagina": 101 },
+        { "nombre": "Gramática textual", "pagina": 106 },
+        { "nombre": "Producción escrita", "pagina": 110 },
+        { "nombre": "Anexos", "pagina": 114 }
+      ]
+    },
+    {
+      "numero": 6,
+      "titulo": "El acróstico",
+      "grupo": "principal",
+      "paginaInicio": 120,
+      "paginaFin": 125,
+      "partes": [
+        { "nombre": "Comprensión oral", "pagina": 121 },
+        { "nombre": "Producción oral", "pagina": 122 },
+        { "nombre": "Comprensión escrita", "pagina": 123 },
+        { "nombre": "Producción escrita", "pagina": 125 },
+        { "nombre": "Anexo", "pagina": 125 }
+      ]
+    },
+    {
+      "numero": 7,
+      "titulo": "La receta",
+      "grupo": "anexo",
+      "paginaInicio": 128,
+      "paginaFin": 143,
+      "partes": [
+        { "nombre": "Comprensión oral", "pagina": 129 },
+        { "nombre": "Producción oral", "pagina": 132 },
+        { "nombre": "Comprensión escrita", "pagina": 133 },
+        { "nombre": "Gramática textual", "pagina": 140 },
+        { "nombre": "Producción escrita", "pagina": 141 }
+      ]
+    },
+    {
+      "numero": 8,
+      "titulo": "El artículo expositivo",
+      "grupo": "anexo",
+      "paginaInicio": 144,
+      "paginaFin": 179,
+      "partes": [
+        { "nombre": "Comprensión oral", "pagina": 145 },
+        { "nombre": "Comprensión escrita", "pagina": 148 },
+        { "nombre": "Gramática textual", "pagina": 154 },
+        { "nombre": "Producción oral", "pagina": 156 },
+        { "nombre": "Producción escrita", "pagina": 165 },
+        { "nombre": "Anexo", "pagina": 172 }
+      ]
+    },
+    {
+      "numero": 9,
+      "titulo": "El comentario",
+      "grupo": "anexo",
+      "paginaInicio": 180,
+      "paginaFin": 201,
+      "partes": [
+        { "nombre": "Comprensión oral", "pagina": 181 },
+        { "nombre": "Comprensión escrita", "pagina": 189 },
+        { "nombre": "Gramática textual", "pagina": 196 },
+        { "nombre": "Producción oral", "pagina": 197 },
+        { "nombre": "Producción escrita", "pagina": 199 }
+      ]
+    },
+    {
+      "numero": 10,
+      "titulo": "El cuento",
+      "grupo": "anexo",
+      "paginaInicio": 202,
+      "paginaFin": 219,
+      "partes": [
+        { "nombre": "Comprensión oral", "pagina": 203 },
+        { "nombre": "Producción oral", "pagina": 208 },
+        { "nombre": "Comprensión escrita", "pagina": 209 },
+        { "nombre": "Gramática textual", "pagina": 215 },
+        { "nombre": "Producción escrita", "pagina": 216 }
+      ]
+    }
+  ]
+}

@@ -6,8 +6,11 @@
 import { readFileSync } from 'fs';
 import {
   SO_AREAS, SO_ASIGNATURAS_POR_AREA, SO_GRADOS,
-  agruparPorArea, construirIdGuia, dividirGuia, limpiarTextoPagina, validarAlcance,
+  agruparPorArea, asignaturasConVariasVigentes, construirIdGuia, detectarTextoDanado, dividirGuia, limpiarTextoPagina, validarAlcance,
 } from '../src/services/secuenciasOficialesModelo.js';
+import {
+  construirContexto, construirVocabulario, decodificarControl, recuperarPagina,
+} from './lib/recuperarTexto.mjs';
 import { BC_AREAS, BC_GRADES, BC_SUBJECTS_BY_AREA } from '../src/services/bancoConocimientoService.js';
 
 let pasos = 0, fallos = 0;
@@ -100,6 +103,10 @@ check('conserva el contenido que aparece después del pie', () => {
   const t = limpiarTextoPagina('Antes.\nSecuencia Didáctica #4 • La receta 69\nComprensión oral\nMantequilla de aguacate\nIngredientes');
   assert(t === 'Antes.\nMantequilla de aguacate\nIngredientes', t);
 });
+check('quita un pie partido en dos líneas', () => {
+  assert(limpiarTextoPagina('A.\nSecuencia\nDidáctica #2 • La carta 25\nComprensión oral\nB.') === 'A.\nB.', 'pie partido');
+  assert(limpiarTextoPagina('A.\nSecuencia Didáctica #2 • La carta\n45\nB.') === 'A.\nB.', 'número suelto');
+});
 check('conserva un encabezado que no viene tras un pie', () => {
   assert(limpiarTextoPagina('Comprensión oral\nTexto') === 'Comprensión oral\nTexto', 'quitó el encabezado');
 });
@@ -126,6 +133,60 @@ check('sin enlace de origen no se carga', () => {
   assert(dividirGuia(paginas, { ...manifiesto, guia: { titulo: 'x', anio: 2022 } }).errores.length > 0, 'no falló');
 });
 
+check('página final declarada: no invade lo que sigue', () => {
+  const r = dividirGuia(paginas, conPagina({ paginaFin: 2, partes: [{ nombre: 'Comprensión oral', pagina: 2 }] }));
+  assert(r.errores.length === 0 && r.documentos[0].datos.paginaFin === 2, r.errores.join('; '));
+  assert(dividirGuia(paginas, conPagina({ paginaFin: 4 })).errores.length > 0, 'aceptó invadir la siguiente');
+});
+check('grupo inválido o incompleto', () => {
+  assert(dividirGuia(paginas, conPagina({ grupo: 'otro' })).errores.length > 0, 'aceptó otro');
+  assert(dividirGuia(paginas, conPagina({ grupo: 'principal' })).errores.length > 0, 'aceptó una secuencia sin grupo');
+});
+check('texto dañado impide la carga', () => {
+  const malas = paginas.map((t) => t.replace('Texto escrito.', 'La mamá de 2ancy.'));
+  assert(dividirGuia(malas, manifiesto).errores.some((e) => e.includes('dañadas')), 'no falló');
+});
+
+console.log('Texto dañado');
+check('reconoce los daños vistos en la edición 2025', () => {
+  ['2ancy', '7ecuencia', 'gqnero', '%djetivos', 'ðnal', 'nLņa', 'preguntas\u001e', 'x.indb'].forEach((p) => assert(detectarTextoDanado(p).length === 1, p));
+});
+check('no marca texto sano', () => {
+  ['1ro de abril', '2da. y 3era.', '¿Qué género?', 'pingüino', 'https://x.test/a=b%c', '4.º A', '50 %', 'Álex'].forEach((p) => assert(detectarTextoDanado(p).length === 0, p));
+});
+check('decodifica signos desplazados y respeta la otra codificación', () => {
+  assert(decodificarControl('a\u001e b\u0013c \u00072') === 'a: b/c #2', decodificarControl('a\u001e b\u0013c \u00072'));
+  assert(decodificarControl('x\u0003y\u001e') === 'x\u0003y\u001e', 'tocó la otra codificación');
+});
+check('recupera solo la palabra dañada', () => {
+  const pdf = 'La mamá de 2ancy llega hoy a la casa'; const ocr = 'La mama de Nancy llega hoy a la casa';
+  const r = recuperarPagina(pdf, ocr, construirVocabulario([pdf], [ocr], ['Nancy mamá']));
+  assert(r.texto === 'La mamá de Nancy llega hoy a la casa', r.texto);
+  assert(r.cambios.length === 1 && r.dudosas.length === 0, 'informe');
+});
+check('lo que no sabe resolver queda como dudoso y sin tocar', () => {
+  const pdf = 'La mamá de ;ínifer llega hoy'; const ocr = 'La mamá de Xzq llega hoy';
+  const r = recuperarPagina(pdf, ocr, construirVocabulario([pdf], [ocr]));
+  assert(r.texto === pdf && r.dudosas.length === 1, JSON.stringify(r));
+});
+check('entre dos palabras válidas solo cambia si la referencia lo respalda', () => {
+  const pdf = 'cuida as plantas del patio'; const ocr = 'cuida las plantas del patio'; const ref = ['as de oros', 'cuida las plantas'];
+  const voc = construirVocabulario([pdf], [ocr], ref);
+  assert(recuperarPagina(pdf, ocr, voc, { contexto: construirContexto(ref) }).texto === ocr, 'no usó el contexto');
+  assert(recuperarPagina(pdf, ocr, voc).texto === pdf, 'cambió sin respaldo');
+});
+
+console.log('Ediciones');
+check('la edición archivada no cuenta como vigente; dos vigentes se avisan', () => {
+  const doc = (anio, estado) => ({ ...alcance, id: `x${anio}`, numero: 1, estado, guia: { id: `g${anio}` } });
+  const lista = (a, b) => agruparPorArea([doc(2022, a), doc(2025, b)])['Lengua Española'];
+  assert(asignaturasConVariasVigentes(lista('archivada', 'vigente')).length === 0, 'avisó de más');
+  assert(asignaturasConVariasVigentes(lista(undefined, 'vigente')).join() === 'Lengua Española', 'no avisó');
+});
+check('Inglés y Francés pueden estar vigentes a la vez', () => {
+  assert(asignaturasConVariasVigentes([{ asignatura: 'Inglés' }, { asignatura: 'Francés' }]).length === 0, 'confundió asignaturas');
+});
+
 console.log('Organización por área');
 check('muestra todas las áreas, vacías incluidas, y ordena las secuencias', () => {
   const docs = res.documentos.map(({ id, datos }) => ({ id, ...datos })).reverse();
@@ -136,11 +197,20 @@ check('muestra todas las áreas, vacías incluidas, y ordena las secuencias', ()
 });
 
 console.log('Manifiesto de 4to de Primaria');
-const m4to = JSON.parse(readFileSync(new URL('./guias-oficiales/primaria-4to-lengua-espanola.json', import.meta.url), 'utf8'));
+const m4to = JSON.parse(readFileSync(new URL('./guias-oficiales/primaria-4to-lengua-espanola-2022.json', import.meta.url), 'utf8'));
 check('alcance válido, 10 secuencias en orden', () => {
   assert(validarAlcance(m4to).length === 0, 'alcance inválido');
   assert(m4to.secuencias.map((s) => s.numero).join() === '1,2,3,4,5,6,7,8,9,10', 'numeración');
   assert(m4to.secuencias.every((s, i, a) => !i || a[i - 1].paginaInicio < s.paginaInicio), 'páginas fuera de orden');
+});
+
+console.log('Manifiesto 2025 de 4to de Primaria');
+const m25 = JSON.parse(readFileSync(new URL('./guias-oficiales/primaria-4to-lengua-espanola-2025.json', import.meta.url), 'utf8'));
+check('6 principales, 4 anexos y reemplaza a la edición 2022', () => {
+  assert(validarAlcance(m25).length === 0, 'alcance inválido');
+  assert(m25.secuencias.map((s) => s.grupo[0]).join('') === 'ppppppaaaa', 'grupos');
+  assert(m25.reemplazaA === construirIdGuia(m4to) && construirIdGuia(m25) !== m25.reemplazaA, 'reemplazo');
+  assert(m25.requiereTextoRecuperado === true, 'debe exigir texto recuperado');
 });
 
 console.log(`\n${pasos} ok, ${fallos} fallos`);

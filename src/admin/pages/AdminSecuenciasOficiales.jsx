@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { listarSecuenciasDeGrado } from '../../services/secuenciasOficialesService.js';
 import {
-  SO_AREAS, SO_GRADOS, SO_NIVELES, agruparPorArea,
+  SO_AREAS, SO_GRADOS, SO_NIVELES, agruparPorArea, asignaturasConVariasVigentes,
 } from '../../services/secuenciasOficialesModelo.js';
 
 // Banco de secuencias oficiales del MINERD, por Nivel → Grado → Área → Guía.
 // Solo lectura: las guías se cargan con scripts/cargar_guia_oficial.mjs. La
 // generación de unidades todavía no consume este banco.
+
+const GRUPOS = [
+  { id: 'principal', titulo: 'Secuencias principales' },
+  { id: 'anexo', titulo: 'Anexos' },
+  { id: undefined, titulo: '' },
+];
 
 const chip = (activo) => ({
   background: activo ? '#1d4ed8' : '#fff',
@@ -78,8 +84,45 @@ function Guia({ guia }) {
           Condición de uso del documento: “{datos.restriccionUso}”.
         </p>
       )}
-      {guia.secuencias.map((s) => <Secuencia key={s.id} secuencia={s} />)}
+      {GRUPOS.map(({ id, titulo }) => {
+        const lista = guia.secuencias.filter((s) => s.grupo === id);
+        if (!lista.length) return null;
+        return (
+          <div key={titulo || 'sin-grupo'}>
+            {titulo && <h3 style={{ margin: '12px 0 4px', fontSize: 13, color: '#1d4ed8' }}>{titulo} ({lista.length})</h3>}
+            {lista.map((s) => <Secuencia key={s.id} secuencia={s} />)}
+          </div>
+        );
+      })}
     </div>
+  );
+}
+
+function Area({ guias }) {
+  const vigentes = guias.filter((g) => !g.archivada);
+  const archivadas = guias.filter((g) => g.archivada);
+  const repetidas = asignaturasConVariasVigentes(guias);
+  return (
+    <>
+      {repetidas.length > 0 && (
+        <p role="alert" style={{ margin: '6px 0 0', fontSize: 13, color: '#dc2626' }}>
+          Hay más de una edición vigente de {repetidas.join(', ')}. Archiva la anterior.
+        </p>
+      )}
+      {vigentes.length
+        ? vigentes.map((guia) => <Guia key={guia.id} guia={guia} />)
+        : <p style={{ margin: '4px 0 0', fontSize: 13, color: '#94a3b8' }}>
+            {archivadas.length ? 'Sin guía vigente' : 'Sin guía todavía'}
+          </p>}
+      {archivadas.length > 0 && (
+        <details style={{ marginTop: 10 }}>
+          <summary style={{ fontSize: 13, color: '#64748b', cursor: 'pointer' }}>
+            Ediciones anteriores ({archivadas.length})
+          </summary>
+          {archivadas.map((guia) => <Guia key={guia.id} guia={guia} />)}
+        </details>
+      )}
+    </>
   );
 }
 
@@ -128,9 +171,7 @@ export default function AdminSecuenciasOficiales() {
       {!cargando && !error && SO_AREAS.map((area) => (
         <section key={area} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '12px 16px', marginBottom: 10 }}>
           <h2 style={{ margin: 0, fontSize: 15, color: '#334155' }}>{area}</h2>
-          {areas[area].length
-            ? areas[area].map((guia) => <Guia key={guia.id} guia={guia} />)
-            : <p style={{ margin: '4px 0 0', fontSize: 13, color: '#94a3b8' }}>Sin guía todavía</p>}
+          <Area guias={areas[area]} />
         </section>
       ))}
     </div>

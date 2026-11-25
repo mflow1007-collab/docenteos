@@ -24,6 +24,9 @@ export const SO_ASIGNATURAS_POR_AREA = {
   'Ciencias de la Naturaleza': ['Ciencias de la Naturaleza', 'Biología', 'Química', 'Física'],
 };
 
+export const SO_GRUPOS = ['principal', 'anexo'];
+export const SO_ESTADOS = ['vigente', 'archivada'];
+
 // Firestore admite 1 MiB por documento; se deja margen para los metadatos.
 export const SO_MAX_BYTES_DOC = 900 * 1024;
 
@@ -55,7 +58,7 @@ export const construirIdSecuencia = (idGuia, numero) =>
 // Pie de página de las guías: "Secuencia Didáctica #1 • La conversación 13" o
 // "66 Lengua Española • Cuarto Grado del Nivel Primario". Justo después suele venir
 // la pestaña con el nombre de la sección; el contenido real que siga se conserva.
-const PIE_DE_PAGINA = /^(Secuencia Didáctica #\d+ • .+ \d+|\d+ .+ • .+ del Nivel .+)$/;
+const PIE_DE_PAGINA = /^(Secuencia Didáctica #\d+ ?• .+ \d+|\d+ .+ • .+ del Nivel .+)$/;
 const PESTANA = /^(Comprensión (oral|escrita)|Producción (oral|escrita)|Gramática textual|Anexos?)$/i;
 
 /** Limpia artefactos de extracción del PDF sin alterar la redacción. */
@@ -63,6 +66,9 @@ export const limpiarTextoPagina = (texto) => {
   const lineas = String(texto || '')
     .replace(/ﬁ\s*/g, 'fi')
     .replace(/ﬂ\s*/g, 'fl')
+    // Pies que el PDF parte en dos líneas.
+    .replace(/Secuencia\s*\n\s*(Didáctica #\d+)/g, 'Secuencia $1')
+    .replace(/^(Secuencia Didáctica #\d+ ?• [^\n]*[^\d\n])\n(\d{1,3})$/gm, '$1 $2')
     .split('\n')
     .map((linea) => linea.replace(/[ \t]+/g, ' ').trim());
   const limpias = [];
@@ -75,6 +81,25 @@ export const limpiarTextoPagina = (texto) => {
   }
   return limpias.join('\n');
 };
+
+const ORDINAL = /^\d+(er|ero|era|ro|ra|do|da|to|ta|mo|ma|vo|va|no|na)s?$/i;
+const SENALES_DE_DANO = [
+  /\p{Cc}/u,                                              // caracteres de control
+  /[^\P{L}a-záéíóúüñàèìòùâêîôûäëïöçãõºª]/iu,              // letras ajenas al español
+  /(^|\p{Ll})q(?!u)\p{Ll}/u,                              // "gqnero"
+  /[%=$\\^]\p{L}/u,                                       // "%djetivos"
+  /\.ind[bd]\b/,                                          // marcas de imprenta
+];
+
+/** Palabras con señales de mala codificación. Vacío si el texto se ve sano. */
+export const detectarTextoDanado = (texto) => String(texto || '')
+  .replace(/https?:\S+/g, ' ')
+  .split(/\s+/)
+  .filter((palabra) => {
+    const nucleo = palabra.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    if (/^\d\p{Ll}{2,}/u.test(nucleo) && !ORDINAL.test(nucleo)) return true; // "2ancy"
+    return SENALES_DE_DANO.some((senal) => senal.test(palabra));
+  });
 
 const coincideEncabezado = (linea, nombre) => {
   const a = linea.trim().toLowerCase();
@@ -119,6 +144,10 @@ export const dividirGuia = (paginas, manifiesto) => {
   if (!guia.anio) errores.push('La guía no tiene año');
   if (!guia.urlFuente) errores.push('La guía no tiene enlace de origen');
   if (!secuencias.length) errores.push('El manifiesto no tiene secuencias');
+  if (secuencias.some((s) => s.grupo !== undefined)) {
+    secuencias.filter((s) => !SO_GRUPOS.includes(s.grupo))
+      .forEach((s) => errores.push(`Secuencia ${s.numero}: grupo inválido "${s.grupo ?? ''}"`));
+  }
   if (errores.length) return { idGuia: '', documentos: [], errores };
 
   const limpias = paginas.map(limpiarTextoPagina);
@@ -128,7 +157,12 @@ export const dividirGuia = (paginas, manifiesto) => {
   secuencias.forEach((sec, indice) => {
     const etiqueta = `Secuencia ${sec.numero}`;
     const siguiente = secuencias[indice + 1];
-    const paginaFin = siguiente ? siguiente.paginaInicio - 1 : limpias.length;
+    const tope = siguiente ? siguiente.paginaInicio - 1 : limpias.length;
+    const paginaFin = sec.paginaFin ?? tope;
+    if (paginaFin < sec.paginaInicio || paginaFin > tope) {
+      errores.push(`${etiqueta}: página final ${paginaFin} fuera de rango`);
+      return;
+    }
     const portada = limpias[sec.paginaInicio - 1];
     const patronPortada = new RegExp(`Secuencia\\s+Didáctica\\s*${sec.numero}\\b`, 'i');
     if (portada === undefined || !patronPortada.test(portada)) {
@@ -185,11 +219,17 @@ export const dividirGuia = (paginas, manifiesto) => {
       guia: { ...guia, id: idGuia, totalPaginas: limpias.length },
       numero: sec.numero,
       titulo: sec.titulo,
+      estado: 'vigente',
+      ...(sec.grupo && { grupo: sec.grupo }),
       paginaInicio: sec.paginaInicio,
       paginaFin,
       introduccion: textoEntre(limpias, { pagina: sec.paginaInicio, pos: 0 }, marcas[0]),
       partes,
     };
+    const danadas = [datos.introduccion, ...partes.map((p) => p.texto)].flatMap(detectarTextoDanado);
+    if (danadas.length) {
+      errores.push(`${etiqueta}: ${danadas.length} palabras dañadas, por ejemplo ${danadas.slice(0, 3).map((p) => JSON.stringify(p)).join(', ')}`);
+    }
     const bytes = new TextEncoder().encode(JSON.stringify(datos)).length;
     if (bytes > SO_MAX_BYTES_DOC) errores.push(`${etiqueta}: pesa ${bytes} bytes, supera el límite`);
     documentos.push({ id, datos });
@@ -212,6 +252,13 @@ export const agruparPorArea = (secuencias = []) => {
   }
   Object.values(areas).forEach((guias) => guias.forEach((g) => {
     g.secuencias.sort((a, b) => a.numero - b.numero);
+    g.archivada = g.secuencias.every((s) => s.estado === 'archivada');
   }));
   return areas;
+};
+
+/** Asignaturas con más de una guía sin archivar: nunca debe haber dos vigentes. */
+export const asignaturasConVariasVigentes = (guias = []) => {
+  const vigentes = guias.filter((g) => !g.archivada).map((g) => g.asignatura);
+  return [...new Set(vigentes.filter((a, i) => vigentes.indexOf(a) !== i))];
 };

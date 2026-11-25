@@ -6,10 +6,15 @@
 // Escritura en la base de datos (pide la contraseña en la terminal):
 //   node scripts/cargar_guia_oficial.mjs MANIFIESTO.json GUIA.pdf --escribir TU_EMAIL [--reemplazar]
 //
-// Sin --reemplazar, se niega a tocar una guía que ya exista. Si el PDF no coincide
+// Opciones:
+//   --texto RECUPERADO.json   texto de recuperar_texto_guia.mjs, si el PDF está dañado
+//   --archivar-anterior       archiva la edición que el manifiesto indica en "reemplazaA"
+//
+// Todo se escribe en un solo lote: o entra la guía completa (y se archiva la anterior)
+// o no cambia nada. Sin --reemplazar, se niega a tocar una guía que ya exista. Si el PDF no coincide
 // con el manifiesto, se detiene y no escribe nada.
 import { readFileSync, writeFileSync } from "fs";
-import { createInterface } from "readline";
+import { leerPaginas, huellaPdf } from "./lib/leerPdf.mjs";
 import { dividirGuia } from "../src/services/secuenciasOficialesModelo.js";
 
 const args = process.argv.slice(2);
@@ -21,27 +26,43 @@ const [rutaManifiesto, rutaPdf] = args;
 const salida = valorDe("--salida");
 const email = valorDe("--escribir");
 const reemplazar = args.includes("--reemplazar");
+const rutaTexto = valorDe("--texto");
+const archivarAnterior = args.includes("--archivar-anterior");
 
 if (!rutaManifiesto || !rutaPdf || (args.includes("--escribir") && !email)) {
-  console.error("Uso: node scripts/cargar_guia_oficial.mjs MANIFIESTO.json GUIA.pdf [--salida f.json] [--escribir EMAIL] [--reemplazar]");
+  console.error("Uso: node scripts/cargar_guia_oficial.mjs MANIFIESTO.json GUIA.pdf [--salida f.json] [--texto f.json] [--escribir EMAIL] [--reemplazar] [--archivar-anterior]");
   process.exit(1);
 }
 
-const leerPaginas = async (ruta) => {
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const pdf = await getDocument({ data: new Uint8Array(readFileSync(ruta)), verbosity: 0 }).promise;
-  const paginas = [];
-  for (let n = 1; n <= pdf.numPages; n += 1) {
-    const { items } = await (await pdf.getPage(n)).getTextContent();
-    paginas.push(items.map((it) => `${it.str}${it.hasEOL ? "\n" : ""}`).join(""));
-  }
-  return paginas;
-};
-
+// Lee la contraseña sin mostrarla. Enter con la línea vacía avisa y vuelve a pedirla.
 const pedirClave = (etiqueta) => new Promise((resolve) => {
-  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-  rl.question(etiqueta, (clave) => { rl.close(); process.stdout.write("\n"); resolve(clave); });
-  rl._writeToOutput = () => {};
+  const { stdin, stdout } = process;
+  if (!stdin.isTTY) {
+    console.error("❌ La contraseña se escribe en una terminal interactiva.");
+    process.exit(1);
+  }
+  let clave = "";
+  stdin.setRawMode(true); // antes del aviso, para que nada se vea
+  stdout.write(etiqueta);
+  stdin.setEncoding("utf8");
+  const leer = (trozo) => {
+    for (const c of trozo.replace(/\u001b\[[0-9;]*[A-Za-z~]/g, "")) {
+      if (c === "\u0003") { stdout.write("\nCancelado: no se escribió nada.\n"); process.exit(130); }
+      else if (c === "\r" || c === "\n") {
+        if (!clave) { stdout.write(`\nLa contraseña está vacía.\n${etiqueta}`); continue; }
+        stdin.off("data", leer);
+        stdin.setRawMode(false);
+        stdin.pause();
+        stdout.write("\n");
+        resolve(clave);
+        return;
+      } else if (c === "\u007f" || c === "\b") clave = clave.slice(0, -1);
+      else if (c === "\u0015") clave = "";
+      else if (c >= " ") clave += c;
+    }
+  };
+  stdin.on("data", leer);
+  stdin.resume();
 });
 
 const cargarEnv = (nombre) => {
@@ -54,13 +75,32 @@ const cargarEnv = (nombre) => {
 };
 
 const manifiesto = JSON.parse(readFileSync(rutaManifiesto, "utf8"));
-const { idGuia, documentos, errores } = dividirGuia(await leerPaginas(rutaPdf), manifiesto);
+const detener = (mensaje) => {
+  console.error(`❌ ${mensaje}`);
+  process.exit(1);
+};
+const leerTexto = async () => {
+  if (!rutaTexto) {
+    if (manifiesto.requiereTextoRecuperado) detener("El texto de este PDF está dañado: usa --texto con el texto recuperado.");
+    return leerPaginas(rutaPdf);
+  }
+  const { huella, paginas, informe } = JSON.parse(readFileSync(rutaTexto, "utf8"));
+  if (huella !== huellaPdf(rutaPdf)) detener("El texto recuperado no corresponde a este PDF.");
+  const usadas = new Set((manifiesto.secuencias || []).flatMap((s, i, lista) => {
+    const fin = s.paginaFin ?? (lista[i + 1] ? lista[i + 1].paginaInicio - 1 : paginas.length);
+    return Array.from({ length: fin - s.paginaInicio + 1 }, (_, k) => s.paginaInicio + k);
+  }));
+  const dudosas = informe.filter((p) => usadas.has(p.pagina)).reduce((n, p) => n + p.dudosas.length, 0);
+  if (dudosas) detener(`El texto recuperado tiene ${dudosas} palabras dudosas sin resolver.`);
+  return paginas;
+};
+const { idGuia, documentos, errores } = dividirGuia(await leerTexto(), manifiesto);
 
 console.log(`\nGuía: ${manifiesto.guia?.titulo}`);
 console.log(`Ubicación: ${manifiesto.nivel} > ${manifiesto.grado} > ${manifiesto.area} (${manifiesto.asignatura})`);
 console.log(`Id: ${idGuia}\n`);
 for (const { datos } of documentos) {
-  console.log(`${String(datos.numero).padStart(2)}. ${datos.titulo} (pp. ${datos.paginaInicio}-${datos.paginaFin})`);
+  console.log(`${String(datos.numero).padStart(2)}. ${datos.titulo}${datos.grupo ? ` [${datos.grupo}]` : ""} (pp. ${datos.paginaInicio}-${datos.paginaFin})`);
   console.log(`    introducción: ${datos.introduccion.length} caracteres`);
   for (const p of datos.partes) {
     console.log(`    ${p.nombre} (pp. ${p.paginaInicio}-${p.paginaFin}): ${p.texto.length} caracteres`);
@@ -75,17 +115,21 @@ if (errores.length) {
   errores.forEach((e) => console.error(`   - ${e}`));
   process.exit(1);
 }
-console.log(`\n✅ ${documentos.length} secuencias listas, sin errores.`);
+console.log(`\nRevisión del PDF: ${documentos.length} secuencias, sin errores.`);
+if (manifiesto.reemplazaA) console.log(`Reemplaza a: ${manifiesto.reemplazaA}`);
 if (!email) {
   console.log("Vista previa: no se escribió nada.");
   process.exit(0);
 }
+console.log("Todavía no se ha escrito nada. Falta iniciar sesión.");
 
 cargarEnv(".env");
 cargarEnv(".env.local");
 const { initializeApp } = await import("firebase/app");
 const { getAuth, signInWithEmailAndPassword } = await import("firebase/auth");
-const { getFirestore, doc, getDoc, setDoc, serverTimestamp } = await import("firebase/firestore");
+const {
+  collection, doc, getDoc, getDocs, getFirestore, query, serverTimestamp, where, writeBatch,
+} = await import("firebase/firestore");
 const app = initializeApp({
   apiKey: process.env.VITE_FIREBASE_API_KEY,
   authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -106,14 +150,31 @@ const col = "secuenciasOficiales";
 
 if (!reemplazar) {
   const existentes = await Promise.all(documentos.map(({ id }) => getDoc(doc(db, col, id))));
-  if (existentes.some((d) => d.exists())) {
-    console.error("❌ Esta guía ya existe. Usa --reemplazar si quieres sobrescribirla.");
-    process.exit(1);
-  }
+  if (existentes.some((d) => d.exists())) detener("Esta guía ya existe. Usa --reemplazar si quieres sobrescribirla.");
 }
+let anteriores = [];
+if (manifiesto.reemplazaA) {
+  const snap = await getDocs(query(collection(db, col), where("guia.id", "==", manifiesto.reemplazaA)));
+  const deOtroAlcance = snap.docs.filter((d) => ["nivel", "grado", "area", "asignatura"].some((k) => d.get(k) !== manifiesto[k]));
+  if (deOtroAlcance.length) detener("La edición anterior es de otro nivel, grado, área o asignatura.");
+  anteriores = snap.docs.filter((d) => d.get("estado") !== "archivada");
+  if (anteriores.length && !archivarAnterior) detener(`La edición ${manifiesto.reemplazaA} sigue vigente. Usa --archivar-anterior para archivarla.`);
+}
+if (archivarAnterior && !manifiesto.reemplazaA) detener("El manifiesto no indica qué edición archivar.");
+
+const lote = writeBatch(db);
 for (const { id, datos } of documentos) {
-  await setDoc(doc(db, col, id), { ...datos, cargadoPor: email, cargadoEn: serverTimestamp() });
-  console.log(`  ✓ ${id}`);
+  lote.set(doc(db, col, id), { ...datos, cargadoPor: email, cargadoEn: serverTimestamp() });
 }
-console.log(`\n✅ ${documentos.length} secuencias escritas en ${col}.`);
+for (const d of anteriores) {
+  lote.update(d.ref, { estado: "archivada", archivadaPor: email, archivadaEn: serverTimestamp(), reemplazadaPor: idGuia });
+}
+try {
+  await lote.commit();
+} catch (e) {
+  detener(`No se escribió nada: ${e.code || e.message}`);
+}
+documentos.forEach(({ id }) => console.log(`  ✓ ${id}`));
+anteriores.forEach((d) => console.log(`  archivada: ${d.id}`));
+console.log(`\n✅ CARGADA: ${documentos.length} secuencias escritas en ${col}. Archivadas: ${anteriores.length}.`);
 process.exit(0);
