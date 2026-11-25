@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { obtenerPlanificacionesDetalladas } from "../firebase.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { hora12, nombreHora, proximaClase } from "../utils/horarioSemanal.js";
 
 const LIMITE_HISTORIAL_RECIENTE_DOCENTE = 3;
 
@@ -57,44 +58,6 @@ const generarSugerenciasContextuales = (tema = "", area = "") => {
     }
   }
   return { temaBase: tema || area, sugerencias: bancoArea.default || [] };
-};
-
-const minutosDesdeHora = (hora = "00:00") => {
-  const [horas, minutos] = String(hora).split(":").map(Number);
-  if (!Number.isFinite(horas) || !Number.isFinite(minutos)) return 0;
-  return horas * 60 + minutos;
-};
-
-const calcularProximaClaseFuncional = (cursos = [], ahora = new Date()) => {
-  const minutosActuales = ahora.getHours() * 60 + ahora.getMinutes();
-  const candidatos = cursos.flatMap((curso) => {
-    const bloques = Array.isArray(curso.horario) ? curso.horario : [];
-    return bloques
-      .filter((bloque) => (bloque.tipo || "clase") === "clase")
-      .map((bloque) => ({
-        curso: curso.nombre || curso.name || "Curso",
-        inicio: bloque.inicio || "08:00",
-        minutos: minutosDesdeHora(bloque.inicio || "08:00"),
-      }));
-  }).filter((bloque) => bloque.minutos >= minutosActuales);
-
-  const proxima = candidatos.sort((a, b) => a.minutos - b.minutos)[0];
-  if (proxima) {
-    return {
-      valor: `Hoy ${proxima.inicio}`,
-      curso: proxima.curso,
-    };
-  }
-
-  const primerCurso = cursos[0];
-  const primerBloque = Array.isArray(primerCurso?.horario)
-    ? primerCurso.horario.find((bloque) => (bloque.tipo || "clase") === "clase")
-    : null;
-
-  return {
-    valor: primerBloque?.inicio ? `Mañana ${primerBloque.inicio}` : "Sin horario",
-    curso: primerCurso?.nombre || primerCurso?.name || "Sin curso asignado",
-  };
 };
 
 function Inicio({
@@ -185,9 +148,8 @@ function Inicio({
     0,
     cursos.reduce((acum, curso) => acum + ((curso.resumenRapido?.evaluaciones || 0) - (curso.pendientes || 0)), 0)
   );
-  const proximaClaseInfo = calcularProximaClaseFuncional(cursos, relojInicio);
-  const proximaClase = proximaClaseInfo.valor;
-  const cursoProximaClase = proximaClaseInfo.curso || cursosPorUsoReciente[0]?.nombre || "Sin curso asignado";
+  const proxima = proximaClase(cursos, relojInicio);
+  const cursoProximaClase = proxima?.etiqueta || cursosPorUsoReciente[0]?.nombre || "Sin curso asignado";
   const prioridadHero = estudiantesEnRiesgo > 0
     ? {
         titulo: "Prioridad de hoy",
@@ -210,9 +172,9 @@ function Inicio({
         }
       : {
           titulo: "Prioridad de hoy",
-          valor: proximaClase,
+          valor: proxima ? [proxima.cuando, hora12(proxima.inicio)].filter(Boolean).join(" ") : "Sin horario",
           etiqueta: "próxima clase",
-          detalle: cursoProximaClase,
+          detalle: proxima ? `${proxima.etiqueta} · ${nombreHora(proxima.hora)} hora` : "Marca tus horas en Cursos › Mi horario.",
           accion: () => onIrA("cursos"),
           accionTexto: "Ver curso",
           tono: "ok",

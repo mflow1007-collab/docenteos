@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { generarEstudiantesDetalle, enriquecerCursoInicial } from "../utils/cursoUtils.js";
 import { normalizarHorarioCurso, crearHorarioPorJornada } from "../utils/horarioCurso.js";
+import { proximaClase } from "../utils/horarioSemanal.js";
+import HorarioSemanal from "./HorarioSemanal.jsx";
 
 const CURSOS_ASIGNATURAS_BASE = ["Inglés", "Francés"];
 const CURSOS_GRADOS_POR_NIVEL = {
@@ -8,9 +10,10 @@ const CURSOS_GRADOS_POR_NIVEL = {
   Secundaria: ["1ro Secundaria", "2do Secundaria", "3ro Secundaria", "4to Secundaria", "5to Secundaria", "6to Secundaria"],
 };
 
-function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onEliminarCurso, cursoParaEditar, onConsumirEdicionCurso, onConfigurarHorario }) {
+function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActualizarCurso, onEliminarCurso, cursoParaEditar, onConsumirEdicionCurso, onConfigurarHorario }) {
   const [filtro, setFiltro] = useState("Todos");
   const [vista, setVista] = useState("Tarjetas");
+  const [mostrarHorario, setMostrarHorario] = useState(false);
   const [mostrarModalCurso, setMostrarModalCurso] = useState(Boolean(cursoParaEditar));
   const [cursoEnEdicion, setCursoEnEdicion] = useState(cursoParaEditar);
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
@@ -45,6 +48,7 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
     }
   }, [cursoParaEditar, crearFormCurso]);
 
+  const clasePorCurso = Object.fromEntries(cursos.map((curso) => [curso.id, proximaClase([curso])]));
   const totalEstudiantes = cursos.reduce((acum, curso) => acum + (curso.estudiantes || 0), 0);
 
   const cursosFiltrados = useMemo(() => {
@@ -106,7 +110,7 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
       estudiantes,
       promedio,
       pendientes: baseCurso.pendientes ?? 0,
-      proximaClase: baseCurso.proximaClase || "Hoy 08:00",
+      proximaClase: baseCurso.proximaClase || "",
       icono: formCurso.area === "Inglés" ? "A" : "F",
       acento: baseCurso.acento || "#2563eb",
       temaActual: baseCurso.temaActual || "Tema por definir",
@@ -176,10 +180,22 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
           <h1>Cursos</h1>
           <p>{cursos.length} cursos activos · {totalEstudiantes} estudiantes en total</p>
         </div>
-        <button className="btn-nuevo-curso" onClick={abrirNuevoCurso}>
-          + Nuevo Curso
-        </button>
+        <div className="hs-acciones-cursos">
+          <button className="hs-boton-horario" aria-expanded={mostrarHorario} onClick={() => setMostrarHorario((v) => !v)}>
+            🕒 {mostrarHorario ? "Ocultar mi horario" : "Mi horario"}
+          </button>
+          <button className="btn-nuevo-curso" onClick={abrirNuevoCurso}>
+            + Nuevo Curso
+          </button>
+        </div>
       </div>
+
+      {mostrarHorario && (
+        <section className="hs-panel">
+          <h2>Mi horario</h2>
+          <HorarioSemanal cursos={cursos} onGuardar={onGuardarHorarios} />
+        </section>
+      )}
 
       <div className="cursos-toolbar">
         <div className="filtros-cursos">
@@ -231,9 +247,9 @@ function Cursos({ cursos, onVerCurso, onCrearCurso, onActualizarCurso, onElimina
                 <strong className={colorPromedio(curso.promedio)}>{curso.promedio}%</strong>
               </div>
               <div><span>Pendientes</span><strong className="pendientes">{curso.pendientes}</strong></div>
-              <div className={`curso-proxima-clase-hero ${curso.proximaClase.includes("Hoy") ? "hoy" : curso.proximaClase.includes("Mañana") ? "manana" : ""}`}>
+              <div className={`curso-proxima-clase-hero ${clasePorCurso[curso.id]?.cuando === "Hoy" ? "hoy" : clasePorCurso[curso.id]?.cuando === "Mañana" ? "manana" : ""}`}>
                 <span>Próxima clase</span>
-                <strong>{curso.proximaClase}</strong>
+                <strong>{clasePorCurso[curso.id]?.texto || "Sin horario"}</strong>
               </div>
             </div>
 

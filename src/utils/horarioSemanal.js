@@ -6,6 +6,7 @@
  */
 
 import { crearHorarioPorJornada, normalizarHorarioCurso } from "./horarioCurso.js";
+import { fechaLocalISO } from "../services/hiloPedagogico.js";
 
 export const DIAS_HORARIO = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
@@ -18,6 +19,8 @@ const enMinutos = (hhmm) => {
   const [h, m] = String(hhmm || "").split(":").map(Number);
   return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
 };
+
+export const nombreDia = (fecha = new Date()) => DIAS_POR_GETDAY[fecha.getDay()];
 
 /** 1 → «1.ª», que es como la nombra el docente. */
 export const nombreHora = (hora) => `${hora}.ª`;
@@ -151,19 +154,33 @@ export const cambiosPorGuardar = (cursos = [], borrador = {}) =>
     })
     .map((c) => ({ cursoId: c.id, horarioSemanal: borrador[c.id] || [] }));
 
-/** Clases de un día, en orden, con la materia de cada hora. */
-export const clasesDelDia = (cursos = [], dia) =>
+/** Cursos con su horario nuevo puesto; los demás campos y cursos no cambian. */
+export const aplicarHorariosACursos = (cursos = [], lista = []) =>
+  cursos.map((curso) => {
+    const cambio = lista.find((x) => String(x.cursoId) === String(curso.id));
+    return cambio ? { ...curso, horarioSemanal: cambio.horarioSemanal } : curso;
+  });
+
+/**
+ * Clases de un día, en orden, con la materia de cada hora. Con `fecha` suma las
+ * horas extra de ese día exacto (ver horaExtra.js); sin ella, solo el horario fijo.
+ */
+export const clasesDelDia = (cursos = [], dia, { fecha = "" } = {}) =>
   cursos
     .flatMap((curso) => {
       const horas = horasDelCurso(curso);
-      return leerHorarioSemanal(curso)
-        .filter((m) => m.dia === dia)
+      const fijas = leerHorarioSemanal(curso).filter((m) => m.dia === dia);
+      const extras = (fecha && Array.isArray(curso.horasExtra) ? curso.horasExtra : [])
+        .filter((x) => x?.fecha === fecha && !fijas.some((m) => m.hora === x.hora))
+        .map((x) => ({ dia, hora: x.hora, extra: true }));
+      return [...fijas, ...extras]
         .map((m) => {
           const bloque = horas.find((h) => h.hora === m.hora);
           return {
             cursoId: curso.id, curso: curso.nombre || "Curso", materia: curso.area || "",
             etiqueta: etiquetaCurso(curso), dia, hora: m.hora,
             inicio: bloque?.inicio || "", fin: bloque?.fin || "",
+            ...(m.extra ? { extra: true } : {}),
           };
         });
     })
@@ -172,13 +189,13 @@ export const clasesDelDia = (cursos = [], dia) =>
 const conTexto = (clase, cuando) => ({
   ...clase,
   cuando,
-  texto: [`${cuando}, ${nombreHora(clase.hora)} hora`, hora12(clase.inicio)].filter(Boolean).join(" · "),
+  texto: [`${cuando}, ${nombreHora(clase.hora)} hora${clase.extra ? " extra" : ""}`, hora12(clase.inicio)].filter(Boolean).join(" · "),
 });
 
 /** La clase que el docente está dando en este momento, o null. */
 export const claseDeAhora = (cursos = [], ahora = new Date()) => {
   const minutos = ahora.getHours() * 60 + ahora.getMinutes();
-  const clase = clasesDelDia(cursos, DIAS_POR_GETDAY[ahora.getDay()]).find((c) => {
+  const clase = clasesDelDia(cursos, nombreDia(ahora), { fecha: fechaLocalISO(ahora) }).find((c) => {
     const inicio = enMinutos(c.inicio);
     const fin = enMinutos(c.fin);
     return inicio !== null && fin !== null && minutos >= inicio && minutos < fin;
@@ -190,8 +207,9 @@ export const claseDeAhora = (cursos = [], ahora = new Date()) => {
 export const proximaClase = (cursos = [], ahora = new Date()) => {
   const minutos = ahora.getHours() * 60 + ahora.getMinutes();
   for (let salto = 0; salto <= 7; salto += 1) {
-    const dia = DIAS_POR_GETDAY[(ahora.getDay() + salto) % 7];
-    const clase = clasesDelDia(cursos, dia)
+    const fecha = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + salto);
+    const dia = nombreDia(fecha);
+    const clase = clasesDelDia(cursos, dia, { fecha: fechaLocalISO(fecha) })
       .find((c) => (salto > 0 ? true : enMinutos(c.inicio) !== null && enMinutos(c.inicio) > minutos));
     if (clase) return conTexto(clase, salto === 0 ? "Hoy" : salto === 1 ? "Mañana" : salto === 7 ? `El próximo ${dia.toLowerCase()}` : dia);
   }

@@ -8,7 +8,7 @@
  */
 
 import {
-  cambiosPorGuardar, claseDeAhora, clasesDelDia, construirBorrador, cursosEnHora,
+  aplicarHorariosACursos, cambiosPorGuardar, claseDeAhora, clasesDelDia, construirBorrador, cursosEnHora,
   horasDelCurso, leerHorarioAnterior, leerHorarioSemanal, proximaClase, tocarHora,
 } from "../src/utils/horarioSemanal.js";
 import { enriquecerCursoInicial } from "../src/utils/cursoUtils.js";
@@ -93,6 +93,13 @@ check("hora de otra materia: avisa y no cambia nada hasta confirmar", () => {
 check("solo se guarda lo que cambió", () => {
   igual(cambiosPorGuardar(caso, construirBorrador(caso)), []);
   igual(cambiosPorGuardar(caso, marcar(caso, [["fra", "Viernes", 1]])).map((c) => c.cursoId), ["fra"]);
+});
+
+check("guardar cambia solo horarioSemanal y solo en el curso tocado", () => {
+  const r = aplicarHorariosACursos(caso, [{ cursoId: "fra", horarioSemanal: [{ dia: "Viernes", hora: 1 }] }]);
+  assert(r[0] === caso[0], "Inglés intacto");
+  igual({ ...r[1], horarioSemanal: 0 }, { ...caso[1], horarioSemanal: 0 }, "Francés: el resto igual");
+  igual(r[1].horarioSemanal, [{ dia: "Viernes", hora: 1 }]);
 });
 
 check("quitar todas las horas se guarda como lista vacía y no resucita el horario anterior", () => {

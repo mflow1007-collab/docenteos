@@ -13,6 +13,9 @@ import {
   getDoc,
   updateDoc,
   runTransaction,
+  writeBatch,
+  arrayUnion,
+  arrayRemove,
   increment,
   onSnapshot,
   documentId,
@@ -28,6 +31,8 @@ import { COMP_CODIGOS, resolverCI, resolverPI } from "./constants/registroCodigo
 import { aplicarNotaEnCelda } from "./services/hiloPedagogico.js";
 import { verificarTamanoDocumento, fusionarComoFirestore } from "./utils/tamanoDocumento.js";
 import { payloadRemotoDePagina, sinIndefinidos } from "./utils/registroGuardado.js";
+import { aplicarHorariosACursos } from "./utils/horarioSemanal.js";
+import { aplicarListaACurso } from "./utils/horaExtra.js";
 
 // import.meta.env solo existe bajo Vite; en Node (tests) queda {} y
 // isFirebaseConfigured=false — mismo comportamiento que sin credenciales.
@@ -655,6 +660,43 @@ export const guardarCurso = async (curso) => {
     console.error("Error al guardar curso:", error);
     throw error;
   }
+};
+
+/**
+ * Horario por selección: guarda SOLO `horarioSemanal` de cada curso, todos a la
+ * vez o ninguno (mover una hora de un curso a otro toca dos). Usa update: si un
+ * curso no existe en Firestore falla con error visible en vez de crear uno a medias.
+ */
+export const guardarHorariosSemanales = async (lista = []) => {
+  if (!lista.length) return { success: true };
+  if (isFirebaseConfigured && auth && db && auth.currentUser) {
+    const uid = auth.currentUser.uid;
+    const lote = writeBatch(db);
+    lista.forEach(({ cursoId, horarioSemanal }) => {
+      lote.update(doc(db, "usuarios", uid, "cursos", String(cursoId)), { horarioSemanal, updatedAt: serverTimestamp() });
+    });
+    await lote.commit();
+    return { success: true, mode: "firebase" };
+  }
+  guardarCursosLocales(aplicarHorariosACursos(obtenerCursosLocales(), lista));
+  return { success: true, mode: "local" };
+};
+
+/**
+ * Pone o quita un registro de `horasExtra` o `clasesDadas` del curso sin tocar
+ * nada más. Lanza el error: quien llama lo muestra.
+ */
+export const cambiarListaCurso = async (cursoId, campo, { agregar, quitar } = {}) => {
+  if (!["horasExtra", "clasesDadas"].includes(campo)) throw new Error(`Lista de curso no válida: ${campo}`);
+  if (isFirebaseConfigured && auth && db && auth.currentUser) {
+    await updateDoc(doc(db, "usuarios", auth.currentUser.uid, "cursos", String(cursoId)), {
+      [campo]: quitar ? arrayRemove(quitar) : arrayUnion(agregar),
+      updatedAt: serverTimestamp(),
+    });
+    return { success: true, mode: "firebase" };
+  }
+  guardarCursosLocales(aplicarListaACurso(obtenerCursosLocales(), cursoId, campo, { agregar, quitar }));
+  return { success: true, mode: "local" };
 };
 
 export const obtenerCursos = async () => {
@@ -1862,7 +1904,7 @@ export const guardarSesionAula = async (sesion) => {
     const user = auth?.currentUser;
     if (isFirebaseConfigured && user && db) {
       await addDoc(collection(db, "sesiones-aula"), {
-        ...sesion,
+        ...sinIndefinidos(sesion), // un `undefined` hace que Firestore rechace todo el documento
         usuario: user.uid,
         usuarioEmail: user.email,
         fecha: serverTimestamp(),
