@@ -1261,6 +1261,21 @@ export const UMBRAL_CURSO_PLAN = 9;
  * guardan cursoId): grado 4, área/asignatura 5, sección 2. Con menos de
  * UMBRAL_CURSO_PLAN no se ata — mejor sin curso que con el curso equivocado.
  */
+/**
+ * Nivel que un registro DECLARA: su campo `nivel` o la palabra escrita en su
+ * grado o nombre («2do Secundaria A»). Nunca se deduce del número del grado; si
+ * no lo declara, "" (ley del proyecto). PURO.
+ */
+export const nivelDeclarado = ({ nivel = "", grado = "", nombre = "" } = {}) => {
+  for (const texto of [nivel, grado, nombre]) {
+    const t = normalizarTexto(texto);
+    if (/\bsecundari[ao]\b/.test(t)) return "Secundaria";
+    if (/\bprimari[ao]\b/.test(t)) return "Primaria";
+    if (/\binicial\b/.test(t)) return "Inicial";
+  }
+  return "";
+};
+
 export const puntuarCursoParaPlan = (meta = {}, curso = {}) => {
   const gradoPlan = normalizarTexto(meta.grado || "");
   const seccionPlan = normalizarTexto(meta.seccion || "");

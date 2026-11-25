@@ -157,6 +157,28 @@ check("apropiación también exige una pieza concreta del producto", () => {
   );
 });
 
+const apertura = { semanaNum: 1, diasApropiacion: new Set([1]) };
+check("apertura: sigue eximida de la técnica (R12)", () => {
+  validateBatch(loteValido([{ actividadCLT: null }]), DUR, 1, foco, apertura);
+});
+check("apertura: la voz en 3.ª persona plural se comprueba", () => {
+  const clase = claseValida();
+  clase.momentos[1].actividades[0] = "Los estudiantes participan en una presentación.";
+  esperaError(() => validateBatch(loteValido([clase]), DUR, 1, foco, apertura), "Voz");
+});
+check("apertura: el Inicio canónico se comprueba", () => {
+  esperaError(() => validateBatch(loteValido([{ retroalimentacionPrevia: "" }]), DUR, 1, foco, apertura), "retroalimentacionPrevia");
+  esperaError(() => validateBatch(loteValido([{ actividadEnganche: "El docente muestra imágenes." }]), DUR, 1, foco, apertura), "Voz");
+});
+check("apertura: metacognición, recursos y minutos se comprueban", () => {
+  const sinMeta = claseValida();
+  sinMeta.momentos[2].metacognicion = [];
+  esperaError(() => validateBatch(loteValido([sinMeta]), DUR, 1, foco, apertura), "metacognicion");
+  const sinRecursos = claseValida();
+  sinRecursos.momentos[0].recursos = [];
+  esperaError(() => validateBatch(loteValido([sinRecursos]), DUR, 1, foco, apertura), "recursos");
+});
+
 // ── 3B: técnica metodológica ──
 console.log("\n3B — actividad metodológica nombrada:");
 

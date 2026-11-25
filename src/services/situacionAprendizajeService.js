@@ -187,10 +187,32 @@ export const situacionDesdeSemilla = (semilla, { centro = "" } = {}) => ({
   problema: semilla.problema,
   productoDescripcion: semilla.producto.descripcion,
   audiencia: semilla.producto.audiencia,
+  // Vale mientras la audiencia siga siendo esta; si el docente la cambia, manda la suya.
+  audienciaDetalle: semilla.producto.audienciaDetalle
+    ? { ...semilla.producto.audienciaDetalle, de: semilla.producto.audiencia }
+    : null,
   puntoDeLlegada: semilla.puntoDeLlegada,
   competenciasLlegada: [...semilla.competenciasLlegada],
   rasgos: { ...semilla.rasgos },
 });
+
+/**
+ * Audiencia de la situación: principal, secundarias con su función y la frase
+ * que la nombra en todo el documento. Sin detalle (o si el docente reescribió la
+ * audiencia), la frase que haya es la principal.
+ */
+export const audienciasDeSituacion = (situacion = null) => {
+  const texto = String(situacion?.audiencia || "").trim();
+  const detalle = situacion?.audienciaDetalle;
+  if (!texto) return { principal: "", secundarias: [], frase: "" };
+  if (!detalle?.principal || detalle.de !== texto) return { principal: texto, secundarias: [], frase: texto };
+  const secundarias = Array.isArray(detalle.secundarias) ? detalle.secundarias : [];
+  return {
+    principal: detalle.principal,
+    secundarias,
+    frase: [detalle.principal, ...secundarias.map((s) => `también a ${s.quien}, que ${s.funcion}`.replace(/\ba el\b/, "al"))].join("; "),
+  };
+};
 
 // ── Borrador automático (modo rápido) ──────────────────────────────────────
 // Sin situación propuesta para el tema, DocenteOS arma un BORRADOR con el
@@ -300,11 +322,14 @@ export const componerSituacion = (args) => {
 
 /**
  * Valida la situación para la estrategia elegida.
- * @returns {{texto: string, errores: string[]}}
+ * Las 8 líneas (≈800 caracteres) de la Guía son una alerta, no un tope: si la situación necesita más, pasa
+ * (César, 2026-11-11). Va en `avisos`, que no bloquean la generación.
+ * @returns {{texto: string, errores: string[], avisos: string[]}}
  */
 export const validarSituacion = ({ situacion, producto, estrategia }) => {
-  if (!situacion) return { texto: "", errores: ["elige una situación propuesta o escribe la tuya."] };
+  if (!situacion) return { texto: "", errores: ["elige una situación propuesta o escribe la tuya."], avisos: [] };
   const errores = [];
+  const avisos = [];
   const alineada = situacion.estrategiaAlineada || estrategia;
   const el = elementosSituacion({ situacion, producto, estrategia: alineada });
   if (!el.problema) errores.push("falta el problema o la necesidad.");
@@ -324,9 +349,9 @@ export const validarSituacion = ({ situacion, producto, estrategia }) => {
   comps.forEach((c) => { if (!COMPETENCIAS_LLEGADA[c]) errores.push(`"${c}" no es una competencia del punto de llegada.`); });
   const texto = componerSituacion({ situacion, producto, estrategia: alineada });
   if (texto.length > MAX_CARACTERES_SITUACION) {
-    errores.push(`la situación tiene ${texto.length} caracteres; el máximo es ${MAX_CARACTERES_SITUACION} (unas 8 líneas). Acorta algún elemento.`);
+    avisos.push(`la situación tiene ${texto.length} caracteres; la Guía recomienda unas 8 líneas (${MAX_CARACTERES_SITUACION}). Se acepta, pero conviene acortarla si se puede.`);
   }
-  return { texto, errores };
+  return { texto, errores, avisos };
 };
 
 // ── Recomendación de estrategia (Guía 1.2.4) ───────────────────────────────
@@ -392,11 +417,12 @@ export const usarSemilla = (pm, semilla, { centro = "" } = {}) => alinearSiNoHay
   ...pm, situacion: situacionDesdeSemilla(semilla, { centro }), secciones: [...semilla.secciones],
   propositosSecciones: { ...(semilla.propositos || {}) },
   piezasSecciones: { ...(semilla.piezas || {}) },
+  terminosSecciones: Object.fromEntries(Object.entries(semilla.terminos || {}).map(([s, t]) => [s, [...t]])),
   tiposTrabajoSecciones: { ...(semilla.tiposTrabajo || {}) },
   partenDeSecciones: Object.fromEntries(Object.entries(semilla.partenDe || {}).map(([s, de]) => [s, [...de]])),
 });
 
-export const escribirSituacionPropia = (pm) => alinearSiNoHay({ ...pm, situacion: situacionVacia(), secciones: [], propositosSecciones: {}, piezasSecciones: {}, tiposTrabajoSecciones: {}, partenDeSecciones: {} });
+export const escribirSituacionPropia = (pm) => alinearSiNoHay({ ...pm, situacion: situacionVacia(), secciones: [], propositosSecciones: {}, piezasSecciones: {}, terminosSecciones: {}, tiposTrabajoSecciones: {}, partenDeSecciones: {} });
 
 export const aceptarRealineacion = (pm) => ({
   ...pm, situacion: { ...pm.situacion, estrategiaAlineada: pm.estrategia, rolPropio: "" },

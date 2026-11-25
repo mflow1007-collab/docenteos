@@ -1,3 +1,4 @@
+import { nivelDeclarado } from "../services/hiloPedagogico.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   NIVELES_DIAGNOSTICO,
@@ -348,6 +349,8 @@ export default function DiagnosticoPage({ cursos = [], cursoActivo = null, perfi
       area,
       asignatura,
       grado: curso?.grado || "",
+      // Solo lo declarado por el curso; nunca se deduce del grado.
+      nivel: nivelDeclarado({ nivel: curso?.nivel, grado: curso?.grado, nombre: curso?.nombre }),
       seccion: curso?.seccion || "",
       anoEscolar,
       aprendizajes: limpio,

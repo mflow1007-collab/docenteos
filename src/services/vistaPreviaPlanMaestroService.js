@@ -15,11 +15,14 @@
  * Verificación: scripts/test-vista-previa-plan-maestro.mjs
  */
 
+import { ALCANCE_POR_SEMILLA } from "../data/tareasPorTipoTrabajo.js";
 import { construirPlanMaestro } from "./planMaestroService.js";
 import { _extraerContenidosMallaCorpus } from "./unidadAprendizajeService.js";
 import { INDICADORES_INGLES_2DO_ESTRUCTURADOS } from "../data/indicadoresIngles2doEstructurados.js";
+import { indicadoresEstructuradosDeMalla } from "./indicadoresDesdeMallaService.js";
+import { FUNCIONES_POR_TEMA } from "../data/funcionesPorTemaLenguas.js";
 import {
-  validarSituacion, propuestasParaTemas, usarSemilla, alinearSiNoHay, recomendarEstrategia,
+  validarSituacion, propuestasParaTemas, usarSemilla, alinearSiNoHay, recomendarEstrategia, aceptarRealineacion,
   borradorSituacion, productoSugerido, seccionesSugeridas,
 } from "./situacionAprendizajeService.js";
 
@@ -66,6 +69,12 @@ export const resolverIndicadoresEstructurados = (mallaPayload) => {
       .map((ind) => ind.id);
     if (distintos.length) throw error(`en la malla cargada, ${distintos.join(", ")} pertenecen a otra competencia que en ${etiqueta}.`);
     return { etiqueta, indicadores };
+  }
+  // Los demás grados de Inglés: estructurados desde su malla oficial, sin tocar el texto (César, 2026-11-11:
+  // el motor es para todos los grados). Solo Inglés: el mapa de clases es de Inglés.
+  if ([...porId.keys()].some((id) => /^ING-\d+-I\d+$/.test(String(id)))) {
+    const indicadores = indicadoresEstructuradosDeMalla(mallaPayload);
+    if (indicadores?.length) return { etiqueta: `Inglés ${mallaPayload?.grade || ""}`.trim(), indicadores };
   }
   return null;
 };
@@ -126,8 +135,10 @@ export const armarEntradaPlanMaestro = ({ datos = {}, mallaPayload } = {}) => {
     secciones: pm.secciones || [],
     propositosSecciones: pm.propositosSecciones || {},
     piezasSecciones: pm.piezasSecciones || {},
+    terminosSecciones: pm.terminosSecciones || {},
     tiposTrabajoSecciones: pm.tiposTrabajoSecciones || {},
     partenDeSecciones: pm.partenDeSecciones || {},
+    tareasOmitidas: ALCANCE_POR_SEMILLA[pm.situacion?.semillaId]?.conInvitado?.tareasOmitidas || [],
     ajustes: {
       unir: pm.unir,
       subdividir: pm.subdividir,
@@ -154,30 +165,53 @@ export const calcularVistaPrevia = ({ datos, mallaPayload }) => {
  * algo. `horario` es el que usará el generador (semanas, días, horas).
  * @returns {{aplica:false}|{aplica:true, plan, estructura, situacionTexto}}
  */
-export const prepararPlanMaestroGeneracion = ({ datos = {}, mallaPayload, horario }) => {
+export const prepararPlanMaestroGeneracion = ({ datos: datosEntrada = {}, mallaPayload, horario }) => {
   const estructura = resolverIndicadoresEstructurados(mallaPayload);
   if (!estructura) return { aplica: false };
+  // Plan tocado antes del prellenado: DocenteOS completa lo que falta sin pisar lo que eligió el docente.
+  const datos = !datosEntrada.planMaestro?.prellenado && String(datosEntrada.titulo || "").trim()
+    && !(datosEntrada.planMaestro?.competenciasElegidas || []).length
+    ? { ...datosEntrada, ...prellenarSinPisar({ datos: datosEntrada, indicadores: estructura.indicadores, competencias: competenciasDeMalla(mallaPayload, estructura.indicadores) }) }
+    : datosEntrada;
   const datosPlan = {
     ...datos,
     numSemanas: horario.semanas,
     diasClase: horario.diasClase,
     horasPorDia: horario.horasPorDia,
   };
-  const vista = calcularVistaPrevia({ datos: datosPlan, mallaPayload });
+  let vista = calcularVistaPrevia({ datos: datosPlan, mallaPayload });
+  // Menos sesiones que fases y el docente no unió ninguna: DocenteOS las une solo, seguidas y lo más parejo
+  // posible (una clase puede llevar dos o más fases, César 2026-11-06). El docente no tiene que saber unir fases.
+  const faltan = /el horario da (\d+) sesiones y la estrategia tiene (\d+) fases/.exec(vista.error || "");
+  if (faltan && !(datos.planMaestro?.unir || []).length) {
+    const [total, nFases] = [Number(faltan[1]), Number(faltan[2])];
+    const grupos = Array.from({ length: total }, (_, i) => {
+      const desde = Math.floor((i * nFases) / total) + 1;
+      const hasta = Math.floor(((i + 1) * nFases) / total);
+      return Array.from({ length: hasta - desde + 1 }, (_, k) => desde + k);
+    }).filter((g) => g.length >= 2);
+    const conUnion = { ...datosPlan, planMaestro: { ...(datos.planMaestro || {}), unir: grupos, subdividir: {}, sesionesPorFase: null } };
+    const intento = calcularVistaPrevia({ datos: conUnion, mallaPayload });
+    if (!intento.error) vista = intento;
+  }
   if (vista.error) {
     // `detalle` = solo lo que falta (sin repetir «Vista previa»): lo muestra el formulario.
     const detalle = vista.error.replace(/^Vista previa: /, "");
     throw Object.assign(error(`completa la «Vista previa del plan maestro» antes de generar: ${detalle}`), { detalle });
   }
-  const pm = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
-  const { texto, errores } = validarSituacion({
+  const pmDatos = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
+  // Si el docente cambió la estrategia y no aceptó la situación realineada, se acepta sola: el docente
+  // no tiene que entender la realineación para poder generar (César, 2026-11-11).
+  const pm = pmDatos.situacion?.estrategiaAlineada && pmDatos.estrategia && pmDatos.situacion.estrategiaAlineada !== pmDatos.estrategia
+    ? aceptarRealineacion(pmDatos) : pmDatos;
+  const { texto, errores, avisos = [] } = validarSituacion({
     situacion: pm.situacion, producto: datos.productoFinalTexto, estrategia: pm.estrategia,
   });
   if (errores.length) {
     const detalle = `la situación de aprendizaje no está lista: ${errores.join(" ")}`;
     throw Object.assign(error(detalle), { detalle });
   }
-  return { aplica: true, plan: vista.plan, estructura, situacionTexto: texto };
+  return { aplica: true, plan: vista.plan, estructura, situacionTexto: texto, avisosSituacion: avisos };
 };
 
 /** Versión que no lanza, para habilitar el botón Generar en el formulario. */
@@ -293,7 +327,68 @@ export const planMaestroSinTocar = (planMaestro) => {
  * editable en la vista previa; nada sustituye a la malla oficial.
  * @returns {{planMaestro: object, productoFinalTexto: string}}
  */
-export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencias = [] } = {}) => {
+// ─── Indicadores por tema (César, 2026-11-16) ────────────────────────────────
+// Un indicador encaja con el tema si las funciones que nombra son funciones del tema (tabla de funciones por tema,
+// aprobada por César); si no nombra ninguna función, es general y vale para cualquier tema. Los ya trabajados en
+// planes anteriores del mismo grado y asignatura no se eligen por defecto. BORRADOR de la relación: César la valida.
+const textoNormal = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+/** Tabla de funciones por tema del grado y asignatura de la unidad, o null si no hay. */
+export const tablaFuncionesDe = ({ grado = "", asignatura = "" } = {}) => {
+  const g = String(grado || "").trim().split(/\s+/)[0].toLowerCase();
+  const a = /ingl/i.test(asignatura) ? "ingles" : /franc/i.test(asignatura) ? "frances" : "";
+  return (a && g && FUNCIONES_POR_TEMA[`${a}-${g}`]) || null;
+};
+/** Cuánto encaja un indicador con los temas: 0 no encaja, 1 general, más de 2 nombra funciones del tema. */
+export const encajeConTema = (indicador, temas = [], tabla = null) => {
+  if (!tabla) return 1;
+  const texto = textoNormal(JSON.stringify([indicador?.tronco, indicador?.listas, indicador?.entre, indicador?.cierre]));
+  const funciones = tabla.funciones.filter((f) => f.patron.test(texto));
+  if (!funciones.length) return 1;
+  const delTema = new Set(temas.flatMap((t) => tabla.temas[t] || []));
+  const propias = funciones.filter((f) => delTema.has(f.nombre)).length;
+  return propias ? 2 + propias / funciones.length : 0;
+};
+/**
+ * Indicadores que DocenteOS marca por defecto: de las competencias elegidas, los que encajan con el tema y no se han
+ * trabajado, al menos uno por competencia y en total los que caben (3, lo que soportan las clases sumativas de una
+ * unidad corta). Los demás quedan visibles para que el docente los marque.
+ */
+export const indicadoresSugeridos = ({ indicadores = [], competenciasIds = [], temas = [], tabla = null, trabajados = [], tope = 3 } = {}) => {
+  const usados = new Set((trabajados || []).map((c) => String(c).toUpperCase()));
+  const limite = Math.max(tope, competenciasIds.length);
+  const porCompetencia = competenciasIds.map((cid) => indicadores
+    .filter((i) => i.competenciaId === cid && !usados.has(String(i.id).toUpperCase()))
+    .map((i, k) => ({ id: i.id, s: encajeConTema(i, temas, tabla), k }))
+    .filter((x) => x.s > 0)
+    .sort((a, b) => b.s - a.s || a.k - b.k)
+    .map((x) => x.id));
+  const elegidos = [];
+  for (let ronda = 0; elegidos.length < limite; ronda += 1) {
+    const antes = elegidos.length;
+    porCompetencia.forEach((lista) => { if (lista[ronda] && elegidos.length < limite) elegidos.push(lista[ronda]); });
+    if (elegidos.length === antes) break;
+  }
+  return elegidos;
+};
+/** Ajusta los indicadores del plan a los sugeridos para sus competencias (sin tocar las competencias). */
+export const conIndicadoresSugeridos = (pm, { indicadores = [], datos = {}, trabajados = [] } = {}) => {
+  const sugeridos = indicadoresSugeridos({ indicadores, competenciasIds: pm.competenciasElegidas || [], temas: temasDeLaUnidad(datos), tabla: tablaFuncionesDe(datos), trabajados });
+  if (!sugeridos.length) return pm;
+  const aspectos = Object.fromEntries(Object.entries(pm.aspectosElegidos || {}).filter(([id]) => sugeridos.includes(id)));
+  return { ...pm, indicadoresElegidos: sugeridos, aspectosElegidos: aspectos };
+};
+
+const nombreComp = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z ]+/g, " ").trim();
+/** Competencias de la malla que corresponden a las casillas «Competencias Fundamentales» del formulario, en el orden de la malla. */
+export const competenciasDelFormulario = (competencias = [], seleccionadas = []) => {
+  const marcadas = (seleccionadas || []).map(nombreComp).filter(Boolean);
+  return competencias.filter((c) => {
+    const n = nombreComp(c.nombre);
+    return marcadas.some((m) => n === m || n.startsWith(m) || m.startsWith(n) || n.split(" ")[0] === m.split(" ")[0]);
+  });
+};
+
+export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencias = [], trabajados = [] } = {}) => {
   const temas = temasDeLaUnidad(datos);
   const semilla = propuestasParaTemas(temas)[0] || null;
   let pm = { ...PLAN_MAESTRO_INICIAL };
@@ -304,19 +399,48 @@ export const prellenarPlanMaestro = ({ datos = {}, indicadores = [], competencia
     pm = usarSemilla(pm, semilla, { centro: datos.centro });
     producto = producto || semilla.producto.nombre;
   } else {
-    pm = { ...pm, situacion: borradorSituacion(datos), secciones: seccionesSugeridas(datos), propositosSecciones: {}, piezasSecciones: {}, tiposTrabajoSecciones: {}, partenDeSecciones: {} };
+    pm = { ...pm, situacion: borradorSituacion(datos), secciones: seccionesSugeridas(datos), propositosSecciones: {}, piezasSecciones: {}, terminosSecciones: {}, tiposTrabajoSecciones: {}, partenDeSecciones: {} };
     producto = producto || productoSugerido(datos);
   }
   const rec = recomendarEstrategia(pm.situacion.rasgos);
   const estrategia = rec.recomendada.disponible ? rec.recomendada.clave : rec.mejorDisponible?.clave;
   if (estrategia) pm = alinearSiNoHay({ ...pm, estrategia });
-  const comunicativa = competencias.find((c) => /comunicativa/i.test(c.nombre)) || competencias[0];
-  if (comunicativa) pm = alternarCompetencia(pm, comunicativa.id, indicadores);
+  // Las competencias que el docente marcó en el formulario (por su nombre fundamental); sin ninguna, la Comunicativa
+  // (César, 2026-11-16: marcó varias y el plan solo tomó una).
+  const elegidas = competenciasDelFormulario(competencias, datos.competenciasFundamentalesSeleccionadas);
+  const iniciales = elegidas.length ? elegidas : [competencias.find((c) => /comunicativa/i.test(c.nombre)) || competencias[0]].filter(Boolean);
+  iniciales.forEach((c) => { pm = alternarCompetencia(pm, c.id, indicadores); });
+  pm = conIndicadoresSugeridos(pm, { indicadores, datos, trabajados });
   const titulo = String(datos.titulo || "").trim();
   return {
     planMaestro: { ...pm, prellenado: { titulo, producto, firma: firmaPlanMaestro(pm) } },
     productoFinalTexto: producto,
   };
+};
+
+/**
+ * Prellena sin pisar lo que el docente ya eligió (estrategia, situación, secciones, competencias, producto).
+ * Cubre la trampa de tocar el plan antes de que DocenteOS lo prellene: el plan quedaba sin competencias y bloqueaba
+ * con «el docente no ha elegido ninguna competencia» (César, 2026-11-11).
+ */
+export const prellenarSinPisar = ({ datos = {}, indicadores = [], competencias = [], trabajados = [] } = {}) => {
+  const pre = prellenarPlanMaestro({ datos, indicadores, competencias, trabajados });
+  const propio = { ...PLAN_MAESTRO_INICIAL, ...(datos.planMaestro || {}) };
+  const pm = { ...pre.planMaestro };
+  if (propio.estrategia) pm.estrategia = propio.estrategia;
+  if (propio.situacion) pm.situacion = propio.situacion;
+  if ((propio.secciones || []).length) {
+    ["secciones", "propositosSecciones", "piezasSecciones", "terminosSecciones", "tiposTrabajoSecciones", "partenDeSecciones"]
+      .forEach((k) => { if (propio[k] !== undefined) pm[k] = propio[k]; });
+  }
+  if ((propio.competenciasElegidas || []).length) {
+    pm.competenciasElegidas = propio.competenciasElegidas;
+    pm.indicadoresElegidos = propio.indicadoresElegidos;
+    pm.aspectosElegidos = propio.aspectosElegidos;
+  }
+  ["unir", "subdividir", "sesionesPorFase", "modalidadVisita"].forEach((k) => { if (propio[k] && (!Array.isArray(propio[k]) || propio[k].length)) pm[k] = propio[k]; });
+  const producto = String(datos.productoFinalTexto || "").trim() || pre.productoFinalTexto;
+  return { planMaestro: pm, productoFinalTexto: producto };
 };
 
 /** Firma del plan sin la marca de prellenado: si cambia, el docente lo tocó. */
@@ -332,6 +456,8 @@ export const debePrellenarPlanMaestro = ({ planMaestro, titulo = "", productoFin
   if (!t) return false;
   if (planMaestroSinTocar(planMaestro)) return true;
   const marca = planMaestro?.prellenado;
+  // Tocado antes del prellenado y sin competencias: se completa sin pisar lo elegido (prellenarSinPisar).
+  if (!marca && !(planMaestro?.competenciasElegidas || []).length) return true;
   if (!marca || marca.titulo === t) return false;
   return firmaPlanMaestro(planMaestro) === marca.firma && String(productoFinalTexto || "") === marca.producto;
 };

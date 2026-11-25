@@ -231,5 +231,13 @@ check("piezas nombradas por la sección del producto no son desalineación (prue
   assert(deriva.some((a) => /desalineación temática/.test(a)), "la deriva real dejó de avisar");
 });
 
+check("producto-fantasma: un título con gerundio no es otro producto; un producto distinto sí avisa", () => {
+  const base = { producto: "Our School Survival Guide", temaCentral: "Escuela y educación", numSemanas: 4 };
+  const titulo = validarCoherenciaProducto({ ...base, corpusDocumento: ["Ajustando Our School Survival Guide según la retroalimentación"] });
+  assert(!titulo.some((a) => /Producto-fantasma/.test(a)), "el título con gerundio dio falso positivo");
+  const otro = validarCoherenciaProducto({ ...base, corpusDocumento: ["Ajustando Weekly Habit Tracker para la clase"] });
+  assert(otro.some((a) => /Producto-fantasma/.test(a) && /Weekly Habit Tracker/.test(a)), "un producto distinto dejó de avisar");
+});
+
 console.log(`\nCoherencia del producto: ${pasos} pasos, ${fallos} fallos`);
 process.exit(fallos ? 1 : 0);

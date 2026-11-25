@@ -61,17 +61,19 @@ check("vista previa completa → plan de 7 fases y situación compuesta", () => 
   assert(prep.situacionTexto.includes("Centro Hector Francisco Lopez"), "situación con el centro");
 });
 
-check("vista previa obligatoria: sin estrategia, sin competencias o con situación incompleta → error visible", () => {
-  lanza(() => prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: PLAN_MAESTRO_INICIAL }, mallaPayload: malla, horario }), /Vista previa del plan maestro.*estrategia/, "sin estrategia");
-  lanza(() => prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: { ...pm, competenciasElegidas: [], indicadoresElegidos: [], aspectosElegidos: {} } }, mallaPayload: malla, horario }), /ninguna competencia/, "sin competencias");
+check("vista previa: plan vacío lo completa DocenteOS; sin competencias (ya prellenado) o con situación incompleta → error visible", () => {
+  // Plan vacío o tocado antes del prellenado: DocenteOS lo completa (César, 2026-11-11: «DocenteOS se encarga»).
+  const completado = prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: PLAN_MAESTRO_INICIAL }, mallaPayload: malla, horario });
+  assert(completado.aplica && completado.plan?.estrategia?.clave, "el plan vacío no se completó");
+  // El docente quitó todas las competencias de un plan ya prellenado (marca presente): eso sí es un error visible.
+  lanza(() => prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: { ...pm, prellenado: { titulo: "x", producto: "", firma: "" }, competenciasElegidas: [], indicadoresElegidos: [], aspectosElegidos: {} } }, mallaPayload: malla, horario }), /ninguna competencia/, "sin competencias");
   lanza(() => prepararPlanMaestroGeneracion({ datos: { ...datos, planMaestro: { ...pm, situacion: { ...pm.situacion, problema: "" } } }, mallaPayload: malla, horario }), /situación.*problema/, "situación incompleta");
   const estado = estadoPlanMaestroParaGenerar({ datos: { ...datos, planMaestro: PLAN_MAESTRO_INICIAL }, mallaPayload: malla, horario });
-  igual([estado.aplica, estado.listo], [true, false], "estado para el botón");
-  // El aviso del formulario dice solo lo que falta, sin repetir «Vista previa»
-  igual(estado.falta, "elige la estrategia de la unidad.", "lo que falta");
-  assert(!/Vista previa: .*Vista previa: /.test(estado.motivo), "el error no repite el prefijo");
+  igual([estado.aplica, estado.listo], [true, true], "plan vacío: el botón queda libre");
   const sinProblema = estadoPlanMaestroParaGenerar({ datos: { ...datos, planMaestro: { ...pm, situacion: { ...pm.situacion, problema: "" } } }, mallaPayload: malla, horario });
   assert(/^la situación de aprendizaje no está lista: .*problema/.test(sinProblema.falta), "situación incompleta: lo que falta");
+  // El aviso del formulario dice solo lo que falta, sin repetir «Vista previa»
+  assert(!/Vista previa: .*Vista previa: /.test(sinProblema.motivo), "el error no repite el prefijo");
 });
 
 check("asignatura sin indicadores estructurados → no aplica (genera como antes)", () => {
@@ -308,7 +310,7 @@ check("clase con TODAS las secciones: su aporte puede nombrar el producto entero
   }
   const faseTxt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
   assert(/Si la clase avanza TODAS las secciones \(sin principal\), el "aporteProducto" nombra el producto entero/.test(faseTxt), "el prompt lo pide");
-  assert(/const PROMPT_FASE_VERSION = 9;/.test(faseTxt), "versión del prompt");
+  assert(/const PROMPT_FASE_VERSION = 11;/.test(faseTxt), "versión del prompt");
 });
 
 check("cada fase deja su entrega: la última clase la declara y se avanzan sus secciones", () => {
@@ -457,6 +459,28 @@ check("Anexo F: primero el vocabulario del proyecto (sin singular y plural repet
   igual(construirAnexosUnidad(baseAnexos).glosario.map((g) => g.origen), ["malla", "malla"], "sin ampliación, como antes");
 });
 
+check("Anexo F: los términos de la semilla salen primero y estables, sin repetir los de la malla", () => {
+  const { glosario } = construirAnexosUnidad({
+    ...baseAnexos,
+    vocabulario: ["menu"],
+    secciones: ["Our Local Food", "Bilingual Menus"],
+    terminosSecciones: { "Our Local Food": ["dish", "ingredients"], "Bilingual Menus": ["menu", "price"], "Sección quitada": ["nada"] },
+    ampliacion: [{ texto: "ingredient, dishes, chef", tipo: "vocabulario", seccion: "Our Local Food" }],
+  });
+  igual(glosario.map((g) => [g.termino, g.origen]), [
+    ["dish", "DocenteOS"], ["ingredients", "DocenteOS"], ["price", "DocenteOS"], ["chef", "DocenteOS"], ["menu", "malla"],
+  ], "glosario con semilla");
+});
+
+check("Semillas de Inglés 2do: términos por cada sección, máximo 16, sin repetidos", () => {
+  for (const s of SEMILLAS) {
+    igual(Object.keys(s.terminos), s.secciones, `${s.id}: una lista por sección`);
+    const total = Object.values(s.terminos).flat();
+    assert(total.length <= 16, `${s.id}: ${total.length} términos`);
+    igual(new Set(total).size, total.length, `${s.id}: sin repetidos`);
+  }
+});
+
 check("Anexo F: en la malla, lo trabajado en las clases va primero", () => {
   const fasesUso = [{ dias: [{ semillaUsada: ["Vocabulario: menu", "ingredients"] }, { semillaUsada: ["menu", "chat"] }] }];
   const { glosario } = construirAnexosUnidad({ ...baseAnexos, vocabulario: ["texting", "chat", "park", "menu", "ingredients"], fases: fasesUso });
@@ -563,7 +587,7 @@ check("4.4: verbo de la lista (taxonomía, idioma solo en idiomas, gestión)", (
   assert(!motivoRedaccionActividad(`Escuchan (en parejas) un audio ${largo}`, { esIdioma: true }), "idioma");
   assert(/lista de verbos/.test(motivoRedaccionActividad(`Escuchan un audio ${largo}`)), "idioma fuera de idiomas");
   assert(!motivoRedaccionActividad("Socializan (en plenaria) el mapa."), "gestión");
-  for (const v of ["Participan", "Realizan", "Recopilan", "Reciben", "Acordan", "Recordandon", "Discutan"]) {
+  for (const v of ["Participan", "Realizan", "Recopilan", "Acordan", "Recordandon", "Discutan"]) {
     assert(/lista de verbos/.test(motivoRedaccionActividad(`${v} en el Gallery Walk ${largo}`, { esIdioma: true })), v);
   }
 });

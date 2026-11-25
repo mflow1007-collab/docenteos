@@ -19,6 +19,10 @@
  * TIPOS_TRABAJO, rolesFasesEstrategias.js) y `partenDe` = de qué secciones de
  * la misma semilla se alimenta, siempre de fase igual o anterior (Etapa S2 de
  * docs/DISENO_SECUENCIA_POR_FASES.md, aprobada por César el 2026-11-03).
+ * `audienciaDetalle` = audiencia principal y secundarias con su función
+ * (`producto.audiencia` sigue siendo la frase completa; César, 2026-11-04).
+ * `terminos` = vocabulario clave del proyecto por sección para el Anexo F
+ * (aprobado por César, 2026-11-04); no llega al prompt.
  * Lugar (regla de César, 2026-10-29): `{centro}` = el centro donde el docente
  * imparte docencia (dato del formulario); `{comunidad}` solo cuando la
  * situación ocurre fuera del centro (rasgos.contexto = "comunidad").
@@ -36,6 +40,10 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       nombre: "Our School Survival Guide",
       descripcion: "una guía bilingüe de la escuela",
       audiencia: "los estudiantes de nuevo ingreso y los visitantes",
+      audienciaDetalle: {
+        principal: "los estudiantes de nuevo ingreso",
+        secundarias: [{ quien: "los visitantes", funcion: "consultan la guía para orientarse" }],
+      },
     },
     puntoDeLlegada: "Así fortalecen la empatía y el sentido de pertenencia, y asumen la responsabilidad de acoger y orientar a los demás.",
     competenciasLlegada: ["etica_ciudadana", "desarrollo_personal"],
@@ -56,6 +64,14 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "Asking for Help": "una tarjeta de bolsillo con frases para pedir ayuda y a quién acudir",
       "School Success Tips": "un póster «Top tips» con los consejos",
       "Final Recommendation": "un párrafo de cierre del grupo para el recién llegado",
+    },
+    terminos: {
+      "Welcome": ["welcome", "visitor", "new student"],
+      "Important Places": ["library", "principal's office", "cafeteria"],
+      "School Directions": ["turn left", "turn right", "next to"],
+      "Asking for Help": ["help", "Excuse me"],
+      "School Success Tips": ["schedule", "rule", "homework"],
+      "Final Recommendation": ["recommend", "advice"],
     },
     tiposTrabajo: {
       "Welcome": "socializar",
@@ -83,6 +99,10 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       nombre: "Our Healthy Routines Plan",
       descripcion: "un plan de rutinas y horarios para el curso",
       audiencia: "las familias y el consejo de curso",
+      audienciaDetalle: {
+        principal: "las familias",
+        secundarias: [{ quien: "el consejo de curso", funcion: "da seguimiento al plan" }],
+      },
     },
     puntoDeLlegada: "Así aprenden a cuidar su descanso y su tiempo, y a tomar decisiones responsables sobre su bienestar.",
     competenciasLlegada: ["desarrollo_personal", "ambiental_salud"],
@@ -101,6 +121,13 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       "Problems and Causes": "una tabla problema → causa",
       "Our Healthy Schedule": "el horario semanal equilibrado",
       "Tips for Families": "un folleto de consejos para las familias",
+    },
+    terminos: {
+      "Our Daily Routines": ["wake up", "get dressed", "chores"],
+      "What We Found": ["survey", "results", "hours of sleep"],
+      "Problems and Causes": ["late", "tired", "because"],
+      "Our Healthy Schedule": ["schedule", "rest", "free time"],
+      "Tips for Families": ["tip", "support", "family"],
     },
     tiposTrabajo: {
       "Our Daily Routines": "describir",
@@ -126,6 +153,10 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
       nombre: "Our Community Food Guide",
       descripcion: "menús bilingües y recomendaciones para los comedores del barrio",
       audiencia: "los dueños de los comedores y los visitantes",
+      audienciaDetalle: {
+        principal: "los dueños de los comedores",
+        secundarias: [{ quien: "los visitantes", funcion: "consultan los menús para saber qué piden" }],
+      },
     },
     puntoDeLlegada: "Así valoran la comida de su comunidad, promueven una alimentación sana y se comprometen con el progreso de su entorno.",
     competenciasLlegada: ["etica_ciudadana", "ambiental_salud"],
@@ -140,10 +171,17 @@ export const SITUACIONES_SEMILLA_INGLES_2DO = [
     },
     piezas: {
       "Our Local Food": "fichas de los platos típicos (nombre, ingredientes principales, dibujo o foto)",
-      "Interviews with Owners": "entrevistas transcritas (preguntas y respuestas de cada dueño)",
+      "Interviews with Owners": "entrevistas transcritas (preguntas y respuestas de los dueños, reales o simuladas)",
       "Bilingual Menus": "el menú bilingüe de cada comedor (plato, descripción, precio)",
       "Healthy Choices": "etiquetas «Healthy pick» junto a los platos del menú, cada una con su razón y la alternativa más sana",
       "Ordering Food": "una guía rápida para pedir: expresiones de cortesía, frases para ordenar, preguntas frecuentes y un diálogo modelo",
+    },
+    terminos: {
+      "Our Local Food": ["dish", "ingredients", "traditional"],
+      "Interviews with Owners": ["owner", "customer", "business"],
+      "Bilingual Menus": ["menu", "price", "drink"],
+      "Healthy Choices": ["healthy", "fresh", "fried"],
+      "Ordering Food": ["order", "bill", "Can I have…?"],
     },
     tiposTrabajo: {
       "Our Local Food": "describir",

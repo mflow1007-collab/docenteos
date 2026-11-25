@@ -11,7 +11,7 @@
  */
 import { readFileSync } from "node:fs";
 import {
-  prellenarPlanMaestro, debePrellenarPlanMaestro, planMaestroSinTocar, estadoPlanMaestroParaGenerar,
+  prellenarPlanMaestro, prellenarSinPisar, debePrellenarPlanMaestro, planMaestroSinTocar, estadoPlanMaestroParaGenerar,
   resolverIndicadoresEstructurados, competenciasDeMalla, PLAN_MAESTRO_INICIAL, prepararPlanMaestroGeneracion,
 } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { seccionesPrincipalesUnidad, construirContratoFase, hiloPartenDe } from "../src/services/redaccionFaseService.js";
@@ -74,6 +74,9 @@ check("Etapa 1A: la semilla trae qué contiene cada sección; el borrador del t�
   igual(d.planMaestro.piezasSecciones["Healthy Choices"], "etiquetas «Healthy pick» junto a los platos del menú, cada una con su razón y la alternativa más sana", "pieza de Healthy Choices");
   igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.propositosSecciones, {}, "sin semilla, sin propósitos");
   igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.piezasSecciones, {}, "sin semilla, sin piezas");
+  igual(d.planMaestro.terminosSecciones["Bilingual Menus"], ["menu", "price", "drink"], "términos del Anexo F desde la semilla");
+  igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.terminosSecciones, {}, "sin semilla, sin términos");
+  assert(/reales o simuladas/.test(d.planMaestro.piezasSecciones["Interviews with Owners"]) && !/cada dueño/.test(d.planMaestro.piezasSecciones["Interviews with Owners"]), "la entrevista puede ser simulada");
   igual(d.planMaestro.tiposTrabajoSecciones["Healthy Choices"], "proponer", "Etapa S2: tipo de Healthy Choices");
   igual(d.planMaestro.partenDeSecciones["Ordering Food"], ["Bilingual Menus", "Healthy Choices"], "Etapa S2: de qué parte Ordering Food");
   igual(prellenar({ ...base, titulo: "My family and friends" }).planMaestro.tiposTrabajoSecciones, {}, "sin semilla, sin tipos");
@@ -235,6 +238,51 @@ check("«Alimentación»: solo la fase de aplicación lleva la audiencia real", 
   assert(proyectos.fases.every((_, i) => !construirContratoFase({ plan: proyectos, indice: i, estructura, audiencia }).audienciaReal), "estrategia sin mapa de tipos: nada");
   const txt = readFileSync(new URL("../src/services/phaseAService.js", import.meta.url), "utf8");
   assert(/c\.audienciaReal \? `APLICACIÓN ANTE LA AUDIENCIA REAL/.test(txt), "buildFasePrompt nombra la audiencia");
+});
+
+check("situación de más de 800 caracteres: aviso, no bloqueo; estrategia cambiada sin aceptar: se realinea sola (César, 2026-11-11)", () => {
+  const h = { ...horario, semanas: 4 };
+  const d = prellenar({ ...base, numSemanas: 4, titulo: "Alimentación", temasSeleccionados: ["Alimentación"] });
+  const larga = { ...d.planMaestro.situacion, contexto: `${d.planMaestro.situacion.contexto} ${"Los estudiantes conversan con sus familias y vecinos sobre lo que comen cada día en casa y en el colmado. ".repeat(6)}` };
+  const r = prepararPlanMaestroGeneracion({ datos: { ...d, planMaestro: { ...d.planMaestro, situacion: larga } }, mallaPayload: malla, horario: h });
+  assert(r.situacionTexto.length > 800, `la situación no pasó de 800 (${r.situacionTexto.length})`);
+  assert(r.avisosSituacion.some((a) => /8 líneas/.test(a)), "falta el aviso de longitud");
+  const sinAceptar = { ...d.planMaestro, estrategia: "problemas", situacion: { ...d.planMaestro.situacion, estrategiaAlineada: "proyectos" } };
+  const r2 = prepararPlanMaestroGeneracion({ datos: { ...d, planMaestro: sinAceptar }, mallaPayload: malla, horario: h });
+  assert(r2.aplica && r2.plan.estrategia.clave === "problemas", "la realineación no se aceptó sola");
+});
+
+check("si el docente no toca nada, la vista previa nunca bloquea: temas con y sin semilla, 1 a 8 semanas, cualquier estrategia (César, 2026-11-11)", () => {
+  const temas = ["Escuela y educación", "Actividades de la vida diaria", "Alimentación", "Salud y cuidados físicos", "Viajes y turismo", "Bienes y servicios", "My family and friends"];
+  const estrategias = ["proyectos", "problemas", "indagacion_dialogica", "insercion_entorno", "estudio_caso", "conocimientos_previos", "expositiva"];
+  const bloqueos = [];
+  temas.forEach((titulo) => [1, 4, 8].forEach((semanas) => {
+    const d = prellenar({ ...base, numSemanas: semanas, titulo, temasSeleccionados: [titulo] });
+    const e = estadoPlanMaestroParaGenerar({ datos: d, mallaPayload: malla, horario: { ...horario, semanas } });
+    if (!e.listo) bloqueos.push(`${titulo} ${semanas} sem: ${e.falta}`);
+    // Cambiar solo la estrategia (sin aceptar la realineación) tampoco bloquea.
+    estrategias.forEach((estrategia) => {
+      const e2 = estadoPlanMaestroParaGenerar({ datos: { ...d, planMaestro: { ...d.planMaestro, estrategia } }, mallaPayload: malla, horario: { ...horario, semanas } });
+      if (!e2.listo) bloqueos.push(`${titulo} ${semanas} sem ${estrategia}: ${e2.falta}`);
+    });
+  }));
+  // Única excepción: Exploración de conocimientos previos elegida a mano con 1 semana. Su fase 4 se divide sola en
+  // 3 partes y no se puede unir: no cabe en 3 sesiones. La estrategia que propone DocenteOS siempre cabe.
+  const reales = bloqueos.filter((b) => !/ 1 sem conocimientos_previos:/.test(b));
+  igual(reales.slice(0, 5), [], `bloqueos sin que el docente toque nada (${reales.length})`);
+});
+
+check("trampa: el docente toca el plan antes del prellenado; DocenteOS completa sin pisar lo elegido y no bloquea (César, 2026-11-11)", () => {
+  const datos = { ...base, numSemanas: 4, titulo: "Actividades de la vida diaria", temasSeleccionados: ["Actividades de la vida diaria"],
+    planMaestro: { ...PLAN_MAESTRO_INICIAL, estrategia: "problemas" } };
+  assert(debePrellenarPlanMaestro({ planMaestro: datos.planMaestro, titulo: datos.titulo }), "debía prellenar aunque el docente tocara la estrategia");
+  const r = prellenarSinPisar({ datos, indicadores: estructura.indicadores, competencias });
+  igual(r.planMaestro.estrategia, "problemas", "la estrategia del docente se conserva");
+  assert(r.planMaestro.competenciasElegidas.length > 0 && r.planMaestro.situacion, "competencias y situación completadas");
+  const e = estadoPlanMaestroParaGenerar({ datos, mallaPayload: malla, horario });
+  assert(e.listo, `sigue bloqueando: ${e.falta}`);
+  const conCompetencias = { ...datos.planMaestro, competenciasElegidas: ["x"], prellenado: undefined };
+  assert(!debePrellenarPlanMaestro({ planMaestro: { ...conCompetencias, situacion: {} }, titulo: datos.titulo }), "con competencias del docente no se toca");
 });
 
 console.log(`\nModo rápido del plan maestro: ${pasos} pasos, ${fallos} fallos`);

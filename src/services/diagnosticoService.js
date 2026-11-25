@@ -172,10 +172,15 @@ export const obtenerDiagnosticoCurso = (cursoId, anoEscolar) =>
 // el docente vea su trabajo en cualquier dispositivo. En conflicto por mismo id,
 // gana el de fecha de actualización más reciente. Llamar al abrir el módulo.
 // Devuelve el listado fusionado. No-op silencioso si no hay sesión Firebase.
-export const sincronizarDiagnosticos = async () => {
+// Con `estricto`, un fallo de lectura de Firestore se lanza (el generador lo
+// avisa al administrador) en vez de quedarse callado con lo local.
+export const sincronizarDiagnosticos = async ({ estricto = false } = {}) => {
   if (!firebaseDisponible()) return leerTodo();
   let remotos;
-  try { remotos = await listarDiagnosticosFirebase(); } catch { return leerTodo(); }
+  try { remotos = await listarDiagnosticosFirebase(); } catch (error) {
+    if (estricto) throw error;
+    return leerTodo();
+  }
   const locales = leerTodo();
   const porId = new Map();
   for (const item of [...locales, ...remotos]) {
