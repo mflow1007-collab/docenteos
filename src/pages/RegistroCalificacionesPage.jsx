@@ -26,7 +26,7 @@ import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
 import { escHtml } from "../utils/html.js";
 import { revisarListaEstudiantes } from "../utils/listaEstudiantes.js";
 import AvisoListaEstudiantes from "../components/AvisoListaEstudiantes.jsx";
-import { aplicarCeldasIndicadores, calcularResumenEstudiante, celdasDesdeIndicadores, normalizarNotasCompetencias } from "../utils/resumenCalificaciones.js";
+import { aplicarCeldasIndicadores, calcularResumenEstudiante, celdasDesdeIndicadores, normalizarNotasCompetencias, textoIndicador } from "../utils/resumenCalificaciones.js";
 import { depurarDatosLegado, idEstudiante, idsAmbiguosEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { AIService } from "../services/ai/AIService.js";
@@ -1957,7 +1957,7 @@ function RegistroPage({
                           {comp.indicadoresLogro?.length > 0 ? (
                             <ul>
                               {comp.indicadoresLogro.map((indicador, idxIl) => (
-                                <li key={`${per}-${ci}-${idxIl}`}>{indicador}</li>
+                                <li key={`${per}-${ci}-${idxIl}`}>{textoIndicador(indicador)}</li>
                               ))}
                             </ul>
                           ) : (

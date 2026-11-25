@@ -183,3 +183,7 @@ export function notasConCalculoAceptado(notas) {
     })),
   };
 }
+
+/** Texto de un indicador: la malla oficial los da como objeto y los respaldos como texto. */
+export const textoIndicador = (indicador) =>
+  (typeof indicador === "string" ? indicador : indicador?.descripcion || indicador?.texto || indicador?.id || "");

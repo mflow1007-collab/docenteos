@@ -12,13 +12,21 @@
  */
 
 import {
-  aplicarCeldasIndicadores, celdasDesdeIndicadores, notasConCalculoAceptado,
+  aplicarCeldasIndicadores, celdasDesdeIndicadores, notasConCalculoAceptado, textoIndicador,
 } from "../src/utils/resumenCalificaciones.js";
 import { cfDelRegistro, construirInformeFamilia, construirInformeCurso, textoInformeFamilia } from "../src/services/informesSeguimiento.js";
 import { construirEvidenciaDesdeResultado, evidenciasVigentes } from "../src/services/hiloPedagogico.js";
 import {
   asistenciaDelEstudiante, depurarDatosLegado, esDelEstudiante, idsAmbiguosEstudiante, idsLegadoEstudiante,
 } from "../src/utils/idEstudiante.js";
+
+import { readFileSync } from "node:fs";
+
+const buscarIndicador = (o) => {
+  if (!o || typeof o !== "object") return null;
+  if (Array.isArray(o.indicadoresLogro) && o.indicadoresLogro.length) return o.indicadoresLogro[0];
+  return Object.values(o).map(buscarIndicador).find(Boolean) || null;
+};
 
 let pasos = 0, fallos = 0;
 const check = (n, fn) => { try { fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -179,6 +187,18 @@ check("coordinación: Carlos no hereda la alerta de los ING-1 de Ana", () => {
     resultados: [{ instrumentoId: "lista", estudianteId: "est-1", estudianteNombre: "Ana García", estado: "evaluado", puntajeObtenido: 50, puntajeMaximo: 100, porcentaje: 50, indicadorIds: ["ING-1-I01"] }],
   });
   igual(c.apoyo.map((a) => a.nombre), ["Ana García"], "solo Ana");
+});
+
+check("pestaña Aspectos: el indicador de la malla (objeto) se muestra como texto", () => {
+  const malla = JSON.parse(readFileSync(new URL("../src/data/curriculo/mallas/malla_ingles_2do_secundaria_2023.json", import.meta.url), "utf8"));
+  const indicador = buscarIndicador(malla);
+  assert(indicador?.id && indicador.descripcion, "la malla da objetos con id y descripción");
+  igual(textoIndicador(indicador), indicador.descripcion, "objeto de la malla");
+  igual(textoIndicador({ id: "ING-2-I01", texto: "Responde" }), "Responde", "objeto sin descripción");
+  igual(textoIndicador("Responde"), "Responde", "texto simple");
+  igual([textoIndicador(null), textoIndicador({})], ["", ""], "vacío");
+  const pagina = readFileSync(new URL("../src/pages/RegistroCalificacionesPage.jsx", import.meta.url), "utf8");
+  assert(!/\{indicador\}<\/li>/.test(pagina), "la página no pinta el indicador sin convertirlo");
 });
 
 console.log(`\n${pasos} ok, ${fallos} fallos\n`);
