@@ -7,12 +7,19 @@ import { construirGrupoAcademicoId } from "../services/gruposAcademicosService.j
 import LectorFotoLista from "./LectorFotoLista.jsx";
 import { normalizarHorarioCurso, crearHorarioPorJornada } from "../utils/horarioCurso.js";
 import { proximaClase } from "../utils/horarioSemanal.js";
+import { coloresRegistro, CREMA_REGISTRO } from "../utils/coloresRegistro.js";
 import HorarioSemanal from "./HorarioSemanal.jsx";
 
 const CURSOS_ASIGNATURAS_BASE = ["Inglés", "Francés"];
 const CURSOS_GRADOS_POR_NIVEL = {
   Primaria: ["1ro Primaria", "2do Primaria", "3ro Primaria", "4to Primaria", "5to Primaria", "6to Primaria"],
   Secundaria: ["1ro Secundaria", "2do Secundaria", "3ro Secundaria", "4to Secundaria", "5to Secundaria", "6to Secundaria"],
+};
+
+// Colores de la portada del registro oficial de ese grado
+const estiloRegistro = (curso) => {
+  const colores = coloresRegistro(curso);
+  return colores ? { "--registro-crema": CREMA_REGISTRO, "--registro-fuerte": colores.fuerte, "--registro-suave": colores.suave } : {};
 };
 
 function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActualizarCurso, onEliminarCurso, cursoParaEditar, onConsumirEdicionCurso, onConfigurarHorario }) {
@@ -234,7 +241,7 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
 
       <div key={vista} className={`cursos-grid vista-animada ${vista === "Lista" ? "lista" : "tarjetas"}`}>
         {cursosFiltrados.map((curso) => (
-          <article className="curso-saas-card" key={curso.id} style={{ borderTopColor: colorBordePromedio(curso.promedio) }}>
+          <article className={`curso-saas-card${coloresRegistro(curso) ? " con-registro" : ""}`} key={curso.id} style={{ borderTopColor: colorBordePromedio(curso.promedio), ...estiloRegistro(curso) }}>
             <div className="curso-card-main">
               <div className="curso-identidad">
                 <span className={`curso-icono ${tonoIconoCurso(curso.promedio)}`}>
