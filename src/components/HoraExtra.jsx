@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { obtenerPlanificacionActiva } from "../services/planificacionDataService.js";
+import { obtenerPlanDelCurso } from "../services/planificacionDataService.js";
 import { corregirFechasCapa, fechaLocalISO } from "../services/hiloPedagogico.js";
 import { etiquetaCurso, hora12, horasDelCurso, nombreHora } from "../utils/horarioSemanal.js";
 import { clasesPendientes, fechaLegible, horasOcupadasHoy } from "../utils/horaExtra.js";
@@ -31,19 +31,20 @@ export default function HoraExtra({ cursos = [], cursoActivo = null, onGuardarLi
     let vigente = true;
     setPlan({ estado: "cargando" });
     setClaseElegida(null);
-    obtenerPlanificacionActiva(idCurso)
-      .then((p) => {
+    obtenerPlanDelCurso(idCurso, { curso })
+      .then(({ plan: p, avisos, sinCurso }) => {
         if (!vigente) return;
-        setPlan(p
-          ? { estado: "listo", id: p.id, capa: corregirFechasCapa(p.capaCurricular, p.contenido?.metadatos?.fechaInicio) }
-          : { estado: "sin-plan" });
+        if (p) setPlan({ estado: "listo", id: p.id, capa: corregirFechasCapa(p.capaCurricular, p.contenido?.metadatos?.fechaInicio) });
+        else setPlan(sinCurso ? { estado: "error" } : { estado: avisos.length ? "no-encaja" : "sin-plan", avisos });
       })
       .catch((e) => {
         console.error("[HoraExtra] No se pudo leer el plan:", e);
         if (vigente) setPlan({ estado: "error" });
       });
     return () => { vigente = false; };
-  }, [abierto, idCurso]);
+    // El curso cambia de identidad al guardar la hora; solo importan su id, grado y materia
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abierto, idCurso, curso?.nombre, curso?.area]);
 
   if (!curso) return null;
 
@@ -137,6 +138,12 @@ export default function HoraExtra({ cursos = [], cursoActivo = null, onGuardarLi
           {plan.estado === "cargando" && <p className="hs-ayuda">Buscando las clases pendientes…</p>}
           {plan.estado === "error" && <p className="hs-nota">No se pudieron leer las clases del plan. Cierra y vuelve a abrir para intentarlo de nuevo.</p>}
           {plan.estado === "sin-plan" && <p className="hs-nota">{etiquetaCurso(curso)} aún no tiene planificación: no hay una clase que adelantar.</p>}
+          {plan.estado === "no-encaja" && (
+            <div className="hs-mensaje error" role="alert">
+              {plan.avisos.map((aviso) => <div key={aviso}>⚠️ {aviso}</div>)}
+              No se usa: no hay una clase que adelantar.
+            </div>
+          )}
           {plan.estado === "listo" && !siguientes.length && !atrasadas.length && <p className="hs-nota">Este plan no tiene clases pendientes.</p>}
           {[["Clase", siguientes, " — la siguiente"], ["Atrasadas", atrasadas, ""]].map(([rotulo, clases, marca]) => clases.length > 0 && (
             <div key={rotulo} className="hs-extra-clases" role="radiogroup" aria-label={rotulo === "Clase" ? "Clase que vas a adelantar" : "Clases atrasadas"}>

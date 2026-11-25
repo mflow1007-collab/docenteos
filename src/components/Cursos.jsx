@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { enriquecerCursoInicial } from "../utils/cursoUtils.js";
 import { agregarNombresAlCurso, revisarListaEstudiantes } from "../utils/listaEstudiantes.js";
 import { guardarNuevosConAviso } from "../utils/guardarNuevosConAviso.js";
@@ -8,11 +8,25 @@ import LectorFotoLista from "./LectorFotoLista.jsx";
 import { normalizarHorarioCurso, crearHorarioPorJornada } from "../utils/horarioCurso.js";
 import { proximaClase } from "../utils/horarioSemanal.js";
 import HorarioSemanal from "./HorarioSemanal.jsx";
+import { obtenerPlanificacionesDetalladas } from "../firebase.js";
+import { planesQueDejanDeEncajar, tituloDePlan } from "../services/planCurso.js";
 
 const CURSOS_ASIGNATURAS_BASE = ["Inglés", "Francés"];
 const CURSOS_GRADOS_POR_NIVEL = {
   Primaria: ["1ro Primaria", "2do Primaria", "3ro Primaria", "4to Primaria", "5to Primaria", "6to Primaria"],
   Secundaria: ["1ro Secundaria", "2do Secundaria", "3ro Secundaria", "4to Secundaria", "5to Secundaria", "6to Secundaria"],
+};
+
+// null si ningún plan atado deja de encajar; si no se pueden leer, también se avisa
+const buscarPlanesAfectados = async (antes, despues) => {
+  try {
+    const { data } = await obtenerPlanificacionesDetalladas();
+    const planes = planesQueDejanDeEncajar(data || [], antes, despues);
+    return planes.length ? { curso: despues, planes, error: false } : null;
+  } catch (error) {
+    console.error("[Cursos] No se pudieron leer las planificaciones del curso:", error);
+    return { curso: despues, planes: [], error: true };
+  }
 };
 
 function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActualizarCurso, onEliminarCurso, cursoParaEditar, onConsumirEdicionCurso, onConfigurarHorario }) {
@@ -25,6 +39,10 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
   const [nombresFoto, setNombresFoto] = useState([]);
   const [fotoError, setFotoError] = useState(null);
   const [fotoEstado, setFotoEstado] = useState("vacio");
+  // Aviso antes de guardar un grado o asignatura con planes atados: null | { curso, planes, error }
+  const [avisoPlanes, setAvisoPlanes] = useState(null);
+  const [comprobandoPlanes, setComprobandoPlanes] = useState(false);
+  const turnoPlanes = useRef(0); // descarta una comprobación que termina tarde
   const asignaturasBase = CURSOS_ASIGNATURAS_BASE;
   const gradosPorNivel = CURSOS_GRADOS_POR_NIVEL;
 
@@ -55,6 +73,13 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
       setMostrarModalCurso(true);
     }
   }, [cursoParaEditar, crearFormCurso]);
+
+  // Si el formulario cambia, el aviso (o la comprobación en curso) ya no vale
+  useEffect(() => {
+    turnoPlanes.current += 1;
+    setAvisoPlanes(null);
+    setComprobandoPlanes(false);
+  }, [formCurso, cursoEnEdicion, mostrarModalCurso]);
 
   const clasePorCurso = Object.fromEntries(cursos.map((curso) => [curso.id, proximaClase([curso])]));
   const totalEstudiantes = cursos.reduce((acum, curso) => acum + (curso.estudiantes || 0), 0);
@@ -96,8 +121,22 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
   const fotoEnCurso = !cursoEnEdicion && !cursoConLista && ["preparando", "analizando"].includes(fotoEstado);
   const formularioIncompleto = !formCurso.nivel || !formCurso.grado || !formCurso.area || !formCurso.seccion || !cantidadEstudiantes || fotoEnCurso;
 
+  const confirmarGuardado = (cursoFinal, nuevos = []) => {
+    if (cursoEnEdicion) {
+      onActualizarCurso(cursoFinal);
+    } else {
+      onCrearCurso(cursoFinal);
+      guardarNuevosConAviso(cursoFinal.id, nuevos, guardarEstudianteEnSubcoleccion);
+      if (formCurso.configurarHorario) {
+        onConfigurarHorario(cursoFinal.id);
+      }
+    }
+
+    cerrarModalCurso();
+  };
+
   const guardarCurso = () => {
-    if (formularioIncompleto) return;
+    if (formularioIncompleto || comprobandoPlanes) return;
 
     const nombre = `${formCurso.grado} ${formCurso.seccion}`;
     const baseCurso = cursoEnEdicion || {};
@@ -112,6 +151,7 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
       ...baseCurso,
       id: cursoEnEdicion?.id || `curso-${Date.now()}`,
       nombre,
+      grado: formCurso.grado, // antes conservaba el del curso aunque se cambiara
       area: formCurso.area,
       nivel: formCurso.nivel,
       jornadaTipo,
@@ -145,17 +185,20 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
       ? agregarNombresAlCurso(nuevoCurso, nombresLista)
       : { curso: nuevoCurso, nuevos: [] };
     const cursoFinal = enriquecerCursoInicial(cursoConNombres);
-    if (cursoEnEdicion) {
-      onActualizarCurso(cursoFinal);
-    } else {
-      onCrearCurso(cursoFinal);
-      guardarNuevosConAviso(cursoFinal.id, nuevos, guardarEstudianteEnSubcoleccion);
-      if (formCurso.configurarHorario) {
-        onConfigurarHorario(cursoFinal.id);
-      }
+    const cambiaDeMateria = cursoEnEdicion && ["nombre", "area", "nivel", "seccion"].some((campo) => (cursoEnEdicion[campo] || "") !== cursoFinal[campo]);
+    if (cambiaDeMateria) {
+      const turno = turnoPlanes.current + 1;
+      turnoPlanes.current = turno;
+      setComprobandoPlanes(true);
+      buscarPlanesAfectados(cursoEnEdicion, cursoFinal).then((aviso) => {
+        if (turno !== turnoPlanes.current) return;
+        setComprobandoPlanes(false);
+        if (aviso) setAvisoPlanes(aviso);
+        else confirmarGuardado(cursoFinal, nuevos);
+      });
+      return;
     }
-
-    cerrarModalCurso();
+    confirmarGuardado(cursoFinal, nuevos);
   };
 
   const colorPromedio = (promedio) => {
@@ -440,10 +483,24 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
               </div>
             )}
 
+            {avisoPlanes ? (
+              <div role="alert" style={{ marginTop: 14, padding: "12px 16px", background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, color: "#92400e", fontSize: 13, display: "grid", gap: 8 }}>
+                {avisoPlanes.error ? (
+                  <strong>⚠️ No se pudo comprobar si este curso tiene planificaciones de {cursoEnEdicion?.nombre}. Si las tiene, dejarán de usarse.</strong>
+                ) : (
+                  <>
+                    <strong>⚠️ {cursoEnEdicion?.nombre} · {cursoEnEdicion?.area} tiene {avisoPlanes.planes.length === 1 ? "una planificación" : `${avisoPlanes.planes.length} planificaciones`}. Si lo cambias a {avisoPlanes.curso.nombre} · {avisoPlanes.curso.area}, no se usará{avisoPlanes.planes.length === 1 ? "" : "n"} en el aula:</strong>
+                    {avisoPlanes.planes.map((plan) => <span key={plan.id}>• {tituloDePlan(plan)}</span>)}
+                  </>
+                )}
+                <span>No se borran ni se desatan, y las notas y actividades ya creadas siguen en este curso. Si es otro grupo, crea un curso nuevo.</span>
+              </div>
+            ) : null}
+
             <div className="modal-actions">
-              <button className="modal-cancel" onClick={cerrarModalCurso}>Cancelar</button>
-              <button className="modal-save" onClick={guardarCurso} disabled={formularioIncompleto}>
-                Guardar curso
+              <button className="modal-cancel" onClick={avisoPlanes ? () => setAvisoPlanes(null) : cerrarModalCurso}>{avisoPlanes ? "Volver" : "Cancelar"}</button>
+              <button className="modal-save" onClick={() => (avisoPlanes ? confirmarGuardado(avisoPlanes.curso) : guardarCurso())} disabled={formularioIncompleto || comprobandoPlanes}>
+                {avisoPlanes ? "Guardar de todos modos" : comprobandoPlanes ? "Comprobando planes…" : "Guardar curso"}
               </button>
             </div>
           </div>

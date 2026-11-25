@@ -23,7 +23,7 @@ import {
 } from "../firebase.js";
 import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
 import { construirCapaCurricular, normalizarTexto, puntuarCursoParaPlan, UMBRAL_CURSO_PLAN } from "./hiloPedagogico.js";
-import { construirCopiaDePlan, cursoIdDePlan } from "./planCurso.js";
+import { construirCopiaDePlan, cursoIdDePlan, discrepanciaPlanCurso, mismaMateria, planEncajaConCurso } from "./planCurso.js";
 import { generarAspectosRegistroDesdePlanificacion } from "./registroService.js";
 import { crearInstrumentosPlaneadosDesdePlan } from "./instrumentosService.js";
 import { guardarActividadesDePlan } from "./actividadesService.js";
@@ -119,6 +119,7 @@ export const resolverCursoParaPlanificacion = async (planificacion) => {
   if (!cursos?.length) return null;
 
   const puntuados = cursos
+    .filter((curso) => mismaMateria({ contenido: { metadatos: meta } }, curso))
     .map((curso) => ({ curso, puntaje: puntuarCursoParaPlan(meta, curso) }))
     .sort((a, b) => b.puntaje - a.puntaje);
 
@@ -372,41 +373,53 @@ export const listarPlanesSinCapa = async () => {
 };
 
 /**
- * FASE 10 / F1 — Planificación activa de un curso: la más reciente con capa
- * curricular atada a ese curso. Si no hay, la más reciente SIN curso cuyo
- * grado + asignatura encajan con él (se marca `vincularA` para atarla). Si
+ * FASE 10 / F1 — Plan de un curso: el más reciente con capa curricular atado a
+ * ese curso Y que encaje con él en grado y asignatura. Si no hay, el más reciente SIN curso cuyo
+ * grado + asignatura encajan con él (se marca `vincularA` para atarlo). Si
  * tampoco, null: nunca el plan de otro curso o grado (fail-closed; Modo Aula
- * lo avisa). Sin cursoId se conserva el criterio anterior (la más reciente).
+ * lo avisa). Sin cursoId se conserva el criterio anterior (el más reciente).
  *
  * @param {string} cursoId
- * @param {object} opciones  { planes } para reusar una lista ya cargada
+ * @param {object} opciones  { planes, curso } para reusar lo ya cargado
+ * @returns {{ plan: object|null, avisos: string[], sinCurso: boolean }} `avisos`:
+ *   por qué no se usa cada plan atado que no encaja (no se desata); `sinCurso`:
+ *   no se pudo leer el curso, así que no se pudo comprobar ninguno
  */
-export const obtenerPlanificacionActiva = async (cursoId = "", { planes = null } = {}) => {
+export const obtenerPlanDelCurso = async (cursoId = "", { planes = null, curso: cursoDado = null } = {}) => {
+  const sinPlan = { plan: null, avisos: [], sinCurso: false };
   const lista = Array.isArray(planes)
     ? planes
     : (await obtenerPlanificacionesDetalladas()).data || [];
-  if (!lista.length) return null;
+  if (!lista.length) return sinPlan;
 
   const activas = lista.filter((p) => (p.capaCurricular?.estado || "activa") === "activa");
-  if (!cursoId) return activas.find((p) => p.capaCurricular) || lista[0] || null;
+  if (!cursoId) return { ...sinPlan, plan: activas.find((p) => p.capaCurricular) || lista[0] || null };
 
-  const cursoDe = (p) => String(p.cursoId || p.capaCurricular?.cursoId || "");
-  const delCurso = activas.find((p) => p.capaCurricular && cursoDe(p) === String(cursoId));
-  if (delCurso) return delCurso;
-
-  let curso = null;
-  try {
-    const resultado = await obtenerCursos();
-    const cursos = Array.isArray(resultado) ? resultado : resultado?.data || [];
-    curso = cursos.find((c) => String(c.id) === String(cursoId)) || null;
-  } catch {
-    return null;
+  let curso = String(cursoDado?.id ?? "") === String(cursoId) ? cursoDado : null;
+  if (!curso) {
+    try {
+      const resultado = await obtenerCursos();
+      const cursos = Array.isArray(resultado) ? resultado : resultado?.data || [];
+      curso = cursos.find((c) => String(c.id) === String(cursoId)) || null;
+    } catch (error) {
+      console.error("[planificacionDataService] No se pudo leer el curso:", error);
+    }
   }
-  if (!curso) return null;
-  const candidata = activas.find((p) => p.capaCurricular && !cursoDe(p)
-    && puntuarCursoParaPlan(p.contenido?.metadatos || {}, curso) >= UMBRAL_CURSO_PLAN);
-  return candidata ? { ...candidata, vincularA: String(cursoId) } : null;
+  if (!curso) return { ...sinPlan, sinCurso: true };
+
+  const conCapa = activas.filter((p) => p.capaCurricular);
+  const delCurso = conCapa.filter((p) => cursoIdDePlan(p) === String(cursoId));
+  const avisos = delCurso.map((p) => discrepanciaPlanCurso(p, curso)?.aviso).filter(Boolean);
+  const propio = delCurso.find((p) => mismaMateria(p, curso));
+  if (propio) return { plan: propio, avisos, sinCurso: false };
+
+  const candidata = conCapa.find((p) => !cursoIdDePlan(p) && planEncajaConCurso(p, curso));
+  return { plan: candidata ? { ...candidata, vincularA: String(cursoId) } : null, avisos, sinCurso: false };
 };
+
+/** El plan del curso sin los avisos: null si no hay uno que encaje. */
+export const obtenerPlanificacionActiva = async (cursoId = "", opciones = {}) =>
+  (await obtenerPlanDelCurso(cursoId, opciones)).plan;
 
 // ─── Indicadores ya trabajados en planes anteriores (para tachar) ─────────────
 // Recolecta los CÓDIGOS de indicadores que planes PREVIOS del mismo grado +

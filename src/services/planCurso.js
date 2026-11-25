@@ -10,7 +10,7 @@
  */
 
 import {
-  advertenciaCalendario, calcularFechaSugerida, corregirFechasCapa, normalizarTexto, puntuarCursoParaPlan, seccionDeCurso, UMBRAL_CURSO_PLAN,
+  advertenciaCalendario, calcularFechaSugerida, corregirFechasCapa, nivelDeclarado, normalizarTexto, puntuarCursoParaPlan, seccionDeCurso, UMBRAL_CURSO_PLAN,
 } from "./hiloPedagogico.js";
 
 const ORDEN_DIAS = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"];
@@ -22,9 +22,71 @@ const activo = (plan) => (plan?.capaCurricular?.estado || "activa") === "activa"
 /** id del curso al que pertenece el plan guardado ("" si aún no tiene). */
 export const cursoIdDePlan = (plan) => String(plan?.cursoId || plan?.capaCurricular?.cursoId || "");
 
+export const tituloDePlan = (plan) => metaDe(plan).titulo || metaDe(plan).tema || "sin título";
+
+/** Grado, asignatura y nivel que el plan declara (los metadatos; si faltan, su capa). */
+const datosDePlan = (plan) => {
+  const meta = metaDe(plan);
+  const capa = plan?.capaCurricular || {};
+  return {
+    grado: meta.grado || capa.grado || "",
+    asignatura: meta.asignatura || meta.area || capa.asignatura || capa.area || "",
+    nivel: meta.nivelEducativo || meta.nivel || capa.nivel || "",
+  };
+};
+
+/**
+ * Por qué el plan no encaja con el curso en grado, nivel o asignatura (sin mirar
+ * la sección); null si encaja. Un plan que no dice su grado o su asignatura no se
+ * puede comprobar y cuenta como que no encaja (fail-closed). Solo reporta: no
+ * desata ni corrige nada.
+ *
+ * El grado del curso sale de su nombre cuando este dice grado y nivel, que es lo
+ * que el docente eligió en el formulario: el campo `grado` pudo quedarse viejo.
+ * @returns {{ campos: string[], sinDato: boolean, aviso: string } | null}
+ */
+export const discrepanciaPlanCurso = (plan, curso) => {
+  const datos = datosDePlan(plan);
+  const nivelNombre = nivelDeclarado({ nombre: curso?.nombre });
+  const comparado = nivelNombre && /\d/.test(curso.nombre) ? { ...curso, grado: "" } : curso || {};
+  const nivelPlan = nivelDeclarado(datos);
+  const nivelCurso = nivelNombre || nivelDeclarado(curso || {});
+  const campos = [
+    !(puntuarCursoParaPlan({ grado: datos.grado }, comparado) > 0) && "grado",
+    Boolean(nivelPlan && nivelCurso && nivelPlan !== nivelCurso) && "nivel",
+    !(puntuarCursoParaPlan({ asignatura: datos.asignatura }, comparado) > 0) && "asignatura",
+  ].filter(Boolean);
+  if (!campos.length) return null;
+  const elCurso = [nombreCurso(curso), curso?.area || curso?.asignatura].filter(Boolean).join(" · ");
+  const faltan = [!datos.grado && "grado", !datos.asignatura && "asignatura"].filter(Boolean);
+  return {
+    campos,
+    sinDato: faltan.length > 0,
+    aviso: faltan.length
+      ? `La planificación «${tituloDePlan(plan)}» no dice su ${faltan.join(" ni su ")}: no se puede comprobar que sea de ${elCurso}.`
+      : `La planificación «${tituloDePlan(plan)}» es de ${datos.grado}${nivelPlan && !nivelDeclarado({ grado: datos.grado }) ? ` ${nivelPlan}` : ""} · ${datos.asignatura}, pero el curso es ${elCurso}.`,
+  };
+};
+
 /** Mismo grado y asignatura, sin mirar la sección. */
-export const mismaMateria = (plan, curso) =>
-  puntuarCursoParaPlan({ ...metaDe(plan), seccion: "" }, curso) >= UMBRAL_CURSO_PLAN;
+export const mismaMateria = (plan, curso) => !discrepanciaPlanCurso(plan, curso);
+
+/** Grado, asignatura y sección: lo que hace falta para atar un plan a un curso. */
+export const planEncajaConCurso = (plan, curso) =>
+  puntuarCursoParaPlan(metaDe(plan), curso) >= UMBRAL_CURSO_PLAN && mismaMateria(plan, curso);
+
+const otraSeccion = (plan, curso) => {
+  const delPlan = normalizarTexto(metaDe(plan).seccion);
+  const delCurso = normalizarTexto(seccionDeCurso(curso));
+  return Boolean(delPlan && delCurso && delPlan !== delCurso);
+};
+
+/** Planes atados al curso que encajan como está y dejarían de encajar tras editarlo. */
+export const planesQueDejanDeEncajar = (planes = [], antes, despues) => {
+  const noEncaja = (plan, curso) => Boolean(discrepanciaPlanCurso(plan, curso)) || otraSeccion(plan, curso);
+  return planes.filter((p) => activo(p) && cursoIdDePlan(p) === String(antes?.id || "")
+    && !noEncaja(p, antes) && noEncaja(p, despues));
+};
 
 /**
  * Curso con el que se trabaja en el aula. Manda el del plan; sin curso, solo
@@ -39,18 +101,18 @@ export const resolverCursoDelAula = ({ plan = null, cursos = [], cursoActivo = n
   if (id) {
     const curso = cursos.find((c) => String(c.id) === id) || null;
     if (!curso) return { curso: null, aviso: "El curso de esta planificación ya no existe. No se pasa lista ni se ponen notas hasta elegir otra." };
+    const discrepancia = discrepanciaPlanCurso(plan, curso);
+    if (discrepancia) return { curso: null, aviso: `${discrepancia.aviso} Puedes verla, pero con ella no se pasa lista ni se ponen notas.` };
     const avisos = [];
     if (cursoActivo?.id && String(cursoActivo.id) !== id) {
       avisos.push(`Esta planificación es de ${nombreCurso(curso)}. Aunque tu curso activo es ${nombreCurso(cursoActivo)}, la lista, las evidencias y las notas van a ${nombreCurso(curso)}.`);
     }
-    const seccionPlan = normalizarTexto(metaDe(plan).seccion);
-    const seccionCurso = normalizarTexto(seccionDeCurso(curso));
-    if (seccionPlan && seccionCurso && seccionPlan !== seccionCurso) {
+    if (otraSeccion(plan, curso)) {
       avisos.push(`La planificación dice sección ${metaDe(plan).seccion}, pero está atada a ${nombreCurso(curso)}. Revísala antes de poner notas.`);
     }
     return { curso, aviso: avisos.join(" ") };
   }
-  const encaja = (c) => puntuarCursoParaPlan(metaDe(plan), c) >= UMBRAL_CURSO_PLAN;
+  const encaja = (c) => planEncajaConCurso(plan, c);
   if (cursoActivo && encaja(cursoActivo)) return { curso: cursoActivo, aviso: "" };
   const candidatos = cursos.filter(encaja);
   if (candidatos.length === 1) return { curso: candidatos[0], aviso: "" };
