@@ -1,0 +1,87 @@
+{
+  "nivel": "Primaria",
+  "grado": "4to",
+  "area": "Lengua Española",
+  "asignatura": "Lengua Española",
+  "guia": {
+    "titulo": "Secuencias Didácticas Lengua Española. Cuarto grado. Nivel Primario. Guía del docente",
+    "edicion": "Segunda edición, ampliada y corregida",
+    "anio": 2022,
+    "isbn": "978-9945-603-78-1",
+    "institucion": "CIEDHumano (PUCMM) para el MINERD",
+    "urlFuente": "https://ministeriodeeducacion.gob.do/docs/direccion-general-de-educacion-primaria/22hS-secuencia-didactica-4to-lengua-espanola-webpdf.pdf",
+    "restriccionUso": "se prohíbe la reproducción parcial o total con fines comerciales"
+  },
+  "secuencias": [
+    { "numero": 1, "titulo": "La conversación", "paginaInicio": 7, "partes": [
+      { "nombre": "Comprensión oral", "pagina": 8 },
+      { "nombre": "Gramática textual", "pagina": 14 },
+      { "nombre": "Producción oral", "pagina": 16 },
+      { "nombre": "Anexo", "pagina": 18 }
+    ] },
+    { "numero": 2, "titulo": "La carta de solicitud de permiso", "paginaInicio": 19, "partes": [
+      { "nombre": "Comprensión oral", "pagina": 20 },
+      { "nombre": "Comprensión escrita", "pagina": 26 },
+      { "nombre": "Gramática textual", "pagina": 31 },
+      { "nombre": "Producción escrita", "pagina": 36 },
+      { "nombre": "Anexos", "pagina": 40 }
+    ] },
+    { "numero": 3, "titulo": "La biografía", "paginaInicio": 43, "partes": [
+      { "nombre": "Comprensión oral", "pagina": 44 },
+      { "nombre": "Comprensión escrita", "pagina": 53 },
+      { "nombre": "Gramática textual", "pagina": 61 },
+      { "nombre": "Producción escrita", "pagina": 63 },
+      { "nombre": "Anexo", "pagina": 66 }
+    ] },
+    { "numero": 4, "titulo": "La receta", "paginaInicio": 67, "partes": [
+      { "nombre": "Comprensión oral", "pagina": 68 },
+      { "nombre": "Producción oral", "pagina": 71 },
+      { "nombre": "Comprensión escrita", "pagina": 72 },
+      { "nombre": "Gramática textual", "pagina": 79 },
+      { "nombre": "Producción escrita", "pagina": 80 }
+    ] },
+    { "numero": 5, "titulo": "El artículo expositivo", "paginaInicio": 83, "partes": [
+      { "nombre": "Comprensión oral", "pagina": 84 },
+      { "nombre": "Comprensión escrita", "pagina": 87 },
+      { "nombre": "Gramática textual", "pagina": 93 },
+      { "nombre": "Producción oral", "pagina": 95 },
+      { "nombre": "Producción escrita", "pagina": 104 },
+      { "nombre": "Anexo", "pagina": 111 }
+    ] },
+    { "numero": 6, "titulo": "El informe de lectura", "paginaInicio": 119, "partes": [
+      { "nombre": "Comprensión oral", "pagina": 120 },
+      { "nombre": "Comprensión escrita", "pagina": 125 },
+      { "nombre": "Gramática textual", "pagina": 132 },
+      { "nombre": "Producción oral", "pagina": 134 },
+      { "nombre": "Producción escrita", "pagina": 139 },
+      { "nombre": "Anexos", "pagina": 143 }
+    ] },
+    { "numero": 7, "titulo": "El comentario", "paginaInicio": 147, "partes": [
+      { "nombre": "Comprensión oral", "pagina": 148 },
+      { "nombre": "Comprensión escrita", "pagina": 156 },
+      { "nombre": "Gramática textual", "pagina": 163 },
+      { "nombre": "Producción oral", "pagina": 164 },
+      { "nombre": "Producción escrita", "pagina": 166 }
+    ] },
+    { "numero": 8, "titulo": "El cuento", "paginaInicio": 169, "partes": [
+      { "nombre": "Comprensión oral", "pagina": 170 },
+      { "nombre": "Producción oral", "pagina": 175 },
+      { "nombre": "Comprensión escrita", "pagina": 176 },
+      { "nombre": "Gramática textual", "pagina": 182 },
+      { "nombre": "Producción escrita", "pagina": 183 }
+    ] },
+    { "numero": 9, "titulo": "La historieta", "paginaInicio": 187, "partes": [
+      { "nombre": "Comprensión escrita", "pagina": 188 },
+      { "nombre": "Gramática textual", "pagina": 193 },
+      { "nombre": "Producción escrita", "pagina": 197 },
+      { "nombre": "Anexos", "pagina": 201 }
+    ] },
+    { "numero": 10, "titulo": "El acróstico", "paginaInicio": 207, "partes": [
+      { "nombre": "Comprensión oral", "pagina": 208 },
+      { "nombre": "Producción oral", "pagina": 209 },
+      { "nombre": "Comprensión escrita", "pagina": 210 },
+      { "nombre": "Producción escrita", "pagina": 212 },
+      { "nombre": "Anexo", "pagina": 212 }
+    ] }
+  ]
+}
