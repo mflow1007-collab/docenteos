@@ -1355,6 +1355,15 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const [paseListaGuardando, setPaseListaGuardando] = useState(false)
   const [paseListaMsg, setPaseListaMsg] = useState('')
   const [listaFaltantes, setListaFaltantes] = useState([])    // días de docencia recientes sin lista
+  // Lista de un día anterior: sus marcas van aparte de las de hoy, por fecha,
+  // para que cambiar de día no mezcle ni pierda lo marcado.
+  const [fechaAtrasada, setFechaAtrasada] = useState('')      // '' = lista de hoy
+  const [marcasAtrasadas, setMarcasAtrasadas] = useState({})  // fecha → { estId: estado }
+  const marcasLista = fechaAtrasada ? (marcasAtrasadas[fechaAtrasada] || {}) : paseLista
+  const cambiarMarcasLista = (cambio) => (fechaAtrasada
+    ? setMarcasAtrasadas((prev) => ({ ...prev, [fechaAtrasada]: cambio(prev[fechaAtrasada] || {}) }))
+    : setPaseLista(cambio))
+  const fechaLargaLista = (f) => new Date(`${f}T12:00:00`).toLocaleDateString('es-DO', { weekday:'long', day:'numeric', month:'long' })
   const docenciaHoy = useMemo(() => estadoDocencia(hoyISO()), [])
   // Nivel del curso: define el MODO del pase de lista según la norma MINERD —
   // Primaria/Inicial: registro GENERAL del día, una sola vez en la primera
@@ -1385,6 +1394,8 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     setPaseLista({})
     setPaseListaMsg('')
     setListaFaltantes([])
+    setFechaAtrasada('')
+    setMarcasAtrasadas({})
     if (!cursoParaAula?.id) return undefined
     Promise.all([obtenerAsistenciaCurso(cursoParaAula.id), obtenerSuspensiones()]).then(([dias, susp]) => {
       if (!vigente) return
@@ -1413,6 +1424,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       const guardada = await guardarSuspension(suspForm)
       setSuspensiones((prev) => [guardada, ...prev.filter((s) => s.fecha !== guardada.fecha)])
       setListaFaltantes((prev) => prev.filter((f) => f !== guardada.fecha))
+      setFechaAtrasada((prev) => (prev === guardada.fecha ? '' : prev))
       setPaseListaMsg(`✓ ${guardada.fecha === hoyISO() ? 'Hoy quedó' : `El ${guardada.fecha} quedó`} marcado sin docencia: ${guardada.etiqueta}.`)
       setSuspForm(null)
     } catch (e) {
@@ -1422,13 +1434,22 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     }
   }
 
-  const guardarListaDeHoy = async () => {
+  const abrirListaAtrasada = (fecha) => {
+    setFechaAtrasada(fecha)
+    setPaseListaMsg('')
+    setSuspForm(null)
+    setPaseListaAbierto(true)
+  }
+
+  const guardarListaEnPantalla = async () => {
     if (!cursoParaAula?.id || paseListaGuardando) return
+    const fecha = fechaAtrasada || hoyISO()
     setPaseListaGuardando(true)
     setPaseListaMsg('')
     try {
-      const r = await guardarPaseLista({ cursoId: cursoParaAula.id, marcas: paseLista })
-      setPaseListaMsg(`✓ Guardada: ${r.resumen.presente} presente(s) · ${r.resumen.tarde} tardanza(s) · ${r.resumen.excusa} excusa(s) · ${r.resumen.ausente} ausente(s).`)
+      const r = await guardarPaseLista({ cursoId: cursoParaAula.id, fecha, marcas: marcasLista })
+      setListaFaltantes((prev) => prev.filter((f) => f !== fecha))
+      setPaseListaMsg(`✓ Guardada${fechaAtrasada ? ` la lista del ${fechaLargaLista(fecha)}` : ''}: ${r.resumen.presente} presente(s) · ${r.resumen.tarde} tardanza(s) · ${r.resumen.excusa} excusa(s) · ${r.resumen.ausente} ausente(s).`)
     } catch (e) {
       setPaseListaMsg(`❌ ${e.message}`)
     } finally {
@@ -2350,16 +2371,17 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
             style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'12px 18px', background:'transparent', border:0, cursor:'pointer', fontSize:13, fontWeight:900, color:'#1e3a8a', textAlign:'left' }}
           >
             <span style={{ display:'flex', flexDirection:'column', gap:2 }}>
-              <span>🙋 Pase de lista — {new Date().toLocaleDateString('es-DO', { weekday:'long', day:'numeric', month:'long' })}</span>
+              <span>🙋 {fechaAtrasada ? 'Pasando lista del' : 'Pase de lista —'} {fechaLargaLista(fechaAtrasada || hoyISO())}</span>
               <small style={{ fontSize:11, fontWeight:600, color:'#3b82f6' }}>{notaNivelPaseLista}</small>
             </span>
             <span style={{
               fontSize:12, fontWeight:800,
-              color: !docenciaHoy.docencia || suspensionHoy ? '#64748b'
-                : Object.keys(paseLista).length === estudiantesAula.length ? '#15803d'
-                : Object.keys(paseLista).length ? '#64748b' : '#dc2626',
+              color: !fechaAtrasada && (!docenciaHoy.docencia || suspensionHoy) ? '#64748b'
+                : Object.keys(marcasLista).length === estudiantesAula.length ? '#15803d'
+                : Object.keys(marcasLista).length ? '#64748b' : '#dc2626',
             }}>
-              {suspensionHoy ? '🚫 Docencia suspendida hoy'
+              {fechaAtrasada ? `${Object.keys(marcasLista).length}/${estudiantesAula.length} marcados`
+                : suspensionHoy ? '🚫 Docencia suspendida hoy'
                 : !docenciaHoy.docencia ? '📅 Hoy no hay docencia'
                 : Object.keys(paseLista).length ? `${Object.keys(paseLista).length}/${estudiantesAula.length} marcados`
                 : '⚠️ Falta pasar lista hoy'} {paseListaAbierto ? '▲' : '▼'}
@@ -2373,11 +2395,20 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                   {new Date(`${f}T12:00:00`).toLocaleDateString('es-DO', { weekday:'short', day:'numeric', month:'short' })}
                   <button
                     type="button"
+                    title="Ese día hubo docencia: pasa la lista con esa fecha"
+                    onClick={() => abrirListaAtrasada(f)}
+                    disabled={paseListaGuardando}
+                    style={{ border:'1px solid #86efac', background: fechaAtrasada === f ? '#dcfce7' : '#fff', color:'#15803d', borderRadius:6, fontSize:10.5, fontWeight:800, padding:'2px 7px', cursor:'pointer' }}
+                  >
+                    ✓ Pasar lista
+                  </button>
+                  <button
+                    type="button"
                     title="Ese día no hubo docencia (ADP, ciclón…): márcalo y queda como nota en el Registro"
                     onClick={() => setSuspForm({ fecha: f, categoria: 'asamblea_adp', motivo: '' })}
                     style={{ border:'1px solid #fcd34d', background:'#fff', color:'#92400e', borderRadius:6, fontSize:10.5, fontWeight:800, padding:'2px 7px', cursor:'pointer' }}
                   >
-                    🚫 sin docencia
+                    🚫 No hubo docencia
                   </button>
                 </span>
               ))}
@@ -2421,35 +2452,48 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
               </button>
             </div>
           )}
-          {paseListaAbierto && suspensionHoy && (
+          {paseListaAbierto && paseListaMsg && (
+            <div role="status" style={{ margin:'0 18px 10px', fontSize:12, color: paseListaMsg.startsWith('❌') ? '#dc2626' : '#15803d', fontWeight:600 }}>{paseListaMsg}</div>
+          )}
+          {paseListaAbierto && !fechaAtrasada && suspensionHoy && (
             <div style={{ margin:'0 18px 14px', padding:'10px 14px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, fontSize:12.5, color:'#475569' }}>
               🚫 Hoy no hubo docencia: <strong>{suspensionHoy.etiqueta}</strong>
               {suspensionHoy.motivo ? ` — ${suspensionHoy.motivo}` : ''}. Quedará como nota en el Registro de asistencia.
             </div>
           )}
-          {paseListaAbierto && !docenciaHoy.docencia && !suspensionHoy && (
+          {paseListaAbierto && !fechaAtrasada && !docenciaHoy.docencia && !suspensionHoy && (
             <div style={{ margin:'0 18px 14px', padding:'10px 14px', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:8, fontSize:12.5, color:'#475569' }}>
               📅 {docenciaHoy.motivo}{docenciaHoy.estimado ? ' (receso estimado — pendiente del calendario oficial)' : ''}. El pase de lista se activa los días de docencia.
             </div>
           )}
-          {paseListaAbierto && docenciaHoy.docencia && !suspensionHoy && (
+          {paseListaAbierto && (fechaAtrasada || (docenciaHoy.docencia && !suspensionHoy)) && (
             <div style={{ padding:'0 18px 14px' }}>
               <div style={{ display:'flex', gap:8, marginBottom:10, flexWrap:'wrap', alignItems:'center' }}>
                 <button
                   type="button"
-                  onClick={() => setPaseLista(Object.fromEntries(estudiantesAula.map((e) => [e.id, 'presente'])))}
+                  onClick={() => cambiarMarcasLista(() => Object.fromEntries(estudiantesAula.map((e) => [e.id, 'presente'])))}
                   style={{ padding:'7px 14px', borderRadius:999, border:'1px solid #bbf7d0', background:'#f0fdf4', color:'#15803d', fontSize:12, fontWeight:800, cursor:'pointer' }}
                 >
                   ✓ Todos presentes
                 </button>
                 <button
                   type="button"
-                  onClick={guardarListaDeHoy}
-                  disabled={paseListaGuardando || !Object.keys(paseLista).length}
+                  onClick={guardarListaEnPantalla}
+                  disabled={paseListaGuardando || !Object.keys(marcasLista).length}
                   style={{ padding:'7px 16px', borderRadius:999, border:'1px solid #c7d2fe', background: paseListaGuardando ? '#eef2ff' : 'linear-gradient(135deg,#4f46e5,#4338ca)', color: paseListaGuardando ? '#4f46e5' : '#fff', fontSize:12, fontWeight:800, cursor: paseListaGuardando ? 'default' : 'pointer' }}
                 >
                   {paseListaGuardando ? '⏳ Guardando…' : '💾 Guardar lista'}
                 </button>
+                {fechaAtrasada ? (
+                <button
+                  type="button"
+                  onClick={() => { setFechaAtrasada(''); setPaseListaMsg('') }}
+                  disabled={paseListaGuardando}
+                  style={{ padding:'7px 14px', borderRadius:999, border:'1px solid #cbd5e1', background:'#fff', color:'#475569', fontSize:12, fontWeight:800, cursor:'pointer' }}
+                >
+                  ↩ Volver a hoy
+                </button>
+                ) : (
                 <button
                   type="button"
                   title="Asamblea/actividad ADP, cooperativa, fenómeno atmosférico… El día queda anotado en el Registro."
@@ -2458,7 +2502,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                 >
                   🚫 Hoy no hubo docencia…
                 </button>
-                {paseListaMsg && <small style={{ fontSize:12, color: paseListaMsg.startsWith('❌') ? '#dc2626' : '#15803d', fontWeight:600 }}>{paseListaMsg}</small>}
+                )}
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(250px, 1fr))', gap:6 }}>
                 {estudiantesAula.map((est) => (
@@ -2466,14 +2510,14 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
                     <span style={{ fontSize:12.5, fontWeight:600, color:'#0f172a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{est.nombre}</span>
                     <div style={{ display:'flex', gap:4, flexShrink:0 }}>
                       {ESTADOS_ASISTENCIA.map((estado) => {
-                        const activo = paseLista[est.id] === estado
+                        const activo = marcasLista[est.id] === estado
                         const color = { presente:'#16a34a', tarde:'#d97706', excusa:'#2563eb', ausente:'#dc2626' }[estado]
                         return (
                           <button
                             key={estado}
                             type="button"
                             title={ETIQUETA_ASISTENCIA[estado]}
-                            onClick={() => setPaseLista((prev) => ({ ...prev, [est.id]: estado }))}
+                            onClick={() => cambiarMarcasLista((prev) => ({ ...prev, [est.id]: estado }))}
                             style={{ width:26, height:26, borderRadius:6, border:`1px solid ${activo ? color : '#e2e8f0'}`, background: activo ? color : '#fff', color: activo ? '#fff' : '#64748b', fontSize:11, fontWeight:900, cursor:'pointer' }}
                           >
                             {ETIQUETA_ASISTENCIA[estado][0]}
