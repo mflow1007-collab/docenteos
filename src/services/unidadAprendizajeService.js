@@ -25,13 +25,13 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, tituloConSeccionTrabajada, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { bienvenidaFueraDeLugar, tituloSinBienvenida, modeloRepetido, seccionPrincipal, presupuestoDesarrollo, repartoConMinimo, vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, tituloConSeccionTrabajada, minutosConTope, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { versionDeBuild } from "../utils/buildInfo.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
   revisarUnidadConMapa, motivosClaseFinal, contenidosNoVistosEnUnidad, avisosParaAdministrador, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
-  seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases, VERBOS_IDIOMA, VERBOS_GESTION,
+  seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases, VERBOS_IDIOMA, VERBOS_GESTION, conSecundariasDelCodigo,
 } from "./redaccionFaseService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -905,6 +905,9 @@ export const construirSituacionNarrativa = ({
 };
 
 // Nota institucional de organización temporal (versión parametrizada del modelo)
+// La nota del Plan B tecnológico solo va si el ambiente declara tecnología; sin ella, el Anexo L ya lo dice (revisión g44).
+const NOTA_PLAN_B = "\nNota: ante fallas de electricidad, internet o equipos, las actividades que usan TV, proyector o audio se realizan con las alternativas físicas del Anexo L — Plan B tecnológico (imágenes impresas, flashcards, lectura en voz alta y dramatización).";
+export const notaSinPlanBSiNoHayTecnologia = (nota = "", ambiente = "") => (/ninguna clase depende de electricidad|sin tecnolog/i.test(String(ambiente || "")) ? String(nota).replace(NOTA_PLAN_B, "") : nota);
 const construirNotaInstitucional = ({ clasesPorSemana, durMin, producto, nivel = "" }) => `Conforme al enfoque de atención a la diversidad, evaluación formativa y aprendizaje centrado en el estudiante establecido en el Diseño Curricular del Nivel ${/primaria|primario/i.test(nivel) ? "Primario" : /inicial|kinder|preprimario/i.test(nivel) ? "Inicial" : "Secundario"} del MINERD, la presente unidad organiza su tiempo en torno a un núcleo esencial de ${clasesPorSemana === 1 ? "1 clase semanal" : `${clasesPorSemana} clases semanales`} de ${durMin} minutos, complementado por sesiones pedagógicas flexibles que fortalecen la calidad, la pertinencia y la equidad de los aprendizajes. Dichas sesiones no representan una sobreplanificación ni un error en la distribución temporal, sino una decisión metodológica intencional orientada a responder a la diversidad del aula.
 Las sesiones flexibles permiten responder a los hallazgos de la evaluación diagnóstica de inicio, habilitar procesos de recuperación pedagógica, nivelación y ampliación según los ritmos de aprendizaje, dar seguimiento continuo a los indicadores de logro y acompañar la construcción progresiva del producto final (${producto.replace(/\.$/, "")}) antes de su valoración sumativa, además de absorber los ajustes propios del calendario escolar y las dinámicas institucionales sin afectar la secuencia didáctica.
 Nota: ante fallas de electricidad, internet o equipos, las actividades que usan TV, proyector o audio se realizan con las alternativas físicas del Anexo L — Plan B tecnológico (imágenes impresas, flashcards, lectura en voz alta y dramatización).`;
@@ -1326,6 +1329,8 @@ const etapaDePieza = (texto = "") => {
   if (/acuerdo|plan/.test(rotulo)) return "apertura";
   if (/insumo/.test(rotulo)) return "insumos";
   if (/borrador/.test(rotulo)) return "borrador";
+  // Probar lo que ya tiene borrador sigue siendo la etapa del borrador (revisión g44).
+  if (/en prueba/.test(rotulo)) return "borrador";
   if (/revisad/.test(rotulo)) return "revisada";
   if (/final/.test(rotulo)) return "final";
   return null;
@@ -1358,7 +1363,7 @@ const actividadesDeClase = (dia = {}) => (dia.momentos || [])
 export const dimensionesDeClase = (dia = {}) => [...new Set(actividadesDeClase(dia).map(dimensionDeActividad).filter(Boolean))];
 // La actividad que hace observable un desempeño oral, sin lo que deja escrito.
 // Presentar o exponer pesa más que socializar, que suele ser una puesta en común.
-const VERBOS_PRESENTACION = /^(presentan|exponen|representan)\b/i;
+const VERBOS_PRESENTACION = /^(presentan|exponen|representan|muestran)\b/i;
 const VERBOS_PUESTA_EN_COMUN = /^socializan\b/i;
 const primeraParte = (texto = "") => String(texto).split(":")[0].replace(/[.\s]+$/, "").trim();
 const actividadDe = (dia, cumple) => primeraParte(actividadesDeClase(dia).find(cumple) || "");
@@ -1366,6 +1371,8 @@ const actividadDe = (dia, cumple) => primeraParte(actividadesDeClase(dia).find(c
 // La pieza de una clase con lo que permite rastrear su evaluación.
 export const aporteDeClase = (d = {}) => ({
   semana: d.semana || 1,
+  clase: d.numeroGlobal || d.numero || null,
+  actividades: actividadesDeClase(d).join(" "),
   texto: d.aporteProducto,
   indicadores: (Array.isArray(d.indicadoresTrabajados) ? d.indicadoresTrabajados : [])
     .map((ind) => String(ind?.codigoOficial || ind?.codigo || ind?.id || ind || "").trim()).filter(Boolean),
@@ -1426,6 +1433,26 @@ export const sinHechosInventados = (texto = "") => {
   return { texto: quedan.join(" ").trim(), quitadas: oraciones.length - quedan.length };
 };
 
+/**
+ * La audiencia de la configuración, en inglés, para la autoevaluación (revisión g44, Anexo E): «los estudiantes de
+ * 6.º de primaria y un visitante» → «the 6th-grade students and a visitor». Solo patrones conocidos; si no, "".
+ */
+export const audienciaEnIngles = (texto = "") => {
+  const t = String(texto || "").toLowerCase().split(/;|\(/)[0];
+  const ord = (n) => `${n}${n === "1" ? "st" : n === "2" ? "nd" : n === "3" ? "rd" : "th"}`;
+  const partes = [];
+  const curso = t.match(/estudiantes de (\d{1,2})\s*(?:\.\s*º|º|°|ro|do|to|vo|no)/);
+  if (curso) partes.push(`the ${ord(curso[1])}-grade students`);
+  else if (/nuevo ingreso/.test(t)) partes.push("the new students");
+  else if (/compa[nñ]eros|otro grupo|otro curso/.test(t)) partes.push("my classmates");
+  if (/familias|padres/.test(t)) partes.push("the families");
+  if (/consejo de curso/.test(t)) partes.push("the class council");
+  if (/\bun visitante|\bvisitantes?\b/.test(t)) partes.push(/visitantes\b/.test(t) ? "visitors" : "a visitor");
+  if (/comunidad/.test(t)) partes.push("the community");
+  if (!partes.length) return "";
+  return partes.length > 1 ? `${partes.slice(0, -1).join(", ")} and ${partes[partes.length - 1]}` : partes[0];
+};
+
 export const construirAnexosUnidad = ({
   area, tema, producto, vocabulario = [], fases = [], numSemanas = 4,
   aportesProducto = [], indicadoresPriorizados = [], recursosTecnologicos = [],
@@ -1437,6 +1464,8 @@ export const construirAnexosUnidad = ({
   terminosSecciones = {},
   // A quién se presenta el producto (evidencia de la rúbrica). Vacío → «la audiencia».
   audienciaPrincipal = "",
+  // La audiencia completa de la configuración (principal y secundarias), para la autoevaluación en inglés.
+  audienciaCompleta = "",
   // Etapa 6: fases del plan maestro (entrega y secciones que avanza cada una)
   // para la columna "Estados de la sección" del Anexo I. Vacías → como antes.
   fasesPlan = [],
@@ -1490,8 +1519,24 @@ export const construirAnexosUnidad = ({
       dimensiones: Array.isArray(aporte?.dimensiones) ? aporte.dimensiones : [],
       actividadInteraccion: String(aporte?.actividadInteraccion || ""),
       actividadOral: String(aporte?.actividadOral || ""),
+      clase: aporte?.clase || null,
+      actividades: String(aporte?.actividades || ""),
     }))
     .filter((pieza) => pieza.texto);
+  // Clases donde ocurre una presentación o un intercambio: el instrumento apunta a ellas en vez de decir que falta.
+  const clasesCon = (campo) => [...new Set(piezasTrazables.filter((p) => p[campo] && p.clase).map((p) => `C${p.clase}`))];
+  // Las clases se buscan por la FUNCIÓN del ítem (saludar, preguntar, cortesía) en sus actividades; nunca C1 por defecto
+  // (revisión g48b, Anexo B). Sin función reconocida, null: se usan las de su dimensión.
+  const FUNCIONES_ITEM = [
+    [/salud|greet/i, /\bsalud|\bgreet|good (morning|afternoon)|\bhello\b/i],
+    [/pregunt|question/i, /pregunt|question/i],
+    [/cortes|respet|polite/i, /cortes|respet|amabl|please|thank you|excuse me/i],
+  ];
+  const clasesPorFuncion = (item) => {
+    const regla = FUNCIONES_ITEM.find(([re]) => re.test(String(item || "")));
+    if (!regla) return null;
+    return [...new Set(piezasTrazables.filter((p) => p.clase && regla[1].test(p.actividades)).map((p) => `C${p.clase}`))].slice(0, 3);
+  };
   // Selecciona la pieza disponible en la etapa que el ítem evalúa. «Acuerdo y
   // plan» no evidencia avances ni productos posteriores: solo entra si el ítem
   // lo pide. Dentro de la etapa se prefieren las piezas de las clases que
@@ -1501,6 +1546,9 @@ export const construirAnexosUnidad = ({
   const seleccionarPieza = (texto = "", indiceFila = null, { etapas = null, codigo = "", dimension = "", oral = false } = {}) => {
     // La presentación del producto es la última que se planifica y, si la hay, la
     // que presenta o expone en vez de solo poner en común.
+    // La clase de presentación del producto, si la hay, es la evidencia de presentarlo (revisión g44, Anexo E: C13 en vez de C15).
+    const dePresentacion = oral ? piezasTrazables.filter((p) => /\(presentaci[oó]n\)/i.test(p.texto)) : [];
+    if (dePresentacion.length) return dePresentacion.at(-1).texto;
     if (oral && piezasTrazables.some((p) => p.actividadOral)) {
       const orales = piezasTrazables.filter((p) => p.actividadOral);
       const fuertes = orales.filter((p) => VERBOS_PRESENTACION.test(p.actividadOral));
@@ -1573,16 +1621,21 @@ export const construirAnexosUnidad = ({
     const claseDePieza = piezasTrazables.find((p) => p.texto === pieza);
     let evidenciaObservada = "";
     if (!evidencia && tipo !== "diagnostica" && piezasTrazables.some((p) => p.etapa)) {
+      // «Falta planificar» nunca va al documento del docente: se nombran las clases donde ocurre o un texto neutro,
+      // y el hueco real va al panel de avisos (revisión g44, Anexos B y E).
+      const neutro = fueraDeSeleccion ? "Seguimiento formativo; indicador no elegido para esta unidad." : "Seguimiento formativo.";
       if (oral) {
+        const clases = clasesCon("actividadOral");
         evidenciaObservada = claseDePieza?.actividadOral
           ? `Presentación oral observada: ${claseDePieza.actividadOral}.`
-          : `Presentación oral de ${productoCorto}, que falta planificar en una clase.`;
-        if (!claseDePieza?.actividadOral) avisosEvidencia.push(`«${String(item).slice(0, 60)}»: ninguna clase planifica una presentación oral`);
+          : clases.length ? `Presentación oral observada — ${clases.join(", ")}.` : neutro;
+        if (!claseDePieza?.actividadOral && !clases.length) avisosEvidencia.push(`«${String(item).slice(0, 60)}»: ninguna clase planifica una presentación oral`);
       } else if (exige === "interaccion") {
+        const clases = clasesPorFuncion(item) ?? clasesCon("actividadInteraccion");
         evidenciaObservada = claseDePieza?.actividadInteraccion
-          ? `Intercambio observado o grabado: ${claseDePieza.actividadInteraccion}.`
-          : `Intercambio oral observado, que falta planificar en una clase.`;
-        if (!claseDePieza?.actividadInteraccion) avisosEvidencia.push(`«${String(item).slice(0, 60)}»: ninguna clase planifica ese intercambio`);
+          ? `Intercambio observado: ${claseDePieza.actividadInteraccion}.`
+          : clases.length ? `${fueraDeSeleccion ? "Seguimiento formativo (indicador no elegido)" : "Intercambio oral observado"} — ${clases.join(", ")}.` : neutro;
+        if (!claseDePieza?.actividadInteraccion && !clases.length) avisosEvidencia.push(`«${String(item).slice(0, 60)}»: ninguna clase planifica ese intercambio`);
       }
     }
     return {
@@ -1689,7 +1742,7 @@ export const construirAnexosUnidad = ({
     "...ask and answer questions about the topic.",
     "...give advice or suggestions about the topic.",
     "...understand the texts and instructions about the topic and respond.",
-    `...present my ${productoCorto.toLowerCase().includes("poster") ? "poster" : "final product"} to my classmates.`,
+    `...present my ${productoCorto.toLowerCase().includes("poster") ? "poster" : "final product"} to ${audienciaEnIngles(audienciaCompleta || audienciaPrincipal) || "my audience"}.`,
   ] : [
     `...explicar los conceptos centrales de "${tema}".`,
     "...usar el vocabulario del área correctamente.",
@@ -1962,6 +2015,9 @@ export const construirAnexosUnidad = ({
       criterioOficialId: rel.criterioId,
       criterioOficialTexto: rel.criterioTexto || "",
       justificacionRelacion: "Reparto entre los indicadores elegidos de la misma dimensión: cada uno se evalúa en algún instrumento.",
+      // El Registro sale del mismo indicador del ítem (revisión g44, Anexo B).
+      destinoRegistro: item.momentoEvaluativo === "diagnostico" ? item.destinoRegistro
+        : item.momentoEvaluativo === "sumativo" ? `Registro de calificaciones → ${rel.indicadorId}` : `Seguimiento formativo → ${rel.indicadorId}`,
     });
   });
 
@@ -5083,6 +5139,7 @@ const _generarFasesConIA = async (
     };
   };
 
+  const modelosUnidad = [];
   for (const fase of fases) {
     const numClases = fase.dias.length;
     const semanasFase = [...new Set(fase.dias.map((d) => d.semana).filter(Boolean))];
@@ -5131,7 +5188,8 @@ const _generarFasesConIA = async (
         ...(mallaPayload?.contenidosPorTema || []).flatMap((t) => t?.conceptos?.gramatica || t?.conceptos?.["gramática"] || t?.gramatica || []),
         ...(Array.isArray(mallaPayload?.gramatica) ? mallaPayload.gramatica : []),
       ];
-      specFase.contratoFase = { ...contratoFase, estructurasGrado: estructurasDeMalla(gramaticaGrado) };
+      // Modelos de las fases anteriores: ninguno se repite (revisor de g49).
+      specFase.contratoFase = { ...contratoFase, estructurasGrado: estructurasDeMalla(gramaticaGrado), modelosPrevios: modelosUnidad.slice() };
       specFase.situacionTexto = rutaPlanMaestro.situacionTexto;
       specFase.temaTrabajoSemana = "";
       specFase.indicadoresTrabajo = (allInds || []).filter((ind) => permitidos.has(ind.id || ind.codigoOficial));
@@ -5327,7 +5385,32 @@ const _generarFasesConIA = async (
         if (filaMapa) {
           dia.tareasMapa = filaMapa.tareas.map((t) => ({ clave: t.clave, minutos: t.minutos, secciones: t.secciones || [] }));
           dia.focoLinguistico = focoDeFila(filaMapa, contratoFase.filasUnidad || []) || dia.focoLinguistico;
+          // La bienvenida fuera de la clase 1 y de su sección la quita el código si quedan al menos 2 líneas (revisor de g49).
+          const bienvenida = bienvenidaFueraDeLugar(dia, filaMapa);
+          const sinBienvenida = bienvenida ? (dia.textoModelo?.lineas || []).filter((l) => !/\bwelcome to\b/i.test(String(l))) : null;
+          if (sinBienvenida && sinBienvenida.length >= 2) {
+            dia.textoModelo = { ...dia.textoModelo, lineas: sinBienvenida };
+            if (/\bwelcome to\b/i.test(String(dia.textoModelo.titulo || ""))) dia.textoModelo.titulo = tituloSinBienvenida(dia.textoModelo.titulo);
+            avisosRedaccionIA.push(`Clase ${filaMapa.clase}: ℹ código: se quitó la bienvenida del texto modelo («${String(bienvenida).slice(0, 50)}»)`);
+          }
+          // Las líneas que repiten el modelo de otra clase las quita el código si quedan al menos 2 (revisor de g56b: C11 = C9).
+          for (let vuelta = 0; vuelta < 6 && dia.textoModelo?.lineas?.length; vuelta += 1) {
+            const repetido = modeloRepetido(dia, modelosUnidad);
+            if (!repetido) break;
+            const restantes = dia.textoModelo.lineas.filter((l) => !String(l).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").includes(repetido.linea));
+            if (restantes.length < 2 || restantes.length === dia.textoModelo.lineas.length) break;
+            dia.textoModelo = { ...dia.textoModelo, lineas: restantes };
+            avisosRedaccionIA.push(`Clase ${filaMapa.clase}: ℹ código: se quitó del texto modelo una línea que repetía la clase ${repetido.clase} («${repetido.linea.slice(0, 50)}»)`);
+          }
+          modelosUnidad.push({ clase: filaMapa.clase, lineas: dia.textoModelo?.lineas || [] });
           dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
+          dia.seccionPrincipalMapa = seccionPrincipal(filaMapa);
+          // Las secundarias las escribe el código, dentro de su fase (revisor de g57); la IA solo redactó la principal.
+          if (!aiClase.secuenciaAplicada) {
+            const anadidas = conSecundariasDelCodigo(dia, filaMapa, contratoFase.secciones || []);
+            if (!Array.isArray(dia.tareaIdsDesarrollo)) dia.tareaIdsDesarrollo = [];
+            if (anadidas.length) avisosRedaccionIA.push(`Clase ${filaMapa.clase}: ℹ código: actividades de las secciones secundarias: ${anadidas.map((x) => `«${x}»`).join(", ")}`);
+          }
           dia.minutosSecuencia = Array.isArray(aiClase.minutosSecuencia) ? aiClase.minutosSecuencia : null;
           dia.fasesPorActividad = fasesDeActividades(filaMapa, dia.tareaIdsDesarrollo);
           // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
@@ -5405,12 +5488,16 @@ const _generarFasesConIA = async (
         // hay producto real, la lista queda vacía (válido). Se calcula ANTES del
         // render para que el de-dup afecte TAMBIÉN al texto del PDF, no solo la
         // trazabilidad interna.
+        // Sin repetidas por texto normalizado, dentro de cada lista y entre listas (revisión g44: C4, C8, C10).
+        const _vistas = new Set();
+        const _unicas = (lista) => lista.filter((e) => { const k = _clave(e); if (!k || _vistas.has(k)) return false; _vistas.add(k); return true; });
         const evidenciasPorTipo = {
           conocimientos: (aiMom.evidencias?.conocimientos || []).map(sinRotuloAvance).filter(Boolean),
           desempeno: _desempeno,
           producto: (aiMom.evidencias?.producto || []).map(sinRotuloAvance).filter(Boolean)
             .filter((e) => !_clavesDesempeno.has(_clave(e))),
         };
+        ["conocimientos", "desempeno", "producto"].forEach((k) => { evidenciasPorTipo[k] = _unicas(evidenciasPorTipo[k]); });
         // R4 — 2º EJE de las evidencias: la FUNCIÓN evaluativa (de proceso / de
         // componente / final), ortogonal a su NATURALEZA (conocimiento/desempeño/
         // producto). Guía Paso 2.1.4 + Referente págs. 14-15. Se DERIVA del momento
@@ -6185,6 +6272,8 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     metadatos: {
       // Versión del código que generó la unidad: el pie del administrador la muestra (revisor, 2026-11-11).
       versionGenerador: versionDeBuild(),
+      // Reglas del texto modelo vigentes al generar: 1 = Modelo-sección (g48b); 2 = sección principal, estructura, sin repetidos ni digital (g49); 3 = cobertura de secciones y secundarias con actividad (g50).
+      reglasModelo: 3,
       titulo, grado, seccion, area, asignatura: asignaturaEf,
       nivel, ciclo, modalidad, jornada,
       duracion: `${numSemanas} semanas / ${numSemanas * horasSemanales} horas clase (${durMinEf} min c/u)`,
@@ -6389,12 +6478,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         }
         // El título lo escribe el código desde la función y la sección de la clase (revisor de g42a); el de la IA queda en tituloIA.
         if (d.fijoDelMapa.tituloTarea) d.titulo = d.fijoDelMapa.tituloTarea;
-        // La sección del título es la que la clase trabaja (la del paso que redactó la IA), no la primera tarea de la fila.
-        if (d.fijoDelMapa.tituloTarea) {
-          const textoClase = (d.momentos || []).flatMap((m) => m?.actividades || []).map((a) => (typeof a === "string" ? a : a?.texto || "")).join(" ");
-          const conSeccion = tituloConSeccionTrabajada(d.titulo, d.fijoDelMapa.titulosTareas || [], textoClase, rutaPlanMaestro?.plan?.producto || "");
-          if (conSeccion !== d.titulo) { avisosClaseFinal.push(`clase ${i + 1}: ℹ código: el título nombraba una sección que la clase no trabaja («${d.titulo}»)`); d.titulo = conSeccion; }
-        }
+        // La sección del título es la principal que fija el mapa (revisor de g49): no se cambia por lo que la IA redactó.
         // Dos clases no se llaman igual: la repetida toma el nombre de su tarea, y si ese también está, lleva su número.
         const claveTitulo = String(d.titulo || "").trim().toLowerCase();
         // También los casi iguales («Explorando frases útiles para el aula» / «…en el Aula»): la IA los repite con otra preposición o mayúsculas.
@@ -6418,6 +6502,15 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
       }
       if (!desarrollo?.actividades?.length) return;
       const total = Number.parseInt(String(desarrollo.tiempo || ""), 10) || 0;
+      // Con mapa, el Desarrollo tiene al menos 3 actividades (revisor de g49): si la IA dejó 2 tras su reintento, el código
+      // añade la comprobación con los criterios de éxito, que vale para cualquier tarea, y los minutos se reparten con tope.
+      if (d.tareasMapa?.length && desarrollo.actividades.length < 3) {
+        const comprobar = "Comprueban (en parejas) lo hecho con los criterios de éxito de la clase y anotan una mejora para la próxima versión.";
+        desarrollo.actividades = [...desarrollo.actividades, typeof desarrollo.actividades[0] === "string" ? comprobar : { ...desarrollo.actividades[0], texto: comprobar }];
+        if (Array.isArray(d.tareaIdsDesarrollo) && d.tareaIdsDesarrollo.length) d.tareaIdsDesarrollo = [...d.tareaIdsDesarrollo, d.tareaIdsDesarrollo[d.tareaIdsDesarrollo.length - 1]];
+        if (Array.isArray(d.minutosSecuencia)) d.minutosSecuencia = null;
+        avisosClaseFinal.push(`clase ${i + 1}: ℹ código: el Desarrollo tenía menos de 3 actividades; se añadió la comprobación con los criterios de éxito`);
+      }
       // Con mapa y una actividad por tarea, los minutos son los de la fila.
       const soloAcuerdo = d.tareasMapa?.length === 1 && d.tareasMapa[0].clave === "acordar";
       const tareaIds = d.tareaIdsDesarrollo?.length === desarrollo.actividades.length ? d.tareaIdsDesarrollo : [];
@@ -6427,11 +6520,43 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         || (d.tareasMapa?.length === desarrollo.actividades.length ? d.tareasMapa.map((t) => t.minutos) : null);
       delete d.tareaIdsDesarrollo;
       delete d.minutosSecuencia;
-      if (delMapa) delMapa[delMapa.length - 1] += total - delMapa.reduce((s, m) => s + m, 0);
+      // La diferencia con el total va en proporción y ninguna actividad pasa de 12 min, salvo producción extensa o la prueba con la audiencia.
       const { minutos, necesarios } = delMapa
-        ? { minutos: delMapa, necesarios: 0 }
+        ? { minutos: minutosConTope(delMapa, desarrollo.actividades, total), necesarios: 0 }
         : minutosPorDemanda({ totalMinutos: total, actividades: desarrollo.actividades });
       desarrollo.minutosActividad = minutos;
+      // Presupuesto del Desarrollo (revisor de g57): cada secundaria que escribió el código entre 5 y 8 min y todas juntas
+      // como máximo la mitad; la principal el resto. Ninguna actividad baja de 4 min: si no alcanza, se fusionan las de la IA.
+      const textoAct = (a) => String(typeof a === "string" ? a : a?.texto || "");
+      const delCodigo = (a) => /(, sección «[^»]+»[^:]*|por estaciones\).*): [^;]+; queda en la carpeta\.$/.test(textoAct(a));
+      const fasesDesarrollo = Array.isArray(d.fasesPorActividad?.Desarrollo) ? d.fasesPorActividad.Desarrollo : null;
+      const fusionarDos = (j) => {
+        const unir = (x, y) => `${textoAct(x).replace(/[.\s]+$/, "")}, y ${textoAct(y).charAt(0).toLowerCase()}${textoAct(y).slice(1)}`;
+        const a0 = desarrollo.actividades[j]; const a1 = desarrollo.actividades[j + 1];
+        desarrollo.actividades.splice(j, 2, typeof a0 === "string" ? unir(a0, a1) : { ...a0, texto: unir(a0, a1) });
+        minutos.splice(j, 2, (minutos[j] || 0) + (minutos[j + 1] || 0));
+        if (fasesDesarrollo) fasesDesarrollo.splice(j + 1, 1);
+      };
+      for (let vuelta = 0; vuelta < 6; vuelta += 1) {
+        const secundarias = desarrollo.actividades.map((a, k) => k).filter((k) => d.seccionPrincipalMapa && delCodigo(desarrollo.actividades[k]));
+        const deIA = desarrollo.actividades.map((a, k) => k).filter((k) => !secundarias.includes(k));
+        const { secundaria, principal } = presupuestoDesarrollo(total || minutos.reduce((x, y) => x + y, 0), secundarias.length);
+        const reparto = repartoConMinimo(deIA.map((k) => minutos[k]), principal);
+        if (reparto.fusionar && deIA.length > 1) {
+          // Las dos de la IA seguidas (y de la misma fase) con menos minutos juntas.
+          const pares = deIA.slice(0, -1).map((k, x) => [k, deIA[x + 1]]).filter(([p, q]) => q === p + 1 && (!fasesDesarrollo || fasesDesarrollo[p] === fasesDesarrollo[q]));
+          const par = pares.sort((x, y) => (minutos[x[0]] + minutos[x[1]]) - (minutos[y[0]] + minutos[y[1]]))[0];
+          if (!par) break;
+          fusionarDos(par[0]);
+          avisosClaseFinal.push(`clase ${i + 1}: ℹ código: se unieron dos actividades del Desarrollo para que ninguna baje de 4 min`);
+          continue;
+        }
+        secundarias.forEach((k) => { minutos[k] = secundaria; });
+        deIA.forEach((k, x) => { if (reparto.minutos[x] != null) minutos[k] = reparto.minutos[x]; });
+        break;
+      }
+      desarrollo.minutosActividad = minutos;
+      delete d.seccionPrincipalMapa;
       if (necesarios > total) avisosTiempo.push(`clase ${i + 1}: el Desarrollo necesita unos ${necesarios} min y tiene ${total}`);
     });
   }
@@ -6452,12 +6577,12 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     ]),
   ]).filter(Boolean);
 
-  unidadResult.notaInstitucional = construirNotaInstitucional({
+  unidadResult.notaInstitucional = notaSinPlanBSiNoHayTecnologia(construirNotaInstitucional({
     clasesPorSemana: diasClaseFinal.length,
     durMin: durMinEf,
     producto: productoNombrado,
     nivel,
-  });
+  }), unidadResult.ambienteAprendizaje);
   unidadResult.checkpointFormativo = construirCheckpointFormativo({
     tema: titulo, producto: productoNombrado, numSemanas,
     aportesHastaMitad: aportesProducto
@@ -6491,6 +6616,7 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
     ampliacion: unidadResult.ampliacionDocenteOS || [],
     terminosSecciones: unidadResult.planMaestro?.terminosSecciones || {},
     audienciaPrincipal: audienciasPlan.principal,
+    audienciaCompleta: situacionPlan?.audiencia || "",
     secciones: unidadResult.planMaestro?.secciones || [],
     fasesPlan: unidadResult.planMaestro?.fases || [],
     recursosTecnologicos: (unidadResult.fasesSemanales || [])
@@ -6976,8 +7102,13 @@ export const formatearUnidadHTML = (unidad, logoUrl = "", { pieAdmin = "" } = {}
             negritaPrimeraPalabra(escHtml(a))
               .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
           );
-          const faseDeActividad = mom.nombre === "Desarrollo" ? dia.fasesPorActividad?.Desarrollo?.[i] : (mom.nombre === "Inicio" ? dia.fasesPorActividad?.Inicio?.[i] : "");
-          return `<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span>${faseDeActividad ? ` <span class="act-fase">${escHtml(faseDeActividad)}</span>` : ""} ${html}</p>`;
+          // La fase no va dentro del texto de cada actividad (revisor de g55): una sola línea «Fase X:» cuando cambia,
+          // y solo si la clase reúne más de una fase en ese momento.
+          const fasesMomento = mom.nombre === "Desarrollo" ? dia.fasesPorActividad?.Desarrollo : (mom.nombre === "Inicio" ? dia.fasesPorActividad?.Inicio : null);
+          const faseDeActividad = Array.isArray(fasesMomento) ? fasesMomento[i] : "";
+          const variasFases = Array.isArray(fasesMomento) && new Set(fasesMomento.filter(Boolean)).size > 1;
+          const cambia = variasFases && faseDeActividad && (i === 0 || fasesMomento[i - 1] !== faseDeActividad);
+          return `${cambia ? `<p class="act-fase-linea" style="margin:6px 0 2px;font-weight:600">Fase ${escHtml(faseDeActividad)}:</p>` : ""}<p style="margin:3px 0"><strong>${i + 1})</strong> <span class="act-time">⏱ ${tiemposActividad[i]} min</span> ${html}</p>`;
         }).join("");
         const evalHtml = `<strong>Tipo:</strong> ${escHtml(mom.evaluacion?.tipo)}.<br><strong>Agente:</strong> ${escHtml(mom.evaluacion?.agente)}.<br><strong>Técnica:</strong> ${escHtml(mom.evaluacion?.tecnica)}.<br><strong>Instrumento:</strong> ${escHtml(mom.evaluacion?.instrumento)}.${mom.evaluacion?.criterios ? `<br><strong>Criterios:</strong> ${escHtml(mom.evaluacion.criterios)}.` : ""}`;
         const recursos = mom.recursos || {};

@@ -82,7 +82,9 @@ check("C2: «reunir lo hecho» no se reclama (revisión de Escuela v4)", () => {
   assert(!tareasSinActividad(desarrollo("Recorren (en grupos) el centro.", "Analizan (en plenaria) el modelo.", "Hacen (en grupos) el mapa del recorrido."), fila).length, "no debe forzarla");
 });
 check("tareaId: sin ID o con otro ID es correspondencia, no tarea ausente", () => {
-  const fila = escuela.filas[5];
+  // Con el orden de tareas anterior al reparto de principales (g52a): School Success Tips primero.
+  const sst = (t) => Number(t.secciones.includes("School Success Tips"));
+  const fila = { ...escuela.filas[5], tareas: [...escuela.filas[5].tareas].sort((a, b) => sst(b) - sst(a)) };
   const clase = { tareaIdsDesarrollo: ["T1", "T1", "T2", "T2"], ...desarrollo("Discuten (en grupos) la tabla.", "Justifican su elección.", "Elaboran (en grupos) una propuesta de School Success Tips y de Final Recommendation.", "Redactan (en grupos) el borrador.") };
   const m = motivosTareaId(clase, fila);
   assert(m.length === 2 && m.every((x) => /correspondencia/.test(x) && /Final Recommendation/.test(x)), m.join(" | "));
@@ -192,7 +194,7 @@ check("revisión de g6 y g7: título en inglés, adjetivo de «guía» y estruct
   assert(/la guía modelo/.test(conTitulosCorregidos({ momentos: [{ actividades: ["Leen la guía modelo."] }] }).momentos[0].actividades[0]), "modelo no cambia");
   const filas = (m) => m.filas.filter((f) => f.tareas[0]?.clave.startsWith("aplicar_") && f.tareas[0].clave !== "aplicar_corregir");
   [alimentacion, escuela].forEach((m) => filas(m).forEach((f) => assert(!/Usar el modelo en una situación/.test(focoDeFila(f, m.filas)), `C${f.clase}: ${focoDeFila(f, m.filas)}`)));
-  assert(focoDeFila({ tareas: [{ clave: "aplicar_ensayar", secciones: ["S"] }], contenidos: [] }, []).startsWith("Usar el modelo"), "sin clase anterior");
+  assert(focoDeFila({ tareas: [{ clave: "aplicar_ensayar", secciones: ["S"] }], contenidos: [] }, []).startsWith("Practicar «S»"), "sin clase anterior: la etiqueta nombra su sección (g49)");
 });
 check("tercera unidad: Indagación valida sus fuentes, con datos anónimos y gramática de la malla", () => {
   const base = { grado: "2do Secundaria", asignatura: "Inglés", centro: "C", numSemanas: 4, diasClase: ["l", "m", "x"], horasPorDia: 1, titulo: "Actividades de la vida diaria" };

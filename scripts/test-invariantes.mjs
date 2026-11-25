@@ -11,9 +11,9 @@
 import { readFileSync, existsSync } from "node:fs";
 import {
   armarMapaClases, ponerSecuencias, conFichaDeUnidad, evaluacionDeFila, humanosDeFila, didacticosDeFila,
-  focoDeFila, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
+  focoDeFila, seccionCubierta, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, fallosQueDetienen, organizadorDesdeMapa, INICIO_PRIMERA_CLASE, TOPE_INDICADORES_POR_CLASE, inicioPresentacion,
   diagnosticoDeActividades, conTildesCorregidas, OBSERVACIONES_FASE, muestraDeAudiencia, esBancoDeFrases,
-  seccionNombrada,
+  seccionNombrada, modeloNombraSeccion,
 } from "../src/services/mapaClasesService.js";
 import { armarEntradaPlanMaestro, prellenarPlanMaestro, resolverIndicadoresEstructurados, competenciasDeMalla } from "../src/services/vistaPreviaPlanMaestroService.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, DETALLE_TAREA, LUGARES_NO_DECLARADOS, TAREAS_POR_TIPO, TAREAS_UNIDAD } from "../src/data/tareasPorTipoTrabajo.js";
@@ -293,6 +293,71 @@ const invariantesJson = {
       return nombradas.length && !nombradas.some((x) => seccionNombrada(x, texto)) ? `C${i + 1}` : "";
     }).filter(Boolean).join(", ");
   },
+  // El texto modelo es de la sección que nombra el título (revisión g44, C7).
+  "Modelo-sección": (g) => {
+    // Las generaciones fijadas antes de la regla no la cumplían: se exige a las generadas con ella.
+    if (!g.reglasModelo) return "";
+    const secciones = new Set(g.secciones || []);
+    return g.dias.map((d, i) => {
+      const nombradas = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).filter((x) => !secciones.size || secciones.has(x));
+      const tm = d.textoModelo;
+      if (!tm || !(tm.lineas || []).length) return "";
+      // Sin sección en el título: el modelo muestra la estructura del día (revisión g48b, C14 y C16).
+      if (!nombradas.length) {
+        if (!/^(Revisar el conjunto|Responder a los comentarios|Explicar para qué sirve)/.test(String(d.focoLinguistico || ""))) return "";
+        const ejemplos = (String(d.focoLinguistico || "").match(/_[^_]+_/g) || []).map((e) => e.replace(/[_….]/g, "").toLowerCase().trim().split(/\s+/).slice(0, 2).join(" ")).filter(Boolean);
+        const lineas = (tm.lineas || []).join(" ").toLowerCase();
+        return ejemplos.length && !ejemplos.some((e) => lineas.includes(e)) ? `C${i + 1}` : "";
+      }
+      // El contenido del modelo, no su título (revisión g48b).
+      const texto = (tm.lineas || []).join(" ").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return nombradas.some((x) => modeloNombraSeccion(x, texto)) ? "" : `C${i + 1}`;
+    }).filter(Boolean).join(", ");
+  },
+  // Revisor de g49 (reglasModelo ≥ 2): una sola sección principal, modelo con la estructura de la etiqueta, sin modelos
+  // repetidos ni bienvenida fuera de C1, sin «digital» fuera del Anexo L y Desarrollo con 3 actividades o más.
+  "Etiqueta-sección": (g) => {
+    if (g.reglasModelo < 2) return "";
+    const secciones = new Set(g.secciones || []);
+    return g.dias.map((d, i) => {
+      const nombradas = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).filter((x) => !secciones.size || secciones.has(x));
+      return nombradas.length && !nombradas.some((x) => funcionEsDeSeccion(d.focoLinguistico, x)) ? `C${i + 1}` : "";
+    }).filter(Boolean).join(", ");
+  },
+  "Modelo-estructura": (g) => g.reglasModelo < 2 ? "" : g.dias.map((d, i) => {
+    const lineas = d.textoModelo?.lineas || [];
+    const pruebas = patronesDeEtiqueta(d.focoLinguistico || "");
+    return lineas.length && pruebas.length && !pruebas.some((p) => p(lineas)) ? `C${i + 1}` : "";
+  }).filter(Boolean).join(", "),
+  "Modelo-repetido": (g) => g.reglasModelo < 2 ? "" : g.dias.map((d, i) => {
+    const previos = g.dias.slice(0, i).map((x, k) => ({ clase: k + 1, lineas: x.textoModelo?.lineas || [] }));
+    const r = modeloRepetido(d, previos);
+    const bienvenida = i > 0 && !/welcome|greet/i.test(String(d.titulo || "")) && (d.textoModelo?.lineas || []).some((l) => /\bwelcome to\b/i.test(l));
+    return [r ? `C${i + 1}=C${r.clase}` : "", bienvenida ? `C${i + 1} bienvenida` : ""].filter(Boolean).join(" ");
+  }).filter(Boolean).join(", "),
+  "Sin digital": (g) => {
+    const json = g.raw;
+    if (g.reglasModelo < 2 || !json) return "";
+    const fuera = JSON.stringify({ ...json, avisosRedaccion: [], advertencias: [], anexos: { ...(json.anexos || {}), recursosTecnologicosPrevistos: null } }).match(/[^"]{0,30}\bdigital(es)?\b[^"]{0,20}/gi) || [];
+    return fuera.length ? `${fuera.length}: ${fuera[0]}` : "";
+  },
+  // Revisor de g50 (reglasModelo ≥ 3): cada sección secundaria con tarea propia tiene su actividad en el Desarrollo.
+  "Secundaria-actividad": (g) => g.reglasModelo < 3 ? "" : g.dias.map((d, i) => {
+    const total = (g.secciones || []).length;
+    const principal = [...String(d.titulo || "").matchAll(/«([^»]+)»/g)].map((m) => m[1]).find((x) => (g.secciones || []).includes(x)) || "";
+    const secundarias = [...new Set((d.tareasMapa || []).filter((t) => ["comentar", "revision_docente"].includes(t.clave) || (t.secciones.length && t.secciones.length <= 3 && (!total || t.secciones.length < total) && !/^(recorrer_|indagar_|acordar|saberes_|revision_|problema_)/.test(t.clave))).flatMap((t) => t.secciones))].filter((x) => x !== principal);
+    const texto = normal(((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).map(String).join(" "));
+    const faltan = secundarias.filter((x) => !seccionCubierta(x, texto, g.secciones || []));
+    return faltan.length ? `C${i + 1}: ${faltan.join(" / ")}` : "";
+  }).filter(Boolean).join(", "),
+  // Revisor de g56: cada tarea de borrador tiene una actividad que redacta y nombra su sección (pista exclusiva).
+  "Borrador-sección": (g) => g.reglasModelo < 3 ? "" : g.dias.map((d, i) => {
+    const actividades = ((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).map((a) => normal(String(a)));
+    const faltan = (d.tareasMapa || []).filter((t) => /^(describir_redactar|analizar_borrador|proponer_elaborar|socializar_redactar|aplicar_escribir|orientar_instrucciones)$/.test(t.clave) && t.secciones.length <= 3)
+      .flatMap((t) => t.secciones).filter((x) => !actividades.some((a) => /\b(redact|escrib|elabor|reescrib|complet|corrig)/.test(a) && seccionCubierta(x, a, g.secciones || [])));
+    return faltan.length ? `C${i + 1}: ${[...new Set(faltan)].join(" / ")}` : "";
+  }).filter(Boolean).join(", "),
+  "Desarrollo ≥ 3": (g) => g.reglasModelo < 2 ? "" : g.dias.map((d, i) => ((d.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).length < 3 ? `C${i + 1}` : "").filter(Boolean).join(", "),
   "I-13": (g, u) => {
     const prometidas = u.reales.filter((f) => f.tareas.some((t) => DETALLE_TAREA[t.clave]?.firma)).map((f) => f.clase);
     const faltan = prometidas.filter((c) => !JSON.stringify((g.dias[c - 1]?.momentos || []).find((m) => m.nombre === "Desarrollo")?.actividades || []).match(/firm/i));
@@ -310,7 +375,7 @@ const leerGeneracion = (ruta) => {
   ].map((t) => ({ c: i + 1, t })));
   // Lo que alimenta el producto: estructura del día, actividades y ampliación, no los textos modelo.
   const producto = dias.flatMap((d, i) => [d.focoLinguistico || "", ...(d.momentos || []).flatMap((m) => (m.actividades || []).map(String)), ...(d.ampliacion || []).map((a) => a?.texto || "")].map((t) => ({ c: i + 1, t })));
-  return { dias, textos, producto, secciones: u.planMaestro?.secciones || [], anexos: u.anexos || {}, observaciones: (u.fasesSemanales || []).map((f, i) => ({ fase: i + 1, texto: String(f.observacionesSemana || "") })) };
+  return { raw: u, dias, textos, producto, reglasModelo: Number(u.metadatos?.reglasModelo || 0), secciones: u.planMaestro?.secciones || [], anexos: u.anexos || {}, observaciones: (u.fasesSemanales || []).map((f, i) => ({ fase: i + 1, texto: String(f.observacionesSemana || "") })) };
 };
 
 const argumento = (nombre) => { const i = process.argv.indexOf(nombre); return i >= 0 ? process.argv[i + 1] : ""; };

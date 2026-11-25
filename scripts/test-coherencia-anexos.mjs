@@ -69,6 +69,19 @@ check("dos indicadores de la misma dimensión (dos competencias): cada uno en al
   const evaluados = new Set([...ax.rubricaProducto, ...ax.listaCotejoOral, ...ax.autoevaluacion, ...ax.coevaluacion, ...ax.escalaValoracion].map((f) => f.indicadorCodigo));
   assert(evaluados.has("ING-2-I01") && evaluados.has("ING-2-I13"), `los dos «responde» se evalúan: ${[...evaluados]}`);
   assert(evaluados.has("ING-2-I02"), "y el de producción");
+  const filasDos = [...ax.rubricaProducto, ...ax.listaCotejoOral, ...ax.autoevaluacion, ...ax.coevaluacion, ...ax.escalaValoracion];
+  const cruzados = filasDos.filter((f) => f.indicadorCodigo && /→/.test(f.destinoRegistro || "") && !String(f.destinoRegistro).endsWith(f.indicadorCodigo));
+  igual(cruzados.map((f) => `${f.indicadorCodigo} ≠ ${f.destinoRegistro}`), [], "el Registro sale del indicador del ítem");
+});
+check("ítem con indicador no elegido: las clases salen de su función, nunca C1 por defecto (revisión g48b, Anexo B)", () => {
+  const aportesF = [
+    { semana: 1, clase: 1, texto: "«Guía» (acuerdo y plan): plan", dimensiones: ["interaccion"], actividades: "Saludan al docente (Good morning!) y escuchan la situación." },
+    { semana: 1, clase: 2, texto: "Sección «A» (insumos recopilados): preguntas", dimensiones: ["interaccion"], actividades: "Formulan preguntas sobre la escuela y responden en parejas." },
+    { semana: 3, clase: 11, texto: "Sección «A» (en prueba): diálogo", dimensiones: ["interaccion"], actividades: "Practican con cortesía (please, thank you) el diálogo." },
+  ];
+  const ax = anexosCon({ aportesProducto: aportesF, indicadoresPriorizados: [indicadores[0], indicadores[1]] });
+  const filasNo = [...ax.listaCotejoOral, ...ax.escalaValoracion].filter((f) => /no elegido/.test(f.evidencia || ""));
+  assert(filasNo.every((f) => !/— C1\.$/.test(f.evidencia) || /salud/i.test(f.criterio || f.item || "")), filasNo.map((f) => `${(f.criterio || f.item || "").slice(0, 30)} → ${f.evidencia}`).join(" | "));
 });
 console.log("2. Selección curricular:");
 check("las relaciones cubren lo que el docente eligió, no solo la selección automática", () => {
@@ -148,15 +161,15 @@ check("interacción y presentación se evidencian con lo observado, no con un es
     { semana: 3, texto: "«Guía» (versión revisada): guía", dimensiones: ["produccion"], actividadOral: "Presentan (en plenaria) la guía" },
   ] });
   const interaccion = ax.listaCotejoOral.find((f) => f.exige === "interaccion");
-  assert(/^Intercambio observado o grabado: Intercambian/.test(interaccion.evidencia), interaccion.evidencia);
+  assert(/^Intercambio observado: Intercambian/.test(interaccion.evidencia), interaccion.evidencia);
   const presenta = ax.autoevaluacion[ax.autoevaluacion.length - 1];
   assert(/^Presentación oral observada: Presentan/.test(presenta.evidencia), presenta.evidencia);
   igual(ax.avisosEvidencia, [], "sin avisos");
 });
-check("si ninguna clase presenta ni intercambia, no se inventa: se dice y se avisa", () => {
+check("si ninguna clase presenta ni intercambia, no se inventa: texto neutro en el documento y aviso en el panel", () => {
   const ax = anexosCon({ aportesProducto: [{ semana: 2, texto: "Sección «A» (versión final): una carta", dimensiones: ["produccion"] }] });
   const presenta = ax.autoevaluacion[ax.autoevaluacion.length - 1];
-  assert(/falta planificar/.test(presenta.evidencia), presenta.evidencia);
+  assert(!/falta planificar/.test(presenta.evidencia) && /^Seguimiento formativo/.test(presenta.evidencia), presenta.evidencia);
   assert(ax.avisosEvidencia.some((a) => /presentación oral/.test(a)), "aviso");
 });
 check("una unidad sin etapas (motor anterior) conserva su evidencia", () => {

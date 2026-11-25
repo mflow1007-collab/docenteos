@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, seccionesSecundarias, seccionesConActividad, tareasSecundarias, TAREAS_POR_ESTACIONES, seccionPrincipal, seccionNombrada, seccionCubierta, actividadCubreTarea, ejemploDeSeccion, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
 import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA, FRASES_POR_FUNCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -576,12 +576,23 @@ const textosActividades = (clase) => (clase?.momentos || [])
  * Clase con secuencia del banco: los pasos los escribe el código, con las frases de la IA.
  * Va antes de normalizar la voz, que une los objetos de actividad en una frase.
  */
+// Tareas cuya lengua no es la de la etiqueta del día (el acuerdo y el diagnóstico, la encuesta, los saberes previos).
+const LENGUA_PROPIA = /^(acordar|saberes_previos|indagar_)/;
+/** Ejemplos de la etiqueta del día y la tarea que la da, para que el paréntesis de sus pasos use esa estructura (revisión g44). */
+const ejemplosDeEtiqueta = (fila, filas) => {
+  // La tarea de la sección principal (revisor de g49), o la que reúne el producto, o la primera.
+  const tp = tareaPrincipal(fila);
+  const principal = Math.max(0, (fila.tareas || []).indexOf(tp));
+  const clave = fila.tareas?.[principal]?.clave || "";
+  if (!clave || LENGUA_PROPIA.test(clave)) return { ejemplosEtiqueta: [], tareaEtiqueta: null };
+  return { ejemplosEtiqueta: focoDeFila(fila, filas).match(/_[^_]+_/g) || [], tareaEtiqueta: principal };
+};
 export const aplicarSecuencias = (data, contrato, startDia = 1) => {
   (contrato?.mapaClases ? data?.clases || [] : []).forEach((clase, i) => {
     const fila = contrato.mapaClases[startDia + i - 1];
     const desarrollo = fila?.secuencia && (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo");
     if (!desarrollo || clase.secuenciaAplicada) return;
-    desarrollo.actividades = pasosConFrases(fila.secuencia, Array.isArray(desarrollo.actividades) ? desarrollo.actividades : [], { sinLugares: necesitaLugares(fila), nombres: [contrato.producto, ...(contrato.secciones || [])].filter(Boolean) });
+    desarrollo.actividades = pasosConFrases(fila.secuencia, Array.isArray(desarrollo.actividades) ? desarrollo.actividades : [], { sinLugares: necesitaLugares(fila), nombres: [contrato.producto, ...(contrato.secciones || [])].filter(Boolean), ...ejemplosDeEtiqueta(fila, contrato.filasUnidad || []) });
     clase.tareaIdsDesarrollo = fila.secuencia.map((x) => `T${x.tarea + 1}`);
     clase.minutosSecuencia = fila.secuencia.map((x) => x.minutos);
     clase.secuenciaAplicada = true;
@@ -704,17 +715,91 @@ export const tareasSinActividad = (clase, fila) => {
     if (!t.senal || t.paralelo || DETALLE_TAREA[t.clave]?.noSeReclama) return false;
     const accion = new RegExp(t.senal);
     const pideSeccion = repetida(t) && [].concat(t.demuestra).includes("P");
+    const conSeccion = t.secciones.length >= 1 && t.secciones.length <= 3;
     return !actividades.some((a) => {
-      if (!accion.test(a)) return false;
-      return !pideSeccion || NOMBRA_TODAS.test(a) || t.secciones.some((s) => nombraSeccion(a, s));
+      const nombrada = t.secciones.some((s) => nombraSeccion(a, s) || seccionCubierta(s, a, fila.secciones || []));
+      if (accion.test(a)) return !pideSeccion || NOMBRA_TODAS.test(a) || nombrada;
+      // Sin la señal literal: la actividad trabaja la sección (pista exclusiva) con el verbo de su estado o su entrega.
+      return conSeccion && t.secciones.some((s) => actividadCubreTarea(a, t, s, fila.secciones || []));
     });
   });
 };
 /** Actividad mínima de una tarea que la IA no escribió, con su sección y su entrega. */
+// La actividad que escribe el código empieza con verbo en 3.ª plural, como exige la voz MINERD: «Lo leen…» → «Leen…»,
+// «Cada grupo muestra…» → «Muestran (cada grupo)…» (g48: el documento se rechazaba en el control final de voz).
+export const conVerboInicial = (texto = "") => String(texto)
+  .replace(/^(?:lo|la|los|las|les|le)\s+(\p{L}+n)\b/iu, (m, v) => v[0].toUpperCase() + v.slice(1))
+  .replace(/^cada (grupo|pareja|equipo|estudiante)\s+(\p{L}+?)(a|e)\b/iu, (m, quien, raiz, vocal) => `${raiz[0].toUpperCase()}${raiz.slice(1)}${vocal}n (cada ${quien.toLowerCase()})`)
+  .replace(/^solo\s+(\p{L}+n)\b/iu, (m, v) => v[0].toUpperCase() + v.slice(1))
+  .replace(/^el grupo editor\s+(\p{L}+?)(a|e)\b/iu, (m, raiz, vocal) => `${raiz[0].toUpperCase()}${raiz.slice(1)}${vocal}n (en grupos editores)`)
+  .replace(/^el docente\s+/iu, "Reciben la revisión del docente, que ");
+/**
+ * Las secundarias las escribe el código, siempre (revisor de g57): una actividad por sección de su tarea, detrás de las de
+ * su tarea y dentro de su fase. Comentar o revisar por estaciones: una actividad con todas las secciones de la tarea, que
+ * REEMPLAZA a las de la IA con esa función (misma tarea, o genéricas «cada sección»). Devuelve lo añadido, para avisar.
+ */
+export const conSecundariasDelCodigo = (clase = {}, fila = {}, secciones = []) => {
+  const desarrollo = (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo");
+  if (!desarrollo || !Array.isArray(desarrollo.actividades) || clase?.secuenciaAplicada) return [];
+  const alineados = () => Array.isArray(clase.tareaIdsDesarrollo) && clase.tareaIdsDesarrollo.length === desarrollo.actividades.length;
+  if (!alineados()) clase.tareaIdsDesarrollo = null;
+  const indice = (id) => Number(String(id || "").slice(1)) - 1;
+  const insertar = (texto, t) => {
+    const k = fila.tareas.indexOf(t);
+    let pos = desarrollo.actividades.length;
+    if (clase.tareaIdsDesarrollo) pos = clase.tareaIdsDesarrollo.reduce((acc, id, j) => (indice(id) <= k ? j : acc), -1) + 1;
+    desarrollo.actividades.splice(pos, 0, texto);
+    if (clase.tareaIdsDesarrollo) clase.tareaIdsDesarrollo.splice(pos, 0, `T${k + 1}`);
+  };
+  const normal = (a) => normalizar(textoComoCadena(a));
+  const GENERICA = /\b(cada (seccion|estacion|pieza)|por estaciones|estaciones|las secciones|las piezas)\b/;
+  const anadidas = [];
+  const principal = seccionPrincipal(fila);
+  const estaciones = principal ? tareasSecundarias(fila).filter((t) => TAREAS_POR_ESTACIONES.has(t.clave))
+    : (fila.tareas || []).filter((t) => TAREAS_POR_ESTACIONES.has(t.clave) && t.secciones.length > 1);
+  estaciones.forEach((t) => {
+    const k = fila.tareas.indexOf(t);
+    const senal = t.senal ? new RegExp(t.senal) : /coment|revis|rubric/;
+    // Misma función: de esa tarea (por su ID o su señal) y por sección o por estaciones; «Anotan mejoras» se queda.
+    const porSeccion = (j) => GENERICA.test(normal(desarrollo.actividades[j])) || t.secciones.some((x) => seccionCubierta(x, normal(desarrollo.actividades[j]), secciones));
+    const mismas = desarrollo.actividades.map((a, j) => j).filter((j) => porSeccion(j)
+      && ((clase.tareaIdsDesarrollo ? indice(clase.tareaIdsDesarrollo[j]) === k : false) || senal.test(normal(desarrollo.actividades[j]))));
+    const texto = actividadPorEstaciones(t, t.secciones);
+    if (mismas.length) {
+      const [primera, ...resto] = mismas;
+      desarrollo.actividades[primera] = texto;
+      if (clase.tareaIdsDesarrollo) clase.tareaIdsDesarrollo[primera] = `T${k + 1}`;
+      resto.reverse().forEach((j) => { desarrollo.actividades.splice(j, 1); if (clase.tareaIdsDesarrollo) clase.tareaIdsDesarrollo.splice(j, 1); });
+    } else insertar(texto, t);
+    anadidas.push(...t.secciones);
+  });
+  if (principal) {
+    // Solo cuentan las de la IA: el ejemplo de otra actividad del código («…, please») no cubre una sección (Politeness).
+    const deLaIA = desarrollo.actividades.map(normal);
+    tareasSecundarias(fila).filter((t) => !TAREAS_POR_ESTACIONES.has(t.clave)).forEach((t) => t.secciones.forEach((sec) => {
+      if (deLaIA.some((a) => actividadCubreTarea(a, t, sec, secciones))) return;
+      insertar(actividadDeTarea({ ...t, secciones: [sec] }), t);
+      anadidas.push(sec);
+    }));
+  }
+  return [...new Set(anadidas)];
+};
+/** Una actividad por estaciones para varias secciones de comentar o revisar (revisor de g55, opción a). */
+export const actividadPorEstaciones = (t, secciones = []) => {
+  const verbo = t.clave === "revision_docente" ? "Revisan (en grupos, por estaciones) con la rúbrica" : "Comentan (en grupos, por estaciones)";
+  return `${verbo} cada sección y dejan su hoja por sección: ${secciones.map((x) => `«${x}»`).join(", ")}: ${String(t.entrega || "comentarios por sección").toLowerCase()}; queda en la carpeta.`;
+};
 export const actividadDeTarea = (t) => {
-  const seccion = t.secciones?.length === 1 ? ` Sección «${t.secciones[0]}»` : "";
-  const hace = String(t.instruccion || `Trabajan en ${t.nombre}.`).replace(/\s+Aún no [^.]*\./, "").replace(/\s+Es apoyo breve\./, "");
-  return `${hace}${seccion ? `${seccion}:` : ""} ${String(t.entrega || "").toLowerCase()}; queda en la carpeta.`.replace(/\s+/g, " ").trim();
+  // Con el formato de las de la IA (revisor de g55): verbo + (modalidad) + tarea + sección con un ejemplo + «: entrega; destino».
+  const seccion = t.secciones?.length === 1 ? t.secciones[0] : "";
+  const org = String(t.organizacion || "");
+  const modalidad = /individual/i.test(org) ? "individual" : /pareja/i.test(org) ? "en parejas" : /grupo|equipo|estaci/i.test(org) ? "en grupos" : "";
+  let hace = conVerboInicial(String(t.instruccion || `Trabajan en ${t.nombre}.`).replace(/\s+Aún no [^.]*\./, "").replace(/\s+Es apoyo breve\./, ""))
+    .split(/(?<=\.)\s+/)[0].replace(/\.\s*$/, "");
+  if (modalidad && !/^\S+\s*\(/.test(hace)) hace = hace.replace(/^(\S+)/, `$1 (${modalidad})`);
+  const ejemplo = seccion ? ejemploDeSeccion(seccion) : "";
+  const deSeccion = seccion ? `, sección «${seccion}»${ejemplo ? ` (_${ejemplo}_)` : ""}` : "";
+  return `${hace}${deSeccion}: ${String(t.entrega || "").toLowerCase()}; queda en la carpeta.`.replace(/\s+/g, " ").trim();
 };
 const tareaConSeccion = (t) => `«${t.nombre}»${t.secciones.length === 1 ? ` de «${t.secciones[0]}»` : ""}`;
 const entregaDeTarea = (t, seccion) => (t.secciones.length === 1 && seccion ? `${t.entrega}: ${seccion}` : t.entrega);
@@ -906,7 +991,8 @@ export const motivosTextoClase = (clase) => {
   // «$RD200» es pesos con el formato cambiado: lo corrige el código.
   const moneda = textos.find((t) => /(?<!RD)\$(?!\s?RD)|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t));
   if (moneda) motivos.push(`precio fuera de pesos dominicanos: "${citaTexto(moneda, /\$|d[oó]lar|dollar/i)}"`);
-  const equipo = textos.find((t) => /\b(videos?|proyector(es)?|parlantes?|bocinas?|grabad[oa]s?|digital(es)?)\b/i.test(t));
+  // «Digital» en español lo quita el código al terminar (sinEquiposEnTodo, revisor de g49); en el modelo en inglés se avisa.
+  const equipo = textos.find((t) => /\b(videos?|proyector(es)?|parlantes?|bocinas?|grabad[oa]s?)\b/i.test(t)) || modelo.find((t) => /\bdigital\b/i.test(t));
   if (equipo) motivos.push(`nombra un equipo que el mapa no prevé: "${citaTexto(equipo, /videos?|proyector|parlante|bocina|grabad|digital/i)}"`);
   return motivos;
 };
@@ -1054,7 +1140,9 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       if (incumplida) fallaRedaccion(idx, incumplida);
       // Falta una tarea: se regenera esta clase una vez, con la instrucción concreta.
       // Lo mismo si falta un contenido; si sigue faltando, lo reclama la revisión de la unidad.
-      const faltan = tareasSinActividad(clase, filaMapa);
+      // Las tareas de las secundarias las escribe el código: no se le reclaman a la IA (revisor de g57).
+      const secundariasDelCodigo = tareasSecundarias(filaMapa);
+      const faltan = tareasSinActividad(clase, filaMapa).filter((t) => !secundariasDelCodigo.includes(t));
       const sinContenido = opciones.redaccionConAviso ? [] : contenidosFaltantesEnClase(clase, filaMapa);
       if (faltan.length || sinContenido.length) {
         fallaRedaccion(idx, [
@@ -1065,6 +1153,37 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       // La clase escribe con la estructura de otra función (intención, modelo, metacognición): se regenera con la de su etiqueta (revisor de g41a).
       const otraEstructura = estructuraAjenaEnClase(clase, filaMapa);
       if (otraEstructura) fallaRedaccion(idx, `la estructura del día es «${focoDeFila(filaMapa, contrato.filasUnidad || [])}», pero la clase usa otra: "${citaTexto(otraEstructura, null, 70)}". Escribe la intención pedagógica, el texto modelo, las actividades y la metacognición con la estructura del día; no uses esa otra.`);
+      // El texto modelo es de la sección que la clase trabaja; ningún ejemplo literal de la malla se copia (revisión g44).
+      const seccionDelModelo = modeloDeOtraSeccion(clase, filaMapa);
+      if (seccionDelModelo) fallaRedaccion(idx, `el texto modelo no es de la sección que trabaja la clase: escríbelo para «${seccionDelModelo}», con su función y su vocabulario en las líneas, no solo en el título.`);
+      const estructuraModelo = modeloSinLaEstructura(clase, filaMapa, contrato.filasUnidad || []);
+      if (estructuraModelo) fallaRedaccion(idx, `el texto modelo debe usar la estructura del día («${estructuraModelo}») en sus líneas, no un diálogo de otra función.`);
+      // La principal la escribe la IA (revisor de g57): al menos la mitad de sus actividades nombran la sección del título
+      // (nombre o pista exclusiva) y ninguna trata otra sección del producto. Si no, se regenera la clase; el código no la añade.
+      const desarrolloTx = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena).map(normalizar);
+      const principalTitulo = seccionPrincipal(filaMapa);
+      if (principalTitulo && !clase?.secuenciaAplicada && desarrolloTx.length) {
+        const seccionesUnidad = contrato.secciones || [];
+        const deLaPrincipal = desarrolloTx.filter((a) => seccionCubierta(principalTitulo, a, seccionesUnidad)).length;
+        const ajena = desarrolloTx.find((a) => !seccionCubierta(principalTitulo, a, seccionesUnidad)
+          && seccionesUnidad.some((x) => x !== principalTitulo && seccionCubierta(x, a, seccionesUnidad)));
+        if (deLaPrincipal * 2 < desarrolloTx.length) fallaRedaccion(idx, `la mayoría de las actividades del Desarrollo deben trabajar «${principalTitulo}» (la sección del título) y nombrarla; ahora solo ${deLaPrincipal} de ${desarrolloTx.length}.`);
+        if (ajena) {
+          const otra = seccionesUnidad.find((x) => x !== principalTitulo && seccionCubierta(x, ajena, seccionesUnidad));
+          fallaRedaccion(idx, `una actividad trata «${otra}», que no es la sección de esta clase: "${citaTexto(ajena, null, 60)}". Escribe solo actividades de «${principalTitulo}»; DocenteOS añade las de las demás secciones.`);
+        }
+      }
+      // Ningún modelo repite el de otra clase, de esta fase o de las anteriores (revisor de g49).
+      const previos = [...(contrato.modelosPrevios || []), ...(data?.clases || []).slice(0, idx)
+        .map((c, k) => ({ clase: contrato.mapaClases?.[startDia + k - 1]?.clase || startDia + k, lineas: c?.textoModelo?.lineas || [] }))];
+      const repetido = modeloRepetido(clase, previos);
+      if (repetido) fallaRedaccion(idx, `el texto modelo repite el de la clase ${repetido.clase} ("${citaTexto(repetido.linea, null, 60)}"): escribe uno nuevo, de la sección y la estructura de esta clase.`);
+      // Si quedan 2 líneas o más sin ella, la quita el código al guardar la clase: no se paga un reintento.
+      const bienvenida = bienvenidaFueraDeLugar(clase, filaMapa);
+      const quedan = (clase?.textoModelo?.lineas || []).filter((l) => !/\bwelcome to\b/i.test(String(l))).length;
+      if (bienvenida && quedan < 2) fallaRedaccion(idx, `el texto modelo abre con una bienvenida ("${citaTexto(bienvenida, null, 50)}"), que solo va en la clase 1 y en la sección de bienvenida: empieza con la situación de esta clase.`);
+      const copiado = ejemploDeMallaCopiado(clase, contrato.filasUnidad || []);
+      if (copiado) fallaRedaccion(idx, `copia un ejemplo literal de la malla ("${citaTexto(copiado, null, 60)}"): escribe un ejemplo propio de la situación de la unidad.`);
       const sinDatos = datosSinRecoger(clase, filaMapa);
       if (sinDatos.length) fallaRedaccion(idx, `esta clase debe recoger estos datos y no aparecen en sus actividades ni en su texto modelo: ${sinDatos.join(", ")}. Las piezas siguientes los necesitan.`);
       // La estructura del día la escribe el código (focoDeFila): se revisa al final, en motivosClaseFinal.
