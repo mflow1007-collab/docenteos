@@ -52,6 +52,10 @@ const DEFAULT_MODELS = {
   gemini:    "gemini-2.5-flash",
 };
 
+// Proveedores a los que el gateway envía la foto. El resto no la recibe: con
+// imagen no se usan, porque contestarían sin verla.
+const PROVEEDORES_VISION = ["anthropic", "openai"];
+
 const PROVIDER_BASE_URLS = {
   openai:  "https://api.openai.com/v1",
   abacus:  process.env.ABACUS_BASE_URL || "https://routellm.abacus.ai/v1",
@@ -316,7 +320,15 @@ async function callAnthropic(apiKey, { system, prompt, maxTokens, model, imageBa
   });
 }
 
-async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens, model, jsonMode, signal }) {
+async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens, model, jsonMode, imageBase64, imageMediaType, signal }) {
+  const userContent = imageBase64
+    ? [
+        { type: "text", text: prompt },
+        // detail high: letra manuscrita
+        { type: "image_url", image_url: { url: `data:${imageMediaType || "image/jpeg"};base64,${imageBase64}`, detail: "high" } },
+      ]
+    : prompt;
+
   return fetch(`${baseURL}/chat/completions`, {
     method: "POST",
     headers: {
@@ -340,7 +352,7 @@ async function callOpenAICompatible(apiKey, baseURL, { system, prompt, maxTokens
         : {}),
       messages: [
         ...(system ? [{ role: "system", content: system }] : []),
-        { role: "user", content: prompt },
+        { role: "user", content: userContent },
       ],
     }),
     signal,
@@ -621,7 +633,7 @@ export default async function handler(request) {
     providersDisabled, // pista del cliente: apaga más (p. ej. sin crédito), nunca enciende
     strictProvider = false,
     requireNonEmpty = false,
-    imageBase64,       // base64 image for vision (Anthropic only)
+    imageBase64,       // base64 image for vision (solo PROVEEDORES_VISION)
     imageMediaType,    // e.g. "image/jpeg"
     cupo,              // Etapa E: { planId, clave } en los lotes de la unidad
   } = body;
@@ -679,7 +691,17 @@ export default async function handler(request) {
     }
   }
 
-  const queue = getProviderQueue(gwConfig, mod, { preferredProvider, providerOrder, strictProvider, providersDisabled });
+  const queue = getProviderQueue(gwConfig, mod, imageBase64
+    ? { providerOrder: PROVEEDORES_VISION, strictProvider: true, providersDisabled }
+    : { preferredProvider, providerOrder, strictProvider, providersDisabled });
+
+  if (queue.length === 0 && imageBase64) {
+    console.error("[AI Gateway] Imagen recibida y ningún proveedor con visión disponible (apagados o sin clave)");
+    return new Response(
+      JSON.stringify({ error: "La lectura de fotos necesita Anthropic u OpenAI, y ambos están apagados o sin clave. Activa uno en Administración → Motor de IA o agrega los nombres manualmente." }),
+      { status: 503, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   if (queue.length === 0) {
     const apagadosAdmin = Array.isArray(gwConfig.disabled) ? gwConfig.disabled : [];
@@ -713,7 +735,7 @@ export default async function handler(request) {
       } else {
         const baseURL = PROVIDER_BASE_URLS[provider];
         providerResponse = await callOpenAICompatible(apiKey, baseURL, {
-          system, prompt, maxTokens: tokensSalida, model, jsonMode, signal,
+          system, prompt, maxTokens: tokensSalida, model, jsonMode, imageBase64, imageMediaType, signal,
         });
       }
 
