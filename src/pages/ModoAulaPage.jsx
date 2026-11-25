@@ -11,7 +11,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { auth } from '../firebase.js'
 import { pieDeVersion } from '../utils/buildInfo.js'
-import { cursoIdDePlan, planesParaCopiar, resolverCursoDelAula } from '../services/planCurso.js'
+import { cursoIdDePlan, mismaMateria, planesParaCopiar, resolverCursoDelAula } from '../services/planCurso.js'
 import CopiarPlanSeccion from '../components/CopiarPlanSeccion.jsx'
 import { actualizarPlanificacionDetallada, obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
 import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula, obtenerInstrumentosDelDia } from '../services/modoAulaService.js'
@@ -937,6 +937,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   // F1: el curso activo no tiene plan propio (no se muestra el de otro grado)
   const [sinPlanCurso, setSinPlanCurso] = useState(false)
   const [avisosVinculo, setAvisosVinculo] = useState([])
+  // Planes atados al curso que no se usan porque son de otro grado o asignatura
+  const [avisosPlan, setAvisosPlan] = useState([])
+  const [cursoNoLeido, setCursoNoLeido] = useState(false)
   const avisosCopia = useRef([]) // avisos de la copia recién hecha, para mostrarlos al abrirla
   // Mientras se busca (y, si hace falta, se ata) el plan del curso
   const [preparandoClase, setPreparandoClase] = useState(true)
@@ -959,10 +962,14 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     ;(async () => {
       let det = null
       try {
-        if (vigente) setPreparandoClase(true)
+        if (vigente) { setPreparandoClase(true); setAvisosPlan([]); setCursoNoLeido(false) }
         const ctx = await obtenerContextoModoAula(cursoActivo?.id || '', undefined, { planes, curso: cursoActivo })
           .finally(() => { if (vigente) setPreparandoClase(false) })
-        if (ctx?.motivo === 'sin-plan-del-curso') {
+        if (vigente) {
+          setAvisosPlan(ctx?.avisosPlan || [])
+          setCursoNoLeido(ctx?.motivo === 'curso-no-leido')
+        }
+        if (['sin-plan-del-curso', 'plan-no-encaja', 'curso-no-leido'].includes(ctx?.motivo)) {
           if (vigente) { setPlanActivo(null); setClaseNorm(null); setDiaActivo(null); setSinPlanCurso(true); setCargando(false) }
           return
         }
@@ -1292,7 +1299,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
     [cursos, cursoActivo, planActivo]
   )
   const planesOtraSeccion = useMemo(() => {
-    const propio = planes.some((p) => cursoActivo?.id && cursoIdDePlan(p) === String(cursoActivo.id))
+    const propio = planes.some((p) => cursoActivo?.id && cursoIdDePlan(p) === String(cursoActivo.id) && mismaMateria(p, cursoActivo))
     return propio ? [] : planesParaCopiar(planes, cursoActivo)
   }, [planes, cursoActivo])
   const alCopiarPlan = ({ plan, advertencias }) => {
@@ -2045,10 +2052,23 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       <div style={{ maxWidth:520, margin:'60px auto', textAlign:'center', padding:'0 20px' }}>
         {SelectorModal}
         <div style={{ fontSize:56, marginBottom:16 }}>🗂️</div>
-        <h2 style={{ fontSize:22, fontWeight:800, color:'#0f172a', marginBottom:8 }}>{nombreCurso} aún no tiene planificación</h2>
+        <h2 style={{ fontSize:22, fontWeight:800, color:'#0f172a', marginBottom:8 }}>
+          {cursoNoLeido ? `No se pudo comprobar la planificación de ${nombreCurso}`
+            : avisosPlan.length ? `La planificación de ${nombreCurso} no coincide con el curso`
+              : `${nombreCurso} aún no tiene planificación`}
+        </h2>
+        {avisosPlan.length > 0 && (
+          <div role="alert" style={{
+            margin:'0 0 14px', padding:'10px 16px', background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:12,
+            color:'#92400e', fontSize:13, fontWeight:700, textAlign:'left', display:'grid', gap:6,
+          }}>
+            {avisosPlan.map((aviso) => <div key={aviso}>⚠️ {aviso}</div>)}
+          </div>
+        )}
         <p style={{ fontSize:14, color:'#64748b', marginBottom:24, lineHeight:1.6 }}>
-          Ninguna planificación guardada es de {nombreCurso} ni coincide con su grado, asignatura y sección.
-          No se muestra la de otro curso para no registrar evidencias ni notas en el lugar equivocado.
+          {cursoNoLeido ? 'No se pudo leer el curso para comparar su grado y asignatura. Revisa la conexión y vuelve a entrar.'
+            : avisosPlan.length ? 'Por eso no se usa. Si el curso está mal, corrígelo en Cursos; si está bien, genera su planificación. No se borró ni se cambió nada.'
+              : `Ninguna planificación guardada es de ${nombreCurso} ni coincide con su grado, asignatura y sección. No se muestra la de otro curso para no registrar evidencias ni notas en el lugar equivocado.`}
         </p>
         <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
           <button onClick={() => onIrA?.('planificacion')} style={{
@@ -2103,6 +2123,16 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         </div>
       )}
 
+      {/* ══ Otro plan atado al curso no se usa: es de otro grado o asignatura ══ */}
+      {avisosPlan.length > 0 && cursoParaAula && String(cursoParaAula.id) === String(cursoActivo?.id) && (
+        <div role="alert" style={{
+          margin:'16px 24px 0', padding:'10px 18px', background:'#fffbeb',
+          border:'1px solid #fcd34d', borderRadius:12, color:'#92400e', fontSize:13, fontWeight:700,
+        }}>
+          {avisosPlan.map((aviso) => <div key={aviso}>⚠️ {aviso} No se usa.</div>)}
+        </div>
+      )}
+
       {/* ══ AVISO F1: el plan se ató al curso, pero algo no se generó ══ */}
       {avisosVinculo.length > 0 && (
         <div role="alert" style={{
@@ -2114,7 +2144,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       )}
 
       {/* ══ F2: actividades de la unidad (entregas de fase del plan maestro) ══ */}
-      <ActividadesUnidadPanel plan={planActivo} />
+      <ActividadesUnidadPanel plan={cursoParaAula ? planActivo : null} />
 
       {/* ══ AVISO: hoy no hay clase planificada → se muestra la próxima ══ */}
       {avisoClase && (

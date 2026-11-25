@@ -11,7 +11,7 @@
  */
 
 import { obtenerPlanificacionesDetalladas } from "../firebase.js";
-import { backfillCapaCurricular, obtenerPlanificacionActiva, vincularPlanificacionACurso } from "./planificacionDataService.js";
+import { backfillCapaCurricular, obtenerPlanDelCurso, vincularPlanificacionACurso } from "./planificacionDataService.js";
 import { corregirFechasCapa, fechaLocalISO, obtenerClaseDeHoy } from "./hiloPedagogico.js";
 import { claseParaMostrar } from "../utils/horaExtra.js";
 import {
@@ -57,10 +57,16 @@ export const obtenerContextoModoAula = async (cursoId, fecha = fechaLocalISO(), 
     : (await obtenerPlanificacionesDetalladas()).data || [];
   if (!lista.length) return { plan: null, clase: null, esHoy: false, motivo: "sin-planes", instrumentos: [] };
 
-  // Fase 10: selección delegada a obtenerPlanificacionActiva (curso → capa → reciente)
-  let plan = await obtenerPlanificacionActiva(cursoId, { planes: lista });
+  // Fase 10: selección delegada a obtenerPlanDelCurso (curso → encaja → reciente)
+  const { plan: planDelCurso, avisos: avisosPlan, sinCurso } = await obtenerPlanDelCurso(cursoId, { planes: lista, curso });
+  let plan = planDelCurso;
   // F1: el curso no tiene plan propio → aviso visible, nunca el de otro grado
-  if (!plan) return { plan: null, clase: null, esHoy: false, motivo: "sin-plan-del-curso", instrumentos: [] };
+  if (!plan) {
+    return {
+      plan: null, clase: null, esHoy: false, instrumentos: [], avisosPlan,
+      motivo: sinCurso ? "curso-no-leido" : avisosPlan.length ? "plan-no-encaja" : "sin-plan-del-curso",
+    };
+  }
 
   // F1: plan guardado sin curso que encaja con este → atarlo (aspectos + instrumentos)
   let advertenciasVinculo = [];
@@ -104,6 +110,7 @@ export const obtenerContextoModoAula = async (cursoId, fecha = fechaLocalISO(), 
     evidenciasEsperadas: clase?.evidenciasEsperadas || [],
     recursos: clase?.recursos || [],
     advertenciasVinculo,
+    avisosPlan, // planes atados al curso que no se usan porque no encajan
   };
 };
 

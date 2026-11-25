@@ -48,7 +48,7 @@ console.log("✓ otra asignatura o metadatos vacíos no se atan");
 // ─── Etapa 3 — curso del aula ────────────────────────────────────────────────
 
 const {
-  construirCopiaDePlan, diasDelPlan, errorDeDias, planesParaCopiar, resolverCursoDelAula,
+  construirCopiaDePlan, diasDelPlan, discrepanciaPlanCurso, errorDeDias, planesParaCopiar, planesQueDejanDeEncajar, resolverCursoDelAula,
 } = await import("../src/services/planCurso.js");
 const { construirCapaCurricular } = await import("../src/services/hiloPedagogico.js");
 const curso2doB = { id: "curso-b", nombre: "2do Secundaria B", area: "Inglés", seccion: "B", estudiantesDetalle: [{ id: "eb1", nombre: "Wilkin Then" }] };
@@ -157,7 +157,7 @@ const STUBS = {
   firebase: `const g = globalThis.__e3;
     export const db = { ruta: "" }, auth = { currentUser: { uid: "u1" } };
     export const guardarRegistroAspectoDesdeInstrumento = async () => {};
-    export const obtenerCursos = async () => ({ data: g.cursos });
+    export const obtenerCursos = async () => { if (g.sinRed) throw new Error("sin red"); return { data: g.cursos }; };
     export const obtenerSesionesPlan = async () => ({ success: true, data: [] });
     export const guardarPlanificacionDetallada = async (contenido, extra) => { const id = "copia" + (++g.n); g.almacen.set("planificaciones/" + id, structuredClone({ contenido, ...extra })); return { id }; };
     export const obtenerPlanificacionesDetalladas = async () => ({ data: [...g.almacen].filter(([r]) => r.startsWith("planificaciones/")).map(([r, d]) => ({ id: r.split("/")[1], ...structuredClone(d) })) });`,
@@ -173,7 +173,7 @@ registerHooks({
     return stub ? { url: `data:text/javascript,${encodeURIComponent(STUBS[stub[1]])}`, shortCircuit: true } : siguiente(especificador, contexto);
   },
 });
-const { copiarPlanParaCurso, obtenerPlanificacionActiva } = await import("../src/services/planificacionDataService.js");
+const { copiarPlanParaCurso, obtenerPlanDelCurso, obtenerPlanificacionActiva, resolverCursoParaPlanificacion } = await import("../src/services/planificacionDataService.js");
 const { id: _id, ...datosA } = planA;
 almacen.set("planificaciones/planA", structuredClone(datosA));
 const r1 = await copiarPlanParaCurso(planA, curso2doB, { fechaInicio: "2026-11-09", dias: ["Martes", "Jueves"] });
@@ -202,5 +202,84 @@ globalThis.__e3.fallaActividades = false;
 const r4 = await copiarPlanParaCurso(planA, curso2doB);
 assert.deepEqual([r4.existente, r4.advertencias, rutas("/actividades/").length], [true, [], 2], "reintentar completa lo que faltó");
 console.log("✓ si algo falla se avisa y reintentar lo completa");
+
+// ─── Curso que cambió de grado o asignatura con un plan atado ────────────────
+// Caso real (2026-11-25): curso creado como 1ro y cambiado a 2do conservando su id.
+
+const meta1roA = { ...meta1roB, seccion: "A", titulo: "Mi rutina" };
+const era1ro = { id: "cx", nombre: "1ro Secundaria A", grado: "1ro Secundaria", nivel: "Secundaria", area: "Inglés", seccion: "A" };
+const ahora2do = { ...era1ro, nombre: "2do Secundaria A", grado: "2do Secundaria" };
+const plan1ro = { id: "p1", cursoId: "cx", contenido: { metadatos: meta1roA }, capaCurricular: { clases: [] } };
+const plan2do = { ...plan1ro, id: "p2", contenido: { metadatos: { ...meta2doA, titulo: "Alimentación" } } };
+
+assert.equal(discrepanciaPlanCurso(plan1ro, era1ro), null);
+assert.deepEqual(discrepanciaPlanCurso(plan1ro, ahora2do).campos, ["grado"]);
+assert.equal(discrepanciaPlanCurso(plan1ro, ahora2do).aviso, "La planificación «Mi rutina» es de 1ro Secundaria · Inglés, pero el curso es 2do Secundaria A · Inglés.");
+console.log("✓ el plan de 1ro no encaja con el curso que pasó a 2do, y el aviso nombra los dos");
+
+// El campo `grado` viejo no engaña: manda el nombre, que es lo que se eligió
+const gradoViejo = { ...ahora2do, grado: "1ro Secundaria" };
+assert.ok(puntuarCursoParaPlan(meta1roA, gradoViejo) >= UMBRAL_CURSO_PLAN, "la puntuación sola no lo ve");
+assert.deepEqual(discrepanciaPlanCurso(plan1ro, gradoViejo).campos, ["grado"]);
+assert.equal(discrepanciaPlanCurso(plan2do, gradoViejo), null);
+assert.equal(discrepanciaPlanCurso(plan2do, { ...ahora2do, nombre: "2do A" }), null, "nombre sin nivel: sirve el campo grado");
+console.log("✓ un campo `grado` viejo en el curso no deja pasar el plan");
+
+assert.deepEqual(discrepanciaPlanCurso(plan2do, { ...ahora2do, area: "Francés" }).campos, ["asignatura"]);
+const solo2do = { ...plan2do, contenido: { metadatos: { ...meta2doA, grado: "2do", nivel: "Secundaria" } } };
+assert.deepEqual(discrepanciaPlanCurso(solo2do, { ...ahora2do, nombre: "2do Primaria A", nivel: "Primaria" }).campos, ["nivel"]);
+assert.equal(discrepanciaPlanCurso(solo2do, ahora2do), null);
+assert.equal(discrepanciaPlanCurso(plan2do, { ...ahora2do, nombre: "2do Secundaria B", seccion: "B" }), null, "la sección se trata aparte");
+console.log("✓ asignatura y nivel distintos tampoco; la sección no cuenta aquí");
+
+const sinGrado = { ...plan1ro, contenido: { metadatos: { asignatura: "Inglés", titulo: "Suelta" } } };
+assert.ok(discrepanciaPlanCurso(sinGrado, era1ro).sinDato);
+assert.match(discrepanciaPlanCurso(sinGrado, era1ro).aviso, /no dice su grado/);
+assert.equal(discrepanciaPlanCurso({ ...sinGrado, capaCurricular: { grado: "1ro Secundaria" } }, era1ro), null, "la capa también lo dice");
+console.log("✓ plan sin grado ni asignatura: no se puede comprobar y no se usa");
+
+// Servicio: no se usa, se explica y no se escribe nada
+globalThis.__e3.cursos = [ahora2do];
+const escrito = JSON.stringify([...almacen]);
+const planes = [plan1ro];
+assert.deepEqual(await obtenerPlanDelCurso("cx", { planes }), { plan: null, avisos: [discrepanciaPlanCurso(plan1ro, ahora2do).aviso], sinCurso: false });
+assert.equal(await obtenerPlanificacionActiva("cx", { planes }), null);
+assert.equal((await obtenerPlanDelCurso("cx", { planes, curso: era1ro })).plan.id, "p1", "si vuelve a 1ro, el plan reaparece");
+const dos = await obtenerPlanDelCurso("cx", { planes: [plan1ro, plan2do] });
+assert.deepEqual([dos.plan.id, dos.avisos.length], ["p2", 1], "usa el que encaja y avisa del otro");
+globalThis.__e3.cursos = [gradoViejo];
+const suelto1ro = { ...plan1ro, id: "p3", cursoId: "" };
+assert.equal((await obtenerPlanDelCurso("cx", { planes: [suelto1ro] })).plan, null, "un plan suelto de 1ro tampoco se ata");
+assert.equal(await resolverCursoParaPlanificacion({ metadatos: meta1roA }), null, "ni uno recién generado");
+assert.equal((await resolverCursoParaPlanificacion({ metadatos: meta2doA })).id, "cx");
+assert.equal(JSON.stringify([...almacen]), escrito, "nada se desata ni se corrige");
+console.log("✓ el servicio no lo usa, lo explica y no escribe nada");
+
+console.error = () => {};
+globalThis.__e3.sinRed = true;
+assert.deepEqual(await obtenerPlanDelCurso("cx", { planes }), { plan: null, avisos: [], sinCurso: true });
+globalThis.__e3.sinRed = false;
+assert.equal((await obtenerPlanDelCurso("otro", { planes })).sinCurso, true);
+assert.equal((await obtenerPlanDelCurso("", { planes })).plan.id, "p1", "sin curso: como antes");
+console.log("✓ si el curso no se puede leer, se dice y no se usa");
+
+// Aula: elegido a mano se ve, pero sin lista ni notas
+const aMano = aula(plan1ro, ahora2do, [ahora2do]);
+assert.equal(aMano.curso, null);
+assert.match(aMano.aviso, /1ro Secundaria.*2do Secundaria A.*no se pasa lista ni se ponen notas/);
+assert.equal(aula(plan2do, ahora2do, [ahora2do]).curso.id, "cx");
+console.log("✓ elegido a mano: se ve, sin lista ni notas");
+
+// Editar el curso: qué planes dejarían de usarse
+const ids = (lista) => lista.map((p) => p.id);
+assert.deepEqual(ids(planesQueDejanDeEncajar([plan1ro], era1ro, ahora2do)), ["p1"]);
+assert.deepEqual(ids(planesQueDejanDeEncajar([plan1ro], era1ro, { ...era1ro, area: "Francés" })), ["p1"]);
+assert.deepEqual(ids(planesQueDejanDeEncajar([plan1ro], era1ro, { ...era1ro, nombre: "1ro Secundaria B", seccion: "B" })), ["p1"]);
+assert.deepEqual(planesQueDejanDeEncajar([plan1ro], era1ro, { ...era1ro, estudiantes: 30 }), []);
+assert.deepEqual(planesQueDejanDeEncajar([plan1ro], ahora2do, era1ro), [], "volver a 1ro no avisa");
+assert.deepEqual(planesQueDejanDeEncajar([{ ...plan1ro, cursoId: "otro" }, { ...plan1ro, capaCurricular: { estado: "archivada" } }], era1ro, ahora2do), []);
+assert.deepEqual(planesQueDejanDeEncajar([plan1ro], null, ahora2do), []);
+console.log("✓ al editar el curso se sabe qué planes dejarían de usarse");
+assert.match(readFileSync(new URL("../src/components/Cursos.jsx", import.meta.url), "utf8"), /grado: formCurso\.grado,/, "el grado elegido se guarda");
 
 console.log("\nPlan ↔ curso: todo en verde");
