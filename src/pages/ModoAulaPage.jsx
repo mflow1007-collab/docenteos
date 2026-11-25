@@ -11,6 +11,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { auth } from '../firebase.js'
 import { pieDeVersion } from '../utils/buildInfo.js'
+import { cursoIdDePlan, planesParaCopiar, resolverCursoDelAula } from '../services/planCurso.js'
+import CopiarPlanSeccion from '../components/CopiarPlanSeccion.jsx'
 import { actualizarPlanificacionDetallada, obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
 import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula, obtenerInstrumentosDelDia } from '../services/modoAulaService.js'
 import { crearAspectoId, fechaLocalISO } from '../services/hiloPedagogico.js'
@@ -212,38 +214,6 @@ function normalizarClave(valor = '') {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
-}
-
-function gradoCompatible(curso, gradoPlan = '') {
-  const cursoTxt = normalizarClave([curso?.grado, curso?.nombre, curso?.name].filter(Boolean).join(' '))
-  const planTxt = normalizarClave(gradoPlan)
-  if (!cursoTxt || !planTxt) return false
-  const numeroCurso = cursoTxt.match(/\b[1-6]\b|\b[1-6](ro|do|to)\b/)?.[0]?.match(/[1-6]/)?.[0]
-  const numeroPlan = planTxt.match(/\b[1-6]\b|\b[1-6](ro|do|to)\b/)?.[0]?.match(/[1-6]/)?.[0]
-  const nivelOk = !planTxt.includes('secundaria') || cursoTxt.includes('secundaria')
-  return Boolean(numeroCurso && numeroPlan && numeroCurso === numeroPlan && nivelOk)
-}
-
-function areaCompatible(curso, areaPlan = '') {
-  const planTxt = normalizarClave(areaPlan)
-  if (!planTxt) return false
-  const cursoTxt = normalizarClave([curso?.area, curso?.asignatura, curso?.materia, curso?.nombre, curso?.name].filter(Boolean).join(' '))
-  if (!cursoTxt) return false
-  return cursoTxt.includes(planTxt) || planTxt.includes(cursoTxt)
-}
-
-function resolverCursoParaPlan(cursos = [], cursoActivo = null, claseNorm = null) {
-  const gradoPlan = claseNorm?.grado || ''
-  const areaPlan = claseNorm?.area || ''
-  const candidatos = cursos.map((curso) => {
-    let puntaje = 0
-    if (cursoActivo?.id && curso.id === cursoActivo.id) puntaje += 1
-    if (gradoCompatible(curso, gradoPlan)) puntaje += 4
-    if (areaCompatible(curso, areaPlan)) puntaje += 5
-    return { curso, puntaje }
-  }).sort((a, b) => b.puntaje - a.puntaje)
-
-  return candidatos[0]?.puntaje >= 5 ? candidatos[0].curso : (cursoActivo || cursos[0] || null)
 }
 
 function textoCriterio(criterio, fallback) {
@@ -967,6 +937,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   // F1: el curso activo no tiene plan propio (no se muestra el de otro grado)
   const [sinPlanCurso, setSinPlanCurso] = useState(false)
   const [avisosVinculo, setAvisosVinculo] = useState([])
+  const avisosCopia = useRef([]) // avisos de la copia recién hecha, para mostrarlos al abrirla
   // Mientras se busca (y, si hace falta, se ata) el plan del curso
   const [preparandoClase, setPreparandoClase] = useState(true)
 
@@ -992,10 +963,13 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         const ctx = await obtenerContextoModoAula(cursoActivo?.id || '', undefined, { planes, curso: cursoActivo })
           .finally(() => { if (vigente) setPreparandoClase(false) })
         if (ctx?.motivo === 'sin-plan-del-curso') {
-          if (vigente) { setSinPlanCurso(true); setCargando(false) }
+          if (vigente) { setPlanActivo(null); setClaseNorm(null); setDiaActivo(null); setSinPlanCurso(true); setCargando(false) }
           return
         }
-        if (vigente) setAvisosVinculo(ctx?.advertenciasVinculo || [])
+        if (vigente) {
+          setAvisosVinculo([...avisosCopia.current, ...(ctx?.advertenciasVinculo || [])])
+          avisosCopia.current = []
+        }
         if (ctx?.plan && ctx?.clase && ctx.plan.capaCurricular) {
           const norm = normalizarClase(ctx.plan.contenido)
           const dia = norm?.dias.find(d => d.diaNum === ctx.clase.numeroClase) || norm?.dias[0]
@@ -1006,8 +980,15 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       } catch (error) {
         console.warn('[ModoAula] Contexto del hilo no disponible, usando detección legacy:', error)
       }
-      if (!det) det = detectarPlanHoy(planes)
+      // Planes sin capa: solo los de ESTE curso, nunca el de otro
+      const planesDelCurso = cursoActivo?.id
+        ? planes.filter((p) => String(resolverCursoDelAula({ plan: p, cursos, cursoActivo }).curso?.id || '') === String(cursoActivo.id))
+        : planes
+      if (!det) det = detectarPlanHoy(planesDelCurso)
+      if (vigente && !det) { setPlanActivo(null); setSinPlanCurso(true); setCargando(false) }
       if (!vigente || !det) return
+      setSinPlanCurso(false)
+      setInstrumentoModal(null)
       setPlanActivo(det.plan)
       setClaseNorm(det.norm)
       setDiaActivo(det.dia)
@@ -1019,13 +1000,15 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           setEstadoClase(prev.estadoClase || 'pendiente')
           setMomentoOpen(prev.momentoOpen || 0)
           setNotasDocente(prev.notas || '')
+        } else { // otro curso: no arrastrar el avance del plan anterior
+          setActChecks({}); setEstadoClase('pendiente'); setMomentoOpen(0); setNotasDocente('')
         }
         setEvidencias(leerEvidenciasLocal(det.plan.id, det.dia.diaNum))
       }
     })()
     return () => { vigente = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planes])
+  }, [planes, cursoActivo?.id])
 
   // ─── Hilo pedagógico: backfill lazy de la capa curricular + clase de hoy.
   // Si hoy no hay clase planificada se muestra la PRÓXIMA pendiente con aviso
@@ -1041,7 +1024,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       if (!capa) { setAvisoClase(null); return }
       if (conCapa !== plan) setPlanActivo(conCapa)
 
-      const seleccion = claseParaMostrar(capa, resolverCursoParaPlan(cursos, cursoActivo, claseNorm), plan.id)
+      const seleccion = claseParaMostrar(capa, resolverCursoDelAula({ plan: conCapa, cursos, cursoActivo }).curso, plan.id)
       const { clase } = seleccion
       if (!clase) { setAvisoClase(null); return }
       setAvisoClase(avisoDeSeleccion(seleccion))
@@ -1303,10 +1286,19 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   }
 
   // ═══ DATOS DERIVADOS
-  const cursoParaAula = useMemo(
-    () => resolverCursoParaPlan(cursos, cursoActivo, claseNorm),
-    [cursos, cursoActivo, claseNorm]
+  // Etapa 3: manda el curso del plan; sin curso claro, null (y se dice por qué)
+  const { curso: cursoParaAula, aviso: avisoCurso } = useMemo(
+    () => resolverCursoDelAula({ plan: planActivo, cursos, cursoActivo }),
+    [cursos, cursoActivo, planActivo]
   )
+  const planesOtraSeccion = useMemo(() => {
+    const propio = planes.some((p) => cursoActivo?.id && cursoIdDePlan(p) === String(cursoActivo.id))
+    return propio ? [] : planesParaCopiar(planes, cursoActivo)
+  }, [planes, cursoActivo])
+  const alCopiarPlan = ({ plan, advertencias }) => {
+    avisosCopia.current = advertencias
+    setPlanes((prev) => [plan, ...prev.filter((p) => p.id !== plan.id)])
+  }
   const periodoRegistro = normalizarPeriodoRegistro(cursoParaAula?.periodo || cursoParaAula?.periodoActivo || 'Periodo 1')
   // Los estudiantes REALES viven en usuarios/{uid}/estudiantes (subcolección);
   // el curso solo a veces los trae embebidos. Sin este fallback, el pase de
@@ -2055,7 +2047,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         <div style={{ fontSize:56, marginBottom:16 }}>🗂️</div>
         <h2 style={{ fontSize:22, fontWeight:800, color:'#0f172a', marginBottom:8 }}>{nombreCurso} aún no tiene planificación</h2>
         <p style={{ fontSize:14, color:'#64748b', marginBottom:24, lineHeight:1.6 }}>
-          Ninguna planificación guardada coincide con el grado y la asignatura de {nombreCurso}.
+          Ninguna planificación guardada es de {nombreCurso} ni coincide con su grado, asignatura y sección.
           No se muestra la de otro curso para no registrar evidencias ni notas en el lugar equivocado.
         </p>
         <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
@@ -2067,6 +2059,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
             background:'#fff', color:'#4c1d95', border:'1px solid #c4b5fd',
             borderRadius:12, padding:'12px 22px', fontSize:14, fontWeight:800, cursor:'pointer',
           }}>Elegir una planificación</button>
+        </div>
+        <div style={{ marginTop:24 }}>
+          <CopiarPlanSeccion planes={planesOtraSeccion} curso={cursoActivo} onCopiado={alCopiarPlan} />
         </div>
       </div>
     )
@@ -2094,6 +2089,17 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           border:'1px solid #c4b5fd', borderRadius:12, color:'#4c1d95', fontSize:13, fontWeight:700,
         }}>
           ⏳ Preparando la clase de tu curso… Si es la primera vez, se vincula la planificación al curso y se crean sus aspectos e instrumentos.
+        </div>
+      )}
+
+      {/* ══ Etapa 3: de qué curso es el plan, cuando no es el activo o no está claro ══ */}
+      {avisoCurso && (
+        <div role="alert" style={{
+          margin:'16px 24px 0', padding:'10px 18px', background:'#fffbeb',
+          border:'1px solid #fcd34d', borderRadius:12, color:'#92400e', fontSize:13, fontWeight:700, display:'grid', gap:10,
+        }}>
+          <span>⚠️ {avisoCurso}</span>
+          <CopiarPlanSeccion planes={planesOtraSeccion.filter((p) => p.id === planActivo?.id)} curso={cursoActivo} onCopiado={alCopiarPlan} />
         </div>
       )}
 

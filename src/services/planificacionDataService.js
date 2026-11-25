@@ -23,6 +23,7 @@ import {
 } from "../firebase.js";
 import { getCurricularContentForUnit } from "./bancoConocimientoService.js";
 import { construirCapaCurricular, normalizarTexto, puntuarCursoParaPlan, UMBRAL_CURSO_PLAN } from "./hiloPedagogico.js";
+import { construirCopiaDePlan, cursoIdDePlan } from "./planCurso.js";
 import { generarAspectosRegistroDesdePlanificacion } from "./registroService.js";
 import { crearInstrumentosPlaneadosDesdePlan } from "./instrumentosService.js";
 import { guardarActividadesDePlan } from "./actividadesService.js";
@@ -146,24 +147,50 @@ export const vincularPlanificacionACurso = async (registroPlan, cursoId) => {
     cursoId: id,
     capaCurricular: { ...registroPlan.capaCurricular, cursoId: id },
   };
+  return { plan, advertencias: await crearDerivadosDePlan(plan, "El plan quedó vinculado") };
+};
+
+// Aspectos del Registro, instrumentos y actividades de un plan con curso (IDs
+// deterministas: repetirlo no duplica). Lo que falle vuelve como advertencia.
+const crearDerivadosDePlan = async (plan, inicio) => {
   const advertencias = [];
   try {
     await generarAspectosRegistroDesdePlanificacion(plan);
   } catch (error) {
-    advertencias.push(`El plan quedó vinculado, pero los aspectos del registro no se generaron: ${error.message}`);
+    advertencias.push(`${inicio}, pero los aspectos del registro no se generaron: ${error.message}`);
   }
   try {
     await crearInstrumentosPlaneadosDesdePlan(plan);
   } catch (error) {
-    advertencias.push(`El plan quedó vinculado, pero los instrumentos planeados no se crearon: ${error.message}`);
+    advertencias.push(`${inicio}, pero los instrumentos planeados no se crearon: ${error.message}`);
   }
   try {
     const { avisos } = await guardarActividadesDePlan(plan);
     advertencias.push(...avisos);
   } catch (error) {
-    advertencias.push(`El plan quedó vinculado, pero sus actividades no se crearon: ${error.message}`);
+    advertencias.push(`${inicio}, pero sus actividades no se crearon: ${error.message}`);
   }
-  return { plan, advertencias };
+  return advertencias;
+};
+
+/**
+ * Etapa 3 — Copia un plan guardado para otra sección del mismo grado y
+ * asignatura. No usa IA ni reserva cupo, y no modifica el original. Si ese
+ * curso ya tiene su copia, la devuelve en vez de crear otra.
+ * @returns {{ plan, advertencias: string[], existente: boolean }}
+ */
+export const copiarPlanParaCurso = async (registroPlan, curso, { fechaInicio = "", dias = null } = {}) => {
+  if (!db || !auth?.currentUser) throw new Error("Necesitas iniciar sesión para copiar la planificación");
+  const { contenido, capaCurricular } = construirCopiaDePlan({ plan: registroPlan, curso, fechaInicio, dias });
+  const { data } = await obtenerPlanificacionesDetalladas();
+  const previa = (data || []).find((p) => cursoIdDePlan(p) === String(curso.id)
+    && String(p.capaCurricular?.planOrigenId || "") === String(registroPlan.id));
+  const cursoId = String(curso.id);
+  const plan = previa || {
+    id: (await guardarPlanificacionDetallada(contenido, { capaCurricular, cursoId })).id,
+    cursoId, capaCurricular, contenido, createdAt: new Date().toISOString(),
+  };
+  return { plan, advertencias: await crearDerivadosDePlan(plan, "La copia quedó guardada"), existente: Boolean(previa) };
 };
 
 /**
