@@ -7,25 +7,6 @@ import { guardarPerfilInstitucional } from '../services/perfilInstitucionalServi
 import './BienvenidaPage.css'
 import { getAreas, getAsignaturas } from '../planning/areaAsignaturaMap.js'
 
-const NOMBRES_EJEMPLO = [
-  "María García", "Juan Pérez", "Carmen López", "José Rodríguez",
-  "Ana Martínez", "Luis Santos", "Rosa Reyes", "Pedro Díaz",
-  "Isabel Fernández", "Carlos Moreno", "Lucía Jiménez", "Miguel Torres",
-  "Sofía Ruiz", "Andrés Vargas", "Paula Romero", "Diego Castillo",
-  "Valentina Cruz", "Ricardo Flores", "Daniela Mendoza", "Alejandro Herrera",
-  "Natalia Suárez", "Fernando Medina", "Laura Guerrero", "Sebastián Molina",
-  "Camila Morales", "Emilio Vega", "Diana Ramos", "Ernesto Silva",
-  "Paola Cortés", "Manuel Ortega",
-]
-
-function generarEstudiantesEjemplo(total = 30) {
-  const puntajes = [94, 91, 88, 86, 84, 82, 80, 78, 76, 74, 72, 70, 68, 65, 62, 58, 55, 52]
-  return Array.from({ length: total }, (_, i) => ({
-    nombre: NOMBRES_EJEMPLO[i % NOMBRES_EJEMPLO.length],
-    promedio: puntajes[i % puntajes.length],
-  }))
-}
-
 const REGIONALES = [
   'Regional 01 - Barahona',
   'Regional 02 - San Juan de la Maguana',
@@ -236,8 +217,6 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
       for (let idx = 0; idx < gradosDocente.length; idx++) {
         const grado = gradosDocente[idx]
         const nivel = grado.includes('Secundaria') ? 'Secundaria' : grado.includes('Primaria') ? 'Primaria' : 'Inicial'
-        const estudiantesDetalle = generarEstudiantesEjemplo(30)
-        const promedioEjemplo = Math.round(estudiantesDetalle.reduce((s, e) => s + e.promedio, 0) / estudiantesDetalle.length)
         try {
           await guardarCurso({
             id: `auto-${Date.now()}-${idx}`,
@@ -246,18 +225,19 @@ export default function BienvenidaPage({ onPerfilGuardado }) {
             nivel,
             area: asignaturaPrincipal || areaPrincipal,
             seccion: 'A',
-            estudiantes: 30,
-            promedio: promedioEjemplo,
+            // Sin lista todavía: el docente carga sus estudiantes reales
+            estudiantes: 0,
+            promedio: null,
             pendientes: 0,
             icono: grado[0].toUpperCase(),
             acento: '#2563eb',
             temaActual: 'Tema por definir',
-            estudiantesDetalle,
+            estudiantesDetalle: [],
             esAutoGenerado: true,
             flujo: [],
             enRiesgo: [],
             destacados: [],
-            historialPromedio: [72, 74, 76, 78, 79, 81, 83, 84],
+            historialPromedio: [],
             resumenRapido: { instrumentos: 0, evaluaciones: 0, enRiesgo: 0 },
             instrumentosRecientes: [],
             proximasAcciones: ['Configurar área/asignatura', 'Crear instrumento', 'Registrar primera clase'],

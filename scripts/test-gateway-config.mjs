@@ -59,7 +59,10 @@ async function token({ email = "docente@ejemplo.com", verificado = true } = {}) 
 // ── Doble de fetch ───────────────────────────────────────────────────────────
 // configDoc: objeto de campos tipados de Firestore, null = 404, número = HTTP de error
 let configDoc = null;
+let anthropicHttp = 200; // ≠ 200: Anthropic responde ese error
+let openaiHttp = 200;    // ≠ 200: OpenAI responde ese error
 let llamadas = [];
+let contenidos = [];     // contenido del mensaje del usuario en cada llamada
 const firestoreString = (s) => ({ stringValue: s });
 const firestoreArray = (xs) => ({ arrayValue: { values: xs.map(firestoreString) } });
 const firestoreMap = (o) => ({ mapValue: { fields: Object.fromEntries(Object.entries(o).map(([k, v]) => [k, firestoreString(v)])) } });
@@ -78,8 +81,10 @@ globalThis.fetch = async (url, init = {}) => {
     return new Response(JSON.stringify({ fields: configDoc }), { status: 200 });
   }
   const body = init.body ? JSON.parse(init.body) : {};
+  contenidos.push(body.messages?.at(-1)?.content);
   if (u === "https://api.anthropic.com/v1/messages") {
     llamadas.push({ tipo: "proveedor", provider: "anthropic", model: body.model });
+    if (anthropicHttp !== 200) return new Response(JSON.stringify({ error: "error simulado" }), { status: anthropicHttp });
     return sse([
       JSON.stringify({ type: "content_block_delta", delta: { type: "text_delta", text: "hola" } }),
       JSON.stringify({ type: "message_delta", delta: { stop_reason: "end_turn" } }),
@@ -88,12 +93,14 @@ globalThis.fetch = async (url, init = {}) => {
   const provider = u.startsWith("https://api.openai.com") ? "openai"
     : u.startsWith("https://generativelanguage.googleapis.com") ? "gemini" : "otro";
   llamadas.push({ tipo: "proveedor", provider, model: body.model });
+  if (provider === "openai" && openaiHttp !== 200) return new Response(JSON.stringify({ error: "error simulado" }), { status: openaiHttp });
   return sse([JSON.stringify({ choices: [{ delta: { content: "hola" }, finish_reason: "stop" }] }), "[DONE]"]);
 };
 
 async function generar(body, { tok } = {}) {
   invalidarConfigGateway();
   llamadas = [];
+  contenidos = [];
   const req = new Request("https://docenteos.test/api/ai/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok ?? await token()}` },
@@ -175,6 +182,65 @@ await check("cola: preferredProvider manda solo si el admin no fijó prioridad",
 });
 await check("cola: proveedores desconocidos del cliente se descartan", () => {
   igual(getProviderQueue({}, "general", { providerOrder: ["proveedor-falso"], strictProvider: true }), []);
+});
+
+console.log("\nImágenes: solo Anthropic y OpenAI, y siempre con la foto");
+const FOTO = { module: "vision-estudiantes", imageBase64: "Zm90bw==", imageMediaType: "image/jpeg" };
+await check("con imagen se usa Anthropic primero aunque el cliente y el admin prefieran otro", async () => {
+  configDoc = { priority: firestoreArray(["gemini", "openai", "anthropic"]) };
+  const { res, primera } = await generar({ ...FOTO, providerOrder: ["gemini"] });
+  igual(res.status, 200, "status");
+  igual(primera.provider, "anthropic");
+  igual(contenidos[0][0].source?.data, FOTO.imageBase64, "foto");
+});
+await check("Anthropic falla con imagen → OpenAI recibe la misma foto (image_url con data URL)", async () => {
+  configDoc = null;
+  anthropicHttp = 400;
+  const { res, proveedores } = await generar(FOTO);
+  anthropicHttp = 200;
+  igual(res.status, 200, "status");
+  igual(proveedores.map((p) => p.provider), ["anthropic", "openai"]);
+  igual(contenidos[1], [
+    { type: "text", text: "Hola" },
+    { type: "image_url", image_url: { url: "data:image/jpeg;base64,Zm90bw==", detail: "high" } },
+  ]);
+});
+await check("Anthropic apagado con imagen → OpenAI", async () => {
+  configDoc = { disabled: firestoreArray(["anthropic"]) };
+  const { res, proveedores } = await generar(FOTO);
+  igual(res.status, 200, "status");
+  igual(proveedores.map((p) => p.provider), ["openai"]);
+});
+await check("Anthropic y OpenAI fallan con imagen → 503 con el error real; Gemini no se usa", async () => {
+  configDoc = null;
+  anthropicHttp = 400; openaiHttp = 429;
+  const { res, proveedores } = await generar(FOTO);
+  anthropicHttp = 200; openaiHttp = 200;
+  igual(res.status, 503, "status");
+  igual(proveedores.map((p) => p.provider), ["anthropic", "openai"]);
+  const { error } = JSON.parse(await res.text());
+  if (!/openai HTTP 429/.test(error || "")) throw new Error(`mensaje inesperado: ${error}`);
+});
+await check("Anthropic y OpenAI apagados con imagen → 503 visible y ningún proveedor", async () => {
+  configDoc = { disabled: firestoreArray(["anthropic", "openai"]) };
+  const { res, proveedores } = await generar(FOTO);
+  igual(res.status, 503, "status");
+  igual(proveedores.length, 0, "llamadas a proveedores");
+  const { error } = JSON.parse(await res.text());
+  if (!/Anthropic u OpenAI/.test(error || "")) throw new Error(`mensaje inesperado: ${error}`);
+});
+await check("sin imagen, OpenAI sigue recibiendo el prompt como texto", async () => {
+  configDoc = null;
+  await generar({});
+  igual(contenidos[0], "Hola");
+});
+await check("sin imagen, si Anthropic falla se sigue rotando", async () => {
+  configDoc = null;
+  anthropicHttp = 400;
+  const { res, proveedores } = await generar({ providerOrder: ["anthropic"] });
+  anthropicHttp = 200;
+  igual(res.status, 200, "status");
+  igual(proveedores.map((p) => p.provider), ["anthropic", "openai"]);
 });
 
 console.log("\nCorreo verificado");

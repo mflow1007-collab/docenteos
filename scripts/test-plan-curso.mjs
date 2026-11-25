@@ -9,6 +9,7 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { puntuarCursoParaPlan, UMBRAL_CURSO_PLAN } from "../src/services/hiloPedagogico.js";
 
@@ -72,6 +73,21 @@ assert.match(aula(planDe({ ...meta2doA, seccion: "B" }, curso2doA.id), curso2doA
 assert.equal(aula(planDe({ ...meta2doA, seccion: "B" }, curso2doA.id), curso2doA).curso.id, curso2doA.id, "se reporta, no se autocorrige");
 assert.deepEqual(aula(planDe(meta2doA, curso2doA.id), null, []), { curso: null, aviso: "" }, "cursos aún sin cargar");
 console.log("✓ plan atado a otra sección: se reporta, no se autocorrige");
+
+// Etapa 3 + hora extra: la clase que se muestra sale del curso DEL PLAN. Si A ya
+// dio la clase 1, con B activo no vuelve a salir (antes miraba el curso activo).
+const { claseParaMostrar } = await import("../src/utils/horaExtra.js");
+const ahora = new Date(2026, 10, 25, 9);
+const capaDos = { clases: [{ claseId: "c1", numeroClase: 1, fechaSugerida: "2026-11-25" }, { claseId: "c2", numeroClase: 2, fechaSugerida: "2026-11-27" }] };
+const aConDada = { ...curso2doA, clasesDadas: [{ planId: "p", claseId: "c1", fecha: "2026-11-24", extra: true }] };
+const planDeA = { ...planDe(meta2doA, curso2doA.id), capaCurricular: capaDos };
+const cursoDelPlan = aula(planDeA, curso2doB, [aConDada, curso2doB]).curso;
+assert.equal(claseParaMostrar(capaDos, cursoDelPlan, "p", ahora).clase.claseId, "c2");
+assert.equal(claseParaMostrar(capaDos, curso2doB, "p", ahora).clase.claseId, "c1", "con el activo saldría la ya dada");
+assert.equal(claseParaMostrar(capaDos, null, "p", ahora).clase.claseId, "c1", "sin curso claro no falla");
+const pagina = readFileSync(new URL("../src/pages/ModoAulaPage.jsx", import.meta.url), "utf8");
+assert.doesNotMatch(pagina, /resolverCursoParaPlan/, "el aula tiene un solo resolvedor de curso");
+console.log("✓ la clase mostrada y la hora extra usan el curso del plan");
 
 // ─── Etapa 3 — copia por sección ─────────────────────────────────────────────
 

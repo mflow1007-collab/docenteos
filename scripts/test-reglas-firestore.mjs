@@ -176,6 +176,18 @@ await check("el comodín no abre colecciones con regla propia (config)", () =>
 await check("el comodín no abre la colección sin tilde (disenoCurricular)", () =>
   assertFails(getDoc(doc(docente, "disenoCurricular", "malla-1"))));
 
+console.log("\nsecuenciasOficiales (solo admin)");
+await check("admin escribe y lee una secuencia oficial", async () => {
+  await assertSucceeds(setDoc(doc(admin, "secuenciasOficiales", "s1"), { nivel: "Primaria", grado: "4to" }));
+  await assertSucceeds(getDoc(doc(admin, "secuenciasOficiales", "s1")));
+});
+await check("docente NO lee secuencias oficiales", () =>
+  assertFails(getDoc(doc(docente, "secuenciasOficiales", "s1"))));
+await check("docente NO escribe secuencias oficiales", () =>
+  assertFails(setDoc(doc(docente, "secuenciasOficiales", "s2"), { nivel: "Primaria" })));
+await check("anónimo NO lee secuencias oficiales", () =>
+  assertFails(getDoc(doc(anonimo, "secuenciasOficiales", "s1"))));
+
 console.log("\nSin cambios: bancoAprendizaje");
 await check("docente crea secuencia cosechada propia", () =>
   assertSucceeds(setDoc(nuevo(docente, "bancoAprendizaje"), { estado: "cosechada", procedencia: { docenteUid: DOCENTE } })));

@@ -3,6 +3,8 @@ import "./App.css";
 import {
   guardarCurso as guardarCursoFS,
   obtenerCursos,
+  guardarHorariosSemanales,
+  cambiarListaCurso,
   eliminarCurso as eliminarCursoFS,
   guardarPreferenciaUsuario,
   obtenerPreferenciaUsuario,
@@ -16,11 +18,15 @@ import { esUsuarioDocenteOS, cargoTieneModulo } from "./utils/permisos.js";
 import { useLocation, useNavigate } from "react-router-dom";
 import { enriquecerCursoInicial, aplicarRegistroACurso } from "./utils/cursoUtils.js";
 import { conIdsEstudiantes } from "./utils/idEstudiante.js";
+import { aplicarHorariosACursos } from "./utils/horarioSemanal.js";
+import { aplicarListaACurso } from "./utils/horaExtra.js";
 import { sincronizarCursoConGrupoAcademico, sincronizarCursosConGruposAcademicos } from "./services/gruposAcademicosService.js";
 import { SidebarGrupo, SidebarItem } from "./components/AppSidebar.jsx";
 import Inicio from "./components/Inicio.jsx";
 import Cursos from "./components/Cursos.jsx";
 import DetalleCurso from "./components/DetalleCurso.jsx";
+import HoraExtra from "./components/HoraExtra.jsx";
+import AvisoClaseAhora from "./components/AvisoClaseAhora.jsx";
 import CoachIA from "./components/CoachIA.jsx";
 import AppErrorBoundary from "./components/AppErrorBoundary.jsx";
 import PlanningGenerationStatus from "./components/PlanningGenerationStatus.jsx";
@@ -184,6 +190,7 @@ function AppInner() {
     }
   });
   const [cursoSeleccionadoId, setCursoSeleccionadoId] = useState(() => leerCursoActivoId());
+  const [aperturaAula, setAperturaAula] = useState(0);
   const [cursoAEditar, setCursoAEditar] = useState(null);
   const [tabDetalleInicial, setTabDetalleInicial] = useState("Resumen");
   const [detalleEstudianteTab, setDetalleEstudianteTab] = useState("Resumen");
@@ -238,6 +245,23 @@ function AppInner() {
     seleccionarCursoActivo(cursoId);
     setTabDetalleInicial("Horario");
     navegar("detalle-curso");
+  };
+
+  // Horario por selección: primero Firestore; si falla, la cuadrícula muestra el error
+  const guardarHorarios = async (lista) => {
+    await guardarHorariosSemanales(lista);
+    setCursos((prev) => aplicarHorariosACursos(prev, lista));
+  };
+
+  // Hora extra y clases dadas (Modo Aula): una sola lista del curso, nada más
+  const guardarListaCurso = async (cursoId, campo, cambio) => {
+    await cambiarListaCurso(cursoId, campo, cambio);
+    setCursos((prev) => aplicarListaACurso(prev, cursoId, campo, cambio));
+  };
+
+  // El Modo Aula elige su plan y su clase al abrir: con otro curso se vuelve a abrir
+  const abrirAulaDeCurso = (cursoId) => {
+    if (seleccionarCursoActivo(cursoId)) setAperturaAula((n) => n + 1);
   };
 
   const actualizarCurso = (cursoRecibido) => {
@@ -761,7 +785,25 @@ function AppInner() {
             <div className="card">Preparando tu navegación...</div>
           )}
           {pagina === "modo-aula" && (
+            <AvisoClaseAhora
+              cursos={cursos}
+              cursoActivo={cursoRegistro}
+              onCambiar={abrirAulaDeCurso}
+            />
+          )}
+          {pagina === "modo-aula" && (
+            <HoraExtra
+              cursos={cursos}
+              cursoActivo={cursoRegistro}
+              onGuardarLista={guardarListaCurso}
+              onAbrirCurso={abrirAulaDeCurso}
+            />
+          )}
+          {pagina === "modo-aula" && (
             <ModoAulaPage
+              key={`aula-${aperturaAula}`}
+              onClaseDada={(cursoId, cambio) => guardarListaCurso(cursoId, "clasesDadas", cambio)}
+              onReabrir={abrirAulaDeCurso}
               cursos={cursos}
               cursoActivo={cursoRegistro}
               perfil={formulario}
@@ -820,6 +862,7 @@ function AppInner() {
             <Cursos
               cursos={cursos}
               onVerCurso={abrirDetalleCurso}
+              onGuardarHorarios={guardarHorarios}
               onCrearCurso={crearCurso}
               onActualizarCurso={actualizarCurso}
               onEliminarCurso={eliminarCurso}
@@ -828,11 +871,17 @@ function AppInner() {
               onConfigurarHorario={abrirHorarioCurso}
             />
           )}
-          {pagina === "detalle-curso" && (
+          {/* Sin curso elegido no se abre el detalle (mostraba un curso de ejemplo) */}
+          {pagina === "detalle-curso" && !cursoSeleccionado && (
+            <div className="card">{cursosLoaded ? "Elige un curso desde Mis cursos para ver su detalle." : "Cargando el curso..."}</div>
+          )}
+          {pagina === "detalle-curso" && cursoSeleccionado && (
             <DetalleCurso
               key={`${cursoSeleccionado?.id || "curso"}-${tabDetalleInicial}`}
               curso={cursoSeleccionado}
               onVolver={() => navegar("cursos")}
+              cursos={cursos}
+              onGuardarHorarios={guardarHorarios}
               onEditarCurso={solicitarEdicionCurso}
               onActualizarCurso={actualizarCurso}
               onEliminarCurso={eliminarCurso}

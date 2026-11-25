@@ -6,13 +6,15 @@ import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import { enriquecerCursoInicial } from "../utils/cursoUtils.js";
+import { clasesDelDia, nombreHora, proximaClase } from "../utils/horarioSemanal.js";
+import { fechaLocalISO } from "../services/hiloPedagogico.js";
+import HorarioSemanal from "./HorarioSemanal.jsx";
 
-function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEliminarCurso, initialTab = "Resumen", onIrA = () => {} }) {
+function DetalleCurso({ curso, cursos = [], onGuardarHorarios, onVolver, onEditarCurso, onActualizarCurso, onEliminarCurso, initialTab = "Resumen", onIrA = () => {} }) {
   const claveDiaHorario = `docenteos_detalle_dia_horario_${curso?.id || "curso-fallback"}`;
   const [tabActiva, setTabActiva] = useState(initialTab);
   const [busquedaEstudiante, setBusquedaEstudiante] = useState("");
   const [mostrarMenuCurso, setMostrarMenuCurso] = useState(false);
-  const [mostrarModalHorarioClase, setMostrarModalHorarioClase] = useState(false);
   const [mensajeHorario, setMensajeHorario] = useState(null);
   const [iaApoyoTexto, setIaApoyoTexto] = useState("");
   const [iaApoyoGenerando, setIaApoyoGenerando] = useState(false);
@@ -62,29 +64,9 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
   );
 
   const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-  const bloquesBase = [
-    { etiqueta: "1ra Hora", tipo: "clase" },
-    { etiqueta: "2da Hora", tipo: "clase" },
-    { etiqueta: "3ra Hora", tipo: "clase" },
-    { etiqueta: "Recreo", tipo: "recreo" },
-    { etiqueta: "4ta Hora", tipo: "clase" },
-    { etiqueta: "Almuerzo", tipo: "almuerzo" },
-    { etiqueta: "5ta Hora", tipo: "clase" },
-    { etiqueta: "6ta Hora", tipo: "clase" },
-    { etiqueta: "Recreo", tipo: "recreo" },
-    { etiqueta: "7ma Hora", tipo: "clase" },
-    { etiqueta: "8va Hora", tipo: "clase" },
-  ];
-
   const aMinutos = (hora) => {
     const [h, m] = String(hora || "00:00").split(":").map(Number);
     return (h * 60) + m;
-  };
-
-  const aHora24 = (minutos) => {
-    const h = String(Math.floor(minutos / 60)).padStart(2, "0");
-    const m = String(minutos % 60).padStart(2, "0");
-    return `${h}:${m}`;
   };
 
   const aHora12 = (hora) => {
@@ -95,75 +77,8 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
     return `${h12}:${mStr} ${periodo}`;
   };
 
-  const construirHorarioClasePredeterminado = (nivelODuracion, cursoNombre, areaNombre, horarioBase = []) => {
-    const duracionClase = typeof nivelODuracion === "number" ? nivelODuracion : nivelODuracion === "Secundaria" ? 50 : 45;
-    let cursor = 8 * 60;
-    const cursoTexto = `${cursoNombre} · ${areaNombre}`;
-
-    return bloquesBase.map((bloque, idx) => {
-      const base = horarioBase[idx];
-      const duracion = bloque.tipo === "clase" ? duracionClase : bloque.tipo === "recreo" ? 15 : 40;
-      const inicio = base?.inicio || aHora24(cursor);
-      const fin = base?.fin || aHora24(cursor + duracion);
-      cursor += duracion;
-
-      return {
-        id: `hc-${idx + 1}`,
-        dia: "Lunes",
-        horaAcademica: bloque.etiqueta,
-        tipo: base?.tipo || bloque.tipo,
-        inicio,
-        fin,
-        curso: cursoTexto,
-        aula: `Aula ${101 + idx}`,
-      };
-    });
-  };
-
-  const [horarioClaseEditable, setHorarioClaseEditable] = useState(() =>
-    Array.isArray(data.horarioClase) && data.horarioClase.length > 0
-      ? data.horarioClase
-      : construirHorarioClasePredeterminado(data.duracionClaseMinutos || data.nivel || 45, data.nombre, data.area, normalizarHorarioCurso(data.horario || []))
-  );
-  const [duracionModal, setDuracionModal] = useState(
-    data.nivel === "Primaria" ? 45 : (data.duracionClaseMinutos || 50)
-  );
   const [diaVistaHorario, setDiaVistaHorario] = useState("");
   const [diaHorarioListo, setDiaHorarioListo] = useState(false);
-
-  const actualizarFilaHorarioClase = (idFila, campo, valor) => {
-    setHorarioClaseEditable((prev) => prev.map((fila) => (fila.id === idFila ? { ...fila, [campo]: valor } : fila)));
-  };
-
-  const aplicarPresetHorarioClase = (nivelPreset) => {
-    setHorarioClaseEditable(
-      construirHorarioClasePredeterminado(nivelPreset, data.nombre, data.area, normalizarHorarioCurso(data.horario || []))
-    );
-  };
-
-  const guardarHorarioClaseModal = () => {
-    const nuevoHorarioCurso = normalizarHorarioCurso(
-      horarioClaseEditable.map((fila, idx) => ({
-        id: `h-${idx + 1}`,
-        tipo: fila.tipo || "clase",
-        nombre: fila.bloque || fila.horaAcademica || `Bloque ${idx + 1}`,
-        inicio: fila.inicio,
-        fin: fila.fin,
-      }))
-    );
-
-    setHorarioCurso(nuevoHorarioCurso);
-    onActualizarCurso(
-      enriquecerCursoInicial({
-        ...data,
-        horario: nuevoHorarioCurso,
-        horarioClase: horarioClaseEditable,
-        duracionClaseMinutos: duracionModal,
-      })
-    );
-    setMostrarModalHorarioClase(false);
-    setMensajeHorario({ tipo: "success", texto: "Horario de clase actualizado" });
-  };
 
   const sugerirApoyoCurso = async () => {
     setIaApoyoTexto("");
@@ -211,28 +126,24 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
 
   const hoy = new Date();
   const indiceDia = hoy.getDay();
-  const diaActual = diasSemana[indiceDia === 0 ? 6 : indiceDia - 1];
-  const diaSeleccionado = diaVistaHorario || diaActual;
+  const diaActual = diasSemana[indiceDia - 1] || "";
+  const diaSeleccionado = diaVistaHorario || diaActual || diasSemana[0];
   const esDiaActualSeleccionado = diaSeleccionado === diaActual;
   const minutosActuales = (hoy.getHours() * 60) + hoy.getMinutes();
-  const clasesDia = horarioClaseEditable
-    .filter((fila) => fila.tipo === "clase" && fila.dia === diaSeleccionado)
-    .sort((a, b) => aMinutos(a.inicio) - aMinutos(b.inicio));
-  const clasesBase = clasesDia.length > 0
-    ? clasesDia
-    : horarioClaseEditable.filter((fila) => fila.tipo === "clase").sort((a, b) => aMinutos(a.inicio) - aMinutos(b.inicio));
+  // Clases de este curso ese día (la materia sale del curso) y, para «Siguiente
+  // curso», las de todos los cursos del docente.
+  const fechaVista = { fecha: esDiaActualSeleccionado ? fechaLocalISO(hoy) : "" }; // suma las horas extra de hoy
+  const clasesBase = clasesDelDia([data], diaSeleccionado, fechaVista);
+  const clasesTodas = clasesDelDia(cursos, diaSeleccionado, fechaVista);
   const indiceClaseActual = esDiaActualSeleccionado
     ? clasesBase.findIndex((fila) => minutosActuales >= aMinutos(fila.inicio) && minutosActuales < aMinutos(fila.fin))
     : -1;
   const indiceProxima = esDiaActualSeleccionado
     ? clasesBase.findIndex((fila) => aMinutos(fila.inicio) > minutosActuales)
     : 0;
-  const clasePrincipal = indiceClaseActual >= 0
-    ? clasesBase[indiceClaseActual]
-    : clasesBase[indiceProxima >= 0 ? indiceProxima : 0];
-  const claseSiguiente = indiceClaseActual >= 0
-    ? clasesBase[indiceClaseActual + 1]
-    : clasesBase[(indiceProxima >= 0 ? indiceProxima : 0) + 1];
+  const clasePrincipal = clasesBase[indiceClaseActual >= 0 ? indiceClaseActual : indiceProxima];
+  const desde = clasePrincipal ? aMinutos(clasePrincipal.inicio) : esDiaActualSeleccionado ? minutosActuales : -1;
+  const claseSiguiente = clasesTodas.find((fila) => aMinutos(fila.inicio) > desde);
   const estadoClasePrincipal = indiceClaseActual >= 0 ? "Ahora" : "Próxima clase";
 
   useEffect(() => {
@@ -399,8 +310,8 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
 
         <div className="detalle-stats-head">
           <div><span>Estudiantes</span><strong>{data.estudiantes}</strong></div>
-          <div><span>Promedio</span><strong>{data.promedio}%</strong></div>
-          <div><span>Próxima clase</span><strong>{data.proximaClase}</strong></div>
+          <div><span>Promedio</span><strong>{Number.isFinite(data.promedio) ? `${data.promedio}%` : "—"}</strong></div>
+          <div><span>Próxima clase</span><strong>{proximaClase([data])?.texto || "Sin horario"}</strong></div>
         </div>
 
         <div className="detalle-curso-opciones">
@@ -471,12 +382,11 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
               <span className="horario-pill ahora">{estadoClasePrincipal}</span>
               {clasePrincipal ? (
                 <>
-                  <p className="horario-linea-fuerte">{clasePrincipal.bloque || clasePrincipal.horaAcademica} · {aHora12(clasePrincipal.inicio)} - {aHora12(clasePrincipal.fin)}</p>
-                  <p className="horario-linea-suave">{clasePrincipal.cursoAsignatura || clasePrincipal.curso || `${data.nombre} · ${data.area}`}</p>
-                  <p className="horario-linea-suave">{clasePrincipal.aula || "Aula por definir"}</p>
+                  <p className="horario-linea-fuerte">{nombreHora(clasePrincipal.hora)} hora{clasePrincipal.inicio && ` · ${aHora12(clasePrincipal.inicio)} - ${aHora12(clasePrincipal.fin)}`}</p>
+                  <p className="horario-linea-suave">{clasePrincipal.etiqueta}</p>
                 </>
               ) : (
-                <p className="horario-linea-suave">No hay clases configuradas para hoy.</p>
+                <p className="horario-linea-suave">{esDiaActualSeleccionado && clasesBase.length > 0 ? "Este curso ya no tiene más clases hoy." : `Este curso no tiene clases marcadas el ${diaSeleccionado.toLowerCase()}.`}</p>
               )}
             </div>
 
@@ -484,16 +394,15 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
               <span className="horario-pill siguiente">Siguiente curso</span>
               {claseSiguiente ? (
                 <>
-                  <p className="horario-linea-fuerte">{claseSiguiente.bloque || claseSiguiente.horaAcademica} · {aHora12(claseSiguiente.inicio)} - {aHora12(claseSiguiente.fin)}</p>
-                  <p className="horario-linea-suave">{claseSiguiente.cursoAsignatura || claseSiguiente.curso || `${data.nombre} · ${data.area}`}</p>
-                  <p className="horario-linea-suave">{claseSiguiente.aula || "Aula por definir"}</p>
+                  <p className="horario-linea-fuerte">{nombreHora(claseSiguiente.hora)} hora{claseSiguiente.inicio && ` · ${aHora12(claseSiguiente.inicio)} - ${aHora12(claseSiguiente.fin)}`}</p>
+                  <p className="horario-linea-suave">{claseSiguiente.etiqueta}</p>
                 </>
               ) : (
                 <p className="horario-linea-suave">No hay otra clase después.</p>
               )}
             </div>
 
-            <button className="configurar-horario-btn" onClick={() => setMostrarModalHorarioClase(true)}>
+            <button className="configurar-horario-btn" onClick={() => setTabActiva("Horario")}>
               Configurar horario
             </button>
           </section>
@@ -728,8 +637,12 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
 
             {tabActiva === "Horario" && (
               <section className="detalle-card span-2 horario-card">
-                <h2>🕒 Horario del Curso</h2>
+                <h2>🕒 Horario</h2>
+                <HorarioSemanal cursos={cursos} cursoInicialId={data.id} onGuardar={onGuardarHorarios} />
 
+                <details className="hs-timbre">
+                <summary>Ajustar horas del centro</summary>
+                <p>A qué hora empieza y termina cada hora clase de este curso.</p>
                 <div className="horario-toolbar">
                   <button onClick={() => agregarBloqueHorario("clase")}>+ Agregar bloque</button>
                   <button onClick={() => agregarBloqueHorario("recreo")}>+ Agregar recreo</button>
@@ -739,11 +652,7 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
                 <div className="horario-lista">
                   {horarioCurso.map((bloque) => (
                     <article key={bloque.id} className="horario-item">
-                      <input
-                        className="horario-nombre"
-                        value={bloque.nombre}
-                        onChange={(e) => editarBloqueHorario(bloque.id, "nombre", e.target.value)}
-                      />
+                      <span className="horario-nombre">{bloque.nombre}</span>
                       <div className="horario-horas">
                         <input
                           type="time"
@@ -766,88 +675,13 @@ function DetalleCurso({ curso, onVolver, onEditarCurso, onActualizarCurso, onEli
                 </div>
 
                 <div className="horario-footer">
-                  <button className="modal-save" onClick={guardarHorario}>Guardar horario</button>
+                  <button className="modal-save" onClick={guardarHorario}>Guardar horas del centro</button>
                   {mensajeHorario && <span className={`horario-msg ${mensajeHorario.tipo}`}>{mensajeHorario.texto}</span>}
                 </div>
+                </details>
               </section>
             )}
 
-      {mostrarModalHorarioClase && (
-        <div className="modal-overlay" onClick={() => setMostrarModalHorarioClase(false)}>
-          <div className="modal-horario-clase" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-horario-header">
-              <h2>Configurar horario</h2>
-              <div className="preset-horario-row">
-                <span>Duración de clase:</span>
-                {data.nivel === "Primaria" ? (
-                  <span className="preset-duracion-fija">45 minutos</span>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className={duracionModal === 45 ? "preset-activo" : ""}
-                      onClick={() => { setDuracionModal(45); aplicarPresetHorarioClase(45); }}
-                    >45 min</button>
-                    <button
-                      type="button"
-                      className={duracionModal === 50 ? "preset-activo" : ""}
-                      onClick={() => { setDuracionModal(50); aplicarPresetHorarioClase(50); }}
-                    >50 min</button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="horario-config-header-cols">
-              <span>Día</span>
-              <span>Bloque</span>
-              <span>Hora inicio</span>
-              <span>Hora fin</span>
-              <span>Curso / Asignatura</span>
-              <span>Aula</span>
-            </div>
-
-            <div className="horario-config-lista">
-              {horarioClaseEditable.map((fila) => (
-                <article key={fila.id} className={`horario-config-item${fila.tipo !== "clase" ? " horario-config-item--break" : ""}`}>
-                  <select value={fila.dia} onChange={(e) => actualizarFilaHorarioClase(fila.id, "dia", e.target.value)}>
-                    {diasSemana.map((dia) => (
-                      <option key={dia} value={dia}>{dia}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    value={fila.bloque || fila.horaAcademica || ""}
-                    onChange={(e) => actualizarFilaHorarioClase(fila.id, "bloque", e.target.value)}
-                    placeholder="Bloque"
-                  />
-                  <input type="time" value={fila.inicio} onChange={(e) => actualizarFilaHorarioClase(fila.id, "inicio", e.target.value)} />
-                  <input type="time" value={fila.fin} onChange={(e) => actualizarFilaHorarioClase(fila.id, "fin", e.target.value)} />
-                  <input
-                    type="text"
-                    value={fila.cursoAsignatura || fila.curso || ""}
-                    onChange={(e) => actualizarFilaHorarioClase(fila.id, "cursoAsignatura", e.target.value)}
-                    placeholder="Curso / Asignatura"
-                    disabled={fila.tipo !== "clase"}
-                  />
-                  <input
-                    type="text"
-                    value={fila.aula || ""}
-                    onChange={(e) => actualizarFilaHorarioClase(fila.id, "aula", e.target.value)}
-                    placeholder="Aula"
-                    disabled={fila.tipo !== "clase"}
-                  />
-                </article>
-              ))}
-            </div>
-
-            <div className="modal-horario-footer">
-              <button className="modal-cancel" onClick={() => setMostrarModalHorarioClase(false)}>Cancelar</button>
-              <button className="modal-save" onClick={guardarHorarioClaseModal}>Guardar horario</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

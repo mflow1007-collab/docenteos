@@ -15,7 +15,8 @@ import { cursoIdDePlan, planesParaCopiar, resolverCursoDelAula } from '../servic
 import CopiarPlanSeccion from '../components/CopiarPlanSeccion.jsx'
 import { actualizarPlanificacionDetallada, obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
 import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula, obtenerInstrumentosDelDia } from '../services/modoAulaService.js'
-import { obtenerClaseDeHoy, crearAspectoId } from '../services/hiloPedagogico.js'
+import { crearAspectoId, fechaLocalISO } from '../services/hiloPedagogico.js'
+import { claseParaMostrar, fechaLegible, horaExtraVigente, mapaClasesDadas } from '../utils/horaExtra.js'
 import {
   guardarPaseLista, obtenerAsistenciaCurso, hoyISO, ESTADOS_ASISTENCIA, ETIQUETA_ASISTENCIA,
   guardarSuspension, obtenerSuspensiones, CATEGORIAS_SUSPENSION,
@@ -25,6 +26,8 @@ import { estadoDocencia, diasDocenciaPrevios } from '../data/calendarioEscolarMI
 import { crearEvidencia } from '../services/evidenciasService.js'
 import { FormularioAnotacion } from '../components/RegistroAnecdotico.jsx'
 import { idEstudiante } from '../utils/idEstudiante.js'
+import { revisarListaEstudiantes } from '../utils/listaEstudiantes.js'
+import AvisoListaEstudiantes from '../components/AvisoListaEstudiantes.jsx'
 import ActividadesUnidadPanel from '../components/ActividadesUnidadPanel.jsx'
 import { formatearUnidadHTML, formatearGuiaMaestroHTML } from '../services/unidadAprendizajeService.js'
 import { generarGuiaMaestro } from '../services/guiaMaestroService.js'
@@ -865,7 +868,16 @@ function TimerCircle({ segundos, total, on, onToggle, onReset, nombre }) {
 // SECCIÓN 4 — COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, onVerPlanCompleto }) {
+// Aviso de qué clase se muestra cuando no es, sin más, la de hoy
+const avisoDeSeleccion = ({ clase, esHoy, motivo, saltada, hora }) => (esHoy ? null : {
+  motivo,
+  fecha: clase.fechaSugerida || '',
+  titulo: clase.titulo || `Clase ${clase.numeroClase}`,
+  ...(hora ? { hora } : {}),
+  ...(saltada ? { saltada: { claseId: saltada.claseId, titulo: saltada.titulo || `Clase ${saltada.numeroClase}` } } : {}),
+})
+
+export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, onVerPlanCompleto, onClaseDada, onReabrir }) {
   // ── Estado global
   const [cargando,   setCargando]   = useState(true)
   const [planes,     setPlanes]     = useState(() => cargarPlanesLocales())
@@ -904,6 +916,8 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const [notasDocente, setNotasDocente] = useState('')
   const [guardandoFin, setGuardandoFin] = useState(false)
   const [finOk,        setFinOk]        = useState(false)
+  const [errorFin,     setErrorFin]     = useState('')
+  const sesionGuardadaRef = useRef('')
   const [guardandoRecursos, setGuardandoRecursos] = useState(false)
   const [errorRecursos, setErrorRecursos] = useState('')
   const [guiaEstado, setGuiaEstado] = useState(null) // null | {cargando, texto} | {error}
@@ -946,7 +960,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       let det = null
       try {
         if (vigente) setPreparandoClase(true)
-        const ctx = await obtenerContextoModoAula(cursoActivo?.id || '', undefined, { planes })
+        const ctx = await obtenerContextoModoAula(cursoActivo?.id || '', undefined, { planes, curso: cursoActivo })
           .finally(() => { if (vigente) setPreparandoClase(false) })
         if (ctx?.motivo === 'sin-plan-del-curso') {
           if (vigente) { setPlanActivo(null); setClaseNorm(null); setDiaActivo(null); setSinPlanCurso(true); setCargando(false) }
@@ -961,11 +975,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           const dia = norm?.dias.find(d => d.diaNum === ctx.clase.numeroClase) || norm?.dias[0]
           det = { plan: ctx.plan, norm, dia }
           setInstrumentosGuardadosDia(Array.isArray(ctx.instrumentos) ? ctx.instrumentos : [])
-          setAvisoClase(ctx.esHoy ? null : {
-            motivo: ctx.motivo,
-            fecha: ctx.clase.fechaSugerida || '',
-            titulo: ctx.clase.titulo || `Clase ${ctx.clase.numeroClase}`,
-          })
+          setAvisoClase(avisoDeSeleccion(ctx.seleccion))
         }
       } catch (error) {
         console.warn('[ModoAula] Contexto del hilo no disponible, usando detección legacy:', error)
@@ -1014,13 +1024,10 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       if (!capa) { setAvisoClase(null); return }
       if (conCapa !== plan) setPlanActivo(conCapa)
 
-      const { clase, esHoy, motivo } = obtenerClaseDeHoy(capa)
+      const seleccion = claseParaMostrar(capa, resolverCursoDelAula({ plan: conCapa, cursos, cursoActivo }).curso, plan.id)
+      const { clase } = seleccion
       if (!clase) { setAvisoClase(null); return }
-      setAvisoClase(esHoy ? null : {
-        motivo,
-        fecha: clase.fechaSugerida || '',
-        titulo: clase.titulo || `Clase ${clase.numeroClase}`,
-      })
+      setAvisoClase(avisoDeSeleccion(seleccion))
       // Alinear el día mostrado con la clase de hoy / próxima (si difiere)
       if (claseNorm?.dias?.length && diaActivo?.diaNum !== clase.numeroClase) {
         const diaObjetivo = claseNorm.dias.find(d => d.diaNum === clase.numeroClase)
@@ -1092,6 +1099,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   const seleccionar = (plan, dia) => {
     const norm = normalizarClase(plan.contenido)
     setSinPlanCurso(false) // elección explícita del docente
+    setErrorFin('')
     setPlanActivo(plan)
     setClaseNorm(norm)
     setInstrumentosGuardadosDia([])
@@ -1205,6 +1213,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   // ─── Finalizar clase
   const finalizarClase = async () => {
     setGuardandoFin(true)
+    setErrorFin('')
     const resumen = {}
     ;(diaActivo?.momentos || []).forEach(mom => {
       const checks = actChecks[mom.nombre] || new Set()
@@ -1213,7 +1222,11 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         pendientes:  mom.actividades.filter((_, i) => !checks.has(i)),
       }
     })
-    await guardarSesionAula({
+    const claseCapa = claseCapaDelDia(planActivo, diaActivo)
+    const claveSesion = `${planActivo?.id}-${diaActivo?.diaNum}`
+    // Si ya se guardó y solo faltó marcarla, reintentar no duplica la sesión
+    const sesion = sesionGuardadaRef.current === claveSesion ? { success: true } : await guardarSesionAula({
+      cursoId: cursoParaAula?.id, claseId: claseCapa?.claseId,
       planId: planActivo?.id, planTema: diaActivo?.titulo,
       planArea: claseNorm?.area, planGrado: claseNorm?.grado,
       diaNum: diaActivo?.diaNum, semana: diaActivo?.semana,
@@ -1227,12 +1240,49 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         estudianteNombre: e.estudianteNombre || '',
       })),
       estadoClase: 'finalizada',
-    }).catch(() => {})
+    }).catch(() => ({ success: false }))
+    if (!sesion?.success) {
+      setErrorFin('No se pudo guardar la clase. Revisa la conexión y vuelve a finalizarla.')
+      setGuardandoFin(false)
+      return
+    }
+    sesionGuardadaRef.current = claveSesion
+    // La clase queda dada en el curso: si se adelantó, no vuelve a salir en su fecha
+    const dadas = mapaClasesDadas(cursoParaAula, planActivo?.id)
+    if (onClaseDada && cursoParaAula?.id && claseCapa?.claseId && !dadas.has(claseCapa.claseId)) {
+      const extra = horaExtraVigente(cursoParaAula)?.claseId === claseCapa.claseId
+      try {
+        await onClaseDada(cursoParaAula.id, { agregar: { planId: String(planActivo.id), claseId: claseCapa.claseId, fecha: fechaLocalISO(), extra } })
+      } catch (error) {
+        console.error('[ModoAula] La clase no quedó marcada como dada:', error)
+        setErrorFin('La clase se guardó, pero no quedó marcada como dada. Vuelve a pulsar Finalizar.')
+        setGuardandoFin(false)
+        return
+      }
+    }
+    sesionGuardadaRef.current = ''
     persistir({ estadoClase: 'finalizada' })
     setEstadoClase('finalizada')
     setTimerOn(false)
     setGuardandoFin(false)
     setFinOk(true)
+  }
+
+  // ─── La clase de hoy figura como dada, pero no se dio: quitar la marca y reabrir
+  const desmarcarClaseSaltada = async () => {
+    const dada = mapaClasesDadas(cursoParaAula, planActivo?.id).get(avisoClase?.saltada?.claseId)
+    if (!dada) return
+    setErrorFin('')
+    try {
+      await onClaseDada(cursoParaAula.id, { quitar: dada })
+      const numero = planActivo.capaCurricular?.clases?.find((c) => c.claseId === dada.claseId)?.numeroClase
+      const previo = leerProgresoLocal(planActivo.id, numero)
+      if (previo) guardarProgresoLocal(planActivo.id, numero, { ...previo, estadoClase: 'pendiente' })
+      onReabrir?.(cursoParaAula.id)
+    } catch (error) {
+      console.error('[ModoAula] No se pudo quitar la marca de clase dada:', error)
+      setErrorFin('No se pudo volver a esa clase. Revisa la conexión y vuelve a intentarlo.')
+    }
   }
 
   // ═══ DATOS DERIVADOS
@@ -1254,16 +1304,26 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   // el curso solo a veces los trae embebidos. Sin este fallback, el pase de
   // lista no aparecía para cursos sin estudiantesDetalle.
   const [estudiantesSub, setEstudiantesSub] = useState([])
+  const [lecturaLista, setLecturaLista] = useState('lista')   // 'cargando' | 'lista' | 'error'
   useEffect(() => {
     let vigente = true
     setEstudiantesSub([])
+    setLecturaLista('lista')
     const embebidos = (cursoParaAula?.estudiantesDetalle?.length || 0)
       + (cursoParaAula?.estudiantesLista?.length || 0)
       + (cursoParaAula?.estudiantesNombres?.length || 0)
     if (!cursoParaAula?.id || embebidos > 0) return undefined
+    setLecturaLista('cargando')
     obtenerEstudiantesPorCurso(cursoParaAula.id)
-      .then((lista) => { if (vigente) setEstudiantesSub(Array.isArray(lista) ? lista : []) })
-      .catch(() => {})
+      .then((lista) => {
+        if (!vigente) return
+        setEstudiantesSub(Array.isArray(lista) ? lista : [])
+        setLecturaLista('lista')
+      })
+      .catch((error) => {
+        console.error('[ModoAula] No se pudo leer la lista de estudiantes:', error)
+        if (vigente) setLecturaLista('error')
+      })
     return () => { vigente = false }
   }, [cursoParaAula?.id, cursoParaAula?.estudiantesDetalle?.length, cursoParaAula?.estudiantesLista?.length, cursoParaAula?.estudiantesNombres?.length])
 
@@ -1283,6 +1343,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       }))
       .filter((estudiante) => estudiante.nombre)
   }, [cursoParaAula, claseNorm?.grado, estudiantesSub])
+  const avisoLista = !cursoParaAula || lecturaLista === 'cargando' ? ''
+    : lecturaLista === 'error' ? 'No se pudo leer la lista de estudiantes de este curso. Revisa la conexión y vuelve a entrar.'
+      : revisarListaEstudiantes({ ...cursoParaAula, estudiantesDetalle: estudiantesAula }).mensaje
 
   // ═══ PASE DE LISTA (HITO 3.1) — asistencia real del día, por curso.
   // Consciente del calendario escolar: solo invita a pasar lista en días de
@@ -2072,8 +2135,19 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           <span>
             {avisoClase.motivo === 'proxima' && `Hoy no hay clase planificada en este plan. Mostrando la próxima clase pendiente: "${avisoClase.titulo}"${avisoClase.fecha ? ` (${avisoClase.fecha})` : ''}.`}
             {avisoClase.motivo === 'ultima' && `Este plan ya no tiene clases pendientes. Mostrando la última clase: "${avisoClase.titulo}"${avisoClase.fecha ? ` (${avisoClase.fecha})` : ''}.`}
+            {avisoClase.motivo === 'extra' && `Hora extra (${avisoClase.hora}.ª hora): "${avisoClase.titulo}"${avisoClase.fecha ? `, prevista para el ${fechaLegible(avisoClase.fecha)}` : ''}.`}
+            {avisoClase.motivo === 'adelantada' && `La clase de hoy, "${avisoClase.saltada?.titulo}", ya la diste. Mostrando la siguiente: "${avisoClase.titulo}".`}
             {avisoClase.motivo === 'sin-fechas' && `El plan no tiene fechas asignadas. Mostrando la primera clase: "${avisoClase.titulo}".`}
           </span>
+          {avisoClase.motivo === 'adelantada' && onClaseDada && (
+            <button type="button" className="hs-enlace" onClick={desmarcarClaseSaltada}>No la di: volver a ella</button>
+          )}
+        </div>
+      )}
+
+      {errorFin && (
+        <div role="alert" style={{ margin:'16px 24px 0', padding:'10px 18px', background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:12, color:'#991b1b', fontSize:13, fontWeight:700 }}>
+          {errorFin}
         </div>
       )}
 
@@ -2263,6 +2337,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           ⇄ Cambiar planificación
         </button>
       </div>
+
+      {/* ══ Curso sin lista o con estudiantes de ejemplo ══ */}
+      <AvisoListaEstudiantes mensaje={avisoLista} style={{ margin:'0 24px 14px' }} />
 
       {/* ══ PASE DE LISTA (HITO 3.1) ══ */}
       {estudiantesAula.length > 0 && (
