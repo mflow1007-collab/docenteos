@@ -310,7 +310,7 @@ function DetalleCurso({ curso, cursos = [], onGuardarHorarios, onVolver, onEdita
 
         <div className="detalle-stats-head">
           <div><span>Estudiantes</span><strong>{data.estudiantes}</strong></div>
-          <div><span>Promedio</span><strong>{data.promedio}%</strong></div>
+          <div><span>Promedio</span><strong>{Number.isFinite(data.promedio) ? `${data.promedio}%` : "—"}</strong></div>
           <div><span>Próxima clase</span><strong>{proximaClase([data])?.texto || "Sin horario"}</strong></div>
         </div>
 

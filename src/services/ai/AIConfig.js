@@ -83,7 +83,7 @@ export const AIConfig = {
       cache: false,
     },
     "vision-estudiantes": {
-      maxTokens: 1024,
+      maxTokens: 4096, // el razonamiento de Claude cuenta dentro de este tope
       cache: false,
     },
   },

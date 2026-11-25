@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { generarEstudiantesDetalle, enriquecerCursoInicial } from "../utils/cursoUtils.js";
+import { enriquecerCursoInicial } from "../utils/cursoUtils.js";
+import { agregarNombresAlCurso, revisarListaEstudiantes } from "../utils/listaEstudiantes.js";
+import { guardarNuevosConAviso } from "../utils/guardarNuevosConAviso.js";
+import { guardarEstudianteEnSubcoleccion } from "../services/estudiantesService.js";
+import { construirGrupoAcademicoId } from "../services/gruposAcademicosService.js";
+import LectorFotoLista from "./LectorFotoLista.jsx";
 import { normalizarHorarioCurso, crearHorarioPorJornada } from "../utils/horarioCurso.js";
 import { proximaClase } from "../utils/horarioSemanal.js";
 import HorarioSemanal from "./HorarioSemanal.jsx";
@@ -17,6 +22,9 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
   const [mostrarModalCurso, setMostrarModalCurso] = useState(Boolean(cursoParaEditar));
   const [cursoEnEdicion, setCursoEnEdicion] = useState(cursoParaEditar);
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
+  const [nombresFoto, setNombresFoto] = useState([]);
+  const [fotoError, setFotoError] = useState(null);
+  const [fotoEstado, setFotoEstado] = useState("vacio");
   const asignaturasBase = CURSOS_ASIGNATURAS_BASE;
   const gradosPorNivel = CURSOS_GRADOS_POR_NIVEL;
 
@@ -72,31 +80,33 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
   const cerrarModalCurso = () => {
     setMostrarModalCurso(false);
     setCursoEnEdicion(null);
+    setNombresFoto([]);
+    setFotoError(null);
+    setFotoEstado("vacio");
     onConsumirEdicionCurso();
   };
 
+  // Otro curso del mismo grado y sección ya tiene lista oficial: el nuevo la
+  // hereda del grupo. Una foto la reemplazaría con IDs distintos.
+  const grupoFormulario = construirGrupoAcademicoId({ nivel: formCurso.nivel, nombre: `${formCurso.grado} ${formCurso.seccion}`, seccion: formCurso.seccion });
+  const cursoConLista = cursoEnEdicion ? null : cursos.find((curso) =>
+    curso.estudiantesDetalle?.length && curso.matriculaOficial && construirGrupoAcademicoId(curso) === grupoFormulario);
+  const nombresLista = cursoEnEdicion || cursoConLista ? [] : nombresFoto.map((n) => n.nombre.trim()).filter(Boolean);
+  const cantidadEstudiantes = nombresLista.length || formCurso.estudiantes;
+  const fotoEnCurso = !cursoEnEdicion && !cursoConLista && ["preparando", "analizando"].includes(fotoEstado);
+  const formularioIncompleto = !formCurso.nivel || !formCurso.grado || !formCurso.area || !formCurso.seccion || !cantidadEstudiantes || fotoEnCurso;
+
   const guardarCurso = () => {
-    if (!formCurso.nivel || !formCurso.grado || !formCurso.area || !formCurso.seccion || !formCurso.estudiantes) return;
+    if (formularioIncompleto) return;
 
     const nombre = `${formCurso.grado} ${formCurso.seccion}`;
     const baseCurso = cursoEnEdicion || {};
-    const estudiantes = Number(formCurso.estudiantes);
+    const estudiantes = Number(cantidadEstudiantes);
     const duracionClaseMinutos = formCurso.nivel === "Primaria" ? 45 : (formCurso.duracionClaseMinutos || 50);
     const jornadaTipo = formCurso.nivel === "Primaria" ? "Primaria" : duracionClaseMinutos === 45 ? "Primaria" : "Secundaria";
-    const promedioBase = baseCurso.promedio ?? (formCurso.area === "Inglés" ? 84 : 80);
-    const promedio = cursoEnEdicion ? promedioBase : Math.max(60, Math.min(96, formCurso.area === "Inglés" ? 84 : 82));
-    const estudiantesDetalle = baseCurso.estudiantesDetalle?.length
-        ? baseCurso.estudiantesDetalle
-        : generarEstudiantesDetalle({
-            ...(baseCurso || {}),
-            nombre,
-            nivel: formCurso.nivel,
-            area: formCurso.area,
-            promedio,
-            estudiantes,
-            destacados: baseCurso.destacados || [],
-            enRiesgo: baseCurso.enRiesgo || [],
-          });
+    // Sin notas no hay promedio, y sin lista no hay estudiantes: nada se inventa.
+    const promedio = baseCurso.promedio ?? null;
+    const estudiantesDetalle = baseCurso.estudiantesDetalle || [];
 
     const nuevoCurso = {
       ...baseCurso,
@@ -114,7 +124,7 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
       icono: formCurso.area === "Inglés" ? "A" : "F",
       acento: baseCurso.acento || "#2563eb",
       temaActual: baseCurso.temaActual || "Tema por definir",
-      historialPromedio: baseCurso.historialPromedio || [72, 74, 76, 78, 79, 81, 83, 84],
+      historialPromedio: baseCurso.historialPromedio || [],
       flujo: baseCurso.flujo || [],
       enRiesgo: baseCurso.enRiesgo || [],
       resumenRapido: baseCurso.resumenRapido || { instrumentos: 0, evaluaciones: 0, enRiesgo: 0 },
@@ -122,7 +132,7 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
       instrumentosRecientes: baseCurso.instrumentosRecientes || [],
       proximasAcciones: baseCurso.proximasAcciones || ["Configurar planificación", "Crear instrumento", "Registrar primera clase"],
       estudiantesDetalle,
-      estudiantesFuente: baseCurso.estudiantesFuente || (baseCurso.matriculaOficial ? "oficial" : "demo"),
+      estudiantesFuente: baseCurso.estudiantesFuente || (baseCurso.matriculaOficial ? "oficial" : ""),
       matriculaOficial: baseCurso.matriculaOficial || false,
       horario: normalizarHorarioCurso(
         cursoEnEdicion
@@ -131,11 +141,15 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
       ),
     };
 
-    const cursoFinal = enriquecerCursoInicial(nuevoCurso);
+    const { curso: cursoConNombres, nuevos } = nombresLista.length
+      ? agregarNombresAlCurso(nuevoCurso, nombresLista)
+      : { curso: nuevoCurso, nuevos: [] };
+    const cursoFinal = enriquecerCursoInicial(cursoConNombres);
     if (cursoEnEdicion) {
       onActualizarCurso(cursoFinal);
     } else {
       onCrearCurso(cursoFinal);
+      guardarNuevosConAviso(cursoFinal.id, nuevos, guardarEstudianteEnSubcoleccion);
       if (formCurso.configurarHorario) {
         onConfigurarHorario(cursoFinal.id);
       }
@@ -145,18 +159,21 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
   };
 
   const colorPromedio = (promedio) => {
+    if (!Number.isFinite(promedio)) return "promedio-medio"; // sin notas todavía
     if (promedio >= 85) return "promedio-alto";
     if (promedio < 75) return "promedio-riesgo";
     return "promedio-medio";
   };
 
   const colorBordePromedio = (promedio) => {
+    if (!Number.isFinite(promedio)) return "#94a3b8";
     if (promedio >= 85) return "#16a34a";
     if (promedio < 75) return "#ef4444";
     return "#2563eb";
   };
 
   const tonoIconoCurso = (promedio) => {
+    if (!Number.isFinite(promedio)) return "icono-promedio-medio";
     if (promedio >= 85) return "icono-promedio-alto";
     if (promedio < 75) return "icono-promedio-riesgo";
     return "icono-promedio-medio";
@@ -244,7 +261,7 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
               </div>
               <div className={`curso-promedio-hero ${colorPromedio(curso.promedio)}`}>
                 <span>Promedio</span>
-                <strong className={colorPromedio(curso.promedio)}>{curso.promedio}%</strong>
+                <strong className={colorPromedio(curso.promedio)}>{Number.isFinite(curso.promedio) ? `${curso.promedio}%` : "—"}</strong>
               </div>
               <div><span>Pendientes</span><strong className="pendientes">{curso.pendientes}</strong></div>
               <div className={`curso-proxima-clase-hero ${clasePorCurso[curso.id]?.cuando === "Hoy" ? "hoy" : clasePorCurso[curso.id]?.cuando === "Mañana" ? "manana" : ""}`}>
@@ -253,9 +270,9 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
               </div>
             </div>
 
-            {curso.esAutoGenerado && (
+            {revisarListaEstudiantes(curso).mensaje && (
               <div className="curso-auto-aviso">
-                <span>⚠️ Curso de ejemplo — los estudiantes y datos son de práctica. Edítalo con tu información real o elimínalo si no lo impartes.</span>
+                <span>⚠️ {revisarListaEstudiantes(curso).mensaje}</span>
               </div>
             )}
 
@@ -296,7 +313,7 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
 
       {mostrarModalCurso && (
         <div className="modal-overlay" onClick={cerrarModalCurso}>
-          <div className="modal-curso" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-curso" style={{ maxHeight: "calc(100vh - 40px)", overflowY: "auto", boxSizing: "border-box" }} onClick={(e) => e.stopPropagation()}>
             <h2>{cursoEnEdicion ? "Editar Curso" : "Nuevo Curso"}</h2>
             <div className="modal-form-grid">
               <label>
@@ -388,7 +405,8 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
                 <input
                   type="number"
                   min="1"
-                  value={formCurso.estudiantes}
+                  value={cantidadEstudiantes}
+                  readOnly={nombresLista.length > 0}
                   onChange={(e) => setFormCurso((prev) => ({ ...prev, estudiantes: e.target.value }))}
                   placeholder="Ej: 28"
                 />
@@ -404,9 +422,27 @@ function Cursos({ cursos, onGuardarHorarios, onVerCurso, onCrearCurso, onActuali
               </label>
             </div>
 
+            {!cursoEnEdicion && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
+                <span className="ma-label">Lista de estudiantes (opcional)</span>
+                {cursoConLista ? (
+                  <p style={{ margin: 0, fontSize: 13, color: "#475569" }}>
+                    {formCurso.grado} {formCurso.seccion} ya tiene una lista de {cursoConLista.estudiantesDetalle.length} estudiantes en {cursoConLista.area}. Este curso la recibirá al guardarse.
+                  </p>
+                ) : (
+                  <>
+                    <LectorFotoLista nombres={nombresFoto} onNombres={setNombresFoto} error={fotoError} onError={setFotoError} onEstado={setFotoEstado} />
+                    {fotoEstado === "foto" && (
+                      <p style={{ margin: 0, fontSize: 12, color: "#92400e" }}>La foto todavía no se ha analizado: si guardas ahora, el curso quedará sin lista.</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="modal-actions">
               <button className="modal-cancel" onClick={cerrarModalCurso}>Cancelar</button>
-              <button className="modal-save" onClick={guardarCurso} disabled={!formCurso.nivel || !formCurso.grado || !formCurso.area || !formCurso.seccion || !formCurso.estudiantes}>
+              <button className="modal-save" onClick={guardarCurso} disabled={formularioIncompleto}>
                 Guardar curso
               </button>
             </div>

@@ -24,6 +24,8 @@ import { estadoDocencia, diasDocenciaPrevios } from '../data/calendarioEscolarMI
 import { crearEvidencia } from '../services/evidenciasService.js'
 import { FormularioAnotacion } from '../components/RegistroAnecdotico.jsx'
 import { idEstudiante } from '../utils/idEstudiante.js'
+import { revisarListaEstudiantes } from '../utils/listaEstudiantes.js'
+import AvisoListaEstudiantes from '../components/AvisoListaEstudiantes.jsx'
 import ActividadesUnidadPanel from '../components/ActividadesUnidadPanel.jsx'
 import { formatearUnidadHTML, formatearGuiaMaestroHTML } from '../services/unidadAprendizajeService.js'
 import { generarGuiaMaestro } from '../services/guiaMaestroService.js'
@@ -1310,16 +1312,26 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
   // el curso solo a veces los trae embebidos. Sin este fallback, el pase de
   // lista no aparecía para cursos sin estudiantesDetalle.
   const [estudiantesSub, setEstudiantesSub] = useState([])
+  const [lecturaLista, setLecturaLista] = useState('lista')   // 'cargando' | 'lista' | 'error'
   useEffect(() => {
     let vigente = true
     setEstudiantesSub([])
+    setLecturaLista('lista')
     const embebidos = (cursoParaAula?.estudiantesDetalle?.length || 0)
       + (cursoParaAula?.estudiantesLista?.length || 0)
       + (cursoParaAula?.estudiantesNombres?.length || 0)
     if (!cursoParaAula?.id || embebidos > 0) return undefined
+    setLecturaLista('cargando')
     obtenerEstudiantesPorCurso(cursoParaAula.id)
-      .then((lista) => { if (vigente) setEstudiantesSub(Array.isArray(lista) ? lista : []) })
-      .catch(() => {})
+      .then((lista) => {
+        if (!vigente) return
+        setEstudiantesSub(Array.isArray(lista) ? lista : [])
+        setLecturaLista('lista')
+      })
+      .catch((error) => {
+        console.error('[ModoAula] No se pudo leer la lista de estudiantes:', error)
+        if (vigente) setLecturaLista('error')
+      })
     return () => { vigente = false }
   }, [cursoParaAula?.id, cursoParaAula?.estudiantesDetalle?.length, cursoParaAula?.estudiantesLista?.length, cursoParaAula?.estudiantesNombres?.length])
 
@@ -1339,6 +1351,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
       }))
       .filter((estudiante) => estudiante.nombre)
   }, [cursoParaAula, claseNorm?.grado, estudiantesSub])
+  const avisoLista = !cursoParaAula || lecturaLista === 'cargando' ? ''
+    : lecturaLista === 'error' ? 'No se pudo leer la lista de estudiantes de este curso. Revisa la conexión y vuelve a entrar.'
+      : revisarListaEstudiantes({ ...cursoParaAula, estudiantesDetalle: estudiantesAula }).mensaje
 
   // ═══ PASE DE LISTA (HITO 3.1) — asistencia real del día, por curso.
   // Consciente del calendario escolar: solo invita a pasar lista en días de
@@ -2316,6 +2331,9 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           ⇄ Cambiar planificación
         </button>
       </div>
+
+      {/* ══ Curso sin lista o con estudiantes de ejemplo ══ */}
+      <AvisoListaEstudiantes mensaje={avisoLista} style={{ margin:'0 24px 14px' }} />
 
       {/* ══ PASE DE LISTA (HITO 3.1) ══ */}
       {estudiantesAula.length > 0 && (

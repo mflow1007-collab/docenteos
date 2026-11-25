@@ -871,7 +871,11 @@ function AppInner() {
               onConfigurarHorario={abrirHorarioCurso}
             />
           )}
-          {pagina === "detalle-curso" && (
+          {/* Sin curso elegido no se abre el detalle (mostraba un curso de ejemplo) */}
+          {pagina === "detalle-curso" && !cursoSeleccionado && (
+            <div className="card">{cursosLoaded ? "Elige un curso desde Mis cursos para ver su detalle." : "Cargando el curso..."}</div>
+          )}
+          {pagina === "detalle-curso" && cursoSeleccionado && (
             <DetalleCurso
               key={`${cursoSeleccionado?.id || "curso"}-${tabDetalleInicial}`}
               curso={cursoSeleccionado}
