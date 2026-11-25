@@ -23,7 +23,7 @@
  * Verificación: scripts/test-redaccion-fase.mjs
  */
 
-import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, seccionesSecundarias, seccionesConActividad, seccionPrincipal, seccionNombrada, seccionCubierta, actividadCubreTarea, ejemploDeSeccion, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
+import { aporteDeFila, pasosConFrases, necesitaLugares, citaTexto, textoEnPortugues, tituloEnIngles, estructuraAjenaEnClase, focoDeFila, tareaPrincipal, seccionesSecundarias, seccionesConActividad, tareasSecundarias, TAREAS_POR_ESTACIONES, seccionPrincipal, seccionNombrada, seccionCubierta, actividadCubreTarea, ejemploDeSeccion, modeloRepetido, bienvenidaFueraDeLugar, modeloDeOtraSeccion, modeloSinLaEstructura, ejemploDeMallaCopiado } from "./mapaClasesService.js";
 import { MARCAS_DATO, MARCAS_CONTENIDO, INVENTARIO_POR_SECCION, DETALLE_TAREA, FRASES_POR_FUNCION } from "../data/tareasPorTipoTrabajo.js";
 import { ROLES_CON_CONTENIDO, TIPO_TRABAJO_FASES_POR_ESTRATEGIA, MODALIDADES_VISITA, MODALIDAD_VISITA_POR_DEFECTO } from "../data/rolesFasesEstrategias.js";
 import { ESTRATEGIAS_FASES_GUIA_2025 } from "../data/estrategiasFasesGuia2025.js";
@@ -733,6 +733,57 @@ export const conVerboInicial = (texto = "") => String(texto)
   .replace(/^solo\s+(\p{L}+n)\b/iu, (m, v) => v[0].toUpperCase() + v.slice(1))
   .replace(/^el grupo editor\s+(\p{L}+?)(a|e)\b/iu, (m, raiz, vocal) => `${raiz[0].toUpperCase()}${raiz.slice(1)}${vocal}n (en grupos editores)`)
   .replace(/^el docente\s+/iu, "Reciben la revisión del docente, que ");
+/**
+ * Las secundarias las escribe el código, siempre (revisor de g57): una actividad por sección de su tarea, detrás de las de
+ * su tarea y dentro de su fase. Comentar o revisar por estaciones: una actividad con todas las secciones de la tarea, que
+ * REEMPLAZA a las de la IA con esa función (misma tarea, o genéricas «cada sección»). Devuelve lo añadido, para avisar.
+ */
+export const conSecundariasDelCodigo = (clase = {}, fila = {}, secciones = []) => {
+  const desarrollo = (clase?.momentos || []).find((m) => m?.nombre === "Desarrollo");
+  if (!desarrollo || !Array.isArray(desarrollo.actividades) || clase?.secuenciaAplicada) return [];
+  const alineados = () => Array.isArray(clase.tareaIdsDesarrollo) && clase.tareaIdsDesarrollo.length === desarrollo.actividades.length;
+  if (!alineados()) clase.tareaIdsDesarrollo = null;
+  const indice = (id) => Number(String(id || "").slice(1)) - 1;
+  const insertar = (texto, t) => {
+    const k = fila.tareas.indexOf(t);
+    let pos = desarrollo.actividades.length;
+    if (clase.tareaIdsDesarrollo) pos = clase.tareaIdsDesarrollo.reduce((acc, id, j) => (indice(id) <= k ? j : acc), -1) + 1;
+    desarrollo.actividades.splice(pos, 0, texto);
+    if (clase.tareaIdsDesarrollo) clase.tareaIdsDesarrollo.splice(pos, 0, `T${k + 1}`);
+  };
+  const normal = (a) => normalizar(textoComoCadena(a));
+  const GENERICA = /\b(cada (seccion|estacion|pieza)|por estaciones|estaciones|las secciones|las piezas)\b/;
+  const anadidas = [];
+  const principal = seccionPrincipal(fila);
+  const estaciones = principal ? tareasSecundarias(fila).filter((t) => TAREAS_POR_ESTACIONES.has(t.clave))
+    : (fila.tareas || []).filter((t) => TAREAS_POR_ESTACIONES.has(t.clave) && t.secciones.length > 1);
+  estaciones.forEach((t) => {
+    const k = fila.tareas.indexOf(t);
+    const senal = t.senal ? new RegExp(t.senal) : /coment|revis|rubric/;
+    // Misma función: de esa tarea (por su ID o su señal) y por sección o por estaciones; «Anotan mejoras» se queda.
+    const porSeccion = (j) => GENERICA.test(normal(desarrollo.actividades[j])) || t.secciones.some((x) => seccionCubierta(x, normal(desarrollo.actividades[j]), secciones));
+    const mismas = desarrollo.actividades.map((a, j) => j).filter((j) => porSeccion(j)
+      && ((clase.tareaIdsDesarrollo ? indice(clase.tareaIdsDesarrollo[j]) === k : false) || senal.test(normal(desarrollo.actividades[j]))));
+    const texto = actividadPorEstaciones(t, t.secciones);
+    if (mismas.length) {
+      const [primera, ...resto] = mismas;
+      desarrollo.actividades[primera] = texto;
+      if (clase.tareaIdsDesarrollo) clase.tareaIdsDesarrollo[primera] = `T${k + 1}`;
+      resto.reverse().forEach((j) => { desarrollo.actividades.splice(j, 1); if (clase.tareaIdsDesarrollo) clase.tareaIdsDesarrollo.splice(j, 1); });
+    } else insertar(texto, t);
+    anadidas.push(...t.secciones);
+  });
+  if (principal) {
+    // Solo cuentan las de la IA: el ejemplo de otra actividad del código («…, please») no cubre una sección (Politeness).
+    const deLaIA = desarrollo.actividades.map(normal);
+    tareasSecundarias(fila).filter((t) => !TAREAS_POR_ESTACIONES.has(t.clave)).forEach((t) => t.secciones.forEach((sec) => {
+      if (deLaIA.some((a) => actividadCubreTarea(a, t, sec, secciones))) return;
+      insertar(actividadDeTarea({ ...t, secciones: [sec] }), t);
+      anadidas.push(sec);
+    }));
+  }
+  return [...new Set(anadidas)];
+};
 /** Una actividad por estaciones para varias secciones de comentar o revisar (revisor de g55, opción a). */
 export const actividadPorEstaciones = (t, secciones = []) => {
   const verbo = t.clave === "revision_docente" ? "Revisan (en grupos, por estaciones) con la rúbrica" : "Comentan (en grupos, por estaciones)";
@@ -1089,7 +1140,9 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       if (incumplida) fallaRedaccion(idx, incumplida);
       // Falta una tarea: se regenera esta clase una vez, con la instrucción concreta.
       // Lo mismo si falta un contenido; si sigue faltando, lo reclama la revisión de la unidad.
-      const faltan = tareasSinActividad(clase, filaMapa);
+      // Las tareas de las secundarias las escribe el código: no se le reclaman a la IA (revisor de g57).
+      const secundariasDelCodigo = tareasSecundarias(filaMapa);
+      const faltan = tareasSinActividad(clase, filaMapa).filter((t) => !secundariasDelCodigo.includes(t));
       const sinContenido = opciones.redaccionConAviso ? [] : contenidosFaltantesEnClase(clase, filaMapa);
       if (faltan.length || sinContenido.length) {
         fallaRedaccion(idx, [
@@ -1105,19 +1158,20 @@ export const validarLoteContrato = (data, contrato, count, startDia = 1, opcione
       if (seccionDelModelo) fallaRedaccion(idx, `el texto modelo no es de la sección que trabaja la clase: escríbelo para «${seccionDelModelo}», con su función y su vocabulario en las líneas, no solo en el título.`);
       const estructuraModelo = modeloSinLaEstructura(clase, filaMapa, contrato.filasUnidad || []);
       if (estructuraModelo) fallaRedaccion(idx, `el texto modelo debe usar la estructura del día («${estructuraModelo}») en sus líneas, no un diálogo de otra función.`);
-      // Cada sección secundaria con tarea propia tiene su actividad en el Desarrollo, con su entrega (revisor de g50:
-      // C10 no leía el «Welcome» a otro grupo); y la sección del título está en las dos primeras (C7 redactaba otra).
-      const desarrolloTx = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena);
-      // Por pista exclusiva de la sección y con el verbo de su estado: en borrador, redactar (revisor de g56).
-      const de = (sec) => filaMapa.tareas.find((t) => t.secciones.includes(sec) && t.secciones.length <= 3) || filaMapa.tareas.find((t) => t.secciones.includes(sec));
-      const sinActividad = seccionesConActividad(filaMapa, (contrato.secciones || []).length)
-        .filter((sec) => !desarrolloTx.some((a) => actividadCubreTarea(normalizar(a), de(sec), sec, contrato.secciones || [])));
-      if (sinActividad.length) {
-        fallaRedaccion(idx, `falta una actividad del Desarrollo para cada sección secundaria: ${sinActividad.map((sec) => `«${sec}» (${de(sec)?.nombre} → ${de(sec)?.entrega})`).join("; ")}. Nombra la sección en esa actividad.`);
-      }
+      // La principal la escribe la IA (revisor de g57): al menos la mitad de sus actividades nombran la sección del título
+      // (nombre o pista exclusiva) y ninguna trata otra sección del producto. Si no, se regenera la clase; el código no la añade.
+      const desarrolloTx = ((clase?.momentos || []).find((m) => m?.nombre === "Desarrollo")?.actividades || []).map(textoComoCadena).map(normalizar);
       const principalTitulo = seccionPrincipal(filaMapa);
-      if (principalTitulo && !clase?.secuenciaAplicada && desarrolloTx.length >= 2 && !desarrolloTx.slice(0, 2).some((a) => seccionCubierta(principalTitulo, normalizar(a), contrato.secciones || []))) {
-        fallaRedaccion(idx, `las dos primeras actividades del Desarrollo deben trabajar «${principalTitulo}», la sección del título de la clase.`);
+      if (principalTitulo && !clase?.secuenciaAplicada && desarrolloTx.length) {
+        const seccionesUnidad = contrato.secciones || [];
+        const deLaPrincipal = desarrolloTx.filter((a) => seccionCubierta(principalTitulo, a, seccionesUnidad)).length;
+        const ajena = desarrolloTx.find((a) => !seccionCubierta(principalTitulo, a, seccionesUnidad)
+          && seccionesUnidad.some((x) => x !== principalTitulo && seccionCubierta(x, a, seccionesUnidad)));
+        if (deLaPrincipal * 2 < desarrolloTx.length) fallaRedaccion(idx, `la mayoría de las actividades del Desarrollo deben trabajar «${principalTitulo}» (la sección del título) y nombrarla; ahora solo ${deLaPrincipal} de ${desarrolloTx.length}.`);
+        if (ajena) {
+          const otra = seccionesUnidad.find((x) => x !== principalTitulo && seccionCubierta(x, ajena, seccionesUnidad));
+          fallaRedaccion(idx, `una actividad trata «${otra}», que no es la sección de esta clase: "${citaTexto(ajena, null, 60)}". Escribe solo actividades de «${principalTitulo}»; DocenteOS añade las de las demás secciones.`);
+        }
       }
       // Ningún modelo repite el de otra clase, de esta fase o de las anteriores (revisor de g49).
       const previos = [...(contrato.modelosPrevios || []), ...(data?.clases || []).slice(0, idx)

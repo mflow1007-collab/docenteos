@@ -8,7 +8,7 @@
  *           node scripts/test-mapa-clases.mjs --informe  (además, tabla por combinación)
  */
 import { readFileSync } from "node:fs";
-import { seccionCubierta, tituloSinBienvenida, seccionesSecundarias, estadoDeFila, modeloNombraSeccion, seccionNombrada, seccionPrincipal, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, bienvenidaFueraDeLugar, modeloSinLaEstructura, conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estadosMonotonos, minutosConTope, modeloDeOtraSeccion, ejemploDeMallaCopiado, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
+import { presupuestoDesarrollo, repartoConMinimo, tareasDeLaIA, tareasSecundarias, seccionCubierta, tituloSinBienvenida, seccionesSecundarias, estadoDeFila, modeloNombraSeccion, seccionNombrada, seccionPrincipal, funcionEsDeSeccion, patronesDeEtiqueta, modeloRepetido, bienvenidaFueraDeLugar, modeloSinLaEstructura, conErratasCorregidas, conReemplazos, tituloEnIngles, focoDeFila, sinLugaresEnEjemplos, sinLugaresEnClase, conGuiaEnFemenino, TOPE_GRAMATICA_POR_CLASE, minutosInicioPresentacion, diagnosticoDeActividades, diagnosticoDeFases, titulosParecidos, titulosSimilares, tituloDeClase, titulosDeTareas, tituloCorto, tituloConSeccionTrabajada, estadosMonotonos, minutosConTope, modeloDeOtraSeccion, ejemploDeMallaCopiado, estructuraAjenaEnClase, gramaticaEncaja, muestraDeAudiencia, esBancoDeFrases, pruebaDelProducto, inicioPresentacion, conTitulosCorregidos, ponerSecuencias, pasosConFrases, sinEquipos, sinGrabado, minutosPorTarea, minutosConDiagnostico, ENGANCHE_SIN_EQUIPOS } from "../src/services/mapaClasesService.js";
 import { construirAnexosUnidad, sinHechosInventados } from "../src/services/unidadAprendizajeService.js";
 import { vincularInstrumentosConClases, armarMapaClases, verificarMapa, fallosQueDetienen, TOPE_INDICADORES_POR_CLASE, tiposDeSecciones, minutosDesarrollo } from "../src/services/mapaClasesService.js";
 import { construirPlanMaestro } from "../src/services/planMaestroService.js";
@@ -17,7 +17,7 @@ import { TAREAS_POR_TIPO, DETALLE_TAREA, ALCANCE_POR_SEMILLA } from "../src/data
 import { componerSituacion, audienciasDeSituacion } from "../src/services/situacionAprendizajeService.js";
 import { alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, sinEstrategiasAjenas, adaptacionesNEAEDelMenu, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, ACTIVIDAD_NIVEL_SATISFACTORIO, adaptacionSinTecnologia, adaptacionesNEAESinTecnologia, avisoAudienciaMultiple, OBSERVACIONES_FASE, conObservacionesFijas, didacticosDeFila, conFirmas, INICIO_PRIMERA_CLASE, checklistDesdeMapa as checklistCorto, organizadorDesdeMapa as organizadorCorto } from "../src/services/mapaClasesService.js";
 import { hojaDeRuta, planDesdeMapa, aporteDeFila, TOPE_CONTENIDOS_POR_CLASE, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, organizadorDesdeMapa, checklistDesdeMapa } from "../src/services/mapaClasesService.js";
-import { actividadDeTarea, contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
+import { conSecundariasDelCodigo, actividadDeTarea, contenidosNoVistosEnUnidad, aplicarSecuencias, motivosTareaId, motivosTextoClase, hechosDeClase, libretaDeHechos, revisarUnidadConMapa, obligacionIncumplida, datosSinRecoger, grabacionProhibida, motivosFidelidad, construirContratoFase, aplicarFilasMapa, contenidosSinUsar, validarLoteContrato, validarFaseCompleta, validarUnidadPlanMaestro } from "../src/services/redaccionFaseService.js";
 import { buildFasePrompt, normalizarVozBatch, corregirOrtografiaVerbos } from "../src/services/phaseAService.js";
 import { SECUENCIAS_POR_TAREA } from "../src/data/secuenciasTareas.js";
 import { validarVozActividad } from "../src/services/phaseAService.js";
@@ -289,6 +289,35 @@ check("cobertura (revisor de g50): cada sección es principal al menos una vez y
   // La principal es la que domina en minutos (C5 compara 23 min «Final Recommendation»): el título dice lo que la clase hace.
   igual([5, 7, 8].map((c) => seccionPrincipal(escuela.filas[c - 1])), ["Final Recommendation", "Welcome", "Final Recommendation"], "Escuela: C5 y C8 Final Recommendation, C7 Welcome");
   igual(estadoDeFila(frasesM.filas[1]), "insumos recopilados", "la encuesta recoge datos: no es un borrador");
+});
+check("presupuesto del Desarrollo (revisor de g57): principal ≥ 50 %, secundarias 5–8 min, ninguna actividad < 4 min", () => {
+  // Con 5 min por secundaria, caben como máximo total/10 secundarias sin pasar de la mitad (30 min → 3).
+  [[30, 0], [30, 1], [30, 2], [30, 3], [25, 2], [40, 4]].forEach(([total, n]) => {
+    const { secundaria, principal } = presupuestoDesarrollo(total, n);
+    assert(principal * 2 >= total, `${total} min, ${n} secundarias: principal ${principal}`);
+    if (n) assert(secundaria >= 5 && secundaria <= 8, `${total}/${n}: secundaria ${secundaria}`);
+    igual(principal + secundaria * n, total, `${total}/${n}: suma`);
+  });
+  igual(repartoConMinimo([3, 3, 2, 2], 10).fusionar, 2, "10 min para 4 actividades: se fusionan 2");
+  const r = repartoConMinimo([3, 3, 2, 2], 16);
+  assert(r.minutos.every((m) => m >= 4) && r.minutos.reduce((a, b) => a + b, 0) === 16, `16 min: ${r.minutos}`);
+  // Frases C3: la IA solo redacta Greetings; Asking for Permission, Teacher Instructions y Politeness las escribe el código.
+  const c3 = { clase: 3, tareas: [{ clave: "describir_modelo", minutos: 4, secciones: ["Greetings and Goodbyes"] }, { clave: "describir_modelo", minutos: 4, secciones: ["Asking for Permission"] },
+    { clave: "proponer_comparar", minutos: 16, secciones: ["Teacher Instructions"] }, { clave: "aplicar_modelo", minutos: 6, secciones: ["Politeness and Encouragement"] }], contenidos: [] };
+  c3.seccionPrincipal = "Greetings and Goodbyes";
+  igual(tareasDeLaIA(c3).map((t) => t.secciones[0]), ["Greetings and Goodbyes"], "la IA: solo la principal");
+  igual(tareasSecundarias(c3).length, 3, "el código: las tres secundarias");
+  // El código escribe las secundarias detrás de su tarea; por estaciones, reemplaza la genérica de la IA.
+  c3.tareas.forEach((t) => { t.nombre = t.clave; t.entrega = "Notas"; t.organizacion = "parejas"; t.instruccion = "Analizan el modelo."; });
+  const clase = { momentos: [{ nombre: "Desarrollo", actividades: ["Analizan (en parejas) los saludos del modelo de Greetings and Goodbyes.", "Escriben (en parejas) saludos: notas."] }], tareaIdsDesarrollo: ["T1", "T1"] };
+  const anadidas = conSecundariasDelCodigo(clase, c3, ["Greetings and Goodbyes", "Asking for Permission", "Teacher Instructions", "Politeness and Encouragement"]);
+  igual(anadidas.length, 3, "tres secundarias añadidas");
+  igual(clase.momentos[0].actividades.length, 5, "cinco actividades");
+  igual(clase.tareaIdsDesarrollo, ["T1", "T1", "T2", "T3", "T4"], "en el orden de sus tareas");
+  const c9 = { clase: 9, tareas: [{ clave: "comentar", nombre: "comentar", senal: "coment", entrega: "Comentarios", secciones: ["Materials and Work", "Requesting Assistance"] }], contenidos: [] };
+  const clase9 = { momentos: [{ nombre: "Desarrollo", actividades: ["Comentan (en grupos) cada sección del producto.", "Anotan mejoras."] }], tareaIdsDesarrollo: ["T1", "T1"] };
+  conSecundariasDelCodigo(clase9, c9, ["Materials and Work", "Requesting Assistance"]);
+  assert(/por estaciones/.test(clase9.momentos[0].actividades[0]) && clase9.momentos[0].actividades.length === 2, `estaciones reemplaza: ${clase9.momentos[0].actividades}`);
 });
 check("una sola sección principal: sección del título == sección de la etiqueta (revisor de g49)", () => {
   const malos = [];

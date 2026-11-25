@@ -1316,6 +1316,47 @@ export const seccionesSecundarias = (fila = {}, total = 0) => {
 export const TOPE_SECUNDARIAS = 2;
 // Comentar y revisar con la rúbrica se hacen por estaciones: cada sección con su entregable, sin tope (revisor de g55, opción a).
 export const TAREAS_POR_ESTACIONES = new Set(["comentar", "revision_docente"]);
+/**
+ * Tareas de las secciones secundarias (revisor de g57): las escribe el código, no la IA. Son las de una sección que no es
+ * la principal (no las de toda la clase: recorrido, encuesta, acuerdo, revisión). Sin principal, ninguna.
+ */
+export const tareasSecundarias = (fila = {}) => {
+  const principal = seccionPrincipal(fila);
+  if (!principal) return [];
+  return (fila.tareas || []).filter((t) => (t.secciones || []).length && !t.secciones.includes(principal) && !TAREAS_COMPARTIDAS.test(t.clave)
+    && (t.secciones.length <= 3 || TAREAS_POR_ESTACIONES.has(t.clave)));
+};
+/** Tareas que redacta la IA: las de la principal y las de toda la clase. */
+export const tareasDeLaIA = (fila = {}) => { const sec = new Set(tareasSecundarias(fila)); return (fila.tareas || []).filter((t) => !sec.has(t)); };
+/**
+ * Presupuesto del Desarrollo (revisor de g57): cada secundaria del código entre 5 y 8 min, todas juntas como máximo la mitad;
+ * la principal, el resto (al menos la mitad). Devuelve { secundaria, principal } en minutos.
+ */
+export const presupuestoDesarrollo = (total = 0, secundarias = 0) => {
+  if (!secundarias) return { secundaria: 0, principal: total };
+  const porSecundaria = Math.max(5, Math.min(8, Math.floor(total / 2 / secundarias)));
+  return { secundaria: porSecundaria, principal: total - porSecundaria * secundarias };
+};
+export const MINUTOS_MINIMOS_ACTIVIDAD = 4;
+/**
+ * Reparte `minutos` entre `n` actividades de la IA con al menos 4 min cada una (revisor de g57). Si no alcanza, indica
+ * cuántas hay que fusionar. Devuelve { minutos: [...], fusionar }.
+ */
+export const repartoConMinimo = (pesos = [], total = 0, minimo = MINUTOS_MINIMOS_ACTIVIDAD) => {
+  const n = pesos.length;
+  if (!n) return { minutos: [], fusionar: 0 };
+  const caben = Math.max(1, Math.floor(total / minimo));
+  if (n > caben) return { minutos: [], fusionar: n - caben };
+  const suma = pesos.reduce((a, b) => a + (b > 0 ? b : 1), 0) || n;
+  let out = pesos.map((p) => Math.max(minimo, Math.floor(((p > 0 ? p : 1) * total) / suma)));
+  let diferencia = total - out.reduce((a, b) => a + b, 0);
+  for (let k = 0; diferencia !== 0 && k < 1000; k += 1) {
+    const i = diferencia > 0 ? out.indexOf(Math.min(...out)) : out.indexOf(Math.max(...out));
+    if (diferencia < 0 && out[i] <= minimo) break;
+    out[i] += Math.sign(diferencia); diferencia -= Math.sign(diferencia);
+  }
+  return { minutos: out, fusionar: 0 };
+};
 /** Secciones que necesitan actividad propia en la clase: las secundarias y las de comentar o revisar por estaciones. */
 export const seccionesConActividad = (fila = {}, total = 0) => {
   const principal = seccionPrincipal(fila);

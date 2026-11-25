@@ -11,7 +11,7 @@
  * PROHIBIDO: fallback a templates JS.
  */
 
-import { hojaDeRuta, seccionDelModelo, focoDeFila, seccionesSecundarias, seccionesConActividad, actividadCubreTarea, TAREAS_POR_ESTACIONES, ejemploDeSeccion } from './mapaClasesService.js';
+import { hojaDeRuta, seccionDelModelo, focoDeFila, seccionesSecundarias, seccionesConActividad, actividadCubreTarea, TAREAS_POR_ESTACIONES, ejemploDeSeccion, tareasDeLaIA, tareasSecundarias, presupuestoDesarrollo } from './mapaClasesService.js';
 import { INVENTARIO_POR_SECCION } from '../data/tareasPorTipoTrabajo.js';
 import { getAuth }                              from 'firebase/auth';
 import { collection, addDoc, serverTimestamp }  from 'firebase/firestore';
@@ -1847,12 +1847,18 @@ El "aporteProducto" de cada clase NOMBRA su sección y el estado de esta fase, c
       `${cabeza} — Sección: ${f.secciones.join(' · ')}`,
       ...(f.secuencia
         ? ['- El Desarrollo de esta clase YA ESTÁ ESCRITO por DocenteOS; no lo reescribas ni añadas pasos:', ...f.secuencia.map((x, k) => `   ${k + 1}. ${x.pista ? x.texto.replace('{frases}', `{frases: ${x.pista}}`) : x.texto}`), '- Tú solo escribes lo que va en {frases}: 1 o 2 ejemplos en inglés, en cursiva con puntos suspensivos, tomados de lo que indica cada hueco. Si indica expresiones de la malla, úsalas tal cual o con un ejemplo breve del tema. Si un paso no tiene {frases}, va vacío.']
-        : ['- Tareas del Desarrollo, en este orden:', ...f.tareas.map((t, k) => `   · [T${k + 1}] ${t.paralelo ? `[${t.secciones[0]}] ` : ''}${t.nombre} (${t.minutos} min): ${t.instruccion}`)]),
+        // Solo las tareas de la sección principal y las de toda la clase: las secundarias las escribe DocenteOS (revisor de g57).
+        : ['- Tareas del Desarrollo, en este orden:', ...f.tareas.map((t, k) => [t, k]).filter(([t]) => tareasDeLaIA(f).includes(t)).map(([t, k]) => `   · [T${k + 1}] ${t.paralelo ? `[${t.secciones[0]}] ` : ''}${t.nombre} (${t.minutos} min): ${t.instruccion}`)]),
       ...(f.tareas.some((t) => t.paralelo) ? ['- Trabajo por grupos a la vez: cada grupo hace solo las tareas de su sección.'] : []),
       `- Organización: ${[...new Set(f.tareas.map((t) => t.organizacion))].join('; ')}`,
       // Una sección principal (la del título) y las secundarias, cada una con su actividad propia (revisor de g50).
-      ...(seccionDelModelo(f) ? [`- Sección principal: «${seccionDelModelo(f)}» (la del título); las actividades 1 y 2 del Desarrollo la trabajan.`] : []),
-      ...(seccionesConActividad(f, (c.secciones || []).length).length ? [`- Secciones secundarias: cada una lleva UNA actividad propia del Desarrollo que la nombra, con su entrega (comentar o revisar: por estaciones, cada sección con su hoja): ${seccionesConActividad(f, (c.secciones || []).length).map((sec) => { const t = f.tareas.find((x) => x.secciones.includes(sec)); return `«${sec}» (${t?.nombre} → ${t?.entrega})`; }).join('; ')}.`] : []),
+      // La IA escribe solo la principal, con la mayoría de los minutos; las secundarias las añade DocenteOS (revisor de g57).
+      ...(seccionDelModelo(f) ? (() => {
+        const sec = tareasSecundarias(f).flatMap((t) => (TAREAS_POR_ESTACIONES.has(t.clave) ? [t.clave] : t.secciones));
+        const { principal } = presupuestoDesarrollo(f.tareas.reduce((a, t) => a + (Number(t.minutos) || 0), 0), new Set(sec).size);
+        return [`- Esta clase trabaja SOLO la sección «${seccionDelModelo(f)}» (la del título): cada actividad del Desarrollo la nombra y hace su tarea; no escribas actividades de otras secciones${sec.length ? ' (DocenteOS añade las de las secciones secundarias)' : ''}. Entre 3 y ${Math.max(3, Math.floor(principal / 4))} actividades en ${principal} min.`];
+      })() : []),
+      ...(!seccionDelModelo(f) && seccionesConActividad(f, (c.secciones || []).length).length ? [`- Comentar o revisar por estaciones: nombra cada sección con su hoja: ${seccionesConActividad(f, (c.secciones || []).length).map((sec) => `«${sec}»`).join(', ')}.`] : []),
       `- Recibe: ${f.recibe.length ? f.recibe.map((r) => `${r.texto}${r.clase ? ` (clase ${r.clase})` : ''}`).join('; ') : 'la situación de aprendizaje'}`,
       `- Entrega: ${f.entregas.join('; ')}`,
       // El texto modelo sale de la sección del título o, sin sección, de la estructura del día (revisión g48b).
@@ -1889,7 +1895,7 @@ ${filasLote.map(filaTx).join('\n\n')}
 REGLAS DEL MAPA:
 ${filasLote.every((f) => f.secuencia)
     ? `1. En "actividades" del Desarrollo devuelve un objeto por paso, en orden: {"paso":1,"frases":"_…_"}. No escribas el paso: DocenteOS ya lo tiene. El punto 3 solo aplica aquí al Cierre.`
-    : `1. El Desarrollo es una secuencia de ENTRE 4 Y 5 pasos cortos, repartidos entre las tareas en el orden dado y dentro de sus minutos; divide cada tarea en pasos reales y no añadas tareas ni repitas una tarea de otra clase. Muestra al docente trabajando dentro de la frase («mientras el docente marca la lista…»), sin que sea el sujeto. Cada paso lleva en "tareaId" el código de su tarea ("T1", "T2"…), sin inventar otros; "producto" y "destino" van solo en el último paso de cada tarea, los demás los dejan vacíos.
+    : `1. El Desarrollo es una secuencia de ENTRE 4 Y 5 pasos cortos (o los que diga la clase cuando trabaja solo su sección), repartidos entre las tareas en el orden dado y dentro de sus minutos; divide cada tarea en pasos reales y no añadas tareas ni repitas una tarea de otra clase. Muestra al docente trabajando dentro de la frase («mientras el docente marca la lista…»), sin que sea el sujeto. Cada paso lleva en "tareaId" el código de su tarea ("T1", "T2"…), sin inventar otros; "producto" y "destino" van solo en el último paso de cada tarea, los demás los dejan vacíos.
    Ejemplo de paso del Desarrollo: {"tareaId":"T1","accion":"…","producto":"","destino":""}`}
 2. Parte de lo que la clase recibe. Todo dato del producto (precios, horarios, ingredientes, cantidades, calorías) sale de ahí; si falta, en el producto va «falta dato» y nunca lo inventes. "textoModelo" es un ejemplo ficticio: usa un comedor modelo con datos de ejemplo y nunca escribas «falta dato» en él. Todo precio, también en "ampliacion", va en pesos dominicanos (RD$), nunca en dólares.
 3. Cada contenido listado aparece escrito en una actividad o en "textoModelo", con un ejemplo en inglés. En "contenidosEnClase" copia, para cada uno, un fragmento SIN CAMBIOS ni puntos suspensivos de ese texto: [{"contenido":"<el de la lista, completo>","frase":"<fragmento literal>"}].
@@ -2198,41 +2204,14 @@ async function generateWeekBatch(spec, semanaNum, startDia, count, durMin, numSe
           if (ids) ids.splice(pos, 0, `T${k + 1}`);
           else if (Array.isArray(clase.tareaIdsDesarrollo)) clase.tareaIdsDesarrollo.push(`T${k + 1}`);
         };
-        if (faltan.length && desarrollo) {
-          faltan.forEach((t) => insertar(actividadDeTarea(t), t));
+        // Ni la principal ni las secundarias las añade aquí el código: la principal se regenera y las secundarias las
+        // escribe conSecundariasDelCodigo al guardar la clase (revisor de g57). Solo las tareas de toda la clase.
+        const principalFila = seccionDelModelo(filaMapa);
+        const deLaClase = faltan.filter((t) => !tareasSecundarias(filaMapa).includes(t) && !(principalFila && t.secciones.includes(principalFila)));
+        if (deLaClase.length && desarrollo) {
+          deLaClase.forEach((t) => insertar(actividadDeTarea(t), t));
           clase.avisosRedaccion = clase.avisosRedaccion.filter((m) => !/falta la tarea/.test(m));
-          clase.avisosRedaccion.push(`clase 1 — ℹ código: se añadió la actividad que faltaba: ${faltan.map((t) => `«${t.nombre}»`).join(", ")}`);
-        }
-        // Sección secundaria sin actividad tras el reintento (revisor de g50): el código escribe la de su tarea, con su entrega.
-        if (desarrollo) {
-          // Las de comentar o revisar van juntas, en una actividad por estaciones; las demás, una por sección.
-          const deTarea = (sec) => filaMapa.tareas.find((x) => x.secciones.includes(sec) && x.secciones.length <= 3 && !/^(recorrer_|indagar_|acordar|saberes_|problema_)/.test(x.clave))
-            || filaMapa.tareas.find((x) => TAREAS_POR_ESTACIONES.has(x.clave) && x.secciones.includes(sec));
-          const seccionesUnidad = spec.contratoFase?.secciones || [];
-          const normalTx = (a) => (typeof a === 'string' ? a : Object.values(a || {}).join(' ')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const textos = (desarrollo.actividades || []).map(normalTx);
-          const sinActividad = seccionesConActividad(filaMapa, seccionesUnidad.length)
-            .filter((sec) => !textos.some((a) => actividadCubreTarea(a, deTarea(sec) || {}, sec, seccionesUnidad)));
-          const porEstaciones = new Map();
-          sinActividad.forEach((sec) => {
-            const t = deTarea(sec);
-            if (!t) return;
-            if (TAREAS_POR_ESTACIONES.has(t.clave)) { porEstaciones.set(t, [...(porEstaciones.get(t) || []), sec]); return; }
-            insertar(actividadDeTarea({ ...t, secciones: [sec] }), t);
-          });
-          // Estaciones: la actividad genérica de la IA («cada sección», «por estaciones») se REEMPLAZA por la que nombra
-          // todas las secciones de la tarea; solo si no hay ninguna, se añade (revisor de g56: C9 act. 1 ≈ act. 5).
-          const GENERICA = /\b(cada (seccion|estacion|pieza)|por estaciones|estaciones|las secciones|las piezas)\b/;
-          porEstaciones.forEach((secs, t) => {
-            const senal = t.senal ? new RegExp(t.senal) : /coment|revis|rubric/;
-            const j = desarrollo.actividades.findIndex((a) => GENERICA.test(normalTx(a)) && senal.test(normalTx(a)));
-            if (j >= 0) desarrollo.actividades[j] = actividadPorEstaciones(t, t.secciones);
-            else insertar(actividadPorEstaciones(t, secs), t);
-          });
-          if (sinActividad.length) {
-            clase.avisosRedaccion = clase.avisosRedaccion.filter((m) => !/sección secundaria/.test(m));
-            clase.avisosRedaccion.push(`clase 1 — ℹ código: se añadió la actividad de la sección secundaria: ${sinActividad.map((sec) => `«${sec}»`).join(", ")}`);
-          }
+          clase.avisosRedaccion.push(`clase 1 — ℹ código: se añadió la actividad que faltaba: ${deLaClase.map((t) => `«${t.nombre}»`).join(", ")}`);
         }
       }
 

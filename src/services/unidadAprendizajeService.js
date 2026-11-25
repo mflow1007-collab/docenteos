@@ -25,13 +25,13 @@ import {
 import { escHtml, escProfundo, markdownLigeroSeguro, cursivaMarkdownSegura } from "../utils/html.js";
 import { logCaidaBaseCurricular, logFaseRedaccionFallida } from "./ai/usage.js";
 import { prepararPlanMaestroGeneracion, armarEntradaPlanMaestro } from "./vistaPreviaPlanMaestroService.js";
-import { bienvenidaFueraDeLugar, tituloSinBienvenida, modeloRepetido, vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, tituloConSeccionTrabajada, minutosConTope, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
+import { bienvenidaFueraDeLugar, tituloSinBienvenida, modeloRepetido, seccionPrincipal, presupuestoDesarrollo, repartoConMinimo, vincularInstrumentosConClases, conGuiaEnTextos, fasesDeActividades, conReemplazos, focoDeFila, minutosInicioPresentacion, diagnosticoDeFases, titulosParecidos, titulosSimilares, alcanceDeSituacion, semillaVigente, asuntoDeLectura, sinEquiposEnModelo, sinEquiposEnTodo, tituloConLaFuncion, conConcordanciaEnTitulo, adaptacionSinTecnologia, adaptacionesNEAEDelMenu, avisoAudienciaMultiple, conObservacionesFijas, sinEstrategiasAjenas, sinEncuestaSiNoHay, recursosSinTruncar, conNivelSatisfactorio, tituloDeClase, titulosDeTareas, sinLugaresEnClase, armarMapaClases, ponerSecuencias, fallosQueDetienen, planDesdeMapa, conFichaDeUnidad, ambienteDeMapa, evaluacionDeFila, EVALUACION_CIERRE_MAPA, EVALUACION_INICIO_MAPA, humanosDeFila, muestraDeAudiencia, tituloCorto, tituloConSeccionTrabajada, minutosConTope, didacticosDeFila, conFirmas, inicioPresentacion, minutosPorTarea, sinEquipos, sinGrabado, conTitulosCorregidos, necesitaLugares, ampliacionSinLugares, minutosConDiagnostico, INICIO_PRIMERA_CLASE, organizadorDesdeMapa, checklistDesdeMapa } from "./mapaClasesService.js";
 import { versionDeBuild } from "../utils/buildInfo.js";
 import { ALCANCE_POR_SEMILLA, ASUNTO_LECTURA_POR_SEMILLA, ASUNTO_LECTURA_GENERAL, FUENTE_POR_SEMILLA, NOMBRE_MODELO_POR_SEMILLA, NOMBRE_MODELO_GENERAL, RETROALIMENTACION_SEGUNDA_CLASE } from "../data/tareasPorTipoTrabajo.js";
 import { audienciasDeSituacion } from "./situacionAprendizajeService.js";
 import {
   revisarUnidadConMapa, motivosClaseFinal, contenidosNoVistosEnUnidad, avisosParaAdministrador, construirContratoFase, recogerAmpliacion, recortarIndicador, segmentarIndicador, validarUnidadPlanMaestro,
-  seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases, VERBOS_IDIOMA, VERBOS_GESTION,
+  seccionesDeClase, estructurasDeMalla, ampliacionUsadaEnClases, VERBOS_IDIOMA, VERBOS_GESTION, conSecundariasDelCodigo,
 } from "./redaccionFaseService.js";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -5404,6 +5404,13 @@ const _generarFasesConIA = async (
           }
           modelosUnidad.push({ clase: filaMapa.clase, lineas: dia.textoModelo?.lineas || [] });
           dia.tareaIdsDesarrollo = Array.isArray(aiClase.tareaIdsDesarrollo) ? aiClase.tareaIdsDesarrollo : [];
+          dia.seccionPrincipalMapa = seccionPrincipal(filaMapa);
+          // Las secundarias las escribe el código, dentro de su fase (revisor de g57); la IA solo redactó la principal.
+          if (!aiClase.secuenciaAplicada) {
+            const anadidas = conSecundariasDelCodigo(dia, filaMapa, contratoFase.secciones || []);
+            if (!Array.isArray(dia.tareaIdsDesarrollo)) dia.tareaIdsDesarrollo = [];
+            if (anadidas.length) avisosRedaccionIA.push(`Clase ${filaMapa.clase}: ℹ código: actividades de las secciones secundarias: ${anadidas.map((x) => `«${x}»`).join(", ")}`);
+          }
           dia.minutosSecuencia = Array.isArray(aiClase.minutosSecuencia) ? aiClase.minutosSecuencia : null;
           dia.fasesPorActividad = fasesDeActividades(filaMapa, dia.tareaIdsDesarrollo);
           // Lo fijo de la evaluación y los recursos humanos sale de la fila, no de la IA.
@@ -6518,21 +6525,38 @@ export const generarUnidadAprendizaje = async (datosFormulario) => {
         ? { minutos: minutosConTope(delMapa, desarrollo.actividades, total), necesarios: 0 }
         : minutosPorDemanda({ totalMinutos: total, actividades: desarrollo.actividades });
       desarrollo.minutosActividad = minutos;
-      // La actividad de una sección que escribió el código tiene al menos 5 min, tomados de la más larga sin dejarla
-      // por debajo de 5 (revisor de g55: 2 min para «Asking for Permission»).
-      const delCodigo = (a) => /(, sección «[^»]+»[^:]*|por estaciones\).*): [^;]+; queda en la carpeta\.$/.test(String(typeof a === "string" ? a : a?.texto || ""));
-      // Con 5 actividades o más, también las de la IA (revisor de g56: «Anotan mejoras» 3 min en Frases C9).
-      const conMinimo = (a) => delCodigo(a) || desarrollo.actividades.length >= 5;
-      desarrollo.actividades.forEach((a, k) => {
-        if (!conMinimo(a) || (minutos[k] || 0) >= 5) return;
-        let falta = 5 - (minutos[k] || 0);
-        while (falta > 0) {
-          const donante = minutos.map((m, j) => [m, j]).filter(([m, j]) => j !== k && m > 5).sort((x, y) => y[0] - x[0])[0];
-          if (!donante) break;
-          const da = Math.min(falta, donante[0] - 5);
-          minutos[donante[1]] -= da; minutos[k] += da; falta -= da;
+      // Presupuesto del Desarrollo (revisor de g57): cada secundaria que escribió el código entre 5 y 8 min y todas juntas
+      // como máximo la mitad; la principal el resto. Ninguna actividad baja de 4 min: si no alcanza, se fusionan las de la IA.
+      const textoAct = (a) => String(typeof a === "string" ? a : a?.texto || "");
+      const delCodigo = (a) => /(, sección «[^»]+»[^:]*|por estaciones\).*): [^;]+; queda en la carpeta\.$/.test(textoAct(a));
+      const fasesDesarrollo = Array.isArray(d.fasesPorActividad?.Desarrollo) ? d.fasesPorActividad.Desarrollo : null;
+      const fusionarDos = (j) => {
+        const unir = (x, y) => `${textoAct(x).replace(/[.\s]+$/, "")}, y ${textoAct(y).charAt(0).toLowerCase()}${textoAct(y).slice(1)}`;
+        const a0 = desarrollo.actividades[j]; const a1 = desarrollo.actividades[j + 1];
+        desarrollo.actividades.splice(j, 2, typeof a0 === "string" ? unir(a0, a1) : { ...a0, texto: unir(a0, a1) });
+        minutos.splice(j, 2, (minutos[j] || 0) + (minutos[j + 1] || 0));
+        if (fasesDesarrollo) fasesDesarrollo.splice(j + 1, 1);
+      };
+      for (let vuelta = 0; vuelta < 6; vuelta += 1) {
+        const secundarias = desarrollo.actividades.map((a, k) => k).filter((k) => d.seccionPrincipalMapa && delCodigo(desarrollo.actividades[k]));
+        const deIA = desarrollo.actividades.map((a, k) => k).filter((k) => !secundarias.includes(k));
+        const { secundaria, principal } = presupuestoDesarrollo(total || minutos.reduce((x, y) => x + y, 0), secundarias.length);
+        const reparto = repartoConMinimo(deIA.map((k) => minutos[k]), principal);
+        if (reparto.fusionar && deIA.length > 1) {
+          // Las dos de la IA seguidas (y de la misma fase) con menos minutos juntas.
+          const pares = deIA.slice(0, -1).map((k, x) => [k, deIA[x + 1]]).filter(([p, q]) => q === p + 1 && (!fasesDesarrollo || fasesDesarrollo[p] === fasesDesarrollo[q]));
+          const par = pares.sort((x, y) => (minutos[x[0]] + minutos[x[1]]) - (minutos[y[0]] + minutos[y[1]]))[0];
+          if (!par) break;
+          fusionarDos(par[0]);
+          avisosClaseFinal.push(`clase ${i + 1}: ℹ código: se unieron dos actividades del Desarrollo para que ninguna baje de 4 min`);
+          continue;
         }
-      });
+        secundarias.forEach((k) => { minutos[k] = secundaria; });
+        deIA.forEach((k, x) => { if (reparto.minutos[x] != null) minutos[k] = reparto.minutos[x]; });
+        break;
+      }
+      desarrollo.minutosActividad = minutos;
+      delete d.seccionPrincipalMapa;
       if (necesarios > total) avisosTiempo.push(`clase ${i + 1}: el Desarrollo necesita unos ${necesarios} min y tiene ${total}`);
     });
   }
