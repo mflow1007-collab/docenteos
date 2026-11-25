@@ -110,7 +110,7 @@ const esFechaISO = (valor) => /^\d{4}-\d{2}-\d{2}$/.test(String(valor || ""));
 
 // HITO 3.2 — calendario escolar: si la fecha cae en día no lectivo, la clase
 // queda ANOTADA (no se mueve — reprogramarla es decisión del docente).
-const advertenciaCalendario = (fechaSugerida) => {
+export const advertenciaCalendario = (fechaSugerida) => {
   const noLectivo = esFechaISO(fechaSugerida) ? diaNoLectivo(fechaSugerida) : null;
   return noLectivo
     ? `${noLectivo.tipo === "receso" ? "Receso" : noLectivo.tipo === "fin-de-semana" ? "Fin de semana" : "Feriado"}: ${noLectivo.nombre}${noLectivo.estimado ? " (estimado)" : ""}`
@@ -1260,6 +1260,7 @@ export const UMBRAL_CURSO_PLAN = 9;
  * Cuánto encaja un curso con los metadatos de un plan (los planes legacy no
  * guardan cursoId): grado 4, área/asignatura 5, sección 2. Con menos de
  * UMBRAL_CURSO_PLAN no se ata — mejor sin curso que con el curso equivocado.
+ * Si plan y curso declaran secciones distintas, 0 (Etapa 3: copia por sección).
  */
 /**
  * Nivel que un registro DECLARA: su campo `nivel` o la palabra escrita en su
@@ -1276,13 +1277,18 @@ export const nivelDeclarado = ({ nivel = "", grado = "", nombre = "" } = {}) => 
   return "";
 };
 
+export const seccionDeCurso = (curso = {}) =>
+  String(curso?.seccion || String(curso?.nombre || "").match(/\s([A-Z])$/)?.[1] || "").trim();
+
 export const puntuarCursoParaPlan = (meta = {}, curso = {}) => {
   const gradoPlan = normalizarTexto(meta.grado || "");
   const seccionPlan = normalizarTexto(meta.seccion || "");
   const areaPlan = normalizarTexto(meta.asignatura || meta.area || "");
   const gradoCurso = normalizarTexto([curso.grado, curso.nombre].filter(Boolean).join(" "));
   const areaCurso = normalizarTexto([curso.area, curso.asignatura].filter(Boolean).join(" "));
-  const seccionCurso = normalizarTexto(curso.seccion || "");
+  const seccionCurso = normalizarTexto(seccionDeCurso(curso));
+  // Etapa 3 (César, 2026-11-25): otra sección no encaja; lleva su propia copia
+  if (seccionPlan && seccionCurso && seccionPlan !== seccionCurso) return 0;
   let puntaje = 0;
   if (gradoPlan && gradoCurso.includes(gradoPlan)) puntaje += 4;
   if (areaPlan && areaCurso && (areaCurso.includes(areaPlan) || areaPlan.includes(areaCurso))) puntaje += 5;
