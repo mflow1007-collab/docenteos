@@ -13,6 +13,7 @@
 import { obtenerPlanificacionesDetalladas } from "../firebase.js";
 import { backfillCapaCurricular, obtenerPlanificacionActiva, vincularPlanificacionACurso } from "./planificacionDataService.js";
 import { corregirFechasCapa, fechaLocalISO, obtenerClaseDeHoy } from "./hiloPedagogico.js";
+import { claseParaMostrar } from "../utils/horaExtra.js";
 import {
   guardarResultadoInstrumento,
   obtenerInstrumentosPorPlanificacion,
@@ -50,7 +51,7 @@ export const asegurarCapaCurricular = async (registroPlan, { cursoId = "" } = {}
  * planificación activa, clase de hoy (o PRÓXIMA pendiente, nunca vacío),
  * indicador principal, instrumentos del día y evidencias esperadas.
  */
-export const obtenerContextoModoAula = async (cursoId, fecha = fechaLocalISO(), { planes = null } = {}) => {
+export const obtenerContextoModoAula = async (cursoId, fecha = fechaLocalISO(), { planes = null, curso = null } = {}) => {
   const lista = Array.isArray(planes)
     ? planes
     : (await obtenerPlanificacionesDetalladas()).data || [];
@@ -78,9 +79,10 @@ export const obtenerContextoModoAula = async (cursoId, fecha = fechaLocalISO(), 
   plan = await asegurarCapaCurricular(plan, { cursoId });
 
   const capa = plan.capaCurricular || null;
-  const { clase, esHoy, motivo } = capa
-    ? obtenerClaseDeHoy(capa, fecha)
+  const seleccion = capa
+    ? (curso ? claseParaMostrar(capa, curso, plan.id) : obtenerClaseDeHoy(capa, fecha))
     : { clase: null, esHoy: false, motivo: "sin-capa" };
+  const { clase, esHoy, motivo } = seleccion;
 
   const instrumentos = capa && clase
     ? await obtenerInstrumentosPorClase(plan.id, clase.claseId).catch(() => [])
@@ -95,7 +97,8 @@ export const obtenerContextoModoAula = async (cursoId, fecha = fechaLocalISO(), 
     capa,
     clase,
     esHoy,
-    motivo, // "hoy" | "proxima" | "ultima" | "sin-fechas" | "sin-capa" | "sin-planes"
+    seleccion, // lo mismo con `saltada` (clase adelantada) y `hora` (hora extra)
+    motivo, // "hoy" | "adelantada" | "extra" | "proxima" | "ultima" | "sin-fechas" | "sin-capa" | "sin-planes"
     indicadorPrincipal,
     instrumentos,
     evidenciasEsperadas: clase?.evidenciasEsperadas || [],

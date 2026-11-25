@@ -1296,7 +1296,7 @@ export const puntuarCursoParaPlan = (meta = {}, curso = {}) => {
  * Devuelve la clase del día desde la capa curricular. Si hoy no hay clase
  * planificada, devuelve la PRÓXIMA clase pendiente (nunca "pantalla vacía").
  *
- * @returns {{ clase, esHoy: boolean, motivo: "hoy"|"proxima"|"sin-fechas"|null }}
+ * @returns {{ clase, esHoy: boolean, motivo: "hoy"|"adelantada"|"proxima"|"ultima"|"sin-fechas"|null, saltada? }}
  */
 // «Hoy» en la hora local del docente: toISOString da la fecha UTC, que en
 // República Dominicana (UTC−4) ya es el día siguiente desde las 8:00 p. m.
@@ -1306,21 +1306,32 @@ export const fechaLocalISO = (fecha = new Date()) => {
   return `${fecha.getFullYear()}-${mm}-${dd}`;
 };
 
-export const obtenerClaseDeHoy = (capa, fechaISO = fechaLocalISO()) => {
+// `dadas` (Map claseId → { fecha, extra }): clases ya finalizadas en el curso. Si
+// la de hoy se adelantó, sale la siguiente («adelantada»); las que se finalizan
+// hoy en su hora normal se siguen mostrando hoy.
+export const obtenerClaseDeHoy = (capa, fechaISO = fechaLocalISO(), { dadas = new Map() } = {}) => {
   const clases = capa?.clases || [];
   if (!clases.length) return { clase: null, esHoy: false, motivo: null };
 
   const conFecha = clases.filter((c) => c.fechaSugerida);
   const deHoy = conFecha.find((c) => c.fechaSugerida === fechaISO);
-  if (deHoy) return { clase: deHoy, esHoy: true, motivo: "hoy" };
+  const yaDada = (c) => {
+    const dada = dadas.get(c.claseId);
+    return Boolean(dada) && (dada.extra || dada.fecha !== fechaISO);
+  };
+  if (deHoy && !yaDada(deHoy)) return { clase: deHoy, esHoy: true, motivo: "hoy" };
+  if (deHoy) {
+    const siguiente = clases.slice(clases.indexOf(deHoy) + 1).find((c) => !yaDada(c));
+    if (siguiente) return { clase: siguiente, esHoy: false, motivo: "adelantada", saltada: deHoy };
+  }
 
   const proxima = conFecha
-    .filter((c) => c.fechaSugerida > fechaISO)
+    .filter((c) => c.fechaSugerida > fechaISO && !dadas.has(c.claseId))
     .sort((a, b) => a.fechaSugerida.localeCompare(b.fechaSugerida))[0];
   if (proxima) return { clase: proxima, esHoy: false, motivo: "proxima" };
 
   // Sin fechas: primera clase; todas pasadas: última clase dictada
-  const ultima = conFecha[conFecha.length - 1] || clases[0];
+  const ultima = conFecha[conFecha.length - 1] || clases.find((c) => !yaDada(c)) || clases[0];
   return { clase: ultima, esHoy: false, motivo: conFecha.length ? "ultima" : "sin-fechas" };
 };
 
