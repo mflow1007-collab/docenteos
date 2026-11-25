@@ -5,7 +5,10 @@ import { EventTracker } from "../services/ai/learning/EventTracker.js";
 import { LEARNING_EVENTS, AGENT_IDS } from "../services/ai/knowledge/KnowledgeTypes.js";
 import { guardarEstudianteEnSubcoleccion } from "../services/estudiantesService.js";
 import { avisoCedula, formatearCedula, idEstudiante, idsAmbiguosEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
-import { enriquecerCursoInicial, generarEstudiantesDetalle } from "../utils/cursoUtils.js";
+import { enriquecerCursoInicial } from "../utils/cursoUtils.js";
+import { agregarNombresAlCurso, revisarListaEstudiantes } from "../utils/listaEstudiantes.js";
+import { guardarNuevosConAviso } from "../utils/guardarNuevosConAviso.js";
+import LectorFotoLista from "../components/LectorFotoLista.jsx";
 import { guardarEstadoDetalleEstudiante, obtenerEstadoDetalleEstudiante } from "../firebase.js";
 
 function capitalizarNombre(str) {
@@ -50,11 +53,7 @@ function EstudiantesPage({
   const [modoFoto, setModoFoto] = useState(false);
   const [modoLista, setModoLista] = useState(false);
   const [listaTexto, setListaTexto] = useState("");
-  const [fotoPreview, setFotoPreview] = useState(null);
-  const [fotoBase64, setFotoBase64] = useState(null);
-  const [fotoMimeType, setFotoMimeType] = useState("image/jpeg");
   const [nombresEditados, setNombresEditados] = useState([]);
-  const [analizandoFoto, setAnalizandoFoto] = useState(false);
   const [fotoError, setFotoError] = useState(null);
 
   const cerrarModalAgregar = () => {
@@ -63,8 +62,6 @@ function EstudiantesPage({
     setModoLista(false);
     setListaTexto("");
     setNombresEditados([]);
-    setFotoPreview(null);
-    setFotoBase64(null);
     setFotoError(null);
   };
 
@@ -78,7 +75,7 @@ function EstudiantesPage({
 
   const estudiantes = useMemo(() => {
     const desdeCursos = cursos.flatMap((curso) => {
-      const base = curso.estudiantesDetalle?.length ? curso.estudiantesDetalle : generarEstudiantesDetalle(curso);
+      const base = curso.estudiantesDetalle || [];
       return base.map((estudiante, indice) => {
         const promedio = (estudiante.promedio !== null && estudiante.promedio !== undefined) ? Number(estudiante.promedio) : null;
         const estado = estadoPorPromedio(promedio);
@@ -95,7 +92,6 @@ function EstudiantesPage({
           asistencia,
           estado,
           nivelRiesgo,
-          esDemo: !curso.estudiantesDetalle?.length,
           cursoId: curso.id,
           cursoNombre: curso.nombre,
           nivel: curso.nivel || "",
@@ -384,57 +380,26 @@ function EstudiantesPage({
     setModalAgregar(false);
   };
 
-  const handleFotoSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setFotoMimeType(file.type || "image/jpeg");
-    setFotoError(null);
-    setNombresEditados([]);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataURL = ev.target.result;
-      setFotoPreview(dataURL);
-      setFotoBase64(dataURL.split(",")[1]);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const analizarFoto = () => {
-    if (!fotoBase64) return;
-    setAnalizandoFoto(true);
-    setFotoError(null);
-    let accumulated = "";
-    AIService.generate({
-      module: "vision-estudiantes",
-      prompt: "Observa esta imagen de una lista de estudiantes y extrae todos los nombres. Devuelve SOLO un JSON array de strings con los nombres completos, sin texto adicional, sin markdown. Ejemplo: [\"Juan Pérez\",\"María López\",\"Carlos García\"]",
-      imageBase64: fotoBase64,
-      imageMediaType: fotoMimeType,
-      onChunk: (chunk) => { accumulated += chunk; },
-      onFinish: () => {
-        try {
-          const match = accumulated.match(/\[[\s\S]*?\]/);
-          const nombres = match ? JSON.parse(match[0]) : [];
-          setNombresEditados(nombres.filter(Boolean).map((n, i) => ({ id: i, nombre: n })));
-          if (nombres.length === 0) setFotoError("No se encontraron nombres. Intenta con una imagen más clara.");
-        } catch {
-          setFotoError("No se pudo leer la lista. Intenta de nuevo o agrega manualmente.");
-        }
-        setAnalizandoFoto(false);
-      },
-      onError: (err) => { setFotoError(err); setAnalizandoFoto(false); },
-    });
+  // Pegar lista y foto guardan igual: en el curso y en la subcolección, con el mismo ID
+  const guardarNombresEnCurso = (curso, nombres) => {
+    const { curso: actualizado, nuevos } = agregarNombresAlCurso(curso, nombres);
+    onActualizarCurso(actualizado);
+    guardarNuevosConAviso(curso.id, nuevos, guardarEstudianteEnSubcoleccion);
   };
 
   const confirmarNombresFoto = () => {
-    const validos = nombresEditados.filter((n) => n.nombre.trim());
-    setEstudiantesExtra((prev) => [
-      ...prev,
-      ...validos.map((item) => crearEstudianteExtra(item.nombre.trim())),
-    ]);
+    const nombres = nombresEditados.map((n) => n.nombre.trim()).filter(Boolean);
+    const cursoExistente = cursos.find((c) => String(c.id) === String(formNuevo.cursoId));
+    if (!nombres.length) return;
+    if (!cursoExistente) {
+      setFotoError("Elige el curso: sin curso los nombres no se guardan.");
+      return;
+    }
+    guardarNombresEnCurso(cursoExistente, nombres);
+    setFormNuevo({ nombre: "", cedula: "", cursoId: "", nombreCursoNuevo: "" });
+    setFotoError(null);
     setModoFoto(false);
     setNombresEditados([]);
-    setFotoPreview(null);
-    setFotoBase64(null);
     setModalAgregar(false);
   };
 
@@ -447,21 +412,7 @@ function EstudiantesPage({
 
     const cursoExistente = cursos.find((c) => String(c.id) === String(formNuevo.cursoId));
     if (cursoExistente) {
-      const nuevosEst = nombres.map((n) => ({
-        id: `est-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        nombre: n,
-        promedio: null,
-      }));
-      const detalle = [...(cursoExistente.estudiantesDetalle || []), ...nuevosEst];
-      onActualizarCurso({
-        ...cursoExistente,
-        estudiantesDetalle: detalle,
-        estudiantes: detalle.length,
-        estudiantesFuente: "oficial",
-        matriculaOficial: true,
-      });
-      // Mismos IDs que en estudiantesDetalle (antes la subcolección creaba otros)
-      Promise.all(nuevosEst.map((est) => guardarEstudianteEnSubcoleccion(cursoExistente.id, est.nombre, est.id))).catch(() => {});
+      guardarNombresEnCurso(cursoExistente, nombres);
     } else {
       setEstudiantesExtra((prev) => [...prev, ...nombres.map((n) => crearEstudianteExtra(n))]);
     }
@@ -532,19 +483,18 @@ function EstudiantesPage({
     },
   ];
 
-  const cursosSinEstudiantes = cursos.filter((c) => !c.estudiantesDetalle?.length);
+  const cursosPorRevisar = cursos
+    .map((c) => ({ id: c.id, nombre: c.nombre, mensaje: revisarListaEstudiantes(c).mensaje }))
+    .filter((c) => c.mensaje);
 
   return (
     <div className="estudiantes-page">
-      {cursosSinEstudiantes.length > 0 && (
-        <div style={{ background: "#FEF3C7", borderLeft: "4px solid #D97706", padding: "10px 16px", fontSize: 13, display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <span>⚠️</span>
-          <span>
-            {cursosSinEstudiantes.length === 1
-              ? <><strong>{cursosSinEstudiantes[0].nombre}</strong> muestra datos de ejemplo. </>
-              : <>{cursosSinEstudiantes.length} cursos muestran datos de ejemplo. </>}
-            Agrega estudiantes reales desde el botón <strong>Agregar estudiante</strong>.
-          </span>
+      {cursosPorRevisar.length > 0 && (
+        <div role="alert" style={{ background: "#FEF3C7", borderLeft: "4px solid #D97706", padding: "10px 16px", fontSize: 13, marginBottom: 8 }}>
+          {cursosPorRevisar.map((c) => (
+            <div key={c.id}>⚠️ <strong>{c.nombre}</strong>: {c.mensaje}</div>
+          ))}
+          <div>Agrega los estudiantes reales desde el botón <strong>Agregar estudiante</strong>.</div>
         </div>
       )}
       <section className="estudiantes-card estudiantes-header-card">
@@ -1132,6 +1082,10 @@ function EstudiantesPage({
         </aside>
       </section>
 
+        </>
+      )}
+
+      {/* Fuera de las vistas: el botón «Agregar estudiante» está en todas */}
       {modalAgregar && (
         <div className="ma-overlay" onClick={cerrarModalAgregar}>
           <div className="ma-card" onClick={(e) => e.stopPropagation()}>
@@ -1254,74 +1208,22 @@ function EstudiantesPage({
                 </form>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {!fotoPreview ? (
-                    <label className="ma-upload-zone">
-                      <input type="file" accept="image/*" onChange={handleFotoSelect} />
-                      <div className="ma-upload-icon">📷</div>
-                      <p className="ma-upload-title">Arrastra la foto aquí o haz clic</p>
-                      <p className="ma-upload-desc">JPG, PNG, HEIC — hasta 20 MB</p>
-                    </label>
-                  ) : (
-                    <>
-                      <img src={fotoPreview} alt="Lista de estudiantes" className="ma-preview" />
-                      <button
-                        type="button"
-                        style={{ fontSize: 12, background: "none", border: "none", color: "#64748b", cursor: "pointer", textDecoration: "underline", padding: 0, textAlign: "left" }}
-                        onClick={() => { setFotoPreview(null); setFotoBase64(null); setNombresEditados([]); setFotoError(null); }}
-                      >Cambiar imagen</button>
-                    </>
-                  )}
-
-                  {fotoBase64 && nombresEditados.length === 0 && (
-                    <button
-                      type="button"
-                      className={`ma-btn-ia${analizandoFoto ? " analyzing" : ""}`}
-                      onClick={analizarFoto}
-                      disabled={analizandoFoto}
+                  <div className="ma-field">
+                    <label className="ma-label" htmlFor="ma-curso-foto">Curso</label>
+                    <select
+                      id="ma-curso-foto"
+                      className="ma-input"
+                      value={formNuevo.cursoId}
+                      onChange={(e) => { setFormNuevo((p) => ({ ...p, cursoId: e.target.value })); setFotoError(null); }}
                     >
-                      {analizandoFoto ? (
-                        <><span style={{ display: "inline-block", animation: "ma-spin 0.8s linear infinite" }}>⏳</span> Analizando imagen…</>
-                      ) : (
-                        <><span>✨</span> Analizar con IA</>
-                      )}
-                    </button>
-                  )}
-
-                  {fotoError && (
-                    <div className="ma-error">
-                      <span>⚠️</span> {fotoError}
-                    </div>
-                  )}
-
-                  {nombresEditados.length > 0 && (
-                    <div>
-                      <div className="ma-names-header">
-                        <span>Revisa y edita los nombres</span>
-                        <span className="ma-names-count">{nombresEditados.filter((n) => n.nombre.trim()).length} estudiantes</span>
-                      </div>
-                      <div className="ma-names-list">
-                        {nombresEditados.map((item, idx) => (
-                          <div key={item.id} className="ma-name-row">
-                            <span className="ma-name-num">{idx + 1}</span>
-                            <input
-                              className="ma-name-input"
-                              value={item.nombre}
-                              onChange={(e) => setNombresEditados((prev) => prev.map((n, i) => i === idx ? { ...n, nombre: e.target.value } : n))}
-                              placeholder="Nombre completo…"
-                            />
-                            <button type="button" className="ma-name-del" onClick={() => setNombresEditados((prev) => prev.filter((_, i) => i !== idx))}>✕</button>
-                          </div>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        className="ma-add-link"
-                        onClick={() => setNombresEditados((prev) => [...prev, { id: Date.now(), nombre: "" }])}
-                      >
-                        <span>＋</span> Agregar nombre manualmente
-                      </button>
-                    </div>
-                  )}
+                      <option value="">— Selecciona un curso —</option>
+                      {cursos.map((c) => (
+                        <option key={c.id} value={String(c.id)}>{c.nombre} · {c.area}</option>
+                      ))}
+                    </select>
+                    {!cursos.length && <small style={{ color: "#92400e" }}>Crea primero un curso para guardar ahí la lista.</small>}
+                  </div>
+                  <LectorFotoLista nombres={nombresEditados} onNombres={setNombresEditados} error={fotoError} onError={setFotoError} />
                 </div>
               )}
             </div>
@@ -1364,8 +1266,6 @@ function EstudiantesPage({
             </div>
           </div>
         </div>
-      )}
-        </>
       )}
     </div>
   );

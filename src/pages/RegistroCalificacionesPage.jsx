@@ -24,6 +24,8 @@ import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudiant
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
 import { escHtml } from "../utils/html.js";
+import { revisarListaEstudiantes } from "../utils/listaEstudiantes.js";
+import AvisoListaEstudiantes from "../components/AvisoListaEstudiantes.jsx";
 import { aplicarCeldasIndicadores, calcularResumenEstudiante, celdasDesdeIndicadores, normalizarNotasCompetencias } from "../utils/resumenCalificaciones.js";
 import { depurarDatosLegado, idEstudiante, idsAmbiguosEstudiante, idsLegadoEstudiante } from "../utils/idEstudiante.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -139,15 +141,6 @@ const calcAsistenciaMes = (semanas, calendario = null) => {
   return { presentes, excusas, total, pct };
 };
 
-const estudiantesFallback = [
-  { id: 1, nombre: "Juan Pérez" },
-  { id: 2, nombre: "María Rodríguez" },
-  { id: 3, nombre: "Pedro Gómez" },
-  { id: 4, nombre: "Katherin Romero" },
-  { id: 5, nombre: "Carlos Méndez" },
-  { id: 6, nombre: "Fernanda Lozano" },
-];
-
 const competenciasFallback = [
   {
     nombre: "Competencia 1",
@@ -257,7 +250,7 @@ function RegistroPage({
         ? curso.estudiantesDetalle
         : curso?.estudiantes?.length
           ? curso.estudiantes
-          : estudiantesFallback;
+          : []; // sin lista: vacío y con aviso, nunca nombres de ejemplo
     return normalizarEstudiantesRegistro(base);
   }, [curso, estudiantesCurso]);
 
@@ -1402,6 +1395,8 @@ function RegistroPage({
           </article>
         </div>
       </section>
+
+      <AvisoListaEstudiantes mensaje={revisarListaEstudiantes({ ...curso, estudiantesDetalle: estudiantes }).mensaje} />
 
       {/* ETAPA C — recordatorio de entrega de Reportes de Evaluación (afiche
           oficial MINERD): visible solo en la ventana previa a la fecha */}

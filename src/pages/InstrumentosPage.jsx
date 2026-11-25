@@ -124,21 +124,6 @@ const VALOR_INSTRUMENTO = {
   "Escala de estimación": 25,
 };
 
-const ESTUDIANTES_FALLBACK = [
-  "Juan Pérez",
-  "María Rodríguez",
-  "Pedro Gómez",
-  "Katherin Romero",
-  "Carlos Méndez",
-  "Fernanda Lozano",
-  "Gabriel Ortiz",
-  "Diana Suárez",
-  "Ruth Encarnación",
-  "Brayan Gómez",
-  "Camila Rojas",
-  "Javier Ureña",
-];
-
 const crearCriterio = (index = 0) => ({
   id: `crit-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 6)}`,
   criterio: ["Pronunciación", "Fluidez", "Vocabulario", "Comprensión", "Participación"][index % 5],
@@ -445,7 +430,7 @@ function InstrumentosPage({
   const [draft, setDraft] = useState(() => crearDraft());
   const [curriculoId, setCurriculoId] = useState("");
   const [instrumentoAplicar, setInstrumentoAplicar] = useState(null);
-  const [estudianteAplicar, setEstudianteAplicar] = useState("fb-1");
+  const [estudianteAplicar, setEstudianteAplicar] = useState("");
   const [evaluacionAplicar, setEvaluacionAplicar] = useState({});
   const [guardandoAplicacion, setGuardandoAplicacion] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -618,10 +603,7 @@ function InstrumentosPage({
         nombre: nombreEstudiante(estudiante),
       }))
       .filter((estudiante) => estudiante.nombre);
-    if (cursoRelacionado) return estudiantesNormalizados;
-    return cursos.length > 0
-      ? []
-      : ESTUDIANTES_FALLBACK.map((nombre, index) => ({ id: `fb-${index + 1}`, nombre }));
+    return estudiantesNormalizados; // sin curso o sin lista: vacío, nunca nombres de ejemplo
   };
 
   // Cargar instrumentos desde Firestore al montar
@@ -896,7 +878,7 @@ function InstrumentosPage({
   const abrirAplicacion = (instrumento) => {
     const estudiantesDisponibles = obtenerEstudiantesPorInstrumento(instrumento);
     setInstrumentoAplicar(instrumento);
-    setEstudianteAplicar(estudiantesDisponibles[0]?.id || "fb-1");
+    setEstudianteAplicar(estudiantesDisponibles[0]?.id || "");
     setEvaluacionAplicar(crearValorInicial(instrumento.tipo, instrumento.estructura));
     setModal("aplicar");
   };
@@ -1073,7 +1055,7 @@ function InstrumentosPage({
 
   const estudiantesAplicacion = instrumentoAplicar
     ? obtenerEstudiantesPorInstrumento(instrumentoAplicar)
-    : ESTUDIANTES_FALLBACK.map((nombre, index) => ({ id: `fb-${index + 1}`, nombre }));
+    : [];
 
   const modificarFila = (index, clave, valor) => {
     setDraft((prev) => {
