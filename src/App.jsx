@@ -222,6 +222,14 @@ function AppInner() {
     navegar("cursos");
   };
 
+  // E1b: si el curso no llega a la nube, el docente lo ve (antes solo console.error).
+  // No hay reintento automático: al recargar, la lista de Firestore reemplaza la
+  // local (E1c). Sin conexión setDoc queda pendiente y no llega aquí (ver E1c).
+  const avisarCursoNoGuardado = (curso, error) => {
+    console.error("[App] No se guardó el curso en la nube:", curso?.id, error);
+    setErrorCarga(`No se guardó en la nube el curso ${curso?.nombre || ""}. Ve a Cursos, pulsa «Editar curso» y luego «Guardar curso» antes de recargar la página, o se perderá.`);
+  };
+
   const crearCurso = (cursoNuevo) => {
     // ID permanente para cada estudiante que aún no lo tenga (regla única)
     const nuevoCurso = conIdsEstudiantes(cursoNuevo);
@@ -237,7 +245,7 @@ function AppInner() {
       })
       .catch((err) => {
         console.error("[App] Error al sincronizar/guardar curso:", err);
-        guardarCursoFS(nuevoCurso).catch((error) => console.error("[App] Error al guardar curso:", error));
+        guardarCursoFS(nuevoCurso).catch((error) => avisarCursoNoGuardado(nuevoCurso, error));
       });
   };
 
@@ -278,7 +286,7 @@ function AppInner() {
       })
       .catch((err) => {
         console.error("[App] Error al sincronizar/actualizar curso:", err);
-        guardarCursoFS(cursoActualizado).catch((error) => console.error("[App] Error al actualizar curso:", error));
+        guardarCursoFS(cursoActualizado).catch((error) => avisarCursoNoGuardado(cursoActualizado, error));
       });
   };
 
