@@ -12,6 +12,7 @@ import {
 } from "../firebase";
 import { sincronizarEvaluacionPedagogica } from "../services/nucleoPedagogicoService.js";
 import { evaluarYRegistrar } from "../services/modoAulaService.js";
+import { mensajeAvisosExpediente } from "../utils/avisosExpediente.js";
 import { AIService } from "../services/ai/AIService";
 import { buildAIContext } from "../services/ai/ContextBuilder.js";
 import { EventTracker } from "../services/ai/learning/EventTracker.js";
@@ -1005,20 +1006,28 @@ function InstrumentosPage({
           periodoStr:  instrumentoActualizado.periodo,
           nota:        registro.calificacionObtenida,
         });
-        await sincronizarEvaluacionPedagogica({
+        const puente = await sincronizarEvaluacionPedagogica({
           instrumento: instrumentoActualizado,
           aplicacion: registro,
           cursoId: instrumentoActualizado.cursoId || obtenerCursoRelacionado(instrumentoActualizado)?.id,
         });
-        return { exitosos: [{ modo: "legacy" }], errores: [] };
+        // E2d-2: el puente informa fallos secundarios (expediente/evidencia)
+        const avisos = puente?.fallosNube?.length
+          ? [{ estudianteId: registro.estudianteId, nombre: registro.estudiante, fallosNube: puente.fallosNube }]
+          : [];
+        return { exitosos: [{ modo: "legacy" }], errores: [], avisos };
       });
+      const avisosHilo = resultadoHilo?.avisos || [];
       if (resultadoHilo?.errores?.length) {
         setMensaje({ tipo: "error", texto: resultadoHilo.errores[0].mensaje });
+      } else if (avisosHilo.length) {
+        setMensaje({ tipo: "error", texto: mensajeAvisosExpediente(avisosHilo) });
       } else {
         setMensaje({ tipo: "success", texto: "Evaluación guardada, evidencia creada y Registro actualizado." });
       }
       setModal(null);
-      setTimeout(() => setMensaje(null), 2500);
+      // E2d-2: el aviso del expediente se queda hasta cerrarlo; el resto, como antes.
+      if (!avisosHilo.length) setTimeout(() => setMensaje(null), 2500);
     } catch (error) {
       console.error("[Instrumentos] Error al guardar aplicación:", error);
       setMensaje({ tipo: "error", texto: `No se pudo guardar la evaluación: ${error.message || "revisa la conexión."}` });
@@ -1193,7 +1202,15 @@ function InstrumentosPage({
         </div>
       </section>
 
-      {mensaje && <div className={`instrumentos-alert ${mensaje.tipo}`}>{mensaje.texto}</div>}
+      {mensaje && (
+        <div className={`instrumentos-alert ${mensaje.tipo}`}>
+          {mensaje.texto}
+          {mensaje.tipo === "error" && (
+            <button type="button" aria-label="Cerrar aviso" onClick={() => setMensaje(null)}
+              style={{ marginLeft: 10, background: "none", border: "none", color: "inherit", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>×</button>
+          )}
+        </div>
+      )}
 
       <section ref={statsRef} className="instrumentos-stats-grid">
         <article className="stat-card stat-total">

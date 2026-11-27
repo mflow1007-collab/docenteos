@@ -138,6 +138,8 @@ export const evaluarYRegistrar = async ({ instrumento, aplicaciones = [], claseT
 
   const exitosos = [];
   const errores = [];
+  // E2d-2: resultado guardado, pero algo secundario (expediente) no llegó a la nube
+  const avisos = [];
 
   // Cargar una sola vez el contexto del plan para las consolidaciones
   const planificacionId = instrumento.planificacionId || "";
@@ -180,7 +182,7 @@ export const evaluarYRegistrar = async ({ instrumento, aplicaciones = [], claseT
 
       // 4. Puente legacy (celda por competencia/período + expediente) — regla 12 aplicada dentro
       if (sincronizarLegacy && resultado.estado === "evaluado") {
-        await sincronizarEvaluacionPedagogica({
+        const puente = await sincronizarEvaluacionPedagogica({
           instrumento,
           cursoId: resultado.cursoId,
           // F7: sin segunda evidencia ni celda de la C.F. (sale de las notas por indicador)
@@ -199,8 +201,13 @@ export const evaluarYRegistrar = async ({ instrumento, aplicaciones = [], claseT
             detalle: { fuente: "evaluar-y-registrar", claseId: resultado.claseId },
           },
         }).catch((error) => {
-          console.warn(`[evaluarYRegistrar] Puente legacy falló para ${nombre}:`, error);
+          // E2d-2: antes solo console.warn; ahora también se avisa al docente.
+          console.error(`[evaluarYRegistrar] Puente legacy falló para ${nombre}:`, error);
+          return { fallosNube: ["puente"] };
         });
+        if (puente?.fallosNube?.length) {
+          avisos.push({ estudianteId: aplicacion.estudianteId, nombre, fallosNube: puente.fallosNube });
+        }
       }
 
       exitosos.push({ estudianteId: aplicacion.estudianteId, resultado, registro, evidencia });
@@ -212,5 +219,5 @@ export const evaluarYRegistrar = async ({ instrumento, aplicaciones = [], claseT
     }
   }
 
-  return { exitosos, errores };
+  return { exitosos, errores, avisos };
 };

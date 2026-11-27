@@ -409,13 +409,23 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
     },
   });
 
+  // E2d-2 (auditoría 2026-11-27): los fallos secundarios (evidencia, expediente)
+  // se informan en fallosNube en vez de tragarse.
+  const fallosNube = [];
+
   // F7: la ruta nueva ya guardó evidencia y notas por indicador; solo el expediente
   if (evidenciaDelResultado) {
-    await actualizarExpedienteConEvidencia({ evidencia, instrumento, registroResumen: estudianteConsolidado });
+    try {
+      await actualizarExpedienteConEvidencia({ evidencia, instrumento, registroResumen: estudianteConsolidado });
+    } catch (error) {
+      console.error("[nucleo] No se actualizó el expediente:", error);
+      fallosNube.push("expediente");
+    }
     return {
       evaluacion: evaluacionConAplicacion,
       evidencia,
       registro: notasEstudiantes[aplicacion.estudianteId],
+      fallosNube,
     };
   }
 
@@ -460,7 +470,7 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
     guardarRegistroNota(notaAspecto),
     guardarEvidenciaEstudiante(evidencia),
   ]);
-  await Promise.allSettled([
+  const [rEvidencia, rExpediente] = await Promise.allSettled([
     guardarEvidenciaFirestore(evidencia),
     actualizarExpedienteConEvidencia({
       evidencia,
@@ -468,10 +478,19 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
       registroResumen: estudianteConsolidado,
     }),
   ]);
+  if (rEvidencia.status === "rejected") {
+    console.error("[nucleo] No se guardó la evidencia:", rEvidencia.reason);
+    fallosNube.push("evidencia");
+  }
+  if (rExpediente.status === "rejected") {
+    console.error("[nucleo] No se actualizó el expediente:", rExpediente.reason);
+    fallosNube.push("expediente");
+  }
 
   return {
     evaluacion: evaluacionConAplicacion,
     evidencia,
     registro: notasEstudiantes[aplicacion.estudianteId],
+    fallosNube,
   };
 };

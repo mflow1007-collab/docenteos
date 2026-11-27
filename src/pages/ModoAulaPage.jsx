@@ -15,6 +15,7 @@ import { cursoIdDePlan, planesParaCopiar, resolverCursoDelAula } from '../servic
 import CopiarPlanSeccion from '../components/CopiarPlanSeccion.jsx'
 import { actualizarPlanificacionDetallada, obtenerPlanificacionesDetalladas, guardarSesionAula } from '../firebase.js'
 import { asegurarCapaCurricular, evaluarYRegistrar, obtenerContextoModoAula, obtenerInstrumentosDelDia } from '../services/modoAulaService.js'
+import { mensajeAvisosExpediente } from '../utils/avisosExpediente.js'
 import { crearAspectoId, fechaLocalISO } from '../services/hiloPedagogico.js'
 import { claseParaMostrar, fechaLegible, horaExtraVigente, mapaClasesDadas } from '../utils/horaExtra.js'
 import {
@@ -1638,7 +1639,7 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
           : (capa?.indicadoresSeleccionados || []).map(ind => ind.descripcion),
       }
 
-      const { exitosos, errores } = await evaluarYRegistrar({
+      const { exitosos, errores, avisos = [] } = await evaluarYRegistrar({
         instrumento: instrumentoHilo,
         claseTitulo: diaActivo?.titulo || '',
         aplicaciones: aplicaciones.map(({ estudiante, puntos }) => ({
@@ -1671,7 +1672,10 @@ export default function ModoAulaPage({ cursos = [], cursoActivo = null, onIrA, o
         setEvidencias(arr)
         guardarEvidenciasLocal(planActivo.id, diaActivo.diaNum, arr)
       }
-      setMensajeInstrumento({ tipo:'ok', texto:'Evaluación registrada: resultado guardado, Mi Registro actualizado y evidencias creadas.' })
+      // E2d-2: si el expediente de alguno no se actualizó, se dice (antes: éxito igual)
+      setMensajeInstrumento(avisos.length
+        ? { tipo:'error', texto: mensajeAvisosExpediente(avisos) }
+        : { tipo:'ok', texto:'Evaluación registrada: resultado guardado, Mi Registro actualizado y evidencias creadas.' })
     } catch (error) {
       console.error('[ModoAula] Error en evaluar y registrar:', error)
       setMensajeInstrumento({ tipo:'error', texto:`No se pudo guardar: ${error.message || 'revisa la conexión e intenta otra vez.'}` })
