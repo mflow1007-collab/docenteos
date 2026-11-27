@@ -1,5 +1,6 @@
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase.js';
+import { conTiempoLimite } from '../utils/vigilarEscritura.js';
 
 // ─── ID determinístico por estudiante dentro de un curso ──────────────────────
 export function estudianteDocId(cursoId, estId) {
@@ -136,7 +137,7 @@ export async function escribirExpedienteDesdeRegistro({
   grado,
   estudiantesModificados = null,
 }) {
-  if (!auth?.currentUser || !db) return;
+  if (!auth?.currentUser || !db) return { fallidos: [] };
   const uid = auth.currentUser.uid;
 
   // Si se pasa una lista de IDs modificados, solo actualizar esos estudiantes
@@ -145,7 +146,7 @@ export async function escribirExpedienteDesdeRegistro({
     ? estudiantes.filter((est) => filtro.has(est.id))
     : estudiantes;
 
-  if (estudiantesAActualizar.length === 0) return;
+  if (estudiantesAActualizar.length === 0) return { fallidos: [] };
 
   const writes = estudiantesAActualizar.map(async (est) => {
     const docId = estudianteDocId(cursoId, est.id);
@@ -196,7 +197,37 @@ export async function escribirExpedienteDesdeRegistro({
     );
   });
 
-  await Promise.allSettled(writes);
+  // E2 (auditoría 2026-11-27): antes allSettled descartaba los fallos.
+  const resultados = await Promise.allSettled(writes);
+  const fallidos = [];
+  resultados.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      fallidos.push(estudiantesAActualizar[i].id);
+      console.error('[expediente] No se actualizó el expediente de', estudiantesAActualizar[i].id, r.reason);
+    }
+  });
+  return { fallidos };
+}
+
+/**
+ * E2: escribe el expediente con tiempo límite y NUNCA lanza ni se queda esperando.
+ * Devuelve { estado: 'ok' | 'parcial' | 'sin_conexion' | 'error', pendientes: [ids] }.
+ * Los pendientes son los estudiantes que hay que volver a marcar como modificados.
+ */
+export async function escribirExpedienteConLimite(params, { esperaMs = 10000 } = {}) {
+  const todos = params.estudiantesModificados ?? (params.estudiantes || []).map((e) => e.id);
+  try {
+    const r = await conTiempoLimite(escribirExpedienteDesdeRegistro(params), esperaMs);
+    if (r.vencido) {
+      console.warn('[expediente] Sin confirmar tras', esperaMs, 'ms; quedan pendientes', todos);
+      return { estado: 'sin_conexion', pendientes: todos };
+    }
+    const fallidos = r.valor?.fallidos ?? [];
+    return { estado: fallidos.length ? 'parcial' : 'ok', pendientes: fallidos };
+  } catch (error) {
+    console.error('[expediente] No se actualizó el expediente:', error);
+    return { estado: 'error', pendientes: todos };
+  }
 }
 
 // ─── Lee el expediente de un estudiante ──────────────────────────────────────

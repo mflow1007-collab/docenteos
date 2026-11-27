@@ -1350,6 +1350,7 @@
 }
 .registro-msg-guardado.ok    { background: rgba(220, 252, 231, 0.25); border: 1px solid #86efac; color: #dcfce7; }
 .registro-msg-guardado.error { background: rgba(254, 226, 226, 0.25); border: 1px solid #fca5a5; color: #fee2e2; }
+.registro-msg-cerrar { margin-left: 10px; background: none; border: none; color: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
 @keyframes fadeInMsg {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }

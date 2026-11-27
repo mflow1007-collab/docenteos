@@ -20,7 +20,7 @@ import { construirInformeCurso, htmlInformeCurso, periodoDeFecha } from "../serv
 import { fechaLocalISO } from "../services/hiloPedagogico.js";
 import { obtenerAsistenciaCurso, obtenerSuspensiones } from "../services/asistenciaService.js";
 import { calendarioParaFecha, proximaEntregaReportes } from "../data/calendarioEscolarMINERD.js";
-import { escribirExpedienteDesdeRegistro } from "../services/expedienteEstudianteService.js";
+import { escribirExpedienteConLimite } from "../services/expedienteEstudianteService.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
 import { escHtml } from "../utils/html.js";
@@ -1026,8 +1026,9 @@ function RegistroPage({
   const handleGuardar = async () => {
     setGuardando(true);
     setMensajeGuardado(null);
+    let mensajeFinal = null;
     try {
-      await guardarRegistroCalificaciones({
+      const { mode } = await guardarRegistroCalificaciones({
         cursoId,
         area,
         grado,
@@ -1041,21 +1042,8 @@ function RegistroPage({
         desdePagina: true,
       });
       guardarBorradorLocal();
-      setEstadoNube({ estado: "ok", hora: new Date().toLocaleTimeString("es-DO") });
-      // Escritura silenciosa al expediente — solo estudiantes con notas modificadas
-      const modificados = [...estudiantesModificadosRef.current];
-      estudiantesModificadosRef.current = new Set();
-      escribirExpedienteDesdeRegistro({
-        estudiantes,
-        notasEstudiantes,
-        asistencia,
-        observaciones,
-        cursoId,
-        cursoNombre,
-        area,
-        grado,
-        estudiantesModificados: modificados.length > 0 ? modificados : null,
-      }).catch(() => {});
+      // E2: el resumen del curso (promedios, asistencia) se actualiza siempre,
+      // también en modo local, y no depende del expediente.
       if (curso && typeof onActualizarCurso === "function") {
         const estudiantesDetalle = estudiantes.map((est) => {
           const notas = getNotasEstudiante(est.id);
@@ -1084,13 +1072,48 @@ function RegistroPage({
             : curso.promedio,
         });
       }
-      setMensajeGuardado({ tipo: "ok", texto: "✅ Registro guardado correctamente." });
+      // E2: sin sesión el registro solo queda en este equipo; no decir "en la nube".
+      if (mode !== "firebase") {
+        setEstadoNube({ estado: "error", mensaje: "sin sesión en la nube" });
+        mensajeFinal = { tipo: "error", texto: "⚠️ El registro se guardó solo en este equipo, no en la nube. Inicia sesión y pulsa «Guardar» de nuevo." };
+        return;
+      }
+      setEstadoNube({ estado: "ok", hora: new Date().toLocaleTimeString("es-DO") });
+      // E2: expediente con tiempo límite. Los pendientes vuelven a marcarse para
+      // reintentar con el próximo «Guardar»; lo editado durante el guardado se conserva.
+      const modificados = [...estudiantesModificadosRef.current];
+      estudiantesModificadosRef.current = new Set();
+      const expediente = await escribirExpedienteConLimite({
+        estudiantes,
+        notasEstudiantes,
+        asistencia,
+        observaciones,
+        cursoId,
+        cursoNombre,
+        area,
+        grado,
+        estudiantesModificados: modificados.length > 0 ? modificados : null,
+      });
+      expediente.pendientes.forEach((id) => estudiantesModificadosRef.current.add(id));
+      mensajeFinal =
+        expediente.estado === "ok"
+          ? { tipo: "ok", texto: "✅ Registro guardado correctamente." }
+          : expediente.estado === "sin_conexion"
+            ? { tipo: "error", texto: "⚠️ Sin conexión: el expediente de los estudiantes no se ha actualizado. Pulsa «Guardar» cuando vuelva la conexión." }
+            : { tipo: "error", texto: `⚠️ Registro guardado en la nube, pero no se actualizó el expediente de ${expediente.pendientes.length} estudiante(s). Pulsa «Guardar» de nuevo para reintentar.` };
     } catch (error) {
-      setEstadoNube({ estado: "error", mensaje: error?.message || "error desconocido" });
-      setMensajeGuardado({ tipo: "error", texto: `❌ No se guardó en la nube: ${error?.message || "error desconocido"}. Quedó en este equipo; intenta de nuevo.` });
+      // E2: el detalle técnico solo en consola; al docente, la acción.
+      console.error("[Registro] No se guardó en la nube:", error);
+      setEstadoNube({ estado: "error", mensaje: "revisa la conexión" });
+      mensajeFinal = { tipo: "error", texto: "❌ No se guardó en la nube. Quedó en este equipo; revisa la conexión y pulsa «Guardar» de nuevo." };
     } finally {
       setGuardando(false);
-      setTimeout(() => setMensajeGuardado(null), 4000);
+      setMensajeGuardado(mensajeFinal);
+      // E2: solo el éxito desaparece solo; los errores se quedan hasta cerrarlos.
+      // La comparación evita que el temporizador de un guardado anterior borre un error nuevo.
+      if (mensajeFinal?.tipo === "ok") {
+        setTimeout(() => setMensajeGuardado((actual) => (actual === mensajeFinal ? null : actual)), 4000);
+      }
     }
   };
 
@@ -1366,6 +1389,10 @@ function RegistroPage({
           {mensajeGuardado && (
             <div className={`registro-msg-guardado ${mensajeGuardado.tipo}`}>
               {mensajeGuardado.texto}
+              {mensajeGuardado.tipo === "error" && (
+                <button type="button" className="registro-msg-cerrar" aria-label="Cerrar aviso"
+                  onClick={() => setMensajeGuardado(null)}>×</button>
+              )}
             </div>
           )}
         </div>
