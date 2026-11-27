@@ -25,12 +25,17 @@ globalThis.__sesion = true;
 const FIRESTORE = `
   export const doc = (_db, ...p) => ({ r: p.join("/"), id: p[p.length - 1] });
   export const serverTimestamp = () => "ahora";
-  export const getDoc = async () => ({ exists: () => false, data: () => ({}) });
+  export const getDoc = async (d) => {
+    if (globalThis.__getDocModo?.[d.id] === "falla") throw Object.assign(new Error("client is offline"), { code: "unavailable" });
+    const previo = globalThis.__previos?.[d.id];
+    return { exists: () => Boolean(previo), data: () => previo || {} };
+  };
   export const setDoc = (d, v) => {
     const modo = globalThis.__setDocModo[d.id];
     if (modo === "nunca") return new Promise(() => {});
     if (modo === "falla") return Promise.reject(Object.assign(new Error("permiso"), { code: "permission-denied" }));
     globalThis.__escritosExp.push(d.id);
+    (globalThis.__datosExp ||= {})[d.id] = v;
     return Promise.resolve();
   };
 `;
@@ -56,9 +61,13 @@ const params = (extra = {}) => ({
 });
 // El docId del expediente incluye el id del estudiante; se busca por sufijo.
 const idDoc = (estId) => `c1_${estId}`;
-const reiniciar = (modos = {}) => {
-  globalThis.__setDocModo = Object.fromEntries(Object.entries(modos).map(([e, m]) => [idDoc(e), m]));
+const reiniciar = (modos = {}, { lectura = {}, previos = {} } = {}) => {
+  const porDoc = (o) => Object.fromEntries(Object.entries(o).map(([e, m]) => [idDoc(e), m]));
+  globalThis.__setDocModo = porDoc(modos);
+  globalThis.__getDocModo = porDoc(lectura);
+  globalThis.__previos = porDoc(previos);
   globalThis.__escritosExp = [];
+  globalThis.__datosExp = {};
   globalThis.__sesion = true;
 };
 
@@ -78,6 +87,23 @@ await check("2 de 3 fallan: devuelve esos 2 y escribe el tercero", async () => {
   const r = await escribirExpedienteDesdeRegistro(params());
   assert.deepEqual(r.fallidos.sort(), ["e1", "e3"]);
   assert.deepEqual(globalThis.__escritosExp, [idDoc("e2")]);
+});
+
+await check("E2c: falla la lectura del historial → NO escribe ese estudiante y va a fallidos", async () => {
+  reiniciar({}, { lectura: { e2: "falla" } });
+  const r = await escribirExpedienteDesdeRegistro(params());
+  assert.deepEqual(r.fallidos, ["e2"]);
+  assert.ok(!globalThis.__escritosExp.includes(idDoc("e2")), "sin setDoc para e2");
+  assert.deepEqual(globalThis.__escritosExp.sort(), [idDoc("e1"), idDoc("e3")], "los demás se escriben");
+});
+
+await check("E2c: con lectura correcta se conserva el historial previo", async () => {
+  const viejo = Array.from({ length: 70 }, (_, i) => ({ id: `viejo${i}`, tipo: "nota" }));
+  reiniciar({}, { previos: { e1: { timeline: viejo } } });
+  await escribirExpedienteDesdeRegistro(params({ estudiantesModificados: ["e1"] }));
+  const tl = globalThis.__datosExp[idDoc("e1")].timeline;
+  assert.equal(tl[0].id, "viejo0", "el historial previo sigue");
+  assert.equal(tl.length, 60, "tope de 60 entradas");
 });
 
 await check("con límite: parcial y pendientes = fallidos", async () => {

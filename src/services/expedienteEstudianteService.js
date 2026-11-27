@@ -163,12 +163,13 @@ export async function escribirExpedienteDesdeRegistro({
 
     const ref = doc(db, 'usuarios', uid, 'expedientesEstudiantes', docId);
 
-    // Leer timeline existente para hacer merge (max 60 entradas)
-    let timelinePrevio = [];
-    try {
-      const snap = await getDoc(ref);
-      if (snap.exists()) timelinePrevio = snap.data().timeline ?? [];
-    } catch { /* sin acceso previo, empezar limpio */ }
+    // Leer timeline existente para hacer merge (max 60 entradas).
+    // E2c (auditoría 2026-11-27): si la lectura falla NO se escribe. Con merge, el
+    // timeline se reemplazaría solo con las entradas nuevas y se perdería el
+    // historial. El error rechaza la escritura de este estudiante: allSettled lo
+    // cuenta como fallido y E2 lo deja pendiente para el próximo «Guardar».
+    const snap = await getDoc(ref);
+    const timelinePrevio = snap.exists() ? (snap.data().timeline ?? []) : [];
 
     // Deduplicar por id y truncar
     const idsNuevos = new Set(nuevoTimeline.map((e) => e.id));
