@@ -17,7 +17,7 @@ import {
   assertSucceeds,
   assertFails,
 } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, getDoc, getDocs, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc } from "firebase/firestore";
 
 const PROJECT_ID = "demo-docenteos";
 const DOCENTE = "docente-1";
@@ -214,14 +214,68 @@ await check("docente NO se sube créditos", () =>
   assertFails(updateDoc(doc(docente, "usuarios", DOCENTE), { creditosPlanificacionDisponibles: 99 })));
 await check("docente NO se crea un campo de créditos con saldo", () =>
   assertFails(updateDoc(doc(docente, "usuarios", DOCENTE), { creditos: 5 })));
-await check("docente sigue editando su perfil", () =>
-  assertSucceeds(updateDoc(doc(docente, "usuarios", DOCENTE), { nombre: "Docente 1" })));
+await check("docente sigue editando su perfil institucional", () =>
+  assertSucceeds(setDoc(doc(docente, "usuarios", DOCENTE), {
+    perfilInstitucional: { nombreCentro: "Liceo X", perfilCompletado: true },
+    perfilInstitucionalCompleto: true, perfilActualizadoEn: serverTimestamp(), centroId: "12345",
+  }, { merge: true })));
 await check("docente NO crea su perfil con créditos", () =>
   assertFails(setDoc(doc(env.authenticatedContext("nuevo-1", { email: "n@ejemplo.com", email_verified: true }).firestore(), "usuarios", "nuevo-1"), { creditos: 10 })));
 await check("registro normal (sin créditos) sigue funcionando", () =>
   assertSucceeds(setDoc(doc(env.authenticatedContext("nuevo-2", { email: "m@ejemplo.com", email_verified: true }).firestore(), "usuarios", "nuevo-2"), { nombre: "M", usoMensual: "Pendiente de completar" }, { merge: true })));
 await check("admin sí asigna créditos", () =>
   assertSucceeds(updateDoc(doc(admin, "usuarios", DOCENTE), { creditosPlanificacionDisponibles: 2 })));
+
+console.log("\nS1: suscripción y campos protegidos del perfil");
+const FUTURO = Timestamp.fromMillis(Date.now() + 365 * DIA);
+const ctxDe = (uid) => env.authenticatedContext(uid, { email: `${uid}@ejemplo.com`, email_verified: true }).firestore();
+await env.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), "usuarios", "susc-1"), { nombre: "S", rol: "docente", subscriptionStatus: "suspended", creditos: 1 });
+  await setDoc(doc(ctx.firestore(), "usuarios", "susc-2"), { nombre: "T", subscriptionStatus: "active" });
+  await setDoc(doc(ctx.firestore(), "usuarios", "susc-3"), { nombre: "U", subscriptionStatus: "active" });
+});
+const s1 = ctxDe("susc-1");
+await check("docente NO se activa la suscripción", () =>
+  assertFails(updateDoc(doc(s1, "usuarios", "susc-1"), { subscriptionStatus: "active" })));
+await check("docente NO extiende subscriptionEndAt", () =>
+  assertFails(updateDoc(doc(s1, "usuarios", "susc-1"), { subscriptionEndAt: FUTURO })));
+await check("docente NO extiende graceEndsAt", () =>
+  assertFails(updateDoc(doc(s1, "usuarios", "susc-1"), { graceEndsAt: FUTURO })));
+await check("docente NO borra subscriptionStatus", () =>
+  assertFails(updateDoc(doc(s1, "usuarios", "susc-1"), { subscriptionStatus: deleteField() })));
+await check("docente NO sube créditos", () =>
+  assertFails(updateDoc(doc(s1, "usuarios", "susc-1"), { creditos: 5 })));
+await check("docente NO se da créditos vía usoMensual", () =>
+  assertFails(updateDoc(doc(s1, "usuarios", "susc-1"), { usoMensual: { creditosDisponibles: 99 } })));
+await check("docente NO cambia su rol", () =>
+  assertFails(updateDoc(doc(s1, "usuarios", "susc-1"), { rol: "director" })));
+// Payloads exactos de checkAndSyncExpiration (subscriptionService.js:93-94)
+const s2 = ctxDe("susc-2");
+await check("vencimiento: active → grace_period", () =>
+  assertSucceeds(updateDoc(doc(s2, "usuarios", "susc-2"), { subscriptionStatus: "grace_period" })));
+await check("vencimiento: grace_period → suspended", () =>
+  assertSucceeds(updateDoc(doc(s2, "usuarios", "susc-2"), { subscriptionStatus: "suspended", suspendedAt: serverTimestamp() })));
+await check("vencimiento: active → suspended", () =>
+  assertSucceeds(updateDoc(doc(ctxDe("susc-3"), "usuarios", "susc-3"), { subscriptionStatus: "suspended", suspendedAt: serverTimestamp() })));
+await check("admin sí activa la suscripción", () =>
+  assertSucceeds(updateDoc(doc(admin, "usuarios", "susc-1"), { subscriptionStatus: "active", subscriptionEndAt: FUTURO, activatedBy: "admin-1" })));
+
+const registro = (uid, extra = {}) => ({
+  uid, nombre: "Nuevo", email: `${uid}@ejemplo.com`, rol: "docente", cargo: "Docente",
+  estado: "pendiente", fechaCreacion: serverTimestamp(), actualizadoEn: serverTimestamp(),
+  suscripcion: "Pendiente de completar", temaActivo: "Pendiente de completar",
+  usoMensual: "Pendiente de completar", ...extra,
+});
+await check("registro completo (RegistroPage) funciona", () =>
+  assertSucceeds(setDoc(doc(ctxDe("nuevo-3"), "usuarios", "nuevo-3"), registro("nuevo-3"), { merge: true })));
+await check("NO crea perfil con estado alterado", () =>
+  assertFails(setDoc(doc(ctxDe("nuevo-4"), "usuarios", "nuevo-4"), registro("nuevo-4", { estado: "activo" }))));
+await check("NO crea perfil con suscripcion alterada", () =>
+  assertFails(setDoc(doc(ctxDe("nuevo-5"), "usuarios", "nuevo-5"), registro("nuevo-5", { suscripcion: "Premium" }))));
+await check("NO crea perfil con subscriptionStatus", () =>
+  assertFails(setDoc(doc(ctxDe("nuevo-6"), "usuarios", "nuevo-6"), registro("nuevo-6", { subscriptionStatus: "active" }))));
+await check("NO crea perfil con rol fuera de la lista", () =>
+  assertFails(setDoc(doc(ctxDe("nuevo-7"), "usuarios", "nuevo-7"), registro("nuevo-7", { rol: "admin" }))));
 
 await check("docente reserva cupo libre", () =>
   assertSucceeds(setDoc(doc(docente, "usuarios", DOCENTE, "cuposGrado", CLAVE), cupo(), { merge: true })));

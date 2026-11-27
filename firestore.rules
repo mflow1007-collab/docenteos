@@ -59,10 +59,50 @@ service cloud.firestore {
 
     // ── Perfil de usuario + todas sus subcollections ─────────────────────────
     match /usuarios/{userId} {
+      // S1 (auditoría 2026-11-27): el dueño solo edita una lista blanca de
+      // campos. Suscripción, rol, estado, suscripcion y usoMensual (que
+      // resolverCreditosDisponibles lee como créditos) son del admin.
+      function camposEditablesPorDueno() {
+        return ['temaActivo', 'temaSecundario', 'temaTercero', 'temaCuarto',
+          'actualizadoEn',
+          'creditosPlanificacionDisponibles', 'creditosDisponibles', 'creditos',
+          'perfilInstitucional', 'perfilInstitucionalCompleto',
+          'perfilActualizadoEn', 'centroId'];
+      }
+      // Única escritura de suscripción del dueño: bajarse al vencer
+      // (checkAndSyncExpiration en subscriptionService.js). Nunca subir.
+      function bajaPorVencimiento() {
+        let antes = resource.data.get('subscriptionStatus', null);
+        let despues = request.resource.data.get('subscriptionStatus', null);
+        return request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['subscriptionStatus', 'suspendedAt'])
+          && ((antes == 'active' && despues in ['grace_period', 'suspended'])
+            || (antes == 'grace_period' && despues == 'suspended'));
+      }
+      // Creación: campos del registro (RegistroPage.jsx) más los que pueden
+      // crear el documento si el registro falló (perfil institucional, temas).
+      // Valores iniciales fijos; sin campos de suscripción ni créditos.
+      function perfilInicialValido() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['uid', 'nombre', 'email', 'rol', 'cargo', 'estado',
+            'fechaCreacion', 'actualizadoEn', 'suscripcion', 'usoMensual',
+            'temaActivo', 'temaSecundario', 'temaTercero', 'temaCuarto',
+            'perfilInstitucional', 'perfilInstitucionalCompleto',
+            'perfilActualizadoEn', 'centroId'])
+          && d.get('uid', userId) == userId
+          && d.get('rol', 'docente') in ['docente', 'coordinador', 'director', 'orientador', 'psicologo']
+          && d.get('estado', 'pendiente') == 'pendiente'
+          && d.get('suscripcion', 'Pendiente de completar') == 'Pendiente de completar'
+          && d.get('usoMensual', 'Pendiente de completar') == 'Pendiente de completar';
+      }
       allow read, delete: if isOwner(userId) || isAdmin();
       // Etapa E: el docente no se asigna créditos (antes: write libre del dueño)
-      allow create: if isAdmin() || (isOwner(userId) && creditosIniciales());
-      allow update: if isAdmin() || (isOwner(userId) && creditosNoSuben());
+      allow create: if isAdmin() || (isOwner(userId) && creditosIniciales()
+        && perfilInicialValido());
+      allow update: if isAdmin() || (isOwner(userId) && creditosNoSuben()
+        && (request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(camposEditablesPorDueno())
+          || bajaPorVencimiento()));
 
       // Etapa E: 1 plan activo por grado + asignatura (las secciones comparten).
       // Clave = nivel__grado__asignatura (copia exacta en src/utils/cupoGrado.js).
