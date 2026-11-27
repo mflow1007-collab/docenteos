@@ -272,7 +272,17 @@ export const actualizarExpedienteConEvidencia = async ({ evidencia, instrumento,
  */
 export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion, cursoId, evidenciaDelResultado = "" }) => {
   const cursoIdRegistro = cursoId || instrumento.cursoId || "registro-general";
-  const resultado = await obtenerRegistroCalificaciones(cursoIdRegistro).catch(() => ({ data: null }));
+  // E2f (auditoría 2026-11-27): si la lectura del registro falla, NO se escribe.
+  // Antes seguía con un registro vacío y guardarRegistroCalificaciones (merge)
+  // reemplazaba la asistencia (arreglo) y las observaciones del curso.
+  // "Curso sin registro todavía" no es un fallo: la lectura devuelve mode "local".
+  let resultado;
+  try {
+    resultado = await obtenerRegistroCalificaciones(cursoIdRegistro);
+  } catch (error) {
+    console.error("[nucleo] No se pudo leer el registro; no se escribe nada:", error);
+    return { evaluacion: null, evidencia: null, registro: null, fallosNube: ["registro"] };
+  }
   const registroActual = resultado?.data || {};
   const evaluacionesActuales = registroActual.evaluacionesInstrumentos || {};
   const evaluacionId = crearEvaluacionIdPedagogica(instrumento);

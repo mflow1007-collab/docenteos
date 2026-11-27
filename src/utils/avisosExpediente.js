@@ -4,7 +4,7 @@
  * si fue la nota, NO puede decir "Mi Registro actualizado". Volver a guardar es
  * seguro: ids deterministas, fusión por id y la regla 12 en transacción.
  */
-const DEL_REGISTRO = new Set(["nota", "aspecto"]);
+const DEL_REGISTRO = new Set(["nota", "aspecto", "registro"]);
 const DEL_EXPEDIENTE = new Set(["expediente", "evidencia", "puente"]);
 
 export const mensajeAvisosExpediente = (avisos = []) => {
