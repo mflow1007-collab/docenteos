@@ -89,7 +89,7 @@ async function obtenerGrupoAcademico(grupoId) {
   return local;
 }
 
-async function guardarGrupoAcademico(curso, estudiantes) {
+async function guardarGrupoAcademico(curso, estudiantes, { onErrorNube } = {}) {
   const grupoId = construirGrupoAcademicoId(curso);
   const payload = {
     id: grupoId,
@@ -107,24 +107,30 @@ async function guardarGrupoAcademico(curso, estudiantes) {
 
   if (db && auth?.currentUser) {
     const uid = auth.currentUser.uid;
-    await setDoc(doc(db, "usuarios", uid, "gruposAcademicos", grupoId), {
-      ...payload,
-      uid,
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-    }, { merge: true }).catch(() => {});
+    try {
+      // Sin createdAt: con merge se sobrescribía en cada guardado y nadie lo lee.
+      await setDoc(doc(db, "usuarios", uid, "gruposAcademicos", grupoId), {
+        ...payload,
+        uid,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (error) {
+      // E1: antes se tragaba el error y el docente creía que el grupo estaba en la nube.
+      console.error("[gruposAcademicos] No se guardó el grupo en la nube:", grupoId, error);
+      onErrorNube?.(`No se guardó en la nube la lista de estudiantes de ${curso.nombre || grupoId}. Quedó en este equipo y se reintentará automáticamente.`);
+    }
   }
 
   return payload;
 }
 
-export async function sincronizarCursoConGrupoAcademico(curso = {}) {
+export async function sincronizarCursoConGrupoAcademico(curso = {}, opciones = {}) {
   const grupoAcademicoId = construirGrupoAcademicoId(curso);
   const base = { ...curso, grupoAcademicoId };
   const estudiantes = estudiantesNormalizados(base);
 
   if (esMatriculaOficial(base) && estudiantes.length > 0) {
-    await guardarGrupoAcademico(base, estudiantes);
+    await guardarGrupoAcademico(base, estudiantes, opciones);
     return {
       ...base,
       estudiantesDetalle: estudiantes,
@@ -148,10 +154,10 @@ export async function sincronizarCursoConGrupoAcademico(curso = {}) {
   return base;
 }
 
-export async function sincronizarCursosConGruposAcademicos(cursos = []) {
+export async function sincronizarCursosConGruposAcademicos(cursos = [], opciones = {}) {
   const salida = [];
   for (const curso of cursos) {
-    salida.push(await sincronizarCursoConGrupoAcademico(curso));
+    salida.push(await sincronizarCursoConGrupoAcademico(curso, opciones));
   }
   return salida;
 }

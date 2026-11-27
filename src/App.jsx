@@ -230,7 +230,7 @@ function AppInner() {
       setCursoSeleccionadoId(nuevoCurso.id);
       guardarCursoActivoId(nuevoCurso.id);
     }
-    sincronizarCursoConGrupoAcademico(nuevoCurso)
+    sincronizarCursoConGrupoAcademico(nuevoCurso, { onErrorNube: setErrorCarga })
       .then((cursoSync) => {
         setCursos((prev) => prev.map((curso) => curso.id === cursoSync.id ? enriquecerCursoInicial(cursoSync) : curso));
         return guardarCursoFS(cursoSync);
@@ -271,7 +271,7 @@ function AppInner() {
     if (cursoSeleccionadoId === cursoActualizado.id) {
       setCursoSeleccionadoId(cursoActualizado.id);
     }
-    sincronizarCursoConGrupoAcademico(cursoActualizado)
+    sincronizarCursoConGrupoAcademico(cursoActualizado, { onErrorNube: setErrorCarga })
       .then((cursoSync) => {
         setCursos((prev) => prev.map((curso) => curso.id === cursoSync.id ? enriquecerCursoInicial(cursoSync) : curso));
         return guardarCursoFS(cursoSync);
@@ -405,7 +405,7 @@ function AppInner() {
         if (!activo) return;
         if (resultado.success && resultado.data.length > 0) {
           const base = resultado.data.map((c, i) => enriquecerCursoInicial(c, i));
-          const conGrupo = await sincronizarCursosConGruposAcademicos(base);
+          const conGrupo = await sincronizarCursosConGruposAcademicos(base, { onErrorNube: setErrorCarga });
           const enriquecidos = await sincronizarCursosConRegistros(conGrupo.map((c, i) => enriquecerCursoInicial(c, i)));
           if (!activo) return;
           setCursos(enriquecidos);
@@ -501,7 +501,7 @@ function AppInner() {
   const refrescarCursosDesdeRegistros = useCallback(() => {
     if (!cursosLoaded || !cursos.length) return;
 
-    sincronizarCursosConGruposAcademicos(cursos)
+    sincronizarCursosConGruposAcademicos(cursos, { onErrorNube: setErrorCarga })
       .then((conGrupo) => sincronizarCursosConRegistros(conGrupo))
       .then((sincronizados) => setCursos(sincronizados.map((curso, indice) => enriquecerCursoInicial(curso, indice))))
       .catch((err) => console.error("[App] Error al refrescar cursos desde registros:", err));
