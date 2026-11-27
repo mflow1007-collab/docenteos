@@ -134,6 +134,15 @@ const pagina = readFileSync(new URL("../src/pages/RegistroCalificacionesPage.jsx
 const inicio = pagina.indexOf("const handleGuardar = async () => {");
 const guardar = pagina.slice(inicio, pagina.indexOf("\n  };", inicio));
 
+await check("autoguardado: no muestra error.message en el estado de la nube", () => {
+  const i = pagina.indexOf("guardarRegistroCalificaciones({ ...payload, desdePagina: true })");
+  assert.ok(i > 0, "no se encontró el autoguardado");
+  const bloque = pagina.slice(i, pagina.indexOf("}, 700);", i));
+  assert.ok(!/mensaje: error\?\.message/.test(bloque), "sin detalle técnico");
+  assert.match(bloque, /mensaje: "revisa la conexión"/);
+  assert.match(bloque, /console\.error\(/);
+});
+
 await check("E2b página: el registro se espera con tiempo límite dentro del try", () => {
   const iTry = guardar.indexOf("try {");
   const iEspera = guardar.indexOf("await esperarOFallar(guardarRegistroCalificaciones(");

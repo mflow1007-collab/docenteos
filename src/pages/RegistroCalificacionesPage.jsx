@@ -566,7 +566,9 @@ function RegistroPage({
           : { estado: "error", mensaje: "sin sesión o sin conexión" }))
         .catch((error) => {
           // El borrador local ya quedó protegido; el guardado remoto se reintenta con el siguiente cambio.
-          setEstadoNube({ estado: "error", mensaje: error?.message || "error desconocido" });
+          // Sin detalle técnico al docente (como en E2): va a la consola.
+          console.error("[Registro] Autoguardado en la nube falló:", error);
+          setEstadoNube({ estado: "error", mensaje: "revisa la conexión" });
         });
     }, 700);
 
