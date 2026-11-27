@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import {
   auth,
   db,
@@ -9,7 +9,7 @@ import {
   guardarRegistroNota,
   obtenerRegistroCalificaciones,
 } from "../firebase";
-import { estudianteDocId } from "./expedienteEstudianteService";
+import { estudianteDocId, TOPE_EVIDENCIAS_EXPEDIENTE, TOPE_TIMELINE_EXPEDIENTE } from "./expedienteEstudianteService";
 import { aplicarNotaEnCelda } from "./hiloPedagogico.js";
 
 const VALOR_INSTRUMENTO = {
@@ -176,24 +176,12 @@ const guardarEvidenciaFirestore = async (evidencia) => {
   );
 };
 
-const actualizarExpedienteConEvidencia = async ({ evidencia, instrumento, registroResumen }) => {
+export const actualizarExpedienteConEvidencia = async ({ evidencia, instrumento, registroResumen }) => {
   if (!auth?.currentUser || !db) return;
   const uid = auth.currentUser.uid;
   const cursoId = evidencia.referencias.cursoId;
   const estudianteId = evidencia.referencias.estudianteId;
   const expedienteRef = doc(db, "usuarios", uid, "expedientesEstudiantes", estudianteDocId(cursoId, estudianteId));
-
-  let evidenciaPrevias = [];
-  let timelinePrevio = [];
-  try {
-    const snap = await getDoc(expedienteRef);
-    if (snap.exists()) {
-      evidenciaPrevias = snap.data().evidencias || [];
-      timelinePrevio = snap.data().timeline || [];
-    }
-  } catch {
-    // Si no puede leerse, se recrea el expediente mínimo desde la evidencia actual.
-  }
 
   const evidenciaResumen = {
     id: evidencia.id,
@@ -207,12 +195,6 @@ const actualizarExpedienteConEvidencia = async ({ evidencia, instrumento, regist
     adjuntos: evidencia.adjuntos,
     fecha: evidencia.fecha,
   };
-  const evidenciaIds = new Set([evidencia.id]);
-  const evidencias = [
-    evidenciaResumen,
-    ...evidenciaPrevias.filter((item) => !evidenciaIds.has(item.id)),
-  ].slice(0, 120);
-
   const timelineEntry = {
     id: evidencia.id,
     fecha: evidencia.fecha,
@@ -223,27 +205,39 @@ const actualizarExpedienteConEvidencia = async ({ evidencia, instrumento, regist
     icono: "evaluacion",
     referencias: evidencia.referencias,
   };
-  const timeline = [
-    timelineEntry,
-    ...timelinePrevio.filter((item) => item.id !== evidencia.id),
-  ].slice(0, 80);
+  // E2d (auditoría 2026-11-27): antes, si la lectura fallaba, se "recreaba el
+  // expediente mínimo" y con merge se BORRABAN las evidencias y el historial.
+  // Ahora leer → fusionar → escribir va en una transacción: si la lectura falla
+  // rechaza y no escribe; si otro escritor cambió el documento, se repite.
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(expedienteRef);
+    const previo = snap.exists() ? snap.data() : {};
+    const evidencias = [
+      evidenciaResumen,
+      ...(previo.evidencias || []).filter((item) => item.id !== evidencia.id),
+    ].slice(0, TOPE_EVIDENCIAS_EXPEDIENTE);
+    const timeline = [
+      timelineEntry,
+      ...(previo.timeline || []).filter((item) => item.id !== evidencia.id),
+    ].slice(0, TOPE_TIMELINE_EXPEDIENTE);
 
-  await setDoc(
-    expedienteRef,
-    {
-      id: estudianteDocId(cursoId, estudianteId),
-      nombre: evidencia.estudiante.nombre,
-      cursoId,
-      cursoNombre: instrumento.curso || "",
-      area: instrumento.area || "",
-      grado: instrumento.grado || "",
-      promedio: registroResumen?.porcentaje ?? null,
-      evidencias,
-      timeline,
-      actualizadoEn: serverTimestamp(),
-    },
-    { merge: true }
-  );
+    tx.set(
+      expedienteRef,
+      {
+        id: estudianteDocId(cursoId, estudianteId),
+        nombre: evidencia.estudiante.nombre,
+        cursoId,
+        cursoNombre: instrumento.curso || "",
+        area: instrumento.area || "",
+        grado: instrumento.grado || "",
+        promedio: registroResumen?.porcentaje ?? null,
+        evidencias,
+        timeline,
+        actualizadoEn: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
 };
 
 /**

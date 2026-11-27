@@ -30,6 +30,13 @@ const FIRESTORE = `
     const previo = globalThis.__previos?.[d.id];
     return { exists: () => Boolean(previo), data: () => previo || {} };
   };
+  // E2d: transacción simple (get + set confirmados al final con setDoc)
+  export const runTransaction = async (_db, fn) => {
+    const sets = [];
+    const r = await fn({ get: (d) => getDoc(d), set: (d, v) => { sets.push([d, v]); } });
+    for (const [d, v] of sets) await setDoc(d, v);
+    return r;
+  };
   export const setDoc = (d, v) => {
     const modo = globalThis.__setDocModo[d.id];
     if (modo === "nunca") return new Promise(() => {});
@@ -97,13 +104,13 @@ await check("E2c: falla la lectura del historial → NO escribe ese estudiante y
   assert.deepEqual(globalThis.__escritosExp.sort(), [idDoc("e1"), idDoc("e3")], "los demás se escriben");
 });
 
-await check("E2c: con lectura correcta se conserva el historial previo", async () => {
-  const viejo = Array.from({ length: 70 }, (_, i) => ({ id: `viejo${i}`, tipo: "nota" }));
+await check("E2c: con lectura correcta se conserva el historial previo (tope único de 80, E2d)", async () => {
+  const viejo = Array.from({ length: 90 }, (_, i) => ({ id: `viejo${i}`, tipo: "nota" }));
   reiniciar({}, { previos: { e1: { timeline: viejo } } });
   await escribirExpedienteDesdeRegistro(params({ estudiantesModificados: ["e1"] }));
   const tl = globalThis.__datosExp[idDoc("e1")].timeline;
   assert.equal(tl[0].id, "viejo0", "el historial previo sigue");
-  assert.equal(tl.length, 60, "tope de 60 entradas");
+  assert.equal(tl.length, 80, "tope de 80 entradas");
 });
 
 await check("con límite: parcial y pendientes = fallidos", async () => {

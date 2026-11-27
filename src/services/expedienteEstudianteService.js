@@ -1,6 +1,12 @@
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase.js';
 import { conTiempoLimite } from '../utils/vigilarEscritura.js';
+
+// E2d: topes únicos del expediente, compartidos por los dos escritores
+// (este servicio y nucleoPedagogicoService). Antes el timeline se recortaba a
+// 60 aquí y a 80 allá: cada guardado desde el Registro borraba las 61–80.
+export const TOPE_TIMELINE_EXPEDIENTE = 80;
+export const TOPE_EVIDENCIAS_EXPEDIENTE = 120;
 
 // ─── ID determinístico por estudiante dentro de un curso ──────────────────────
 export function estudianteDocId(cursoId, estId) {
@@ -163,39 +169,42 @@ export async function escribirExpedienteDesdeRegistro({
 
     const ref = doc(db, 'usuarios', uid, 'expedientesEstudiantes', docId);
 
-    // Leer timeline existente para hacer merge (max 60 entradas).
-    // E2c (auditoría 2026-11-27): si la lectura falla NO se escribe. Con merge, el
-    // timeline se reemplazaría solo con las entradas nuevas y se perdería el
-    // historial. El error rechaza la escritura de este estudiante: allSettled lo
-    // cuenta como fallido y E2 lo deja pendiente para el próximo «Guardar».
-    const snap = await getDoc(ref);
-    const timelinePrevio = snap.exists() ? (snap.data().timeline ?? []) : [];
+    // E2d: leer → fusionar → escribir en una transacción. Si otro escritor
+    // (evidencias, otra pestaña) cambia el documento, Firestore repite la fusión
+    // con lo nuevo: nadie borra lo que agregó el otro. Sin conexión rechaza.
+    // E2c (auditoría 2026-11-27): si la lectura falla NO se escribe (con merge,
+    // el timeline se reemplazaría solo con las entradas nuevas). El error
+    // rechaza: allSettled lo cuenta como fallido y E2 lo deja pendiente.
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const timelinePrevio = snap.exists() ? (snap.data().timeline ?? []) : [];
 
-    // Deduplicar por id y truncar
-    const idsNuevos = new Set(nuevoTimeline.map((e) => e.id));
-    const merged = [
-      ...nuevoTimeline,
-      ...timelinePrevio.filter((e) => !idsNuevos.has(e.id)),
-    ].slice(0, 60);
+      // Deduplicar por id y truncar
+      const idsNuevos = new Set(nuevoTimeline.map((e) => e.id));
+      const merged = [
+        ...nuevoTimeline,
+        ...timelinePrevio.filter((e) => !idsNuevos.has(e.id)),
+      ].slice(0, TOPE_TIMELINE_EXPEDIENTE);
 
-    await setDoc(
-      ref,
-      {
-        id: docId,
-        nombre: est.nombre,
-        cursoId,
-        cursoNombre,
-        area,
-        grado,
-        promedio,
-        asistenciaPct,
-        evaluaciones,
-        observacion: observaciones?.[est.id] ?? '',
-        timeline: merged,
-        actualizadoEn: serverTimestamp(),
-      },
-      { merge: true }
-    );
+      tx.set(
+        ref,
+        {
+          id: docId,
+          nombre: est.nombre,
+          cursoId,
+          cursoNombre,
+          area,
+          grado,
+          promedio,
+          asistenciaPct,
+          evaluaciones,
+          observacion: observaciones?.[est.id] ?? '',
+          timeline: merged,
+          actualizadoEn: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
   });
 
   // E2 (auditoría 2026-11-27): antes allSettled descartaba los fallos.
