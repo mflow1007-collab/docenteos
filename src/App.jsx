@@ -21,6 +21,7 @@ import { conIdsEstudiantes } from "./utils/idEstudiante.js";
 import { aplicarHorariosACursos } from "./utils/horarioSemanal.js";
 import { aplicarListaACurso } from "./utils/horaExtra.js";
 import { sincronizarCursoConGrupoAcademico, sincronizarCursosConGruposAcademicos } from "./services/gruposAcademicosService.js";
+import { vigilarEscritura } from "./utils/vigilarEscritura.js";
 import { SidebarGrupo, SidebarItem } from "./components/AppSidebar.jsx";
 import Inicio from "./components/Inicio.jsx";
 import Cursos from "./components/Cursos.jsx";
@@ -230,6 +231,20 @@ function AppInner() {
     setErrorCarga(`No se guardó en la nube el curso ${curso?.nombre || ""}. Ve a Cursos, pulsa «Editar curso» y luego «Guardar curso» antes de recargar la página, o se perderá.`);
   };
 
+  // E1b2: sin conexión, el guardado queda pendiente sin fallar. Aviso a los ~10 s,
+  // que se quita solo al confirmarse, y pregunta del navegador al cerrar/recargar.
+  const vigilarGuardadoCurso = (curso, promesa) => {
+    const aviso = `Sin conexión: el curso ${curso?.nombre || ""} todavía no está en la nube. No cierres ni recargues la página hasta que vuelva la conexión.`;
+    return vigilarEscritura(promesa, {
+      alEmpezar: () => setEscriturasCursoPendientes((n) => n + 1),
+      alTardar: () => setErrorCarga(aviso),
+      alTerminar: ({ tardo }) => {
+        setEscriturasCursoPendientes((n) => Math.max(0, n - 1));
+        if (tardo) setErrorCarga((actual) => (actual === aviso ? null : actual));
+      },
+    });
+  };
+
   const crearCurso = (cursoNuevo) => {
     // ID permanente para cada estudiante que aún no lo tenga (regla única)
     const nuevoCurso = conIdsEstudiantes(cursoNuevo);
@@ -238,15 +253,15 @@ function AppInner() {
       setCursoSeleccionadoId(nuevoCurso.id);
       guardarCursoActivoId(nuevoCurso.id);
     }
-    sincronizarCursoConGrupoAcademico(nuevoCurso, { onErrorNube: setErrorCarga })
+    vigilarGuardadoCurso(nuevoCurso, sincronizarCursoConGrupoAcademico(nuevoCurso, { onErrorNube: setErrorCarga })
       .then((cursoSync) => {
         setCursos((prev) => prev.map((curso) => curso.id === cursoSync.id ? enriquecerCursoInicial(cursoSync) : curso));
         return guardarCursoFS(cursoSync);
       })
       .catch((err) => {
         console.error("[App] Error al sincronizar/guardar curso:", err);
-        guardarCursoFS(nuevoCurso).catch((error) => avisarCursoNoGuardado(nuevoCurso, error));
-      });
+        return guardarCursoFS(nuevoCurso).catch((error) => avisarCursoNoGuardado(nuevoCurso, error));
+      }));
   };
 
   const abrirHorarioCurso = (cursoId) => {
@@ -279,15 +294,15 @@ function AppInner() {
     if (cursoSeleccionadoId === cursoActualizado.id) {
       setCursoSeleccionadoId(cursoActualizado.id);
     }
-    sincronizarCursoConGrupoAcademico(cursoActualizado, { onErrorNube: setErrorCarga })
+    vigilarGuardadoCurso(cursoActualizado, sincronizarCursoConGrupoAcademico(cursoActualizado, { onErrorNube: setErrorCarga })
       .then((cursoSync) => {
         setCursos((prev) => prev.map((curso) => curso.id === cursoSync.id ? enriquecerCursoInicial(cursoSync) : curso));
         return guardarCursoFS(cursoSync);
       })
       .catch((err) => {
         console.error("[App] Error al sincronizar/actualizar curso:", err);
-        guardarCursoFS(cursoActualizado).catch((error) => avisarCursoNoGuardado(cursoActualizado, error));
-      });
+        return guardarCursoFS(cursoActualizado).catch((error) => avisarCursoNoGuardado(cursoActualizado, error));
+      }));
   };
 
   const eliminarCurso = (idCurso) => {
@@ -403,6 +418,17 @@ function AppInner() {
   }, [user?.uid, navegar]);
 
   const [errorCarga, setErrorCarga] = useState(null);
+  const [escriturasCursoPendientes, setEscriturasCursoPendientes] = useState(0);
+  const hayEscriturasCursoPendientes = escriturasCursoPendientes > 0;
+
+  // E1b2: mientras haya guardados de curso sin confirmar, el navegador pregunta
+  // antes de cerrar o recargar. Se quita al llegar a 0.
+  useEffect(() => {
+    if (!hayEscriturasCursoPendientes) return undefined;
+    const preguntar = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", preguntar);
+    return () => window.removeEventListener("beforeunload", preguntar);
+  }, [hayEscriturasCursoPendientes]);
 
   // Cargar cursos desde Firestore al montar
   useEffect(() => {
