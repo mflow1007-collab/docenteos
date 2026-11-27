@@ -21,3 +21,11 @@ export function conTiempoLimite(promesa, esperaMs) {
   return Promise.race([Promise.resolve(promesa).then((valor) => ({ vencido: false, valor })), limite])
     .finally(() => clearTimeout(temporizador));
 }
+
+// E2b: como conTiempoLimite, pero si vence RECHAZA (para usarlo dentro de un try
+// que ya maneja el error). La escritura no se cancela y puede terminar después.
+export async function esperarOFallar(promesa, esperaMs, mensaje = "tiempo de espera agotado") {
+  const r = await conTiempoLimite(promesa, esperaMs);
+  if (r.vencido) throw Object.assign(new Error(mensaje), { code: "tiempo-agotado" });
+  return r.valor;
+}

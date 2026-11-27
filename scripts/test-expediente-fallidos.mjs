@@ -134,6 +134,13 @@ const pagina = readFileSync(new URL("../src/pages/RegistroCalificacionesPage.jsx
 const inicio = pagina.indexOf("const handleGuardar = async () => {");
 const guardar = pagina.slice(inicio, pagina.indexOf("\n  };", inicio));
 
+await check("E2b página: el registro se espera con tiempo límite dentro del try", () => {
+  const iTry = guardar.indexOf("try {");
+  const iEspera = guardar.indexOf("await esperarOFallar(guardarRegistroCalificaciones(");
+  assert.ok(iEspera > iTry && iTry >= 0, "esperarOFallar(guardarRegistroCalificaciones(...)) dentro del try");
+  assert.ok(iEspera < guardar.indexOf("} catch (error) {"), "antes del catch que muestra «No se guardó»");
+});
+
 await check("página: el expediente ya no se traga el error", () => {
   assert.ok(!/escribirExpediente\w*\([\s\S]*?\)\.catch\(\(\) => \{\}\)/.test(guardar));
   assert.match(guardar, /await escribirExpedienteConLimite\(/);

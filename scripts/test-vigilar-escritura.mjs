@@ -12,7 +12,7 @@
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { vigilarEscritura } from "../src/utils/vigilarEscritura.js";
+import { vigilarEscritura, esperarOFallar } from "../src/utils/vigilarEscritura.js";
 
 let pasos = 0, fallos = 0;
 const check = async (n, fn) => { try { await fn(); pasos += 1; console.log(`  ✓ ${n}`); } catch (e) { fallos += 1; console.log(`  ✗ ${n}: ${e.message}`); } };
@@ -53,6 +53,20 @@ await check("escritura que falla: termina y deja pasar el error", async () => {
 
 await check("sin callbacks: no falla", async () => {
   assert.equal(await vigilarEscritura(Promise.resolve(1)), 1);
+});
+
+// E2b: esperarOFallar (guardado del registro con tiempo límite)
+await check("E2b: promesa que NUNCA termina → rechaza en el plazo con code tiempo-agotado", async () => {
+  const t0 = Date.now();
+  await assert.rejects(esperarOFallar(new Promise(() => {}), 20, "sin confirmar"),
+    (e) => e.code === "tiempo-agotado" && e.message === "sin confirmar");
+  assert.ok(Date.now() - t0 < 1000);
+});
+await check("E2b: promesa rápida → devuelve el valor", async () => {
+  assert.deepEqual(await esperarOFallar(Promise.resolve({ mode: "firebase" }), 50), { mode: "firebase" });
+});
+await check("E2b: promesa que rechaza → deja pasar el error original", async () => {
+  await assert.rejects(esperarOFallar(Promise.reject(new Error("permiso")), 50), /permiso/);
 });
 
 // ── Código fuente de App.jsx ────────────────────────────────────────────────

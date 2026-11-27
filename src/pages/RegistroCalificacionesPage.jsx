@@ -21,6 +21,7 @@ import { fechaLocalISO } from "../services/hiloPedagogico.js";
 import { obtenerAsistenciaCurso, obtenerSuspensiones } from "../services/asistenciaService.js";
 import { calendarioParaFecha, proximaEntregaReportes } from "../data/calendarioEscolarMINERD.js";
 import { escribirExpedienteConLimite } from "../services/expedienteEstudianteService.js";
+import { esperarOFallar } from "../utils/vigilarEscritura.js";
 import { aceptarCalculoAutomatico } from "../services/registroService.js";
 import { esRegistroAnecdotico } from "../utils/registroAnecdotico.js";
 import { escHtml } from "../utils/html.js";
@@ -1028,7 +1029,9 @@ function RegistroPage({
     setMensajeGuardado(null);
     let mensajeFinal = null;
     try {
-      const { mode } = await guardarRegistroCalificaciones({
+      // E2b: sin conexión, getDoc/setDoc del registro pueden quedar pendientes; a los
+      // ~10 s se libera el botón y cae en el catch con el mensaje de "no se guardó".
+      const { mode } = await esperarOFallar(guardarRegistroCalificaciones({
         cursoId,
         area,
         grado,
@@ -1040,7 +1043,7 @@ function RegistroPage({
         observaciones,
         evaluacionesInstrumentos,
         desdePagina: true,
-      });
+      }), 10000, "el registro no se confirmó en la nube a tiempo");
       guardarBorradorLocal();
       // E2: el resumen del curso (promedios, asistencia) se actualiza siempre,
       // también en modo local, y no depende del expediente.
