@@ -47,6 +47,7 @@ const FIREBASE = `
   export const crearAspectoIdDesdeInstrumento = () => "a1";
   export const guardarEvidenciaEstudiante = nada, guardarRegistroAspectoDesdeInstrumento = nada,
     guardarRegistroCalificaciones = nada, guardarRegistroNota = nada;
+  export const guardarRegistroNotaLocal = () => {};
   export const obtenerRegistroCalificaciones = async () => ({ data: {} });
 `;
 const FALSOS = { "firebase/firestore": FIRESTORE, "../firebase": FIREBASE, "../firebase.js": FIREBASE };

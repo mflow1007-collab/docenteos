@@ -62,6 +62,7 @@ const FIREBASE = `
   export const crearAspectoIdDesdeInstrumento = () => "a1";
   export const guardarEvidenciaEstudiante = nada, guardarRegistroAspectoDesdeInstrumento = nada,
     guardarRegistroCalificaciones = nada, guardarRegistroNota = nada, obtenerRegistroCalificaciones = nada;
+  export const guardarRegistroNotaLocal = () => {};
 `;
 const FALSOS = { "firebase/firestore": FIRESTORE, "../firebase": FIREBASE, "../firebase.js": FIREBASE };
 registerHooks({

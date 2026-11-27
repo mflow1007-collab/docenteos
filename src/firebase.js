@@ -33,6 +33,7 @@ import { verificarTamanoDocumento, fusionarComoFirestore } from "./utils/tamanoD
 import { payloadRemotoDePagina, sinIndefinidos } from "./utils/registroGuardado.js";
 import { aplicarHorariosACursos } from "./utils/horarioSemanal.js";
 import { aplicarListaACurso } from "./utils/horaExtra.js";
+import { construirPayloadNota } from "./utils/notaRegistro.js";
 
 // import.meta.env solo existe bajo Vite; en Node (tests) queda {} y
 // isFirebaseConfigured=false — mismo comportamiento que sin credenciales.
@@ -951,29 +952,21 @@ export const obtenerRegistroAspectos = async (cursoId) => {
   }
 };
 
+/** E2e: guarda solo la copia local de una nota (payload ya construido). */
+export const guardarRegistroNotaLocal = (payload) => {
+  const localKey = registroNotasKey(payload.cursoId);
+  guardarMapaLocal(localKey, { ...leerMapaLocal(localKey), [payload.notaId]: payload });
+};
+
 export const guardarRegistroNota = async (nota) => {
   if (!nota?.cursoId) throw new Error("cursoId es obligatorio");
   if (!nota?.estudianteId) throw new Error("estudianteId es obligatorio");
   if (!nota?.aspectoId) throw new Error("aspectoId es obligatorio");
-  const notaId = String(nota.notaId || `${nota.estudianteId}_${nota.aspectoId}`);
-  const puntajeMaximo = Number(nota.puntajeMaximo) || 0;
-  const valorObtenido = nota.valorObtenido === "" || nota.valorObtenido === null || nota.valorObtenido === undefined
-    ? ""
-    : Number(nota.valorObtenido);
-  const porcentaje = puntajeMaximo > 0 && valorObtenido !== "" ? Math.round((Number(valorObtenido) / puntajeMaximo) * 100) : null;
-  const payload = {
-    ...nota,
-    notaId,
-    id: notaId,
-    valorObtenido,
-    puntajeMaximo,
-    porcentaje,
-    fechaActualizacion: new Date().toISOString(),
-  };
+  // E2e: mismo cálculo que antes, en src/utils/notaRegistro.js (lo usa también la ruta de instrumentos)
+  const payload = construirPayloadNota(nota);
+  const { notaId } = payload;
 
-  const localKey = registroNotasKey(payload.cursoId);
-  const locales = leerMapaLocal(localKey);
-  guardarMapaLocal(localKey, { ...locales, [notaId]: payload });
+  guardarRegistroNotaLocal(payload);
 
   if (isFirebaseConfigured && auth && db && auth.currentUser) {
     const uid = auth.currentUser.uid;

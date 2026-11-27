@@ -1,4 +1,4 @@
-import { doc, getDoc, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import {
   auth,
   db,
@@ -7,8 +7,10 @@ import {
   guardarRegistroAspectoDesdeInstrumento,
   guardarRegistroCalificaciones,
   guardarRegistroNota,
+  guardarRegistroNotaLocal,
   obtenerRegistroCalificaciones,
 } from "../firebase";
+import { aplicarAjusteManual, construirPayloadNota } from "../utils/notaRegistro.js";
 import { estudianteDocId, TOPE_EVIDENCIAS_EXPEDIENTE, TOPE_TIMELINE_EXPEDIENTE } from "./expedienteEstudianteService";
 import { aplicarNotaEnCelda } from "./hiloPedagogico.js";
 
@@ -174,6 +176,27 @@ const guardarEvidenciaFirestore = async (evidencia) => {
     },
     { merge: true }
   );
+};
+
+/**
+ * E2e (auditoría 2026-11-27): nota que viene de un instrumento. Leer la nota
+ * previa y escribir van en UNA transacción: si la lectura falla, NO se escribe
+ * (antes se escribía el cálculo y se pisaba el ajuste manual del docente).
+ * Regla 12: con ajusteManual, valorObtenido nunca se pisa.
+ */
+export const guardarNotaDesdeInstrumento = async (nota) => {
+  if (!auth?.currentUser || !db) return guardarRegistroNota(nota); // modo local: como antes
+  const uid = auth.currentUser.uid;
+  const { notaId } = construirPayloadNota(nota);
+  const ref = doc(db, "usuarios", uid, "cursos", String(nota.cursoId), "registroNotas", notaId);
+  const final = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const payload = construirPayloadNota(aplicarAjusteManual(nota, snap.exists() ? snap.data() : null));
+    tx.set(ref, { ...payload, uid, actualizadoPor: uid, actualizadoEn: serverTimestamp() }, { merge: true });
+    return payload;
+  });
+  guardarRegistroNotaLocal(final);
+  return { success: true, mode: "firebase", data: final };
 };
 
 export const actualizarExpedienteConEvidencia = async ({ evidencia, instrumento, registroResumen }) => {
@@ -431,8 +454,7 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
 
   guardarEvidenciaLocal(cursoIdRegistro, evidencia);
 
-  // Regla 12 sobre la nota por aspecto: si el docente la ajustó manualmente,
-  // se respeta valorObtenido y solo se actualiza el cálculo + desactualizado.
+  // Regla 12: la aplica guardarNotaDesdeInstrumento dentro de la transacción (E2e).
   const notaAspecto = {
     cursoId: cursoIdRegistro,
     estudianteId: aplicacion.estudianteId,
@@ -446,30 +468,18 @@ export const sincronizarEvaluacionPedagogica = async ({ instrumento, aplicacion,
     observacion: aplicacion.observacion || "",
     fechaActualizacion: aplicacion.fecha || new Date().toISOString(),
   };
-  try {
-    if (auth?.currentUser && db) {
-      const notaRef = doc(
-        db, "usuarios", auth.currentUser.uid, "cursos", String(cursoIdRegistro),
-        "registroNotas", `${aplicacion.estudianteId}_${aspectoId}`
-      );
-      const notaSnap = await getDoc(notaRef);
-      if (notaSnap.exists() && notaSnap.data().ajusteManual) {
-        const previa = notaSnap.data();
-        notaAspecto.valorObtenido = previa.valorObtenido;      // ajuste respetado
-        notaAspecto.ajusteManual = true;
-        notaAspecto.motivoAjuste = previa.motivoAjuste || "";
-        notaAspecto.desactualizado = Number(previa.valorObtenido) !== Number(aplicacion.puntosObtenidos);
-      }
-    }
-  } catch {
-    // Si no se puede leer la nota previa, se procede con la escritura estándar.
-  }
-
-  await Promise.allSettled([
+  const [rAspecto, rNota, rEvidenciaEst] = await Promise.allSettled([
     guardarRegistroAspectoDesdeInstrumento({ ...instrumento, aspectoId }),
-    guardarRegistroNota(notaAspecto),
+    guardarNotaDesdeInstrumento(notaAspecto),
     guardarEvidenciaEstudiante(evidencia),
   ]);
+  // E2e: antes este allSettled descartaba los fallos.
+  [[rAspecto, "aspecto"], [rNota, "nota"], [rEvidenciaEst, "evidencia"]].forEach(([r, que]) => {
+    if (r.status === "rejected") {
+      console.error(`[nucleo] No se guardó ${que}:`, r.reason);
+      fallosNube.push(que);
+    }
+  });
   const [rEvidencia, rExpediente] = await Promise.allSettled([
     guardarEvidenciaFirestore(evidencia),
     actualizarExpedienteConEvidencia({
